@@ -17,6 +17,7 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_observer.cuh"
+#include "dump_thermo.cuh"
 #include "model/box.cuh"
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
@@ -166,21 +167,16 @@ void Dump_Observer::end_of_step(
   if (((step + 1) % dump_interval_thermo_ != 0) && ((step + 1) % dump_interval_exyz_ != 0))
     return;
 
-  int number_of_atoms_fixed =
-    (fixed_group < 0)
-      ? 0
-      : group[integrate.get_fixed_grouping_method()].cpu_size[fixed_group];
-  number_of_atoms_fixed +=
-    (move_group < 0)
-      ? 0
-      : group[integrate.get_move_grouping_method()].cpu_size[move_group];
+  const bool write_thermo = (step + 1) % dump_interval_thermo_ == 0;
+  const int number_of_atoms_fixed =
+    (fixed_group < 0) ? 0 : group[integrate.get_fixed_grouping_method()].cpu_size[fixed_group];
+  const int number_of_atoms_moving = atom.number_of_atoms - number_of_atoms_fixed;
 
   if (mode_.compare("observe") == 0) {
     // Every potential is evaluated into scratch arrays at the positions of the frame, which leaves
     // the per-atom arrays and the thermo vector of the run unchanged for the next step and for the
     // other actions.
     const int number_of_potentials = force.get_number_of_potentials();
-    const int number_of_atoms = atom.type.size();
     for (int potential_index = 0; potential_index < number_of_potentials; potential_index++) {
       force.compute_one_potential(
         potential_index,
@@ -212,12 +208,19 @@ void Dump_Observer::end_of_step(
         observer_virial_per_atom_,
         observer_thermo_,
         potential_index);
-      write_thermo(
-        step, number_of_atoms, number_of_atoms_fixed, box, observer_thermo_, potential_index);
+      if (write_thermo) {
+        // Ensemble::find_thermo stores the temperature, also under PIMD.
+        write_thermo_row(
+          thermo_files_[potential_index],
+          observer_thermo_,
+          false,
+          temperature,
+          number_of_atoms_moving,
+          box);
+      }
     }
   } else if (mode_.compare("average") == 0) {
     // If average, dump already computed properties to file.
-    const int number_of_atoms = atom.type.size();
     write_exyz(
       step,
       global_time,
@@ -231,7 +234,15 @@ void Dump_Observer::end_of_step(
       atom.virial_per_atom,
       thermo,
       0);
-    write_thermo(step, number_of_atoms, number_of_atoms_fixed, box, thermo, 0);
+    if (write_thermo) {
+      write_thermo_row(
+        thermo_files_[0],
+        thermo,
+        is_pimd(integrate.get_type()),
+        temperature,
+        number_of_atoms_moving,
+        box);
+    }
   }
 }
 
@@ -364,53 +375,6 @@ void Dump_Observer::write_exyz(
     fprintf(fid_, "\n");
   }
 
-  fflush(fid_);
-}
-
-void Dump_Observer::write_thermo(
-  const int step,
-  const int number_of_atoms,
-  const int number_of_atoms_fixed,
-  const Box& box,
-  GPU_Vector<double>& gpu_thermo,
-  const int file_index)
-{
-  if ((step + 1) % dump_interval_thermo_ != 0)
-    return;
-
-  FILE* fid_ = thermo_files_[file_index];
-  double thermo[8];
-  gpu_thermo.copy_to_host(thermo, 8);
-
-  const int number_of_atoms_moving = number_of_atoms - number_of_atoms_fixed;
-  double energy_kin = 1.5 * number_of_atoms_moving * K_B * thermo[0];
-
-  // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
-  fprintf(
-    fid_,
-    "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e",
-    thermo[0],
-    energy_kin,
-    thermo[1],
-    thermo[2] * PRESSURE_UNIT_CONVERSION,
-    thermo[3] * PRESSURE_UNIT_CONVERSION,
-    thermo[4] * PRESSURE_UNIT_CONVERSION,
-    thermo[7] * PRESSURE_UNIT_CONVERSION,
-    thermo[6] * PRESSURE_UNIT_CONVERSION,
-    thermo[5] * PRESSURE_UNIT_CONVERSION);
-
-  fprintf(
-    fid_,
-    "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n",
-    box.cpu_h[0],
-    box.cpu_h[3],
-    box.cpu_h[6],
-    box.cpu_h[1],
-    box.cpu_h[4],
-    box.cpu_h[7],
-    box.cpu_h[2],
-    box.cpu_h[5],
-    box.cpu_h[8]);
   fflush(fid_);
 }
 

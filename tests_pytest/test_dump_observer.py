@@ -171,3 +171,43 @@ def test_observer_of_temperature_nep(tmp_path, gpumd_command):
     potential_energy = np.loadtxt(tmp_path / 'thermo.out')[:, 2]
     observer_potential_energy = np.loadtxt(tmp_path / 'observer.out')[:, 2]
     assert observer_potential_energy == approx_tol(potential_energy, TOLERANCES['energy'])
+
+
+# The two groupings of the row tests: atoms alternating between two groups, and atoms 0 to 7 fixed,
+# 8 to 15 moving and the rest in a third group.
+ALTERNATING = [list(range(0, 64, 2)), list(range(1, 64, 2))]
+FIX_AND_MOVE = [list(range(8)), list(range(8, 16)), list(range(16, 64))]
+ROW_CASES = {
+    'pimd': (ALTERNATING, ['ensemble pimd 4 300 300 100', 'time_step 0.5']),
+    'move_group': (FIX_AND_MOVE, ['fix 0', 'move 1 0.001 0 0', 'ensemble nvt_ber 300 300 100',
+                                  'time_step 1']),
+}
+
+
+def _run_rows(directory, gpumd_command, case, observer):
+    """Runs nep_C.txt twice as the potentials and returns the last rows of thermo.out and of the
+    observer file of the main potential."""
+    groups, keywords = ROW_CASES[case]
+    _write_diamond_cell(directory, 2, groupings=[groups])
+    run_in = [f'potential {MODEL_PATH}', f'potential {MODEL_PATH}', 'velocity 300 seed 1']
+    run_in += keywords + ['dump_thermo 5', observer, 'run 10']
+    (directory / 'run.in').write_text('\n'.join(run_in) + '\n')
+    subprocess.run([gpumd_command], cwd=directory, check=True, stdout=subprocess.DEVNULL)
+    name = 'observer.out' if 'average' in observer else 'observer0.out'
+    return np.loadtxt(directory / 'thermo.out')[-1], np.loadtxt(directory / name)[-1]
+
+
+@pytest.mark.parametrize('case', list(ROW_CASES))
+def test_average_observer_row_equals_thermo_row(tmp_path, gpumd_command, case):
+    """In average mode, a row of observer.out equals the row of thermo.out of the same step."""
+    thermo, observer = _run_rows(tmp_path, gpumd_command, case, 'dump_observer average 5 5 0 0')
+    assert np.array_equal(observer, thermo)
+
+
+def test_observer_kinetic_energy_counts_moving_atoms(tmp_path, gpumd_command):
+    """In observe mode, the kinetic energy column counts the atoms outside the fixed group, as
+    thermo.out does."""
+    thermo, observer = _run_rows(
+        tmp_path, gpumd_command, 'move_group', 'dump_observer observe 5 5 0 0')
+    # columns 0 and 1 are the temperature and the kinetic energy
+    assert observer[1] / observer[0] == approx_tol(thermo[1] / thermo[0], TOLERANCES['energy'])

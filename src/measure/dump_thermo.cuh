@@ -20,6 +20,17 @@
 #include <vector>
 class Box;
 
+// Writes a row of thermo.out from the thermo vector T, U and the six components of the stress.
+// A PIMD ensemble stores the kinetic energy instead of the temperature in that vector, and the
+// row then holds the target temperature.
+void write_thermo_row(
+  FILE* fid,
+  GPU_Vector<double>& gpu_thermo,
+  const bool thermo_holds_kinetic_energy,
+  const double temperature_target,
+  const int number_of_atoms_moving,
+  const Box& box);
+
 class Dump_Thermo : public Action
 {
 public:

@@ -94,11 +94,4 @@ private:
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo,
     const int file_index);
-  void write_thermo(
-    const int step,
-    const int number_of_atoms,
-    const int number_of_atoms_fixed,
-    const Box& box,
-    GPU_Vector<double>& gpu_thermo,
-    const int file_index);
 };
