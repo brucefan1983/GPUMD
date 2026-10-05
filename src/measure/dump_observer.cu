@@ -51,27 +51,6 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-static __global__ void initialize_properties(
-  int N, double* g_fx, double* g_fy, double* g_fz, double* g_pe, double* g_virial)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    g_fx[n1] = 0.0;
-    g_fy[n1] = 0.0;
-    g_fz[n1] = 0.0;
-    g_pe[n1] = 0.0;
-    g_virial[n1 + 0 * N] = 0.0;
-    g_virial[n1 + 1 * N] = 0.0;
-    g_virial[n1 + 2 * N] = 0.0;
-    g_virial[n1 + 3 * N] = 0.0;
-    g_virial[n1 + 4 * N] = 0.0;
-    g_virial[n1 + 5 * N] = 0.0;
-    g_virial[n1 + 6 * N] = 0.0;
-    g_virial[n1 + 7 * N] = 0.0;
-    g_virial[n1 + 8 * N] = 0.0;
-  }
-}
-
 Dump_Observer::Dump_Observer(const std::vector<std::string>& tokens)
 {
   parse(tokens);
@@ -164,6 +143,13 @@ void Dump_Observer::pre_run(
     if (has_force_) {
       cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
     }
+    if (mode_.compare("observe") == 0) {
+      observer_potential_per_atom_.resize(atom.number_of_atoms);
+      observer_force_per_atom_.resize(atom.number_of_atoms * 3);
+      observer_virial_per_atom_.resize(atom.number_of_atoms * 9);
+      // Ensemble::find_thermo writes T, U and the six components of the stress.
+      observer_thermo_.resize(8);
+    }
   }
 }
 
@@ -197,37 +183,29 @@ void Dump_Observer::end_of_step(
       : group[integrate.get_move_grouping_method()].cpu_size[move_group];
 
   if (mode_.compare("observe") == 0) {
-    // If observing, calculate properties with all potentials.
+    // Every potential is evaluated into scratch arrays at the positions of the frame, which leaves
+    // the per-atom arrays and the thermo vector of the run unchanged for the next step and for the
+    // other actions.
     const int number_of_potentials = force.get_number_of_potentials();
     const int number_of_atoms = atom.type.size();
-    // Loop backwards over files to evaluate the main potential last, keeping it's properties intact
-    for (int potential_index = number_of_potentials - 1; potential_index >= 0; potential_index--) {
-      // Set potential/force/virials to zero
-      initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-        number_of_atoms,
-        atom.force_per_atom.data(),
-        atom.force_per_atom.data() + number_of_atoms,
-        atom.force_per_atom.data() + number_of_atoms * 2,
-        atom.potential_per_atom.data(),
-        atom.virial_per_atom.data());
-      GPU_CHECK_KERNEL
-      // Compute new potential properties
-      force.get_potential(potential_index).compute(
+    for (int potential_index = 0; potential_index < number_of_potentials; potential_index++) {
+      force.compute_one_potential(
+        potential_index,
         box,
-        atom.type,
         atom.position_per_atom,
-        atom.potential_per_atom,
-        atom.force_per_atom,
-        atom.virial_per_atom);
+        atom.type,
+        group,
+        observer_potential_per_atom_,
+        observer_force_per_atom_,
+        observer_virial_per_atom_);
       integrate.find_thermo(
         box.get_volume(),
         group,
         atom.mass,
-        atom.potential_per_atom,
+        observer_potential_per_atom_,
         atom.velocity_per_atom,
-        atom.virial_per_atom,
-        thermo);
-      // Write properties
+        observer_virial_per_atom_,
+        observer_thermo_);
       write_exyz(
         step,
         global_time,
@@ -238,11 +216,12 @@ void Dump_Observer::end_of_step(
         atom.cpu_position_per_atom,
         atom.velocity_per_atom,
         atom.cpu_velocity_per_atom,
-        atom.force_per_atom,
-        atom.virial_per_atom,
-        thermo,
+        observer_force_per_atom_,
+        observer_virial_per_atom_,
+        observer_thermo_,
         potential_index);
-      write_thermo(step, number_of_atoms, number_of_atoms_fixed, box, thermo, potential_index);
+      write_thermo(
+        step, number_of_atoms, number_of_atoms_fixed, box, observer_thermo_, potential_index);
     }
   } else if (mode_.compare("average") == 0) {
     // If average, dump already computed properties to file.
