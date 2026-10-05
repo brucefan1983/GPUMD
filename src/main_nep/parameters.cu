@@ -1056,7 +1056,7 @@ void Parameters::report_inputs()
     printf("    (default) will not add the ZBL potential.\n");
   }
 
-  if (is_charge_mode_set) {
+  if (charge_mode > 0) {
     if (charge_mode == 1) {
       printf("    (input)   use NEP-Charge and include both real-space and k-space.\n");
     } else if (charge_mode == 2) {
