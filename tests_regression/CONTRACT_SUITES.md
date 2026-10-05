@@ -40,13 +40,11 @@ relations when not all members are selected and therefore do not replace the
 
 ## Cross-case relation oracles
 
-The original 23 relations are evaluated independently for baseline and candidate.
-The two PPPM default-equivalence relations apply to the candidate, because the
-old baseline rejects explicit spacing. They use narrowly declared numerical
-tolerances for same-mesh float atomics; see `PPPM.md`. They
-express stronger behavior than baseline/candidate equality alone because they
-compare different inputs that should be physically or operationally
-equivalent.
+All 25 relations are evaluated independently for baseline and candidate.
+The two PPPM default-equivalence relations use narrowly declared numerical
+tolerances for same-mesh float atomics; see `PPPM.md`. The relations compare
+different inputs that should be physically or operationally equivalent,
+complementing the baseline/candidate comparisons.
 
 | Relation | Oracle |
 |---|---|

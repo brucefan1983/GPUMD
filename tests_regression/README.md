@@ -39,8 +39,8 @@ regression-specific inputs self-contained.
 ## Acceptance contract
 
 `full` is the only acceptance suite. It contains all 253 cases and evaluates
-all 25 cross-case relations after the cases pass. Every case runs for both the baseline and candidate. The two new PPPM default-equivalence
-relations run for the candidate; the other 23 relations run for both executables. A successful run ends with:
+all 25 cross-case relations after the cases pass. Every case and relation runs
+for both the baseline and candidate, using the same expectations. A successful run ends with:
 
 ```text
 Summary: 253 passed, 0 failed; relations: 25 passed, 0 failed, 0 skipped
@@ -53,6 +53,26 @@ source change is:
 1. validate the manifest;
 2. build the baseline and candidate consistently;
 3. run `--suite full`.
+
+### Check the test setup with identical executables
+
+When changing this suite or its build environment, first pass the same binary
+as both baseline and candidate. This checks the shared expectations and the
+numerical noise bounds without mixing in a source change:
+
+```bash
+python3 tests_regression/run_regression.py \
+  --repo-root "$PWD" \
+  --baseline "$PWD/src/gpumd" --candidate "$PWD/src/gpumd" \
+  --baseline-nep "$PWD/src/nep" --candidate-nep "$PWD/src/nep" \
+  --suite full --keep-all
+```
+
+The intended self-comparison result is 253 passing cases and 25 passing
+relations. A failure requires inspecting the diagnostic or numerical delta;
+using the same executable does not bypass any check or guarantee bitwise
+GPU reproducibility. After self-comparison, use the accepted and candidate
+executables for the normal regression run.
 
 ## Requirements and reproducible builds
 
@@ -160,9 +180,11 @@ skipped relations. See `CONTRACT_SUITES.md` for the durable relation oracles.
 
 Every selected case starts the matching program's baseline once and candidate once in
 separate fresh working directories. The runner does not repeatedly execute a
-binary to establish self-repeatability. There are no candidate-only cases. PPPM transition cases explicitly declare
-role-specific expectations for the pinned old baseline and the new candidate;
-see [PPPM.md](PPPM.md). Other cases retain their shared contract.
+binary to establish self-repeatability. Both roles use the same expected exit
+code, diagnostics, output inventory and functional checks. All cases compare
+the two runs. Version-specific expectations and switches that disable a role
+or its result comparison are not supported. See [PPPM.md](PPPM.md) for PPPM
+checks and numerical bounds.
 
 Cases default to `program: gpumd`. Training cases declare `program: nep`, which
 causes the runner to stage their input as `nep.in` and select the NEP executable
@@ -176,9 +198,9 @@ Comparison is deliberately strict:
 
 - the generated-file inventory must exactly match the manifest;
 - ordinary generated files are compared byte for byte;
-- `stdout` is compared after removing declared timing and speed noise; for a
-  case with an explicit `pppm` contract, validated candidate mesh lines are
-  checked separately and then removed from the stream comparison;
+- `stdout` is compared after removing the version banner and declared timing
+  and speed metadata identically on both sides; PPPM mesh lines are retained
+  and checked independently for each executable;
 - `stderr` is compared after removing only internal source-file and source-line
   locations;
 - missing, unexpected, empty, or unauthorized modified files fail the case.
@@ -193,9 +215,11 @@ including under exact-byte mode.
 The manifest contains narrowly scoped zero-relative-tolerance numerical
 comparisons for qNEP outputs affected by unordered single-precision GPU
 accumulation. The comparator still requires identical token counts, token
-order, and nonnumeric text, and rejects non-finite or overflowing values. The new same-mesh PPPM cases have provisional, explicitly scoped absolute
-tolerances that still need confirmation on the target GPU. Other outputs remain
-byte-exact unless their manifest entry explicitly says otherwise.
+order, and nonnumeric text, and rejects non-finite or overflowing values.
+Restored PPPM comparisons reuse the existing same-mesh absolute bounds;
+`qnep_pppm_future_bec` restores its earlier BEC/DPDT atomic-noise bounds.
+These bounds must be checked by self-comparison on the target GPU. Other
+outputs remain byte-exact unless their manifest entry explicitly says otherwise.
 
 Selected cases also declare NumPy-based semantic post-checks. These checks are
 additional oracles applied independently to the baseline and candidate after

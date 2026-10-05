@@ -33,10 +33,6 @@ class PPPMCheckTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "malformed"):
             self.check(INITIAL.replace("target spacing 1", "target spacing nan"))
 
-    def test_only_recognized_mesh_lines_are_removed(self):
-        raw = ("other line\n" + INITIAL + "PPPM mesh: malformed\n").encode()
-        self.assertEqual(pppm_checks.strip_mesh_lines(raw), b"other line\nPPPM mesh: malformed\n")
-
     def test_final_cell_is_checked_independently(self):
         self.spec.update(frames=1, last_cell=[15.9, 0, 0, 0, 8, 0, 0, 0, 8])
         (self.root / "state.xyz").write_text(

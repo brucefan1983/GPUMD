@@ -41,15 +41,6 @@ def good_size(n):
     return n == 1
 
 
-def strip_mesh_lines(data):
-    kept = []
-    for line in data.splitlines(keepends=True):
-        text = line.decode("utf-8", errors="replace").rstrip("\r\n")
-        if not INITIAL.fullmatch(text):
-            kept.append(line)
-    return b"".join(kept)
-
-
 def check(spec, result):
     text = Path(result["stdout_path"]).read_text(encoding="utf-8")
     initial = []
