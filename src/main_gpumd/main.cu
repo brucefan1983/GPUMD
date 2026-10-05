@@ -73,7 +73,7 @@ void print_welcome_information()
   printf("***************************************************************\n");
   printf("*                 Welcome to use GPUMD                        *\n");
   printf("*     (Graphics Processing Units Molecular Dynamics)          *\n");
-  printf("*                     version 5.9                             *\n");
+  printf("*                   version 5.9.1                             *\n");
   printf("*              This is the gpumd executable                   *\n");
   printf("***************************************************************\n");
   printf("\n");
