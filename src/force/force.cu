@@ -476,6 +476,35 @@ void Force::compute_one_potential(
     virial_per_atom);
 }
 
+void Force::compute_run_potentials(
+  Box& box,
+  GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& type,
+  const std::vector<Group>& group,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom)
+{
+  const int number_of_atoms = type.size();
+  initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms,
+    force_per_atom.data(),
+    force_per_atom.data() + number_of_atoms,
+    force_per_atom.data() + number_of_atoms * 2,
+    potential_per_atom.data(),
+    virial_per_atom.data());
+  GPU_CHECK_KERNEL
+  compute_potentials(
+    number_of_atoms,
+    box,
+    position_per_atom,
+    type,
+    group,
+    potential_per_atom,
+    force_per_atom,
+    virial_per_atom);
+}
+
 void Force::compute_potentials(
   const int number_of_atoms,
   Box& box,

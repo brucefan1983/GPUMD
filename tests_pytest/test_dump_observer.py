@@ -211,3 +211,34 @@ def test_observer_kinetic_energy_counts_moving_atoms(tmp_path, gpumd_command):
         tmp_path, gpumd_command, 'move_group', 'dump_observer observe 5 5 0 0')
     # columns 0 and 1 are the temperature and the kinetic energy
     assert observer[1] / observer[0] == approx_tol(thermo[1] / thermo[0], TOLERANCES['energy'])
+
+
+def test_average_observer_holds_average_potential(tmp_path, gpumd_command):
+    """In average mode, observer.xyz holds the energy and forces of the average potential alone,
+    which exclude the forces that add_force adds, and writing it leaves the run unchanged."""
+    scaled_model = tmp_path / 'nep_C_scaled.txt'
+    _write_scaled_model(scaled_model)
+    # An interval of 1000 steps writes no frame in the reference run.
+    for name, exyz_interval in [('reference', 1000), ('observed', 5)]:
+        directory = tmp_path / name
+        directory.mkdir()
+        _write_diamond_cell(directory, 2, groupings=[ALTERNATING])
+        run_in = [f'potential {MODEL_PATH}', f'potential {scaled_model}'] + CASES['add_force']
+        run_in += [f'dump_observer average 5 {exyz_interval} 0 1', 'dump_thermo 1', 'run 10']
+        (directory / 'run.in').write_text('\n'.join(run_in) + '\n')
+        subprocess.run([gpumd_command], cwd=directory, check=True, stdout=subprocess.DEVNULL)
+    assert np.array_equal(
+        np.loadtxt(tmp_path / 'observed' / 'thermo.out'),
+        np.loadtxt(tmp_path / 'reference' / 'thermo.out'))
+    frame = read(tmp_path / 'observed' / 'observer.xyz', index=-1)
+    energy = frame.get_potential_energy()
+    forces = frame.get_forces()
+    energies, single_point_forces = [], []
+    for model in (MODEL_PATH, scaled_model):
+        atoms = frame.copy()
+        atoms.calc = GPUNEP(str(model), command=gpumd_command)
+        energies.append(atoms.get_potential_energy())
+        single_point_forces.append(atoms.get_forces())
+    assert energy == approx_tol(np.mean(energies), TOLERANCES['energy'])
+    average_forces = np.mean(single_point_forces, axis=0)
+    assert np.max(np.abs(forces - average_forces)) < OBSERVER_FORCE_TOLERANCE

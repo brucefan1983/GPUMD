@@ -140,13 +140,11 @@ void Dump_Observer::pre_run(
   if (has_force_) {
     cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
   }
-  if (mode_.compare("observe") == 0) {
-    observer_potential_per_atom_.resize(atom.number_of_atoms);
-    observer_force_per_atom_.resize(atom.number_of_atoms * 3);
-    observer_virial_per_atom_.resize(atom.number_of_atoms * 9);
-    // Ensemble::find_thermo writes T, U and the six components of the stress.
-    observer_thermo_.resize(8);
-  }
+  observer_potential_per_atom_.resize(atom.number_of_atoms);
+  observer_force_per_atom_.resize(atom.number_of_atoms * 3);
+  observer_virial_per_atom_.resize(atom.number_of_atoms * 9);
+  // Ensemble::find_thermo writes T, U and the six components of the stress.
+  observer_thermo_.resize(8);
 }
 
 void Dump_Observer::end_of_step(
@@ -220,20 +218,39 @@ void Dump_Observer::end_of_step(
       }
     }
   } else if (mode_.compare("average") == 0) {
-    // If average, dump already computed properties to file.
-    write_exyz(
-      step,
-      global_time,
-      box,
-      atom.cpu_atom_symbol,
-      atom.position_per_atom,
-      atom.cpu_position_per_atom,
-      atom.velocity_per_atom,
-      atom.cpu_velocity_per_atom,
-      atom.force_per_atom,
-      atom.virial_per_atom,
-      thermo,
-      0);
+    // The frame holds the average potential alone at the written positions, as in observe mode.
+    // The arrays of the run also hold the forces that other keywords add after the evaluation.
+    if ((step + 1) % dump_interval_exyz_ == 0) {
+      force.compute_run_potentials(
+        box,
+        atom.position_per_atom,
+        atom.type,
+        group,
+        observer_potential_per_atom_,
+        observer_force_per_atom_,
+        observer_virial_per_atom_);
+      integrate.find_thermo(
+        box.get_volume(),
+        group,
+        atom.mass,
+        observer_potential_per_atom_,
+        atom.velocity_per_atom,
+        observer_virial_per_atom_,
+        observer_thermo_);
+      write_exyz(
+        step,
+        global_time,
+        box,
+        atom.cpu_atom_symbol,
+        atom.position_per_atom,
+        atom.cpu_position_per_atom,
+        atom.velocity_per_atom,
+        atom.cpu_velocity_per_atom,
+        observer_force_per_atom_,
+        observer_virial_per_atom_,
+        observer_thermo_,
+        0);
+    }
     if (write_thermo) {
       write_thermo_row(
         thermo_files_[0],
