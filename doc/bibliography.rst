@@ -10,6 +10,12 @@ Bibliography
    | Applied Mathematics Research eXpress **2014**, 332–352 (2014)
    | DOI: `10.1093/amrx/abu005 <https://doi.org/10.1093/amrx/abu005>`_
 
+.. [Berger2026]
+   | Ethan Berger, Tobias Hainer, Tobias Möslinger, Paul Erhart, and Julia Wiktor
+   | *Stability of Polarons and Oxygen Vacancies in BiVO₄ Revealed by Machine-Learning-Driven Simulations*
+   | PRX Energy **5**, 033004 (2026)
+   | DOI: `10.1103/xwxv-6s55 <https://doi.org/10.1103/xwxv-6s55>`_
+
 .. [Bernetti2020]
    | Mattia Bernetti and Giovanni Bussi
    | *Pressure control using stochastic cell rescaling*
@@ -159,6 +165,12 @@ Bibliography
    | *Assessment and optimization of the fast inertial relaxation engine (fire) for energy minimization in atomistic simulations and its implementation in lammps*
    | Computational Materials Science **175**, 109584 (2020)
    | DOI: `10.1016/j.commatsci.2020.109584 <https://doi.org/10.1016/j.commatsci.2020.109584>`_
+
+.. [Hainer2025]
+   | Tobias Hainer, Ethan Berger, Esmée Berger, Olof Hildeberg, Paul Erhart, and Julia Wiktor
+   | *Thermal Stabilization of Defect Charge States and Finite-Temperature Charge Transition Levels*
+   | arXiv:2512.15463 (2025)
+   | DOI: `10.48550/arXiv.2512.15463 <https://doi.org/10.48550/arXiv.2512.15463>`_
 
 .. [Hoover1996]
    | William G. Hoover and Brad Lee Holian
