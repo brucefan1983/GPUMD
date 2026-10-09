@@ -12,13 +12,18 @@ Syntax
 
 .. code::
 
-   dump_xyz <interval> <filename> [group <grouping_method> <group_id>] [precision <single|double>] {<property_1> <property_2> ...}
+   dump_xyz <interval> <filename> [group <grouping_method> <group_id>] [precision <single|double>] [split <frames_per_file>] {<property_1> <property_2> ...}
 
 * :attr:`interval` is the output interval (number of steps) of the data.
 
 * :attr:`filename` is the output file.
 
 If it is ended by a star (*), the data for one frame will be output to one file, named by changing the star to the step number.
+
+* The optional :attr:`split` parameter is the maximum number of frames written per XYZ file (a positive integer).
+  For example, ``dump_xyz 100 trajectory.xyz split 10000`` writes 10000 frames to ``trajectory_0001.xyz``, then 10000 frames to ``trajectory_0002.xyz``, and so on.
+  The final file can contain fewer frames. Existing numbered files are skipped to avoid overwriting data when restarting or issuing another ``run`` command.
+  The :attr:`split` option cannot be used with a filename ending in ``*``.
 
 * The :attr:`group` option restricts the output to the atoms in group :attr:`group_id` of grouping method :attr:`grouping_method`.
 
@@ -52,13 +57,17 @@ Examples
     # dump forces with the full precision of the underlying double-precision values:
     dump_xyz 100 forces.xyz precision double force
 
+    # dump 10000 frames per file, with one frame every 100 steps:
+    dump_xyz 100 trajectory.xyz split 10000
+
     run 1000000
 
 Caveats
 -------
 * This keyword is not propagating.
   That means, its effect will not be passed from one run to the next.
-* The output file has an appending behavior.
+* With no ``split`` option or trailing ``*``, the output file has an appending behavior.
+  With ``split``, each run creates new numbered files without overwriting existing chunks.
 * Different from many of the other keywords, this keyword is allowed to be invoked multiple times within one run.
 * For qNEP models, the charge values dumped out are predicted by the qNEP models.
   For other models, the charge values are those specified in :attr:`model.xyz` via :attr:`charge:R:1`.
