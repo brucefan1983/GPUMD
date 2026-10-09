@@ -151,7 +151,8 @@ static __global__ void find_descriptor_small_box(
   double* g_pe,
   float* g_Fp,
   double* g_virial,
-  float* g_sum_fxyz)
+  float* g_sum_fxyz,
+  float* g_q_desc)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -224,7 +225,8 @@ static __global__ void find_descriptor_small_box(
 
     // normalize descriptor
     for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = q[d] * annmb.q_scaler[d];
+      q[d] *= annmb.q_scaler[d];
+      if (g_q_desc != nullptr) g_q_desc[d * N + n1] = q[d];
     }
 
     // get energy and energy gradient
@@ -269,7 +271,8 @@ static __global__ void find_descriptor_small_box(
   double* g_pe,
   float* g_Fp,
   double* g_virial,
-  float* g_sum_fxyz)
+  float* g_sum_fxyz,
+  float* g_q_desc)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -339,7 +342,8 @@ static __global__ void find_descriptor_small_box(
     // normalize descriptor
     q[annmb.dim - 1] = temperature;
     for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = q[d] * annmb.q_scaler[d];
+      q[d] *= annmb.q_scaler[d];
+      if (g_q_desc != nullptr) g_q_desc[d * N + n1] = q[d];
     }
 
     // get energy and energy gradient

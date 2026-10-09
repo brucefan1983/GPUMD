@@ -212,6 +212,10 @@ Actions
      - Compute the phonon dispersion
      - Yes
      - N/A
+   * - :ref:`compute_hessian <kw_compute_hessian>`
+     - Compute a Cartesian Hessian and optional phonons
+     - Yes
+     - N/A
    * - :ref:`compute_sdc <kw_compute_sdc>`
      - Compute the self-diffusion coefficient (:term:`SDC`)
      - No
