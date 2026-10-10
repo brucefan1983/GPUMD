@@ -166,9 +166,9 @@ void Dump_Observer::end_of_step(
     return;
 
   const bool write_thermo = (step + 1) % dump_interval_thermo_ == 0;
-  const int number_of_atoms_fixed =
-    (fixed_group < 0) ? 0 : group[integrate.get_fixed_grouping_method()].cpu_size[fixed_group];
-  const int number_of_atoms_moving = atom.number_of_atoms - number_of_atoms_fixed;
+  const int number_of_atoms_for_temperature =
+    integrate.get_number_of_atoms_for_temperature(atom.number_of_atoms, group);
+  const double temperature_target = integrate.get_target_temperature_of_step();
 
   if (mode_.compare("observe") == 0) {
     // Every potential is evaluated into scratch arrays at the positions of the frame, which leaves
@@ -212,8 +212,8 @@ void Dump_Observer::end_of_step(
           thermo_files_[potential_index],
           observer_thermo_,
           false,
-          temperature,
-          number_of_atoms_moving,
+          temperature_target,
+          number_of_atoms_for_temperature,
           box);
       }
     }
@@ -256,8 +256,8 @@ void Dump_Observer::end_of_step(
         thermo_files_[0],
         thermo,
         is_pimd(integrate.get_type()),
-        temperature,
-        number_of_atoms_moving,
+        temperature_target,
+        number_of_atoms_for_temperature,
         box);
     }
   }

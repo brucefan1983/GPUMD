@@ -53,7 +53,7 @@ void write_thermo_row(
   GPU_Vector<double>& gpu_thermo,
   const bool thermo_holds_kinetic_energy,
   const double temperature_target,
-  const int number_of_atoms_moving,
+  const int number_of_atoms_for_temperature,
   const Box& box)
 {
   double thermo[8];
@@ -63,7 +63,7 @@ void write_thermo_row(
     energy_kin = thermo[0];
     temperature = temperature_target;
   } else {
-    energy_kin = 1.5 * number_of_atoms_moving * K_B * thermo[0];
+    energy_kin = 1.5 * number_of_atoms_for_temperature * K_B * thermo[0];
     temperature = thermo[0];
   }
 
@@ -136,17 +136,12 @@ void Dump_Thermo::end_of_step(
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  int number_of_atoms_fixed =
-    (fixed_group < 0)
-      ? 0
-      : group[integrate.get_fixed_grouping_method()].cpu_size[fixed_group];
-
   write_thermo_row(
     fid_,
     gpu_thermo,
     is_pimd(integrate.get_type()),
-    temperature_target,
-    atom.number_of_atoms - number_of_atoms_fixed,
+    integrate.get_target_temperature_of_step(),
+    integrate.get_number_of_atoms_for_temperature(atom.number_of_atoms, group),
     box);
 }
 

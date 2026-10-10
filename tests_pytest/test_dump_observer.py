@@ -204,13 +204,37 @@ def test_average_observer_row_equals_thermo_row(tmp_path, gpumd_command, case):
     assert np.array_equal(observer, thermo)
 
 
-def test_observer_kinetic_energy_counts_moving_atoms(tmp_path, gpumd_command):
-    """In observe mode, the kinetic energy column counts the atoms outside the fixed group, as
-    thermo.out does."""
+def test_kinetic_energy_counts_the_atoms_of_the_temperature(tmp_path, gpumd_command):
+    """With fixed and moving atoms, the temperature counts neither, and the kinetic energy column
+    of thermo.out and of observer0.out is 1.5 * k_B * T times the atoms that the temperature
+    counts."""
     thermo, observer = _run_rows(
-        tmp_path, gpumd_command, 'move_group', 'dump_observer observe 5 5 0 0')
+        tmp_path, gpumd_command, 'move_group', 'dump_observer observe 5 5 1 0')
+    number_of_atoms_for_temperature = 64 - 8 - 8
     # columns 0 and 1 are the temperature and the kinetic energy
-    assert observer[1] / observer[0] == approx_tol(thermo[1] / thermo[0], TOLERANCES['energy'])
+    for row in (thermo, observer):
+        assert row[1] == approx_tol(
+            1.5 * number_of_atoms_for_temperature * units.kB * row[0], dict(rtol=1e-5, atol=0))
+    # observer0.out is computed from the velocities written to observer0.xyz, with eight decimals.
+    frame = read(tmp_path / 'observer0.xyz', index=-1)
+    velocities = frame.arrays['vel'] / units.fs  # from Å/fs to ASE units
+    kinetic_energy = 0.5 * np.sum(frame.get_masses()[:, None] * velocities**2)
+    assert observer[1] == approx_tol(kinetic_energy, dict(rtol=1e-5, atol=0))
+
+
+def test_pimd_rows_hold_target_temperature_of_the_step(tmp_path, gpumd_command):
+    """Under PIMD with a temperature ramp, the temperature column of thermo.out and of the
+    average-mode observer.out holds the target temperature of the step."""
+    _write_diamond_cell(tmp_path, 2, groupings=[ALTERNATING])
+    run_in = [f'potential {MODEL_PATH}', f'potential {MODEL_PATH}', 'velocity 300 seed 1',
+              'ensemble pimd 4 300 400 100', 'time_step 0.5', 'dump_thermo 5',
+              'dump_observer average 5 5 0 0', 'run 10']
+    (tmp_path / 'run.in').write_text('\n'.join(run_in) + '\n')
+    subprocess.run([gpumd_command], cwd=tmp_path, check=True, stdout=subprocess.DEVNULL)
+    # The target of step k of n is T1 + (T2 - T1) * k / n, with the rows written at k = 4 and 9.
+    expected = [340.0, 390.0]
+    for name in ('thermo.out', 'observer.out'):
+        assert np.loadtxt(tmp_path / name)[:, 0] == approx_tol(expected, TOLERANCES['energy'])
 
 
 def test_average_observer_holds_average_potential(tmp_path, gpumd_command):
