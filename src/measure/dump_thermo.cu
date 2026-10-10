@@ -48,6 +48,54 @@ void Dump_Thermo::parse(const std::vector<std::string>& tokens)
   printf("Dump thermo every %d steps.\n", dump_interval_);
 }
 
+void write_thermo_row(
+  FILE* fid,
+  GPU_Vector<double>& gpu_thermo,
+  const bool thermo_holds_kinetic_energy,
+  const double temperature_target,
+  const int number_of_atoms_for_temperature,
+  const Box& box)
+{
+  double thermo[8];
+  gpu_thermo.copy_to_host(thermo, 8);
+  double energy_kin, temperature;
+  if (thermo_holds_kinetic_energy) {
+    energy_kin = thermo[0];
+    temperature = temperature_target;
+  } else {
+    energy_kin = 1.5 * number_of_atoms_for_temperature * K_B * thermo[0];
+    temperature = thermo[0];
+  }
+
+  // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
+  fprintf(
+    fid,
+    "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e",
+    temperature,
+    energy_kin,
+    thermo[1],
+    thermo[2] * PRESSURE_UNIT_CONVERSION,
+    thermo[3] * PRESSURE_UNIT_CONVERSION,
+    thermo[4] * PRESSURE_UNIT_CONVERSION,
+    thermo[7] * PRESSURE_UNIT_CONVERSION,
+    thermo[6] * PRESSURE_UNIT_CONVERSION,
+    thermo[5] * PRESSURE_UNIT_CONVERSION);
+
+  fprintf(
+    fid,
+    "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n",
+    box.cpu_h[0],
+    box.cpu_h[3],
+    box.cpu_h[6],
+    box.cpu_h[1],
+    box.cpu_h[4],
+    box.cpu_h[7],
+    box.cpu_h[2],
+    box.cpu_h[5],
+    box.cpu_h[8]);
+  fflush(fid);
+}
+
 void Dump_Thermo::pre_run(
   const int number_of_steps,
   const double time_step,
@@ -88,50 +136,13 @@ void Dump_Thermo::end_of_step(
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  int number_of_atoms_fixed =
-    (fixed_group < 0)
-      ? 0
-      : group[integrate.get_fixed_grouping_method()].cpu_size[fixed_group];
-
-  double thermo[8];
-  gpu_thermo.copy_to_host(thermo, 8);
-  double energy_kin, temperature;
-  if (is_pimd(integrate.get_type())) {
-    energy_kin = thermo[0];
-    temperature = temperature_target;
-  } else {
-    const int number_of_atoms_moving = atom.number_of_atoms - number_of_atoms_fixed;
-    energy_kin = 1.5 * number_of_atoms_moving * K_B * thermo[0];
-    temperature = thermo[0];
-  }
-
-  // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
-  fprintf(
+  write_thermo_row(
     fid_,
-    "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e",
-    temperature,
-    energy_kin,
-    thermo[1],
-    thermo[2] * PRESSURE_UNIT_CONVERSION,
-    thermo[3] * PRESSURE_UNIT_CONVERSION,
-    thermo[4] * PRESSURE_UNIT_CONVERSION,
-    thermo[7] * PRESSURE_UNIT_CONVERSION,
-    thermo[6] * PRESSURE_UNIT_CONVERSION,
-    thermo[5] * PRESSURE_UNIT_CONVERSION);
-
-  fprintf(
-    fid_,
-    "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n",
-    box.cpu_h[0],
-    box.cpu_h[3],
-    box.cpu_h[6],
-    box.cpu_h[1],
-    box.cpu_h[4],
-    box.cpu_h[7],
-    box.cpu_h[2],
-    box.cpu_h[5],
-    box.cpu_h[8]);
-  fflush(fid_);
+    gpu_thermo,
+    is_pimd(integrate.get_type()),
+    integrate.get_target_temperature_of_step(),
+    integrate.get_number_of_atoms_for_temperature(atom.number_of_atoms, group),
+    box);
 }
 
 void Dump_Thermo::post_run(

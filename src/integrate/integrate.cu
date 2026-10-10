@@ -94,6 +94,21 @@ double Integrate::get_temperature() const
   return temperature;
 }
 
+double Integrate::get_target_temperature_of_step() const { return ensemble_->temperature; }
+
+int Integrate::get_number_of_atoms_for_temperature(
+  const int number_of_atoms, const std::vector<Group>& group) const
+{
+  int number_of_atoms_for_temperature = number_of_atoms;
+  if (fixed_group >= 0) {
+    number_of_atoms_for_temperature -= group[fixed_grouping_method].cpu_size[fixed_group];
+  }
+  if (move_group >= 0) {
+    number_of_atoms_for_temperature -= group[move_grouping_method].cpu_size[move_group];
+  }
+  return number_of_atoms_for_temperature;
+}
+
 int Integrate::get_num_target_pressure_components() const
 {
   return num_target_pressure_components;
