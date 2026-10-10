@@ -1,8 +1,12 @@
-"""Tests of dump_observer in observe mode.
+"""Tests of dump_observer.
 
-Each observer file holds the energy, virial and forces of its potential alone, evaluated at the
-written positions in the box of the step. The stress adds the kinetic tensor to the virial.
+In observe mode, each observer file holds the energy, virial and forces of its potential alone,
+evaluated at the written positions in the box of the step.
+The stress adds the kinetic tensor to the virial.
 Writing the observers leaves the molecular dynamics run unchanged.
+In average mode, the observer files hold the thermo vector and the per-atom arrays of the run.
+A thermo row counts the atoms of the temperature in the kinetic energy and, under PIMD, holds the
+target temperature of the step.
 """
 import shutil
 import subprocess

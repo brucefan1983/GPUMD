@@ -13,4 +13,6 @@ This file is generated when the :ref:`dump_observer keyword <kw_dump_observer>` 
 * If `mode` in `dump_observer` is set to `average`, a single file named `observer.out` is written, holding the thermodynamic quantities computed with the average potential.
 
 Refer to :ref:`thermo.out <thermo_out>` for the format of this file.
+Under PIMD in `observe` mode, a row holds the temperature and kinetic energy of the centroid velocities, and the potential energy and pressure of the potential at the centroid.
+Under PIMD in `average` mode, a row equals the row of `thermo.out`, with the target temperature and the quantum kinetic energy.
 

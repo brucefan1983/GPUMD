@@ -5,7 +5,8 @@
 :attr:`dump_observer`
 =====================
 
-Writes atomistic properties such as positions, velocities and forces for each of the supplied NEP potentials in the `extended XYZ format <https://github.com/libAtoms/extxyz>`_. In addition to the output interval and the quantity flags described under Syntax below, it takes a `mode` keyword, which can be set to either `observe` or `average`.
+Writes atomistic properties such as positions, velocities and forces for each of the supplied NEP potentials, or for their average, in the `extended XYZ format <https://github.com/libAtoms/extxyz>`_.
+In addition to the output interval and the quantity flags described under Syntax below, it takes a `mode` keyword, which can be set to either `observe` or `average`.
 
 If set to `observe`, the first of the supplied NEP potentials, the main potential, propagates the molecular dynamics run.
 Every potential, the main potential included, is evaluated every `interval_thermo` and `interval_exyz` time steps at the positions written to the files.
@@ -74,5 +75,6 @@ Caveats
 -------
 * This keyword is not propagating.
   That means, its effect will not be passed from one run to the next.
-* If `mode` is set to `observe`, then the output file has an appending behavior and will result in two files, `observer(index).out` and `observer(index).xyz` file for each potential no matter how many times the simulation is run.
-* If `mode` is set to `average`, then the output file has an appending behavior and will result in a single `observer.xyz` file no matter how many times the simulation is run.
+* Every run appends to the output files, named as described above.
+  In `observe` mode, the runs share one `.out` and one `.xyz` file for each potential.
+  In `average` mode, they share `observer.out` and `observer.xyz`.
