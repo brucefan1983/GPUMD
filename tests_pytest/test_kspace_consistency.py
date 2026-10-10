@@ -14,9 +14,13 @@ Spans multiple system sizes since PPPM's mesh/k-point resolution scales with the
 existing bulk_water and bulk_perovskite fixtures, plus a larger supercell built by tiling
 bulk_perovskite further (no new fixture file needed).
 """
+import re
+import subprocess
+
 import numpy as np
 import pytest
 from calorine.calculators import GPUNEP
+from calorine.gpumd import write_xyz
 
 from conftest import MODELS_DIR, approx_tol, make_bulk_perovskite, make_bulk_water
 
@@ -72,3 +76,35 @@ def test_pppm_agrees_with_ewald(structure_name, model_type, gpumd_command):
 
     assert energy_pppm == approx_tol(energy_ewald, PPPM_VS_EWALD_ENERGY_TOLERANCE)
     assert np.allclose(forces_pppm, forces_ewald, **PPPM_VS_EWALD_FORCE_TOLERANCE)
+
+
+def _pppm_target_spacing(directory, model_path, kspace, gpumd_command):
+    write_xyz(str(directory / 'model.xyz'), make_bulk_water())
+    (directory / 'run.in').write_text(
+        f'potential {model_path}\n'
+        f'kspace {kspace}\n'
+        'ensemble nve\n'
+        'time_step 1\n'
+        'run 1\n'
+    )
+    result = subprocess.run(
+        [gpumd_command], cwd=directory, capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    return float(re.search(r'PPPM mesh: .*\(target spacing (\S+) A', result.stdout).group(1))
+
+
+# The default spacing is rc_radial / 6, which keeps the product of the Ewald parameter
+# alpha = pi / rc_radial and the spacing at pi / 6.
+@pytest.mark.parametrize(
+    'model_file, kspace, expected_spacing',
+    [
+        ('qnep_mode1_water.txt', 'pppm', 4 / 6),
+        ('qnep_mode2_water.txt', 'pppm', 1.0),
+        ('qnep_mode1_water.txt', 'pppm 0.9', 0.9),
+    ],
+    ids=['default_rc4', 'default_rc6', 'explicit'],
+)
+def test_pppm_spacing(tmp_path, gpumd_command, model_file, kspace, expected_spacing):
+    spacing = _pppm_target_spacing(tmp_path, MODELS_DIR / model_file, kspace, gpumd_command)
+    assert spacing == pytest.approx(expected_spacing, rel=1e-12)

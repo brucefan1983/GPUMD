@@ -17,8 +17,13 @@ Syntax
 
 The default method is ``pppm`` (particle-particle particle-mesh).
 Its optional ``spacing`` parameter sets the maximum mesh spacing in Angstrom
-(default: 1.0; allowed range: 0.2 to 2.0, inclusive).
+(allowed range: 0.2 to 2.0, inclusive).
 Smaller values give finer meshes at a higher computational cost.
+
+The default spacing is :math:`r_c^R/6`, where :math:`r_c^R` is the radial cutoff of the model.
+The Ewald splitting parameter is :math:`\alpha = \pi/r_c^R`.
+The PPPM error grows with the product of :math:`\alpha` and the spacing.
+The default spacing keeps this product at :math:`\pi/6` for every model.
 
 The mesh is chosen automatically and grows as needed when the box changes.
 It does not shrink. The actual spacing may be smaller than the requested value.
