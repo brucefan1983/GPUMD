@@ -23,9 +23,10 @@ Evaluating the potentials leaves the molecular dynamics run unchanged.
 
 If set to `average`, all supplied NEP potentials will be evaluated at every timestep, with the average of all potentials used to propagate the molecular dynamics. 
 In this case, two files will be written: `observer.out` every `interval_thermo` timesteps, and `observer.xyz` every `interval_exyz` timesteps.
+Both files hold the thermo vector and the per-atom arrays of the run, which the average potential propagates.
 A row of `observer.out` equals the row of :ref:`thermo.out <thermo_out>` of the same step.
-The energy, virial and forces in `observer.xyz` are those of the average potential alone at the written positions.
-The forces exclude those that other keywords add to the atoms, such as `add_force` and `add_efield`.
+The forces in `observer.xyz` include those that other keywords add to the atoms, such as `add_force` and `add_efield`.
+Under PIMD, the energy, virial and forces in `observer.xyz` are the averages over the beads.
 
 Note that the supplied potentials must have their atomic species written in the same order, i.e. the line `nep* n_species species0 species1` must be the same in all potential files.
 

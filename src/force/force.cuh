@@ -73,17 +73,6 @@ public:
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
 
-  // Zeroes the given arrays and evaluates the potentials into them as the run does: the main
-  // potential in observe mode, and the average of the potentials in average mode.
-  void compute_run_potentials(
-    Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<int>& type,
-    const std::vector<Group>& group,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom);
-
 #ifdef GPUMD_WPE_ENABLED
   void wpe_process_command(
     const std::vector<std::string>& tokens,

@@ -237,32 +237,30 @@ def test_pimd_rows_hold_target_temperature_of_the_step(tmp_path, gpumd_command):
         assert np.loadtxt(tmp_path / name)[:, 0] == approx_tol(expected, TOLERANCES['energy'])
 
 
-def test_average_observer_holds_average_potential(tmp_path, gpumd_command):
-    """In average mode, observer.xyz holds the energy and forces of the average potential alone,
-    which exclude the forces that add_force adds, and writing it leaves the run unchanged."""
+def test_average_observer_holds_run_arrays(tmp_path, gpumd_command):
+    """In average mode, observer.xyz holds the energy of the row of observer.out and thermo.out of
+    the same step, and forces that include those of add_force."""
+    _write_diamond_cell(tmp_path, 2, groupings=[ALTERNATING])
     scaled_model = tmp_path / 'nep_C_scaled.txt'
     _write_scaled_model(scaled_model)
-    # An interval of 1000 steps writes no frame in the reference run.
-    for name, exyz_interval in [('reference', 1000), ('observed', 5)]:
-        directory = tmp_path / name
-        directory.mkdir()
-        _write_diamond_cell(directory, 2, groupings=[ALTERNATING])
-        run_in = [f'potential {MODEL_PATH}', f'potential {scaled_model}'] + CASES['add_force']
-        run_in += [f'dump_observer average 5 {exyz_interval} 0 1', 'dump_thermo 1', 'run 10']
-        (directory / 'run.in').write_text('\n'.join(run_in) + '\n')
-        subprocess.run([gpumd_command], cwd=directory, check=True, stdout=subprocess.DEVNULL)
-    assert np.array_equal(
-        np.loadtxt(tmp_path / 'observed' / 'thermo.out'),
-        np.loadtxt(tmp_path / 'reference' / 'thermo.out'))
-    frame = read(tmp_path / 'observed' / 'observer.xyz', index=-1)
+    run_in = [f'potential {MODEL_PATH}', f'potential {scaled_model}'] + CASES['add_force']
+    run_in += ['dump_thermo 5', 'dump_observer average 5 5 0 1', 'run 10']
+    (tmp_path / 'run.in').write_text('\n'.join(run_in) + '\n')
+    subprocess.run([gpumd_command], cwd=tmp_path, check=True, stdout=subprocess.DEVNULL)
+    frame = read(tmp_path / 'observer.xyz', index=-1)
     energy = frame.get_potential_energy()
     forces = frame.get_forces()
-    energies, single_point_forces = [], []
+    # column 2 is the potential energy
+    for name in ('observer.out', 'thermo.out'):
+        assert np.loadtxt(tmp_path / name)[-1, 2] == approx_tol(energy, TOLERANCES['energy'])
+    single_point_forces = []
     for model in (MODEL_PATH, scaled_model):
         atoms = frame.copy()
         atoms.calc = GPUNEP(str(model), command=gpumd_command)
-        energies.append(atoms.get_potential_energy())
         single_point_forces.append(atoms.get_forces())
-    assert energy == approx_tol(np.mean(energies), TOLERANCES['energy'])
-    average_forces = np.mean(single_point_forces, axis=0)
-    assert np.max(np.abs(forces - average_forces)) < OBSERVER_FORCE_TOLERANCE
+    added_forces = forces - np.mean(single_point_forces, axis=0)
+    # add_force adds 0.5 eV/Angstrom along x to group 0 and -0.5 eV/Angstrom to group 1.
+    expected = np.zeros_like(forces)
+    expected[ALTERNATING[0], 0] = 0.5
+    expected[ALTERNATING[1], 0] = -0.5
+    assert np.max(np.abs(added_forces - expected)) < OBSERVER_FORCE_TOLERANCE
