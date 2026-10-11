@@ -29,7 +29,8 @@ The default spacing keeps this product at or below :math:`\pi/6`.
 The mesh is chosen automatically and grows as needed when the box changes.
 It does not shrink. The actual spacing may be smaller than the requested value.
 
-Specify ``kspace`` at most once in ``run.in``, before the first ``run``.
+Specify ``kspace`` at most once in ``run.in``.
+The setting applies to every ``run``, wherever the line appears in ``run.in``.
 
 Example
 -------
