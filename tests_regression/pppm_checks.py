@@ -12,6 +12,7 @@ INITIAL = re.compile(
     rf"PPPM mesh: (\d+) x (\d+) x (\d+) \(target spacing ({NUMBER}) A; "
     rf"actual spacing ({NUMBER}) ({NUMBER}) ({NUMBER}) A\)\."
 )
+ESTIMATE = re.compile(rf"PPPM force error estimate: ({NUMBER}) eV/A\.")
 
 
 def validate_spec(spec):
@@ -44,12 +45,17 @@ def good_size(n):
 def check(spec, result):
     text = Path(result["stdout_path"]).read_text(encoding="utf-8")
     initial = []
+    estimates = []
     for line in text.splitlines():
         if line.startswith("PPPM "):
             match = INITIAL.fullmatch(line)
-            if not match:
+            estimate = ESTIMATE.fullmatch(line)
+            if match:
+                initial.append(match.groups())
+            elif estimate and len(initial) == 1 and not estimates:
+                estimates.append(float(estimate.group(1)))
+            else:
                 raise ValueError("unexpected or malformed PPPM mesh output")
-            initial.append(match.groups())
     expected = spec["initial_mesh"]
     if expected is None:
         if initial:
@@ -57,6 +63,8 @@ def check(spec, result):
         return {"initial_mesh": None}
     if len(initial) != 1:
         raise ValueError(f"expected one initial mesh line, got {len(initial)}")
+    if not all(math.isfinite(e) and e >= 0 for e in estimates):
+        raise ValueError("invalid PPPM force error estimate")
     mesh = [int(x) for x in initial[0][:3]]
     spacing = float(initial[0][3])
     actual = [float(x) for x in initial[0][4:]]
