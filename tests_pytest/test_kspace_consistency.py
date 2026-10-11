@@ -78,15 +78,16 @@ def test_pppm_agrees_with_ewald(structure_name, model_type, gpumd_command):
     assert np.allclose(forces_pppm, forces_ewald, **PPPM_VS_EWALD_FORCE_TOLERANCE)
 
 
-def _pppm_target_spacing(directory, model_path, kspace, gpumd_command):
+def _pppm_target_spacing(directory, rc_radial, kspace_before_run, kspace_after_run, gpumd_command):
+    model_text = (MODELS_DIR / 'qnep_mode1_water.txt').read_text()
+    model_path = directory / 'nep.txt'
+    model_path.write_text(model_text.replace('cutoff 4 4 ', f'cutoff {rc_radial} 4 ', 1))
     write_xyz(str(directory / 'model.xyz'), make_bulk_water())
-    (directory / 'run.in').write_text(
-        f'potential {model_path}\n'
-        f'kspace {kspace}\n'
-        'ensemble nve\n'
-        'time_step 1\n'
-        'run 1\n'
-    )
+    lines = [f'potential {model_path}']
+    lines += [f'kspace {kspace_before_run}'] if kspace_before_run else []
+    lines += ['ensemble nve', 'time_step 1', 'run 1']
+    lines += [f'kspace {kspace_after_run}'] if kspace_after_run else []
+    (directory / 'run.in').write_text('\n'.join(lines) + '\n')
     result = subprocess.run(
         [gpumd_command], cwd=directory, capture_output=True, text=True, check=False
     )
@@ -94,17 +95,24 @@ def _pppm_target_spacing(directory, model_path, kspace, gpumd_command):
     return float(re.search(r'PPPM mesh: .*\(target spacing (\S+) A', result.stdout).group(1))
 
 
-# The default spacing is rc_radial / 6, which keeps the product of the Ewald parameter
-# alpha = pi / rc_radial and the spacing at pi / 6.
+# The default spacing is min(1, rc_radial / 6) A.
+# With alpha = pi / rc_radial, it keeps the product of alpha and the spacing at or below pi / 6.
 @pytest.mark.parametrize(
-    'model_file, kspace, expected_spacing',
+    'rc_radial, kspace_before_run, kspace_after_run, expected_spacing',
     [
-        ('qnep_mode1_water.txt', 'pppm', 4 / 6),
-        ('qnep_mode2_water.txt', 'pppm', 1.0),
-        ('qnep_mode1_water.txt', 'pppm 0.9', 0.9),
+        (4, None, None, 4 / 6),
+        (4, 'pppm', None, 4 / 6),
+        (6, 'pppm', None, 1.0),
+        (8, 'pppm', None, 1.0),
+        (4, 'pppm 0.9', None, 0.9),
+        (4, None, 'pppm 0.9', 0.9),
     ],
-    ids=['default_rc4', 'default_rc6', 'explicit'],
+    ids=['absent_rc4', 'default_rc4', 'default_rc6', 'default_rc8', 'explicit', 'explicit_late'],
 )
-def test_pppm_spacing(tmp_path, gpumd_command, model_file, kspace, expected_spacing):
-    spacing = _pppm_target_spacing(tmp_path, MODELS_DIR / model_file, kspace, gpumd_command)
+def test_pppm_spacing(
+    tmp_path, gpumd_command, rc_radial, kspace_before_run, kspace_after_run, expected_spacing
+):
+    spacing = _pppm_target_spacing(
+        tmp_path, rc_radial, kspace_before_run, kspace_after_run, gpumd_command
+    )
     assert spacing == pytest.approx(expected_spacing, rel=1e-12)
