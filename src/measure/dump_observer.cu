@@ -163,11 +163,11 @@ void Dump_Observer::end_of_step(
   Atom& atom,
   Force& force)
 {
-  // Skip the steps on which neither file is written.
-  if (((step + 1) % dump_interval_thermo_ != 0) && ((step + 1) % dump_interval_exyz_ != 0))
+  const bool write_thermo_now = (step + 1) % dump_interval_thermo_ == 0;
+  const bool write_exyz_now = (step + 1) % dump_interval_exyz_ == 0;
+  if (!write_thermo_now && !write_exyz_now)
     return;
 
-  const bool write_thermo = (step + 1) % dump_interval_thermo_ == 0;
   const int number_of_atoms_for_temperature =
     integrate.get_number_of_atoms_for_temperature(atom.number_of_atoms, group);
   const double temperature_target = integrate.get_target_temperature_of_step();
@@ -195,20 +195,21 @@ void Dump_Observer::end_of_step(
         atom.velocity_per_atom,
         observer_virial_per_atom_,
         observer_thermo_);
-      write_exyz(
-        step,
-        global_time,
-        box,
-        atom.cpu_atom_symbol,
-        atom.position_per_atom,
-        atom.cpu_position_per_atom,
-        atom.velocity_per_atom,
-        atom.cpu_velocity_per_atom,
-        observer_force_per_atom_,
-        observer_virial_per_atom_,
-        observer_thermo_,
-        potential_index);
-      if (write_thermo) {
+      if (write_exyz_now) {
+        write_exyz(
+          global_time,
+          box,
+          atom.cpu_atom_symbol,
+          atom.position_per_atom,
+          atom.cpu_position_per_atom,
+          atom.velocity_per_atom,
+          atom.cpu_velocity_per_atom,
+          observer_force_per_atom_,
+          observer_virial_per_atom_,
+          observer_thermo_,
+          potential_index);
+      }
+      if (write_thermo_now) {
         // Ensemble::find_thermo stores the temperature, also under PIMD.
         write_thermo_row(
           thermo_files_[potential_index],
@@ -221,20 +222,21 @@ void Dump_Observer::end_of_step(
     }
   } else if (mode_.compare("average") == 0) {
     // If average, dump already computed properties to file.
-    write_exyz(
-      step,
-      global_time,
-      box,
-      atom.cpu_atom_symbol,
-      atom.position_per_atom,
-      atom.cpu_position_per_atom,
-      atom.velocity_per_atom,
-      atom.cpu_velocity_per_atom,
-      atom.force_per_atom,
-      atom.virial_per_atom,
-      thermo,
-      0);
-    if (write_thermo) {
+    if (write_exyz_now) {
+      write_exyz(
+        global_time,
+        box,
+        atom.cpu_atom_symbol,
+        atom.position_per_atom,
+        atom.cpu_position_per_atom,
+        atom.velocity_per_atom,
+        atom.cpu_velocity_per_atom,
+        atom.force_per_atom,
+        atom.virial_per_atom,
+        thermo,
+        0);
+    }
+    if (write_thermo_now) {
       write_thermo_row(
         thermo_files_[0],
         thermo,
@@ -322,7 +324,6 @@ void Dump_Observer::output_line2(
 }
 
 void Dump_Observer::write_exyz(
-  const int step,
   const double global_time,
   const Box& box,
   const std::vector<std::string>& cpu_atom_symbol,
@@ -335,9 +336,6 @@ void Dump_Observer::write_exyz(
   GPU_Vector<double>& gpu_thermo,
   const int file_index)
 {
-  if ((step + 1) % dump_interval_exyz_ != 0)
-    return;
-
   const int num_atoms_total = position_per_atom.size() / 3;
   FILE* fid_ = exyz_files_[file_index];
   position_per_atom.copy_to_host(cpu_position_per_atom.data());

@@ -82,7 +82,6 @@ private:
     GPU_Vector<double>& gpu_thermo,
     FILE* fid_);
   void write_exyz(
-    const int step,
     const double global_time,
     const Box& box,
     const std::vector<std::string>& cpu_atom_symbol,
