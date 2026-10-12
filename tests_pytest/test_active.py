@@ -23,8 +23,11 @@ MODEL_PATH = MODELS_DIR / 'nep_C.txt'
 
 # Largest difference between the forces in active.xyz and a single-point evaluation of the frame,
 # in eV/Angstrom.
-# The forces in active.xyz are written with eight decimals.
-ACTIVE_FORCE_TOLERANCE = 2e-4
+# The fp32 rounding of the evaluation in the run and of the single point differs by up to 1.2e-5
+# eV/Angstrom for nep_C.txt.
+# Differences of this size exceed the absolute tolerance of TOLERANCES['force'] for near-zero
+# components.
+ACTIVE_FORCE_TOLERANCE = 5e-5
 
 NVE = ['velocity 300 seed 1', 'ensemble nve', 'time_step 1']
 ADD_FORCE = ['add_force 0 0 0.5 0 0', 'add_force 0 1 -0.5 0 0']
