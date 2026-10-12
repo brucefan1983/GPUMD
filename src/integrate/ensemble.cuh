@@ -136,6 +136,10 @@ public:
     const GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& thermo);
 
+  // The atoms that the temperature counts: all atoms except those of the fixed and move groups.
+  int get_number_of_atoms_for_temperature(
+    const int number_of_atoms, const std::vector<Group>& group) const;
+
   EnsembleType type = EnsembleType::UNKNOWN;
   int source;
   int sink;

@@ -445,6 +445,19 @@ void Ensemble::velocity_verlet_cg(
 }
 #endif
 
+int Ensemble::get_number_of_atoms_for_temperature(
+  const int number_of_atoms, const std::vector<Group>& group) const
+{
+  int number_of_atoms_for_temperature = number_of_atoms;
+  if (fixed_group >= 0) {
+    number_of_atoms_for_temperature -= group[fixed_grouping_method].cpu_size[fixed_group];
+  }
+  if (move_group >= 0) {
+    number_of_atoms_for_temperature -= group[move_grouping_method].cpu_size[move_group];
+  }
+  return number_of_atoms_for_temperature;
+}
+
 // Find some thermodynamic properties.
 void Ensemble::find_thermo(
   const double volume,
@@ -455,17 +468,8 @@ void Ensemble::find_thermo(
   const GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& thermo)
 {
-  const int number_of_atoms = mass.size();
-  int num_atoms_for_temperature = number_of_atoms;
-  if (fixed_group >= 0) {
-    num_atoms_for_temperature -= group[fixed_grouping_method].cpu_size[fixed_group];
-  }
-  if (move_group >= 0) {
-    num_atoms_for_temperature -= group[move_grouping_method].cpu_size[move_group];
-  }
-
   thermo_.compute(
-    num_atoms_for_temperature,
+    get_number_of_atoms_for_temperature(mass.size(), group),
     volume,
     mass,
     potential_per_atom,
