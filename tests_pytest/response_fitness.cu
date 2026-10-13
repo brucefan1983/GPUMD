@@ -32,7 +32,7 @@ int main() {
   std::mt19937 rng(9876);
   std::vector<float> mu(p.number_of_variables), sigma(mu.size());
   snes_spin::initialize_search(p, rng, mu, sigma);
-  f.initialize_q_scaler(p, mu.data());
+  f.initialize_q_scaler(p);
   std::vector<float> scaler(p.dim);
   p.q_scaler_gpu[0].copy_to_host(scaler.data());
   printf("SCALER"); for (float x : scaler) printf(" %.9g", x); printf("\n");

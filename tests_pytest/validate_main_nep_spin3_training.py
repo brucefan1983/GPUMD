@@ -385,7 +385,10 @@ def validate_training_and_runtime(
             [row[0] for row in columns(resumed / "nep.restart", 2)])
         if error > 1.0e-7:
             raise AssertionError(f"zero-variance restart changed parameters: {error}")
+        if resumed_lines[-descriptor_dim:] != checkpoint_lines[-descriptor_dim:]:
+            raise AssertionError("restart changed saved descriptor scaling")
         report["restart_parameter_error"] = error
+        report["restart_scaler"] = "preserved"
     return report
 
 

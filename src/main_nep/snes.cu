@@ -95,8 +95,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   } else {
     initialize_mu_and_sigma(para);
   }
-  fitness_function->initialize_q_scaler(
-    para, para.spin_mode == 3 ? mu.data() : nullptr);
+  fitness_function->initialize_q_scaler(para);
 
   calculate_utility();
   gpu_utility.copy_from_host(utility.data());

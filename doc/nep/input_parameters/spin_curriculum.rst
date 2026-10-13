@@ -32,3 +32,9 @@ The curriculum can help the optimizer first fit the lower-order magnetic
 signal before exposing the complete order-3 input. It is an optimization
 option, not a guarantee of lower validation error, so its effect should be
 checked against an otherwise identical run.
+
+The schedule is local to the requested generation segment. The two-column
+``nep.restart`` file does not store curriculum progress. Restoring a model does
+not zero its learned weights, but enabling this option again restarts the
+perturbation/update schedule. Set ``spin_curriculum 0`` to continue a fully
+trained model without repeating the warmup.

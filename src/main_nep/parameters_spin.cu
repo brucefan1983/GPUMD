@@ -80,10 +80,10 @@ void Parameters::validate_spin_parameters()
     if (num_hidden_layers == 2) {
       PRINT_INPUT_ERROR("Spin NEP only supports one hidden layer.\n");
     }
-    if (fine_tune || import_q_scaler) {
+    if (fine_tune) {
       PRINT_INPUT_ERROR(
-        "Spin NEP fine_tune/import_q_scaler is not supported until the "
-        "counted spin checkpoint reader is implemented.\n");
+        "Spin NEP fine_tune is not supported until the "
+        "species-transfer checkpoint reader is implemented.\n");
     }
     if (
       spin_compress < 1 || spin_compress > 9 ||

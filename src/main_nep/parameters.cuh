@@ -127,6 +127,7 @@ public:
   int fine_tune_descriptor = 1; // fine-tune descriptor; 0=no, 1=yes
   std::string fine_tune_nep_txt = "";
   std::string fine_tune_nep_restart = "";
+  bool spin_restart = false; // restore the model scaler paired with legacy mu/sigma files
   bool import_q_scaler = false; // read q_scaler from the local nep.txt instead of recomputing it
   bool nep_compile = true; // runtime-specialize NEP-family training kernels
 

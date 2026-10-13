@@ -325,6 +325,7 @@ void Parameters::calculate_parameters()
   }
 
   // check nep.in against any model files that are already present before reading from them
+  spin_restart = spin_mode == 3 && prediction == 0 && std::ifstream("nep.restart").good();
   check_existing_model();
 
   q_scaler_cpu.resize(dim,  1.0e10f);
@@ -352,7 +353,7 @@ void Parameters::calculate_parameters()
       q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
     input.close();
-  } else if (import_q_scaler) {
+  } else if (import_q_scaler || spin_restart) {
     std::ifstream input("nep.txt");
     if (!input.is_open()) {
       PRINT_INPUT_ERROR("Failed to open nep.txt for q_scaler import.");
@@ -368,7 +369,13 @@ void Parameters::calculate_parameters()
     }
     for (int n = 0; n < q_scaler_cpu.size(); ++n) {
       tokens = get_tokens(input);
+      if (tokens.size() != 1) {
+        PRINT_INPUT_ERROR("Missing or malformed q_scaler in nep.txt.");
+      }
       q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+      if (spin_mode == 3 && (!std::isfinite(q_scaler_cpu[n]) || q_scaler_cpu[n] <= 0.0f)) {
+        PRINT_INPUT_ERROR("Spin3 checkpoint q_scaler must be finite and positive.");
+      }
     }
     input.close();
   }

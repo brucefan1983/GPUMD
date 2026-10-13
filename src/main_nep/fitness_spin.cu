@@ -32,9 +32,8 @@ namespace fitness_spin {
 
 bool prepare_checkpoint(Parameters& para)
 {
-  const bool spin_restart = para.spin_mode && !para.prediction &&
-    std::ifstream("nep.restart").good();
-  if (para.spin_mode && (para.prediction || spin_restart)) {
+  const bool spin_restart = para.spin_restart;
+  if (para.spin_mode && (para.prediction || spin_restart || para.import_q_scaler)) {
     load_spin_checkpoint_metadata(para);
   }
   return spin_restart;

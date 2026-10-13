@@ -23,6 +23,7 @@ Get the fitness
 #include "nep_charge.cuh"
 #include "nep_spin.cuh"
 #include "fitness_spin.cuh"
+#include "snes_spin.cuh"
 #include "nep_charge_vdw.cuh"
 #include "tnep.cuh"
 #include "parameters.cuh"
@@ -188,10 +189,9 @@ Fitness::~Fitness()
   }
 }
 
-void Fitness::initialize_q_scaler(
-  Parameters& para, const float* parameter_center)
+void Fitness::initialize_q_scaler(Parameters& para)
 {
-  if (para.prediction != 0 || para.fine_tune || para.import_q_scaler) {
+  if (para.prediction != 0 || para.fine_tune || para.import_q_scaler || para.spin_restart) {
     return;
   }
 
@@ -199,11 +199,14 @@ void Fitness::initialize_q_scaler(
   CHECK(gpuGetDeviceCount(&deviceCount));
   std::vector<float> scaler_solution(
     para.number_of_variables * deviceCount, para.initial_para);
-  if (parameter_center != nullptr) {
+  if (para.spin_mode == 3) {
+    // A fixed, non-degenerate reference, independent of the SNES search mean/RNG.
+    // Constant projection matrices would collapse Spin3's distinct channels.
+    std::mt19937 reference_rng(12345678);
+    std::vector<float> reference(para.number_of_variables), sigma(reference.size());
+    snes_spin::initialize_search(para, reference_rng, reference, sigma);
     for (int device_id = 0; device_id < deviceCount; ++device_id) {
-      std::copy(
-        parameter_center,
-        parameter_center + para.number_of_variables,
+      std::copy(reference.begin(), reference.end(),
         scaler_solution.begin() + device_id * para.number_of_variables);
     }
   }
