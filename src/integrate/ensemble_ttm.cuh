@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -64,64 +64,44 @@ struct TTM_Parameters
   double source = 0.0;
 };
 
-void parse_ttm_parameters(
-  const int type,
-  const char** param,
-  const int num_param,
-  const Atom& atom,
-  const Box& box,
-  const std::vector<Group>& group,
-  const int source,
-  const int sink,
-  TTM_Parameters& ttm_parameters);
-
-void print_ttm_settings(const TTM_Parameters& ttm_parameters);
-
 class Ensemble_TTM : public Ensemble
 {
 public:
   Ensemble_TTM(
-    int type_input,
-    int source_input,
-    int sink_input,
-    int source_size,
-    int sink_size,
-    int source_offset,
-    int sink_offset,
-    int number_of_groups,
-    int ttm_group_size,
-    int ttm_group_offset,
-    double T,
-    double Tc,
-    double dT,
-    const TTM_Parameters& ttm_parameters,
-    const Box& box);
+    const std::vector<std::string>& tokens,
+    const Atom& atom,
+    const Box& box,
+    const std::vector<Group>& group);
 
-  Ensemble_TTM(
-    int type_input,
-    int ttm_group_size,
-    int ttm_group_offset,
-    const TTM_Parameters& ttm_parameters,
-    const Box& box);
+  ~Ensemble_TTM(void) override;
 
-  virtual ~Ensemble_TTM(void);
+  void finalize_run(const Atom& atom, const Box& box) override;
 
-  virtual void compute1(
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
+
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 private:
   bool use_heat_lan;
+  TTM_Parameters parameters_;
 
   int N_source, N_sink, offset_source, offset_sink;
   double c1, c2_source, c2_sink;
@@ -171,7 +151,7 @@ private:
   double box_length[3];
 
   void initialize_ttm_common(
-    int type_input,
+    EnsembleType type_input,
     int ttm_group_size,
     int ttm_group_offset,
     const TTM_Parameters& ttm_parameters,
@@ -213,5 +193,5 @@ private:
     const std::vector<Group>& group,
     GPU_Vector<double>& velocity_per_atom);
 
-  void update_electron_temperature(const double time_step);
+  void update_electron_temperature(const double time_step, const int step);
 };

@@ -1,0 +1,2 @@
+potential potential.txt
+ensemble npt_mttk temp 300 300 aniso 0 0 couple bad tperiod 100 pperiod 1000

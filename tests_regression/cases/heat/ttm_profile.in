@@ -1,0 +1,10 @@
+replicate 6 6 6
+potential potential.txt
+velocity 300 seed 20260916
+time_step 0.2
+ensemble ttm 1 0 1.0 1.0 0.005 0.02 0.0 100.0 1 1 4 300 ttm_infile te_init.dat ttm_properties_file properties.dat ttm_active_z 2:3 ttm_source 0.001 ttm_out_interval 1
+
+dump_thermo 1
+dump_xyz 4 final.xyz precision double velocity force potential virial group_labels
+dump_restart 4
+run 4

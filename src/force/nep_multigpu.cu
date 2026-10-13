@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -29,6 +29,7 @@ when there is NVlink, but is also not very bad when there is only PCI-E.
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
+#include "utilities/run_input.cuh"
 #include <cstddef>
 #include <iostream>
 #include <string>
@@ -45,32 +46,19 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
   "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
-void NEP_MULTIGPU::initialize_dftd3()
+void NEP_MULTIGPU::initialize_dftd3(const RunInput& run_input)
 {
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
+  if (run_input.contains("dftd3")) {
+    PRINT_INPUT_ERROR("dftd3 has not been implemented for multi-GPU version.");
   }
-
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "dftd3") {
-        input_run.close();
-        PRINT_INPUT_ERROR("dftd3 has not been implemented for multi-GPU version.");
-      }
-    }
-  }
-
-  input_run.close();
 }
 
 NEP_MULTIGPU::NEP_MULTIGPU(
   const int num_gpus,
   const char* file_potential,
   const int num_atoms,
-  const int partition_direction_input)
+  const int partition_direction_input,
+  const RunInput& run_input)
 {
 
   printf("Try to use %d GPUs for the NEP part.\n", num_gpus);
@@ -370,7 +358,7 @@ NEP_MULTIGPU::NEP_MULTIGPU(
 
   allocate_memory();
 
-  initialize_dftd3();
+  initialize_dftd3(run_input);
 }
 
 void NEP_MULTIGPU::allocate_memory()
@@ -431,214 +419,7 @@ void NEP_MULTIGPU::update_potential(float* parameters, ANN& ann)
   ann.c = pointer;
 }
 
-static __device__ void find_cell_id(
-  const int partition_direction,
-  const Box& box,
-  const double x,
-  const double y,
-  const double z,
-  const double rc_inv,
-  const int nx,
-  const int ny,
-  const int nz,
-  int& cell_id_x,
-  int& cell_id_y,
-  int& cell_id_z,
-  int& cell_id)
-{
-  const double sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
-  const double sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
-  const double sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
-  cell_id_x = floor(sx * box.thickness_x * rc_inv);
-  cell_id_y = floor(sy * box.thickness_y * rc_inv);
-  cell_id_z = floor(sz * box.thickness_z * rc_inv);
-
-  while (cell_id_x < 0)
-    cell_id_x += nx;
-  while (cell_id_x >= nx)
-    cell_id_x -= nx;
-  while (cell_id_y < 0)
-    cell_id_y += ny;
-  while (cell_id_y >= ny)
-    cell_id_y -= ny;
-  while (cell_id_z < 0)
-    cell_id_z += nz;
-  while (cell_id_z >= nz)
-    cell_id_z -= nz;
-  if (partition_direction == 0) {
-    cell_id = cell_id_y + ny * (cell_id_z + nz * cell_id_x);
-  } else if (partition_direction == 1) {
-    cell_id = cell_id_x + nx * (cell_id_z + nz * cell_id_y);
-  } else {
-    cell_id = cell_id_x + nx * (cell_id_y + ny * cell_id_z);
-  }
-}
-
-static __device__ void find_cell_id(
-  const int partition_direction,
-  const Box& box,
-  const double x,
-  const double y,
-  const double z,
-  const double rc_inv,
-  const int nx,
-  const int ny,
-  const int nz,
-  int& cell_id)
-{
-  int cell_id_x, cell_id_y, cell_id_z;
-  find_cell_id(
-    partition_direction,
-    box,
-    x,
-    y,
-    z,
-    rc_inv,
-    nx,
-    ny,
-    nz,
-    cell_id_x,
-    cell_id_y,
-    cell_id_z,
-    cell_id);
-}
-
-static __global__ void find_cell_counts(
-  const int partition_direction,
-  const Box box,
-  const int N,
-  int* cell_count,
-  const double* x,
-  const double* y,
-  const double* z,
-  const int nx,
-  const int ny,
-  const int nz,
-  const double rc_inv)
-{
-  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    int cell_id;
-    find_cell_id(partition_direction, box, x[n1], y[n1], z[n1], rc_inv, nx, ny, nz, cell_id);
-    atomicAdd(&cell_count[cell_id], 1);
-  }
-}
-
-static __global__ void find_cell_contents(
-  const int partition_direction,
-  const Box box,
-  const int N,
-  int* cell_count,
-  const int* cell_count_sum,
-  int* cell_contents,
-  const double* x,
-  const double* y,
-  const double* z,
-  const int nx,
-  const int ny,
-  const int nz,
-  const double rc_inv)
-{
-  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    int cell_id;
-    find_cell_id(partition_direction, box, x[n1], y[n1], z[n1], rc_inv, nx, ny, nz, cell_id);
-    const int ind = atomicAdd(&cell_count[cell_id], 1);
-    cell_contents[cell_count_sum[cell_id] + ind] = n1;
-  }
-}
-
-static void __global__ set_to_zero(int size, int* data)
-{
-  int n = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n < size) {
-    data[n] = 0;
-  }
-}
-
-static void find_cell_list(
-  gpuStream_t& stream,
-  const int partition_direction,
-  const double rc,
-  const int* num_bins,
-  Box& box,
-  const int N,
-  const GPU_Vector<double>& position_per_atom,
-  GPU_Vector<int>& cell_count,
-  GPU_Vector<int>& cell_count_sum,
-  GPU_Vector<int>& cell_contents)
-{
-  const int offset = position_per_atom.size() / 3;
-  const int block_size = 256;
-  const int grid_size = (N - 1) / block_size + 1;
-  const double rc_inv = 1.0 / rc;
-  const double* x = position_per_atom.data();
-  const double* y = position_per_atom.data() + offset;
-  const double* z = position_per_atom.data() + offset * 2;
-  const int N_cells = num_bins[0] * num_bins[1] * num_bins[2];
-
-  // number of cells is allowed to be larger than the number of atoms
-  if (N_cells > cell_count.size()) {
-    cell_count.resize(N_cells);
-    cell_count_sum.resize(N_cells);
-  }
-
-  set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
-    cell_count.size(), cell_count.data());
-  GPU_CHECK_KERNEL
-
-  set_to_zero<<<(cell_count_sum.size() - 1) / 64 + 1, 64, 0, stream>>>(
-    cell_count_sum.size(), cell_count_sum.data());
-  GPU_CHECK_KERNEL
-
-  set_to_zero<<<(cell_contents.size() - 1) / 64 + 1, 64, 0, stream>>>(
-    cell_contents.size(), cell_contents.data());
-  GPU_CHECK_KERNEL
-
-  find_cell_counts<<<grid_size, block_size, 0, stream>>>(
-    partition_direction,
-    box,
-    N,
-    cell_count.data(),
-    x,
-    y,
-    z,
-    num_bins[0],
-    num_bins[1],
-    num_bins[2],
-    rc_inv);
-  GPU_CHECK_KERNEL
-
-  thrust::exclusive_scan(
-#ifdef USE_HIP
-    thrust::hip::par.on(stream),
-#else
-    thrust::cuda::par.on(stream),
-#endif
-    cell_count.data(),
-    cell_count.data() + N_cells,
-    cell_count_sum.data());
-
-  set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
-    cell_count.size(), cell_count.data());
-  GPU_CHECK_KERNEL
-
-  find_cell_contents<<<grid_size, block_size, 0, stream>>>(
-    partition_direction,
-    box,
-    N,
-    cell_count.data(),
-    cell_count_sum.data(),
-    cell_contents.data(),
-    x,
-    y,
-    z,
-    num_bins[0],
-    num_bins[1],
-    num_bins[2],
-    rc_inv);
-  GPU_CHECK_KERNEL
-}
+#include "nep_partition.cuh"
 
 static __global__ void find_neighbor_list_large_box(
   NEP_MULTIGPU::ParaMB paramb,

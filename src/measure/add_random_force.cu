@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -165,8 +165,10 @@ void Add_Random_Force::post_force(
   apply_random_force(atom);
 }
 
-Add_Random_Force::Add_Random_Force(const char** param, int num_param, int number_of_atoms)
+Add_Random_Force::Add_Random_Force(
+  const std::vector<std::string>& tokens, int number_of_atoms)
 {
+  const int num_param = tokens.size();
   action_name = "add_random_force";
   printf("Add force.\n");
 
@@ -176,7 +178,7 @@ Add_Random_Force::Add_Random_Force(const char** param, int num_param, int number
   }
 
   // parse force variance
-  if (!is_valid_real(param[1], &force_variance_)) {
+  if (!is_valid_real(tokens[1], &force_variance_)) {
     PRINT_INPUT_ERROR("force variance should be a number.\n");
   }
   if (force_variance_ < 0) {

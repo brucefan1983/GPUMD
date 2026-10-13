@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -73,6 +73,7 @@ public:
   // only allocate memory
   void resize(const size_t size, const Memory_Type memory_type = Memory_Type::global)
   {
+    capacity_ = size;
     size_ = size;
     memory_ = size_ * sizeof(T);
     memory_type_ = memory_type;
@@ -89,9 +90,23 @@ public:
     }
   }
 
+  // Change the logical length, retaining the allocation when it is large enough.
+  // Contents are unspecified after growth. Copies/fill use the logical length.
+  void resize_with_capacity(const size_t size)
+  {
+    if (!allocated_) {
+      resize(size ? size : 1);
+    } else if (size > capacity_) {
+      resize(size + size / 8 + 1);
+    }
+    size_ = size;
+    memory_ = size * sizeof(T);
+  }
+
   // allocate memory and initialize
   void resize(const size_t size, const T value, const Memory_Type memory_type = Memory_Type::global)
   {
+    capacity_ = size;
     size_ = size;
     memory_ = size_ * sizeof(T);
     memory_type_ = memory_type;
@@ -200,6 +215,7 @@ public:
 
 private:
   bool allocated_;          // true for allocated memory
+  size_t capacity_ = 0;
   size_t size_;             // number of elements
   size_t memory_;           // memory in bytes
   Memory_Type memory_type_; // global or unified memory

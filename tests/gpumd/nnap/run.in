@@ -1,7 +1,0 @@
-potential  nnap.txt ../../../potentials/nnap/Cu.json
-
-ensemble nve
-time_step 0
-
-dump_xyz 1 dump.xyz* force potential
-run 1

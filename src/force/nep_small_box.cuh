@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "model/box.cuh"
@@ -622,19 +622,27 @@ static __global__ void find_force_radial_small_box(
       double s_szx = 0.0;
       double s_szy = 0.0;
       double s_szz = 0.0;
-      const double* virial_r12 = AccumulateInDouble ? r12_double : nullptr;
-      s_sxx -= (AccumulateInDouble ? virial_r12[0] : r12[0]) * f12_double[0];
-      s_syy -= (AccumulateInDouble ? virial_r12[1] : r12[1]) * f12_double[1];
-      s_szz -= (AccumulateInDouble ? virial_r12[2] : r12[2]) * f12_double[2];
-      const double vx = AccumulateInDouble ? virial_r12[0] : r12[0];
-      const double vy = AccumulateInDouble ? virial_r12[1] : r12[1];
-      const double vz = AccumulateInDouble ? virial_r12[2] : r12[2];
-      s_sxy -= vx * f12_double[1];
-      s_sxz -= vx * f12_double[2];
-      s_syz -= vy * f12_double[2];
-      s_syx -= vy * f12_double[0];
-      s_szx -= vz * f12_double[0];
-      s_szy -= vz * f12_double[1];
+      if (AccumulateInDouble) {
+        s_sxx -= r12_double[0] * f12_double[0];
+        s_syy -= r12_double[1] * f12_double[1];
+        s_szz -= r12_double[2] * f12_double[2];
+        s_sxy -= r12_double[0] * f12_double[1];
+        s_sxz -= r12_double[0] * f12_double[2];
+        s_syz -= r12_double[1] * f12_double[2];
+        s_syx -= r12_double[1] * f12_double[0];
+        s_szx -= r12_double[2] * f12_double[0];
+        s_szy -= r12_double[2] * f12_double[1];
+      } else {
+        s_sxx -= r12[0] * f12[0];
+        s_syy -= r12[1] * f12[1];
+        s_szz -= r12[2] * f12[2];
+        s_sxy -= r12[0] * f12[1];
+        s_sxz -= r12[0] * f12[2];
+        s_syz -= r12[1] * f12[2];
+        s_syx -= r12[1] * f12[0];
+        s_szx -= r12[2] * f12[0];
+        s_szy -= r12[2] * f12[1];
+      }
 
       atomicAdd(&g_fx[n1], f12_double[0]);
       atomicAdd(&g_fy[n1], f12_double[1]);
@@ -774,7 +782,6 @@ static __global__ void find_force_angular_small_box(
             sum_fxyz,
             f12_double);
         } else {
-          float f12_one_n[3] = {0.0f};
           accumulate_f12(
             paramb.L_max,
             paramb.has_q_222,
@@ -792,10 +799,7 @@ static __global__ void find_force_angular_small_box(
             gnp12,
             Fp,
             sum_fxyz,
-            f12_one_n);
-          for (int d = 0; d < 3; ++d) {
-            f12[d] += f12_one_n[d];
-          }
+            f12);
         }
       }
       if (!AccumulateInDouble) {
@@ -812,19 +816,27 @@ static __global__ void find_force_angular_small_box(
       double s_szx = 0.0;
       double s_szy = 0.0;
       double s_szz = 0.0;
-      const double* virial_r12 = AccumulateInDouble ? r12_double : nullptr;
-      s_sxx -= (AccumulateInDouble ? virial_r12[0] : r12[0]) * f12_double[0];
-      s_syy -= (AccumulateInDouble ? virial_r12[1] : r12[1]) * f12_double[1];
-      s_szz -= (AccumulateInDouble ? virial_r12[2] : r12[2]) * f12_double[2];
-      const double vx = AccumulateInDouble ? virial_r12[0] : r12[0];
-      const double vy = AccumulateInDouble ? virial_r12[1] : r12[1];
-      const double vz = AccumulateInDouble ? virial_r12[2] : r12[2];
-      s_sxy -= vx * f12_double[1];
-      s_sxz -= vx * f12_double[2];
-      s_syz -= vy * f12_double[2];
-      s_syx -= vy * f12_double[0];
-      s_szx -= vz * f12_double[0];
-      s_szy -= vz * f12_double[1];
+      if (AccumulateInDouble) {
+        s_sxx -= r12_double[0] * f12_double[0];
+        s_syy -= r12_double[1] * f12_double[1];
+        s_szz -= r12_double[2] * f12_double[2];
+        s_sxy -= r12_double[0] * f12_double[1];
+        s_sxz -= r12_double[0] * f12_double[2];
+        s_syz -= r12_double[1] * f12_double[2];
+        s_syx -= r12_double[1] * f12_double[0];
+        s_szx -= r12_double[2] * f12_double[0];
+        s_szy -= r12_double[2] * f12_double[1];
+      } else {
+        s_sxx -= r12[0] * f12[0];
+        s_syy -= r12[1] * f12[1];
+        s_szz -= r12[2] * f12[2];
+        s_sxy -= r12[0] * f12[1];
+        s_sxz -= r12[0] * f12[2];
+        s_syz -= r12[1] * f12[2];
+        s_syx -= r12[1] * f12[0];
+        s_szx -= r12[2] * f12[0];
+        s_szy -= r12[2] * f12[1];
+      }
 
       atomicAdd(&g_fx[n1], f12_double[0]);
       atomicAdd(&g_fy[n1], f12_double[1]);

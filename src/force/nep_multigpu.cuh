@@ -2,21 +2,23 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
 #include "potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+
+class RunInput;
 
 struct NEP_MULTIGPU_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
@@ -128,7 +130,8 @@ public:
     const int num_gpus,
     const char* file_potential,
     const int num_atoms,
-    const int partition_direction);
+    const int partition_direction,
+    const RunInput& run_input);
   virtual ~NEP_MULTIGPU(void);
   virtual void compute(
     Box& box,
@@ -158,5 +161,5 @@ private:
 
   void allocate_memory();
   void update_potential(float* parameters, ANN& ann);
-  void initialize_dftd3();
+  void initialize_dftd3(const RunInput& run_input);
 };

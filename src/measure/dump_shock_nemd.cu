@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "dump_shock_nemd.cuh"
@@ -141,14 +141,15 @@ void write_to_file(FILE* file, const double* array, int n)
 
 } // namespace
 
-Dump_Shock_NEMD::Dump_Shock_NEMD(const char** param, int num_param)
+Dump_Shock_NEMD::Dump_Shock_NEMD(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "dump_shock_nemd";
 }
 
-void Dump_Shock_NEMD::parse(const char** param, int num_param)
+void Dump_Shock_NEMD::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   dump_ = true;
 
   printf("Dump spatial histogram thermo information for piston shock wave simulation, ");
@@ -156,14 +157,14 @@ void Dump_Shock_NEMD::parse(const char** param, int num_param)
   bool bin_size_seen = false;
   int i = 1;
   while (i < num_param) {
-    if (strcmp(param[i], "interval") == 0) {
+    if (tokens[i] == "interval") {
       if (interval_seen) {
         PRINT_INPUT_ERROR("Option 'interval' is specified more than once in dump_shock_nemd.\n");
       }
       if (i + 1 >= num_param) {
         PRINT_INPUT_ERROR("A value is required for option 'interval' in dump_shock_nemd.\n");
       }
-      if (!is_valid_int(param[i + 1], &dump_interval_)) {
+      if (!is_valid_int(tokens[i + 1], &dump_interval_)) {
         PRINT_INPUT_ERROR("Dump interval should be an integer.\n");
       }
       if (dump_interval_ <= 0) {
@@ -171,14 +172,14 @@ void Dump_Shock_NEMD::parse(const char** param, int num_param)
       }
       interval_seen = true;
       i += 2;
-    } else if (strcmp(param[i], "bin_size") == 0) {
+    } else if (tokens[i] == "bin_size") {
       if (bin_size_seen) {
         PRINT_INPUT_ERROR("Option 'bin_size' is specified more than once in dump_shock_nemd.\n");
       }
       if (i + 1 >= num_param) {
         PRINT_INPUT_ERROR("A value is required for option 'bin_size' in dump_shock_nemd.\n");
       }
-      if (!is_valid_real(param[i + 1], &bin_size_)) {
+      if (!is_valid_real(tokens[i + 1], &bin_size_)) {
         PRINT_INPUT_ERROR("Bin size should be a real number.\n");
       }
       if (bin_size_ <= 0.0) {

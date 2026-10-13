@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -28,6 +28,8 @@ public:
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
   int max_NN_spin;    // spin neighbor list size
+  int total_NN_radial;  // total number of radial neighbors
+  int total_NN_angular; // total number of angular neighbors
 
   GPU_Vector<int> Na;          // number of atoms in each configuration
   GPU_Vector<int> Na_sum;      // prefix sum of Na
@@ -43,18 +45,10 @@ public:
   GPU_Vector<int> num_cell;       // number of cells in the expanded box (3 components)
   GPU_Vector<int> pbc;            // 1 for PPP and 0 for FFF (one value per configuration)
 
-  GPU_Vector<int> NN_radial;  // radial neighbor number
-  GPU_Vector<int> NL_radial;  // radial neighbor list
-  GPU_Vector<int> NN_angular; // angular neighbor number
-  GPU_Vector<int> NL_angular; // angular neighbor list
-  GPU_Vector<int> NN_radial_sum; // prefix sum of NN_radial
+  GPU_Vector<int> NN_radial;      // radial neighbor number
+  GPU_Vector<int> NN_angular;     // angular neighbor number
+  GPU_Vector<int> NN_radial_sum;  // prefix sum of NN_radial
   GPU_Vector<int> NN_angular_sum; // prefix sum of NN_angular
-  GPU_Vector<float> x12_radial;
-  GPU_Vector<float> y12_radial;
-  GPU_Vector<float> z12_radial;
-  GPU_Vector<float> x12_angular;
-  GPU_Vector<float> y12_angular;
-  GPU_Vector<float> z12_angular;
   GPU_Vector<int> NN_spin;
   GPU_Vector<int> NL_spin;
   GPU_Vector<double> r12_spin;
@@ -74,6 +68,8 @@ public:
   std::vector<float> force_cpu;  // calculated force in CPU
   std::vector<float> mforce_cpu;
   std::vector<float> avirial_cpu;   // calculated atomic virial in CPU
+  GPU_Vector<double> total_energy_pred_gpu; // calculated total energy of each configuration (eV)
+  std::vector<double> total_energy_pred_cpu;
 
   GPU_Vector<float> energy_weight_gpu;    // energy weight in GPU
   GPU_Vector<float> charge_ref_gpu;       // reference charge in GPU
@@ -122,6 +118,7 @@ public:
   std::vector<float> get_rmse_avirial(Parameters& para, const bool use_weight, int device_id);
   std::vector<float> get_rmse_charge(Parameters& para, int device_id);
   std::vector<float> get_rmse_bec(Parameters& para, int device_id);
+  void compute_total_energies(int device_id);
 
 private:
   void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);
@@ -129,4 +126,24 @@ private:
   void find_Na(Parameters& para);
   void initialize_gpu_data(Parameters& para);
   void find_neighbor(Parameters& para);
+};
+
+class NEP_Neighbor
+{
+public:
+  GPU_Vector<int> NL_radial;
+  GPU_Vector<int> NL_angular;
+  GPU_Vector<float> x12_radial;
+  GPU_Vector<float> y12_radial;
+  GPU_Vector<float> z12_radial;
+  GPU_Vector<float> x12_angular;
+  GPU_Vector<float> y12_angular;
+  GPU_Vector<float> z12_angular;
+
+  void prepare(Parameters& para, Dataset& dataset, int device_id);
+
+private:
+  GPU_Vector<float> rc_radial;
+  GPU_Vector<float> rc_angular;
+  const Dataset* neighbor_dataset = nullptr;
 };

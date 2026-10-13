@@ -1,0 +1,10 @@
+change_box 3
+potential potential.txt
+velocity 300 seed 20260920
+time_step 0.1
+
+ensemble nve
+run 1
+
+replicate 1 1 1
+unreachable_after_late_replicate

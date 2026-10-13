@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "extrapolation.cuh"
@@ -42,35 +42,60 @@ __global__ void gpu_calculate_max_gamma(
   }
 }
 
-Extrapolation::Extrapolation(const char** params, int num_params)
+Extrapolation::Extrapolation(const std::vector<std::string>& tokens)
 {
   action_name = "compute_extrapolation";
+  const int num_params = tokens.size();
   int i = 1;
   while (i < num_params) {
-    if (strcmp(params[i], "nep_file") == 0) {
-      nep_file_name.assign(params[i + 1]);
+    if (tokens[i] == "nep_file") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for nep_file keyword.");
+      }
+      nep_file_name = tokens[i + 1];
       i += 2;
-    } else if (strcmp(params[i], "asi_file") == 0) {
-      asi_file_name.assign(params[i + 1]);
+    } else if (tokens[i] == "asi_file") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for asi_file keyword.");
+      }
+      asi_file_name = tokens[i + 1];
       i += 2;
-    } else if (strcmp(params[i], "gamma_low") == 0) {
-      if (!is_valid_real(params[i + 1], &gamma_low)) {
+    } else if (tokens[i] == "gamma_low") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for gamma_low keyword.");
+      }
+      if (!is_valid_real(tokens[i + 1], &gamma_low)) {
         PRINT_INPUT_ERROR("Wrong input for gamma_low.\n");
       }
       i += 2;
-    } else if (strcmp(params[i], "gamma_high") == 0) {
-      if (!is_valid_real(params[i + 1], &gamma_high)) {
+    } else if (tokens[i] == "gamma_high") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for gamma_high keyword.");
+      }
+      if (!is_valid_real(tokens[i + 1], &gamma_high)) {
         PRINT_INPUT_ERROR("Wrong input for gamma_high.\n");
       }
       i += 2;
-    } else if (strcmp(params[i], "check_interval") == 0) {
-      if (!is_valid_int(params[i + 1], &check_interval)) {
+    } else if (tokens[i] == "check_interval") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for check_interval keyword.");
+      }
+      if (!is_valid_int(tokens[i + 1], &check_interval)) {
         PRINT_INPUT_ERROR("Wrong input for check_interval.\n");
       }
+      if (check_interval <= 0) {
+        PRINT_INPUT_ERROR("check_interval should be positive.");
+      }
       i += 2;
-    } else if (strcmp(params[i], "dump_interval") == 0) {
-      if (!is_valid_int(params[i + 1], &dump_interval)) {
+    } else if (tokens[i] == "dump_interval") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for dump_interval keyword.");
+      }
+      if (!is_valid_int(tokens[i + 1], &dump_interval)) {
         PRINT_INPUT_ERROR("Wrong input for dump_interval.\n");
+      }
+      if (dump_interval <= 0) {
+        PRINT_INPUT_ERROR("dump_interval should be positive.");
       }
       i += 2;
     } else {

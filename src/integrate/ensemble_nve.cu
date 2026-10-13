@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -18,18 +18,28 @@ The NVE ensemble integrator.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_nve.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
-Ensemble_NVE::Ensemble_NVE(int t) { type = t; }
-
-Ensemble_NVE::~Ensemble_NVE(void)
+Ensemble_NVE::Ensemble_NVE(const std::vector<std::string>& tokens)
 {
-  // nothing now
+  type = EnsembleType::NVE;
+  parse(tokens);
+}
+
+void Ensemble_NVE::parse(const std::vector<std::string>& tokens)
+{
+  const int num_param = tokens.size();
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("ensemble nve should have 0 parameter.");
+  }
+  printf("Use NVE ensemble for this run.\n");
 }
 
 void Ensemble_NVE::compute1(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
@@ -58,10 +68,13 @@ void Ensemble_NVE::compute1(
 
 void Ensemble_NVE::compute2(
   const double time_step,
+  const int step,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo,
+  Force& force)
 {
 #ifdef USE_NEPCG
   velocity_verlet_cg(

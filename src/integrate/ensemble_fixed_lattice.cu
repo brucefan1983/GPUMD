@@ -9,10 +9,12 @@
 
 #include "ensemble_fixed_lattice.cuh"
 
-Ensemble_Fixed_Lattice::Ensemble_Fixed_Lattice(int type) { this->type = type; }
+Ensemble_Fixed_Lattice::Ensemble_Fixed_Lattice(EnsembleType type) { this->type = type; }
 
 void Ensemble_Fixed_Lattice::compute1(
   const double,
+  const int,
+  const int,
   const std::vector<Group>&,
   Box&,
   Atom&,
@@ -22,10 +24,12 @@ void Ensemble_Fixed_Lattice::compute1(
 
 void Ensemble_Fixed_Lattice::compute2(
   const double,
+  const int,
+  const int,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  GPU_Vector<double>& thermo)
+  GPU_Vector<double>& thermo, Force& force)
 {
   find_thermo(
     box.get_volume(),

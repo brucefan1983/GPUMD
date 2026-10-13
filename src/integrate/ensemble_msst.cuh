@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -18,37 +18,70 @@
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
 #include <math.h>
+#include <string>
+#include <vector>
 
 class Ensemble_MSST : public Ensemble
 {
 public:
-  Ensemble_MSST(const char** params, int num_params);
-  virtual ~Ensemble_MSST(void);
+  Ensemble_MSST(const std::vector<std::string>& tokens);
 
-  virtual void compute1(
+  void initialize_run(
     const double time_step,
+    Atom& atom,
+    Box& box,
+    const std::vector<Group>& group) override;
+
+  void initialize_before_first_step(
+    const double time_step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  void remap(double);
-  void init();
-  void find_thermo();
+  void compute2(
+    const double time_step,
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo,
+    Force& force) override;
+
+  void remap(const double dilation, Box& box, Atom& atom);
+  void init(
+    const Box& box,
+    const std::vector<Group>& group,
+    Atom& atom,
+    GPU_Vector<double>& thermo);
+  void find_thermo(
+    const Box& box,
+    const std::vector<Group>& group,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
   void get_omega();
-  void get_conserved();
-  void get_vsum();
-  void msst_v();
+  void get_conserved(
+    const Box& box,
+    const std::vector<Group>& group,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void get_vsum(const Atom& atom);
+  void msst_v(Atom& atom);
 
   int N;
   int shock_direction;
+  double initial_time_step;
   double dthalf;
   double vs;
   double qmass;

@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -41,7 +41,7 @@ EAM::EAM(FILE* fid, char* name, int num_types, const int number_of_atoms)
   eam_data.Fp.resize(number_of_atoms);
   eam_data.NN.resize(number_of_atoms);
   eam_data.NL.resize(number_of_atoms * 400); // very safe for EAM
-  neighbor.initialize(rc, number_of_atoms, 400);
+  neighbor_manager.initialize(rc, number_of_atoms, 400);
 }
 
 void EAM::initialize_eam2004zhou(FILE* fid, int num_types)
@@ -486,11 +486,10 @@ void EAM::compute(
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-  neighbor.find_neighbor_global(
-    rc,
-    box, 
-    type, 
-    position_per_atom);
+  neighbor_manager.update(box, type, position_per_atom);
+
+  const GPU_Vector<int>& NN = neighbor_manager.get_candidate_NN();
+  const GPU_Vector<int>& NL = neighbor_manager.get_candidate_NL();
 
   if (potential_model == 0) {
     find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>(
@@ -501,8 +500,8 @@ void EAM::compute(
       N2,
       box,
       rc,
-      neighbor.NN.data(),
-      neighbor.NL.data(),
+      NN.data(),
+      NL.data(),
       eam_data.NN.data(),
       eam_data.NL.data(),
       type.data(),
@@ -544,8 +543,8 @@ void EAM::compute(
       N2,
       box,
       rc,
-      neighbor.NN.data(),
-      neighbor.NL.data(),
+      NN.data(),
+      NL.data(),
       eam_data.NN.data(),
       eam_data.NL.data(),
       type.data(),

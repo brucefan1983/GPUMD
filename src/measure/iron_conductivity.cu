@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
@@ -258,24 +258,25 @@ void IC::post_run(
   compute_ = false;
 }
 
-IC::IC(const char** param, const int num_param, Atom& atom)
+IC::IC(const std::vector<std::string>& tokens, Atom& atom)
 {
-  parse(param, num_param);
+  parse(tokens);
   atom.enable_unwrapped_position();
   action_name = "compute_ic";
 }
 
-void IC::parse(const char** param, const int num_param)
+void IC::parse(const std::vector<std::string>& tokens)
 {
   printf("Compute ionic conductivity.\n");
   compute_ = true;
+  const int num_param = tokens.size();
 
   if (num_param != 5) {
     PRINT_INPUT_ERROR("compute_ic should have exactly 5 parameters.\n");
   }
 
   // sample interval
-  if (!is_valid_int(param[1], &sample_interval_)) {
+  if (!is_valid_int(tokens[1], &sample_interval_)) {
     PRINT_INPUT_ERROR("sample interval should be an integer.\n");
   }
   if (sample_interval_ <= 0) {
@@ -284,7 +285,7 @@ void IC::parse(const char** param, const int num_param)
   printf("    sample interval is %d.\n", sample_interval_);
 
   // number of correlation steps
-  if (!is_valid_int(param[2], &num_correlation_steps_)) {
+  if (!is_valid_int(tokens[2], &num_correlation_steps_)) {
     PRINT_INPUT_ERROR("number of correlation steps should be an integer.\n");
   }
   if (num_correlation_steps_ <= 0) {
@@ -292,7 +293,7 @@ void IC::parse(const char** param, const int num_param)
   }
   printf("    number of correlation steps is %d.\n", num_correlation_steps_);
 
-  if (!is_valid_int(param[3], &target_type_)) {
+  if (!is_valid_int(tokens[3], &target_type_)) {
     PRINT_INPUT_ERROR("type should be an integer.\n");
   }
   if (target_type_ < 0) {
@@ -300,7 +301,7 @@ void IC::parse(const char** param, const int num_param)
   }
   printf("    will compute conductivity for atom type = %d.\n", target_type_);
 
-  if (!is_valid_real(param[4], &charge_)) {
+  if (!is_valid_real(tokens[4], &charge_)) {
     PRINT_INPUT_ERROR("charge should be a real number.\n");
   }
   printf("    will compute conductivity using charge = %g.\n", charge_);

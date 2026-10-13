@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
@@ -235,7 +235,10 @@ void RDF::end_of_step(
   for (int t = 0; t < rdf_para.num_types; ++ t) {
     rdf_para.density_type[t] = rdf_para.num_atoms[t] / rdf_para.volume;
   }
-  find_rdf(box, atom.type, integrate.type >= 31 ? atom.position_beads[0] : atom.position_per_atom);
+  find_rdf(
+    box,
+    atom.type,
+    is_pimd(integrate.get_type()) ? atom.position_beads[0] : atom.position_per_atom);
 }
 
 void RDF::post_run(
@@ -288,28 +291,27 @@ void RDF::post_run(
 }
 
 RDF::RDF(
-  const char** param,
-  const int num_param,
+  const std::vector<std::string>& tokens,
   Box& box,
   const std::vector<int>& cpu_type_size)
 {
-  parse(param, num_param, box, cpu_type_size);
+  parse(tokens, box, cpu_type_size);
   action_name = "compute_rdf";
 }
 
 void RDF::parse(
-  const char** param,
-  const int num_param,
+  const std::vector<std::string>& tokens,
   Box& box,
   const std::vector<int>& cpu_type_size)
 {
   printf("Compute radial distribution function (RDF).\n");
+  const int num_param = tokens.size();
 
   if (num_param != 4) {
     PRINT_INPUT_ERROR("compute_rdf should have 3 parameters.\n");
   }
 
-  if (!is_valid_real(param[1], &rdf_para.rc)) {
+  if (!is_valid_real(tokens[1], &rdf_para.rc)) {
     PRINT_INPUT_ERROR("radial cutoff should be a number.\n");
   }
   if (rdf_para.rc <= 0) {
@@ -317,7 +319,7 @@ void RDF::parse(
   }
   printf("    radial cutoff %g.\n", rdf_para.rc);
 
-  if (!is_valid_int(param[2], &rdf_para.num_bins)) {
+  if (!is_valid_int(tokens[2], &rdf_para.num_bins)) {
     PRINT_INPUT_ERROR("number of bins should be an integer.\n");
   }
   if (rdf_para.num_bins <= 20) {
@@ -330,7 +332,7 @@ void RDF::parse(
 
   printf("    radial cutoff will be divided into %d bins.\n", rdf_para.num_bins);
 
-  if (!is_valid_int(param[3], &sampling_interval_)) {
+  if (!is_valid_int(tokens[3], &sampling_interval_)) {
     PRINT_INPUT_ERROR("interval step per sample should be an integer.\n");
   }
   if (sampling_interval_ <= 0) {

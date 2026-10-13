@@ -1,0 +1,4 @@
+potential qnep_mode1_BaTiO3.txt
+kspace ewald
+kspace pppm
+unreachable_after_duplicate_kspace

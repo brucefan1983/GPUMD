@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -24,6 +24,7 @@ The class defining the simulation model.
 #include "utilities/common.cuh"
 #include "utilities/compact_nep.cuh"
 #include "utilities/error.cuh"
+#include "utilities/run_input.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
@@ -146,8 +147,8 @@ static void read_xyz_line_1(std::ifstream& input, int& N)
     PRINT_INPUT_ERROR("The first line for the xyz file should have one value.");
   }
   N = get_int_from_token(tokens[0], __FILE__, __LINE__);
-  if (N < 2) {
-    PRINT_INPUT_ERROR("Number of atoms should >= 2.");
+  if (N < 1) {
+    PRINT_INPUT_ERROR("Number of atoms should >= 1.");
   } else {
     printf("Number of atoms is %d.\n", N);
   }
@@ -479,29 +480,25 @@ void find_type_size(
   }
 }
 
-std::string get_filename_potential()
+std::string get_filename_potential(const RunInput& run_input)
 {
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("No run.in.");
-  }
-
-  std::string line;
   std::string filename_potential;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() >= 2) {
-      if (tokens[0] == "potential") {
-        filename_potential = tokens[1];
-      }
+  for (const auto& line : run_input.lines()) {
+    if (line.tokens.size() >= 2 && line.tokens[0] == "potential") {
+      filename_potential = line.tokens[1];
     }
   }
-  input_run.close();
   if (filename_potential.size() == 0) {
     PRINT_INPUT_ERROR("There is no 'potential' keyword in run.in.");
   } else {
     return filename_potential;
   }
+}
+
+std::string get_filename_potential()
+{
+  RunInput run_input("run.in");
+  return get_filename_potential(run_input);
 }
 
 std::vector<std::string> get_atom_symbols(std::string& filename_potential)
@@ -535,6 +532,7 @@ std::vector<std::string> get_atom_symbols(std::string& filename_potential)
 }
 
 void initialize_position(
+  const RunInput& run_input,
   int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom)
 {
   std::string filename("model.xyz");
@@ -545,7 +543,7 @@ void initialize_position(
   }
 
   std::vector<std::string> atom_symbols;
-  auto filename_potential = get_filename_potential();
+  auto filename_potential = get_filename_potential(run_input);
   atom_symbols = get_atom_symbols(filename_potential);
 
   read_xyz_line_1(input, atom.number_of_atoms);
@@ -591,7 +589,7 @@ void initialize_position(
 
   input.close();
 
-  prepare_compact_nep_files(atom.cpu_atom_symbol);
+  prepare_compact_nep_files(atom.cpu_atom_symbol, run_input);
   const std::vector<std::string>& compact_species = get_compact_nep_species();
   if (compact_species.size() > 0 && compact_species.size() < atom_symbols.size()) {
     atom_symbols = compact_species;
@@ -638,6 +636,7 @@ void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<doubl
     atom.spin_per_atom.copy_from_host(atom.cpu_spin_per_atom.data());
     atom.spin_velocity_per_atom.copy_from_host(atom.cpu_spin_velocity_per_atom.data());
   }
+  atom.velocity_per_atom.copy_from_host(atom.cpu_velocity_per_atom.data());
   atom.force_per_atom.resize(N * 3, 0);
   atom.virial_per_atom.resize(N * 9);
   atom.potential_per_atom.resize(N);

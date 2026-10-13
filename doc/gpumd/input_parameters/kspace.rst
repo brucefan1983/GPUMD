@@ -5,21 +5,33 @@
 :attr:`kspace`
 ==============
 
-This keyword is used to set the computation method for the reciprocal space contribution to the electrostatic energy.
+This keyword selects the method for computing the reciprocal-space electrostatic energy.
 
 Syntax
 ------
 
-This keyword is used as follows::
+::
 
-  kspace <method>
+  kspace ewald
+  kspace pppm [spacing]
 
-where :attr:`<method>` can be either `ewald` or `pppm`.
-The default is `pppm`, which implies that the particle-particle particle-mesh (PPPM) method is used.
+The default method is ``pppm`` (particle-particle particle-mesh).
+Its optional ``spacing`` parameter sets the maximum mesh spacing in Angstrom
+(default: 1.0; allowed range: 0.2 to 2.0, inclusive).
+Smaller values give finer meshes at a higher computational cost.
+
+The mesh is chosen automatically and grows as needed when the box changes.
+It does not shrink. The actual spacing may be smaller than the requested value.
+
+Specify ``kspace`` at most once in ``run.in``, before the first ``run``.
 
 Example
 -------
 
-To use the Ewald method use::
+To use Ewald::
 
    kspace ewald
+
+To request a PPPM spacing of at most 1.5 Angstrom use::
+
+   kspace pppm 1.5

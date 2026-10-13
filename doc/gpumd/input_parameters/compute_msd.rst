@@ -13,14 +13,15 @@ Syntax
 ------
 For this keyword, the command looks like::
   
-  compute_msd <sample_interval> <Nc> [<optional_arg>]
+  compute_msd <sample_interval> <Nc> [<option> ...]
 
 with parameters defined as
 
 * :attr:`sample_interval`: Sampling interval of the position data
 * :attr:`Nc`: Maximum number of correlation steps
 
-The optional argument :attr:`optional_arg` allows three additional special keyword.
+The optional arguments can be given in any order. Each option can be specified at most once.
+The available options are described below.
 The first special keyword is :attr:`group`.
 The parameters are:
 
@@ -28,7 +29,7 @@ The parameters are:
 
 The second special keyword is :attr:`all_groups`.
 This keyword computes the :term:`MSD` and :term:`SDC` for each group in the specified grouping method.
-Note that :attr:`group` and :attr:`all_groups` cannot be used together.
+Note that :attr:`group` and :attr:`all_groups` are mutually exclusive.
 A typical usecase could be to compute the :term:`MSD` for each molecule in a system.
 The parameters are:
 
@@ -39,7 +40,7 @@ This keyword saves the internal :term:`MSD` and :term:`SDC` computed so far duri
 The file will have a name formatted as ``msd_step[step].out``. 
 The parameters are:
 
-* :attr:`save_every <interval>`, where :attr:`interval` is the number of steps between saving a copy. Note that the copy can only be written at most every :attr:`sample_interval` steps. Furthermore, the first ``msd_step[step].out`` file will be written after :attr:`Nc` times :attr:`sample_interval` steps. Subsequent files will be written every :attr:`interval`.
+* :attr:`save_every <interval>`, where :attr:`interval` is a positive integer giving the number of steps between saving a copy. Note that the copy can only be written at most every :attr:`sample_interval` steps. Furthermore, the first ``msd_step[step].out`` file will be written after :attr:`Nc` times :attr:`sample_interval` steps. Subsequent files will be written every :attr:`interval`.
 
 
 Examples

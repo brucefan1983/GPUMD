@@ -2,17 +2,18 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "energy_difference.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/error.cuh"
@@ -107,7 +108,7 @@ static void read_force(
   Structure& structure,
   std::string& xyz_filename,
   int& line_number,
-  int train_mode)
+  int model_type)
 {
   structure.type.resize(structure.num_atom);
   structure.x.resize(structure.num_atom);
@@ -150,7 +151,7 @@ static void read_force(
       get_double_from_token(tokens[1 + pos_offset], xyz_filename.c_str(), line_number);
     structure.z[na] =
       get_double_from_token(tokens[2 + pos_offset], xyz_filename.c_str(), line_number);
-    if (num_columns > 4 && (train_mode == 0 || train_mode == 3)) {
+    if (num_columns > 4 && (model_type == 0 || model_type == 3)) {
       structure.fx[na] =
         get_double_from_token(tokens[0 + force_offset], xyz_filename.c_str(), line_number);
       structure.fy[na] =
@@ -226,7 +227,9 @@ static void read_one_structure(
   std::string& xyz_filename,
   int& line_number)
 {
-  std::vector<std::string> tokens = get_tokens_without_unwanted_spaces(input);
+  std::string comment_line;
+  std::getline(input, comment_line);
+  std::vector<std::string> tokens = get_tokens_without_unwanted_spaces(comment_line);
   line_number++;
 
   for (auto& token : tokens) {
@@ -312,17 +315,23 @@ static void read_one_structure(
     }
   }
 
+  // get name (optional), which only ediff.in refers to
+  if (para.prediction == 0 && para.lambda_d > 0.0f) {
+    structure.name = EnergyDifference::read_structure_name(comment_line, xyz_filename, line_number);
+  }
+
   bool has_energy_in_exyz = false;
   for (const auto& token : tokens) {
     const std::string energy_string = "energy=";
     if (token.substr(0, energy_string.length()) == energy_string) {
       has_energy_in_exyz = true;
-      structure.energy = get_double_from_token(
+      structure.energy_total = get_double_from_token(
         token.substr(energy_string.length(), token.length()), xyz_filename.c_str(), line_number);
+      structure.energy = structure.energy_total;
       structure.energy /= structure.num_atom;
     }
   }
-  if ((para.train_mode == 0 || para.train_mode == 3) && !has_energy_in_exyz) {
+  if ((para.model_type == 0 || para.model_type == 3) && !has_energy_in_exyz) {
     PRINT_INPUT_ERROR("'energy' is missing in the second line of a frame.");
   }
 
@@ -346,7 +355,7 @@ static void read_one_structure(
         line_number);
     }
   }
-  if (para.train_mode == 3 && !structure.has_temperature) {
+  if (para.model_type == 3 && !structure.has_temperature) {
     PRINT_INPUT_ERROR("'temperature' is missing in the second line of a frame.");
   }
   if (!structure.has_temperature) {
@@ -451,7 +460,7 @@ static void read_one_structure(
   }
 
   // use the virial variable to keep the dipole data
-  if (para.train_mode == 1) {
+  if (para.model_type == 1) {
     structure.has_virial = false;
     for (int n = 0; n < tokens.size(); ++n) {
       const std::string dipole_string = "dipole=";
@@ -483,7 +492,7 @@ static void read_one_structure(
   }
 
   // use the virial variable to keep the polarizability data
-  if (para.train_mode == 2) {
+  if (para.model_type == 2) {
     structure.has_virial = false;
     for (int n = 0; n < tokens.size(); ++n) {
       const std::string pol_string = "pol=";
@@ -617,17 +626,17 @@ static void read_one_structure(
       if (pos_position < 0) {
         PRINT_INPUT_ERROR("'pos' is missing in properties.");
       }
-      if (force_position < 0 && (para.train_mode == 0 || para.train_mode == 3)) {
+      if (force_position < 0 && (para.model_type == 0 || para.model_type == 3)) {
         PRINT_INPUT_ERROR("'force' or 'forces' is missing in properties.");
       }
       if (spin_position < 0 && para.spin_mode) {
         PRINT_INPUT_ERROR(
           "spin_mode 3 requires spin/spins/moment/moments with property type R:3.\n");
       }
-      if (avirial_position < 0 && para.train_mode == 1 && para.atomic_v == 1) {
+      if (avirial_position < 0 && para.model_type == 1 && para.atomic_v == 1) {
         PRINT_INPUT_ERROR("'adipole' or 'atomic_dipole' is missing in properties.");
       }
-      if (avirial_position < 0 && para.train_mode == 2 && para.atomic_v == 1) {
+      if (avirial_position < 0 && para.model_type == 2 && para.atomic_v == 1) {
         PRINT_INPUT_ERROR("'apol' or 'atomic_polarizability' is missing in properties.");
       }
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
@@ -678,7 +687,7 @@ static void read_one_structure(
     structure,
     xyz_filename,
     line_number,
-    para.train_mode);
+    para.model_type);
 }
 
 static void read_exyz(
@@ -704,6 +713,7 @@ static void read_exyz(
       PRINT_INPUT_ERROR("Number of atoms for each frame should >= 1.");
     }
     read_one_structure(para, input, structure, xyz_filename, line_number);
+    structure.index_in_file = Nc;
     structures.emplace_back(structure);
     ++Nc;
   }
@@ -792,7 +802,11 @@ bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& st
     input.close();
   }
 
-  if ((para.prediction == 0) && is_train && (para.batch_size < structures.size())) {
+  // With the energy-difference loss, Fitness forms the batches from train.xyz in file order.
+  const bool is_ediff_active = para.prediction == 0 && para.lambda_d > 0.0f;
+  if (
+    (para.prediction == 0) && is_train && (para.batch_size < structures.size()) &&
+    !is_ediff_active) {
     int num_batches = (structures.size() - 1) / para.batch_size + 1;
     reorder(num_batches, structures);
   }

@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -25,10 +25,12 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep_kernels.cuh"
 #include "nep_small_box.cuh"
 #include "utilities/common.cuh"
+#include "utilities/compact_nep.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
+#include "utilities/run_input.cuh"
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -44,37 +46,31 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
   "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
-void NEP::initialize_dftd3()
+void NEP::initialize_dftd3(const RunInput& run_input)
 {
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-
   has_dftd3 = false;
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens_without_comments(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "dftd3") {
-        has_dftd3 = true;
-        if (tokens.size() != 4) {
-          std::cout << "dftd3 must have 3 parameters\n";
-          exit(1);
-        }
-        std::string xc_functional = tokens[1];
-        float rc_potential = get_double_from_token(tokens[2], __FILE__, __LINE__);
-        float rc_coordination_number = get_double_from_token(tokens[3], __FILE__, __LINE__);
-        dftd3.initialize(xc_functional, rc_potential, rc_coordination_number);
-        break;
+  for (const auto& line : run_input.lines()) {
+    const std::vector<std::string>& tokens = line.tokens;
+    if (!tokens.empty() && tokens[0] == "dftd3") {
+      has_dftd3 = true;
+      if (tokens.size() != 4) {
+        std::cout << "dftd3 must have 3 parameters\n";
+        exit(1);
       }
+      std::string xc_functional = tokens[1];
+      float rc_potential = get_double_from_token(tokens[2], __FILE__, __LINE__);
+      float rc_coordination_number = get_double_from_token(tokens[3], __FILE__, __LINE__);
+      dftd3.initialize(
+        xc_functional,
+        rc_potential,
+        rc_coordination_number,
+        get_first_potential_filename(run_input));
+      break;
     }
   }
-
-  input_run.close();
 }
 
-NEP::NEP(const char* file_potential, const int num_atoms)
+NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_input)
 {
   std::ifstream input(file_potential);
   if (!input.is_open()) {
@@ -338,7 +334,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   nep_data.f12x.resize(num_atoms * paramb.MN_angular);
   nep_data.f12y.resize(num_atoms * paramb.MN_angular);
   nep_data.f12z.resize(num_atoms * paramb.MN_angular);
-  neighbor.initialize(rc, num_atoms, paramb.MN_radial);
+  neighbor_manager.initialize(rc, num_atoms, paramb.MN_radial);
   nep_data.NN_radial.resize(num_atoms);
   nep_data.NL_radial.resize(static_cast<size_t>(num_atoms) * paramb.MN_radial);
   nep_data.NN_angular.resize(num_atoms);
@@ -349,7 +345,7 @@ NEP::NEP(const char* file_potential, const int num_atoms)
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
 
-  initialize_dftd3();
+  initialize_dftd3(run_input);
 }
 
 NEP::~NEP(void)
@@ -870,8 +866,7 @@ void NEP::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor.find_neighbor_global(
-    rc,
+  neighbor_manager.update(
     box, 
     type, 
     position_per_atom);
@@ -886,8 +881,8 @@ void NEP::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    neighbor.NN.data(),
-    neighbor.NL.data(),
+    neighbor_manager.get_candidate_NN().data(),
+    neighbor_manager.get_candidate_NL().data(),
     nep_data.NN_radial.data(),
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),
@@ -1380,8 +1375,7 @@ void NEP::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor.find_neighbor_global(
-    rc,
+  neighbor_manager.update(
     box, 
     type, 
     position_per_atom);
@@ -1396,8 +1390,8 @@ void NEP::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    neighbor.NN.data(),
-    neighbor.NL.data(),
+    neighbor_manager.get_candidate_NN().data(),
+    neighbor_manager.get_candidate_NL().data(),
     nep_data.NN_radial.data(),
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),

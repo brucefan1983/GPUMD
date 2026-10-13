@@ -1,0 +1,14 @@
+potential C_2022_NEP4.txt
+potential C_2022_NEP4_MODIFIED.txt
+velocity 300 seed 20260920
+time_step 0.1
+
+ensemble nve
+dump_observer average 1 1 0 1
+run 1
+
+ensemble nve
+dump_xyz 1 second.xyz precision double velocity force potential virial
+dump_restart 1
+dump_observer observe 1 1 0 1
+run 1

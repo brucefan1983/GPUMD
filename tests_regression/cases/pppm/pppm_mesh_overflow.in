@@ -1,0 +1,4 @@
+potential nep.txt
+kspace pppm 0.2
+ensemble nve
+run 1

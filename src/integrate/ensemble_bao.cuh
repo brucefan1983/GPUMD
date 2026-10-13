@@ -2,19 +2,20 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
 #include "ensemble.cuh"
+#include <string>
 #include "utilities/gpu_macro.cuh"
 #ifdef USE_HIP
   #include <hiprand/hiprand_kernel.h>
@@ -25,23 +26,33 @@
 class Ensemble_BAO : public Ensemble
 {
 public:
-  Ensemble_BAO(int, int, double, double);
-  Ensemble_BAO(int, int, int, int, int, int, int, double, double, double);
-  virtual ~Ensemble_BAO(void);
+  Ensemble_BAO(const std::vector<std::string>& tokens);
+  Ensemble_BAO(EnsembleType, int, int, int, int, int, int, double, double, double);
 
-  virtual void compute1(
+  double get_temperature1() const;
+  double get_temperature2() const;
+
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
+
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 protected:
   int N_source, N_sink, offset_source, offset_sink;
@@ -72,4 +83,10 @@ protected:
     const std::vector<Group>& group,
     const GPU_Vector<double>& mass,
     GPU_Vector<double>& velocity_per_atom);
+
+private:
+  void parse(const std::vector<std::string>& tokens);
+
+  double temperature1_ = 0.0;
+  double temperature2_ = 0.0;
 };

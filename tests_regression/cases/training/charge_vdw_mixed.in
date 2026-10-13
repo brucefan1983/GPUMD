@@ -1,0 +1,5 @@
+type 4 Pb Te H O
+charge_vdw 1
+batch 173
+generation 10
+output_interval 10

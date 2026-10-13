@@ -1,0 +1,2 @@
+potential potential.txt
+ensemble pimd 4 300 300

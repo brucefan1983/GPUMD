@@ -2,21 +2,22 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
 #include "ensemble_mttk.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <string>
 #include <vector>
 #ifdef USE_HIP
   #include <hiprand/hiprand_kernel.h>
@@ -27,22 +28,26 @@
 class Ensemble_NPT_QTB : public Ensemble_MTTK
 {
 public:
-  Ensemble_NPT_QTB(const char** params, int num_params);
-  virtual ~Ensemble_NPT_QTB(void);
+  Ensemble_NPT_QTB(const std::vector<std::string>& tokens);
 
-  virtual void compute1(
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 private:
   int qtb_number_of_atoms;
@@ -66,12 +71,22 @@ private:
   GPU_Vector<double> qtb_fran;
   GPU_Vector<gpurandState> qtb_curand_states;
 
-  void init_qtb();
+  void init_qtb(const Atom& atom);
   void qtb_update_time_filter(const double target_temperature);
-  void qtb_refresh_colored_random_force();
-  void qtb_apply_half_step();
+  void qtb_refresh_colored_random_force(const Atom& atom);
+  void qtb_apply_half_step(Atom& atom);
 
 protected:
-  virtual void init_mttk() override;
-  virtual void get_target_temp() override;
+  void init_mttk(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo) override;
+  void get_target_temp(
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo) override;
 };

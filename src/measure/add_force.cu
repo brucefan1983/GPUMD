@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -93,8 +93,10 @@ void Add_Force::apply_force(
   GPU_CHECK_KERNEL
 }
 
-Add_Force::Add_Force(const char** param, int num_param, const std::vector<Group>& group)
+Add_Force::Add_Force(
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
+  const int num_param = tokens.size();
   action_name = "add_force";
   printf("Add force.\n");
 
@@ -104,7 +106,7 @@ Add_Force::Add_Force(const char** param, int num_param, const std::vector<Group>
   }
 
   // parse grouping method
-  if (!is_valid_int(param[1], &grouping_method_)) {
+  if (!is_valid_int(tokens[1], &grouping_method_)) {
     PRINT_INPUT_ERROR("grouping method should be an integer.\n");
   }
   if (grouping_method_ < 0) {
@@ -115,7 +117,7 @@ Add_Force::Add_Force(const char** param, int num_param, const std::vector<Group>
   }
 
   // parse group id
-  if (!is_valid_int(param[2], &group_id_)) {
+  if (!is_valid_int(tokens[2], &group_id_)) {
     PRINT_INPUT_ERROR("group id should be an integer.\n");
   }
   if (group_id_ < 0) {
@@ -133,22 +135,22 @@ Add_Force::Add_Force(const char** param, int num_param, const std::vector<Group>
   if (num_param == 6) {
     table_length_ = 1;
     force_table_.resize(table_length_ * 3);
-    if (!is_valid_real(param[3], &force_table_[0])) {
+    if (!is_valid_real(tokens[3], &force_table_[0])) {
       PRINT_INPUT_ERROR("fx should be a number.\n");
     }
-    if (!is_valid_real(param[4], &force_table_[1])) {
+    if (!is_valid_real(tokens[4], &force_table_[1])) {
       PRINT_INPUT_ERROR("fy should be a number.\n");
     }
-    if (!is_valid_real(param[5], &force_table_[2])) {
+    if (!is_valid_real(tokens[5], &force_table_[2])) {
       PRINT_INPUT_ERROR("fz should be a number.\n");
     }
     printf("    fx = %g eV/A.\n", force_table_[0]);
     printf("    fy = %g eV/A.\n", force_table_[1]);
     printf("    fz = %g eV/A.\n", force_table_[2]);
   } else {
-    std::ifstream input(param[3]);
+    std::ifstream input(tokens[3]);
     if (!input.is_open()) {
-      printf("Failed to open %s.\n", param[3]);
+      printf("Failed to open %s.\n", tokens[3].c_str());
       exit(1);
     }
     std::vector<std::string> tokens = get_tokens(input);

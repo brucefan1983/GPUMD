@@ -1,0 +1,7 @@
+deposit 1 -1 0 file add_atoms.txt
+potential potential.txt
+velocity 300 seed 20260918
+time_step 1e-20
+
+ensemble nve
+run 1

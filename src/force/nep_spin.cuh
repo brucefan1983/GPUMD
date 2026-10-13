@@ -155,6 +155,9 @@ public:
     GPU_Vector<double>& virial,
     GPU_Vector<double>& mforce) override;
 
+  void resize_domain(int num_atoms);
+  void invalidate_neighbors() { neighbor_.invalidate(); }
+
   const Model& model(void) const { return model_; }
 
 private:
@@ -165,6 +168,7 @@ private:
   NEP::ANN ann_;
   NEP::ZBL zbl_;
   int num_atoms_ = 0;
+  int input_neighbor_capacity_ = 0;
   gpuStream_t structural_descriptor_stream_ = nullptr;
   gpuStream_t spin_descriptor_stream_ = nullptr;
   bool small_box_initialized_ = false;

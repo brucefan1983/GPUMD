@@ -1,0 +1,7 @@
+replicate 7 5 1
+potential ilp_tersoff.txt tersoff_params.txt
+time_step 1e-20
+ensemble nve
+dump_thermo 1
+dump_restart 1
+run 1

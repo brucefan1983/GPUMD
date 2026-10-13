@@ -1,0 +1,4 @@
+replicate 6 6 6
+potential Si_Tersoff_1989.txt
+compute_phonon 0.005
+

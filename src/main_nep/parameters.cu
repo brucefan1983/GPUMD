@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "parameters.cuh"
@@ -21,6 +21,7 @@
 #include "utilities/read_file.cuh"
 #include <algorithm>
 #include <cctype>
+#include <cfloat>
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -54,7 +55,7 @@ Parameters::Parameters()
 
 void Parameters::set_default_parameters()
 {
-  is_train_mode_set = false;
+  is_model_type_set = false;
   is_prediction_set = false;
   is_version_set = false;
   is_type_set = false;
@@ -73,8 +74,10 @@ void Parameters::set_default_parameters()
   is_lambda_spin_response_set = false;
   is_atomic_v_set = false;
   is_lambda_shear_set = false;
+  is_lambda_d_set = false;
   is_batch_set = false;
   is_population_set = false;
+  is_seed_set = false;
   is_generation_set = false;
   is_type_weight_set = false;
   is_zbl_set = false;
@@ -96,7 +99,7 @@ void Parameters::set_default_parameters()
   is_save_potential_set = false;
   is_output_interval_set = false;
 
-  train_mode = 0;              // potential
+  model_type = 0;              // potential
   prediction = 0;              // not prediction mode
   version = 4;                 // NEP4 is the best
   basis_size_radial = 6;       // large enough in most cases
@@ -122,9 +125,11 @@ void Parameters::set_default_parameters()
   lambda_shear = 1.0f;         // do not weight shear virial more by default
   lambda_q = 0.1f;             // close to optimal
   lambda_z = 0.5f;             // close to optimal
+  lambda_d = 0.0f;             // no energy-difference loss by default
   force_delta = 0.0f;          // no modification of force loss
   batch_size = 1000;           // large enough in most cases
   population_size = 50;        // almost optimal
+  seed = -1;                   // negative keeps the built-in seeds
   maximum_generation = 100000; // a good starting point
   save_potential = 100000;     // write checkpoint nep.txt files at these intervals
   save_potential_format = 1;   // 1 = include time stamp when writing checkpoint nep.txt files
@@ -221,7 +226,7 @@ void Parameters::calculate_parameters()
   }
 
   if (charge_mode || charge_vdw || vdw) {
-    if (train_mode != 0) {
+    if (model_type != 0) {
       PRINT_INPUT_ERROR("Charge/vdW is only supported for potential model.");
     }
     if (num_hidden_layers == 2) {
@@ -231,13 +236,17 @@ void Parameters::calculate_parameters()
 
   validate_spin_parameters();
 
-  if (train_mode == 0) {
+  if (model_type == 0) {
     if (atomic_v == 1) {
       PRINT_INPUT_ERROR("Atomic tensor is only supported for dipole or polarizability model.");
     }
   }
 
-  if (train_mode != 0 && train_mode != 3) {
+  if (is_lambda_d_set && (model_type == 1 || model_type == 2)) {
+    PRINT_INPUT_ERROR("lambda_d is only supported for potential models.");
+  }
+
+  if (model_type != 0 && model_type != 3) {
     // take virial as dipole or polarizability
     lambda_e = lambda_f = 0.0f;
     enable_zbl = false;
@@ -272,7 +281,7 @@ void Parameters::calculate_parameters()
 
   dim_struct = dim_radial + dim_angular;
   calculate_spin_dimensions();
-  if (train_mode == 3) {
+  if (model_type == 3) {
     dim += 1; // concatenate temperature with descriptors
   }
 
@@ -313,7 +322,7 @@ void Parameters::calculate_parameters()
     number_of_variables_descriptor_spin + number_of_variables_spin_projection;
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
-  if (train_mode == 2) {
+  if (model_type == 2) {
     number_of_variables += number_of_variables_ann;
   }
 
@@ -410,7 +419,7 @@ static bool parse_model_token(const std::string& token, NepTxtHeader& header)
   }
   header.version = token[3] - '0';
   header.enable_zbl = false;
-  header.train_mode = 0;
+  header.model_type = 0;
   header.charge_mode = 0;
   header.vdw = 0;
   header.charge_vdw = 0;
@@ -425,7 +434,7 @@ static bool parse_model_token(const std::string& token, NepTxtHeader& header)
     rest = rest.substr(4);
   }
   if (rest.empty() || rest == "_temperature") {
-    header.train_mode = rest.empty() ? 0 : 3;
+    header.model_type = rest.empty() ? 0 : 3;
     return true;
   }
   if (rest == "_vdw") {
@@ -437,11 +446,11 @@ static bool parse_model_token(const std::string& token, NepTxtHeader& header)
     return true;
   }
   if (rest == "_dipole") {
-    header.train_mode = 1;
+    header.model_type = 1;
     return true;
   }
   if (rest == "_polarizability") {
-    header.train_mode = 2;
+    header.model_type = 2;
     return true;
   }
   if (
@@ -679,9 +688,9 @@ static void compare_with_nep_txt_fine_tune(
     "version", para.version, para.is_version_set, header.version, filename, mismatches);
   compare_int(
     "model_type",
-    para.train_mode,
-    para.is_train_mode_set,
-    header.train_mode,
+    para.model_type,
+    para.is_model_type_set,
+    header.model_type,
     filename,
     mismatches);
   compare_int(
@@ -860,7 +869,7 @@ void Parameters::compare_with_nep_txt(
 
   compare_int("version", version, is_version_set, header.version, filename, mismatches);
   compare_int("spin_mode", spin_mode, is_spin_mode_set, header.spin_mode, filename, mismatches);
-  compare_int("model_type", train_mode, is_train_mode_set, header.train_mode, filename, mismatches);
+  compare_int("model_type", model_type, is_model_type_set, header.model_type, filename, mismatches);
   compare_int(
     "charge_mode", charge_mode, is_charge_mode_set, header.charge_mode, filename, mismatches);
   compare_int("vdw", vdw, is_vdw_set, header.vdw, filename, mismatches);
@@ -1041,7 +1050,7 @@ void Parameters::check_existing_model()
 
   if (import_q_scaler) {
     check_nep_txt("nep.txt", true, "Correct nep.in, or switch off import_q_scaler.");
-  } else if (train_mode == 0 && does_file_exist("nep.txt")) {
+  } else if (does_file_exist("nep.txt")) {
     // nep.txt is an input when predicting or when there is a nep.restart to resume from,
     // and merely a stale output otherwise
     if (prediction == 1) {
@@ -1055,7 +1064,7 @@ void Parameters::check_existing_model()
   }
 
   // nep.restart is read only when resuming a training run, not when predicting
-  if (train_mode == 0 && prediction == 0 && does_file_exist("nep.restart")) {
+  if (prediction == 0 && does_file_exist("nep.restart")) {
     check_nep_restart();
   }
 }
@@ -1068,18 +1077,18 @@ void Parameters::report_inputs()
 
   printf("Input or default parameters:\n");
 
-  std::string train_mode_name = "potential";
-  if (train_mode == 1) {
-    train_mode_name = "dipole";
-  } else if (train_mode == 2) {
-    train_mode_name = "polarizability";
-  } else if (train_mode == 3) {
-    train_mode_name = "temperature-dependent free energy";
+  std::string model_type_name = "potential";
+  if (model_type == 1) {
+    model_type_name = "dipole";
+  } else if (model_type == 2) {
+    model_type_name = "polarizability";
+  } else if (model_type == 3) {
+    model_type_name = "temperature-dependent free energy";
   }
-  if (is_train_mode_set) {
-    printf("    (input)   model_type = %s.\n", train_mode_name.c_str());
+  if (is_model_type_set) {
+    printf("    (input)   model_type = %s.\n", model_type_name.c_str());
   } else {
-    printf("    (default) model_type = %s.\n", train_mode_name.c_str());
+    printf("    (default) model_type = %s.\n", model_type_name.c_str());
   }
 
   std::string calculation_mode_name = "train";
@@ -1128,7 +1137,7 @@ void Parameters::report_inputs()
     printf("    (default) will not add the ZBL potential.\n");
   }
 
-  if (is_charge_mode_set) {
+  if (charge_mode > 0) {
     if (charge_mode == 1) {
       printf("    (input)   use NEP-Charge and include both real-space and k-space.\n");
     } else if (charge_mode == 2) {
@@ -1281,6 +1290,10 @@ void Parameters::report_inputs()
     printf("    (default) lambda_shear = %g.\n", lambda_shear);
   }
 
+  if (is_lambda_d_set) {
+    printf("    (input)   lambda_d = %g.\n", lambda_d);
+  }
+
   if (is_force_delta_set) {
     printf("    (input)   force_delta = %g.\n", force_delta);
   } else {
@@ -1297,6 +1310,12 @@ void Parameters::report_inputs()
     printf("    (input)   population size = %d.\n", population_size);
   } else {
     printf("    (default) population size = %d.\n", population_size);
+  }
+
+  if (is_seed_set) {
+    printf("    (input)   random seed = %d.\n", seed);
+  } else {
+    printf("    (default) random seed not set.\n");
   }
 
   if (is_generation_set) {
@@ -1337,7 +1356,7 @@ void Parameters::report_inputs()
   }
   printf(
     "    number of NN parameters to be optimized = %d.\n",
-    number_of_variables_ann * (train_mode == 2 ? 2 : 1));
+    number_of_variables_ann * (model_type == 2 ? 2 : 1));
   printf(
     "    number of descriptor parameters to be optimized = %d.\n", number_of_variables_descriptor);
   printf("    total number of parameters to be optimized = %d.\n", number_of_variables);
@@ -1354,7 +1373,7 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     return;
   }
   if (strcmp(param[0], "model_type") == 0 || strcmp(param[0], "mode") == 0) {
-    parse_mode(param, num_param);
+    parse_model_type(param, num_param);
   } else if (strcmp(param[0], "prediction") == 0) {
     parse_prediction(param, num_param);
   } else if (strcmp(param[0], "version") == 0) {
@@ -1375,6 +1394,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_batch(param, num_param);
   } else if (strcmp(param[0], "population") == 0) {
     parse_population(param, num_param);
+  } else if (strcmp(param[0], "seed") == 0) {
+    parse_seed(param, num_param);
   } else if (strcmp(param[0], "nep_compile") == 0) {
     parse_nep_compile(param, num_param);
   } else if (strcmp(param[0], "generation") == 0) {
@@ -1393,6 +1414,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_lambda_q(param, num_param);
   } else if (strcmp(param[0], "lambda_z") == 0) {
     parse_lambda_z(param, num_param);
+  } else if (strcmp(param[0], "lambda_d") == 0) {
+    parse_lambda_d(param, num_param);
   } else if (strcmp(param[0], "lambda_shear") == 0) {
     parse_lambda_shear(param, num_param);
   } else if (strcmp(param[0], "type_weight") == 0) {
@@ -1444,17 +1467,17 @@ void Parameters::parse_nep_compile(const char** param, int num_param)
   }
 }
 
-void Parameters::parse_mode(const char** param, int num_param)
+void Parameters::parse_model_type(const char** param, int num_param)
 {
-  is_train_mode_set = true;
+  is_model_type_set = true;
 
   if (num_param != 2) {
     PRINT_INPUT_ERROR("model_type should have 1 parameter.\n");
   }
-  if (!is_valid_int(param[1], &train_mode)) {
-    PRINT_INPUT_ERROR("mode should be an integer.\n");
+  if (!is_valid_int(param[1], &model_type)) {
+    PRINT_INPUT_ERROR("model_type should be an integer.\n");
   }
-  if (train_mode != 0 && train_mode != 1 && train_mode != 2 && train_mode != 3) {
+  if (model_type != 0 && model_type != 1 && model_type != 2 && model_type != 3) {
     PRINT_INPUT_ERROR("model_type should = 0 or 1 or 2 or 3.");
   }
 }
@@ -1931,6 +1954,27 @@ void Parameters::parse_lambda_z(const char** param, int num_param)
   }
 }
 
+void Parameters::parse_lambda_d(const char** param, int num_param)
+{
+  is_lambda_d_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("lambda_d should have 1 parameter.\n");
+  }
+
+  double lambda_d_tmp = 0.0;
+  if (!is_valid_real(param[1], &lambda_d_tmp)) {
+    PRINT_INPUT_ERROR("Energy difference loss weight should be a number.\n");
+  }
+  // the weight has to be positive and survive the conversion to float
+  if (!std::isfinite(lambda_d_tmp) || lambda_d_tmp < FLT_MIN || lambda_d_tmp > FLT_MAX) {
+    PRINT_INPUT_ERROR(
+      "Energy difference loss weight should be a finite positive number within the range of "
+      "float.");
+  }
+  lambda_d = lambda_d_tmp;
+}
+
 void Parameters::parse_atomic_v(const char** param, int num_param)
 {
   is_atomic_v_set = true;
@@ -2012,6 +2056,21 @@ void Parameters::parse_population(const char** param, int num_param)
     printf("The input population size is not divisible by the number of GPUs.\n");
     printf("This causes an inefficient use of resources.\n");
     printf("The population size has therefore been increased to %d.\n", population_size);
+  }
+}
+
+void Parameters::parse_seed(const char** param, int num_param)
+{
+  is_seed_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("The seed keyword must be followed by a parameter.\n");
+  }
+  if (!is_valid_int(param[1], &seed)) {
+    PRINT_INPUT_ERROR("seed should be an integer.\n");
+  }
+  if (seed < 0) {
+    PRINT_INPUT_ERROR("seed should be >= 0.\n");
   }
 }
 

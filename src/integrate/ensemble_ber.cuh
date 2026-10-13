@@ -2,38 +2,52 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
 #include "ensemble.cuh"
+#include <string>
 
 class Ensemble_BER : public Ensemble
 {
 public:
-  Ensemble_BER(int, int, double*, double, double);
-  Ensemble_BER(int, double, double, double*, int, double*, int, int, int, int, int, int);
-  virtual ~Ensemble_BER(void);
+  Ensemble_BER(const std::vector<std::string>& tokens, const Box& box);
 
-  virtual void compute1(
+  double get_temperature1() const;
+  double get_temperature2() const;
+  int get_num_target_pressure_components() const;
+
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
+
+private:
+  void parse(const std::vector<std::string>& tokens, const Box& box);
+
+  double temperature1_ = 0.0;
+  double temperature2_ = 0.0;
 };

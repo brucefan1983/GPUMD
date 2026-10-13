@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -85,39 +85,38 @@ void PLUMED::pre_run(
   cpu_q_vector = std::vector<double>(3 * n_atom);
   memcpy(cpu_m_vector.data(), atom.cpu_mass.data(), n_atom * sizeof(double));
 
-  init(time_step, integrate.temperature);
+  init(time_step, integrate.get_temperature());
 }
 
-PLUMED::PLUMED(const char** param, int num_param)
+PLUMED::PLUMED(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "plumed";
 }
 
-void PLUMED::parse(const char** param, int num_param)
+void PLUMED::parse(const std::vector<std::string>& tokens)
 {
   use_plumed = 1;
-  memset(input_file, 0, 80);
   if (!plumed_installed()) {
     PRINT_INPUT_ERROR("PLUMED not installed!\n");
   }
-  if (num_param != 4) {
+  if (tokens.size() != 4) {
     PRINT_INPUT_ERROR("plumed should have 3 parameters.");
   }
-  sprintf(input_file, "%s", param[1]);
-  sprintf(output_file, "%s.out", param[1]);
-  if (!is_valid_int(param[2], &interval)) {
+  input_file = tokens[1];
+  output_file = input_file + ".out";
+  if (!is_valid_int(tokens[2], &interval)) {
     PRINT_INPUT_ERROR("plumed invoke interval should be an integer.");
   }
   if (interval <= 0) {
     PRINT_INPUT_ERROR("plumed invoke interval should > 0.");
   }
-  if (!is_valid_int(param[3], &restart)) {
+  if (!is_valid_int(tokens[3], &restart)) {
     PRINT_INPUT_ERROR("plumed restart parameter should be 0 or 1.");
   }
   printf("Use PLUMED for this run.\n");
-  printf("    input  file: '%s'.\n", input_file);
-  printf("    output file: '%s'.\n", output_file);
+  printf("    input  file: '%s'.\n", input_file.c_str());
+  printf("    output file: '%s'.\n", output_file.c_str());
   printf("    invoke freq: every %d steps.\n", interval);
   if (restart) {
     printf("    will restart calculations from old files.\n");
@@ -129,7 +128,7 @@ void PLUMED::init(const double ts, const double T)
   step = 0;
   time_step = ts;
 
-  const char engine_name[7] = "GPUMD\0";                // my name
+  const char* engine_name = "GPUMD";                    // my name
   const double KbT = K_B * T;                           // eV
   const double time_unit = TIME_UNIT_CONVERSION / 1000; // natural -> ps
   const double mass_unit = 1.0;                         // amu. -> amu.
@@ -145,8 +144,8 @@ void PLUMED::init(const double ts, const double T)
   plumed_cmd(plumed_main, "setMDEnergyUnits", &energy_unit);
   plumed_cmd(plumed_main, "setMDLengthUnits", &length_unit);
   plumed_cmd(plumed_main, "setMDChargeUnits", &charge_unit);
-  plumed_cmd(plumed_main, "setPlumedDat", input_file);
-  plumed_cmd(plumed_main, "setLogFile", output_file);
+  plumed_cmd(plumed_main, "setPlumedDat", input_file.c_str());
+  plumed_cmd(plumed_main, "setLogFile", output_file.c_str());
   plumed_cmd(plumed_main, "setTimestep", &time_step);
   plumed_cmd(plumed_main, "setRestart", &restart);
   plumed_cmd(plumed_main, "setNatoms", &n_atom);

@@ -2,14 +2,14 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details. You should have received a copy of the GNU General
-   Public License along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details. You should have received a copy of the GNU Lesser General
+   Public License along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
@@ -51,52 +51,32 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-static __global__ void initialize_properties(
-  int N, double* g_fx, double* g_fy, double* g_fz, double* g_pe, double* g_virial)
+Dump_Observer::Dump_Observer(const std::vector<std::string>& tokens)
 {
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    g_fx[n1] = 0.0;
-    g_fy[n1] = 0.0;
-    g_fz[n1] = 0.0;
-    g_pe[n1] = 0.0;
-    g_virial[n1 + 0 * N] = 0.0;
-    g_virial[n1 + 1 * N] = 0.0;
-    g_virial[n1 + 2 * N] = 0.0;
-    g_virial[n1 + 3 * N] = 0.0;
-    g_virial[n1 + 4 * N] = 0.0;
-    g_virial[n1 + 5 * N] = 0.0;
-    g_virial[n1 + 6 * N] = 0.0;
-    g_virial[n1 + 7 * N] = 0.0;
-    g_virial[n1 + 8 * N] = 0.0;
-  }
-}
-
-Dump_Observer::Dump_Observer(const char** param, int num_param)
-{
-  parse(param, num_param);
+  parse(tokens);
   action_name = "dump_observer";
 }
 
-void Dump_Observer::parse(const char** param, int num_param)
+void Dump_Observer::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   dump_ = true;
   printf("Dump observer.\n");
 
   if (num_param != 6) {
     PRINT_INPUT_ERROR("dump_observer should have 5 parameters.");
   }
-  mode_ = param[1];
+  mode_ = tokens[1];
   if (mode_.compare("observe") != 0 && mode_.compare("average") != 0) {
     PRINT_INPUT_ERROR("observer mode should be 'observe' or 'average'");
   }
-  if (!is_valid_int(param[2], &dump_interval_thermo_)) {
+  if (!is_valid_int(tokens[2], &dump_interval_thermo_)) {
     PRINT_INPUT_ERROR("dump interval thermo should be an integer.");
   }
   if (dump_interval_thermo_ <= 0) {
     PRINT_INPUT_ERROR("dump interval thermo should > 0.");
   }
-  if (!is_valid_int(param[3], &dump_interval_exyz_)) {
+  if (!is_valid_int(tokens[3], &dump_interval_exyz_)) {
     PRINT_INPUT_ERROR("dump interval exyz should be an integer.");
   }
   if (dump_interval_exyz_ <= 0) {
@@ -106,7 +86,7 @@ void Dump_Observer::parse(const char** param, int num_param)
   printf("    .out every %d steps.\n", dump_interval_thermo_);
   printf("    .exyz every %d steps.\n", dump_interval_exyz_);
 
-  if (!is_valid_int(param[4], &has_velocity_)) {
+  if (!is_valid_int(tokens[4], &has_velocity_)) {
     PRINT_INPUT_ERROR("has_velocity should be an integer.");
   }
   if (has_velocity_ == 0) {
@@ -115,7 +95,7 @@ void Dump_Observer::parse(const char** param, int num_param)
     printf("    with velocity data.\n");
   }
 
-  if (!is_valid_int(param[5], &has_force_)) {
+  if (!is_valid_int(tokens[5], &has_force_)) {
     PRINT_INPUT_ERROR("has_force should be an integer.");
   }
   if (has_force_ == 0) {
@@ -149,7 +129,8 @@ void Dump_Observer::pre_run(
 {
   force.set_multiple_potentials_mode(mode_);
   if (dump_) {
-    const int number_of_files = (mode_.compare("observe") == 0) ? force.potentials.size() : 1;
+    const int number_of_files =
+      (mode_.compare("observe") == 0) ? force.get_number_of_potentials() : 1;
     for (int i = 0; i < number_of_files; i++) {
       const std::string file_number = (number_of_files == 1) ? "" : std::to_string(i);
       std::string exyz_filename = "observer" + file_number + ".xyz";
@@ -161,6 +142,13 @@ void Dump_Observer::pre_run(
     cpu_total_virial_.resize(6);
     if (has_force_) {
       cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
+    }
+    if (mode_.compare("observe") == 0) {
+      observer_potential_per_atom_.resize(atom.number_of_atoms);
+      observer_force_per_atom_.resize(atom.number_of_atoms * 3);
+      observer_virial_per_atom_.resize(atom.number_of_atoms * 9);
+      // Ensemble::find_thermo writes T, U and the six components of the stress.
+      observer_thermo_.resize(8);
     }
   }
 }
@@ -186,42 +174,38 @@ void Dump_Observer::end_of_step(
     return;
 
   int number_of_atoms_fixed =
-    (fixed_group < 0) ? 0 : group[integrate.fixed_grouping_method].cpu_size[fixed_group];
+    (fixed_group < 0)
+      ? 0
+      : group[integrate.get_fixed_grouping_method()].cpu_size[fixed_group];
   number_of_atoms_fixed +=
-    (move_group < 0) ? 0 : group[integrate.move_grouping_method].cpu_size[move_group];
+    (move_group < 0)
+      ? 0
+      : group[integrate.get_move_grouping_method()].cpu_size[move_group];
 
   if (mode_.compare("observe") == 0) {
-    // If observing, calculate properties with all potentials.
-    const int number_of_potentials = force.potentials.size();
+    // Every potential is evaluated into scratch arrays at the positions of the frame, which leaves
+    // the per-atom arrays and the thermo vector of the run unchanged for the next step and for the
+    // other actions.
+    const int number_of_potentials = force.get_number_of_potentials();
     const int number_of_atoms = atom.type.size();
-    // Loop backwards over files to evaluate the main potential last, keeping it's properties intact
-    for (int potential_index = number_of_potentials - 1; potential_index >= 0; potential_index--) {
-      // Set potential/force/virials to zero
-      initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-        number_of_atoms,
-        atom.force_per_atom.data(),
-        atom.force_per_atom.data() + number_of_atoms,
-        atom.force_per_atom.data() + number_of_atoms * 2,
-        atom.potential_per_atom.data(),
-        atom.virial_per_atom.data());
-      GPU_CHECK_KERNEL
-      // Compute new potential properties
-      force.potentials[potential_index]->compute(
+    for (int potential_index = 0; potential_index < number_of_potentials; potential_index++) {
+      force.compute_one_potential(
+        potential_index,
         box,
-        atom.type,
         atom.position_per_atom,
-        atom.potential_per_atom,
-        atom.force_per_atom,
-        atom.virial_per_atom);
-      integrate.ensemble->find_thermo(
+        atom.type,
+        group,
+        observer_potential_per_atom_,
+        observer_force_per_atom_,
+        observer_virial_per_atom_);
+      integrate.find_thermo(
         box.get_volume(),
         group,
         atom.mass,
-        atom.potential_per_atom,
+        observer_potential_per_atom_,
         atom.velocity_per_atom,
-        atom.virial_per_atom,
-        thermo);
-      // Write properties
+        observer_virial_per_atom_,
+        observer_thermo_);
       write_exyz(
         step,
         global_time,
@@ -232,11 +216,12 @@ void Dump_Observer::end_of_step(
         atom.cpu_position_per_atom,
         atom.velocity_per_atom,
         atom.cpu_velocity_per_atom,
-        atom.force_per_atom,
-        atom.virial_per_atom,
-        thermo,
+        observer_force_per_atom_,
+        observer_virial_per_atom_,
+        observer_thermo_,
         potential_index);
-      write_thermo(step, number_of_atoms, number_of_atoms_fixed, box, thermo, potential_index);
+      write_thermo(
+        step, number_of_atoms, number_of_atoms_fixed, box, observer_thermo_, potential_index);
     }
   } else if (mode_.compare("average") == 0) {
     // If average, dump already computed properties to file.

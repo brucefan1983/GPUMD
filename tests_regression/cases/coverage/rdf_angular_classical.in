@@ -1,0 +1,9 @@
+potential potential.txt
+velocity 300 seed 20260918
+time_step 0.2
+
+ensemble nve
+compute_rdf 2.8 21 1
+compute_angular_rdf 2.8 21 24 1
+dump_restart 1
+run 1

@@ -2,34 +2,41 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "replicate.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 
-void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::vector<Group>& groups)
+void parse_replicate(const std::vector<std::string>& tokens, int r[3])
 {
-  int r[3]; // the number of replicates
+  const int num_param = tokens.size();
   if (num_param != 4) {
     PRINT_INPUT_ERROR(
       "Replicate should have 3 parameters: number of replications in a, b and c directions.");
   }
   for (int i = 0; i < 3; i++) {
-    if (!is_valid_int(param[i + 1], r + i))
+    if (!is_valid_int(tokens[i + 1], r + i))
       PRINT_INPUT_ERROR("Number of replications should be an integer.");
     if (r[i] <= 0)
       PRINT_INPUT_ERROR("Number of replications should be positive.");
   }
+}
+
+void Replicate(
+  const int r[3],
+  Box& box,
+  Atom& atoms,
+  std::vector<Group>& groups)
+{
   // repeat atom and group
   Atom new_atoms;
   int n = atoms.number_of_atoms;

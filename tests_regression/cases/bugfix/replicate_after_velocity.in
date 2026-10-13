@@ -1,0 +1,4 @@
+velocity 300 seed 20260920
+replicate 1 1 1
+unreachable_after_late_replicate
+potential potential.txt

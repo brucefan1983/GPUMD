@@ -1,0 +1,8 @@
+replicate 6 6 6
+potential potential.txt
+velocity 300 seed 20260916
+time_step 0.2
+ensemble heat_nhc_power 300 20 0.001 0 2
+compute 0 1 6 temperature
+dump_restart 6
+run 6

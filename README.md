@@ -8,7 +8,7 @@
 
 GPUMD is a high-performance, general-purpose molecular dynamics package implemented on GPUs. It supports empirical interatomic potentials and neuroevolution potentials (NEPs), and provides tools for training NEP models and using them in atomistic simulations.
 
-[User manual](https://gpumd.org/) · [Development manual](https://gpumd.org/dev/) · [Examples](https://github.com/brucefan1983/GPUMD/blob/master/examples/readme.md) · [Tutorials](https://github.com/brucefan1983/GPUMD-Tutorials) · [Tools](https://github.com/brucefan1983/GPUMD/blob/master/tools/readme.md) · [Citations](#citations)
+[User manual](https://gpumd.org/) · [Development manual](https://gpumd.org/dev/) · [Examples](https://github.com/brucefan1983/GPUMD/blob/master/examples/README.md) · [Tutorials](https://github.com/brucefan1983/GPUMD-Tutorials) · [Tools](https://github.com/brucefan1983/GPUMD/blob/master/tools/readme.md) · [Citations](#citations)
 
 ## Programs
 
@@ -82,7 +82,7 @@ To evaluate the dataset in the separate prediction example:
 
 These examples read their own `nep.in` files. Input formats, training options, and outputs are described in the [NEP manual](https://gpumd.org/dev/nep/index.html). Calculations write results into their working directories; save previous results before rerunning an example.
 
-See [examples/readme.md](https://github.com/brucefan1983/GPUMD/blob/master/examples/readme.md) for additional examples and GPU-selection guidance. On a workstation, `CUDA_VISIBLE_DEVICES` can restrict visible GPUs. On a cluster, follow the GPU allocation and environment provided by the job scheduler.
+See [examples/README.md](https://github.com/brucefan1983/GPUMD/blob/master/examples/README.md) for additional examples. GPU selection and multi-GPU execution are described in the [installation guide](https://gpumd.org/dev/installation.html).
 
 ## Documentation and tutorials
 
@@ -92,7 +92,7 @@ See [examples/readme.md](https://github.com/brucefan1983/GPUMD/blob/master/examp
 | [Development manual](https://gpumd.org/dev/) | Documentation for the development version; use this when working with `master`. |
 | [GPUMD-Tutorials](https://github.com/brucefan1983/GPUMD-Tutorials) | Worked examples of GPUMD applications and related tools. |
 | [Colab tutorial](https://colab.research.google.com/drive/1QnXAveZgzwut4Mvldsw-r2I0EWIsj1KA?usp=sharing) | A PbTe workflow covering NEP construction and atomistic simulations in Google Colab. |
-| [Developer guide](developers/) | Guidance for working on the GPUMD source code. |
+| [Developer guide](developer/) | Guidance for working on the GPUMD source code. |
 
 ## Potentials and datasets
 
@@ -116,7 +116,7 @@ Use [GitHub Discussions](https://github.com/brucefan1983/GPUMD/discussions) or t
 
 For a bug report, include the GPUMD version or commit, operating system, GPU model, toolkit and compiler versions, relevant input files, and the error output. A small reproducing example helps isolate the problem.
 
-Code, documentation, examples, and updates to the package list in `tools/readme.md` are welcome through pull requests. Consult the [developer guide](developers/) before making substantial code changes.
+Code, documentation, examples, and updates to the package list in `tools/readme.md` are welcome through pull requests. Consult the [developer guide](developer/) before making substantial code changes.
 
 ## Citations
 
@@ -212,4 +212,8 @@ For work using GPUMD, please cite **[Xu2025](https://doi.org/10.1002/mgea.70028)
 
 ## License
 
-Copyright (2017) Zheyong Fan. GPUMD is distributed under the GNU General Public License (GPL), version 3. See [LICENCE](LICENCE) for the full license text.
+Copyright 2017 Zheyong Fan and GPUMD development team.
+
+The source code and header files under `src/`, including subdirectories, are licensed under the GNU Lesser General Public License, version 3 or any later version (LGPL-3.0-or-later), except for files with their own third-party license notices. See the [LGPL v3](LICENSES/LGPL-3.0.txt) and [GPL v3](LICENSES/GPL-3.0.txt) license texts.
+
+Existing third-party licenses and notices are preserved. Contributor consent records are archived in [doc/relicensing/issue-1808/](doc/relicensing/issue-1808/).

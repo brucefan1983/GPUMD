@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -51,6 +51,7 @@ protected:
   std::vector<float> fitness_mforce;
   std::vector<float> fitness_tau;
   std::vector<float> fitness_spin_response;
+  std::vector<float> fitness_ediff; // one value per member, the same for every type
   std::vector<float> population;
   std::vector<float> mu;
   std::vector<float> sigma;
@@ -72,7 +73,7 @@ protected:
   GPU_Vector<float> gpu_cost_L1reg;
   GPU_Vector<float> gpu_cost_L2reg;
 
-  void initialize_rng();
+  void initialize_rng(const int seed);
   void initialize_mu_and_sigma(Parameters& para);
   void initialize_mu_and_sigma_fine_tune(Parameters& para);
   void calculate_utility();

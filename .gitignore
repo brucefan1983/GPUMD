@@ -1,7 +1,7 @@
 \.cproject
 \.project
 \.idea
-core
+/core
 
 src/.vscode/*
 src/*/*.obj
@@ -32,3 +32,5 @@ README.gnep.md
 push-to-both.sh
 /tmp/qscaler-ab/
 /tmp/spin-local-policy/
+
+src/.wpe_obj/

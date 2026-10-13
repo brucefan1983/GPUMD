@@ -1,0 +1,2 @@
+compute_extrapolation nep_file
+potential potential.txt

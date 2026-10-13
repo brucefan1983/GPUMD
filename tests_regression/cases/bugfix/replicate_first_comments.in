@@ -1,0 +1,12 @@
+# Comments and blank lines do not count as effective commands.
+
+   # Nor does an indented comment.
+replicate 3 3 3
+potential potential.txt
+velocity 300 seed 20260920
+time_step 0.1
+
+ensemble nve
+dump_thermo 1
+dump_restart 1
+run 1

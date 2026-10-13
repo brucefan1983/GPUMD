@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -64,6 +64,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   fitness_mforce.resize(population_size * (para.num_types + 1));
   fitness_tau.resize(population_size * (para.num_types + 1));
   fitness_spin_response.resize(population_size * (para.num_types + 1));
+  fitness_ediff.resize(population_size, 0.0f);
   index.resize(population_size * (para.num_types + 1));
   population.resize(N);
   mu.resize(number_of_variables);
@@ -73,7 +74,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   utility.resize(population_size);
   type_of_variable.resize(number_of_variables, para.num_types);
   curriculum_parameter.resize(number_of_variables, 0);
-  initialize_rng();
+  initialize_rng(para.seed);
 
   gpuSetDevice(0); // normally use GPU-0
   gpu_type_of_variable.resize(number_of_variables);
@@ -87,7 +88,8 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   gpu_s.resize(N);
   gpu_population.resize(N);
   curand_states.resize(N);
-  initialize_curand_states<<<(N - 1) / 128 + 1, 128>>>(curand_states.data(), N, 1234567);
+  initialize_curand_states<<<(N - 1) / 128 + 1, 128>>>(
+    curand_states.data(), N, para.seed >= 0 ? para.seed : 1234567);
   GPU_CHECK_KERNEL
 
   if (para.fine_tune) {
@@ -109,8 +111,12 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   compute(para, fitness_function);
 }
 
-void SNES::initialize_rng()
+void SNES::initialize_rng(const int seed)
 {
+  if (seed >= 0) {
+    rng = std::mt19937(seed);
+    return;
+  }
 #ifdef DEBUG
   rng = std::mt19937(12345678);
 #else
@@ -150,7 +156,7 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
       int count = fscanf(fid_restart, "%f%f", &mu[n], &sigma[n]);
       PRINT_SCANF_ERROR(count, 2, "Reading error for nep.restart.");
     }
-    const int descriptor_offset = para.number_of_variables_ann * (para.train_mode == 2 ? 2 : 1);
+    const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
 #ifdef USE_CJ
     const int num_channels = para.num_types;
 #else
@@ -350,7 +356,7 @@ void SNES::find_type_of_variable(Parameters& para)
   int offset = 0;
 
   // NN part
-  int num_ann = (para.train_mode == 2) ? 2 : 1;
+  int num_ann = (para.model_type == 2) ? 2 : 1;
   for (int ann = 0; ann < num_ann; ++ann) {
     for (int t = 0; t < para.num_types; ++t) {
       for (int n = 0; n < para.number_of_variables_ann_1; ++n) {
@@ -419,27 +425,31 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
 
   if (para.prediction == 0) {
 
-    if (para.train_mode == 0 || para.train_mode == 3) {
+    if (para.model_type == 0 || para.model_type == 3) {
       if (!(para.charge_mode || para.charge_vdw)) {
         if (para.spin_mode) {
           fitness_spin::print_loss_header();
         } else {
-          printf(
-            "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
-            "Step",
-            "Total-Loss",
-            "L1Reg-Loss",
-            "L2Reg-Loss",
-            "RMSE-E-Train",
-            "RMSE-F-Train",
-            "RMSE-V-Train",
-            "RMSE-E-Test",
-            "RMSE-F-Test",
-            "RMSE-V-Test");
+        printf(
+          "%-8s %-11s %-11s %-11s %-13s %-13s %-13s %-13s %-13s %-13s",
+          "Step",
+          "Total-Loss",
+          "L1Reg-Loss",
+          "L2Reg-Loss",
+          "RMSE-E-Train",
+          "RMSE-F-Train",
+          "RMSE-V-Train",
+          "RMSE-E-Test",
+          "RMSE-F-Test",
+          "RMSE-V-Test");
+        if (para.has_ediff_combinations) {
+          printf(" %-13s %-13s", "RMSE-D-Train", "RMSE-D-Test");
+        }
+        printf("\n");
         }
       } else {
         printf(
-          "%-8s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s\n",
+          "%-8s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s",
           "Step",
           "Total",
           "L1Reg",
@@ -454,6 +464,10 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
           "V-Test",
           "Q-Test",
           "Z-Test");
+        if (para.has_ediff_combinations) {
+          printf(" %-9s %-9s", "D-Train", "D-Test");
+        }
+        printf("\n");
       }
     } else {
       printf(
@@ -473,8 +487,8 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
         snes_spin::curriculum_scale(curriculum_enabled, n + 1, maximum_generation);
       create_population(curriculum_scale);
       fitness_function->compute(
-        n, 
-        para, 
+        n,
+        para,
         population.data(),
         fitness_energy.data(),
         fitness_force.data(),
@@ -483,7 +497,9 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
         fitness_bec.data(),
         fitness_mforce.data(),
         fitness_tau.data(),
-        fitness_spin_response.data());
+        fitness_spin_response.data(),
+        fitness_ediff.data());
+
 
       regularize_NEP4(para);
 
@@ -529,7 +545,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       tokens = get_tokens(input);
       population[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
-    const int descriptor_offset = para.number_of_variables_ann * (para.train_mode == 2 ? 2 : 1);
+    const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
 #ifdef USE_CJ
     const int num_channels = para.num_types;
 #else
@@ -664,7 +680,8 @@ void SNES::regularize_NEP4(Parameters& para)
         fitness_force[p + t * population_size] + fitness_virial[p + t * population_size] +
         fitness_charge[p + t * population_size] + fitness_bec[p + t * population_size] +
         fitness_mforce[p + t * population_size] + fitness_tau[p + t * population_size] +
-        fitness_spin_response[p + t * population_size];
+        fitness_spin_response[p + t * population_size] +
+        fitness_ediff[p];
       fitness_L1[p + t * population_size] = cost_L1;
       fitness_L2[p + t * population_size] = cost_L2;
     }
@@ -759,7 +776,7 @@ void SNES::output_mu_and_sigma(Parameters& para, const char* filename)
   gpu_sigma.copy_to_host(sigma.data());
   std::vector<float> mu_file = mu;
   std::vector<float> sigma_file = sigma;
-  const int descriptor_offset = para.number_of_variables_ann * (para.train_mode == 2 ? 2 : 1);
+  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
 #ifdef USE_CJ
   const int num_channels = para.num_types;
 #else

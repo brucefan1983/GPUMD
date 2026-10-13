@@ -2,41 +2,52 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
 #include "ensemble.cuh"
+#include <string>
 #include <random>
 
 class Ensemble_BDP : public Ensemble
 {
 public:
-  Ensemble_BDP(int, int, double*, double, double);
-  Ensemble_BDP(int, int, int, int, double, double, double);
-  virtual ~Ensemble_BDP(void);
+  Ensemble_BDP(
+    const std::vector<std::string>& tokens, const std::vector<Group>& group);
 
-  virtual void compute1(
+  double get_temperature1() const;
+  double get_temperature2() const;
+
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
+
+  void compute1(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo) override;
 
-  virtual void compute2(
+  void compute2(
     const double time_step,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo);
+    GPU_Vector<double>& thermo,
+    Force& force) override;
 
 protected:
   std::mt19937 rng;
@@ -61,4 +72,13 @@ protected:
     const GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& velocity_per_atom);
+
+private:
+  void parse(
+    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void parse_heat_groups(
+    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+
+  double temperature1_ = 0.0;
+  double temperature2_ = 0.0;
 };

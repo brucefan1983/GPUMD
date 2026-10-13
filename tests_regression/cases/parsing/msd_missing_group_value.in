@@ -1,0 +1,2 @@
+compute_msd 1 2 group 1
+potential potential.txt

@@ -4,6 +4,18 @@
 Bibliography
 ************
 
+.. [Aristoff2014]
+   | David Aristoff, Tony Lelièvre, and Gideon Simpson
+   | *The parallel replica method for simulating long trajectories of Markov chains*
+   | Applied Mathematics Research eXpress **2014**, 332–352 (2014)
+   | DOI: `10.1093/amrx/abu005 <https://doi.org/10.1093/amrx/abu005>`_
+
+.. [Berger2026]
+   | Ethan Berger, Tobias Hainer, Tobias Möslinger, Paul Erhart, and Julia Wiktor
+   | *Stability of Polarons and Oxygen Vacancies in BiVO₄ Revealed by Machine-Learning-Driven Simulations*
+   | PRX Energy **5**, 033004 (2026)
+   | DOI: `10.1103/xwxv-6s55 <https://doi.org/10.1103/xwxv-6s55>`_
+
 .. [Bernetti2020]
    | Mattia Bernetti and Giovanni Bussi
    | *Pressure control using stochastic cell rescaling*
@@ -154,6 +166,12 @@ Bibliography
    | Computational Materials Science **175**, 109584 (2020)
    | DOI: `10.1016/j.commatsci.2020.109584 <https://doi.org/10.1016/j.commatsci.2020.109584>`_
 
+.. [Hainer2025]
+   | Tobias Hainer, Ethan Berger, Esmée Berger, Olof Hildeberg, Paul Erhart, and Julia Wiktor
+   | *Thermal Stabilization of Defect Charge States and Finite-Temperature Charge Transition Levels*
+   | arXiv:2512.15463 (2025)
+   | DOI: `10.48550/arXiv.2512.15463 <https://doi.org/10.48550/arXiv.2512.15463>`_
+
 .. [Hoover1996]
    | William G. Hoover and Brad Lee Holian
    | *Kinetic moments method for the canonical ensemble distribution*
@@ -252,6 +270,12 @@ Bibliography
    | Journal of Chemical Theory and Computation **20**, 2088-2097 (2024)
    | DOI: `10.1021/acs.jctc.3c01254 <https://doi.org/10.1021/acs.jctc.3c01254>`_
 
+.. [Sugita1999]
+   | Yuji Sugita and Yuko Okamoto
+   | *Replica-exchange molecular dynamics method for protein folding*
+   | Chemical Physics Letters **314**, 141–151 (1999)
+   | DOI: `10.1016/S0009-2614(99)01123-9 <https://doi.org/10.1016/S0009-2614(99)01123-9>`_
+
 .. [Tersoff1988]
    | Jerry Tersoff
    | *New empirical approach for the structure and energy of covalent systems*
@@ -268,6 +292,12 @@ Bibliography
    | Mark E. Tuckerman
    | *Statistical Mechanics: Theory and Molecular Simulation (Oxford Graduate Texts)*
    | 1st Edition, Oxford University Press (2010)
+
+.. [Voter1998]
+   | Arthur F. Voter
+   | *Parallel replica method for dynamics of infrequent events*
+   | Phys. Rev. B **57**, R13985 (1998)
+   | DOI: `10.1103/PhysRevB.57.R13985 <https://doi.org/10.1103/PhysRevB.57.R13985>`_
 
 .. [Zhou2004]
    | X. W. Zhou, R. A. Johnson, and H. N. G. Wadley

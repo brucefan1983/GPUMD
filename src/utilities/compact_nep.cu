@@ -2,18 +2,19 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version. GPUMD is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-   PARTICULAR PURPOSE.  See the GNU General Public License for more details. You should have
-   received a copy of the GNU General Public License along with GPUMD.  If not, see
-   <http://www.gnu.org/licenses/>.
+   PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more details. You should have
+   received a copy of the GNU Lesser General Public License along with GPUMD.  If not, see
+   <https://www.gnu.org/licenses/>.
 */
 
 #include "compact_nep.cuh"
 #include "error.cuh"
 #include "read_file.cuh"
+#include "run_input.cuh"
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -67,22 +68,14 @@ static bool is_compactable_nep(const std::vector<std::string>& tokens)
   return tokens[0].substr(0, 4) == "nep4";
 }
 
-static std::vector<std::string> get_potential_files()
+static std::vector<std::string> get_potential_files(const RunInput& run_input)
 {
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("No run.in.");
-  }
-
   std::vector<std::string> files;
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() >= 2 && tokens[0] == "potential") {
-      files.push_back(tokens[1]);
+  for (const auto& line : run_input.lines()) {
+    if (line.tokens.size() >= 2 && line.tokens[0] == "potential") {
+      files.push_back(line.tokens[1]);
     }
   }
-  input_run.close();
   return files;
 }
 
@@ -125,16 +118,12 @@ static void add_required_species(
 }
 
 static void add_mc_species(
-  const std::vector<std::string>& species_full, std::vector<int>& required)
+  const std::vector<std::string>& species_full,
+  std::vector<int>& required,
+  const RunInput& run_input)
 {
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("No run.in.");
-  }
-
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
+  for (const auto& line : run_input.lines()) {
+    const std::vector<std::string>& tokens = line.tokens;
     if (tokens.size() < 7 || tokens[0] != "mc") {
       continue;
     }
@@ -153,7 +142,6 @@ static void add_mc_species(
       add_required_species(species_full, tokens[index], required);
     }
   }
-  input_run.close();
 }
 
 static int triangular_pair_index(int type1, int type2, int num_types)
@@ -388,7 +376,8 @@ static std::string make_compact_file(
   return compact_filename;
 }
 
-void prepare_compact_nep_files(const std::vector<std::string>& atom_symbols)
+void prepare_compact_nep_files(
+  const std::vector<std::string>& atom_symbols, const RunInput& run_input)
 {
   if (!cleanup_registered) {
     std::atexit(remove_compact_nep_files);
@@ -397,7 +386,7 @@ void prepare_compact_nep_files(const std::vector<std::string>& atom_symbols)
   remove_compact_nep_files();
   compact_species.clear();
 
-  std::vector<std::string> potential_files = get_potential_files();
+  std::vector<std::string> potential_files = get_potential_files(run_input);
   if (potential_files.size() == 0) {
     PRINT_INPUT_ERROR("There is no 'potential' keyword in run.in.");
   }
@@ -411,7 +400,7 @@ void prepare_compact_nep_files(const std::vector<std::string>& atom_symbols)
   for (int n = 0; n < static_cast<int>(atom_symbols.size()); ++n) {
     add_required_species(species_full, atom_symbols[n], required);
   }
-  add_mc_species(species_full, required);
+  add_mc_species(species_full, required, run_input);
   for (int n = 0; n < static_cast<int>(registered_required_species.size()); ++n) {
     add_required_species(species_full, registered_required_species[n], required);
   }
@@ -446,6 +435,12 @@ void prepare_compact_nep_files(const std::vector<std::string>& atom_symbols)
   }
 }
 
+void prepare_compact_nep_files(const std::vector<std::string>& atom_symbols)
+{
+  RunInput run_input("run.in");
+  prepare_compact_nep_files(atom_symbols, run_input);
+}
+
 std::string get_compact_nep_filename(const std::string& filename)
 {
   for (int n = 0; n < static_cast<int>(compact_files.size()); ++n) {
@@ -454,6 +449,16 @@ std::string get_compact_nep_filename(const std::string& filename)
     }
   }
   return filename;
+}
+
+std::string get_first_potential_filename(const RunInput& run_input)
+{
+  for (const auto& line : run_input.lines()) {
+    if (line.tokens.size() >= 2 && line.tokens[0] == "potential") {
+      return get_compact_nep_filename(line.tokens[1]);
+    }
+  }
+  return "";
 }
 
 const std::vector<std::string>& get_compact_nep_species() { return compact_species; }

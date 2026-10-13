@@ -2,48 +2,106 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
 
 #include "ensemble.cuh"
-#include "ensemble_ttm.cuh"
+#include "spin_integrator.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
-#include "spin_integrator.cuh"
 #include <memory>
+#include <string>
 #include <vector>
 
 class Atom;
 
 class Integrate
 {
-public:
-  std::unique_ptr<Ensemble> ensemble;
+private:
+  std::unique_ptr<Ensemble> ensemble_;
+
+  EnsembleType type = EnsembleType::UNKNOWN;
+  int fixed_group = -1; // ID of the group in which the atoms will be fixed
+  int move_group = -1;  // ID of the group in which the atoms will move with a constant velocity
+  int fixed_grouping_method = 0;
+  int move_grouping_method = 0;
+  double move_velocity[3];
+
+  double temperature1; // target initial temperature for a run
+  double temperature2; // target final temperature for a run
+  double temperature;  // target temperature at a specific time
+  int num_target_pressure_components;
+  int deform_x = 0;
+  int deform_y = 0;
+  int deform_z = 0;
+  int deform_xy = 0;
+  int deform_xz = 0;
+  int deform_yz = 0;
+
+  // PIMD
+  int number_of_beads;
+
+private:
   std::unique_ptr<Spin_Integrator> spin_integrator;
+  void parse_spin_ensemble(const std::vector<std::string>&, const Atom&, const Box&, const std::vector<Group>&);
+  double temperature_coupling = 100.0;
+  std::vector<double> spin_mass_factor_by_type;
+  int spin_seed = 12345;
+  double spin_sib_alpha = 0.0, spin_sib_gamma = 0.0, spin_sib_temperature = 0.0;
+  int spin_sib_seed = 12345;
+public:
+  bool use_spin_tspin = false, use_spin_sib = false, spin_lattice_enabled = true;
+  bool has_ensemble() const;
+  EnsembleType get_type() const;
+  int get_fixed_group() const;
+  int get_move_group() const;
+  int get_fixed_grouping_method() const;
+  int get_move_grouping_method() const;
+  double get_temperature1() const;
+  double get_temperature2() const;
+  double get_temperature() const;
+  int get_num_target_pressure_components() const;
+  int get_number_of_beads() const;
+  const double* get_energy_transferred() const;
+  const std::vector<double>& get_energy_transferred_n() const;
+  void find_thermo(
+    const double volume,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& velocity_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& thermo);
+  void set_deform(
+    int deform_x,
+    int deform_y,
+    int deform_z,
+    int deform_xy,
+    int deform_xz,
+    int deform_yz);
 
   void initialize(
     double time_step,
     Atom& atom,
     Box& box,
-    std::vector<Group>& group,
-    GPU_Vector<double>& thermo,
-    int& total_steps);
+    const std::vector<Group>& group);
 
-  void finalize();
+  void finalize(const Atom& atom, const Box& box);
 
   void compute1(
     const double time_step,
-    const double step_over_number_of_steps,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
@@ -51,7 +109,8 @@ public:
 
   void compute2(
     const double time_step,
-    const double step_over_number_of_steps,
+    const int step,
+    const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
@@ -60,72 +119,10 @@ public:
 
   // get inputs from run.in
   void parse_ensemble(
-    const char** param,
-    int num_param,
-    double time_step,
-    Atom& atom,
-    Box& box,
-    std::vector<Group>& group,
-    GPU_Vector<double>& thermo);
-  void parse_fix(const char**, int, std::vector<Group>& group);
-  void parse_move(const char**, int, std::vector<Group>& group);
-
-  // these data will be used to initialize ensemble
-  int type; // ensemble type in a specific run
-  int source;
-  int sink;
-  int fixed_group = -1; // ID of the group in which the atoms will be fixed
-  int move_group = -1;  // ID of the group in which the atoms will move with a constant velocity
-  int fixed_grouping_method = 0;
-  int move_grouping_method = 0;
-  double move_velocity[3];
-
-  double temperature;  // target temperature at a specific time
-  double temperature1; // target initial temperature for a run
-  double temperature2; // target final temperature for a run
-  double delta_temperature;
-  bool use_heat_lan_region = false;
-  double heat_source_region[6];
-  double heat_sink_region[6];
-  double target_pressure[6];
-  int num_target_pressure_components;
-  double temperature_coupling;
-  bool use_spin_tspin = false;
-  bool use_spin_sib = false;
-  bool spin_lattice_enabled = true;
-  std::vector<double> spin_mass_factor_by_type;
-  int spin_seed = 12345;
-  double spin_sib_alpha = 0.0;
-  double spin_sib_gamma = 0.0;
-  double spin_sib_temperature = 0.0;
-  int spin_sib_seed = 12345;
-  double qtb_f_max = 200.0; // in ps^-1
-  int qtb_n_f = 100;
-  double tau_p;
-  double elastic_modulus[6];
-  double pressure_coupling[6];
-  int deform_x = 0;
-  int deform_y = 0;
-  int deform_z = 0;
-  int deform_xy = 0;
-  int deform_xz = 0;
-  int deform_yz = 0;
-
-  // Dynamic arrays for multiple thermostats
-  std::vector<int> heat_thermostat;  // Thermostat types (0=NHC, 1=Langevin)
-  std::vector<double> heat_coupling; // Coupling parameters for each thermostat
-  std::vector<int> heat_labels;      // Group labels for each thermostat
-
-  // PIMD
-  int number_of_beads;
-  bool use_eco_pimd = false;
-  bool use_scr_barostat = false;
-  double eco_omega_max_cm1 = 0.0;
-
-  // TTM parameters
-  TTM_Parameters ttm_parameters;
-
-  // save some quantities for ensemble to use.
-  int current_step = 0;
-  int total_steps = 0;
+    const std::vector<std::string>& tokens,
+    const Atom& atom,
+    const Box& box,
+    const std::vector<Group>& group);
+  void parse_fix(const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void parse_move(const std::vector<std::string>& tokens, const std::vector<Group>& group);
 };

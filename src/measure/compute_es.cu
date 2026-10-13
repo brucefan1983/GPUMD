@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
@@ -22,7 +22,6 @@ Calculate the electrostatic energy and forces
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
-#include <cstring>
 #include <iostream>
 #include <vector>
 
@@ -471,15 +470,16 @@ void Compute_es::post_run(
   // nothing
 }
 
-void Compute_es::parse(const char** param, int num_param)
+void Compute_es::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   printf("Compute electrostatic energy and force.\n");
 
   if (num_param != 2) {
     PRINT_INPUT_ERROR("compute_dpdt should have 1 parameter.\n");
   }
 
-  if (!is_valid_int(param[1], &sample_interval)) {
+  if (!is_valid_int(tokens[1], &sample_interval)) {
     PRINT_INPUT_ERROR("sample interval for compute_es should be an integer number.\n");
   }
   if (sample_interval != 1) {
@@ -488,8 +488,8 @@ void Compute_es::parse(const char** param, int num_param)
   printf("    sample interval is %d.\n", sample_interval);
 }
 
-Compute_es::Compute_es(const char** param, int num_param)
+Compute_es::Compute_es(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
+  parse(tokens);
   action_name = "compute_es";
 }

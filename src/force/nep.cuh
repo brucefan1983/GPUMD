@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -19,6 +19,8 @@
 #include "potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+
+class RunInput;
 
 struct NEP_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
@@ -105,7 +107,7 @@ public:
         GPU_Vector<float> r12;
     } small_box_data;
 
-  NEP(const char* file_potential, const int num_atoms);
+  NEP(const char* file_potential, const int num_atoms, const RunInput& run_input);
   virtual ~NEP(void);
   virtual void compute(
     Box& box,
@@ -134,7 +136,7 @@ private:
   ZBL zbl;
   ExpandedBox ebox;
   DFTD3 dftd3;
-  Neighbor neighbor;
+  NeighborManager neighbor_manager;
 
   void update_potential(float* parameters, ANN& ann);
 
@@ -173,5 +175,5 @@ private:
     GPU_Vector<double>& virial);
 
   bool has_dftd3 = false;
-  void initialize_dftd3();
+  void initialize_dftd3(const RunInput& run_input);
 };

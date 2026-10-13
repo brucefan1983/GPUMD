@@ -59,11 +59,15 @@ VELOCITY_SCALE = 0.01  # Angstrom/fs; comfortably above calorine.gpumd.write_xyz
 # array is rotated consistently for the "rotated" run rather than relied upon to be negligible.
 
 # GPU-vs-GPU under a geometric transform: two independent gpumd subprocess runs on genuinely
-# different floating-point input, same class of noise as GPU_TRANSFORM_*_TOLERANCE (conftest.py)
-# but for different physical quantities/units -- calibrated empirically against a live run rather
-# than asserted a priori; an initial, much looser guess was tightened down to this once the real
-# run-to-run noise floor was observed.
-TNEP_ROTATION_TOLERANCE = dict(rtol=1e-4, atol=1e-5)
+# different floating-point input, the same class of noise as GPU_TRANSFORM_*_TOLERANCE
+# (conftest.py) but for different physical quantities. Rotating the cell changes every coordinate
+# and the neighbor list order with it, so the difference is larger than between two runs of the
+# same configuration: up to 1e-5 for the polarizability, whose off-diagonal components are of
+# order 1e-2 against a diagonal of order 1e2, and 1.1e-6 for the dipole. atol carries the
+# near-zero components, where a relative bound alone is unstable, and sits an order of magnitude
+# above that. A broken rotation relationship shows up at the scale of the components themselves,
+# far above this bound.
+TNEP_ROTATION_TOLERANCE = dict(rtol=1e-4, atol=1e-4)
 
 
 def _fixed_velocities(n_atoms):
@@ -82,7 +86,7 @@ def _rotate_atoms(atoms, rot):
 
 
 def _run_and_read_row0(tmp_path, atoms, pes_path, tnep_path, dump_command, expected_output_file,
-                        gpumd_command):
+                       gpumd_command):
     case = CommandIOCase(
         name='tnep_rotation',
         run_in_lines=[

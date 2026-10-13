@@ -58,8 +58,3 @@ This means that you
 * the maximum angular frequency you want to consider is :math:`\omega_{max} = 2\pi\nu_{max} =` 400 THz
 * you would like to compute only over group 2 in group method 1
 * you would like the maximum angular frequency to be evenly divided into 300 points for output.
-
-
-Caveats
--------
-This keyword cannot be used in the same run as the :ref:`compute_sdc keyword <kw_compute_sdc>`.

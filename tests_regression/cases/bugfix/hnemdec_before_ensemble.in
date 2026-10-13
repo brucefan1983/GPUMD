@@ -1,0 +1,10 @@
+replicate 3 3 3
+potential potential.txt
+velocity 300 seed 20260920
+time_step 0.1
+
+compute_hnemdec 0 1 0.00001 0 0
+ensemble nvt_ber 300 300 10
+dump_thermo 1
+dump_restart 2
+run 2

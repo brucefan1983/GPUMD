@@ -1,0 +1,4 @@
+replicate 6 6 6
+potential potential.txt
+ensemble rpmd 4
+run 1

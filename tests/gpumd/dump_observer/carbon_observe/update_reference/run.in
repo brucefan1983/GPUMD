@@ -1,9 +1,0 @@
-potential        ../C_2022_NEP3.txt
-velocity        300
-
-time_step       1.0
-
-ensemble        nve
-dump_xyz 1 dump.xyz velocity force
-run             4
-

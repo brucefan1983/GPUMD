@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -32,7 +32,6 @@ J. Comput. Chem., 32, 1456 (2011).
 #include "model/box.cuh"
 #include "neighbor.cuh"
 #include "utilities/common.cuh"
-#include "utilities/compact_nep.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
@@ -411,29 +410,7 @@ static __global__ void find_neighbor_list_small_box(
   }
 }
 
-std::string get_potential_file_name()
-{
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-  std::string potential_file_name;
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "potential") {
-        potential_file_name = tokens[1];
-        break;
-      }
-    }
-  }
-
-  input_run.close();
-  return get_compact_nep_filename(potential_file_name);
-}
-
-void find_atomic_number(std::string& potential_file_name, int* atomic_number)
+void find_atomic_number(const std::string& potential_file_name, int* atomic_number)
 {
   std::ifstream input_potential(potential_file_name);
   if (!input_potential.is_open()) {
@@ -1100,7 +1077,10 @@ void DFTD3::compute(
 }
 
 void DFTD3::initialize(
-  std::string& functional, const float rc_potential, const float rc_coordination_number)
+  std::string& functional,
+  const float rc_potential,
+  const float rc_coordination_number,
+  const std::string& potential_file_name)
 {
   rc_radial = rc_potential;
   rc_angular = rc_coordination_number;
@@ -1185,6 +1165,5 @@ void DFTD3::initialize(
   c6_ref.resize(111625);
   c6_ref.copy_from_host(c6_ref_cpu);
 
-  std::string potential_file_name = get_potential_file_name();
   find_atomic_number(potential_file_name, dftd3_para.atomic_number);
 }

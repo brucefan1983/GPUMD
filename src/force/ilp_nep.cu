@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -670,14 +670,17 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
     int cell_id_z;
     find_cell_id(box, x1, y1, z1, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
 
-    const int z_lim = box.pbc_z ? 2 : 0;
-    const int y_lim = box.pbc_y ? 2 : 0;
-    const int x_lim = box.pbc_x ? 2 : 0;
+    int z_begin, z_end;
+    int y_begin, y_end;
+    int x_begin, x_end;
+    get_neighbor_cell_offset_range(box.pbc_z, nz, z_begin, z_end);
+    get_neighbor_cell_offset_range(box.pbc_y, ny, y_begin, y_end);
+    get_neighbor_cell_offset_range(box.pbc_x, nx, x_begin, x_end);
 
     // get radial descriptors
-    for (int k = -z_lim; k <= z_lim; ++k) {
-      for (int j = -y_lim; j <= y_lim; ++j) {
-        for (int i = -x_lim; i <= x_lim; ++i) {
+    for (int k = z_begin; k < z_end; ++k) {
+      for (int j = y_begin; j < y_end; ++j) {
+        for (int i = x_begin; i < x_end; ++i) {
           int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
           if (cell_id_x + i < 0)
             neighbor_cell += nx;
@@ -2593,7 +2596,7 @@ void ILP_NEP::compute_ilp(
   GPU_Vector<double> &potential_per_atom,
   GPU_Vector<double> &force_per_atom,
   GPU_Vector<double> &virial_per_atom,
-  std::vector<Group> &group)
+  const std::vector<Group> &group)
 {
 
   const int number_of_atoms = type.size();

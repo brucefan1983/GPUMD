@@ -70,7 +70,7 @@ bool Parameters::parse_spin_keyword(const char** param, int num_param)
 void Parameters::validate_spin_parameters()
 {
   if (spin_mode) {
-    if (version != 4 || train_mode != 0) {
+    if (version != 4 || model_type != 0) {
       PRINT_INPUT_ERROR("Spin NEP only supports a NEP4 potential model.\n");
     }
     if (charge_mode || charge_vdw || vdw || has_multiple_cutoffs) {

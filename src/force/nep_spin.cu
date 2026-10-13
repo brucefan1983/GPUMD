@@ -1374,25 +1374,8 @@ NEP_Spin::NEP_Spin(const char* file_potential, const int num_atoms) : num_atoms_
   CHECK(gpuStreamCreate(&spin_descriptor_stream_));
 
   rc = std::max({model_.cutoff_radial, model_.cutoff_angular, model_.spin_cutoff});
-  neighbor_.initialize(rc, num_atoms_, model_.neighbor_capacity);
-  model_.neighbor_capacity = neighbor_.capacity();
-  const std::size_t slots =
-    static_cast<std::size_t>(num_atoms_) * static_cast<std::size_t>(model_.neighbor_capacity);
-  data_.NN_radial.resize(num_atoms_);
-  data_.NN_angular.resize(num_atoms_);
-  data_.NN_spin.resize(num_atoms_);
-  data_.NL_radial.resize(slots);
-  data_.NL_angular.resize(slots);
-  data_.NL_spin.resize(slots);
-  data_.descriptor.resize(static_cast<std::size_t>(num_atoms_) * model_.descriptor_dim);
-  data_.Fp.resize(static_cast<std::size_t>(num_atoms_) * model_.descriptor_dim);
-  data_.f12x.resize(slots);
-  data_.f12y.resize(slots);
-  data_.f12z.resize(slots);
-  const std::size_t N = static_cast<std::size_t>(num_atoms_);
-  const std::size_t spin3_state_size =
-    N * static_cast<std::size_t>(model_.spin_polynomial_layout.moment_count);
-  data_.spin3_moments.resize(spin3_state_size);
+  input_neighbor_capacity_ = model_.neighbor_capacity;
+  resize_domain(num_atoms_);
   std::vector<float> spin_cutoff_pair(
     static_cast<std::size_t>(model_.num_types) * model_.num_types);
   for (int type_i = 0; type_i < model_.num_types; ++type_i) {
@@ -1403,11 +1386,6 @@ NEP_Spin::NEP_Spin(const char* file_potential, const int num_atoms) : num_atoms_
   }
   data_.spin_cutoff_pair.resize(spin_cutoff_pair.size());
   data_.spin_cutoff_pair.copy_from_host(spin_cutoff_pair.data(), spin_cutoff_pair.size());
-  const std::size_t sum_fxyz_size =
-    N * static_cast<std::size_t>(model_.n_max_angular + 1) *
-    static_cast<std::size_t>(
-      (model_.body.l_max_3body + 1) * (model_.body.l_max_3body + 1) - 1);
-  data_.sum_fxyz.resize(std::max<std::size_t>(sum_fxyz_size, 1));
 
   printf(
     "Use NEP4 Spin3 potential with %d atom type%s.\n",
@@ -1422,6 +1400,36 @@ NEP_Spin::NEP_Spin(const char* file_potential, const int num_atoms) : num_atoms_
     model_.cutoff_radial,
     model_.cutoff_angular,
     model_.spin_cutoff);
+}
+
+void NEP_Spin::resize_domain(int num_atoms)
+{
+  num_atoms_ = num_atoms;
+  small_box_initialized_ = false;
+  neighbor_.initialize(rc, num_atoms_, input_neighbor_capacity_);
+  model_.neighbor_capacity = neighbor_.capacity();
+  const std::size_t slots =
+    static_cast<std::size_t>(num_atoms_) * static_cast<std::size_t>(model_.neighbor_capacity);
+  data_.NN_radial.resize_with_capacity(num_atoms_);
+  data_.NN_angular.resize_with_capacity(num_atoms_);
+  data_.NN_spin.resize_with_capacity(num_atoms_);
+  data_.NL_radial.resize_with_capacity(slots);
+  data_.NL_angular.resize_with_capacity(slots);
+  data_.NL_spin.resize_with_capacity(slots);
+  data_.descriptor.resize_with_capacity(static_cast<std::size_t>(num_atoms_) * model_.descriptor_dim);
+  data_.Fp.resize_with_capacity(static_cast<std::size_t>(num_atoms_) * model_.descriptor_dim);
+  data_.f12x.resize_with_capacity(slots);
+  data_.f12y.resize_with_capacity(slots);
+  data_.f12z.resize_with_capacity(slots);
+  const std::size_t N = static_cast<std::size_t>(num_atoms_);
+  const std::size_t spin3_state_size =
+    N * static_cast<std::size_t>(model_.spin_polynomial_layout.moment_count);
+  data_.spin3_moments.resize_with_capacity(spin3_state_size);
+  const std::size_t sum_fxyz_size =
+    N * static_cast<std::size_t>(model_.n_max_angular + 1) *
+    static_cast<std::size_t>(
+      (model_.body.l_max_3body + 1) * (model_.body.l_max_3body + 1) - 1);
+  data_.sum_fxyz.resize_with_capacity(std::max<std::size_t>(sum_fxyz_size, 1));
 }
 
 NEP_Spin::~NEP_Spin(void)
