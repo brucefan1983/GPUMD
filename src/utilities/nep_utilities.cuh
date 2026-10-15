@@ -167,8 +167,8 @@ __constant__ float COVALENT_RADIUS[94] = {
 
 const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 const int MAX_NUM_N = 17;                // basis_size_radial+1 = 16+1
-const int MAX_DIM = 103;                 // 13 + 9 * 10
-const int MAX_DIM_ANGULAR = 90;          // 9 * 10
+const int MAX_DIM = 256;
+const int MAX_DIM_ANGULAR = 238;
 
 static __device__ __forceinline__ void
 complex_product(const float a, const float b, float& real_part, float& imag_part)
