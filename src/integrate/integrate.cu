@@ -94,6 +94,14 @@ double Integrate::get_temperature() const
   return temperature;
 }
 
+double Integrate::get_target_temperature_of_step() const { return ensemble_->temperature; }
+
+int Integrate::get_number_of_atoms_for_temperature(
+  const int number_of_atoms, const std::vector<Group>& group) const
+{
+  return ensemble_->get_number_of_atoms_for_temperature(number_of_atoms, group);
+}
+
 int Integrate::get_num_target_pressure_components() const
 {
   return num_target_pressure_components;

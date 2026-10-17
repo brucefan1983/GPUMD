@@ -1,8 +1,12 @@
-"""Tests of dump_observer in observe mode.
+"""Tests of dump_observer.
 
-Each observer file holds the energy, virial and forces of its potential alone, evaluated at the
-written positions in the box of the step. The stress adds the kinetic tensor to the virial.
+In observe mode, each observer file holds the energy, virial and forces of its potential alone,
+evaluated at the written positions in the box of the step.
+The stress adds the kinetic tensor to the virial.
 Writing the observers leaves the molecular dynamics run unchanged.
+In average mode, the observer files hold the thermo vector and the per-atom arrays of the run.
+A thermo row counts the atoms of the temperature in the kinetic energy and, under PIMD, holds the
+target temperature of the step.
 """
 import shutil
 import subprocess
@@ -171,3 +175,96 @@ def test_observer_of_temperature_nep(tmp_path, gpumd_command):
     potential_energy = np.loadtxt(tmp_path / 'thermo.out')[:, 2]
     observer_potential_energy = np.loadtxt(tmp_path / 'observer.out')[:, 2]
     assert observer_potential_energy == approx_tol(potential_energy, TOLERANCES['energy'])
+
+
+# The two groupings of the row tests: atoms alternating between two groups, and atoms 0 to 7 fixed,
+# 8 to 15 moving and the rest in a third group.
+ALTERNATING = [list(range(0, 64, 2)), list(range(1, 64, 2))]
+FIX_AND_MOVE = [list(range(8)), list(range(8, 16)), list(range(16, 64))]
+ROW_CASES = {
+    'pimd': (ALTERNATING, ['ensemble pimd 4 300 300 100', 'time_step 0.5']),
+    'move_group': (FIX_AND_MOVE, ['fix 0', 'move 1 0.001 0 0', 'ensemble nvt_ber 300 300 100',
+                                  'time_step 1']),
+}
+
+
+def _run_rows(directory, gpumd_command, case, observer):
+    """Runs nep_C.txt twice as the potentials and returns the last rows of thermo.out and of the
+    observer file of the main potential."""
+    groups, keywords = ROW_CASES[case]
+    _write_diamond_cell(directory, 2, groupings=[groups])
+    run_in = [f'potential {MODEL_PATH}', f'potential {MODEL_PATH}', 'velocity 300 seed 1']
+    run_in += keywords + ['dump_thermo 5', observer, 'run 10']
+    (directory / 'run.in').write_text('\n'.join(run_in) + '\n')
+    subprocess.run([gpumd_command], cwd=directory, check=True, stdout=subprocess.DEVNULL)
+    name = 'observer.out' if 'average' in observer else 'observer0.out'
+    return np.loadtxt(directory / 'thermo.out')[-1], np.loadtxt(directory / name)[-1]
+
+
+@pytest.mark.parametrize('case', list(ROW_CASES))
+def test_average_observer_row_equals_thermo_row(tmp_path, gpumd_command, case):
+    """In average mode, a row of observer.out equals the row of thermo.out of the same step."""
+    thermo, observer = _run_rows(tmp_path, gpumd_command, case, 'dump_observer average 5 5 0 0')
+    assert np.array_equal(observer, thermo)
+
+
+def test_kinetic_energy_counts_the_atoms_of_the_temperature(tmp_path, gpumd_command):
+    """With fixed and moving atoms, the temperature counts neither, and the kinetic energy column
+    of thermo.out and of observer0.out is 1.5 * k_B * T times the atoms that the temperature
+    counts."""
+    thermo, observer = _run_rows(
+        tmp_path, gpumd_command, 'move_group', 'dump_observer observe 5 5 1 0')
+    number_of_atoms_for_temperature = 64 - 8 - 8
+    # columns 0 and 1 are the temperature and the kinetic energy
+    for row in (thermo, observer):
+        assert row[1] == approx_tol(
+            1.5 * number_of_atoms_for_temperature * units.kB * row[0], dict(rtol=1e-5, atol=0))
+    # observer0.out is computed from the velocities written to observer0.xyz, with eight decimals.
+    frame = read(tmp_path / 'observer0.xyz', index=-1)
+    velocities = frame.arrays['vel'] / units.fs  # from Å/fs to ASE units
+    kinetic_energy = 0.5 * np.sum(frame.get_masses()[:, None] * velocities**2)
+    assert observer[1] == approx_tol(kinetic_energy, dict(rtol=1e-5, atol=0))
+
+
+def test_pimd_rows_hold_target_temperature_of_the_step(tmp_path, gpumd_command):
+    """Under PIMD with a temperature ramp, the temperature column of thermo.out and of the
+    average-mode observer.out holds the target temperature of the step."""
+    _write_diamond_cell(tmp_path, 2, groupings=[ALTERNATING])
+    run_in = [f'potential {MODEL_PATH}', f'potential {MODEL_PATH}', 'velocity 300 seed 1',
+              'ensemble pimd 4 300 400 100', 'time_step 0.5', 'dump_thermo 5',
+              'dump_observer average 5 5 0 0', 'run 10']
+    (tmp_path / 'run.in').write_text('\n'.join(run_in) + '\n')
+    subprocess.run([gpumd_command], cwd=tmp_path, check=True, stdout=subprocess.DEVNULL)
+    # The target of step k of n is T1 + (T2 - T1) * k / n, with the rows written at k = 4 and 9.
+    expected = [340.0, 390.0]
+    for name in ('thermo.out', 'observer.out'):
+        assert np.loadtxt(tmp_path / name)[:, 0] == approx_tol(expected, TOLERANCES['energy'])
+
+
+def test_average_observer_holds_run_arrays(tmp_path, gpumd_command):
+    """In average mode, observer.xyz holds the energy of the row of observer.out and thermo.out of
+    the same step, and forces that include those of add_force."""
+    _write_diamond_cell(tmp_path, 2, groupings=[ALTERNATING])
+    scaled_model = tmp_path / 'nep_C_scaled.txt'
+    _write_scaled_model(scaled_model)
+    run_in = [f'potential {MODEL_PATH}', f'potential {scaled_model}'] + CASES['add_force']
+    run_in += ['dump_thermo 5', 'dump_observer average 5 5 0 1', 'run 10']
+    (tmp_path / 'run.in').write_text('\n'.join(run_in) + '\n')
+    subprocess.run([gpumd_command], cwd=tmp_path, check=True, stdout=subprocess.DEVNULL)
+    frame = read(tmp_path / 'observer.xyz', index=-1)
+    energy = frame.get_potential_energy()
+    forces = frame.get_forces()
+    # column 2 is the potential energy
+    for name in ('observer.out', 'thermo.out'):
+        assert np.loadtxt(tmp_path / name)[-1, 2] == approx_tol(energy, TOLERANCES['energy'])
+    single_point_forces = []
+    for model in (MODEL_PATH, scaled_model):
+        atoms = frame.copy()
+        atoms.calc = GPUNEP(str(model), command=gpumd_command)
+        single_point_forces.append(atoms.get_forces())
+    added_forces = forces - np.mean(single_point_forces, axis=0)
+    # add_force adds 0.5 eV/Angstrom along x to group 0 and -0.5 eV/Angstrom to group 1.
+    expected = np.zeros_like(forces)
+    expected[ALTERNATING[0], 0] = 0.5
+    expected[ALTERNATING[1], 0] = -0.5
+    assert np.max(np.abs(added_forces - expected)) < OBSERVER_FORCE_TOLERANCE
