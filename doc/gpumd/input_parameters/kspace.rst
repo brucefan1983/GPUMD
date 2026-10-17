@@ -47,8 +47,3 @@ To use Ewald::
 To request a PPPM spacing of at most 1.5 Angstrom use::
 
    kspace pppm 1.5
-
-References
-----------
-
-.. [Deserno1998] M. Deserno and C. Holm, *How to mesh up Ewald sums. II. An accurate error estimate for the particle-particle-particle-mesh algorithm*, J. Chem. Phys. **109**, 7694 (1998).
