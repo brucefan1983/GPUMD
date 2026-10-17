@@ -70,6 +70,12 @@ Bibliography
    | J. Phys.: Condens. Matter **18**, 4527 (2006)
    | DOI: `10.1088/0953-8984/18/19/008 <https://doi.org/10.1088/0953-8984/18/19/008>`_
 
+.. [Deserno1998]
+   | Markus Deserno and Christian Holm
+   | *How to mesh up Ewald sums. II. An accurate error estimate for the particle–particle–particle-mesh algorithm*
+   | J. Chem. Phys. **109**, 7694 (1998)
+   | DOI: `10.1063/1.477415 <https://doi.org/10.1063/1.477415>`_
+
 .. [Drautz2019]
    | Ralf Drautz
    | *Atomic cluster expansion for accurate and transferable interatomic potentials*

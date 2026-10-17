@@ -70,6 +70,7 @@ private:
   void destroy_plans();
   void allocate_memory();
   void find_para(const int N, const Box& box);
+  void print_mesh(const int N1, const int N2, const Box& box, const GPU_Vector<float>& charge);
 
   bool need_peratom_virial = false;
   GPU_Vector<gpufftComplex> mesh_virial;

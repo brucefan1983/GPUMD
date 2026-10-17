@@ -6,6 +6,7 @@ import pppm_checks
 
 
 INITIAL = "PPPM mesh: 16 x 16 x 16 (target spacing 1 A; actual spacing 0.99375 0.5 0.5 A).\n"
+ESTIMATE = "PPPM force error estimate: 1.234e-04 eV/A.\n"
 
 
 class PPPMCheckTests(unittest.TestCase):
@@ -22,6 +23,15 @@ class PPPMCheckTests(unittest.TestCase):
 
     def test_initial_mesh(self):
         self.assertEqual(self.check(INITIAL), {"initial_mesh": [16, 16, 16]})
+
+    def test_force_error_estimate(self):
+        self.assertEqual(self.check(INITIAL + ESTIMATE), {"initial_mesh": [16, 16, 16]})
+        with self.assertRaisesRegex(ValueError, "unexpected"):
+            self.check(ESTIMATE + INITIAL)
+        with self.assertRaisesRegex(ValueError, "unexpected"):
+            self.check(INITIAL + ESTIMATE + ESTIMATE)
+        with self.assertRaisesRegex(ValueError, "invalid PPPM force error"):
+            self.check(INITIAL + ESTIMATE.replace("1.234e-04", "-1.234e-04"))
 
     def test_unexpected_intermediate_mesh_output_fails(self):
         with self.assertRaisesRegex(ValueError, "unexpected"):
