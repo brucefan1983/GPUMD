@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "dataset.cuh"
 #include "potential.cuh"
 #include "nep_compile.cuh"
 #include "utilities/common.cuh"
@@ -83,6 +84,7 @@ public:
     int deviceCount);
 
 private:
+  NEP_Neighbor neighbor[16];
   ParaMB paramb;
   ANN annmb[16];
   TNEP_Data nep_data[16];
