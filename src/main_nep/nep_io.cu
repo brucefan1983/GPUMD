@@ -625,10 +625,6 @@ static bool does_file_exist(const char* filename)
 
 void check_existing_nep_model(Parameters& para)
 {
-  if (!para.is_type_set) {
-    return; // report_inputs reports the missing type keyword
-  }
-
   if (para.fine_tune) {
     std::vector<std::string> mismatches;
     compare_with_nep_txt_fine_tune(para, para.fine_tune_nep_txt, mismatches);

@@ -34,6 +34,9 @@ Parameters::Parameters()
 
   set_default_parameters();
   read_nep_in();
+  if (!is_type_set) {
+    PRINT_INPUT_ERROR("type in nep.in has not been set.");
+  }
   if (is_zbl_set) {
     read_zbl_in();
   }
@@ -349,10 +352,6 @@ void Parameters::calculate_parameters()
 
 void Parameters::report_inputs()
 {
-  if (!is_type_set) {
-    PRINT_INPUT_ERROR("type in nep.in has not been set.");
-  }
-
   printf("Input or default parameters:\n");
 
   std::string model_type_name = "potential";
