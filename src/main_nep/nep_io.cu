@@ -17,6 +17,7 @@
 #include "nep_elements.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
+#include "utilities/nep_parameters.cuh"
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -193,6 +194,45 @@ bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std:
 
   input.close();
   return true;
+}
+
+void read_nep_txt(const std::string& filename, Parameters& para, float* parameters)
+{
+  NepTxtHeader header;
+  std::string error;
+  if (!read_nep_txt_header(filename, header, error)) {
+    PRINT_INPUT_ERROR(error.c_str());
+  }
+  std::ifstream input(filename);
+  if (!input.is_open()) {
+    PRINT_INPUT_ERROR(("Failed to open " + filename + ".").c_str());
+  }
+  std::vector<std::string> tokens;
+  for (int n = 0; n < header.number_of_header_lines; ++n) {
+    tokens = get_tokens(input);
+  }
+  for (int n = 0; n < para.number_of_variables; ++n) {
+    tokens = get_tokens(input);
+    parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+  }
+  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
+#ifdef USE_CJ
+  const int num_channels = para.num_types;
+#else
+  const int num_channels = para.num_types * para.num_types;
+#endif
+  descriptor_parameters_to_channel_major(
+    parameters,
+    descriptor_offset,
+    num_channels,
+    para.n_max_radial,
+    para.n_max_angular,
+    para.basis_size_radial,
+    para.basis_size_angular);
+  for (int d = 0; d < para.dim; ++d) {
+    tokens = get_tokens(input);
+    para.q_scaler_cpu[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+  }
 }
 
 static std::string source_of_value(const bool is_set) { return is_set ? " (input)" : " (default)"; }

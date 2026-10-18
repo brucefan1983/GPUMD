@@ -24,7 +24,6 @@ https://doi.org/10.1145/2001576.2001692
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
-#include "nep_io.cuh"
 #include "parameters.cuh"
 #include "snes.cuh"
 #include "utilities/error.cuh"
@@ -73,12 +72,10 @@ SNES::SNES(Parameters& para)
     curand_states.data(), N, para.seed >= 0 ? para.seed : 1234567);
   GPU_CHECK_KERNEL
 
-  if (para.prediction == 0) {
-    if (para.fine_tune) {
-      initialize_mu_and_sigma_fine_tune(para);
-    } else {
-      initialize_mu_and_sigma(para);
-    }
+  if (para.fine_tune) {
+    initialize_mu_and_sigma_fine_tune(para);
+  } else {
+    initialize_mu_and_sigma(para);
   }
   
   calculate_utility();
@@ -375,15 +372,6 @@ void SNES::find_type_of_variable(Parameters& para)
 
 void SNES::run(Parameters& para, Fitness* fitness_function)
 {
-  if (para.prediction == 0) {
-    train(para, fitness_function);
-  } else {
-    predict(para, fitness_function);
-  }
-}
-
-void SNES::train(Parameters& para, Fitness* fitness_function)
-{
   print_line_1();
   printf("Started training.\n");
   print_line_2();
@@ -423,51 +411,6 @@ void SNES::train(Parameters& para, Fitness* fitness_function)
       output_mu_and_sigma(para, restart_file.c_str());
     }
   }
-}
-
-void SNES::predict(Parameters& para, Fitness* fitness_function)
-{
-  print_line_1();
-  printf("Started predicting.\n");
-  print_line_2();
-
-  NepTxtHeader header;
-  std::string error;
-  if (!read_nep_txt_header("nep.txt", header, error)) {
-    PRINT_INPUT_ERROR(error.c_str());
-  }
-  std::ifstream input("nep.txt");
-  if (!input.is_open()) {
-    PRINT_INPUT_ERROR("Failed to open nep.txt.");
-  }
-  std::vector<std::string> tokens;
-  for (int n = 0; n < header.number_of_header_lines; ++n) {
-    tokens = get_tokens(input);
-  }
-  for (int n = 0; n < number_of_variables; ++n) {
-    tokens = get_tokens(input);
-    population[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-  }
-  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
-#ifdef USE_CJ
-  const int num_channels = para.num_types;
-#else
-  const int num_channels = para.num_types * para.num_types;
-#endif
-  descriptor_parameters_to_channel_major(
-    population.data(),
-    descriptor_offset,
-    num_channels,
-    para.n_max_radial,
-    para.n_max_angular,
-    para.basis_size_radial,
-    para.basis_size_angular);
-  for (int d = 0; d < para.dim; ++d) {
-    tokens = get_tokens(input);
-    para.q_scaler_cpu[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-  }
-  para.q_scaler_gpu[0].copy_from_host(para.q_scaler_cpu.data());
-  fitness_function->predict(para, population.data());
 }
 
 static __global__ void gpu_create_population(

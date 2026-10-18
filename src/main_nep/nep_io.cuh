@@ -57,4 +57,6 @@ struct NepTxtHeader {
 // parse the header of a nep.txt file; returns false and sets error if it cannot be parsed
 bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std::string& error);
 
+void read_nep_txt(const std::string& filename, Parameters& para, float* parameters);
+
 void check_existing_nep_model(Parameters& para);
