@@ -30,6 +30,8 @@ class Fitness
 public:
   Fitness(Parameters& para, Potential& potential);
   ~Fitness();
+  Fitness(const Fitness&) = delete;
+  Fitness& operator=(const Fitness&) = delete;
   void compute(
     const int generation,
     Parameters& para,
