@@ -24,12 +24,13 @@
 #include <random>
 #include <vector>
 class Fitness;
-class Fitness;
+class Parameters;
 
 class SNES
 {
 public:
-  SNES(Parameters&, Fitness*);
+  SNES(Parameters& para);
+  void run(Parameters& para, Fitness* fitness_function);
 
 protected:
   std::mt19937 rng;
@@ -67,12 +68,13 @@ protected:
   GPU_Vector<float> gpu_cost_L1reg;
   GPU_Vector<float> gpu_cost_L2reg;
 
+  void train(Parameters& para, Fitness* fitness_function);
+  void predict(Parameters& para, Fitness* fitness_function);
   void initialize_rng(const int seed);
   void initialize_mu_and_sigma(Parameters& para);
   void initialize_mu_and_sigma_fine_tune(Parameters& para);
   void calculate_utility();
   void find_type_of_variable(Parameters& para);
-  void compute(Parameters&, Fitness*);
   void create_population();
   void regularize(Parameters&);
   void regularize_NEP4(Parameters& para);

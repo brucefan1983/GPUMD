@@ -42,7 +42,7 @@ static __global__ void initialize_curand_states(gpurandState* state, int N, int 
   }
 }
 
-SNES::SNES(Parameters& para, Fitness* fitness_function)
+SNES::SNES(Parameters& para)
 {
   maximum_generation = para.maximum_generation;
   number_of_variables = para.number_of_variables;
@@ -94,8 +94,6 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   gpu_utility.copy_from_host(utility.data());
   find_type_of_variable(para);
   gpu_type_of_variable.copy_from_host(type_of_variable.data());
-  
-  compute(para, fitness_function);
 }
 
 void SNES::initialize_rng(const int seed)
@@ -384,151 +382,156 @@ void SNES::find_type_of_variable(Parameters& para)
 #endif
 }
 
-void SNES::compute(Parameters& para, Fitness* fitness_function)
+void SNES::run(Parameters& para, Fitness* fitness_function)
 {
-
-  print_line_1();
   if (para.prediction == 0) {
-    printf("Started training.\n");
+    train(para, fitness_function);
   } else {
-    printf("Started predicting.\n");
+    predict(para, fitness_function);
   }
+}
 
+void SNES::train(Parameters& para, Fitness* fitness_function)
+{
+  print_line_1();
+  printf("Started training.\n");
   print_line_2();
 
-  if (para.prediction == 0) {
-
-    if (para.model_type == 0 || para.model_type == 3) {
-      if (!(para.charge_mode || para.charge_vdw)) {
-        printf(
-          "%-8s %-11s %-11s %-11s %-13s %-13s %-13s %-13s %-13s %-13s",
-          "Step",
-          "Total-Loss",
-          "L1Reg-Loss",
-          "L2Reg-Loss",
-          "RMSE-E-Train",
-          "RMSE-F-Train",
-          "RMSE-V-Train",
-          "RMSE-E-Test",
-          "RMSE-F-Test",
-          "RMSE-V-Test");
-        if (para.has_ediff_combinations) {
-          printf(" %-13s %-13s", "RMSE-D-Train", "RMSE-D-Test");
-        }
-        printf("\n");
-      } else {
-        printf(
-          "%-8s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s",
-          "Step",
-          "Total",
-          "L1Reg",
-          "L2Reg",
-          "E-Train",
-          "F-Train",
-          "V-Train",
-          "Q-Train",
-          "Z-Train",
-          "E-Test",
-          "F-Test",
-          "V-Test",
-          "Q-Test",
-          "Z-Test");
-        if (para.has_ediff_combinations) {
-          printf(" %-9s %-9s", "D-Train", "D-Test");
-        }
-        printf("\n");
-      }
-    } else {
+  if (para.model_type == 0 || para.model_type == 3) {
+    if (!(para.charge_mode || para.charge_vdw)) {
       printf(
-        "%-8s %-11s %-11s %-11s %-13s %-13s\n",
+        "%-8s %-11s %-11s %-11s %-13s %-13s %-13s %-13s %-13s %-13s",
         "Step",
         "Total-Loss",
         "L1Reg-Loss",
         "L2Reg-Loss",
-        "RMSE-P-Train",
-        "RMSE-P-Test");
-    }
-  }
-
-  if (para.prediction == 0) {
-    for (int n = 0; n < maximum_generation; ++n) {
-      create_population();
-      fitness_function->compute(
-        n,
-        para,
-        population.data(),
-        fitness_energy.data(),
-        fitness_force.data(),
-        fitness_virial.data(),
-        fitness_charge.data(),
-        fitness_bec.data(),
-        fitness_ediff.data());
-
-      regularize_NEP4(para);
-
-      sort_population(para);
-
-      int best_index = index[para.num_types * population_size];
-      fitness_function->report_error(
-        para,
-        n,
-        fitness_total[para.num_types * population_size + 0], // already sorted, hence 0
-        fitness_L1[para.num_types * population_size + best_index],
-        fitness_L2[para.num_types * population_size + best_index],
-        population.data() + number_of_variables * best_index);
-
-      update_mu_and_sigma();
-      if (0 == (n + 1) % para.output_interval) {
-        const char* filename = "nep.restart";
-        output_mu_and_sigma(para, filename);
+        "RMSE-E-Train",
+        "RMSE-F-Train",
+        "RMSE-V-Train",
+        "RMSE-E-Test",
+        "RMSE-F-Test",
+        "RMSE-V-Test");
+      if (para.has_ediff_combinations) {
+        printf(" %-13s %-13s", "RMSE-D-Train", "RMSE-D-Test");
       }
-      // Optionally save the nep.restart file at the same time as save_potential
-      if (0 == (n + 1) % para.save_potential && para.save_potential_restart) {
-        std::string restart_file;
-        fitness_function->get_save_potential_label(para, n, restart_file);
-        restart_file += ".restart";
-        output_mu_and_sigma(para, restart_file.c_str());
+      printf("\n");
+    } else {
+      printf(
+        "%-8s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s",
+        "Step",
+        "Total",
+        "L1Reg",
+        "L2Reg",
+        "E-Train",
+        "F-Train",
+        "V-Train",
+        "Q-Train",
+        "Z-Train",
+        "E-Test",
+        "F-Test",
+        "V-Test",
+        "Q-Test",
+        "Z-Test");
+      if (para.has_ediff_combinations) {
+        printf(" %-9s %-9s", "D-Train", "D-Test");
       }
+      printf("\n");
     }
   } else {
-    NepTxtHeader header;
-    std::string error;
-    if (!read_nep_txt_header("nep.txt", header, error)) {
-      PRINT_INPUT_ERROR(error.c_str());
-    }
-    std::ifstream input("nep.txt");
-    if (!input.is_open()) {
-      PRINT_INPUT_ERROR("Failed to open nep.txt.");
-    }
-    std::vector<std::string> tokens;
-    for (int n = 0; n < header.number_of_header_lines; ++n) {
-      tokens = get_tokens(input);
-    }
-    for (int n = 0; n < number_of_variables; ++n) {
-      tokens = get_tokens(input);
-      population[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-    }
-    const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
-#ifdef USE_CJ
-    const int num_channels = para.num_types;
-#else
-    const int num_channels = para.num_types * para.num_types;
-#endif
-    descriptor_parameters_to_channel_major(
-      population.data(),
-      descriptor_offset,
-      num_channels,
-      para.n_max_radial,
-      para.n_max_angular,
-      para.basis_size_radial,
-      para.basis_size_angular);
-    for (int d = 0; d < para.dim; ++d) {
-      tokens = get_tokens(input);
-      para.q_scaler_cpu[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-    }
-    para.q_scaler_gpu[0].copy_from_host(para.q_scaler_cpu.data());
-    fitness_function->predict(para, population.data());
+    printf(
+      "%-8s %-11s %-11s %-11s %-13s %-13s\n",
+      "Step",
+      "Total-Loss",
+      "L1Reg-Loss",
+      "L2Reg-Loss",
+      "RMSE-P-Train",
+      "RMSE-P-Test");
   }
+
+  for (int n = 0; n < maximum_generation; ++n) {
+    create_population();
+    fitness_function->compute(
+      n,
+      para,
+      population.data(),
+      fitness_energy.data(),
+      fitness_force.data(),
+      fitness_virial.data(),
+      fitness_charge.data(),
+      fitness_bec.data(),
+      fitness_ediff.data());
+
+    regularize_NEP4(para);
+
+    sort_population(para);
+
+    int best_index = index[para.num_types * population_size];
+    fitness_function->report_error(
+      para,
+      n,
+      fitness_total[para.num_types * population_size + 0], // already sorted, hence 0
+      fitness_L1[para.num_types * population_size + best_index],
+      fitness_L2[para.num_types * population_size + best_index],
+      population.data() + number_of_variables * best_index);
+
+    update_mu_and_sigma();
+    if (0 == (n + 1) % para.output_interval) {
+      const char* filename = "nep.restart";
+      output_mu_and_sigma(para, filename);
+    }
+    // Optionally save the nep.restart file at the same time as save_potential
+    if (0 == (n + 1) % para.save_potential && para.save_potential_restart) {
+      std::string restart_file;
+      fitness_function->get_save_potential_label(para, n, restart_file);
+      restart_file += ".restart";
+      output_mu_and_sigma(para, restart_file.c_str());
+    }
+  }
+}
+
+void SNES::predict(Parameters& para, Fitness* fitness_function)
+{
+  print_line_1();
+  printf("Started predicting.\n");
+  print_line_2();
+
+  NepTxtHeader header;
+  std::string error;
+  if (!read_nep_txt_header("nep.txt", header, error)) {
+    PRINT_INPUT_ERROR(error.c_str());
+  }
+  std::ifstream input("nep.txt");
+  if (!input.is_open()) {
+    PRINT_INPUT_ERROR("Failed to open nep.txt.");
+  }
+  std::vector<std::string> tokens;
+  for (int n = 0; n < header.number_of_header_lines; ++n) {
+    tokens = get_tokens(input);
+  }
+  for (int n = 0; n < number_of_variables; ++n) {
+    tokens = get_tokens(input);
+    population[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+  }
+  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
+#ifdef USE_CJ
+  const int num_channels = para.num_types;
+#else
+  const int num_channels = para.num_types * para.num_types;
+#endif
+  descriptor_parameters_to_channel_major(
+    population.data(),
+    descriptor_offset,
+    num_channels,
+    para.n_max_radial,
+    para.n_max_angular,
+    para.basis_size_radial,
+    para.basis_size_angular);
+  for (int d = 0; d < para.dim; ++d) {
+    tokens = get_tokens(input);
+    para.q_scaler_cpu[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+  }
+  para.q_scaler_gpu[0].copy_from_host(para.q_scaler_cpu.data());
+  fitness_function->predict(para, population.data());
 }
 
 static __global__ void gpu_create_population(

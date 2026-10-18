@@ -5,8 +5,7 @@ pinned pre-PPPM baseline and no expected difference between the two roles.
 Use identical compiler, architecture and feature flags; both executables must
 use `-DDEBUG`. The separate `gpumd_replica` suite is outside this package.
 
-The package has 253 cases and 25 relations. The `pppm` focused suite selects
-37 cases. All of them also belong to `full`.
+The `pppm` focused suite is a subset of `full`.
 
 ## Shared checks
 
@@ -64,10 +63,9 @@ PPPM/Ewald accuracy equivalence.
 2. Check the setup by passing the same executable for both roles, as shown in
    `README.md`. Keep failing artifacts for numerical inspection.
 3. Run `--suite full --keep-all` with the accepted and candidate GPUMD/NEP pairs.
-   The intended result is `253 passed, 0 failed; relations: 25 passed,
-   0 failed, 0 skipped`.
 
 The focused suite omits unrelated relation members, so skipped relations are
-expected for a focused run. The full suite requires zero skipped relations.
+expected for a focused run. For a full run, all cases and relations must pass,
+with no skipped relations.
 
 The FFT radix policy builds on the idea in GPUMD PR #1800 / issue #1796.

@@ -50,7 +50,8 @@ int main(int argc, char* argv[])
   print_line_2();
 
   const auto time_begin2 = std::chrono::high_resolution_clock::now();
-  SNES snes(para, &fitness);
+  SNES snes(para);
+  snes.run(para, &fitness);
   const auto time_finish2 = std::chrono::high_resolution_clock::now();
 
   const std::chrono::duration<double> time_used2 = time_finish2 - time_begin2;
