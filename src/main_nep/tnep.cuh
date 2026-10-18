@@ -71,11 +71,8 @@ public:
     const float* c;
   };
 
-  TNEP(
-    Parameters& para,
-    int N,
-    int version,
-    int deviceCount);
+  TNEP() = default;
+  void initialize(Parameters& para, int N, int Nc, int deviceCount) override;
   void find_force(
     Parameters& para,
     const float* parameters,

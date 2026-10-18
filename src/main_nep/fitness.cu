@@ -127,7 +127,8 @@ Fitness::Fitness(Parameters& para)
     }
   }
 
-  potential = create_potential(para, N, Nc, deviceCount);
+  potential = create_potential(para);
+  potential->initialize(para, N, Nc, deviceCount);
 
   if (para.prediction == 0) {
     fid_loss_out = my_fopen("loss.out", "a");

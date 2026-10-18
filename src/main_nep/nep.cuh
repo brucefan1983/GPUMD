@@ -80,11 +80,8 @@ public:
     int atomic_numbers[NUM_ELEMENTS];
   };
 
-  NEP(
-    Parameters& para,
-    int N,
-    int version,
-    int deviceCount);
+  NEP() = default;
+  void initialize(Parameters& para, int N, int Nc, int deviceCount) override;
   void find_force(
     Parameters& para,
     const float* parameters,

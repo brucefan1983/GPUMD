@@ -148,15 +148,10 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-NEP_Charge::NEP_Charge(
-  Parameters& para,
-  int N,
-  int Nc,
-  int version,
-  int deviceCount)
+void NEP_Charge::initialize(Parameters& para, int N, int Nc, int deviceCount)
 {
   paramb.charge_mode = para.charge_mode;
-  paramb.version = version;
+  paramb.version = para.version;
   paramb.rc_radial = para.rc_radial[0];
   paramb.rc_angular = para.rc_angular[0];
   paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;

@@ -23,6 +23,7 @@ class Potential
 {
 public:
   virtual ~Potential() = default;
+  virtual void initialize(Parameters& para, int N, int Nc, int deviceCount) = 0;
   virtual void find_force(
     Parameters& para,
     const float* parameters,
@@ -31,4 +32,4 @@ public:
     int DeviceCount) = 0;
 };
 
-std::unique_ptr<Potential> create_potential(Parameters& para, int N, int Nc, int deviceCount);
+std::unique_ptr<Potential> create_potential(Parameters& para);

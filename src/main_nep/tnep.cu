@@ -147,13 +147,9 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-TNEP::TNEP(
-  Parameters& para,
-  int N,
-  int version,
-  int deviceCount)
+void TNEP::initialize(Parameters& para, int N, int Nc, int deviceCount)
 {
-  paramb.version = version;
+  paramb.version = para.version;
   paramb.num_types = para.num_types;
   for (int t = 0; t < paramb.num_types; ++t) {
     paramb.rc_radial[t] = para.rc_radial[t];

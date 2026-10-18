@@ -98,12 +98,8 @@ public:
     int atomic_numbers[NUM_ELEMENTS];
   };
 
-  NEP_Charge(
-    Parameters& para,
-    int N,
-    int Nc,
-    int version,
-    int deviceCount);
+  NEP_Charge() = default;
+  void initialize(Parameters& para, int N, int Nc, int deviceCount) override;
   void find_force(
     Parameters& para,
     const float* parameters,

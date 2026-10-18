@@ -21,20 +21,20 @@
 #include "tnep.cuh"
 #include "parameters.cuh"
 
-std::unique_ptr<Potential> create_potential(Parameters& para, int N, int Nc, int deviceCount)
+std::unique_ptr<Potential> create_potential(Parameters& para)
 {
   std::unique_ptr<Potential> potential;
   if (para.model_type == 1 || para.model_type == 2) {
-    potential.reset(new TNEP(para, N, para.version, deviceCount));
+    potential.reset(new TNEP);
   } else {
     if (para.charge_vdw) {
-      potential.reset(new NEP_Charge_VDW(para, N, Nc, para.version, deviceCount));
+      potential.reset(new NEP_Charge_VDW);
     } else if (para.charge_mode) {
-      potential.reset(new NEP_Charge(para, N, Nc, para.version, deviceCount));
+      potential.reset(new NEP_Charge);
     } else if (para.vdw) {
-      potential.reset(new NEP_VDW(para, N, Nc, para.version, deviceCount));
+      potential.reset(new NEP_VDW);
     } else {
-      potential.reset(new NEP(para, N, para.version, deviceCount));
+      potential.reset(new NEP);
     }
   }
   return potential;
