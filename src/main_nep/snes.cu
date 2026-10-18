@@ -24,6 +24,7 @@ https://doi.org/10.1145/2001576.2001692
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
+#include "nep_io.cuh"
 #include "parameters.cuh"
 #include "snes.cuh"
 #include "utilities/error.cuh"
@@ -72,10 +73,12 @@ SNES::SNES(Parameters& para)
     curand_states.data(), N, para.seed >= 0 ? para.seed : 1234567);
   GPU_CHECK_KERNEL
 
-  if (para.fine_tune) {
-    initialize_mu_and_sigma_fine_tune(para);
-  } else {
-    initialize_mu_and_sigma(para);
+  if (para.prediction == 0) {
+    if (para.fine_tune) {
+      initialize_mu_and_sigma_fine_tune(para);
+    } else {
+      initialize_mu_and_sigma(para);
+    }
   }
   
   calculate_utility();

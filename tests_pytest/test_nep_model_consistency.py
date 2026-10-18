@@ -8,9 +8,9 @@ files, the run used to continue on a differently shaped model without saying any
 nep.restart rows than the file holds and reporting plausible-looking losses. Any keyword with a
 default can cause this, which is what these tests cover.
 
-nep.txt counts as an input when there is a nep.restart to resume from, or when predicting, and a
-mismatch is then an error. Without a nep.restart it is a stale output about to be overwritten, and a
-mismatch is only a warning, so that editing nep.in and retraining in place keeps working.
+nep.txt counts as an input when there is a nep.restart to resume from, when predicting, or when
+importing scalers, and a mismatch is then an error. In fresh training it is a stale output about
+to be overwritten and is not checked, so editing nep.in and retraining in place keeps working.
 
 Every mismatch is reported while nep.in is being read, before the training set is touched, so these
 runs are short. The base models cover a header with a zbl line and one without (six header lines
@@ -114,16 +114,14 @@ def test_matching_nep_in_is_accepted(tmp_path, nep_command, base_model):
 
 
 @pytest.mark.parametrize('base_model', list(BASE_MODELS))
-def test_stale_nep_txt_without_restart_only_warns(tmp_path, nep_command, base_model):
-    """Editing nep.in and retraining in place has to keep working, so a mismatch against a nep.txt
-    that this run is about to overwrite is reported but not fatal."""
+def test_stale_nep_txt_without_restart_is_ignored(tmp_path, nep_command, base_model):
+    """Fresh training ignores the nep.txt that it is about to overwrite."""
     train_once(tmp_path, nep_command, base_model)
 
     result = run_nep(tmp_path, nep_command, keywords_for(base_model, basis_size=None))
     assert result.returncode == 0, result.stdout + result.stderr
-    assert 'basis_size_radial' in result.stdout
-    assert 'nep.in gives 6 (default), nep.txt gives 8' in result.stdout
-    assert 'nep.txt will be overwritten' in result.stdout
+    assert 'inconsistent' not in result.stdout
+    assert 'nep.txt will be overwritten' not in result.stdout
 
 
 @pytest.mark.parametrize(
