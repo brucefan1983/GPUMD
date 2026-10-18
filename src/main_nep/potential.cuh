@@ -15,6 +15,7 @@
 
 #pragma once
 #include "dataset.cuh"
+#include <memory>
 #include <vector>
 class Parameters;
 
@@ -32,3 +33,5 @@ public:
 protected:
   NEP_Neighbor neighbor[16];
 };
+
+std::unique_ptr<Potential> create_potential(Parameters& para, int N, int Nc, int deviceCount);

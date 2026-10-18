@@ -18,13 +18,9 @@ Get the fitness
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
-#include "nep.cuh"
-#include "nep_vdw.cuh"
-#include "nep_charge.cuh"
-#include "nep_charge_vdw.cuh"
-#include "tnep.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
+#include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -131,19 +127,7 @@ Fitness::Fitness(Parameters& para)
     }
   }
 
-  if (para.model_type == 1 || para.model_type == 2) {
-    potential.reset(new TNEP(para, N, para.version, deviceCount));
-  } else {
-    if (para.charge_vdw) {
-      potential.reset(new NEP_Charge_VDW(para, N, Nc, para.version, deviceCount));
-    } else if (para.charge_mode) {
-      potential.reset(new NEP_Charge(para, N, Nc, para.version, deviceCount));
-    } else if (para.vdw) {
-      potential.reset(new NEP_VDW(para, N, Nc, para.version, deviceCount));
-    } else {
-      potential.reset(new NEP(para, N, para.version, deviceCount));
-    }
-  }
+  potential = create_potential(para, N, Nc, deviceCount);
 
   if (para.prediction == 0) {
     fid_loss_out = my_fopen("loss.out", "a");
