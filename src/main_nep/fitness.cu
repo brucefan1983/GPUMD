@@ -18,13 +18,13 @@ Get the fitness
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
+#include "nep_io.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "utilities/nep_parameters.cuh"
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -440,129 +440,9 @@ void Fitness::output_atomic(
 
 void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 {
-  if (para.model_type == 0) { // potential model
-    if (!(para.charge_mode || para.charge_vdw)) {
-      if (para.version == 4) {
-        if (para.enable_zbl) {
-          if (para.vdw) {
-            fprintf(fid_nep, "nep4_zbl_vdw %d ", para.num_types);
-          } else {
-            fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
-          }
-        } else {
-          if (para.vdw) {
-            fprintf(fid_nep, "nep4_vdw %d ", para.num_types);
-          } else {
-            fprintf(fid_nep, "nep4 %d ", para.num_types);
-          }
-        }
-      } 
-    } else {
-      if (para.charge_vdw) {
-        if (para.enable_zbl) {
-          fprintf(fid_nep, "nep4_zbl_charge_vdw %d ", para.num_types);
-        } else {
-          fprintf(fid_nep, "nep4_charge_vdw %d ", para.num_types);
-        }
-      } else {
-        if (para.enable_zbl) {
-          fprintf(fid_nep, "nep4_zbl_charge%d %d ", para.charge_mode, para.num_types);
-        } else {
-          fprintf(fid_nep, "nep4_charge%d %d ", para.charge_mode, para.num_types);
-        }
-      }
-    }
-  } else if (para.model_type == 1) { // dipole model
-    if (para.version == 4) {
-      fprintf(fid_nep, "nep4_dipole %d ", para.num_types);
-    }
-  } else if (para.model_type == 2) { // polarizability model
-    if (para.version == 4) {
-      fprintf(fid_nep, "nep4_polarizability %d ", para.num_types);
-    }
-  } else if (para.model_type == 3) { // temperature model
-    if (para.version == 4) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep4_zbl_temperature %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep4_temperature %d ", para.num_types);
-      }
-    }
-  }
-
-  for (int n = 0; n < para.num_types; ++n) {
-    fprintf(fid_nep, "%s ", para.elements[n].c_str());
-  }
-  fprintf(fid_nep, "\n");
-  if (para.enable_zbl) {
-    if (para.flexible_zbl) {
-      fprintf(fid_nep, "zbl 0 0\n");
-    } else if (para.use_typewise_cutoff_zbl) {
-      fprintf(fid_nep, "zbl %g %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer, para.typewise_cutoff_zbl_factor);
-    } else {
-      fprintf(fid_nep, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
-    }
-  }
-
-  fprintf(fid_nep, "cutoff %g %g ", para.rc_radial[0], para.rc_angular[0]);
-  if (para.has_multiple_cutoffs) {
-    for (int n = 1; n < para.num_types; ++n) {
-      fprintf(fid_nep, "%g %g ", para.rc_radial[n], para.rc_angular[n]);
-    }
-  }
-  fprintf(fid_nep, "%d %d\n", max_NN_radial, max_NN_angular);
-
-  fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
-  fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
-  fprintf(fid_nep, "l_max %d %d %d ", para.L_max, (para.has_q_222 ? 2 : 0), para.has_q_1111);
-  if (para.has_q_112 || para.has_q_123 || para.has_q_233 || para.has_q_134) {
-    fprintf(fid_nep, "%d ", para.has_q_112);
-  }
-  if (para.has_q_123 || para.has_q_233 || para.has_q_134) {
-    fprintf(fid_nep, "%d ", para.has_q_123);
-  }
-  if (para.has_q_233 || para.has_q_134) {
-    fprintf(fid_nep, "%d ", para.has_q_233);
-  }
-  if (para.has_q_134) {
-    fprintf(fid_nep, "%d ", para.has_q_134);
-  }
-  fprintf(fid_nep, "\n");
-
-  if (para.num_hidden_layers == 2) {
-    fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, para.num_neurons2);
-  } else {
-    fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
-  }
-
-  std::vector<float> parameters_file(elite, elite + para.number_of_variables);
-  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
-#ifdef USE_CJ
-  const int num_channels = para.num_types;
-#else
-  const int num_channels = para.num_types * para.num_types;
-#endif
-  descriptor_parameters_to_basis_major(
-    parameters_file.data(),
-    descriptor_offset,
-    num_channels,
-    para.n_max_radial,
-    para.n_max_angular,
-    para.basis_size_radial,
-    para.basis_size_angular);
-  for (int m = 0; m < para.number_of_variables; ++m) {
-    fprintf(fid_nep, "%15.7e\n", parameters_file[m]);
-  }
   CHECK(gpuSetDevice(0));
   para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
-  for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
-    fprintf(fid_nep, "%15.7e\n", para.q_scaler_cpu[d]);
-  }
-  if (para.flexible_zbl) {
-    for (int d = 0; d < 10 * (para.num_types * (para.num_types + 1) / 2); ++d) {
-      fprintf(fid_nep, "%15.7e\n", para.zbl_para[d]);
-    }
-  }
+  ::write_nep_txt(fid_nep, para, elite, max_NN_radial, max_NN_angular);
 }
 
 void Fitness::get_save_potential_label(Parameters& para, const int generation, std::string& label) {
