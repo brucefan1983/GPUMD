@@ -570,7 +570,7 @@ static void compare_with_nep_txt(
 }
 
 static void check_nep_txt(
-  Parameters& para, const std::string& filename, const bool fatal, const char* remedy)
+  Parameters& para, const std::string& filename, const char* remedy)
 {
   std::vector<std::string> mismatches;
   compare_with_nep_txt(para, filename, mismatches);
@@ -582,9 +582,7 @@ static void check_nep_txt(
     printf("    %s\n", mismatch.c_str());
   }
   printf("%s\n", remedy);
-  if (fatal) {
-    PRINT_INPUT_ERROR(("nep.in is inconsistent with " + filename + ".").c_str());
-  }
+  PRINT_INPUT_ERROR(("nep.in is inconsistent with " + filename + ".").c_str());
 }
 
 static void check_nep_restart(Parameters& para)
@@ -643,17 +641,14 @@ void check_existing_nep_model(Parameters& para)
   }
 
   if (para.import_q_scaler) {
-    check_nep_txt(para, "nep.txt", true, "Correct nep.in, or switch off import_q_scaler.");
-  } else if (does_file_exist("nep.txt")) {
-    // nep.txt is an input when predicting or when there is a nep.restart to resume from,
-    // and merely a stale output otherwise
+    check_nep_txt(para, "nep.txt", "Correct nep.in, or switch off import_q_scaler.");
+  } else if (
+    (para.prediction == 1 || does_file_exist("nep.restart")) && does_file_exist("nep.txt")) {
     if (para.prediction == 1) {
-      check_nep_txt(para, "nep.txt", true, "Correct nep.in to match the model to predict with.");
-    } else if (does_file_exist("nep.restart")) {
-      check_nep_txt(
-        para, "nep.txt", true, "Correct nep.in, or remove nep.restart to start a new training run.");
+      check_nep_txt(para, "nep.txt", "Correct nep.in to match the model to predict with.");
     } else {
-      check_nep_txt(para, "nep.txt", false, "Warning: nep.txt will be overwritten by this training run.");
+      check_nep_txt(
+        para, "nep.txt", "Correct nep.in, or remove nep.restart to start a new training run.");
     }
   }
 
