@@ -319,11 +319,6 @@ void Parameters::calculate_parameters()
       PRINT_INPUT_ERROR("Failed to open nep.txt for q_scaler import.");
     }
     std::vector<std::string> tokens;
-    // Unlike the fine_tune case above, the imported nep.txt has been validated by
-    // check_existing_nep_model to have the exact same architecture and species count as the
-    // current run, so no species-count-specific offset arithmetic is needed here: just skip
-    // the header lines and this run's own number_of_variables parameter lines, then read the
-    // trailing dim-line q_scaler block.
     for (int n = 0; n < number_of_nep_txt_header_lines + number_of_variables; ++n) {
       tokens = get_tokens(input); // not used
     }
