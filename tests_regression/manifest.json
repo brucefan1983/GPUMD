@@ -5868,6 +5868,44 @@
       ]
     },
     {
+      "id": "predict_nep_pbte_batch",
+      "program": "nep",
+      "description": "NEP prediction from a fixed model on the three-batch PbTe TTT dataset",
+      "suites": [
+        "prediction",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "stage": [
+        {
+          "source": "repo:examples/nep_prediction/nep.txt",
+          "target": "nep.txt"
+        }
+      ],
+      "input": "package:cases/prediction/nep_pbte_batch.in",
+      "covers": [
+        "prediction:nep",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "stdout_contains": "Started predicting.",
+      "outputs": [
+        "energy_train.out",
+        "force_train.out",
+        "virial_train.out",
+        "stress_train.out"
+      ],
+      "comparisons": {
+        "force_train.out": {
+          "mode": "numeric",
+          "rtol": 1e-05,
+          "atol": 2e-07,
+          "reason": "Prediction uses unordered single-precision atomic force accumulation. The relative bound allows the last of six significant digits written by %g to change; the absolute bound covers cancellation near zero, in eV/angstrom."
+        }
+      }
+    },
+    {
       "id": "train_nep_pbte_full",
       "program": "nep",
       "description": "NEP training on the full-batch PbTe TTT dataset",

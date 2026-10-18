@@ -492,6 +492,9 @@ def test_numeric_exceptions_are_explicit_per_output():
         )
     }
     expected = {
+        "predict_nep_pbte_batch": {
+            "force_train.out": (1e-5, 2e-7),
+        },
         "qnep_ewald_future_bec": {
             "bec.xyz": (0.0, 3e-6),
             "dpdt.out": (0.0, 2e-7),
