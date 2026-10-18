@@ -24,6 +24,7 @@ The k-space part of the PPPM method.
 #include <cmath>
 #include <cstdio>
 #include <iostream>
+#include <vector>
 
 namespace{
 
@@ -623,7 +624,6 @@ void PPPM::find_para(const int N, const Box& box)
   const float two_pi = 6.2831853f;
   const double volume = box.get_volume();
   para.two_pi_over_V = two_pi / volume;
-  const bool first_mesh = !plan_initialized;
   for (int d = 0; d < 3; ++d) {
     const double required = volume / box.get_area(d) / mesh_spacing;
     if (required > para.K[d]) {
@@ -641,20 +641,62 @@ void PPPM::find_para(const int N, const Box& box)
     para.K0K1K2 = static_cast<int>(number_of_points);
     allocate_memory();
   }
-  if (first_mesh) {
-    printf(
-      "PPPM mesh: %d x %d x %d (target spacing %.17g A; actual spacing %.17g %.17g %.17g A).\n",
-      para.K[0], para.K[1], para.K[2], mesh_spacing,
-      volume / box.get_area(0) / para.K[0],
-      volume / box.get_area(1) / para.K[1],
-      volume / box.get_area(2) / para.K[2]);
-  }
   para.potential_factor = K_C_SP / N;
   for (int d = 0; d < 3; ++d) {
     para.b[0][d] = two_pi * (float)box.cpu_h[9 + d];
     para.b[1][d] = two_pi * (float)box.cpu_h[12 + d];
     para.b[2][d] = two_pi * (float)box.cpu_h[15 + d];
   }
+}
+
+void PPPM::print_mesh(const int N1, const int N2, const Box& box, const GPU_Vector<float>& charge)
+{
+  const double volume = box.get_volume();
+  printf(
+    "PPPM mesh: %d x %d x %d (target spacing %.17g A; actual spacing %.17g %.17g %.17g A).\n",
+    para.K[0],
+    para.K[1],
+    para.K[2],
+    mesh_spacing,
+    volume / box.get_area(0) / para.K[0],
+    volume / box.get_area(1) / para.K[1],
+    volume / box.get_area(2) / para.K[2]);
+
+  // Root-mean-square force error for ik differentiation and five-point charge assignment
+  // with the optimal influence function, Eq. (38) of M. Deserno and C. Holm, JCP 109, 7694 (1998).
+  // The coefficients are a_m^(5) of Table II therein.
+  // Eq. (38) holds for a cubic box. Here it is evaluated per direction with the thickness of the
+  // cell as L, and the root mean square of the three values is reported.
+  const double coefficients[5] = {
+    1.0 / 23232.0,
+    7601.0 / 13628160.0,
+    143.0 / 69120.0,
+    517231.0 / 106536960.0,
+    106640677.0 / 11737571328.0};
+  const int number_of_charges = N2 - N1;
+  std::vector<float> q(number_of_charges);
+  CHECK(gpuMemcpy(
+    q.data(), charge.data() + N1, sizeof(float) * number_of_charges, gpuMemcpyDeviceToHost));
+  double sum_of_squared_charges = 0.0;
+  for (const float q_i : q) {
+    sum_of_squared_charges += double(q_i) * q_i;
+  }
+  const double alpha = para.alpha;
+  double squared_error = 0.0;
+  for (int d = 0; d < 3; ++d) {
+    const double thickness = volume / box.get_area(d);
+    const double h_alpha = thickness / para.K[d] * alpha;
+    double sum = 0.0;
+    for (int m = 0; m < 5; ++m) {
+      sum += coefficients[m] * std::pow(h_alpha, 2 * m);
+    }
+    const double error =
+      K_C_SP * sum_of_squared_charges * std::pow(h_alpha, 5) *
+      std::sqrt(alpha * thickness * std::sqrt(2.0 * PI) * sum / number_of_charges) /
+      (thickness * thickness);
+    squared_error += error * error;
+  }
+  printf("PPPM force error estimate: %.3e eV/A.\n", std::sqrt(squared_error / 3.0));
 }
 
 void PPPM::find_force(
@@ -669,7 +711,11 @@ void PPPM::find_force(
   GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& potential_per_atom)
 {
+  const bool first_mesh = !plan_initialized;
   find_para(N, box);
+  if (first_mesh) {
+    print_mesh(N1, N2, box, charge);
+  }
 
   find_k_and_G_opt<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
     para, 
