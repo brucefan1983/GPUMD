@@ -41,20 +41,10 @@ protected:
 
   std::vector<int> index;
   std::vector<float> fitness_total;
-  std::vector<float> fitness_L1;
-  std::vector<float> fitness_L2;
-  std::vector<float> fitness_energy;
-  std::vector<float> fitness_force;
-  std::vector<float> fitness_virial;
-  std::vector<float> fitness_charge;
-  std::vector<float> fitness_bec;
-  std::vector<float> fitness_ediff; // one value per member, the same for every type
   std::vector<float> population;
   std::vector<float> mu;
   std::vector<float> sigma;
   std::vector<float> utility;
-  std::vector<float> cost_L1reg;
-  std::vector<float> cost_L2reg;
   std::vector<int> type_of_variable;
 
   GPU_Vector<gpurandState> curand_states;
@@ -65,8 +55,6 @@ protected:
   GPU_Vector<float> gpu_s;
   GPU_Vector<float> gpu_sigma;
   GPU_Vector<float> gpu_mu;
-  GPU_Vector<float> gpu_cost_L1reg;
-  GPU_Vector<float> gpu_cost_L2reg;
 
   void train(Parameters& para, Fitness* fitness_function);
   void predict(Parameters& para, Fitness* fitness_function);
@@ -76,8 +64,6 @@ protected:
   void calculate_utility();
   void find_type_of_variable(Parameters& para);
   void create_population();
-  void regularize(Parameters&);
-  void regularize_NEP4(Parameters& para);
   void sort_population(Parameters& para);
   void update_mu_and_sigma();
   void output_mu_and_sigma(Parameters& para, const char* filename);

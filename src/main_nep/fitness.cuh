@@ -32,22 +32,19 @@ public:
   ~Fitness();
   Fitness(const Fitness&) = delete;
   Fitness& operator=(const Fitness&) = delete;
+  void print_training_header(const Parameters& para);
   void compute(
     const int generation,
     Parameters& para,
-    const float*,
-    float*,
-    float*,
-    float*,
-    float*,
-    float*,
-    float* fitness_ediff);
+    const float* population,
+    const float* gpu_population,
+    const int* gpu_type_of_variable,
+    float* fitness_total);
   void report_error(
     Parameters& para,
     const int generation,
     const float loss_total,
-    const float loss_L1,
-    const float loss_L2,
+    const int best_index,
     float* elite);
   void predict(Parameters& para, float* elite);
   void get_save_potential_label(Parameters& para, const int generation, std::string& filename);
@@ -62,6 +59,23 @@ protected:
   Potential& potential;
   std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;
+  std::vector<float> fitness_L1;
+  std::vector<float> fitness_L2;
+  std::vector<float> fitness_energy;
+  std::vector<float> fitness_force;
+  std::vector<float> fitness_virial;
+  std::vector<float> fitness_charge;
+  std::vector<float> fitness_bec;
+  std::vector<float> fitness_ediff;
+  std::vector<float> cost_L1reg;
+  std::vector<float> cost_L2reg;
+  GPU_Vector<float> gpu_cost_L1reg;
+  GPU_Vector<float> gpu_cost_L2reg;
+  void regularize_NEP4(
+    Parameters& para,
+    const float* gpu_population,
+    const int* gpu_type_of_variable,
+    float* fitness_total);
   void output(
     bool is_stress,
     int num_components,
