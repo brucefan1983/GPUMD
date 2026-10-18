@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include <stdio.h>
 #include <string>
 #include <vector>
 
@@ -58,5 +59,14 @@ struct NepTxtHeader {
 bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std::string& error);
 
 void read_nep_txt(const std::string& filename, Parameters& para, float* parameters);
+
+void read_nep_q_scaler(Parameters& para);
+
+void write_nep_txt(
+  FILE* fid_nep,
+  const Parameters& para,
+  const float* elite,
+  const int max_NN_radial,
+  const int max_NN_angular);
 
 void check_existing_nep_model(Parameters& para);

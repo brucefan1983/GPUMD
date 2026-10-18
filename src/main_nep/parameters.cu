@@ -289,45 +289,7 @@ void Parameters::calculate_parameters()
   check_existing_nep_model(*this);
 
   q_scaler_cpu.resize(dim,  1.0e10f);
-  if (fine_tune) {
-    std::ifstream input(fine_tune_nep_txt);
-    if (!input.is_open()) {
-      PRINT_INPUT_ERROR("Failed to open foundation model file.");
-    }
-    std::vector<std::string> tokens;
-    const int NUM89 = 89;
-    const int num_ann = NUM89 * number_of_variables_ann_1 + ((charge_mode || charge_vdw) ? 2 : 1);
-#ifdef USE_CJ
-    const int num_cnk_radial = NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
-    const int num_cnk_angular = NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
-#else
-    const int num_cnk_radial = NUM89 * NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
-    const int num_cnk_angular = NUM89 * NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
-#endif
-    const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
-    for (int n = 0; n < num_tot + number_of_nep_txt_header_lines; ++n) {
-      tokens = get_tokens(input); // not used
-    }
-    for (int n = 0; n < q_scaler_cpu.size(); ++n) {
-      tokens = get_tokens(input);
-      q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-    }
-    input.close();
-  } else if (import_q_scaler) {
-    std::ifstream input("nep.txt");
-    if (!input.is_open()) {
-      PRINT_INPUT_ERROR("Failed to open nep.txt for q_scaler import.");
-    }
-    std::vector<std::string> tokens;
-    for (int n = 0; n < number_of_nep_txt_header_lines + number_of_variables; ++n) {
-      tokens = get_tokens(input); // not used
-    }
-    for (int n = 0; n < q_scaler_cpu.size(); ++n) {
-      tokens = get_tokens(input);
-      q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-    }
-    input.close();
-  }
+  read_nep_q_scaler(*this);
 
   int deviceCount;
   CHECK(gpuGetDeviceCount(&deviceCount));

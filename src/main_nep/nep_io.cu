@@ -244,6 +244,180 @@ static std::string float_to_string(const float value)
   return std::string(buffer);
 }
 
+void read_nep_q_scaler(Parameters& para)
+{
+  if (para.fine_tune) {
+    std::ifstream input(para.fine_tune_nep_txt);
+    if (!input.is_open()) {
+      PRINT_INPUT_ERROR("Failed to open foundation model file.");
+    }
+    std::vector<std::string> tokens;
+    const int NUM89 = 89;
+    const int num_ann =
+      NUM89 * para.number_of_variables_ann_1 + ((para.charge_mode || para.charge_vdw) ? 2 : 1);
+#ifdef USE_CJ
+    const int num_cnk_radial = NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
+    const int num_cnk_angular = NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
+#else
+    const int num_cnk_radial = NUM89 * NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
+    const int num_cnk_angular = NUM89 * NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
+#endif
+    const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
+    for (int n = 0; n < num_tot + para.number_of_nep_txt_header_lines; ++n) {
+      tokens = get_tokens(input); // not used
+    }
+    for (int n = 0; n < para.q_scaler_cpu.size(); ++n) {
+      tokens = get_tokens(input);
+      para.q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    input.close();
+  } else if (para.import_q_scaler) {
+    std::ifstream input("nep.txt");
+    if (!input.is_open()) {
+      PRINT_INPUT_ERROR("Failed to open nep.txt for q_scaler import.");
+    }
+    std::vector<std::string> tokens;
+    for (int n = 0; n < para.number_of_nep_txt_header_lines + para.number_of_variables; ++n) {
+      tokens = get_tokens(input); // not used
+    }
+    for (int n = 0; n < para.q_scaler_cpu.size(); ++n) {
+      tokens = get_tokens(input);
+      para.q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    input.close();
+  }
+}
+
+void write_nep_txt(
+  FILE* fid_nep,
+  const Parameters& para,
+  const float* elite,
+  const int max_NN_radial,
+  const int max_NN_angular)
+{
+  if (para.model_type == 0) { // potential model
+    if (!(para.charge_mode || para.charge_vdw)) {
+      if (para.version == 4) {
+        if (para.enable_zbl) {
+          if (para.vdw) {
+            fprintf(fid_nep, "nep4_zbl_vdw %d ", para.num_types);
+          } else {
+            fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
+          }
+        } else {
+          if (para.vdw) {
+            fprintf(fid_nep, "nep4_vdw %d ", para.num_types);
+          } else {
+            fprintf(fid_nep, "nep4 %d ", para.num_types);
+          }
+        }
+      }
+    } else {
+      if (para.charge_vdw) {
+        if (para.enable_zbl) {
+          fprintf(fid_nep, "nep4_zbl_charge_vdw %d ", para.num_types);
+        } else {
+          fprintf(fid_nep, "nep4_charge_vdw %d ", para.num_types);
+        }
+      } else {
+        if (para.enable_zbl) {
+          fprintf(fid_nep, "nep4_zbl_charge%d %d ", para.charge_mode, para.num_types);
+        } else {
+          fprintf(fid_nep, "nep4_charge%d %d ", para.charge_mode, para.num_types);
+        }
+      }
+    }
+  } else if (para.model_type == 1) { // dipole model
+    if (para.version == 4) {
+      fprintf(fid_nep, "nep4_dipole %d ", para.num_types);
+    }
+  } else if (para.model_type == 2) { // polarizability model
+    if (para.version == 4) {
+      fprintf(fid_nep, "nep4_polarizability %d ", para.num_types);
+    }
+  } else if (para.model_type == 3) { // temperature model
+    if (para.version == 4) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep4_zbl_temperature %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep4_temperature %d ", para.num_types);
+      }
+    }
+  }
+
+  for (int n = 0; n < para.num_types; ++n) {
+    fprintf(fid_nep, "%s ", para.elements[n].c_str());
+  }
+  fprintf(fid_nep, "\n");
+  if (para.enable_zbl) {
+    if (para.flexible_zbl) {
+      fprintf(fid_nep, "zbl 0 0\n");
+    } else if (para.use_typewise_cutoff_zbl) {
+      fprintf(fid_nep, "zbl %g %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer, para.typewise_cutoff_zbl_factor);
+    } else {
+      fprintf(fid_nep, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
+    }
+  }
+
+  fprintf(fid_nep, "cutoff %g %g ", para.rc_radial[0], para.rc_angular[0]);
+  if (para.has_multiple_cutoffs) {
+    for (int n = 1; n < para.num_types; ++n) {
+      fprintf(fid_nep, "%g %g ", para.rc_radial[n], para.rc_angular[n]);
+    }
+  }
+  fprintf(fid_nep, "%d %d\n", max_NN_radial, max_NN_angular);
+
+  fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
+  fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
+  fprintf(fid_nep, "l_max %d %d %d ", para.L_max, (para.has_q_222 ? 2 : 0), para.has_q_1111);
+  if (para.has_q_112 || para.has_q_123 || para.has_q_233 || para.has_q_134) {
+    fprintf(fid_nep, "%d ", para.has_q_112);
+  }
+  if (para.has_q_123 || para.has_q_233 || para.has_q_134) {
+    fprintf(fid_nep, "%d ", para.has_q_123);
+  }
+  if (para.has_q_233 || para.has_q_134) {
+    fprintf(fid_nep, "%d ", para.has_q_233);
+  }
+  if (para.has_q_134) {
+    fprintf(fid_nep, "%d ", para.has_q_134);
+  }
+  fprintf(fid_nep, "\n");
+
+  if (para.num_hidden_layers == 2) {
+    fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, para.num_neurons2);
+  } else {
+    fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
+  }
+
+  std::vector<float> parameters_file(elite, elite + para.number_of_variables);
+  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
+#ifdef USE_CJ
+  const int num_channels = para.num_types;
+#else
+  const int num_channels = para.num_types * para.num_types;
+#endif
+  descriptor_parameters_to_basis_major(
+    parameters_file.data(),
+    descriptor_offset,
+    num_channels,
+    para.n_max_radial,
+    para.n_max_angular,
+    para.basis_size_radial,
+    para.basis_size_angular);
+  for (int m = 0; m < para.number_of_variables; ++m) {
+    fprintf(fid_nep, "%15.7e\n", parameters_file[m]);
+  }
+  for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
+    fprintf(fid_nep, "%15.7e\n", para.q_scaler_cpu[d]);
+  }
+  if (para.flexible_zbl) {
+    for (int d = 0; d < 10 * (para.num_types * (para.num_types + 1) / 2); ++d) {
+      fprintf(fid_nep, "%15.7e\n", para.zbl_para[d]);
+    }
+  }
+}
+
 static void compare_int(
   const char* name,
   const int from_nep_in,
