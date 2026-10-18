@@ -107,7 +107,7 @@ public:
     const float* parameters,
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
-    int deviceCount);
+    int deviceCount) override;
   void find_k1k2k3();
 
 private:

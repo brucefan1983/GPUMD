@@ -78,7 +78,7 @@ public:
     const float* parameters,
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
-    int deviceCount);
+    int deviceCount) override;
 
 private:
   NEP_Neighbor neighbor[16];
