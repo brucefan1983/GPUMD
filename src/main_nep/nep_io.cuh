@@ -60,6 +60,8 @@ bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std:
 
 void read_nep_txt(const std::string& filename, Parameters& para, float* parameters);
 
+void read_nep_q_scaler(Parameters& para);
+
 void write_nep_txt(
   FILE* fid_nep,
   const Parameters& para,
