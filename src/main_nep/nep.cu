@@ -154,13 +154,9 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-NEP::NEP(
-  Parameters& para,
-  int N,
-  int version,
-  int deviceCount)
+void NEP::initialize(Parameters& para, int N, int Nc, int deviceCount)
 {
-  paramb.version = version;
+  paramb.version = para.version;
   paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
   paramb.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;
   paramb.num_types = para.num_types;

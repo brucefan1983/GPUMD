@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "dataset.cuh"
 #include "potential.cuh"
 #include "nep_compile.cuh"
 #include "utilities/common.cuh"
@@ -96,20 +97,17 @@ public:
     int atomic_numbers[NUM_ELEMENTS];
   };
 
-  NEP_VDW(
-    Parameters& para,
-    int N,
-    int Nc,
-    int version,
-    int deviceCount);
+  NEP_VDW() = default;
+  void initialize(Parameters& para, int N, int Nc, int deviceCount) override;
   void find_force(
     Parameters& para,
     const float* parameters,
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
-    int deviceCount);
+    int deviceCount) override;
 
 private:
+  NEP_Neighbor neighbor[16];
   ParaMB paramb;
   ANN annmb[16];
   NEP_VDW_Data nep_data[16];

@@ -14,21 +14,22 @@
 */
 
 #pragma once
-#include "dataset.cuh"
+#include <memory>
 #include <vector>
+class Dataset;
 class Parameters;
 
 class Potential
 {
 public:
   virtual ~Potential() = default;
+  virtual void initialize(Parameters& para, int N, int Nc, int deviceCount) = 0;
   virtual void find_force(
     Parameters& para,
     const float* parameters,
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
     int DeviceCount) = 0;
-
-protected:
-  NEP_Neighbor neighbor[16];
 };
+
+std::unique_ptr<Potential> create_potential(Parameters& para);

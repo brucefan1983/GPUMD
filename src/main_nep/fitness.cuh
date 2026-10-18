@@ -18,7 +18,6 @@
 #include "energy_difference.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
-#include <memory>
 #include <stdio.h>
 #include <string>
 #include <utility>
@@ -29,8 +28,10 @@ class Parameters;
 class Fitness
 {
 public:
-  Fitness(Parameters& para);
+  Fitness(Parameters& para, Potential& potential);
   ~Fitness();
+  Fitness(const Fitness&) = delete;
+  Fitness& operator=(const Fitness&) = delete;
   void compute(
     const int generation,
     Parameters& para,
@@ -58,7 +59,7 @@ protected:
   int max_NN_angular; // angular neighbor list size
   FILE* fid_loss_out = NULL;
   EnergyDifference energy_difference;
-  std::unique_ptr<Potential> potential;
+  Potential& potential;
   std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;
   void output(

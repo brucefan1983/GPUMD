@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "dataset.cuh"
 #include "potential.cuh"
 #include "nep_compile.cuh"
 #include "utilities/common.cuh"
@@ -70,19 +71,17 @@ public:
     const float* c;
   };
 
-  TNEP(
-    Parameters& para,
-    int N,
-    int version,
-    int deviceCount);
+  TNEP() = default;
+  void initialize(Parameters& para, int N, int Nc, int deviceCount) override;
   void find_force(
     Parameters& para,
     const float* parameters,
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
-    int deviceCount);
+    int deviceCount) override;
 
 private:
+  NEP_Neighbor neighbor[16];
   ParaMB paramb;
   ANN annmb[16];
   TNEP_Data nep_data[16];
