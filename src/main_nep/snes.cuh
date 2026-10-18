@@ -68,6 +68,8 @@ protected:
   GPU_Vector<float> gpu_cost_L1reg;
   GPU_Vector<float> gpu_cost_L2reg;
 
+  void train(Parameters& para, Fitness* fitness_function);
+  void predict(Parameters& para, Fitness* fitness_function);
   void initialize_rng(const int seed);
   void initialize_mu_and_sigma(Parameters& para);
   void initialize_mu_and_sigma_fine_tune(Parameters& para);
