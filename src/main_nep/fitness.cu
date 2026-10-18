@@ -438,11 +438,11 @@ void Fitness::output_atomic(
   }
 }
 
-void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
+void Fitness::write_potential(FILE* fid_nep, Parameters& para, float* elite)
 {
   CHECK(gpuSetDevice(0));
   para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
-  ::write_nep_txt(fid_nep, para, elite, max_NN_radial, max_NN_angular);
+  write_nep_txt(fid_nep, para, elite, max_NN_radial, max_NN_angular);
 }
 
 void Fitness::get_save_potential_label(Parameters& para, const int generation, std::string& label) {
@@ -519,7 +519,7 @@ void Fitness::report_error(
     }
 
     FILE* fid_nep = my_fopen("nep.txt", "w");
-    write_nep_txt(fid_nep, para, elite);
+    write_potential(fid_nep, para, elite);
     fclose(fid_nep);
 
     if (0 == (generation + 1) % para.save_potential) {
@@ -528,7 +528,7 @@ void Fitness::report_error(
       filename += ".txt";
 
       FILE* fid_nep = my_fopen(filename.c_str(), "w");
-      write_nep_txt(fid_nep, para, elite);
+      write_potential(fid_nep, para, elite);
       fclose(fid_nep);
     }
 

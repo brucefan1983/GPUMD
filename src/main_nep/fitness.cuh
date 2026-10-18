@@ -108,5 +108,5 @@ protected:
     Parameters& para,
     const std::string& label,
     const std::vector<std::pair<Dataset*, int>>& structures);
-  void write_nep_txt(FILE* fid_nep, Parameters& para, float* elite);
+  void write_potential(FILE* fid_nep, Parameters& para, float* elite);
 };
