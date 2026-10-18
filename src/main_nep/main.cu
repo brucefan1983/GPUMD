@@ -15,6 +15,7 @@
 
 #include "fitness.cuh"
 #include "parameters.cuh"
+#include "potential.cuh"
 #include "snes.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -24,6 +25,7 @@
 #include <time.h>
 #include <chrono>
 #include <cstring>
+#include <memory>
 
 void print_welcome_information(void);
 
@@ -41,7 +43,8 @@ int main(int argc, char* argv[])
 
   const auto time_begin1 = std::chrono::high_resolution_clock::now();
   Parameters para;
-  Fitness fitness(para);
+  std::unique_ptr<Potential> potential = create_potential(para);
+  Fitness fitness(para, *potential);
   const auto time_finish1 = std::chrono::high_resolution_clock::now();
 
   const std::chrono::duration<double> time_used1 = time_finish1 - time_begin1;

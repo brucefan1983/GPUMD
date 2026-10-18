@@ -43,7 +43,7 @@ static int get_batch_size(const int batch_id, const int n_total, const int num_b
   return is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
 }
 
-Fitness::Fitness(Parameters& para)
+Fitness::Fitness(Parameters& para, Potential& potential) : potential(potential)
 {
   int deviceCount;
   CHECK(gpuGetDeviceCount(&deviceCount));
@@ -127,8 +127,7 @@ Fitness::Fitness(Parameters& para)
     }
   }
 
-  potential = create_potential(para);
-  potential->initialize(para, N, Nc, deviceCount);
+  potential.initialize(para, N, Nc, deviceCount);
 
   if (para.prediction == 0) {
     fid_loss_out = my_fopen("loss.out", "a");
@@ -185,7 +184,7 @@ void Fitness::compute(
   if (generation == 0) {
     std::vector<float> dummy_solution(para.number_of_variables * deviceCount, para.initial_para);
     for (int n = 0; n < num_batches; ++n) {
-      potential->find_force(
+      potential.find_force(
         para,
         dummy_solution.data(),
         train_set[n],
@@ -196,7 +195,7 @@ void Fitness::compute(
     int batch_id = generation % num_batches;
     for (int n = 0; n < population_iter; ++n) {
       const float* individual = population + deviceCount * n * para.number_of_variables;
-      potential->find_force(para, individual, train_set[batch_id], false, deviceCount);
+      potential.find_force(para, individual, train_set[batch_id], false, deviceCount);
       for (int m = 0; m < deviceCount; ++m) {
         float energy_shift_per_structure_not_used;
         auto rmse_energy_array = train_set[batch_id][m].get_rmse_energy(
@@ -438,7 +437,7 @@ void Fitness::report_error(
 {
   if (0 == (generation + 1) % para.output_interval) {
     int batch_id = generation % num_batches;
-    potential->find_force(para, elite, train_set[batch_id], false, 1);
+    potential.find_force(para, elite, train_set[batch_id], false, 1);
     float energy_shift_per_structure;
     auto rmse_energy_train_array =
       train_set[batch_id][0].get_rmse_energy(para, energy_shift_per_structure, false, true, 0);
@@ -470,7 +469,7 @@ void Fitness::report_error(
     float rmse_bec_test = 0.0f;
     float rmse_ediff_test = 0.0f;
     if (has_test_set) {
-      potential->find_force(para, elite, test_set, false, 1);
+      potential.find_force(para, elite, test_set, false, 1);
       float energy_shift_per_structure_not_used;
       auto rmse_energy_test_array =
         test_set[0].get_rmse_energy(para, energy_shift_per_structure_not_used, false, false, 0);
@@ -727,7 +726,7 @@ void Fitness::predict(Parameters& para, float* elite)
   std::vector<std::pair<Dataset*, int>> structures;
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
     Dataset& dataset = train_set[batch_id][0];
-    potential->find_force(para, elite, train_set[batch_id], false, 1);
+    potential.find_force(para, elite, train_set[batch_id], false, 1);
     copy_predictions_to_host(para, dataset);
     for (int nc = 0; nc < dataset.Nc; ++nc) {
       structures.emplace_back(&dataset, nc);
