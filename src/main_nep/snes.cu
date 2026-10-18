@@ -42,7 +42,7 @@ static __global__ void initialize_curand_states(gpurandState* state, int N, int 
   }
 }
 
-SNES::SNES(Parameters& para, Fitness* fitness_function)
+SNES::SNES(Parameters& para)
 {
   maximum_generation = para.maximum_generation;
   number_of_variables = para.number_of_variables;
@@ -94,8 +94,6 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   gpu_utility.copy_from_host(utility.data());
   find_type_of_variable(para);
   gpu_type_of_variable.copy_from_host(type_of_variable.data());
-  
-  compute(para, fitness_function);
 }
 
 void SNES::initialize_rng(const int seed)
@@ -384,7 +382,7 @@ void SNES::find_type_of_variable(Parameters& para)
 #endif
 }
 
-void SNES::compute(Parameters& para, Fitness* fitness_function)
+void SNES::run(Parameters& para, Fitness* fitness_function)
 {
 
   print_line_1();
