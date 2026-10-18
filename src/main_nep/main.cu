@@ -14,6 +14,7 @@
 */
 
 #include "fitness.cuh"
+#include "nep_io.cuh"
 #include "parameters.cuh"
 #include "potential.cuh"
 #include "snes.cuh"
@@ -26,8 +27,22 @@
 #include <chrono>
 #include <cstring>
 #include <memory>
+#include <vector>
 
 void print_welcome_information(void);
+
+static void predict(Parameters& para, Fitness& fitness)
+{
+  print_line_1();
+  printf("Started predicting.\n");
+  print_line_2();
+
+  std::vector<float> parameters(para.number_of_variables);
+  read_nep_txt("nep.txt", para, parameters.data());
+  gpuSetDevice(0);
+  para.q_scaler_gpu[0].copy_from_host(para.q_scaler_cpu.data());
+  fitness.predict(para, parameters.data());
+}
 
 int main(int argc, char* argv[])
 {
@@ -53,8 +68,12 @@ int main(int argc, char* argv[])
   print_line_2();
 
   const auto time_begin2 = std::chrono::high_resolution_clock::now();
-  SNES snes(para);
-  snes.run(para, &fitness);
+  if (para.prediction == 0) {
+    SNES snes(para);
+    snes.run(para, &fitness);
+  } else {
+    predict(para, fitness);
+  }
   const auto time_finish2 = std::chrono::high_resolution_clock::now();
 
   const std::chrono::duration<double> time_used2 = time_finish2 - time_begin2;
