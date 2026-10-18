@@ -256,9 +256,40 @@ def _check_msd_from_xyz(spec: Mapping[str, Any], workdir: Path) -> Dict[str, Any
     return {"trajectories": len(spec["trajectories"]), "max_abs": max_abs}
 
 
+def _check_nep_energy_difference(spec: Mapping[str, Any], workdir: Path) -> Dict[str, Any]:
+    path = workdir / spec["output"]
+    headers = [
+        line.split()[2:] for line in path.read_text().splitlines()
+        if line.startswith("# columns ")
+    ]
+    if len(headers) != 1:
+        raise PostCheckError("loss.out: expected one columns header")
+    columns = headers[0]
+    required = ("generation", "rmse_ediff_train", "rmse_ediff_test")
+    if any(columns.count(name) != 1 for name in required):
+        raise PostCheckError("loss.out: missing or duplicate energy-difference columns")
+    data = _loadtxt(path)
+    if data.shape != (spec["generations"], len(columns)) or not np.all(np.isfinite(data)):
+        raise PostCheckError("loss.out: invalid shape or non-finite values")
+    generation = data[:, columns.index("generation")]
+    if not np.array_equal(generation, np.arange(1, spec["generations"] + 1)):
+        raise PostCheckError("loss.out: expected one row per generation")
+    train = data[:, columns.index("rmse_ediff_train")]
+    test = data[:, columns.index("rmse_ediff_test")]
+    empty = (generation - 1) % spec["batches"] == spec["empty_batch"]
+    if not np.any(empty) or not np.any(~empty):
+        raise PostCheckError("loss.out: must cover batches with and without combinations")
+    if np.any(train[empty] != 0):
+        raise PostCheckError("loss.out: energy-difference loss must be zero in the empty batch")
+    if np.any(train[~empty] <= 0) or np.any(test <= 0):
+        raise PostCheckError("loss.out: energy-difference loss must be positive for these combinations")
+    return {"rows": int(data.shape[0]), "empty_batch_rows": int(np.count_nonzero(empty))}
+
+
 CHECKS = {
     "active_uncertainty": _check_active_uncertainty,
     "msd_from_xyz": _check_msd_from_xyz,
+    "nep_energy_difference": _check_nep_energy_difference,
 }
 
 
@@ -285,6 +316,9 @@ def validate_spec(spec: Any, owner: str) -> None:
         "msd_from_xyz": {
             "name", "output", "window", "trajectories", "rtol", "atol",
         },
+        "nep_energy_difference": {
+            "name", "output", "generations", "batches", "empty_batch",
+        },
     }
     required = required_by_name[name]
     missing = required - set(spec)
@@ -295,11 +329,21 @@ def validate_spec(spec: Any, owner: str) -> None:
         raise ValueError(f"{owner} has unknown key(s): {sorted(unknown)}")
 
     for tolerance in ("rtol", "atol"):
+        if tolerance not in spec:
+            continue
         value = spec[tolerance]
         if not isinstance(value, (int, float)) or isinstance(value, bool) or not math.isfinite(value) or value < 0:
             raise ValueError(f"{owner}.{tolerance} must be a finite non-negative number")
 
-    if name == "active_uncertainty":
+    if name == "nep_energy_difference":
+        _relative_path(spec["output"], f"{owner}.output")
+        for key in ("generations", "batches"):
+            if not isinstance(spec[key], int) or isinstance(spec[key], bool) or spec[key] <= 0:
+                raise ValueError(f"{owner}.{key} must be a positive integer")
+        empty = spec["empty_batch"]
+        if not isinstance(empty, int) or isinstance(empty, bool) or not 0 <= empty < spec["batches"]:
+            raise ValueError(f"{owner}.empty_batch must be a valid zero-based batch index")
+    elif name == "active_uncertainty":
         for key in ("observers", "check_interval"):
             if not isinstance(spec[key], int) or isinstance(spec[key], bool) or spec[key] <= 0:
                 raise ValueError(f"{owner}.{key} must be a positive integer")

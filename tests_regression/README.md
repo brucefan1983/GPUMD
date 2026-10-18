@@ -38,12 +38,12 @@ regression-specific inputs self-contained.
 
 ## Acceptance contract
 
-`full` is the only acceptance suite. It contains all 254 cases and evaluates
+`full` is the only acceptance suite. It contains all 255 cases and evaluates
 all 25 cross-case relations after the cases pass. Every case and relation runs
 for both the baseline and candidate, using the same expectations. A successful run ends with:
 
 ```text
-Summary: 254 passed, 0 failed; relations: 25 passed, 0 failed, 0 skipped
+Summary: 255 passed, 0 failed; relations: 25 passed, 0 failed, 0 skipped
 ```
 
 Focused suites are diagnostic subsets only. A focused result is not a
@@ -68,7 +68,7 @@ python3 tests_regression/run_regression.py \
   --suite full --keep-all
 ```
 
-The intended self-comparison result is 254 passing cases and 25 passing
+The intended self-comparison result is 255 passing cases and 25 passing
 relations. A failure requires inspecting the diagnostic or numerical delta;
 using the same executable does not bypass any check or guarantee bitwise
 GPU reproducibility. After self-comparison, use the accepted and candidate
@@ -160,7 +160,7 @@ suites exist only to isolate a failure:
 | `training` | NEP, qNEP, vdW, charge-vdW, and tensorial-NEP training paths |
 | `prediction` | NEP prediction from an existing model over multiple batches |
 | `pppm` | spacing, mesh sizing, resource lifecycle, and related existing qNEP cases |
-| `full` | all 254 cases and all 25 relations |
+| `full` | all 255 cases and all 25 relations |
 
 For example, a focused rerun may help diagnose a full-suite failure:
 
@@ -190,10 +190,19 @@ checks and numerical bounds.
 Cases default to `program: gpumd`. Training and prediction cases declare
 `program: nep`, which causes the runner to stage their input as `nep.in` and select the NEP executable
 pair. GPUMD cases continue to use `run.in` and the original executable pair.
-Training inputs are deliberately minimal: model type, batch size, 10 generations,
+The model-coverage training inputs are deliberately minimal: model type, batch size, 10 generations,
 `output_interval 10`, and only model-selection keywords that are required to enter
 qNEP, vdW, charge-vdW, dipole, or polarizability paths. `loss.out`, `nep.txt`, and
 `nep.restart` are byte-exact regression outputs.
+
+The energy-difference case adds `lambda_d 0.1` and uses `output_interval 1`.
+Four PbTe structures carry `name` labels; their physical data are unchanged.
+Two weighted energy differences occupy two of the three training batches, leaving
+one batch without a combination. The same structures also serve as the test set
+to exercise reporting. A semantic check requires positive energy-difference RMSE
+for the selected combinations and zero training RMSE in the empty batch at
+generations 3, 6, and 9. Test-set prediction files are also compared; only
+`force_test.out` uses the force-rounding bounds described below.
 
 The prediction case reuses the fixed model from `examples/nep_prediction/nep.txt`
 and the PbTe training fixture, split into three batches. It compares

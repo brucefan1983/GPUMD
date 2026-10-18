@@ -1,10 +1,10 @@
 # Durable behavior-contract diagnostics
 
-`full` is the only acceptance suite. It runs all 254 manifest cases and then
+`full` is the only acceptance suite. It runs all 255 manifest cases and then
 evaluates all 25 cross-case relations for their declared roles:
 
 ```text
-Summary: 254 passed, 0 failed; relations: 25 passed, 0 failed, 0 skipped
+Summary: 255 passed, 0 failed; relations: 25 passed, 0 failed, 0 skipped
 ```
 
 The 23 focused suites are diagnostic views of the same manifest. They may skip
