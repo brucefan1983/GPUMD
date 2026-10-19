@@ -109,4 +109,10 @@ protected:
     const std::string& label,
     const std::vector<std::pair<Dataset*, int>>& structures);
   void write_potential(FILE* fid_nep, Parameters& para, float* elite);
+
+private:
+  void prepare_datasets(Parameters& para, const int deviceCount);
+  void find_dataset_sizes(int& N, int& Nc);
+  void initialize_workspace(const Parameters& para);
+  void open_loss_file(const Parameters& para);
 };

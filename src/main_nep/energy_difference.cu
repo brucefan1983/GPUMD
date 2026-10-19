@@ -248,7 +248,7 @@ find_groups(const std::vector<std::vector<int>>& linked_indices, const int n_tot
 Reorders the training structures into num_batches batches that keep each group together, and
 returns the batch sizes. The groups, the larger ones first and those of one size by their mean
 energy per atom, go one by one to the batch with the fewest structures, which for groups of one
-structure gives the batches of read_structures.
+structure gives the same batches as energy-based reordering.
 Batches left empty are dropped, so num_batches can decrease.
 ------------------------------------------------------------------------------*/
 static std::vector<int> place_groups_in_batches(

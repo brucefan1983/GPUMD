@@ -24,7 +24,6 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
-#include <numeric>
 #include <random>
 #include <sstream>
 #include <string>
@@ -610,47 +609,6 @@ static void read_exyz(
   }
 }
 
-static void find_permuted_indices(
-  const int num_batches,
-  const std::vector<Structure>& structures,
-  std::vector<int>& permuted_indices)
-{
-  std::vector<float> energy(structures.size());
-  for (int nc = 0; nc < structures.size(); ++nc) {
-    energy[nc] = structures[nc].energy;
-  }
-
-  std::vector<int> energy_index(structures.size());
-  std::iota(energy_index.begin(), energy_index.end(), 0);
-  std::stable_sort(energy_index.begin(), energy_index.end(), [&energy](size_t i1, size_t i2) {
-    return energy[i1] < energy[i2];
-  });
-
-  int count = 0;
-  for (int b = 0; b < num_batches; ++b) {
-    const int batch_size_minimal = structures.size() / num_batches;
-    const bool is_larger_batch = b + batch_size_minimal * num_batches < structures.size();
-    const int batch_size = is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
-    for (int c = 0; c < batch_size; ++c) {
-      permuted_indices[count + c] = energy_index[b + num_batches * c];
-    }
-    count += batch_size;
-  }
-}
-
-static void reorder(const int num_batches, std::vector<Structure>& structures)
-{
-  std::vector<int> configuration_id(structures.size());
-  find_permuted_indices(num_batches, structures, configuration_id);
-
-  std::vector<Structure> structures_reordered;
-  structures_reordered.reserve(structures.size());
-  for (int nc = 0; nc < structures.size(); ++nc) {
-    structures_reordered.push_back(structures[configuration_id[nc]]);
-  }
-  structures.swap(structures_reordered);
-}
-
 bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures)
 {
   std::ifstream input(is_train ? "train.xyz" : "test.xyz");
@@ -668,15 +626,6 @@ bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& st
     print_line_2();
     read_exyz(para, input, structures, xyz_filename);
     input.close();
-  }
-
-  // With the energy-difference loss, Fitness forms the batches from train.xyz in file order.
-  const bool is_ediff_active = para.prediction == 0 && para.lambda_d > 0.0f;
-  if (
-    (para.prediction == 0) && is_train && (para.batch_size < structures.size()) &&
-    !is_ediff_active) {
-    int num_batches = (structures.size() - 1) / para.batch_size + 1;
-    reorder(num_batches, structures);
   }
 
   return has_test_set;
