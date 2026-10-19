@@ -24,3 +24,5 @@ void initialize_nep_mu_and_sigma(
   std::mt19937& rng,
   std::vector<float>& mu,
   std::vector<float>& sigma);
+
+void find_nep_type_of_variable(const Parameters& para, std::vector<int>& type_of_variable);

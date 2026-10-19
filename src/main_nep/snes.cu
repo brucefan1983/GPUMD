@@ -55,7 +55,6 @@ SNES::SNES(Parameters& para)
   mu.resize(number_of_variables);
   sigma.resize(number_of_variables);
   utility.resize(population_size);
-  type_of_variable.resize(number_of_variables, para.num_types);
   initialize_rng(para.seed);
 
   gpuSetDevice(0); // normally use GPU-0
@@ -78,7 +77,7 @@ SNES::SNES(Parameters& para)
 
   calculate_utility();
   gpu_utility.copy_from_host(utility.data());
-  find_type_of_variable(para);
+  find_nep_type_of_variable(para, type_of_variable);
   gpu_type_of_variable.copy_from_host(type_of_variable.data());
 }
 
@@ -105,60 +104,6 @@ void SNES::calculate_utility()
   for (int n = 0; n < population_size; ++n) {
     utility[n] = utility[n] / utility_sum - 1.0f / population_size;
   }
-}
-
-void SNES::find_type_of_variable(Parameters& para)
-{
-  int offset = 0;
-
-  // NN part
-  int num_ann = (para.model_type == 2) ? 2 : 1;
-  for (int ann = 0; ann < num_ann; ++ann) {
-    for (int t = 0; t < para.num_types; ++t) {
-      for (int n = 0; n < para.number_of_variables_ann_1; ++n) {
-        type_of_variable[n + offset] = t;
-      }
-      offset += para.number_of_variables_ann_1;
-    }
-    offset += (para.charge_mode || para.charge_vdw) ? 2 : 1; // the bias
-  }
-
-  // descriptor part
-#ifdef USE_CJ
-  const int num_radial_basis = (para.n_max_radial + 1) * (para.basis_size_radial + 1);
-  for (int t1 = 0; t1 < para.num_types; ++t1) {
-    for (int basis = 0; basis < num_radial_basis; ++basis) {
-      type_of_variable[t1 * num_radial_basis + basis + offset] = t1;
-    }
-  }
-  offset += num_radial_basis * para.num_types;
-  const int num_angular_basis = (para.n_max_angular + 1) * (para.basis_size_angular + 1);
-  for (int t1 = 0; t1 < para.num_types; ++t1) {
-    for (int basis = 0; basis < num_angular_basis; ++basis) {
-      type_of_variable[t1 * num_angular_basis + basis + offset] = t1;
-    }
-  }
-#else
-  const int num_radial_basis = (para.n_max_radial + 1) * (para.basis_size_radial + 1);
-  for (int t1 = 0; t1 < para.num_types; ++t1) {
-    for (int t2 = 0; t2 < para.num_types; ++t2) {
-      int t12 = t1 * para.num_types + t2;
-      for (int basis = 0; basis < num_radial_basis; ++basis) {
-        type_of_variable[t12 * num_radial_basis + basis + offset] = t1;
-      }
-    }
-  }
-  offset += num_radial_basis * para.num_types * para.num_types;
-  const int num_angular_basis = (para.n_max_angular + 1) * (para.basis_size_angular + 1);
-  for (int t1 = 0; t1 < para.num_types; ++t1) {
-    for (int t2 = 0; t2 < para.num_types; ++t2) {
-      int t12 = t1 * para.num_types + t2;
-      for (int basis = 0; basis < num_angular_basis; ++basis) {
-        type_of_variable[t12 * num_angular_basis + basis + offset] = t1;
-      }
-    }
-  }
-#endif
 }
 
 void SNES::run(Parameters& para, Fitness* fitness_function)

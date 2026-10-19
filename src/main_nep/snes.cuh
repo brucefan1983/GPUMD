@@ -58,7 +58,6 @@ protected:
 
   void initialize_rng(const int seed);
   void calculate_utility();
-  void find_type_of_variable(Parameters& para);
   void create_population();
   void sort_population(Parameters& para);
   void update_mu_and_sigma();
