@@ -24,7 +24,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      # numpy and MDAnalysis need a newer Python than the 3.10 of the container image.
+      # calorine compiles a pybind11 extension from an sdist, so it needs the Python
+      # development headers, which the python3.10 of the container image lacks. 3.12 is the
+      # oldest version the current numpy and MDAnalysis releases support.
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -67,7 +69,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      # numpy and MDAnalysis need a newer Python than the 3.10 of the container image.
+      # calorine compiles a pybind11 extension from an sdist, so it needs the Python
+      # development headers, which the python3.10 of the container image lacks. 3.12 is the
+      # oldest version the current numpy and MDAnalysis releases support.
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
