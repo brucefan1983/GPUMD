@@ -184,26 +184,8 @@ void NEP_VDW::initialize(Parameters& para, int N, int Nc, int deviceCount)
   paramb.has_q_123 = para.has_q_123;
   paramb.has_q_233 = para.has_q_233;
   paramb.has_q_134 = para.has_q_134;
-  paramb.num_L = paramb.L_max;
-  if (para.has_q_222) {
-    paramb.num_L += 1;
-  }
-  if (para.has_q_1111) {
-    paramb.num_L += 1;
-  }
-  if (para.has_q_112) {
-    paramb.num_L += 1;
-  }
-  if (para.has_q_123) {
-    paramb.num_L += 1;
-  }
-  if (para.has_q_233) {
-    paramb.num_L += 1;
-  }
-  if (para.has_q_134) {
-    paramb.num_L += 1;
-  }
-  paramb.dim_angular = (para.n_max_angular + 1) * paramb.num_L;
+  paramb.num_L = para.dim_angular / (para.n_max_angular + 1);
+  paramb.dim_angular = para.dim_angular;
 
   paramb.basis_size_radial = para.basis_size_radial;
   paramb.basis_size_angular = para.basis_size_angular;
@@ -239,11 +221,8 @@ void NEP_VDW::initialize(Parameters& para, int N, int Nc, int deviceCount)
     annmb[device_id].num_para = para.number_of_variables;
     if (para.num_hidden_layers == 2) {
       annmb[device_id].num_neurons2 = para.num_neurons2;
-      annmb[device_id].one_ann_no_bias = (annmb[device_id].dim + 1) * annmb[device_id].num_neurons1 +
-        (annmb[device_id].num_neurons1 + 2) * annmb[device_id].num_neurons2;
-    } else {
-      annmb[device_id].one_ann_no_bias = (annmb[device_id].dim + 3) * annmb[device_id].num_neurons1;
     }
+    annmb[device_id].one_ann_no_bias = para.number_of_variables_ann_1;
 
     nep_data[device_id].descriptors.resize(N * annmb[device_id].dim);
     nep_data[device_id].Fp.resize(N * annmb[device_id].dim);

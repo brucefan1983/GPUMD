@@ -166,26 +166,8 @@ void NEP_Charge::initialize(Parameters& para, int N, int Nc, int deviceCount)
   paramb.has_q_123 = para.has_q_123;
   paramb.has_q_233 = para.has_q_233;
   paramb.has_q_134 = para.has_q_134;
-  paramb.num_L = paramb.L_max;
-  if (para.has_q_222) {
-    paramb.num_L += 1;
-  }
-  if (para.has_q_1111) {
-    paramb.num_L += 1;
-  }
-  if (para.has_q_112) {
-    paramb.num_L += 1;
-  }
-  if (para.has_q_123) {
-    paramb.num_L += 1;
-  }
-  if (para.has_q_233) {
-    paramb.num_L += 1;
-  }
-  if (para.has_q_134) {
-    paramb.num_L += 1;
-  }
-  paramb.dim_angular = (para.n_max_angular + 1) * paramb.num_L;
+  paramb.num_L = para.dim_angular / (para.n_max_angular + 1);
+  paramb.dim_angular = para.dim_angular;
 
   paramb.basis_size_radial = para.basis_size_radial;
   paramb.basis_size_angular = para.basis_size_angular;
