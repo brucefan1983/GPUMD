@@ -24,11 +24,11 @@ https://doi.org/10.1145/2001576.2001692
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
+#include "nep_io.cuh"
 #include "parameters.cuh"
 #include "snes.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/nep_parameters.cuh"
 #include <chrono>
 #include <cmath>
 #include <iostream>
@@ -99,8 +99,7 @@ void SNES::initialize_rng(const int seed)
 
 void SNES::initialize_mu_and_sigma(Parameters& para)
 {
-  FILE* fid_restart = fopen("nep.restart", "r");
-  if (fid_restart == NULL) {
+  if (!read_nep_restart("nep.restart", para, mu, sigma)) {
     std::uniform_real_distribution<float> r1(0, 1);
     for (int n = 0; n < number_of_variables; ++n) {
       mu[n] = (r1(rng) - 0.5f) * 2.0f;
@@ -117,32 +116,6 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
       mu[para.number_of_variables_ann_1 * para.num_types] = 2.0f; // make sure initial sqrt(epsilon_inf) > 0
     }
   } else {
-    for (int n = 0; n < number_of_variables; ++n) {
-      int count = fscanf(fid_restart, "%f%f", &mu[n], &sigma[n]);
-      PRINT_SCANF_ERROR(count, 2, "Reading error for nep.restart.");
-    }
-    const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
-#ifdef USE_CJ
-    const int num_channels = para.num_types;
-#else
-    const int num_channels = para.num_types * para.num_types;
-#endif
-    descriptor_parameters_to_channel_major(
-      mu.data(),
-      descriptor_offset,
-      num_channels,
-      para.n_max_radial,
-      para.n_max_angular,
-      para.basis_size_radial,
-      para.basis_size_angular);
-    descriptor_parameters_to_channel_major(
-      sigma.data(),
-      descriptor_offset,
-      num_channels,
-      para.n_max_radial,
-      para.n_max_angular,
-      para.basis_size_radial,
-      para.basis_size_angular);
     // flip the charges if needed
     if ((para.charge_mode || para.charge_vdw) && para.flip_charge) {
       const int num1 = (para.dim + 2) * para.num_neurons1;
@@ -156,7 +129,6 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
         }
       }
     }
-    fclose(fid_restart);
   }
   gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_from_host(mu.data());
@@ -187,22 +159,7 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
   std::vector<float> restart_mu(num_tot);
   std::vector<float> restart_sigma(num_tot);
 
-  std::ifstream input(para.fine_tune_nep_restart);
-  if (!input.is_open()) {
-    std::cout << "Cannot open the foundation model file " << para.fine_tune_nep_restart << std::endl;
-    exit(1);
-  }
-  std::vector<std::string> tokens;
-    
-  for (int n = 0; n < num_tot; ++n) {
-    tokens = get_tokens(input);
-    if (tokens.size() != 2) {
-      std::cout << "Foundation model file should have two columns.\n";
-      exit(1);
-    }
-    restart_mu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-    restart_sigma[n] = get_double_from_token(tokens[1], __FILE__, __LINE__);
-  }
+  read_nep_foundation_restart(para.fine_tune_nep_restart, restart_mu, restart_sigma);
 
   // get the required part
   int count = 0;
@@ -298,7 +255,6 @@ void SNES::initialize_mu_and_sigma_fine_tune(Parameters& para)
 
 #endif
 
-  input.close();
   gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_from_host(mu.data());
   gpu_sigma.copy_from_host(sigma.data());
@@ -528,33 +484,5 @@ void SNES::output_mu_and_sigma(Parameters& para, const char* filename)
   gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_to_host(mu.data());
   gpu_sigma.copy_to_host(sigma.data());
-  std::vector<float> mu_file = mu;
-  std::vector<float> sigma_file = sigma;
-  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
-#ifdef USE_CJ
-  const int num_channels = para.num_types;
-#else
-  const int num_channels = para.num_types * para.num_types;
-#endif
-  descriptor_parameters_to_basis_major(
-    mu_file.data(),
-    descriptor_offset,
-    num_channels,
-    para.n_max_radial,
-    para.n_max_angular,
-    para.basis_size_radial,
-    para.basis_size_angular);
-  descriptor_parameters_to_basis_major(
-    sigma_file.data(),
-    descriptor_offset,
-    num_channels,
-    para.n_max_radial,
-    para.n_max_angular,
-    para.basis_size_radial,
-    para.basis_size_angular);
-  FILE* fid_restart = my_fopen(filename, "w");
-  for (int n = 0; n < number_of_variables; ++n) {
-    fprintf(fid_restart, "%15.7e %15.7e\n", mu_file[n], sigma_file[n]);
-  }
-  fclose(fid_restart);
+  write_nep_restart(filename, para, mu, sigma);
 }

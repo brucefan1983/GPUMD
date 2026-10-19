@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <iostream>
 
 // decompose a model token such as nep4_zbl_charge1 into the properties it encodes
 static bool parse_model_token(const std::string& token, NepTxtHeader& header)
@@ -233,6 +234,105 @@ void read_nep_txt(const std::string& filename, Parameters& para, float* paramete
     tokens = get_tokens(input);
     para.q_scaler_cpu[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
+}
+
+bool read_nep_restart(
+  const char* filename,
+  const Parameters& para,
+  std::vector<float>& mu,
+  std::vector<float>& sigma)
+{
+  FILE* fid_restart = fopen(filename, "r");
+  if (fid_restart == NULL) {
+    return false;
+  }
+  for (int n = 0; n < para.number_of_variables; ++n) {
+    int count = fscanf(fid_restart, "%f%f", &mu[n], &sigma[n]);
+    PRINT_SCANF_ERROR(count, 2, "Reading error for nep.restart.");
+  }
+  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
+#ifdef USE_CJ
+  const int num_channels = para.num_types;
+#else
+  const int num_channels = para.num_types * para.num_types;
+#endif
+  descriptor_parameters_to_channel_major(
+    mu.data(),
+    descriptor_offset,
+    num_channels,
+    para.n_max_radial,
+    para.n_max_angular,
+    para.basis_size_radial,
+    para.basis_size_angular);
+  descriptor_parameters_to_channel_major(
+    sigma.data(),
+    descriptor_offset,
+    num_channels,
+    para.n_max_radial,
+    para.n_max_angular,
+    para.basis_size_radial,
+    para.basis_size_angular);
+  fclose(fid_restart);
+  return true;
+}
+
+void read_nep_foundation_restart(
+  const std::string& filename, std::vector<float>& mu, std::vector<float>& sigma)
+{
+  std::ifstream input(filename);
+  if (!input.is_open()) {
+    std::cout << "Cannot open the foundation model file " << filename << std::endl;
+    exit(1);
+  }
+  std::vector<std::string> tokens;
+
+  for (size_t n = 0; n < mu.size(); ++n) {
+    tokens = get_tokens(input);
+    if (tokens.size() != 2) {
+      std::cout << "Foundation model file should have two columns.\n";
+      exit(1);
+    }
+    mu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    sigma[n] = get_double_from_token(tokens[1], __FILE__, __LINE__);
+  }
+  input.close();
+}
+
+void write_nep_restart(
+  const char* filename,
+  const Parameters& para,
+  const std::vector<float>& mu,
+  const std::vector<float>& sigma)
+{
+  std::vector<float> mu_file = mu;
+  std::vector<float> sigma_file = sigma;
+  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
+#ifdef USE_CJ
+  const int num_channels = para.num_types;
+#else
+  const int num_channels = para.num_types * para.num_types;
+#endif
+  descriptor_parameters_to_basis_major(
+    mu_file.data(),
+    descriptor_offset,
+    num_channels,
+    para.n_max_radial,
+    para.n_max_angular,
+    para.basis_size_radial,
+    para.basis_size_angular);
+  descriptor_parameters_to_basis_major(
+    sigma_file.data(),
+    descriptor_offset,
+    num_channels,
+    para.n_max_radial,
+    para.n_max_angular,
+    para.basis_size_radial,
+    para.basis_size_angular);
+  FILE* fid_restart = my_fopen(filename, "w");
+  for (int n = 0; n < para.number_of_variables; ++n) {
+    fprintf(fid_restart, "%15.7e %15.7e\n", mu_file[n], sigma_file[n]);
+  }
+  fclose(fid_restart);
 }
 
 static std::string source_of_value(const bool is_set) { return is_set ? " (input)" : " (default)"; }
