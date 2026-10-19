@@ -113,6 +113,6 @@ protected:
 private:
   void prepare_datasets(Parameters& para, const int deviceCount);
   void find_dataset_sizes(int& N, int& Nc);
-  void initialize_workspace(const Parameters& para);
+  void initialize_training_workspace(const Parameters& para);
   void open_loss_file(const Parameters& para);
 };
