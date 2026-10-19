@@ -15,62 +15,8 @@
 
 #pragma once
 
+#include "nep_compile_config.cuh"
 #include <string>
-#include <vector>
-
-class Parameters;
-
-enum class NEP_Compile_Mode {
-  NEP = 0,
-  CHARGE = 1,
-  VDW = 2,
-  CHARGE_VDW = 3,
-  TNEP = 4
-};
-
-struct NEP_Compile_Config {
-  NEP_Compile_Mode mode = NEP_Compile_Mode::NEP;
-  int model_type = 0;
-
-  int num_types = 0;
-  int ann_dim = 0;
-  int num_neurons1 = 0;
-  int num_neurons2 = 0;
-  int num_hidden_layers = 0;
-  int one_ann_no_bias = 0;
-  int ann_set_size = 0;
-
-  // Offset from the start of the training parameter vector to descriptor cij.
-  int c_offset = 0;
-
-  int n_max_radial = 0;
-  int n_max_angular = 0;
-  int basis_size_radial = 0;
-  int basis_size_angular = 0;
-  int L_max = 0;
-  int dim_angular = 0;
-  int has_q_222 = 0;
-  int has_q_1111 = 0;
-  int has_q_112 = 0;
-  int has_q_123 = 0;
-  int has_q_233 = 0;
-  int has_q_134 = 0;
-  int num_L = 0;
-  int num_c_radial = 0;
-
-  // Ordinary NEP/NEP-vdW follow USE_CJ when that build option is enabled.
-  // qNEP/charge-vdW/TNEP remain pair-dependent, matching their generic paths.
-  bool descriptor_use_cj = false;
-
-  std::vector<float> rc_radial;
-  std::vector<float> rc_angular;
-  std::vector<float> c6_ref_sqrt;
-};
-
-NEP_Compile_Config make_nep_compile_config(
-  const Parameters& para,
-  NEP_Compile_Mode mode,
-  const float* c6_ref_sqrt = nullptr);
 
 class NEP_Compile
 {
