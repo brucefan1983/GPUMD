@@ -57,8 +57,6 @@ protected:
   GPU_Vector<float> gpu_mu;
 
   void initialize_rng(const int seed);
-  void initialize_mu_and_sigma(Parameters& para);
-  void initialize_mu_and_sigma_fine_tune(Parameters& para);
   void calculate_utility();
   void find_type_of_variable(Parameters& para);
   void create_population();
