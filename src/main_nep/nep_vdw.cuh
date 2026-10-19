@@ -16,6 +16,7 @@
 #pragma once
 #include "dataset.cuh"
 #include "potential.cuh"
+#include "nep_common.cuh"
 #include "nep_compile.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -46,8 +47,6 @@ class NEP_VDW : public Potential
 {
 public:
   struct ParaMB {
-    bool use_typewise_cutoff_zbl = false;
-    float typewise_cutoff_zbl_factor = 0.65f;
     float rc_radial[NUM_ELEMENTS];  // radial cutoff
     float rc_angular[NUM_ELEMENTS]; // angular cutoff
     float c6_ref_sqrt[NUM_ELEMENTS];
@@ -87,16 +86,6 @@ public:
     float alpha_factor = 1.0f;
   };
 
-  struct ZBL {
-    bool enabled = false;
-    bool flexible = false;
-    float rc_inner = 1.0f;
-    float rc_outer = 2.0f;
-    int num_types;
-    float para[550];
-    int atomic_numbers[NUM_ELEMENTS];
-  };
-
   NEP_VDW() = default;
   void initialize(Parameters& para, int N, int Nc, int deviceCount) override;
   void find_force(
@@ -111,9 +100,21 @@ private:
   ParaMB paramb;
   ANN annmb[16];
   NEP_VDW_Data nep_data[16];
-  ZBL zbl;
+  NEP_ZBL zbl;
   VDW_Para vdw_para;
   std::unique_ptr<NEP_Compile> compiled_kernel_;
-  void update_potential(float* parameters, ANN& ann);
+  void initialize_model(const Parameters& para);
+  void initialize_device(const Parameters& para, int N, int Nc, int device_id);
+  void initialize_compiled_kernel(const Parameters& para);
+  void bind_parameters(const float* parameters, ANN& ann);
   void prepare_kpoints(Dataset& dataset, int device_id);
+  void compute_descriptors(
+    const ANN& ann, const Dataset& data, const NEP_Neighbor& neighbors,
+    NEP_VDW_Data& storage);
+  void evaluate_ann(
+    const ANN& ann, Dataset& data,
+    NEP_VDW_Data& storage, const float* q_scaler);
+  void compute_forces(
+    const ANN& ann, Dataset& data, const NEP_Neighbor& neighbors,
+    NEP_VDW_Data& storage);
 };
