@@ -23,6 +23,40 @@
 #include <cmath>
 #include <iostream>
 
+struct NepTxtHeader {
+  std::string model_token;
+  int version;
+  int model_type;
+  int charge_mode;
+  int vdw;
+  int charge_vdw;
+  bool enable_zbl;
+  bool flexible_zbl;
+  bool use_typewise_cutoff_zbl;
+  float zbl_rc_inner;
+  float zbl_rc_outer;
+  float typewise_cutoff_zbl_factor;
+  int num_types;
+  std::vector<std::string> elements;
+  bool has_multiple_cutoffs;
+  std::vector<float> rc_radial;
+  std::vector<float> rc_angular;
+  int n_max_radial;
+  int n_max_angular;
+  int basis_size_radial;
+  int basis_size_angular;
+  int L_max;
+  int has_q_222; // as written to nep.txt, that is 2 or 0
+  int has_q_1111;
+  int has_q_112;
+  int has_q_123;
+  int has_q_233;
+  int has_q_134;
+  int num_neurons1;
+  int num_neurons2;
+  int number_of_header_lines; // 6 without a zbl line, 7 with one
+};
+
 // decompose a model token such as nep4_zbl_charge1 into the properties it encodes
 static bool parse_model_token(const std::string& token, NepTxtHeader& header)
 {
@@ -86,7 +120,7 @@ static bool check_header_line(
   return true;
 }
 
-bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std::string& error)
+static bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std::string& error)
 {
   std::ifstream input(filename);
   if (!input.is_open()) {
@@ -197,6 +231,42 @@ bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std:
   return true;
 }
 
+static void nep_parameters_to_channel_major(const Parameters& para, float* parameters)
+{
+  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
+#ifdef USE_CJ
+  const int num_channels = para.num_types;
+#else
+  const int num_channels = para.num_types * para.num_types;
+#endif
+  descriptor_parameters_to_channel_major(
+    parameters,
+    descriptor_offset,
+    num_channels,
+    para.n_max_radial,
+    para.n_max_angular,
+    para.basis_size_radial,
+    para.basis_size_angular);
+}
+
+static void nep_parameters_to_basis_major(const Parameters& para, float* parameters)
+{
+  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
+#ifdef USE_CJ
+  const int num_channels = para.num_types;
+#else
+  const int num_channels = para.num_types * para.num_types;
+#endif
+  descriptor_parameters_to_basis_major(
+    parameters,
+    descriptor_offset,
+    num_channels,
+    para.n_max_radial,
+    para.n_max_angular,
+    para.basis_size_radial,
+    para.basis_size_angular);
+}
+
 void read_nep_txt(const std::string& filename, Parameters& para, float* parameters)
 {
   NepTxtHeader header;
@@ -216,20 +286,7 @@ void read_nep_txt(const std::string& filename, Parameters& para, float* paramete
     tokens = get_tokens(input);
     parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
-  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
-#ifdef USE_CJ
-  const int num_channels = para.num_types;
-#else
-  const int num_channels = para.num_types * para.num_types;
-#endif
-  descriptor_parameters_to_channel_major(
-    parameters,
-    descriptor_offset,
-    num_channels,
-    para.n_max_radial,
-    para.n_max_angular,
-    para.basis_size_radial,
-    para.basis_size_angular);
+  nep_parameters_to_channel_major(para, parameters);
   for (int d = 0; d < para.dim; ++d) {
     tokens = get_tokens(input);
     para.q_scaler_cpu[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
@@ -250,28 +307,8 @@ bool read_nep_restart(
     int count = fscanf(fid_restart, "%f%f", &mu[n], &sigma[n]);
     PRINT_SCANF_ERROR(count, 2, "Reading error for nep.restart.");
   }
-  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
-#ifdef USE_CJ
-  const int num_channels = para.num_types;
-#else
-  const int num_channels = para.num_types * para.num_types;
-#endif
-  descriptor_parameters_to_channel_major(
-    mu.data(),
-    descriptor_offset,
-    num_channels,
-    para.n_max_radial,
-    para.n_max_angular,
-    para.basis_size_radial,
-    para.basis_size_angular);
-  descriptor_parameters_to_channel_major(
-    sigma.data(),
-    descriptor_offset,
-    num_channels,
-    para.n_max_radial,
-    para.n_max_angular,
-    para.basis_size_radial,
-    para.basis_size_angular);
+  nep_parameters_to_channel_major(para, mu.data());
+  nep_parameters_to_channel_major(para, sigma.data());
   fclose(fid_restart);
   return true;
 }
@@ -306,28 +343,8 @@ void write_nep_restart(
 {
   std::vector<float> mu_file = mu;
   std::vector<float> sigma_file = sigma;
-  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
-#ifdef USE_CJ
-  const int num_channels = para.num_types;
-#else
-  const int num_channels = para.num_types * para.num_types;
-#endif
-  descriptor_parameters_to_basis_major(
-    mu_file.data(),
-    descriptor_offset,
-    num_channels,
-    para.n_max_radial,
-    para.n_max_angular,
-    para.basis_size_radial,
-    para.basis_size_angular);
-  descriptor_parameters_to_basis_major(
-    sigma_file.data(),
-    descriptor_offset,
-    num_channels,
-    para.n_max_radial,
-    para.n_max_angular,
-    para.basis_size_radial,
-    para.basis_size_angular);
+  nep_parameters_to_basis_major(para, mu_file.data());
+  nep_parameters_to_basis_major(para, sigma_file.data());
   FILE* fid_restart = my_fopen(filename, "w");
   for (int n = 0; n < para.number_of_variables; ++n) {
     fprintf(fid_restart, "%15.7e %15.7e\n", mu_file[n], sigma_file[n]);
@@ -491,20 +508,7 @@ void write_nep_txt(
   }
 
   std::vector<float> parameters_file(elite, elite + para.number_of_variables);
-  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
-#ifdef USE_CJ
-  const int num_channels = para.num_types;
-#else
-  const int num_channels = para.num_types * para.num_types;
-#endif
-  descriptor_parameters_to_basis_major(
-    parameters_file.data(),
-    descriptor_offset,
-    num_channels,
-    para.n_max_radial,
-    para.n_max_angular,
-    para.basis_size_radial,
-    para.basis_size_angular);
+  nep_parameters_to_basis_major(para, parameters_file.data());
   for (int m = 0; m < para.number_of_variables; ++m) {
     fprintf(fid_nep, "%15.7e\n", parameters_file[m]);
   }

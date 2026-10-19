@@ -108,7 +108,6 @@ public:
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
     int deviceCount) override;
-  void find_k1k2k3();
 
 private:
   NEP_Neighbor neighbor[16];

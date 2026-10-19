@@ -98,8 +98,8 @@ Fitness::Fitness(Parameters& para, Potential& potential) : potential(potential)
   find_dataset_sizes(N, Nc);
   potential.initialize(para, N, Nc, deviceCount);
 
-  initialize_workspace(para);
   if (para.prediction == 0) {
+    initialize_training_workspace(para);
     open_loss_file(para);
   }
 }
@@ -194,7 +194,7 @@ void Fitness::find_dataset_sizes(int& N, int& Nc)
   }
 }
 
-void Fitness::initialize_workspace(const Parameters& para)
+void Fitness::initialize_training_workspace(const Parameters& para)
 {
   fitness_L1.resize(para.population_size * (para.num_types + 1));
   fitness_L2.resize(para.population_size * (para.num_types + 1));
