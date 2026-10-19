@@ -23,6 +23,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "dataset.cuh"
 #include "mic.cuh"
 #include "nep_vdw.cuh"
+#include "nep_model.cuh"
 #include "nep_long_range.cuh"
 #include "nep_vdw_parameters.cuh"
 #include "parameters.cuh"
@@ -918,4 +919,9 @@ void NEP_VDW::find_force(
       add_nep_zbl(zbl, data, neighbors);
     }
   }
+}
+
+void NEP_VDW::configure(Parameters& para)
+{
+  calculate_nep_model_parameters(para, 0, 1, 1, 1);
 }

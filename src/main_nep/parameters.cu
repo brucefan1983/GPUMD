@@ -43,7 +43,10 @@ Parameters::Parameters()
   }
   check_parameters();
   set_model_defaults();
-  calculate_nep_model_parameters(*this);
+}
+
+void Parameters::finish_reading()
+{
   set_regularization_defaults();
   check_existing_nep_model(*this);
   initialize_q_scaler();

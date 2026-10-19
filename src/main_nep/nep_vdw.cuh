@@ -87,6 +87,7 @@ public:
   };
 
   NEP_VDW() = default;
+  void configure(Parameters& para) override;
   void initialize(Parameters& para, int N, int Nc, int deviceCount) override;
   void find_force(
     Parameters& para,

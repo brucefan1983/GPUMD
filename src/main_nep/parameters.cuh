@@ -22,6 +22,7 @@ class Parameters
 {
 public:
   Parameters();
+  void finish_reading();
 
   // parameters to be read in
   int version;            // NEP version; only NEP4 is supported

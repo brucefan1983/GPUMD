@@ -17,7 +17,8 @@
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 
-void calculate_nep_model_parameters(Parameters& para)
+void calculate_nep_model_parameters(
+  Parameters& para, int extra_inputs, int extra_outputs, int global_parameters, int ann_count)
 {
   para.dim_radial = para.n_max_radial + 1;                // 2-body descriptors q^i_n
   para.dim_angular = (para.n_max_angular + 1) * para.L_max; // 3-body descriptors q^i_nl
@@ -45,9 +46,7 @@ void calculate_nep_model_parameters(Parameters& para)
   }
 
   para.dim = para.dim_radial + para.dim_angular;
-  if (para.model_type == 3) {
-    para.dim += 1; // concatenate temperature with descriptors
-  }
+  para.dim += extra_inputs;
 
   if (para.num_hidden_layers == 2) {
     para.number_of_variables_ann_1 =
@@ -55,17 +54,9 @@ void calculate_nep_model_parameters(Parameters& para)
   } else {
     para.number_of_variables_ann_1 = (para.dim + 2) * para.num_neurons1;
   }
-  para.number_of_variables_ann = para.number_of_variables_ann_1 * para.num_types + 1;
-  if (para.charge_mode) {
-    para.number_of_variables_ann_1 += para.num_neurons1;
-    para.number_of_variables_ann += para.num_neurons1 * para.num_types + 1;
-  } else if (para.vdw) {
-    para.number_of_variables_ann_1 += para.num_neurons1;
-    para.number_of_variables_ann += para.num_neurons1 * para.num_types;
-  } else if (para.charge_vdw) {
-    para.number_of_variables_ann_1 += 2 * para.num_neurons1;
-    para.number_of_variables_ann += 2 * para.num_neurons1 * para.num_types + 1;
-  }
+  para.number_of_variables_ann_1 += extra_outputs * para.num_neurons1;
+  para.number_of_variables_ann =
+    para.number_of_variables_ann_1 * para.num_types + global_parameters;
 
 #ifdef USE_CJ
   para.number_of_variables_descriptor =
@@ -80,7 +71,5 @@ void calculate_nep_model_parameters(Parameters& para)
 #endif
 
   para.number_of_variables = para.number_of_variables_ann + para.number_of_variables_descriptor;
-  if (para.model_type == 2) {
-    para.number_of_variables += para.number_of_variables_ann;
-  }
+  para.number_of_variables += (ann_count - 1) * para.number_of_variables_ann;
 }

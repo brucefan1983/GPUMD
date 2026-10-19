@@ -23,6 +23,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "dataset.cuh"
 #include "mic.cuh"
 #include "nep_charge.cuh"
+#include "nep_model.cuh"
 #include "nep_long_range.cuh"
 #include "parameters.cuh"
 #include "utilities/common.cuh"
@@ -1390,4 +1391,9 @@ void NEP_Charge::find_force(
       add_nep_zbl(zbl, data, neighbors);
     }
   }
+}
+
+void NEP_Charge::configure(Parameters& para)
+{
+  calculate_nep_model_parameters(para, 0, 1, 2, 1);
 }

@@ -25,6 +25,7 @@ J. Chem. Theory Comput. 20, 3273 (2024).
 #include "dataset.cuh"
 #include "mic.cuh"
 #include "tnep.cuh"
+#include "nep_model.cuh"
 #include "nep_common.cuh"
 #include "parameters.cuh"
 #include "utilities/common.cuh"
@@ -836,4 +837,9 @@ void TNEP::find_force(
       annmb[device_id], para.model_type == 1, dataset[device_id], neighbor[device_id],
       nep_data[device_id]);
   }
+}
+
+void TNEP::configure(Parameters& para)
+{
+  calculate_nep_model_parameters(para, 0, 0, 1, para.model_type == 2 ? 2 : 1);
 }

@@ -37,5 +37,7 @@ std::unique_ptr<Potential> create_potential(Parameters& para)
       potential.reset(new NEP);
     }
   }
+  potential->configure(para);
+  para.finish_reading();
   return potential;
 }

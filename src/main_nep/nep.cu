@@ -21,6 +21,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 ------------------------------------------------------------------------------*/
 
 #include "nep.cuh"
+#include "nep_model.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 
@@ -150,4 +151,9 @@ void NEP::find_force(
       add_nep_zbl(zbl, dataset[device_id], neighbor[device_id]);
     }
   }
+}
+
+void NEP::configure(Parameters& para)
+{
+  calculate_nep_model_parameters(para, para.model_type == 3 ? 1 : 0, 0, 1, 1);
 }
