@@ -18,22 +18,13 @@
 #include "potential.cuh"
 #include "nep_compile.cuh"
 #include "nep_evaluate.cuh"
+#include "nep_common.cuh"
 #include <memory>
 class Parameters;
 
 class NEP : public Potential
 {
 public:
-  struct ZBL {
-    bool enabled = false;
-    bool flexible = false;
-    float rc_inner = 1.0f;
-    float rc_outer = 2.0f;
-    int num_types;
-    float para[550];
-    int atomic_numbers[NUM_ELEMENTS];
-  };
-
   NEP() = default;
   void initialize(Parameters& para, int N, int Nc, int deviceCount) override;
   void find_force(
@@ -48,7 +39,7 @@ private:
   NEP_Descriptor_Parameters paramb;
   NEP_ANN annmb[16];
   NEP_Data nep_data[16];
-  ZBL zbl;
+  NEP_ZBL zbl;
   std::unique_ptr<NEP_Compile> compiled_kernel_;
   void initialize_model(const Parameters& para);
   void initialize_device(const Parameters& para, int N, int device_id);

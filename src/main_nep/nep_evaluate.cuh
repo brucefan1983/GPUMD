@@ -22,8 +22,6 @@ class NEP_Neighbor;
 class NEP_Compile;
 
 struct NEP_Descriptor_Parameters {
-  bool use_typewise_cutoff_zbl = false;
-  float typewise_cutoff_zbl_factor = 0.65f;
   float rc_radial[NUM_ELEMENTS];  // radial cutoff
   float rc_angular[NUM_ELEMENTS]; // angular cutoff
   int basis_size_radial = 0;
