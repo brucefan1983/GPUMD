@@ -149,7 +149,6 @@ private:
   void read_zbl_in();
   void check_parameters() const;
   void set_model_defaults();
-  void calculate_model_parameters();
   void set_regularization_defaults();
   void initialize_q_scaler();
   void report_inputs();
