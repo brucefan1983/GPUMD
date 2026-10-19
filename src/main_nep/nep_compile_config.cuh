@@ -20,6 +20,8 @@
 
 class Parameters;
 
+const int NEP_SPECIALIZED_INTERFACE_VERSION = 2;
+
 enum class NEP_Compile_Mode {
   NEP = 0,
   CHARGE = 1,
@@ -71,3 +73,10 @@ NEP_Compile_Config make_nep_compile_config(
   const Parameters& para,
   NEP_Compile_Mode mode,
   const float* c6_ref_sqrt = nullptr);
+
+#if !defined(USE_HIP) && !defined(_WIN32)
+
+bool validate_nep_compile_config(const NEP_Compile_Config& config);
+std::string make_nep_compile_config_text(const NEP_Compile_Config& config);
+
+#endif
