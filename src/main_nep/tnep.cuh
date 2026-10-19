@@ -86,5 +86,8 @@ private:
   ANN annmb[16];
   TNEP_Data nep_data[16];
   std::unique_ptr<NEP_Compile> compiled_kernel_;
-  void update_potential(Parameters& para, float* parameters, ANN& ann);
+  void initialize_model(const Parameters& para);
+  void initialize_device(const Parameters& para, int N, int device_id);
+  void initialize_compiled_kernel(const Parameters& para);
+  void bind_parameters(const Parameters& para, const float* parameters, ANN& ann);
 };
