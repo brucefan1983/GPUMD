@@ -156,6 +156,16 @@ static __global__ void find_descriptors_angular(
 
 void NEP::initialize(Parameters& para, int N, int Nc, int deviceCount)
 {
+  initialize_model(para);
+  for (int device_id = 0; device_id < deviceCount; ++device_id) {
+    CHECK(gpuSetDevice(device_id));
+    initialize_device(para, N, device_id);
+  }
+  initialize_compiled_kernel(para);
+}
+
+void NEP::initialize_model(const Parameters& para)
+{
   paramb.version = para.version;
   paramb.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
   paramb.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;
@@ -201,23 +211,30 @@ void NEP::initialize(Parameters& para, int N, int Nc, int deviceCount)
       zbl.para[n] = para.zbl_para[n];
     }
   }
+}
 
-  for (int device_id = 0; device_id < deviceCount; device_id++) {
-    gpuSetDevice(device_id);
-    annmb[device_id].dim = para.dim;
-    annmb[device_id].num_neurons1 = para.num_neurons1;
-    annmb[device_id].num_hidden_layers = para.num_hidden_layers;
-    annmb[device_id].num_para = para.number_of_variables;
-    if (para.num_hidden_layers == 2) {
-      annmb[device_id].num_neurons2 = para.num_neurons2;
-    }
-    annmb[device_id].one_ann_no_bias = para.number_of_variables_ann_1;
-
-    nep_data[device_id].descriptors.resize(N * annmb[device_id].dim);
-    nep_data[device_id].Fp.resize(N * annmb[device_id].dim);
-    nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
-    nep_data[device_id].parameters.resize(annmb[device_id].num_para);
+void NEP::initialize_device(const Parameters& para, int N, int device_id)
+{
+  ANN& ann = annmb[device_id];
+  NEP_Data& data = nep_data[device_id];
+  ann.dim = para.dim;
+  ann.num_neurons1 = para.num_neurons1;
+  ann.num_hidden_layers = para.num_hidden_layers;
+  ann.num_para = para.number_of_variables;
+  if (para.num_hidden_layers == 2) {
+    ann.num_neurons2 = para.num_neurons2;
   }
+  ann.one_ann_no_bias = para.number_of_variables_ann_1;
+
+  data.descriptors.resize(N * ann.dim);
+  data.Fp.resize(N * ann.dim);
+  data.sum_fxyz.resize(
+    N * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
+  data.parameters.resize(ann.num_para);
+}
+
+void NEP::initialize_compiled_kernel(const Parameters& para)
+{
   if (para.nep_compile && para.prediction == 0) {
     CHECK(gpuSetDevice(0));
     compiled_kernel_.reset(new NEP_Compile(
@@ -228,9 +245,9 @@ void NEP::initialize(Parameters& para, int N, int Nc, int deviceCount)
   }
 }
 
-void NEP::update_potential(Parameters& para, float* parameters, ANN& ann)
+void NEP::bind_parameters(const float* parameters, ANN& ann)
 {
-  float* pointer = parameters;
+  const float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
     ann.wb[t] = pointer;
     pointer += ann.one_ann_no_bias;
@@ -691,7 +708,7 @@ void NEP::find_force(
     CHECK(gpuSetDevice(device_id));
     nep_data[device_id].parameters.copy_from_host(
       parameters + device_id * para.number_of_variables);
-    update_potential(para, nep_data[device_id].parameters.data(), annmb[device_id]);
+    bind_parameters(nep_data[device_id].parameters.data(), annmb[device_id]);
   }
 
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
