@@ -60,6 +60,21 @@ bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std:
 
 void read_nep_txt(const std::string& filename, Parameters& para, float* parameters);
 
+bool read_nep_restart(
+  const char* filename,
+  const Parameters& para,
+  std::vector<float>& mu,
+  std::vector<float>& sigma);
+
+void read_nep_foundation_restart(
+  const std::string& filename, std::vector<float>& mu, std::vector<float>& sigma);
+
+void write_nep_restart(
+  const char* filename,
+  const Parameters& para,
+  const std::vector<float>& mu,
+  const std::vector<float>& sigma);
+
 void read_nep_q_scaler(Parameters& para);
 
 void write_nep_txt(
