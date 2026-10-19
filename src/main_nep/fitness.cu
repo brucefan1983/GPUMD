@@ -30,10 +30,52 @@ Get the fitness
 #include <cmath>
 #include <ctime>
 #include <iostream>
+#include <numeric>
 #include <random>
 #include <sstream>
 #include <vector>
 #include <cstring>
+
+static void find_permuted_indices(
+  const int num_batches,
+  const std::vector<Structure>& structures,
+  std::vector<int>& permuted_indices)
+{
+  std::vector<float> energy(structures.size());
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    energy[nc] = structures[nc].energy;
+  }
+
+  std::vector<int> energy_index(structures.size());
+  std::iota(energy_index.begin(), energy_index.end(), 0);
+  std::stable_sort(energy_index.begin(), energy_index.end(), [&energy](size_t i1, size_t i2) {
+    return energy[i1] < energy[i2];
+  });
+
+  int count = 0;
+  for (int b = 0; b < num_batches; ++b) {
+    const int batch_size_minimal = structures.size() / num_batches;
+    const bool is_larger_batch = b + batch_size_minimal * num_batches < structures.size();
+    const int batch_size = is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
+    for (int c = 0; c < batch_size; ++c) {
+      permuted_indices[count + c] = energy_index[b + num_batches * c];
+    }
+    count += batch_size;
+  }
+}
+
+static void reorder(const int num_batches, std::vector<Structure>& structures)
+{
+  std::vector<int> configuration_id(structures.size());
+  find_permuted_indices(num_batches, structures, configuration_id);
+
+  std::vector<Structure> structures_reordered;
+  structures_reordered.reserve(structures.size());
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    structures_reordered.push_back(structures[configuration_id[nc]]);
+  }
+  structures.swap(structures_reordered);
+}
 
 // Number of structures in one mini-batch. The first n_total % num_batches batches take one
 // structure more than the rest, so the batches differ in size by at most one.
@@ -52,6 +94,11 @@ Fitness::Fitness(Parameters& para, Potential& potential) : potential(potential)
   std::vector<Structure> structures_train;
   read_structures(true, para, structures_train);
   num_batches = (structures_train.size() - 1) / para.batch_size + 1;
+  const bool is_ediff_active = para.prediction == 0 && para.lambda_d > 0.0f;
+  if (
+    (para.prediction == 0) && (para.batch_size < structures_train.size()) && !is_ediff_active) {
+    reorder(num_batches, structures_train);
+  }
   printf("Number of devices = %d\n", deviceCount);
   printf("Number of batches = %d\n", num_batches);
   int batch_size_old = para.batch_size;
