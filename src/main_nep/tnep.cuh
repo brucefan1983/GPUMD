@@ -90,4 +90,23 @@ private:
   void initialize_device(const Parameters& para, int N, int device_id);
   void initialize_compiled_kernel(const Parameters& para);
   void bind_parameters(const Parameters& para, const float* parameters, ANN& ann);
+
+  // Evaluation stages use the device selected by find_force().
+  void compute_descriptors(
+    const ANN& ann,
+    const Dataset& dataset,
+    const NEP_Neighbor& neighbor,
+    TNEP_Data& data);
+  void evaluate_ann(
+    const ANN& ann,
+    bool is_polarizability,
+    Dataset& dataset,
+    TNEP_Data& data,
+    const float* q_scaler);
+  void compute_tensor(
+    const ANN& ann,
+    bool is_dipole,
+    Dataset& dataset,
+    const NEP_Neighbor& neighbor,
+    TNEP_Data& data);
 };
