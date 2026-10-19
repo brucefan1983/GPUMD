@@ -147,7 +147,10 @@ private:
   void set_default_parameters();
   void read_nep_in();
   void read_zbl_in();
-  void calculate_parameters();
+  void check_parameters() const;
+  void set_model_defaults();
+  void set_regularization_defaults();
+  void initialize_q_scaler();
   void report_inputs();
 
   void parse_one_keyword(std::vector<std::string>& tokens);

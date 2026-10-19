@@ -16,6 +16,7 @@
 #include "parameters.cuh"
 #include "nep_elements.cuh"
 #include "nep_io.cuh"
+#include "nep_model.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -40,7 +41,12 @@ Parameters::Parameters()
   if (is_zbl_set) {
     read_zbl_in();
   }
-  calculate_parameters();
+  check_parameters();
+  set_model_defaults();
+  calculate_nep_model_parameters(*this);
+  set_regularization_defaults();
+  check_existing_nep_model(*this);
+  initialize_q_scaler();
   report_inputs();
 
   print_line_1();
@@ -182,7 +188,7 @@ void Parameters::read_zbl_in()
   }
 }
 
-void Parameters::calculate_parameters()
+void Parameters::check_parameters() const
 {
   if ((charge_mode > 0) + vdw + charge_vdw > 1) {
     PRINT_INPUT_ERROR("charge_mode, vdw, and charge_vdw cannot be enabled simultaneously.");
@@ -206,7 +212,10 @@ void Parameters::calculate_parameters()
   if (is_lambda_d_set && (model_type == 1 || model_type == 2)) {
     PRINT_INPUT_ERROR("lambda_d is only supported for potential models.");
   }
+}
 
+void Parameters::set_model_defaults()
+{
   if (model_type != 0 && model_type != 3) {
     // take virial as dipole or polarizability
     lambda_e = lambda_f = 0.0f;
@@ -215,79 +224,20 @@ void Parameters::calculate_parameters()
       lambda_v = 1.0f; // by default, dipole or polarizability is fitted with global quantities
     }
   }
-  dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
-  dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
-  if (has_q_222) {
-    dim_angular += n_max_angular + 1;
-  }
-  if (has_q_1111) {
-    dim_angular += n_max_angular + 1;
-  }
-  if (has_q_112) {
-    dim_angular += n_max_angular + 1;
-  }
-  if (has_q_123) {
-    dim_angular += n_max_angular + 1;
-  }
-  if (has_q_233) {
-    dim_angular += n_max_angular + 1;
-  }
-  if (has_q_134) {
-    dim_angular += n_max_angular + 1;
-  }
+}
 
-  if (dim_angular > 90) {
-    PRINT_INPUT_ERROR("Number of angular descriptors should not exceed 90.");
-  }
-
-  dim = dim_radial + dim_angular;
-  if (model_type == 3) {
-    dim += 1; // concatenate temperature with descriptors
-  }
-
-  if (num_hidden_layers == 2) {
-    number_of_variables_ann_1 = (dim + 1) * num_neurons1 + (num_neurons1 + 2) * num_neurons2;
-  } else {
-    number_of_variables_ann_1 = (dim + 2) * num_neurons1;
-  }
-  number_of_variables_ann = number_of_variables_ann_1 * num_types + 1;
-  if (charge_mode) {
-    number_of_variables_ann_1 += num_neurons1;
-    number_of_variables_ann += num_neurons1 * num_types + 1;
-  } else if (vdw) {
-    number_of_variables_ann_1 += num_neurons1;
-    number_of_variables_ann += num_neurons1 * num_types;
-  } else if (charge_vdw) {
-    number_of_variables_ann_1 += 2 * num_neurons1;
-    number_of_variables_ann += 2 * num_neurons1 * num_types + 1;
-  }
-
-
-#ifdef USE_CJ
-  number_of_variables_descriptor = 
-    num_types *
-    (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
-#else
-  number_of_variables_descriptor =
-    num_types * num_types *
-    (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
-#endif
-
-  number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
-  if (model_type == 2) {
-    number_of_variables += number_of_variables_ann;
-  }
-
+void Parameters::set_regularization_defaults()
+{
   if (!is_lambda_1_set) {
     lambda_1 = sqrt(number_of_variables * 1.0e-6f / num_types);
   }
   if (!is_lambda_2_set) {
     lambda_2 = sqrt(number_of_variables * 1.0e-6f / num_types);
   }
+}
 
-  // check nep.in against any model files that are already present before reading from them
-  check_existing_nep_model(*this);
-
+void Parameters::initialize_q_scaler()
+{
   q_scaler_cpu.resize(dim,  1.0e10f);
   read_nep_q_scaler(*this);
 
