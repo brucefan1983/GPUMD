@@ -18,6 +18,7 @@
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <algorithm>
 
 void initialize_nep_zbl(const Parameters& para, NEP_ZBL& zbl)
 {
@@ -207,8 +208,9 @@ void output_nep_descriptors(
   FILE* fid_descriptor = my_fopen("descriptor.out", "a");
   std::vector<float> descriptor_cpu(descriptors.size());
   descriptors.copy_to_host(descriptor_cpu.data());
+  std::vector<float> q_structure(dim, 0.0f);
   for (int nc = 0; nc < dataset.Nc; ++nc) {
-    std::vector<float> q_structure(dim, 0.0f);
+    std::fill(q_structure.begin(), q_structure.end(), 0.0f);
     for (int na = 0; na < dataset.Na_cpu[nc]; ++na) {
       int n = dataset.Na_sum_cpu[nc] + na;
       for (int d = 0; d < dim; ++d) {
