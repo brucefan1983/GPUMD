@@ -185,7 +185,7 @@ void initialize_nep_mu_and_sigma(
 
 void find_nep_type_of_variable(const Parameters& para, std::vector<int>& type_of_variable)
 {
-  type_of_variable.resize(para.number_of_variables, para.num_types);
+  type_of_variable.assign(para.number_of_variables, para.num_types);
   int offset = 0;
 
   // NN part
