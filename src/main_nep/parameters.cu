@@ -40,7 +40,12 @@ Parameters::Parameters()
   if (is_zbl_set) {
     read_zbl_in();
   }
-  calculate_parameters();
+  check_parameters();
+  set_model_defaults();
+  calculate_model_parameters();
+  set_regularization_defaults();
+  check_existing_nep_model(*this);
+  initialize_q_scaler();
   report_inputs();
 
   print_line_1();
@@ -182,7 +187,7 @@ void Parameters::read_zbl_in()
   }
 }
 
-void Parameters::calculate_parameters()
+void Parameters::check_parameters() const
 {
   if ((charge_mode > 0) + vdw + charge_vdw > 1) {
     PRINT_INPUT_ERROR("charge_mode, vdw, and charge_vdw cannot be enabled simultaneously.");
@@ -206,7 +211,10 @@ void Parameters::calculate_parameters()
   if (is_lambda_d_set && (model_type == 1 || model_type == 2)) {
     PRINT_INPUT_ERROR("lambda_d is only supported for potential models.");
   }
+}
 
+void Parameters::set_model_defaults()
+{
   if (model_type != 0 && model_type != 3) {
     // take virial as dipole or polarizability
     lambda_e = lambda_f = 0.0f;
@@ -215,6 +223,10 @@ void Parameters::calculate_parameters()
       lambda_v = 1.0f; // by default, dipole or polarizability is fitted with global quantities
     }
   }
+}
+
+void Parameters::calculate_model_parameters()
+{
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
   dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
   if (has_q_222) {
@@ -277,17 +289,20 @@ void Parameters::calculate_parameters()
   if (model_type == 2) {
     number_of_variables += number_of_variables_ann;
   }
+}
 
+void Parameters::set_regularization_defaults()
+{
   if (!is_lambda_1_set) {
     lambda_1 = sqrt(number_of_variables * 1.0e-6f / num_types);
   }
   if (!is_lambda_2_set) {
     lambda_2 = sqrt(number_of_variables * 1.0e-6f / num_types);
   }
+}
 
-  // check nep.in against any model files that are already present before reading from them
-  check_existing_nep_model(*this);
-
+void Parameters::initialize_q_scaler()
+{
   q_scaler_cpu.resize(dim,  1.0e10f);
   read_nep_q_scaler(*this);
 
