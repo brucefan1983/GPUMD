@@ -96,6 +96,19 @@ static __global__ void zero_force(
   }
 }
 
+static __global__ void zero_force_long_range(const int N, float* g_fx, float* g_fy, float* g_fz, float* g_v)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    g_fx[n1] = 0.0f;
+    g_fy[n1] = 0.0f;
+    g_fz[n1] = 0.0f;
+    for (int d = 0; d < 6; ++d) {
+      g_v[n1 + N * d] = 0.0f;
+    }
+  }
+}
+
 static __global__ void find_force_ZBL(
   const int N,
   const NEP_ZBL zbl,
@@ -270,5 +283,18 @@ void add_nep_zbl(const NEP_ZBL& zbl, Dataset& dataset, const NEP_Neighbor& neigh
     dataset.force.data() + dataset.N * 2,
     dataset.virial.data(),
     dataset.energy.data());
+  GPU_CHECK_KERNEL
+}
+
+void zero_nep_long_range_outputs(Dataset& dataset)
+{
+  const int block_size = 32;
+  const int grid_size = (dataset.N - 1) / block_size + 1;
+  zero_force_long_range<<<grid_size, block_size>>>(
+    dataset.N,
+    dataset.force.data(),
+    dataset.force.data() + dataset.N,
+    dataset.force.data() + dataset.N * 2,
+    dataset.virial.data());
   GPU_CHECK_KERNEL
 }

@@ -51,4 +51,7 @@ void output_nep_descriptors(
 // Clear forces and diagonal virials. The radial kernel overwrites off-diagonal virials.
 void zero_nep_outputs(Dataset& dataset);
 
+// Clear forces and all six virial components for long-range models.
+void zero_nep_long_range_outputs(Dataset& dataset);
+
 void add_nep_zbl(const NEP_ZBL& zbl, Dataset& dataset, const NEP_Neighbor& neighbor);
