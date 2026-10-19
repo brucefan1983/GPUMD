@@ -32,6 +32,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    ensemble_ti_as
    ensemble_ti_rs
    ensemble_ti
+   ensemble_ti_nep
    ensemble_shock_nemd
    ensemble_msst
    ensemble_nphug

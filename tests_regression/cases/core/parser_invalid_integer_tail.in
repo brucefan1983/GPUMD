@@ -1,0 +1,4 @@
+potential potential.txt
+ensemble nve
+run 2trailing
+

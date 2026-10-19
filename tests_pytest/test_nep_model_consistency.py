@@ -8,9 +8,9 @@ files, the run used to continue on a differently shaped model without saying any
 nep.restart rows than the file holds and reporting plausible-looking losses. Any keyword with a
 default can cause this, which is what these tests cover.
 
-nep.txt counts as an input when there is a nep.restart to resume from, or when predicting, and a
-mismatch is then an error. Without a nep.restart it is a stale output about to be overwritten, and a
-mismatch is only a warning, so that editing nep.in and retraining in place keeps working.
+nep.txt counts as an input when there is a nep.restart to resume from, when predicting, or when
+importing scalers, and a mismatch is then an error. In fresh training it is a stale output about
+to be overwritten and is not checked, so editing nep.in and retraining in place keeps working.
 
 Every mismatch is reported while nep.in is being read, before the training set is touched, so these
 runs are short. The base models cover a header with a zbl line and one without (six header lines
@@ -23,7 +23,7 @@ import subprocess
 
 import pytest
 
-from conftest import TRAINING_DIR
+from conftest import MODELS_DIR, STRUCTURES_DIR, TRAINING_DIR
 
 pytestmark = pytest.mark.fast
 
@@ -114,16 +114,14 @@ def test_matching_nep_in_is_accepted(tmp_path, nep_command, base_model):
 
 
 @pytest.mark.parametrize('base_model', list(BASE_MODELS))
-def test_stale_nep_txt_without_restart_only_warns(tmp_path, nep_command, base_model):
-    """Editing nep.in and retraining in place has to keep working, so a mismatch against a nep.txt
-    that this run is about to overwrite is reported but not fatal."""
+def test_stale_nep_txt_without_restart_is_ignored(tmp_path, nep_command, base_model):
+    """Fresh training ignores the nep.txt that it is about to overwrite."""
     train_once(tmp_path, nep_command, base_model)
 
     result = run_nep(tmp_path, nep_command, keywords_for(base_model, basis_size=None))
     assert result.returncode == 0, result.stdout + result.stderr
-    assert 'basis_size_radial' in result.stdout
-    assert 'nep.in gives 6 (default), nep.txt gives 8' in result.stdout
-    assert 'nep.txt will be overwritten' in result.stdout
+    assert 'inconsistent' not in result.stdout
+    assert 'nep.txt will be overwritten' not in result.stdout
 
 
 @pytest.mark.parametrize(
@@ -222,5 +220,88 @@ def test_restart_row_count_is_checked_without_a_nep_txt(tmp_path, nep_command):
     (tmp_path / 'nep.txt').unlink()
 
     result = run_nep(tmp_path, nep_command, keywords_for('nep'))
+    assert result.returncode != 0
+    assert 'nep.restart does not match the model implied by nep.in.' in result.stderr
+
+
+# the tensor models, each with the nep.in keywords of its header, a structure, and the target
+# that structure carries
+TENSOR_MODELS = {
+    'dipole': (
+        'tnep-water-polarization.txt',
+        {'type': '2 O H', 'model_type': '1', 'cutoff': '6 4', 'n_max': '6 6',
+         'basis_size': '10 10', 'l_max': '4 2 1', 'neuron': '10', 'prediction': '1'},
+        'water-nat63-from-md.xyz',
+        'dipole="0 0 0"',
+    ),
+    'polarizability': (
+        'tnep-BaZrO3-susceptibility.txt',
+        {'type': '3 Ba Zr O', 'model_type': '2', 'cutoff': '6 4', 'n_max': '4 4',
+         'basis_size': '10 10', 'l_max': '4 2 0', 'neuron': '20', 'prediction': '1'},
+        'BaZrO3-nat40-rattled.xyz',
+        'pol="0 0 0 0 0 0 0 0 0"',
+    ),
+}
+DIPOLE_KEYWORDS = TENSOR_MODELS['dipole'][1]
+
+
+def write_tensor_prediction_inputs(directory, name):
+    """The tensor model as nep.txt and one structure with its target as train.xyz."""
+    model, _, structure, target = TENSOR_MODELS[name]
+    shutil.copy(MODELS_DIR / model, directory / 'nep.txt')
+    lines = (STRUCTURES_DIR / structure).read_text().splitlines()
+    lines[1] = lines[1] + ' ' + target
+    (directory / 'train.xyz').write_text('\n'.join(lines) + '\n')
+
+
+@pytest.mark.parametrize('name', list(TENSOR_MODELS))
+def test_prediction_of_a_tensor_model_with_matching_nep_in_runs(tmp_path, nep_command, name):
+    write_tensor_prediction_inputs(tmp_path, name)
+
+    result = run_nep(tmp_path, nep_command, TENSOR_MODELS[name][1])
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert 'inconsistent' not in result.stdout
+    assert (tmp_path / f'{name}_train.out').exists()
+
+
+def test_prediction_of_a_tensor_model_with_mismatched_nep_txt_is_fatal(tmp_path, nep_command):
+    """The check of nep.in against nep.txt applies to every model type, so a dipole model read
+    with another basis size stops with an input error instead of evaluating a misread model."""
+    write_tensor_prediction_inputs(tmp_path, 'dipole')
+
+    result = run_nep(tmp_path, nep_command, dict(DIPOLE_KEYWORDS, basis_size='10 8'))
+    assert result.returncode != 0
+    assert 'basis_size_angular' in result.stdout
+    assert 'nep.in is inconsistent with nep.txt.' in result.stderr
+
+
+def train_tensor_model(directory, nep_command, name):
+    """Train the tensor model briefly, remove the nep.txt the run writes so that only its
+    nep.restart remains, and return the nep.in keywords of the run."""
+    write_tensor_prediction_inputs(directory, name)
+    keywords = dict(TENSOR_MODELS[name][1], prediction='0', generation='2', output_interval='1')
+    result = run_nep(directory, nep_command, keywords)
+    assert result.returncode == 0, result.stdout + result.stderr
+    (directory / 'nep.txt').unlink()
+    return keywords
+
+
+@pytest.mark.parametrize('name', list(TENSOR_MODELS))
+def test_resume_of_a_tensor_model_with_matching_nep_restart_runs(tmp_path, nep_command, name):
+    keywords = train_tensor_model(tmp_path, nep_command, name)
+
+    result = run_nep(tmp_path, nep_command, keywords)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.parametrize('name', list(TENSOR_MODELS))
+def test_resume_of_a_tensor_model_with_mismatched_nep_restart_is_fatal(
+    tmp_path, nep_command, name
+):
+    """The row count of nep.restart is checked for every model type, so a tensor model resumed
+    with another basis size stops instead of reading the leading rows of a larger model."""
+    keywords = train_tensor_model(tmp_path, nep_command, name)
+
+    result = run_nep(tmp_path, nep_command, dict(keywords, basis_size='10 8'))
     assert result.returncode != 0
     assert 'nep.restart does not match the model implied by nep.in.' in result.stderr

@@ -180,6 +180,22 @@
         }
       ]
     },
+    "phonon_cu_single_atom": {
+      "stage": [
+        {
+          "source": "package:fixtures/phonon/cu_fcc_single_atom.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/phonon/si_kpoints.in",
+          "target": "kpoints.in"
+        },
+        {
+          "source": "repo:potentials/eam/Cu_Zhou_2004.txt",
+          "target": "Cu_Zhou_2004.txt"
+        }
+      ]
+    },
     "qnep_batio3": {
       "stage": [
         {
@@ -208,6 +224,18 @@
       "stage": [
         {
           "source": "package:fixtures/systems/neighbor_alias_control.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/potentials/neighbor_alias_lj.txt",
+          "target": "potential.txt"
+        }
+      ]
+    },
+    "replicate_lj_with_velocity": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/replicate_lj_with_velocity.xyz",
           "target": "model.xyz"
         },
         {
@@ -420,6 +448,138 @@
         },
         {
           "source": "package:fixtures/models/tnep_base_27.txt",
+          "target": "nep.txt"
+        }
+      ]
+    },
+    "training_pbte": {
+      "stage": [
+        {
+          "source": "package:fixtures/training/pbte.xyz",
+          "target": "train.xyz"
+        }
+      ]
+    },
+    "training_pbte_ediff": {
+      "stage": [
+        {
+          "source": "package:fixtures/training/pbte.xyz",
+          "target": "train.xyz"
+        },
+        {
+          "source": "package:fixtures/training/pbte.xyz",
+          "target": "test.xyz"
+        },
+        {
+          "source": "package:fixtures/training/pbte_ediff.in",
+          "target": "ediff.in"
+        }
+      ]
+    },
+    "training_tnep": {
+      "stage": [
+        {
+          "source": "package:fixtures/training/tnep_120.xyz",
+          "target": "train.xyz"
+        }
+      ]
+    },
+    "training_water_fff": {
+      "stage": [
+        {
+          "source": "package:fixtures/training/water_12_fff.xyz",
+          "target": "train.xyz"
+        }
+      ]
+    },
+    "training_mixed": {
+      "stage": [
+        {
+          "source": "package:fixtures/training/pbte_water_mixed.xyz",
+          "target": "train.xyz"
+        }
+      ]
+    },
+    "pppm_exact_1": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/pppm_batio3_8.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:tests_pytest/fixtures/models/qnep_mode1_BaTiO3.txt",
+          "target": "nep.txt"
+        }
+      ]
+    },
+    "pppm_exact_2": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/pppm_batio3_8.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:tests_pytest/fixtures/models/qnep_mode2_BaTiO3.txt",
+          "target": "nep.txt"
+        }
+      ]
+    },
+    "pppm_above_1": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/pppm_batio3_above8.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:tests_pytest/fixtures/models/qnep_mode1_BaTiO3.txt",
+          "target": "nep.txt"
+        }
+      ]
+    },
+    "pppm_grow_1": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/pppm_batio3_15p9.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:tests_pytest/fixtures/models/qnep_mode1_BaTiO3.txt",
+          "target": "nep.txt"
+        }
+      ]
+    },
+    "pppm_tilt_1": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/pppm_batio3_tilt.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:tests_pytest/fixtures/models/qnep_mode1_BaTiO3.txt",
+          "target": "nep.txt"
+        }
+      ]
+    },
+    "pppm_shear45_1": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/pppm_batio3_shear45.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:tests_pytest/fixtures/models/qnep_mode1_BaTiO3.txt",
+          "target": "nep.txt"
+        }
+      ]
+    },
+    "pppm_mesh_limit": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/pppm_batio3_mesh_limit.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "repo:tests_pytest/fixtures/models/qnep_mode1_BaTiO3.txt",
           "target": "nep.txt"
         }
       ]
@@ -908,6 +1068,72 @@
           "output": "thermo.out"
         }
       ]
+    },
+    {
+      "id": "pppm_default_equivalence_thermo",
+      "description": "Omitted, explicit, explicit-spacing and late-spacing defaults agree within same-mesh atomic noise",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "numeric_equal",
+      "members": [
+        {
+          "case": "pppm_default",
+          "output": "thermo.out"
+        },
+        {
+          "case": "pppm_explicit",
+          "output": "thermo.out"
+        },
+        {
+          "case": "pppm_spacing_one",
+          "output": "thermo.out"
+        },
+        {
+          "case": "pppm_spacing_late",
+          "output": "thermo.out"
+        }
+      ],
+      "comparison": {
+        "mode": "numeric",
+        "rtol": 0,
+        "atol": 1e-07,
+        "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+      }
+    },
+    {
+      "id": "pppm_default_equivalence_state",
+      "description": "Omitted, explicit, explicit-spacing and late-spacing defaults agree within same-mesh atomic noise",
+      "roles": [
+        "baseline",
+        "candidate"
+      ],
+      "operation": "numeric_equal",
+      "members": [
+        {
+          "case": "pppm_default",
+          "output": "state.xyz"
+        },
+        {
+          "case": "pppm_explicit",
+          "output": "state.xyz"
+        },
+        {
+          "case": "pppm_spacing_one",
+          "output": "state.xyz"
+        },
+        {
+          "case": "pppm_spacing_late",
+          "output": "state.xyz"
+        }
+      ],
+      "comparison": {
+        "mode": "numeric",
+        "rtol": 0,
+        "atol": 2e-05,
+        "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+      }
     }
   ],
   "cases": [
@@ -3356,12 +3582,35 @@
       "input_style": "canonical"
     },
     {
+      "id": "phonon_single_atom_replicate",
+      "description": "Phonon calculation accepts a one-atom primitive cell when replicate expands it before GPU initialization",
+      "suites": [
+        "static",
+        "full"
+      ],
+      "fixture": "phonon_cu_single_atom",
+      "input": "package:cases/bugfix/phonon_single_atom_replicate.in",
+      "covers": [
+        "potential:eam",
+        "command:replicate",
+        "command:compute_phonon",
+        "contract:single-atom-primitive"
+      ],
+      "expect": "success",
+      "outputs": [
+        "D.out",
+        "omega2.out"
+      ],
+      "input_style": "canonical"
+    },
+    {
       "id": "qnep_ewald_future_bec",
       "description": "qNEP Ewald with BEC and virial consumers appearing only in a later run",
       "suites": [
         "snapshot",
         "potential",
-        "full"
+        "full",
+        "pppm"
       ],
       "fixture": "qnep_batio3",
       "input": "package:cases/snapshots/qnep_ewald_future_bec.in",
@@ -3402,7 +3651,8 @@
       "suites": [
         "snapshot",
         "potential",
-        "full"
+        "full",
+        "pppm"
       ],
       "fixture": "qnep_batio3",
       "input": "package:cases/snapshots/qnep_pppm_future_bec.in",
@@ -3421,27 +3671,35 @@
         "dpdt.out",
         "neighbor.out"
       ],
+      "input_style": "canonical",
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          28,
+          28,
+          28
+        ]
+      },
       "comparisons": {
         "bec.xyz": {
           "mode": "numeric",
-          "rtol": 0.0,
-          "atol": 5e-06,
-          "reason": "qNEP BEC and PPPM mesh paths use unordered float atomicAdd; same-binary calibration observed 3.49e-6 maximum whole-file drift."
+          "rtol": 0,
+          "atol": 1e-05,
+          "reason": "Restore the pre-transition same-mesh qNEP/PPPM BEC bound: repeated regression observed 6.07e-6 absolute atomicAdd drift. Both executables now use the same mesh."
         },
         "thermo.out": {
           "mode": "numeric",
-          "rtol": 0.0,
+          "rtol": 0,
           "atol": 1e-07,
-          "reason": "PPPM float mesh atomics caused up to 4.01e-8 same-binary thermodynamic drift."
+          "reason": "Restore the pre-transition same-mesh PPPM bound: float mesh atomics caused up to 4.01e-8 same-binary thermodynamic drift."
         },
         "dpdt.out": {
           "mode": "numeric",
-          "rtol": 0.0,
-          "atol": 2e-07,
-          "reason": "DPDT consumes the nondeterministic float BEC tensor; the calibrated output quantum is 1.0e-7."
+          "rtol": 0,
+          "atol": 2e-06,
+          "reason": "Restore the pre-transition DPDT bound: full regression observed 1.0e-6 absolute drift from the float BEC tensor. Both executables now use the same mesh."
         }
-      },
-      "input_style": "canonical"
+      }
     },
     {
       "id": "compact_mc_before_potential",
@@ -3723,6 +3981,79 @@
       "input_style": "canonical"
     },
     {
+      "id": "replicate_default_velocity",
+      "description": "Replicate initializes the default 300 K velocity on the final replicated system",
+      "suites": [
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/replicate_default_velocity.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:replicate",
+        "contract:replicate-default-velocity-final-system",
+        "contract:first-step-initialization"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "replicate_velocity_unseeded",
+      "description": "Unseeded velocity reset follows default initialization of the final replicated system",
+      "suites": [
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "cu",
+      "input": "package:cases/bugfix/replicate_velocity_unseeded.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:eam",
+        "command:replicate",
+        "command:velocity",
+        "contract:replicate-unseeded-velocity-final-system",
+        "contract:first-step-initialization"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
+      "id": "replicate_model_velocity",
+      "description": "Replicate preserves explicit model.xyz velocities before device initialization",
+      "suites": [
+        "first_step_init",
+        "full"
+      ],
+      "fixture": "replicate_lj_with_velocity",
+      "input": "package:cases/bugfix/replicate_model_velocity.in",
+      "covers": [
+        "ensemble:nve",
+        "potential:lj",
+        "command:replicate",
+        "contract:replicate-model-velocity",
+        "contract:first-step-initialization"
+      ],
+      "expect": "success",
+      "outputs": [
+        "thermo.out",
+        "final.xyz",
+        "restart.xyz"
+      ],
+      "input_style": "canonical"
+    },
+    {
       "id": "replicate_after_potential",
       "description": "Reject replicate after potential when that command is reached",
       "suites": [
@@ -3828,6 +4159,14 @@
         "thermo.out",
         "restart.xyz"
       ],
+      "comparisons": {
+        "restart.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-17,
+          "reason": "DFT-D3 force accumulation uses unordered double-precision GPU atomicAdd; repeated same-binary runs observed about 1.8e-18 maximum absolute drift in restart velocities."
+        }
+      },
       "input_style": "compatibility"
     },
     {
@@ -3836,7 +4175,8 @@
       "suites": [
         "potential",
         "parsing_validation",
-        "full"
+        "full",
+        "pppm"
       ],
       "fixture": "qnep_batio3",
       "input": "package:cases/bugfix/kspace_single_late.in",
@@ -3862,7 +4202,8 @@
       "suites": [
         "potential",
         "parsing_validation",
-        "full"
+        "full",
+        "pppm"
       ],
       "fixture": "qnep_batio3",
       "input": "package:cases/bugfix/dftd3_kspace_one_each.in",
@@ -3881,7 +4222,15 @@
         "thermo.out",
         "restart.xyz"
       ],
-      "input_style": "canonical"
+      "input_style": "canonical",
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          16,
+          16,
+          16
+        ]
+      }
     },
     {
       "id": "dftd3_duplicate",
@@ -3906,7 +4255,8 @@
       "id": "kspace_duplicate",
       "description": "Reject a second global kspace setting",
       "suites": [
-        "full"
+        "full",
+        "pppm"
       ],
       "fixture": "qnep_batio3",
       "input": "package:cases/bugfix/kspace_duplicate.in",
@@ -5532,6 +5882,1777 @@
           "atol": 1e-08
         }
       ]
+    },
+    {
+      "id": "predict_nep_pbte_batch",
+      "program": "nep",
+      "description": "NEP prediction from a fixed model on the three-batch PbTe TTT dataset",
+      "suites": [
+        "prediction",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "stage": [
+        {
+          "source": "repo:examples/nep_prediction/nep.txt",
+          "target": "nep.txt"
+        }
+      ],
+      "input": "package:cases/prediction/nep_pbte_batch.in",
+      "covers": [
+        "prediction:nep",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "stdout_contains": "Started predicting.",
+      "outputs": [
+        "energy_train.out",
+        "force_train.out",
+        "virial_train.out",
+        "stress_train.out"
+      ],
+      "comparisons": {
+        "force_train.out": {
+          "mode": "numeric",
+          "rtol": 1e-05,
+          "atol": 2e-07,
+          "reason": "Prediction uses unordered single-precision atomic force accumulation. The relative bound allows the last of six significant digits written by %g to change; the absolute bound covers cancellation near zero, in eV/angstrom."
+        }
+      }
+    },
+    {
+      "id": "train_nep_pbte_full",
+      "program": "nep",
+      "description": "NEP training on the full-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/nep_pbte_full.in",
+      "covers": [
+        "training:nep",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_nep_pbte_batch",
+      "program": "nep",
+      "description": "NEP training on the three-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/nep_pbte_batch.in",
+      "covers": [
+        "training:nep",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_nep_pbte_ediff",
+      "program": "nep",
+      "description": "NEP energy-difference loss across batches with and without combinations, including test-set reporting",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte_ediff",
+      "input": "package:cases/training/nep_pbte_ediff.in",
+      "covers": [
+        "training:nep",
+        "training:energy-difference",
+        "boundary:ttt",
+        "batch:multi",
+        "batch:no-energy-difference"
+      ],
+      "expect": "success",
+      "stdout_contains": "ediff.in: 2 combinations, 2 in train.xyz, 2 in test.xyz (2 in both), 0 skipped.",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart",
+        "energy_test.out",
+        "force_test.out",
+        "virial_test.out",
+        "stress_test.out"
+      ],
+      "comparisons": {
+        "force_test.out": {
+          "mode": "numeric",
+          "rtol": 1e-05,
+          "atol": 2e-07,
+          "reason": "Test-set reporting uses the same single-precision atomic force accumulation and six-significant-digit output as predict_nep_pbte_batch. Apply its force-only rounding bounds, in eV/angstrom."
+        }
+      },
+      "post_checks": [
+        {
+          "name": "nep_energy_difference",
+          "output": "loss.out",
+          "generations": 10,
+          "batches": 3,
+          "empty_batch": 2
+        }
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep1_pbte_full",
+      "program": "nep",
+      "description": "QNEP charge mode 1 training on the full-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/qnep1_pbte_full.in",
+      "covers": [
+        "training:qnep-mode1",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep1_pbte_batch",
+      "program": "nep",
+      "description": "QNEP charge mode 1 training on the three-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/qnep1_pbte_batch.in",
+      "covers": [
+        "training:qnep-mode1",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep2_pbte_full",
+      "program": "nep",
+      "description": "QNEP charge mode 2 training on the full-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/qnep2_pbte_full.in",
+      "covers": [
+        "training:qnep-mode2",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep2_pbte_batch",
+      "program": "nep",
+      "description": "QNEP charge mode 2 training on the three-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/qnep2_pbte_batch.in",
+      "covers": [
+        "training:qnep-mode2",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_vdw_pbte_full",
+      "program": "nep",
+      "description": "NEP-vdW training on the full-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/vdw_pbte_full.in",
+      "covers": [
+        "training:vdw",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_vdw_pbte_batch",
+      "program": "nep",
+      "description": "NEP-vdW training on the three-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/vdw_pbte_batch.in",
+      "covers": [
+        "training:vdw",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_charge_vdw_pbte_full",
+      "program": "nep",
+      "description": "charge-vdW training on the full-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/charge_vdw_pbte_full.in",
+      "covers": [
+        "training:charge-vdw",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_charge_vdw_pbte_batch",
+      "program": "nep",
+      "description": "charge-vdW training on the three-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:cases/training/charge_vdw_pbte_batch.in",
+      "covers": [
+        "training:charge-vdw",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_tnep_dipole_full",
+      "program": "nep",
+      "description": "TNEP dipole training on the 120-structure full batch",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_tnep",
+      "input": "package:cases/training/tnep_dipole_full.in",
+      "covers": [
+        "training:tnep-dipole",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_tnep_dipole_batch",
+      "program": "nep",
+      "description": "TNEP dipole training on two batches of 61 and 59 structures",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_tnep",
+      "input": "package:cases/training/tnep_dipole_batch.in",
+      "covers": [
+        "training:tnep-dipole",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_tnep_pol_full",
+      "program": "nep",
+      "description": "TNEP polarizability training on the 120-structure full batch",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_tnep",
+      "input": "package:cases/training/tnep_pol_full.in",
+      "covers": [
+        "training:tnep-polarizability",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_tnep_pol_batch",
+      "program": "nep",
+      "description": "TNEP polarizability training on two batches of 61 and 59 structures",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_tnep",
+      "input": "package:cases/training/tnep_pol_batch.in",
+      "covers": [
+        "training:tnep-polarizability",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep1_water_fff",
+      "program": "nep",
+      "description": "QNEP charge mode 1 training on the three-batch 12-atom water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_water_fff",
+      "input": "package:cases/training/qnep1_water_fff.in",
+      "covers": [
+        "training:qnep-mode1",
+        "boundary:fff",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep2_water_fff",
+      "program": "nep",
+      "description": "QNEP charge mode 2 training on the three-batch 12-atom water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_water_fff",
+      "input": "package:cases/training/qnep2_water_fff.in",
+      "covers": [
+        "training:qnep-mode2",
+        "boundary:fff",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_vdw_water_fff",
+      "program": "nep",
+      "description": "NEP-vdW training on the three-batch 12-atom water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_water_fff",
+      "input": "package:cases/training/vdw_water_fff.in",
+      "covers": [
+        "training:vdw",
+        "boundary:fff",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_charge_vdw_water_fff",
+      "program": "nep",
+      "description": "charge-vdW training on the three-batch 12-atom water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_water_fff",
+      "input": "package:cases/training/charge_vdw_water_fff.in",
+      "covers": [
+        "training:charge-vdw",
+        "boundary:fff",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep1_mixed",
+      "program": "nep",
+      "description": "QNEP charge mode 1 training on the two-batch PbTe TTT + water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_mixed",
+      "input": "package:cases/training/qnep1_mixed.in",
+      "covers": [
+        "training:qnep-mode1",
+        "boundary:mixed",
+        "batch:multi",
+        "species:pb-te-h-o"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep2_mixed",
+      "program": "nep",
+      "description": "QNEP charge mode 2 training on the two-batch PbTe TTT + water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_mixed",
+      "input": "package:cases/training/qnep2_mixed.in",
+      "covers": [
+        "training:qnep-mode2",
+        "boundary:mixed",
+        "batch:multi",
+        "species:pb-te-h-o"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_vdw_mixed",
+      "program": "nep",
+      "description": "NEP-vdW training on the two-batch PbTe TTT + water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_mixed",
+      "input": "package:cases/training/vdw_mixed.in",
+      "covers": [
+        "training:vdw",
+        "boundary:mixed",
+        "batch:multi",
+        "species:pb-te-h-o"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_charge_vdw_mixed",
+      "program": "nep",
+      "description": "charge-vdW training on the two-batch PbTe TTT + water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_mixed",
+      "input": "package:cases/training/charge_vdw_mixed.in",
+      "covers": [
+        "training:charge-vdw",
+        "boundary:mixed",
+        "batch:multi",
+        "species:pb-te-h-o"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "pppm_default",
+      "description": "pppm default",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_default.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          16,
+          16,
+          16
+        ],
+        "frames": 1
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_explicit",
+      "description": "pppm explicit",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_explicit.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          16,
+          16,
+          16
+        ],
+        "frames": 1
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_spacing_one",
+      "description": "pppm spacing one",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_spacing_one.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          16,
+          16,
+          16
+        ],
+        "frames": 1
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_spacing_late",
+      "description": "pppm spacing late",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_spacing_late.in",
+      "input_style": "compatibility",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          16,
+          16,
+          16
+        ],
+        "frames": 1
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_spacing_fine",
+      "description": "pppm spacing fine",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_spacing_fine.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 0.5,
+        "initial_mesh": [
+          48,
+          16,
+          16
+        ],
+        "frames": 1
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_spacing_coarse",
+      "description": "pppm spacing coarse",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_spacing_coarse.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.5,
+        "initial_mesh": [
+          16,
+          16,
+          16
+        ],
+        "frames": 1
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_round_exact",
+      "description": "pppm round exact",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_round_exact.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          24,
+          16,
+          16
+        ],
+        "frames": 1
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_round_above",
+      "description": "pppm round above",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_above_1",
+      "input": "package:cases/pppm/pppm_round_above.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          28,
+          16,
+          16
+        ],
+        "frames": 1
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_round_power2",
+      "description": "pppm round power2",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_round_power2.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          32,
+          16,
+          16
+        ],
+        "frames": 1
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_round_5_7",
+      "description": "pppm round 5 7",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_round_5_7.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          40,
+          56,
+          16
+        ],
+        "frames": 1
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_mode2",
+      "description": "pppm mode2",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_2",
+      "input": "package:cases/pppm/pppm_mode2.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          16,
+          16,
+          16
+        ],
+        "frames": 1
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_peratom",
+      "description": "pppm peratom",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_peratom.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          16,
+          16,
+          16
+        ],
+        "frames": 1
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_mode2_peratom",
+      "description": "pppm mode2 peratom",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_2",
+      "input": "package:cases/pppm/pppm_mode2_peratom.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          16,
+          16,
+          16
+        ],
+        "frames": 1
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_grow_shrink",
+      "description": "pppm grow shrink",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_grow_1",
+      "input": "package:cases/pppm/pppm_grow_shrink.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          16,
+          16,
+          16
+        ],
+        "frames": 6,
+        "last_cell": [
+          15.9,
+          0,
+          0,
+          0,
+          8,
+          0,
+          0,
+          0,
+          8
+        ]
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_grow_shrink_peratom",
+      "description": "pppm grow shrink peratom",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_grow_1",
+      "input": "package:cases/pppm/pppm_grow_shrink_peratom.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          16,
+          16,
+          16
+        ],
+        "frames": 6,
+        "last_cell": [
+          15.9,
+          0,
+          0,
+          0,
+          8,
+          0,
+          0,
+          0,
+          8
+        ]
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_deform_same_mesh",
+      "description": "pppm deform same mesh",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_deform_same_mesh.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          16,
+          16,
+          16
+        ],
+        "frames": 3,
+        "last_cell": [
+          8.3,
+          0,
+          0,
+          0,
+          8,
+          0,
+          0,
+          0,
+          8
+        ]
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_shear_same_mesh",
+      "description": "pppm shear same mesh",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_tilt_1",
+      "input": "package:cases/pppm/pppm_shear_same_mesh.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          16,
+          16,
+          16
+        ],
+        "frames": 3,
+        "last_cell": [
+          8,
+          0,
+          0,
+          1.6,
+          8,
+          0,
+          0,
+          0,
+          8
+        ]
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_npt",
+      "description": "pppm npt",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_npt.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          16,
+          16,
+          16
+        ],
+        "frames": 3
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_two_runs",
+      "description": "pppm two runs",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_two_runs.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          16,
+          16,
+          16
+        ],
+        "frames": 2
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
+    },
+    {
+      "id": "pppm_no_force",
+      "description": "Destroy pppm potential before any force evaluation",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_no_force.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "contract:pppm-lifetime"
+      ],
+      "expect": "success",
+      "outputs": [],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": null
+      },
+      "stdout_contains": "Finished executing the commands in run.in."
+    },
+    {
+      "id": "ewald_no_force",
+      "description": "Destroy ewald potential before any force evaluation",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/ewald_no_force.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "contract:pppm-lifetime"
+      ],
+      "expect": "success",
+      "outputs": [],
+      "stdout_contains": "Finished executing the commands in run.in."
+    },
+    {
+      "id": "pppm_invalid_zero",
+      "description": "Reject kspace pppm 0",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_invalid_zero.in",
+      "input_style": "intentional_invalid",
+      "covers": [
+        "potential:qnep",
+        "contract:pppm-spacing-input"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
+      "outputs": []
+    },
+    {
+      "id": "pppm_invalid_negative",
+      "description": "Reject kspace pppm -1",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_invalid_negative.in",
+      "input_style": "intentional_invalid",
+      "covers": [
+        "potential:qnep",
+        "contract:pppm-spacing-input"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
+      "outputs": []
+    },
+    {
+      "id": "pppm_invalid_nan",
+      "description": "Reject kspace pppm nan",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_invalid_nan.in",
+      "input_style": "intentional_invalid",
+      "covers": [
+        "potential:qnep",
+        "contract:pppm-spacing-input"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
+      "outputs": []
+    },
+    {
+      "id": "pppm_invalid_inf",
+      "description": "Reject kspace pppm inf",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_invalid_inf.in",
+      "input_style": "intentional_invalid",
+      "covers": [
+        "potential:qnep",
+        "contract:pppm-spacing-input"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
+      "outputs": []
+    },
+    {
+      "id": "pppm_invalid_tail",
+      "description": "Reject kspace pppm 1.0oops",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_invalid_tail.in",
+      "input_style": "intentional_invalid",
+      "covers": [
+        "potential:qnep",
+        "contract:pppm-spacing-input"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
+      "outputs": []
+    },
+    {
+      "id": "pppm_invalid_overflow",
+      "description": "Reject kspace pppm 1e309",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_invalid_overflow.in",
+      "input_style": "intentional_invalid",
+      "covers": [
+        "potential:qnep",
+        "contract:pppm-spacing-input"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "PPPM spacing must be a finite number between 0.2 and 2.0 A.",
+      "outputs": []
+    },
+    {
+      "id": "pppm_invalid_extra",
+      "description": "Reject kspace pppm 1.0 2.0",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_invalid_extra.in",
+      "input_style": "intentional_invalid",
+      "covers": [
+        "potential:qnep",
+        "contract:pppm-spacing-input"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "kspace requires ewald or pppm [spacing].",
+      "outputs": []
+    },
+    {
+      "id": "pppm_invalid_bare",
+      "description": "Reject kspace",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_invalid_bare.in",
+      "input_style": "intentional_invalid",
+      "covers": [
+        "potential:qnep",
+        "contract:pppm-spacing-input"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "kspace requires ewald or pppm [spacing].",
+      "outputs": []
+    },
+    {
+      "id": "pppm_invalid_ewald_spacing",
+      "description": "Reject kspace ewald 1.0",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_exact_1",
+      "input": "package:cases/pppm/pppm_invalid_ewald_spacing.in",
+      "input_style": "intentional_invalid",
+      "covers": [
+        "potential:qnep",
+        "contract:pppm-spacing-input"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "kspace ewald does not accept spacing.",
+      "outputs": []
+    },
+    {
+      "id": "pppm_mesh_overflow",
+      "description": "Reject a PPPM mesh above 512 cubed points before allocation",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_mesh_limit",
+      "input": "package:cases/pppm/pppm_mesh_overflow.in",
+      "input_style": "intentional_invalid",
+      "covers": [
+        "potential:qnep",
+        "contract:pppm-mesh-bounds"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stderr_contains": "PPPM mesh is too large",
+      "outputs": [
+        "neighbor.out"
+      ]
+    },
+    {
+      "id": "pppm_triclinic_mesh",
+      "description": "Triclinic plane thickness gives 18 along x instead of the vector-length choice 24",
+      "suites": [
+        "pppm",
+        "full"
+      ],
+      "fixture": "pppm_shear45_1",
+      "input": "package:cases/pppm/pppm_triclinic_mesh.in",
+      "input_style": "canonical",
+      "covers": [
+        "potential:qnep",
+        "command:kspace-pppm",
+        "contract:pppm-mesh"
+      ],
+      "expect": "success",
+      "outputs": [
+        "neighbor.out",
+        "thermo.out",
+        "state.xyz"
+      ],
+      "pppm": {
+        "spacing": 1.0,
+        "initial_mesh": [
+          18,
+          16,
+          16
+        ],
+        "frames": 1
+      },
+      "comparisons": {
+        "thermo.out": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 1e-07,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        },
+        "state.xyz": {
+          "mode": "numeric",
+          "rtol": 0,
+          "atol": 2e-05,
+          "reason": "Same-mesh qNEP/PPPM uses unordered float atomics; provisional absolute envelope to verify on the target GPU, not a tolerance for changing meshes."
+        }
+      }
     }
   ]
 }

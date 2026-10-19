@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "dataset.cuh"
@@ -77,7 +77,7 @@ void Dataset::find_Na(Parameters& para)
 
   printf("Total number of atoms = %d.\n", N);
   printf("Number of atoms in the largest configuration = %d.\n", max_Na);
-  if (para.train_mode == 0 || para.train_mode == 3) {
+  if (para.model_type == 0 || para.model_type == 3) {
     printf("Number of configurations having virial = %d.\n", num_virial_configurations);
   }
 
@@ -214,7 +214,6 @@ static __global__ void gpu_find_neighbor_number(
   const int* Na,
   const int* Na_sum,
   const int* g_type,
-  const int* g_atomic_numbers,
   const float* g_rc_radial,
   const float* g_rc_angular,
   const float* __restrict__ g_box,
@@ -280,7 +279,6 @@ static __global__ void gpu_find_neighbor_list(
   const int* Na,
   const int* Na_sum,
   const int* g_type,
-  const int* g_atomic_numbers,
   const float* g_rc_radial,
   const float* g_rc_angular,
   const float* __restrict__ g_box,
@@ -361,19 +359,73 @@ static __global__ void gpu_find_neighbor_list(
   }
 }
 
+void NEP_Neighbor::prepare(Parameters& para, Dataset& dataset, int device_id)
+{
+  // Training datasets and their positions are immutable after construction.
+  if (neighbor_dataset == &dataset) {
+    return;
+  }
+
+  CHECK(gpuSetDevice(device_id));
+
+  if (rc_radial.size() == 0) {
+    rc_radial.resize(para.rc_radial.size());
+    rc_radial.copy_from_host(para.rc_radial.data());
+    rc_angular.resize(para.rc_angular.size());
+    rc_angular.copy_from_host(para.rc_angular.data());
+  }
+
+  if (dataset.total_NN_radial > static_cast<int>(NL_radial.size())) {
+    NL_radial.resize(dataset.total_NN_radial);
+    x12_radial.resize(dataset.total_NN_radial);
+    y12_radial.resize(dataset.total_NN_radial);
+    z12_radial.resize(dataset.total_NN_radial);
+  }
+
+  if (dataset.total_NN_angular > static_cast<int>(NL_angular.size())) {
+    NL_angular.resize(dataset.total_NN_angular);
+    x12_angular.resize(dataset.total_NN_angular);
+    y12_angular.resize(dataset.total_NN_angular);
+    z12_angular.resize(dataset.total_NN_angular);
+  }
+
+  gpu_find_neighbor_list<<<dataset.Nc, 256>>>(
+    dataset.N,
+    dataset.Na.data(),
+    dataset.Na_sum.data(),
+    dataset.type.data(),
+    rc_radial.data(),
+    rc_angular.data(),
+    dataset.box.data(),
+    dataset.box_original.data(),
+    dataset.num_cell.data(),
+    dataset.pbc.data(),
+    dataset.r.data(),
+    dataset.r.data() + dataset.N,
+    dataset.r.data() + dataset.N * 2,
+    dataset.NN_radial_sum.data(),
+    dataset.NN_angular_sum.data(),
+    dataset.NN_radial.data(),
+    NL_radial.data(),
+    dataset.NN_angular.data(),
+    NL_angular.data(),
+    x12_radial.data(),
+    y12_radial.data(),
+    z12_radial.data(),
+    x12_angular.data(),
+    y12_angular.data(),
+    z12_angular.data());
+  GPU_CHECK_KERNEL
+
+  neighbor_dataset = &dataset;
+}
+
 void Dataset::find_neighbor(Parameters& para)
 {
   NN_radial.resize(N);
   NN_angular.resize(N);
   std::vector<int> NN_radial_cpu(N);
   std::vector<int> NN_angular_cpu(N);
-
-  std::vector<int> atomic_numbers_from_zero(para.atomic_numbers.size());
-  for (int n = 0; n < para.atomic_numbers.size(); ++n) {
-    atomic_numbers_from_zero[n] = para.atomic_numbers[n] - 1;
-  }
-  GPU_Vector<int> atomic_numbers(para.atomic_numbers.size());
-  atomic_numbers.copy_from_host(atomic_numbers_from_zero.data());
 
   GPU_Vector<float> rc_radial(para.rc_radial.size());
   rc_radial.copy_from_host(para.rc_radial.data());
@@ -385,7 +437,6 @@ void Dataset::find_neighbor(Parameters& para)
     Na.data(),
     Na_sum.data(),
     type.data(),
-    atomic_numbers.data(),
     rc_radial.data(),
     rc_angular.data(),
     box.data(),
@@ -402,11 +453,11 @@ void Dataset::find_neighbor(Parameters& para)
   NN_radial.copy_to_host(NN_radial_cpu.data());
   NN_angular.copy_to_host(NN_angular_cpu.data());
 
-  int sum_NN_radial = 0;
+  total_NN_radial = 0;
   int min_NN_radial = 10000;
   max_NN_radial = -1;
   for (int n = 0; n < N; ++n) {
-    sum_NN_radial += NN_radial_cpu[n];
+    total_NN_radial += NN_radial_cpu[n];
     if (NN_radial_cpu[n] < min_NN_radial) {
       min_NN_radial = NN_radial_cpu[n];
     }
@@ -415,11 +466,11 @@ void Dataset::find_neighbor(Parameters& para)
     }
   }
 
-  int sum_NN_angular = 0;
+  total_NN_angular = 0;
   int min_NN_angular = 10000;
   max_NN_angular = -1;
   for (int n = 0; n < N; ++n) {
-    sum_NN_angular += NN_angular_cpu[n];
+    total_NN_angular += NN_angular_cpu[n];
     if (NN_angular_cpu[n] < min_NN_angular) {
       min_NN_angular = NN_angular_cpu[n];
     }
@@ -439,53 +490,14 @@ void Dataset::find_neighbor(Parameters& para)
   NN_radial_sum.copy_from_host(NN_radial_sum_cpu.data());
   NN_angular_sum.copy_from_host(NN_angular_sum_cpu.data());
 
-  NL_radial.resize(sum_NN_radial);
-  x12_radial.resize(sum_NN_radial);
-  y12_radial.resize(sum_NN_radial);
-  z12_radial.resize(sum_NN_radial);
-
-  NL_angular.resize(sum_NN_angular);
-  x12_angular.resize(sum_NN_angular);
-  y12_angular.resize(sum_NN_angular);
-  z12_angular.resize(sum_NN_angular);
-
-  gpu_find_neighbor_list<<<Nc, 256>>>(
-    N,
-    Na.data(),
-    Na_sum.data(),
-    type.data(),
-    atomic_numbers.data(),
-    rc_radial.data(),
-    rc_angular.data(),
-    box.data(),
-    box_original.data(),
-    num_cell.data(),
-    pbc.data(),
-    r.data(),
-    r.data() + N,
-    r.data() + N * 2,
-    NN_radial_sum.data(),
-    NN_angular_sum.data(),
-    NN_radial.data(),
-    NL_radial.data(),
-    NN_angular.data(),
-    NL_angular.data(),
-    x12_radial.data(),
-    y12_radial.data(),
-    z12_radial.data(),
-    x12_angular.data(),
-    y12_angular.data(),
-    z12_angular.data());
-  GPU_CHECK_KERNEL
-
   printf("Radial descriptor with a cutoff of %g A:\n", para.rc_radial_max);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_radial);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_radial);
-  printf("    Average number of neighbors for one atom = %g.\n", sum_NN_radial / float(N));
+  printf("    Average number of neighbors for one atom = %g.\n", total_NN_radial / float(N));
   printf("Angular descriptor with a cutoff of %g A:\n", para.rc_angular_max);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_angular);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_angular);
-  printf("    Average number of neighbors for one atom = %g.\n", sum_NN_angular / float(N));
+  printf("    Average number of neighbors for one atom = %g.\n", total_NN_angular / float(N));
 #ifdef OUTPUT_NEIGHBOR_FOR_TRAIN
   FILE* fid = fopen("neighbor.txt", "a");
   for (int nc = 0; nc < Nc; ++nc) {
@@ -513,10 +525,51 @@ void Dataset::construct(
   find_has_type(para);
   error_cpu.resize(Nc);
   error_gpu.resize(Nc);
+  if (para.has_ediff_combinations) {
+    total_energy_pred_gpu.resize(Nc);
+    total_energy_pred_cpu.resize(Nc);
+  }
 
   find_Na(para);
   initialize_gpu_data(para);
   find_neighbor(para);
+}
+
+// Sums in double, since the total energy of a large structure exceeds the precision of a float
+// long before its per-atom energies do.
+static __global__ void
+gpu_sum_total_energy(const int* g_Na, const int* g_Na_sum, const float* g_pe, double* g_total_pe)
+{
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int Na = g_Na[bid];
+  int N1 = g_Na_sum[bid];
+  int N2 = N1 + Na;
+  extern __shared__ double s_total_pe[];
+  s_total_pe[tid] = 0.0;
+  for (int n = N1 + tid; n < N2; n += blockDim.x) {
+    s_total_pe[tid] += g_pe[n];
+  }
+  __syncthreads();
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_total_pe[tid] += s_total_pe[tid + offset];
+    }
+    __syncthreads();
+  }
+  if (tid == 0) {
+    g_total_pe[bid] = s_total_pe[0];
+  }
+}
+
+void Dataset::compute_total_energies(int device_id)
+{
+  CHECK(gpuSetDevice(device_id));
+  const int block_size = 256;
+  gpu_sum_total_energy<<<Nc, block_size, sizeof(double) * block_size>>>(
+    Na.data(), Na_sum.data(), energy.data(), total_energy_pred_gpu.data());
+  GPU_CHECK_KERNEL
+  total_energy_pred_gpu.copy_to_host(total_energy_pred_cpu.data());
 }
 
 static __global__ void gpu_sum_force_error(
@@ -955,7 +1008,7 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
   const int block_size = 256;
 
   float shear_weight =
-    (para.train_mode != 1) ? (use_weight ? para.lambda_shear * para.lambda_shear : 1.0f) : 0.0f;
+    (para.model_type != 1) ? (use_weight ? para.lambda_shear * para.lambda_shear : 1.0f) : 0.0f;
   gpu_sum_virial_error<<<Nc, block_size, sizeof(float) * block_size * 6>>>(
     N,
     shear_weight,
@@ -971,7 +1024,7 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
       for (int t = 0; t < para.num_types + 1; ++t) {
         if (has_type[t * Nc + n]) {
           rmse_array[t] += rmse_temp;
-          count_array[t] += (para.train_mode != 1) ? 6 : 3;
+          count_array[t] += (para.model_type != 1) ? 6 : 3;
         }
       }
     }

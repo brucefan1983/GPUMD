@@ -2,35 +2,30 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "parameters.cuh"
+#include "nep_elements.cuh"
+#include "nep_io.cuh"
+#include "nep_model.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <algorithm>
-#include <cctype>
+#include <cfloat>
 #include <cmath>
 #include <cstring>
 #include <iostream>
-
-const std::string ELEMENTS[NUM_ELEMENTS] = {
-  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
-  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge",
-  "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
-  "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd",
-  "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
-  "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
 Parameters::Parameters()
 {
@@ -40,10 +35,18 @@ Parameters::Parameters()
 
   set_default_parameters();
   read_nep_in();
+  if (!is_type_set) {
+    PRINT_INPUT_ERROR("type in nep.in has not been set.");
+  }
   if (is_zbl_set) {
     read_zbl_in();
   }
-  calculate_parameters();
+  check_parameters();
+  set_model_defaults();
+  calculate_nep_model_parameters(*this);
+  set_regularization_defaults();
+  check_existing_nep_model(*this);
+  initialize_q_scaler();
   report_inputs();
 
   print_line_1();
@@ -53,7 +56,7 @@ Parameters::Parameters()
 
 void Parameters::set_default_parameters()
 {
-  is_train_mode_set = false;
+  is_model_type_set = false;
   is_prediction_set = false;
   is_version_set = false;
   is_type_set = false;
@@ -69,8 +72,10 @@ void Parameters::set_default_parameters()
   is_lambda_v_set = false;
   is_atomic_v_set = false;
   is_lambda_shear_set = false;
+  is_lambda_d_set = false;
   is_batch_set = false;
   is_population_set = false;
+  is_seed_set = false;
   is_generation_set = false;
   is_type_weight_set = false;
   is_zbl_set = false;
@@ -82,7 +87,7 @@ void Parameters::set_default_parameters()
   is_save_potential_set = false;
   is_output_interval_set = false;
 
-  train_mode = 0;              // potential
+  model_type = 0;              // potential
   prediction = 0;              // not prediction mode
   version = 4;                 // NEP4 is the best
   basis_size_radial = 6;       // large enough in most cases
@@ -105,9 +110,11 @@ void Parameters::set_default_parameters()
   lambda_shear = 1.0f;         // do not weight shear virial more by default
   lambda_q = 0.1f;             // close to optimal
   lambda_z = 0.5f;             // close to optimal
+  lambda_d = 0.0f;             // no energy-difference loss by default
   force_delta = 0.0f;          // no modification of force loss
   batch_size = 1000;           // large enough in most cases
   population_size = 50;        // almost optimal
+  seed = -1;                   // negative keeps the built-in seeds
   maximum_generation = 100000; // a good starting point
   save_potential = 100000;     // write checkpoint nep.txt files at these intervals
   save_potential_format = 1;   // 1 = include time stamp when writing checkpoint nep.txt files
@@ -181,14 +188,14 @@ void Parameters::read_zbl_in()
   }
 }
 
-void Parameters::calculate_parameters()
+void Parameters::check_parameters() const
 {
   if ((charge_mode > 0) + vdw + charge_vdw > 1) {
     PRINT_INPUT_ERROR("charge_mode, vdw, and charge_vdw cannot be enabled simultaneously.");
   }
 
   if (charge_mode || charge_vdw || vdw) {
-    if (train_mode != 0) {
+    if (model_type != 0) {
       PRINT_INPUT_ERROR("Charge/vdW is only supported for potential model.");
     }
     if (num_hidden_layers == 2) {
@@ -196,13 +203,20 @@ void Parameters::calculate_parameters()
     }
   }
 
-  if (train_mode == 0) {
+  if (model_type == 0) {
     if (atomic_v == 1) {
       PRINT_INPUT_ERROR("Atomic tensor is only supported for dipole or polarizability model.");
     }
   }
 
-  if (train_mode != 0 && train_mode != 3) {
+  if (is_lambda_d_set && (model_type == 1 || model_type == 2)) {
+    PRINT_INPUT_ERROR("lambda_d is only supported for potential models.");
+  }
+}
+
+void Parameters::set_model_defaults()
+{
+  if (model_type != 0 && model_type != 3) {
     // take virial as dipole or polarizability
     lambda_e = lambda_f = 0.0f;
     enable_zbl = false;
@@ -210,124 +224,22 @@ void Parameters::calculate_parameters()
       lambda_v = 1.0f; // by default, dipole or polarizability is fitted with global quantities
     }
   }
-  dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
-  dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
-  if (has_q_222) {
-    dim_angular += n_max_angular + 1;
-  }
-  if (has_q_1111) {
-    dim_angular += n_max_angular + 1;
-  }
-  if (has_q_112) {
-    dim_angular += n_max_angular + 1;
-  }
-  if (has_q_123) {
-    dim_angular += n_max_angular + 1;
-  }
-  if (has_q_233) {
-    dim_angular += n_max_angular + 1;
-  }
-  if (has_q_134) {
-    dim_angular += n_max_angular + 1;
-  }
+}
 
-  if (dim_angular > 90) {
-    PRINT_INPUT_ERROR("Number of angular descriptors should not exceed 90.");
-  }
-
-  dim = dim_radial + dim_angular;
-  if (train_mode == 3) {
-    dim += 1; // concatenate temperature with descriptors
-  }
-
-  if (num_hidden_layers == 2) {
-    number_of_variables_ann_1 = (dim + 1) * num_neurons1 + (num_neurons1 + 2) * num_neurons2;
-  } else {
-    number_of_variables_ann_1 = (dim + 2) * num_neurons1;
-  }
-  number_of_variables_ann = number_of_variables_ann_1 * num_types + 1;
-  if (charge_mode) {
-    number_of_variables_ann_1 += num_neurons1;
-    number_of_variables_ann += num_neurons1 * num_types + 1;
-  } else if (vdw) {
-    number_of_variables_ann_1 += num_neurons1;
-    number_of_variables_ann += num_neurons1 * num_types;
-  } else if (charge_vdw) {
-    number_of_variables_ann_1 += 2 * num_neurons1;
-    number_of_variables_ann += 2 * num_neurons1 * num_types + 1;
-  }
-
-
-#ifdef USE_CJ
-  number_of_variables_descriptor = 
-    num_types *
-    (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
-#else
-  number_of_variables_descriptor =
-    num_types * num_types *
-    (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
-#endif
-
-  number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
-  if (train_mode == 2) {
-    number_of_variables += number_of_variables_ann;
-  }
-
+void Parameters::set_regularization_defaults()
+{
   if (!is_lambda_1_set) {
     lambda_1 = sqrt(number_of_variables * 1.0e-6f / num_types);
   }
   if (!is_lambda_2_set) {
     lambda_2 = sqrt(number_of_variables * 1.0e-6f / num_types);
   }
+}
 
-  // check nep.in against any model files that are already present before reading from them
-  check_existing_model();
-
+void Parameters::initialize_q_scaler()
+{
   q_scaler_cpu.resize(dim,  1.0e10f);
-  if (fine_tune) {
-    std::ifstream input(fine_tune_nep_txt);
-    if (!input.is_open()) {
-      PRINT_INPUT_ERROR("Failed to open foundation model file.");
-    }
-    std::vector<std::string> tokens;
-    const int NUM89 = 89;
-    const int num_ann = NUM89 * number_of_variables_ann_1 + ((charge_mode || charge_vdw) ? 2 : 1);
-#ifdef USE_CJ
-    const int num_cnk_radial = NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
-    const int num_cnk_angular = NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
-#else
-    const int num_cnk_radial = NUM89 * NUM89 * (n_max_radial + 1) * (basis_size_radial + 1);
-    const int num_cnk_angular = NUM89 * NUM89 * (n_max_angular + 1) * (basis_size_angular + 1);
-#endif
-    const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
-    for (int n = 0; n < num_tot + number_of_nep_txt_header_lines; ++n) {
-      tokens = get_tokens(input); // not used
-    }
-    for (int n = 0; n < q_scaler_cpu.size(); ++n) {
-      tokens = get_tokens(input);
-      q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-    }
-    input.close();
-  } else if (import_q_scaler) {
-    std::ifstream input("nep.txt");
-    if (!input.is_open()) {
-      PRINT_INPUT_ERROR("Failed to open nep.txt for q_scaler import.");
-    }
-    std::vector<std::string> tokens;
-    // Unlike the fine_tune case above, the imported nep.txt has been validated by
-    // check_existing_model to have the exact same architecture and species count as the
-    // current run, so no species-count-specific offset arithmetic is needed here: just skip
-    // the header lines and this run's own number_of_variables parameter lines, then read the
-    // trailing dim-line q_scaler block.
-    for (int n = 0; n < number_of_nep_txt_header_lines + number_of_variables; ++n) {
-      tokens = get_tokens(input); // not used
-    }
-    for (int n = 0; n < q_scaler_cpu.size(); ++n) {
-      tokens = get_tokens(input);
-      q_scaler_cpu[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-    }
-    input.close();
-  }
+  read_nep_q_scaler(*this);
 
   int deviceCount;
   CHECK(gpuGetDeviceCount(&deviceCount));
@@ -345,660 +257,22 @@ void Parameters::calculate_parameters()
   }
 }
 
-// decompose a model token such as nep4_zbl_charge1 into the properties it encodes
-static bool parse_model_token(const std::string& token, NepTxtHeader& header)
-{
-  if (
-    token.size() < 4 || token.compare(0, 3, "nep") != 0 ||
-    !isdigit(static_cast<unsigned char>(token[3]))) {
-    return false;
-  }
-  header.version = token[3] - '0';
-  header.enable_zbl = false;
-  header.train_mode = 0;
-  header.charge_mode = 0;
-  header.vdw = 0;
-  header.charge_vdw = 0;
-  std::string rest = token.substr(4);
-  if (rest.compare(0, 4, "_zbl") == 0) {
-    header.enable_zbl = true;
-    rest = rest.substr(4);
-  }
-  if (rest.empty() || rest == "_temperature") {
-    header.train_mode = rest.empty() ? 0 : 3;
-    return true;
-  }
-  if (rest == "_vdw") {
-    header.vdw = 1;
-    return true;
-  }
-  if (rest == "_charge_vdw") {
-    header.charge_vdw = 1;
-    return true;
-  }
-  if (rest == "_dipole") {
-    header.train_mode = 1;
-    return true;
-  }
-  if (rest == "_polarizability") {
-    header.train_mode = 2;
-    return true;
-  }
-  if (
-    rest.size() == 8 && rest.compare(0, 7, "_charge") == 0 &&
-    isdigit(static_cast<unsigned char>(rest[7]))) {
-    header.charge_mode = rest[7] - '0';
-    return true;
-  }
-  return false;
-}
-
-static bool check_header_line(
-  const std::vector<std::string>& tokens,
-  const char* keyword,
-  const size_t min_size,
-  const size_t max_size,
-  const std::string& filename,
-  std::string& error)
-{
-  if (tokens.size() < min_size || tokens.size() > max_size || tokens[0] != keyword) {
-    error = "The " + std::string(keyword) + " line of " + filename + " is malformed.";
-    return false;
-  }
-  return true;
-}
-
-bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std::string& error)
-{
-  std::ifstream input(filename);
-  if (!input.is_open()) {
-    error = "Failed to open " + filename + ".";
-    return false;
-  }
-
-  // first line: the model token, the number of types, and the elements
-  std::vector<std::string> tokens = get_tokens(input);
-  if (tokens.size() < 3) {
-    error = "The first line of " + filename + " should have at least 3 items.";
-    return false;
-  }
-  header.model_token = tokens[0];
-  if (!parse_model_token(header.model_token, header)) {
-    error = "'" + header.model_token + "' in " + filename + " is not a known NEP model type.";
-    return false;
-  }
-  header.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  if (header.num_types < 1 || tokens.size() != size_t(header.num_types) + 2) {
-    error = "The first line of " + filename + " does not list " + std::to_string(header.num_types) +
-            " elements.";
-    return false;
-  }
-  header.elements.assign(tokens.begin() + 2, tokens.end());
-  header.number_of_header_lines = 1;
-
-  // second line: zbl, written only for a model with ZBL
-  header.flexible_zbl = false;
-  header.use_typewise_cutoff_zbl = false;
-  header.zbl_rc_inner = 0.0f;
-  header.zbl_rc_outer = 0.0f;
-  header.typewise_cutoff_zbl_factor = -1.0f;
-  if (header.enable_zbl) {
-    tokens = get_tokens(input);
-    ++header.number_of_header_lines;
-    if (!check_header_line(tokens, "zbl", 3, 4, filename, error)) {
-      return false;
-    }
-    header.zbl_rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
-    header.zbl_rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
-    header.flexible_zbl = (header.zbl_rc_inner == 0.0f && header.zbl_rc_outer == 0.0f);
-    if (tokens.size() == 4) {
-      header.use_typewise_cutoff_zbl = true;
-      header.typewise_cutoff_zbl_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
-    }
-  }
-
-  // cutoff line: the two neighbor counts at the end depend on the training set and are ignored
-  tokens = get_tokens(input);
-  ++header.number_of_header_lines;
-  if (!check_header_line(tokens, "cutoff", 5, size_t(header.num_types) * 2 + 3, filename, error)) {
-    return false;
-  }
-  header.has_multiple_cutoffs =
-    (tokens.size() == size_t(header.num_types) * 2 + 3 && tokens.size() > 5);
-  const int num_cutoffs = header.has_multiple_cutoffs ? header.num_types : 1;
-  if (tokens.size() != size_t(num_cutoffs) * 2 + 3) {
-    error = "The cutoff line of " + filename + " is malformed.";
-    return false;
-  }
-  header.rc_radial.resize(num_cutoffs);
-  header.rc_angular.resize(num_cutoffs);
-  for (int n = 0; n < num_cutoffs; ++n) {
-    header.rc_radial[n] = get_double_from_token(tokens[1 + n * 2], __FILE__, __LINE__);
-    header.rc_angular[n] = get_double_from_token(tokens[2 + n * 2], __FILE__, __LINE__);
-  }
-
-  tokens = get_tokens(input);
-  ++header.number_of_header_lines;
-  if (!check_header_line(tokens, "n_max", 3, 3, filename, error)) {
-    return false;
-  }
-  header.n_max_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  header.n_max_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
-
-  tokens = get_tokens(input);
-  ++header.number_of_header_lines;
-  if (!check_header_line(tokens, "basis_size", 3, 3, filename, error)) {
-    return false;
-  }
-  header.basis_size_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  header.basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
-
-  // l_max line: between 3 and 7 values, the trailing ones defaulting to zero when absent
-  tokens = get_tokens(input);
-  ++header.number_of_header_lines;
-  if (!check_header_line(tokens, "l_max", 4, 8, filename, error)) {
-    return false;
-  }
-  header.L_max = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  header.has_q_222 = get_int_from_token(tokens[2], __FILE__, __LINE__);
-  header.has_q_1111 = get_int_from_token(tokens[3], __FILE__, __LINE__);
-  header.has_q_112 = (tokens.size() > 4) ? get_int_from_token(tokens[4], __FILE__, __LINE__) : 0;
-  header.has_q_123 = (tokens.size() > 5) ? get_int_from_token(tokens[5], __FILE__, __LINE__) : 0;
-  header.has_q_233 = (tokens.size() > 6) ? get_int_from_token(tokens[6], __FILE__, __LINE__) : 0;
-  header.has_q_134 = (tokens.size() > 7) ? get_int_from_token(tokens[7], __FILE__, __LINE__) : 0;
-
-  tokens = get_tokens(input);
-  ++header.number_of_header_lines;
-  if (!check_header_line(tokens, "ANN", 3, 3, filename, error)) {
-    return false;
-  }
-  header.num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  header.num_neurons2 = get_int_from_token(tokens[2], __FILE__, __LINE__);
-
-  input.close();
-  return true;
-}
-
-static std::string source_of_value(const bool is_set) { return is_set ? " (input)" : " (default)"; }
-
-static std::string float_to_string(const float value)
-{
-  char buffer[32];
-  snprintf(buffer, sizeof(buffer), "%g", value);
-  return std::string(buffer);
-}
-
-static void compare_int(
-  const char* name,
-  const int from_nep_in,
-  const bool is_set,
-  const int from_file,
-  const std::string& filename,
-  std::vector<std::string>& mismatches)
-{
-  if (from_nep_in != from_file) {
-    mismatches.push_back(
-      std::string(name) + ": nep.in gives " + std::to_string(from_nep_in) +
-      source_of_value(is_set) + ", " + filename + " gives " + std::to_string(from_file) + ".");
-  }
-}
-
-static void compare_float(
-  const std::string& name,
-  const float from_nep_in,
-  const bool is_set,
-  const float from_file,
-  const std::string& filename,
-  std::vector<std::string>& mismatches)
-{
-  // the header is written with %g and therefore carries only about six significant digits
-  const float scale = fabs(from_nep_in) + fabs(from_file) + 1.0e-10f;
-  if (fabs(from_nep_in - from_file) > 1.0e-5f * scale) {
-    mismatches.push_back(
-      name + ": nep.in gives " + float_to_string(from_nep_in) + source_of_value(is_set) + ", " +
-      filename + " gives " + float_to_string(from_file) + ".");
-  }
-}
-
-static void compare_with_nep_txt_fine_tune(
-  Parameters& para, const std::string& filename, std::vector<std::string>& mismatches)
-{
-  NepTxtHeader header;
-  std::string error;
-  if (!read_nep_txt_header(filename, header, error)) {
-    mismatches.push_back(error);
-    return;
-  }
-  para.number_of_nep_txt_header_lines = header.number_of_header_lines;
-
-  std::vector<std::string> elements_nep89;
-  for (int n = 0; n < NUM_ELEMENTS; ++n) {
-    if (ELEMENTS[n] != "Po" && ELEMENTS[n] != "At" && ELEMENTS[n] != "Rn" &&
-        ELEMENTS[n] != "Fr" && ELEMENTS[n] != "Ra") {
-      elements_nep89.push_back(ELEMENTS[n]);
-    }
-  }
-  if (header.num_types != int(elements_nep89.size()) || header.elements != elements_nep89) {
-    mismatches.push_back(
-      "type: the fine-tune foundation model must contain the canonical 89 elements in the "
-      "expected order.");
-  }
-
-  std::vector<int> foundation_type_index(para.num_types, -1);
-  for (int n = 0; n < para.num_types; ++n) {
-    const auto it = std::find(header.elements.begin(), header.elements.end(), para.elements[n]);
-    if (it == header.elements.end()) {
-      mismatches.push_back(
-        "type: element " + para.elements[n] + " is not available in the foundation model.");
-    } else {
-      foundation_type_index[n] = int(it - header.elements.begin());
-    }
-  }
-
-  compare_int(
-    "version", para.version, para.is_version_set, header.version, filename, mismatches);
-  compare_int(
-    "model_type",
-    para.train_mode,
-    para.is_train_mode_set,
-    header.train_mode,
-    filename,
-    mismatches);
-  compare_int(
-    "charge_mode",
-    para.charge_mode,
-    para.is_charge_mode_set,
-    header.charge_mode,
-    filename,
-    mismatches);
-  compare_int("vdw", para.vdw, para.is_vdw_set, header.vdw, filename, mismatches);
-  compare_int(
-    "charge_vdw",
-    para.charge_vdw,
-    para.is_charge_vdw_set,
-    header.charge_vdw,
-    filename,
-    mismatches);
-
-  if (para.enable_zbl != header.enable_zbl) {
-    mismatches.push_back(
-      std::string("zbl: nep.in has ZBL ") + (para.enable_zbl ? "enabled" : "disabled") +
-      ", " + filename + " has it " + (header.enable_zbl ? "enabled" : "disabled") + ".");
-  } else if (para.enable_zbl) {
-    if (para.flexible_zbl != header.flexible_zbl) {
-      mismatches.push_back(
-        std::string("zbl: nep.in requests a ") +
-        (para.flexible_zbl ? "flexible" : "universal") + " ZBL potential, " + filename +
-        " holds a " + (header.flexible_zbl ? "flexible" : "universal") + " one.");
-    } else if (!para.flexible_zbl) {
-      compare_float(
-        "zbl (inner cutoff)",
-        para.zbl_rc_inner,
-        para.is_zbl_set,
-        header.zbl_rc_inner,
-        filename,
-        mismatches);
-      compare_float(
-        "zbl (outer cutoff)",
-        para.zbl_rc_outer,
-        para.is_zbl_set,
-        header.zbl_rc_outer,
-        filename,
-        mismatches);
-      compare_float(
-        "use_typewise_cutoff_zbl",
-        para.typewise_cutoff_zbl_factor,
-        para.is_use_typewise_cutoff_zbl_set,
-        header.typewise_cutoff_zbl_factor,
-        filename,
-        mismatches);
-    }
-  }
-
-  for (int n = 0; n < para.num_types; ++n) {
-    if (foundation_type_index[n] < 0) {
-      continue;
-    }
-    const int m = header.has_multiple_cutoffs ? foundation_type_index[n] : 0;
-    const std::string suffix = (para.num_types > 1) ? " for " + para.elements[n] : "";
-    compare_float(
-      "cutoff (radial)" + suffix,
-      para.rc_radial[n],
-      para.is_cutoff_set,
-      header.rc_radial[m],
-      filename,
-      mismatches);
-    compare_float(
-      "cutoff (angular)" + suffix,
-      para.rc_angular[n],
-      para.is_cutoff_set,
-      header.rc_angular[m],
-      filename,
-      mismatches);
-  }
-
-  compare_int(
-    "n_max_radial",
-    para.n_max_radial,
-    para.is_n_max_set,
-    header.n_max_radial,
-    filename,
-    mismatches);
-  compare_int(
-    "n_max_angular",
-    para.n_max_angular,
-    para.is_n_max_set,
-    header.n_max_angular,
-    filename,
-    mismatches);
-  compare_int(
-    "basis_size_radial",
-    para.basis_size_radial,
-    para.is_basis_size_set,
-    header.basis_size_radial,
-    filename,
-    mismatches);
-  compare_int(
-    "basis_size_angular",
-    para.basis_size_angular,
-    para.is_basis_size_set,
-    header.basis_size_angular,
-    filename,
-    mismatches);
-
-  compare_int(
-    "L_max", para.L_max, para.is_l_max_set, header.L_max, filename, mismatches);
-  compare_int(
-    "L_max_4body",
-    para.has_q_222 ? 2 : 0,
-    para.is_l_max_set,
-    header.has_q_222,
-    filename,
-    mismatches);
-  compare_int(
-    "L_max_5body",
-    para.has_q_1111,
-    para.is_l_max_set,
-    header.has_q_1111,
-    filename,
-    mismatches);
-  compare_int(
-    "has_q_112",
-    para.has_q_112,
-    para.is_l_max_set,
-    header.has_q_112,
-    filename,
-    mismatches);
-  compare_int(
-    "has_q_123",
-    para.has_q_123,
-    para.is_l_max_set,
-    header.has_q_123,
-    filename,
-    mismatches);
-  compare_int(
-    "has_q_233",
-    para.has_q_233,
-    para.is_l_max_set,
-    header.has_q_233,
-    filename,
-    mismatches);
-  compare_int(
-    "has_q_134",
-    para.has_q_134,
-    para.is_l_max_set,
-    header.has_q_134,
-    filename,
-    mismatches);
-
-  compare_int(
-    "neuron",
-    para.num_neurons1,
-    para.is_neuron_set,
-    header.num_neurons1,
-    filename,
-    mismatches);
-  compare_int(
-    "neuron (second hidden layer)",
-    (para.num_hidden_layers == 2) ? para.num_neurons2 : 0,
-    para.is_neuron_set,
-    header.num_neurons2,
-    filename,
-    mismatches);
-}
-
-void Parameters::compare_with_nep_txt(
-  const std::string& filename, std::vector<std::string>& mismatches)
-{
-  NepTxtHeader header;
-  std::string error;
-  if (!read_nep_txt_header(filename, header, error)) {
-    mismatches.push_back(error);
-    return;
-  }
-  number_of_nep_txt_header_lines = header.number_of_header_lines;
-
-  compare_int("version", version, is_version_set, header.version, filename, mismatches);
-  compare_int("model_type", train_mode, is_train_mode_set, header.train_mode, filename, mismatches);
-  compare_int(
-    "charge_mode", charge_mode, is_charge_mode_set, header.charge_mode, filename, mismatches);
-  compare_int("vdw", vdw, is_vdw_set, header.vdw, filename, mismatches);
-  compare_int(
-    "charge_vdw", charge_vdw, is_charge_vdw_set, header.charge_vdw, filename, mismatches);
-  compare_int(
-    "type (number of types)", num_types, is_type_set, header.num_types, filename, mismatches);
-  if (num_types == header.num_types && elements != header.elements) {
-    std::string from_nep_in, from_file;
-    for (int n = 0; n < num_types; ++n) {
-      from_nep_in += (n == 0 ? "" : " ") + elements[n];
-      from_file += (n == 0 ? "" : " ") + header.elements[n];
-    }
-    mismatches.push_back(
-      "type (elements and their order): nep.in gives " + from_nep_in + ", " + filename + " gives " +
-      from_file + ".");
-  }
-
-  if (enable_zbl != header.enable_zbl) {
-    mismatches.push_back(
-      std::string("zbl: nep.in has ZBL ") + (enable_zbl ? "enabled" : "disabled") + ", " +
-      filename + " has it " + (header.enable_zbl ? "enabled" : "disabled") + ".");
-  } else if (enable_zbl) {
-    if (flexible_zbl != header.flexible_zbl) {
-      mismatches.push_back(
-        std::string("zbl: nep.in requests a ") + (flexible_zbl ? "flexible" : "universal") +
-        " ZBL potential, " + filename + " holds a " +
-        (header.flexible_zbl ? "flexible" : "universal") + " one.");
-    } else if (!flexible_zbl) {
-      compare_float(
-        "zbl (inner cutoff)", zbl_rc_inner, is_zbl_set, header.zbl_rc_inner, filename, mismatches);
-      compare_float(
-        "zbl (outer cutoff)", zbl_rc_outer, is_zbl_set, header.zbl_rc_outer, filename, mismatches);
-      compare_float(
-        "use_typewise_cutoff_zbl",
-        typewise_cutoff_zbl_factor,
-        is_use_typewise_cutoff_zbl_set,
-        header.typewise_cutoff_zbl_factor,
-        filename,
-        mismatches);
-    }
-  }
-
-  // a single cutoff in the file applies to every type
-  for (int n = 0; n < num_types && n < header.num_types; ++n) {
-    const int m = header.has_multiple_cutoffs ? n : 0;
-    const std::string suffix = (num_types > 1) ? " for " + elements[n] : "";
-    compare_float(
-      "cutoff (radial)" + suffix,
-      rc_radial[n],
-      is_cutoff_set,
-      header.rc_radial[m],
-      filename,
-      mismatches);
-    compare_float(
-      "cutoff (angular)" + suffix,
-      rc_angular[n],
-      is_cutoff_set,
-      header.rc_angular[m],
-      filename,
-      mismatches);
-  }
-
-  compare_int(
-    "n_max_radial", n_max_radial, is_n_max_set, header.n_max_radial, filename, mismatches);
-  compare_int(
-    "n_max_angular", n_max_angular, is_n_max_set, header.n_max_angular, filename, mismatches);
-  compare_int(
-    "basis_size_radial",
-    basis_size_radial,
-    is_basis_size_set,
-    header.basis_size_radial,
-    filename,
-    mismatches);
-  compare_int(
-    "basis_size_angular",
-    basis_size_angular,
-    is_basis_size_set,
-    header.basis_size_angular,
-    filename,
-    mismatches);
-
-  compare_int("L_max", L_max, is_l_max_set, header.L_max, filename, mismatches);
-  // the 4-body flag is written as 2 or 0 rather than as 1 or 0
-  compare_int(
-    "L_max_4body", has_q_222 ? 2 : 0, is_l_max_set, header.has_q_222, filename, mismatches);
-  compare_int("L_max_5body", has_q_1111, is_l_max_set, header.has_q_1111, filename, mismatches);
-  compare_int("has_q_112", has_q_112, is_l_max_set, header.has_q_112, filename, mismatches);
-  compare_int("has_q_123", has_q_123, is_l_max_set, header.has_q_123, filename, mismatches);
-  compare_int("has_q_233", has_q_233, is_l_max_set, header.has_q_233, filename, mismatches);
-  compare_int("has_q_134", has_q_134, is_l_max_set, header.has_q_134, filename, mismatches);
-
-  compare_int("neuron", num_neurons1, is_neuron_set, header.num_neurons1, filename, mismatches);
-  compare_int(
-    "neuron (second hidden layer)",
-    (num_hidden_layers == 2) ? num_neurons2 : 0,
-    is_neuron_set,
-    header.num_neurons2,
-    filename,
-    mismatches);
-}
-
-void Parameters::check_nep_txt(const std::string& filename, const bool fatal, const char* remedy)
-{
-  std::vector<std::string> mismatches;
-  compare_with_nep_txt(filename, mismatches);
-  if (mismatches.empty()) {
-    return;
-  }
-  printf("The model in nep.in is inconsistent with %s:\n", filename.c_str());
-  for (const auto& mismatch : mismatches) {
-    printf("    %s\n", mismatch.c_str());
-  }
-  printf("%s\n", remedy);
-  if (fatal) {
-    PRINT_INPUT_ERROR(("nep.in is inconsistent with " + filename + ".").c_str());
-  }
-}
-
-void Parameters::check_nep_restart()
-{
-  std::ifstream input("nep.restart");
-  if (!input.is_open()) {
-    return;
-  }
-  // nep.restart has no header, so the number of rows is the only thing that can be checked
-  int number_of_rows = 0;
-  std::vector<std::string> tokens = get_tokens(input);
-  while (tokens.size() >= 2) {
-    ++number_of_rows;
-    tokens = get_tokens(input);
-  }
-  input.close();
-
-  if (number_of_rows != number_of_variables) {
-    printf(
-      "nep.restart holds %d rows but nep.in implies %d parameters.\n",
-      number_of_rows,
-      number_of_variables);
-    printf(
-      "The difference of %d rows means that one or more model hyperparameters in nep.in differ "
-      "from the model that wrote nep.restart.\n",
-      (number_of_rows > number_of_variables) ? number_of_rows - number_of_variables
-                                             : number_of_variables - number_of_rows);
-    printf("Correct nep.in, or remove nep.restart to start a new training run.\n");
-    PRINT_INPUT_ERROR("nep.restart does not match the model implied by nep.in.");
-  }
-}
-
-static bool does_file_exist(const char* filename)
-{
-  std::ifstream input(filename);
-  return input.is_open();
-}
-
-void Parameters::check_existing_model()
-{
-  if (!is_type_set) {
-    return; // report_inputs reports the missing type keyword
-  }
-
-  if (fine_tune) {
-    std::vector<std::string> mismatches;
-    compare_with_nep_txt_fine_tune(*this, fine_tune_nep_txt, mismatches);
-    if (!mismatches.empty()) {
-      printf(
-        "The model in nep.in is inconsistent with the fine-tune foundation model %s:\n",
-        fine_tune_nep_txt.c_str());
-      for (const auto& mismatch : mismatches) {
-        printf("    %s\n", mismatch.c_str());
-      }
-      printf("Correct nep.in or use the matching fine-tune template.\n");
-      PRINT_INPUT_ERROR(
-        ("nep.in is inconsistent with " + fine_tune_nep_txt + ".").c_str());
-    }
-    return; // the restart file to fine-tune from is named by the fine_tune keyword
-  }
-
-  if (import_q_scaler) {
-    check_nep_txt("nep.txt", true, "Correct nep.in, or switch off import_q_scaler.");
-  } else if (train_mode == 0 && does_file_exist("nep.txt")) {
-    // nep.txt is an input when predicting or when there is a nep.restart to resume from,
-    // and merely a stale output otherwise
-    if (prediction == 1) {
-      check_nep_txt("nep.txt", true, "Correct nep.in to match the model to predict with.");
-    } else if (does_file_exist("nep.restart")) {
-      check_nep_txt(
-        "nep.txt", true, "Correct nep.in, or remove nep.restart to start a new training run.");
-    } else {
-      check_nep_txt("nep.txt", false, "Warning: nep.txt will be overwritten by this training run.");
-    }
-  }
-
-  // nep.restart is read only when resuming a training run, not when predicting
-  if (train_mode == 0 && prediction == 0 && does_file_exist("nep.restart")) {
-    check_nep_restart();
-  }
-}
-
 void Parameters::report_inputs()
 {
-  if (!is_type_set) {
-    PRINT_INPUT_ERROR("type in nep.in has not been set.");
-  }
-
   printf("Input or default parameters:\n");
 
-  std::string train_mode_name = "potential";
-  if (train_mode == 1) {
-    train_mode_name = "dipole";
-  } else if (train_mode == 2) {
-    train_mode_name = "polarizability";
-  } else if (train_mode == 3) {
-    train_mode_name = "temperature-dependent free energy";
+  std::string model_type_name = "potential";
+  if (model_type == 1) {
+    model_type_name = "dipole";
+  } else if (model_type == 2) {
+    model_type_name = "polarizability";
+  } else if (model_type == 3) {
+    model_type_name = "temperature-dependent free energy";
   }
-  if (is_train_mode_set) {
-    printf("    (input)   model_type = %s.\n", train_mode_name.c_str());
+  if (is_model_type_set) {
+    printf("    (input)   model_type = %s.\n", model_type_name.c_str());
   } else {
-    printf("    (default) model_type = %s.\n", train_mode_name.c_str());
+    printf("    (default) model_type = %s.\n", model_type_name.c_str());
   }
 
   std::string calculation_mode_name = "train";
@@ -1047,7 +321,7 @@ void Parameters::report_inputs()
     printf("    (default) will not add the ZBL potential.\n");
   }
 
-  if (is_charge_mode_set) {
+  if (charge_mode > 0) {
     if (charge_mode == 1) {
       printf("    (input)   use NEP-Charge and include both real-space and k-space.\n");
     } else if (charge_mode == 2) {
@@ -1165,6 +439,10 @@ void Parameters::report_inputs()
     printf("    (default) lambda_shear = %g.\n", lambda_shear);
   }
 
+  if (is_lambda_d_set) {
+    printf("    (input)   lambda_d = %g.\n", lambda_d);
+  }
+
   if (is_force_delta_set) {
     printf("    (input)   force_delta = %g.\n", force_delta);
   } else {
@@ -1181,6 +459,12 @@ void Parameters::report_inputs()
     printf("    (input)   population size = %d.\n", population_size);
   } else {
     printf("    (default) population size = %d.\n", population_size);
+  }
+
+  if (is_seed_set) {
+    printf("    (input)   random seed = %d.\n", seed);
+  } else {
+    printf("    (default) random seed not set.\n");
   }
 
   if (is_generation_set) {
@@ -1218,7 +502,7 @@ void Parameters::report_inputs()
   }
   printf(
     "    number of NN parameters to be optimized = %d.\n",
-    number_of_variables_ann * (train_mode == 2 ? 2 : 1));
+    number_of_variables_ann * (model_type == 2 ? 2 : 1));
   printf(
     "    number of descriptor parameters to be optimized = %d.\n", number_of_variables_descriptor);
   printf("    total number of parameters to be optimized = %d.\n", number_of_variables);
@@ -1231,8 +515,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
   for (int n = 0; n < num_param; ++n) {
     param[n] = tokens[n].c_str();
   }
-  if (strcmp(param[0], "model_type") == 0 || strcmp(param[0], "mode") == 0) {
-    parse_mode(param, num_param);
+  if (strcmp(param[0], "model_type") == 0) {
+    parse_model_type(param, num_param);
   } else if (strcmp(param[0], "prediction") == 0) {
     parse_prediction(param, num_param);
   } else if (strcmp(param[0], "version") == 0) {
@@ -1253,6 +537,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_batch(param, num_param);
   } else if (strcmp(param[0], "population") == 0) {
     parse_population(param, num_param);
+  } else if (strcmp(param[0], "seed") == 0) {
+    parse_seed(param, num_param);
   } else if (strcmp(param[0], "nep_compile") == 0) {
     parse_nep_compile(param, num_param);
   } else if (strcmp(param[0], "generation") == 0) {
@@ -1271,6 +557,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_lambda_q(param, num_param);
   } else if (strcmp(param[0], "lambda_z") == 0) {
     parse_lambda_z(param, num_param);
+  } else if (strcmp(param[0], "lambda_d") == 0) {
+    parse_lambda_d(param, num_param);
   } else if (strcmp(param[0], "lambda_shear") == 0) {
     parse_lambda_shear(param, num_param);
   } else if (strcmp(param[0], "type_weight") == 0) {
@@ -1322,17 +610,17 @@ void Parameters::parse_nep_compile(const char** param, int num_param)
   }
 }
 
-void Parameters::parse_mode(const char** param, int num_param)
+void Parameters::parse_model_type(const char** param, int num_param)
 {
-  is_train_mode_set = true;
+  is_model_type_set = true;
 
   if (num_param != 2) {
     PRINT_INPUT_ERROR("model_type should have 1 parameter.\n");
   }
-  if (!is_valid_int(param[1], &train_mode)) {
-    PRINT_INPUT_ERROR("mode should be an integer.\n");
+  if (!is_valid_int(param[1], &model_type)) {
+    PRINT_INPUT_ERROR("model_type should be an integer.\n");
   }
-  if (train_mode != 0 && train_mode != 1 && train_mode != 2 && train_mode != 3) {
+  if (model_type != 0 && model_type != 1 && model_type != 2 && model_type != 3) {
     PRINT_INPUT_ERROR("model_type should = 0 or 1 or 2 or 3.");
   }
 }
@@ -1389,7 +677,7 @@ void Parameters::parse_type(const char** param, int num_param)
     bool is_valid_element = false;
     int atomic_number = 0;
     for (int m = 0; m < NUM_ELEMENTS; ++m) {
-      if (elements.back() == ELEMENTS[m]) {
+      if (elements.back() == NEP_ELEMENTS[m]) {
         is_valid_element = true;
         atomic_number = m + 1;
         break;
@@ -1809,6 +1097,27 @@ void Parameters::parse_lambda_z(const char** param, int num_param)
   }
 }
 
+void Parameters::parse_lambda_d(const char** param, int num_param)
+{
+  is_lambda_d_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("lambda_d should have 1 parameter.\n");
+  }
+
+  double lambda_d_tmp = 0.0;
+  if (!is_valid_real(param[1], &lambda_d_tmp)) {
+    PRINT_INPUT_ERROR("Energy difference loss weight should be a number.\n");
+  }
+  // the weight has to be positive and survive the conversion to float
+  if (!std::isfinite(lambda_d_tmp) || lambda_d_tmp < FLT_MIN || lambda_d_tmp > FLT_MAX) {
+    PRINT_INPUT_ERROR(
+      "Energy difference loss weight should be a finite positive number within the range of "
+      "float.");
+  }
+  lambda_d = lambda_d_tmp;
+}
+
 void Parameters::parse_atomic_v(const char** param, int num_param)
 {
   is_atomic_v_set = true;
@@ -1890,6 +1199,21 @@ void Parameters::parse_population(const char** param, int num_param)
     printf("The input population size is not divisible by the number of GPUs.\n");
     printf("This causes an inefficient use of resources.\n");
     printf("The population size has therefore been increased to %d.\n", population_size);
+  }
+}
+
+void Parameters::parse_seed(const char** param, int num_param)
+{
+  is_seed_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("The seed keyword must be followed by a parameter.\n");
+  }
+  if (!is_valid_int(param[1], &seed)) {
+    PRINT_INPUT_ERROR("seed should be an integer.\n");
+  }
+  if (seed < 0) {
+    PRINT_INPUT_ERROR("seed should be >= 0.\n");
   }
 }
 

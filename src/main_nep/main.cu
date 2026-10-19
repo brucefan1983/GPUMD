@@ -2,19 +2,21 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "fitness.cuh"
+#include "nep_io.cuh"
 #include "parameters.cuh"
+#include "potential.cuh"
 #include "snes.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -24,8 +26,23 @@
 #include <time.h>
 #include <chrono>
 #include <cstring>
+#include <memory>
+#include <vector>
 
 void print_welcome_information(void);
+
+static void predict(Parameters& para, Fitness& fitness)
+{
+  print_line_1();
+  printf("Started predicting.\n");
+  print_line_2();
+
+  std::vector<float> parameters(para.number_of_variables);
+  read_nep_txt("nep.txt", para, parameters.data());
+  gpuSetDevice(0);
+  para.q_scaler_gpu[0].copy_from_host(para.q_scaler_cpu.data());
+  fitness.predict(para, parameters.data());
+}
 
 int main(int argc, char* argv[])
 {
@@ -41,7 +58,8 @@ int main(int argc, char* argv[])
 
   const auto time_begin1 = std::chrono::high_resolution_clock::now();
   Parameters para;
-  Fitness fitness(para);
+  std::unique_ptr<Potential> potential = create_potential(para);
+  Fitness fitness(para, *potential);
   const auto time_finish1 = std::chrono::high_resolution_clock::now();
 
   const std::chrono::duration<double> time_used1 = time_finish1 - time_begin1;
@@ -50,7 +68,12 @@ int main(int argc, char* argv[])
   print_line_2();
 
   const auto time_begin2 = std::chrono::high_resolution_clock::now();
-  SNES snes(para, &fitness);
+  if (para.prediction == 0) {
+    SNES snes(para);
+    snes.run(para, &fitness);
+  } else {
+    predict(para, fitness);
+  }
   const auto time_finish2 = std::chrono::high_resolution_clock::now();
 
   const std::chrono::duration<double> time_used2 = time_finish2 - time_begin2;
@@ -76,7 +99,7 @@ void print_welcome_information(void)
   printf("***************************************************************\n");
   printf("*                 Welcome to use GPUMD                        *\n");
   printf("*    (Graphics Processing Units Molecular Dynamics)           *\n");
-  printf("*                     version 5.8                             *\n");
+  printf("*                   version 5.9.1                             *\n");
   printf("*              This is the nep executable                     *\n");
   printf("***************************************************************\n");
   printf("\n");

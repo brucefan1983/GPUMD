@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -19,6 +19,18 @@
 #include <string>
 #include <vector>
 class Box;
+
+// Writes a row of thermo.out from the thermo vector T, U and the six components of the stress.
+// A PIMD ensemble stores the kinetic energy instead of the temperature in that vector, and the
+// row then holds the target temperature.
+// Otherwise the kinetic energy is 1.5 * k_B * T times the atoms that the temperature counts.
+void write_thermo_row(
+  FILE* fid,
+  GPU_Vector<double>& gpu_thermo,
+  const bool thermo_holds_kinetic_energy,
+  const double temperature_target,
+  const int number_of_atoms_for_temperature,
+  const Box& box);
 
 class Dump_Thermo : public Action
 {

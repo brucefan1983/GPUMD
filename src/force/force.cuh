@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -18,6 +18,9 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "potential.cuh"
+#ifdef GPUMD_WPE_ENABLED
+#include "wpe_stage.cuh"
+#endif
 #include "utilities/common.cuh"
 #include <memory>
 #include <stdio.h>
@@ -58,6 +61,24 @@ public:
     GPU_Vector<double>& mass_per_atom,
     int* position_image = nullptr);
 
+  // Zeroes the given arrays and evaluates one potential alone into them. The positions and the
+  // float box are read as they are.
+  void compute_one_potential(
+    const int potential_index,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    const std::vector<Group>& group,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
+
+#ifdef GPUMD_WPE_ENABLED
+  void wpe_process_command(
+    const std::vector<std::string>& tokens,
+    int current_number_of_atoms);
+#endif
+
   void finalize();
 
   int get_number_of_types(FILE* fid_potential);
@@ -69,6 +90,9 @@ public:
   Potential& get_potential(const int index);
 
 private:
+#ifdef GPUMD_WPE_ENABLED
+  WpeGpumdStageState wpe_stage_state_;
+#endif
   std::unique_ptr<Potential> create_potential(
     const std::vector<std::string>& tokens,
     FILE* fid_potential,

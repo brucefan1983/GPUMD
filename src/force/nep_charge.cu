@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -29,6 +29,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
+#include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include <chrono>
 #include <cmath>
@@ -48,19 +49,26 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
 
 void NEP_Charge::check_ewald_pppm(const RunInput& run_input)
 {
-  use_pppm = true;
+  // With alpha = pi / rc_radial, the default spacing keeps alpha * spacing at or below pi / 6.
+  pppm_spacing = std::fmin(1.0, paramb.rc_radial / 6.0);
   for (const auto& line : run_input.lines()) {
     const std::vector<std::string>& tokens = line.tokens;
     if (!tokens.empty() && tokens[0] == "kspace") {
-      if (tokens.size() != 2) {
-        std::cout << "kspace must have 1 parameter\n";
-        exit(1);
+      if (tokens.size() < 2 || tokens.size() > 3) {
+        PRINT_INPUT_ERROR("kspace requires ewald or pppm [spacing].");
       }
-      std::string kspace_method = tokens[1];
-      if (kspace_method == "ewald") {
+      if (tokens[1] == "ewald") {
+        if (tokens.size() != 2) {
+          PRINT_INPUT_ERROR("kspace ewald does not accept spacing.");
+        }
         use_pppm = false;
-      } else if (kspace_method == "pppm") {
+      } else if (tokens[1] == "pppm") {
         use_pppm = true;
+        if (tokens.size() == 3 &&
+            (!is_valid_real(tokens[2], &pppm_spacing) ||
+             !(pppm_spacing >= 0.2 && pppm_spacing <= 2.0))) {
+          PRINT_INPUT_ERROR("PPPM spacing must be a finite number between 0.2 and 2.0 A.");
+        }
       } else {
         std::cout << "kspace method can only be ewald or pppm\n";
         exit(1);
@@ -410,7 +418,7 @@ NEP_Charge::NEP_Charge(
   check_ewald_pppm(run_input);
   check_need_bec(run_input);
   if (use_pppm) {
-    pppm.initialize(charge_para.alpha, check_need_peratom_virial(run_input));
+    pppm.initialize(charge_para.alpha, check_need_peratom_virial(run_input), pppm_spacing);
   } else {
     ewald.initialize(charge_para.alpha);
   }

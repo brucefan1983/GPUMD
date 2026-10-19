@@ -1,7 +1,7 @@
 \.cproject
 \.project
 \.idea
-core
+/core
 
 src/.vscode/*
 src/*/*.obj
@@ -30,3 +30,5 @@ __pycache__/
 .hypothesis/
 README.gnep.md
 push-to-both.sh
+
+src/.wpe_obj/

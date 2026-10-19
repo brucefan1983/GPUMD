@@ -26,7 +26,7 @@ import numpy as np
 import pytest
 from calorine.gpumd import read_msd
 
-from io_helpers import CommandIOCase, run_and_check
+from io_helpers import BASE_N_STEPS, CommandIOCase, run_and_check, run_command_io_case
 from test_parsing import read_dpdt_out
 
 pytestmark = pytest.mark.fast
@@ -69,8 +69,10 @@ def _check_elastic_format(path):
 
 COMPUTE_COMMAND_CASES = [
     CommandIOCase(
+        # The sampling interval may not exceed the number of steps of the run, so it is tied to
+        # io_helpers.BASE_N_STEPS.
         name='compute_rdf', repeat=(2, 2, 2),
-        run_in_lines=[('compute_rdf', [RDF_CUTOFF, 50, 10])],
+        run_in_lines=[('compute_rdf', [RDF_CUTOFF, 50, BASE_N_STEPS])],
         expected_output_files=['rdf.out'],
         # >=2, not ==2: rdf.out also has one column per distinct atom-type pair (only 1 type
         # here, so 3 total; more with multiple species) on top of [radius, whole-system RDF].
@@ -87,7 +89,7 @@ COMPUTE_COMMAND_CASES = [
         name='compute_angular_rdf', repeat=(2, 2, 2),
         # both bin counts must be > 20 (GPUMD rejects <= 20 with "A larger n(theta)bins is
         # recommended", confirmed against the real binary).
-        run_in_lines=[('compute_angular_rdf', [RDF_CUTOFF, 21, 21, 10])],
+        run_in_lines=[('compute_angular_rdf', [RDF_CUTOFF, 21, 21, BASE_N_STEPS])],
         expected_output_files=['angular_rdf.out'],
         parse_check=lambda p: _check_columns(p, ncols=3)),
     CommandIOCase(
@@ -139,6 +141,91 @@ def test_compute_dpdt(tmp_path, structure, model_type, model_path, gpumd_command
         name='compute_dpdt', run_in_lines=[('compute_dpdt', 1)],
         expected_output_files=['dpdt.out'], parse_check=_check_dpdt_format)
     run_and_check(tmp_path, structure, model_path, model_type, gpumd_command, case)
+
+
+TOO_LONG_SAMPLING_INTERVALS = [
+    ('compute_rdf', [RDF_CUTOFF, 50, BASE_N_STEPS + 1],
+     'RDF sampling interval should not exceed the number of MD steps'),
+    ('compute_angular_rdf', [RDF_CUTOFF, 21, 21, BASE_N_STEPS + 1],
+     'Angular RDF sampling interval should not exceed the number of MD steps'),
+]
+
+
+@pytest.mark.parametrize(
+    'keyword, args, expected_message', TOO_LONG_SAMPLING_INTERVALS,
+    ids=[case[0] for case in TOO_LONG_SAMPLING_INTERVALS])
+def test_sampling_interval_beyond_the_run_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command, keyword, args,
+        expected_message):
+    """A sampling interval longer than the run would collect nothing, so GPUMD refuses it rather
+    than writing an empty file. The message is asserted alongside the exit code, since a test
+    that passes because gpumd died for an unrelated reason is worse than no test."""
+    case = CommandIOCase(
+        name=f'{keyword}_interval_too_long', repeat=(2, 2, 2),
+        run_in_lines=[(keyword, args)], expected_output_files=[])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, f'{keyword} {args} unexpectedly succeeded'
+    assert expected_message in output, (
+        f'{keyword} {args} did not report {expected_message!r}\n{output}')
+
+
+def _number_of_types(structure):
+    """The number of atom types GPUMD reads from model.xyz, which calorine writes from the
+    species present in the structure."""
+    return len(set(structure.get_chemical_symbols()))
+
+
+def test_angular_rdf_accepts_an_atom_type_pair(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """The optional `atom type1 type2` triple adds a partial angular RDF as a fourth column, on
+    top of the three the whole-system measurement writes. Type 0 exists in every structure of
+    this suite, so the same pair works throughout."""
+    case = CommandIOCase(
+        name='compute_angular_rdf_pair', repeat=(2, 2, 2),
+        run_in_lines=[
+            ('compute_angular_rdf', [RDF_CUTOFF, 21, 21, BASE_N_STEPS, 'atom', 0, 0])],
+        expected_output_files=['angular_rdf.out'],
+        parse_check=lambda p: _check_columns(p, ncols=4))
+    run_and_check(tmp_path, structure, model_path, model_type, gpumd_command, case)
+
+
+_TYPE_COUNT_SENTINEL = '__TYPE_COUNT__'
+
+# A type index equal to the number of types is the first one out of range, so these two cases are
+# what distinguishes `>= number_of_types` from `> number_of_types`.
+ANGULAR_RDF_INVALID_OPTIONS = [
+    ('incomplete_triple', ['atom', 0],
+     'Optional arguments for compute_angular_rdf should be specified as atom type1 type2'),
+    ('type1_equals_the_type_count', ['atom', _TYPE_COUNT_SENTINEL, 0],
+     'atom type index1 should be less than number of atomic types'),
+    ('type2_equals_the_type_count', ['atom', 0, _TYPE_COUNT_SENTINEL],
+     'atom type index2 should be less than number of atomic types'),
+]
+
+
+@pytest.mark.parametrize(
+    'options, expected_message', [case[1:] for case in ANGULAR_RDF_INVALID_OPTIONS],
+    ids=[case[0] for case in ANGULAR_RDF_INVALID_OPTIONS])
+def test_invalid_angular_rdf_options_are_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command, options, expected_message):
+    """The optional arguments of compute_angular_rdf come in triples and name types the model
+    actually has. The message is asserted alongside the exit code, since a test that passes
+    because gpumd died for an unrelated reason is worse than no test."""
+    type_count = _number_of_types(structure)
+    options = [type_count if option == _TYPE_COUNT_SENTINEL else option for option in options]
+    case = CommandIOCase(
+        name='compute_angular_rdf_invalid', repeat=(2, 2, 2),
+        run_in_lines=[
+            ('compute_angular_rdf', [RDF_CUTOFF, 21, 21, BASE_N_STEPS, *options])],
+        expected_output_files=[])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, f'compute_angular_rdf {options} unexpectedly succeeded'
+    assert expected_message in output, (
+        f'compute_angular_rdf {options} did not report {expected_message!r}\n{output}')
 
 
 def test_compute_phonon():

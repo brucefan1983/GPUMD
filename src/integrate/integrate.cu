@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -34,6 +34,7 @@ The driver class for the various integrators.
 #include "ensemble_ti.cuh"
 #include "ensemble_ti_as.cuh"
 #include "ensemble_ti_liquid.cuh"
+#include "ensemble_ti_nep.cuh"
 #include "ensemble_ti_rs.cuh"
 #include "ensemble_ti_spring.cuh"
 #include "ensemble_ttm.cuh"
@@ -91,6 +92,14 @@ double Integrate::get_temperature2() const
 double Integrate::get_temperature() const
 {
   return temperature;
+}
+
+double Integrate::get_target_temperature_of_step() const { return ensemble_->temperature; }
+
+int Integrate::get_number_of_atoms_for_temperature(
+  const int number_of_atoms, const std::vector<Group>& group) const
+{
+  return ensemble_->get_number_of_atoms_for_temperature(number_of_atoms, group);
 }
 
 int Integrate::get_num_target_pressure_components() const
@@ -260,6 +269,9 @@ void Integrate::compute2(
   }
 
   ensemble.compute2(time_step, step, number_of_steps, group, box, atom, thermo, force);
+  // A barostat can change the box in compute2. Force::compute refreshes the float copy of the box
+  // only at the next step, and the measurements at the end of this step read it.
+  box.set_is_orthogonal();
 }
 
 void Integrate::parse_ensemble(
@@ -419,6 +431,9 @@ void Integrate::parse_ensemble(
   } else if (tokens[1] == "ti_liquid") {
     type = EnsembleType::TI_LIQUID;
     ensemble_ = std::make_unique<Ensemble_TI_Liquid>(tokens);
+  } else if (tokens[1] == "ti_nep") {
+    type = EnsembleType::TI_NEP;
+    ensemble_ = std::make_unique<Ensemble_TI_Nep>(tokens);
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
   }

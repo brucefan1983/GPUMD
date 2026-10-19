@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -57,7 +57,8 @@ enum class EnsembleType
   TI_RS,
   TI_AS,
   WALL_HARMONIC,
-  TI_LIQUID
+  TI_LIQUID,
+  TI_NEP
 };
 
 inline bool is_standard_nvt(const EnsembleType type)
@@ -134,6 +135,10 @@ public:
     const GPU_Vector<double>& velocity_per_atom,
     const GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& thermo);
+
+  // The atoms that the temperature counts: all atoms except those of the fixed and move groups.
+  int get_number_of_atoms_for_temperature(
+    const int number_of_atoms, const std::vector<Group>& group) const;
 
   EnsembleType type = EnsembleType::UNKNOWN;
   int source;

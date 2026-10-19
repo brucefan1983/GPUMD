@@ -1,4 +1,6 @@
 import shutil
+import io
+from contextlib import redirect_stdout
 import tempfile
 import time
 import unittest
@@ -175,6 +177,47 @@ class RelationRunnerTests(unittest.TestCase):
                 "invalid-stream-bytes",
                 self.recorder,
             )
+
+    def test_nep_timing_lines_are_the_only_extra_stdout_noise(self):
+        data = (
+            b"Time used for initialization = 0.123 s.\n"
+            b"kept line\n"
+            b"Time used for training = 1.234 s.\n"
+            b"Time used for predicting = 2.345 s.\n"
+        )
+        self.assertEqual(runner.normalize_stdout(data), b"kept line\n")
+
+    def test_nep_program_stages_input_as_nep_in(self):
+        source_dir = self.invocation_root / "sources" / "nep_input"
+        source_dir.mkdir(parents=True)
+        train = source_dir / "train.xyz"
+        train.write_text("1\nminimal\nH 0 0 0\n", encoding="utf-8")
+        nep_input = source_dir / "training.in"
+        nep_input.write_text("type 1 H\n", encoding="utf-8")
+        case = {
+            "id": "nep_input",
+            "program": "nep",
+            "fixture": "minimal_nep",
+            "input": self.package_source(nep_input),
+        }
+        manifest = {
+            "fixtures": {
+                "minimal_nep": {
+                    "stage": [
+                        {"source": self.package_source(train), "target": "train.xyz"}
+                    ]
+                }
+            }
+        }
+        workdir, _ = runner.prepare_workdir(
+            case,
+            manifest,
+            "baseline",
+            self.invocation_root,
+            runner.PACKAGE_ROOT,
+        )
+        self.assertTrue((workdir / "nep.in").is_file())
+        self.assertFalse((workdir / "run.in").exists())
 
     def test_numeric_comparison_preserves_structure_and_reports_all_outputs(self):
         runner.compare_numeric_text(
@@ -361,57 +404,21 @@ raise SystemExit(1)
         with self.assertRaises(runner.ComparisonError):
             runner.validate_run_result(result, case)
 
-    def test_candidate_only_contract_does_not_start_baseline(self):
-        baseline, case, manifest = self.minimal_run_case(
-            "candidate_only_case",
-            """#!/usr/bin/env python3
-from pathlib import Path
-Path("baseline_was_run").write_text("unexpected\\n")
-raise SystemExit(99)
-""",
+    def test_identical_invalid_input_is_checked_on_both_sides(self):
+        executable, case, manifest = self.minimal_run_case(
+            "invalid_on_both_sides",
+            "#!/usr/bin/env python3\nimport sys\nsys.stderr.write('invalid spacing\\n')\nraise SystemExit(1)\n",
         )
-        candidate = baseline.with_name("candidate_gpumd.py")
-        candidate.write_text(
-            """#!/usr/bin/env python3
-import sys
-sys.stderr.write("expected candidate diagnostic\\n")
-raise SystemExit(1)
-""",
-            encoding="utf-8",
-        )
-        candidate.chmod(0o755)
-        case.update(
-            {
-                "description": "candidate-only execution contract",
-                "candidate_only": True,
-                "expected_returncode": 1,
-                "stderr_contains": "expected candidate diagnostic",
-            }
-        )
-
-        result = runner.execute_case(
-            case,
-            manifest,
-            baseline,
-            candidate,
-            self.invocation_root,
-            runner.PACKAGE_ROOT,
-            {},
-            1.0,
-            self.recorder,
-        )
-
-        self.assertEqual(result["status"], "PASS")
-        self.assertEqual(result["execution_contract"], "candidate_only")
-        self.assertEqual(set(result["runs"]), {"candidate"})
-        self.assertEqual(
-            result["not_run"],
-            {"baseline": "not run by candidate_only validation contract"},
-        )
-        self.assertFalse(result["cross_version_compared"])
-        self.assertFalse(
-            (self.invocation_root / "cases" / case["id"] / "baseline").exists()
-        )
+        case.update(description="Shared invalid-input contract", expected_returncode=1,
+                    stderr_contains="invalid spacing")
+        with redirect_stdout(io.StringIO()):
+            result = runner.execute_case(
+                case, manifest, executable, executable, self.invocation_root,
+                runner.PACKAGE_ROOT, {}, 1.0, self.recorder,
+            )
+        self.assertEqual(result["status"], "PASS", result["errors"])
+        self.assertEqual(set(result["runs"]), {"baseline", "candidate"})
+        self.assertTrue(result["cross_version_compared"])
 
     def test_generated_symlinks_are_rejected(self):
         workdir = self.invocation_root / "unsafe"
@@ -441,6 +448,92 @@ raise SystemExit(1)
         text_output.write_text("1e999\n", encoding="utf-8")
         with self.assertRaises(runner.ComparisonError):
             runner.validate_generated_output(text_output, "overflow.out", "text")
+
+    def test_numeric_relation_reports_tolerance_and_rejects_real_differences(self):
+        cases = {
+            "left": self.make_case("left", {"x.out": b"value 1.0000000\n"}),
+            "right": self.make_case("right", {"x.out": b"value 1.0000001\n"}),
+        }
+        relation = {
+            "id": "numeric_contract", "description": "explicit numerical relation",
+            "roles": ["candidate"], "operation": "numeric_equal",
+            "members": [{"case": "left", "output": "x.out"}, {"case": "right", "output": "x.out"}],
+            "comparison": {"mode": "numeric", "rtol": 0, "atol": 2e-7, "reason": "test bound"},
+        }
+        result = runner.evaluate_relation(relation, set(cases), cases, self.recorder)
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["metrics"]["candidate"][0]["comparison"]["atol"], 2e-7)
+        (Path(cases["right"]["runs"]["candidate"]["workdir"]) / "x.out").write_text("value 1.1\n")
+        result = runner.evaluate_relation(relation, set(cases), cases, self.recorder)
+        self.assertEqual(result["status"], "FAIL")
+
+    def make_pppm_case(self, case_id):
+        executable, case, manifest = self.minimal_run_case(
+            case_id,
+            "#!/usr/bin/env python3\n"
+            "from pathlib import Path\n"
+            "print('PPPM mesh: 16 x 16 x 16 (target spacing 1 A; actual spacing 0.5 0.5 0.5 A).')\n"
+            "print('finished')\n"
+            "Path('data.out').write_text('value 1.0000000\\n')\n",
+        )
+        case.update(description="Shared PPPM contract", expect="success",
+                    stdout_contains="finished", outputs=["data.out"],
+                    pppm={"spacing": 1.0, "initial_mesh": [16, 16, 16]})
+        return executable, case, manifest
+
+    def test_same_executable_pppm_self_comparison(self):
+        executable, case, manifest = self.make_pppm_case("pppm_self_comparison")
+        with redirect_stdout(io.StringIO()):
+            result = runner.execute_case(
+                case, manifest, executable, executable, self.invocation_root,
+                runner.PACKAGE_ROOT, {}, 1.0, self.recorder,
+            )
+        self.assertEqual(result["status"], "PASS", result["errors"])
+        self.assertTrue(result["cross_version_compared"])
+        self.assertEqual(set(result["metrics"]["pppm"]), {"baseline", "candidate"})
+        self.assertEqual(result["metrics"]["stdout"]["mode"], "exact")
+
+    def test_pppm_mesh_errors_are_rejected_on_either_side(self):
+        for bad_role in ("baseline", "candidate"):
+            with self.subTest(role=bad_role):
+                executable, case, manifest = self.make_pppm_case("bad_mesh_" + bad_role)
+                bad = executable.with_name("bad_mesh.py")
+                bad.write_text(executable.read_text().replace("16 x 16 x 16", "18 x 16 x 16"))
+                bad.chmod(0o755)
+                baseline, candidate = (bad, executable) if bad_role == "baseline" else (executable, bad)
+                with redirect_stdout(io.StringIO()):
+                    result = runner.execute_case(
+                        case, manifest, baseline, candidate, self.invocation_root,
+                        runner.PACKAGE_ROOT, {}, 1.0, self.recorder,
+                    )
+                self.assertEqual(result["status"], "FAIL")
+                self.assertTrue(any(f":{bad_role}: PPPM check failed:" in e for e in result["errors"]))
+
+    def test_pppm_result_regression_still_fails(self):
+        executable, case, manifest = self.make_pppm_case("pppm_result_regression")
+        candidate = executable.with_name("changed_result.py")
+        candidate.write_text(executable.read_text().replace("value 1.0000000", "value 1.0100000"))
+        candidate.chmod(0o755)
+        case["comparisons"] = {
+            "data.out": {"mode": "numeric", "rtol": 0, "atol": 1e-7, "reason": "test bound"}
+        }
+        with redirect_stdout(io.StringIO()):
+            result = runner.execute_case(
+                case, manifest, executable, candidate, self.invocation_root,
+                runner.PACKAGE_ROOT, {}, 1.0, self.recorder,
+            )
+        self.assertEqual(result["status"], "FAIL")
+        self.assertTrue(result["cross_version_compared"])
+        self.assertTrue(any("data.out" in e for e in result["errors"]))
+
+    def test_version_banner_normalization_preserves_other_text(self):
+        old = b"*                     version 5.8                             *\nfinished\n"
+        new = b"*                     version 5.9                             *\nfinished\n"
+        self.assertEqual(runner.normalize_stdout(old), runner.normalize_stdout(new))
+        changed = new.replace(b"finished", b"failed")
+        self.assertNotEqual(runner.normalize_stdout(old), runner.normalize_stdout(changed))
+        diagnostic = b"Error: version 5.9 is unsupported\n"
+        self.assertEqual(runner.normalize_stdout(diagnostic), diagnostic)
 
 
 if __name__ == "__main__":

@@ -29,6 +29,7 @@ Prerequisites
       On Windows systems, one also needs the ``cl.exe`` compiler from Microsoft Visual Studio and CMake 3.24 or newer.
 
 .. _compilation:
+.. _build_gpumd_replica:
 
 Compilation
 ===========
@@ -37,7 +38,7 @@ Compilation
 
    .. tab:: Make
 
-      In the ``src`` directory run ``make``, which generates two executables, ``nep`` and ``gpumd``.
+      In the ``src`` directory run ``make``, which generates three executables: ``nep``, ``gpumd``, and ``gpumd_replica``.
       Please check the comments in the beginning of the makefile for some compiling options.
 
    .. tab:: CMake (pre-release)
@@ -86,6 +87,31 @@ Examples
 
 You can find several examples for how to use both the ``gpumd`` and ``nep`` executables in `the examples directory <https://github.com/brucefan1983/GPUMD/tree/master/examples>`_ of the :program:`GPUMD` repository.
    
+GPU selection and multi-GPU execution
+=====================================
+
+The ``nep`` executable uses all GPUs visible to the process. On CUDA systems,
+use ``CUDA_VISIBLE_DEVICES`` to select a subset, for example::
+
+  CUDA_VISIBLE_DEVICES=0 ./nep
+  CUDA_VISIBLE_DEVICES=0,1 ./nep
+
+The ``gpumd`` executable also uses all visible GPUs when running standard NEP
+or temperature-dependent NEP models that support the multi-GPU implementation.
+For example::
+
+  CUDA_VISIBLE_DEVICES=0,1 ./gpumd
+
+Charge NEP models currently use the single-GPU implementation in ``gpumd``.
+On managed clusters, request GPUs through the scheduler and use the device
+visibility configured by the scheduler.
+
+For multi-GPU runs, GPUs with similar performance are recommended because
+synchronization can cause faster devices to wait for slower ones. For NEP
+molecular dynamics, GPUMD chooses the spatial partition direction automatically.
+The optional manual ``x``, ``y``, or ``z`` partition direction is documented
+with the :ref:`potential keyword <kw_potential>`.
+
 GNEP setup
 ==========
 

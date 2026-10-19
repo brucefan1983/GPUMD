@@ -1,8 +1,12 @@
 # GPUMD regression tests
 
 This directory contains the long-term differential regression tests for the default
-`gpumd` executable. It compares a previously accepted executable with a candidate
-executable and is intended to be run after every source change.
+`gpumd` executable and the `nep` training executable. It compares previously accepted
+executables with candidate executables and is intended to be run after source changes.
+
+Basic tests for the standalone `gpumd_replica` executable are in
+[`replica/`](replica/README.md). They have a separate single-GPU entry point and
+are not included in the GPUMD/NEP `full` suite described below.
 
 The runner does not build GPUMD, infer revisions, or select a baseline. Supply
 the repository root and both executables explicitly:
@@ -12,7 +16,19 @@ python3 tests_regression/run_regression.py \
   --repo-root /path/to/GPUMD \
   --baseline /path/to/gpumd_baseline \
   --candidate /path/to/gpumd_candidate \
+  --baseline-nep /path/to/nep_baseline \
+  --candidate-nep /path/to/nep_candidate \
   --suite full
+```
+
+The training suite can be run independently without GPUMD executable arguments:
+
+```bash
+python3 tests_regression/run_regression.py \
+  --repo-root /path/to/GPUMD \
+  --baseline-nep /path/to/nep_baseline \
+  --candidate-nep /path/to/nep_candidate \
+  --suite training
 ```
 
 Paths prefixed with `repo:` in `manifest.json` are resolved below
@@ -22,12 +38,12 @@ regression-specific inputs self-contained.
 
 ## Acceptance contract
 
-`full` is the only acceptance suite. It contains all 195 cases and evaluates
-all 23 cross-case relations after the cases pass. Every case and relation runs
-for both the baseline and candidate. A successful run ends with:
+`full` is the only acceptance suite. It contains all 255 cases and evaluates
+all 25 cross-case relations after the cases pass. Every case and relation runs
+for both the baseline and candidate, using the same expectations. A successful run ends with:
 
 ```text
-Summary: 195 passed, 0 failed; relations: 23 passed, 0 failed, 0 skipped
+Summary: 255 passed, 0 failed; relations: 25 passed, 0 failed, 0 skipped
 ```
 
 Focused suites are diagnostic subsets only. A focused result is not a
@@ -38,6 +54,26 @@ source change is:
 2. build the baseline and candidate consistently;
 3. run `--suite full`.
 
+### Check the test setup with identical executables
+
+When changing this suite or its build environment, first pass the same binary
+as both baseline and candidate. This checks the shared expectations and the
+numerical noise bounds without mixing in a source change:
+
+```bash
+python3 tests_regression/run_regression.py \
+  --repo-root "$PWD" \
+  --baseline "$PWD/src/gpumd" --candidate "$PWD/src/gpumd" \
+  --baseline-nep "$PWD/src/nep" --candidate-nep "$PWD/src/nep" \
+  --suite full --keep-all
+```
+
+The intended self-comparison result is 255 passing cases and 25 passing
+relations. A failure requires inspecting the diagnostic or numerical delta;
+using the same executable does not bypass any check or guarantee bitwise
+GPU reproducibility. After self-comparison, use the accepted and candidate
+executables for the normal regression run.
+
 ## Requirements and reproducible builds
 
 - Python 3.9 or newer, the standard library, and NumPy;
@@ -45,16 +81,20 @@ source change is:
 - baseline and candidate built from the intended sources with identical
   compiler, backend, architecture, feature, and optimization options.
 
-Use the last accepted executable as the baseline and the newly built
-executable as the candidate. Clean the build when compiler options or optional
-features change so that stale objects cannot mix configurations.
+Use the last accepted executables as the baseline and the newly built executables
+as the candidates. Clean the build when compiler options or optional features
+change so that stale objects cannot mix configurations.
 
-For strict comparison of stochastic paths, build both executables with the
-same deterministic `-DDEBUG` convention. The package is designed for
-deterministic single-GPU execution. By default the runner exposes the first
+The NEP training cases start from scratch and rely on deterministic SNES
+initialization. Build both baseline and candidate `nep` executables with `-DDEBUG`.
+The training inputs intentionally leave `nep_compile` at its default `on` value so
+runtime-specialized training kernels are part of the regression path. Each `nep`
+executable should remain in its corresponding compiled `src` tree so runtime
+specialization finds the matching `main_nep/nep_specialized.cu` and utilities.
+The package is designed for deterministic single-GPU execution. By default the runner exposes the first
 device already selected by `CUDA_VISIBLE_DEVICES` or `HIP_VISIBLE_DEVICES`, or
 device `0` when neither variable is set. Use `--device` to select another
-single device. The runner also sets `OMP_NUM_THREADS=1` for each GPUMD process.
+single device. The runner also sets `OMP_NUM_THREADS=1` for each process.
 
 Reports record executable paths and SHA-256 digests, but the runner cannot
 prove that two binaries used identical build options. That remains a build
@@ -92,7 +132,7 @@ python3 tests_regression/run_regression.py \
 
 ## Suites
 
-The manifest defines 21 suites. `full` is the acceptance gate; the other
+The manifest defines 24 suites. `full` is the acceptance gate; the other
 suites exist only to isolate a failure:
 
 | Suite | Diagnostic scope |
@@ -117,7 +157,10 @@ suites exist only to isolate a failure:
 | `first_step_init` | initialization exercised by the first integration step |
 | `static` | non-dynamics calculations |
 | `transport` | transport measurements |
-| `full` | all 195 cases and all 23 relations |
+| `training` | NEP, qNEP, vdW, charge-vdW, and tensorial-NEP training paths |
+| `prediction` | NEP prediction from an existing model over multiple batches |
+| `pppm` | spacing, mesh sizing, resource lifecycle, and related existing qNEP cases |
+| `full` | all 255 cases and all 25 relations |
 
 For example, a focused rerun may help diagnose a full-suite failure:
 
@@ -136,16 +179,48 @@ skipped relations. See `CONTRACT_SUITES.md` for the durable relation oracles.
 
 ## Execution and comparison contract
 
-Every selected case starts the baseline once and the candidate once in
+Every selected case starts the matching program's baseline once and candidate once in
 separate fresh working directories. The runner does not repeatedly execute a
-binary to establish self-repeatability. There are no candidate-only or
-role-specific cases: both executables must meet the same declared contract.
+binary to establish self-repeatability. Both roles use the same expected exit
+code, diagnostics, output inventory and functional checks. All cases compare
+the two runs. Version-specific expectations and switches that disable a role
+or its result comparison are not supported. See [PPPM.md](PPPM.md) for PPPM
+checks and numerical bounds.
+
+Cases default to `program: gpumd`. Training and prediction cases declare
+`program: nep`, which causes the runner to stage their input as `nep.in` and select the NEP executable
+pair. GPUMD cases continue to use `run.in` and the original executable pair.
+The model-coverage training inputs are deliberately minimal: model type, batch size, 10 generations,
+`output_interval 10`, and only model-selection keywords that are required to enter
+qNEP, vdW, charge-vdW, dipole, or polarizability paths. `loss.out`, `nep.txt`, and
+`nep.restart` are byte-exact regression outputs.
+
+The energy-difference case adds `lambda_d 0.1` and uses `output_interval 1`.
+Four PbTe structures carry `name` labels; their physical data are unchanged.
+Two weighted energy differences occupy two of the three training batches, leaving
+one batch without a combination. The same structures also serve as the test set
+to exercise reporting. A semantic check requires positive energy-difference RMSE
+for the selected combinations and zero training RMSE in the empty batch at
+generations 3, 6, and 9. Test-set prediction files are also compared; only
+`force_test.out` uses the force-rounding bounds described below.
+
+The prediction case reuses the fixed model from `examples/nep_prediction/nep.txt`
+and the PbTe training fixture, split into three batches. It compares
+`energy_train.out`, `virial_train.out`, and `stress_train.out` byte for byte.
+`force_train.out` uses `rtol = 1e-5` and `atol = 2e-7` eV/angstrom because
+prediction accumulates forces with single-precision atomics and writes six
+significant digits with `%g`. The absolute bound covers cancellation near zero;
+the relative bound allows last-digit rounding changes. The staged `nep.txt` must
+remain unchanged, and training outputs such as `loss.out` or `nep.restart` are
+not permitted.
 
 Comparison is deliberately strict:
 
 - the generated-file inventory must exactly match the manifest;
 - ordinary generated files are compared byte for byte;
-- `stdout` is compared after removing only declared timing and speed noise;
+- `stdout` is compared after removing the version banner and declared timing
+  and speed metadata identically on both sides; PPPM mesh lines are retained
+  and checked independently for each executable;
 - `stderr` is compared after removing only internal source-file and source-line
   locations;
 - missing, unexpected, empty, or unauthorized modified files fail the case.
@@ -160,9 +235,11 @@ including under exact-byte mode.
 The manifest contains narrowly scoped zero-relative-tolerance numerical
 comparisons for qNEP outputs affected by unordered single-precision GPU
 accumulation. The comparator still requires identical token counts, token
-order, and nonnumeric text, and rejects non-finite or overflowing values. All
-other outputs remain byte-exact unless their manifest entry explicitly says
-otherwise.
+order, and nonnumeric text, and rejects non-finite or overflowing values.
+Restored PPPM comparisons reuse the existing same-mesh absolute bounds;
+`qnep_pppm_future_bec` restores its earlier BEC/DPDT atomic-noise bounds.
+These bounds must be checked by self-comparison on the target GPU. Other
+outputs remain byte-exact unless their manifest entry explicitly says otherwise.
 
 Selected cases also declare NumPy-based semantic post-checks. These checks are
 additional oracles applied independently to the baseline and candidate after
@@ -178,15 +255,16 @@ also compared byte for byte between baseline and candidate after execution.
 
 ### Cross-case relations
 
-The top-level `relations` list provides exact oracles involving multiple
-cases:
+The top-level `relations` list provides oracles involving multiple cases:
 
 - `equal` requires all referenced case/output members to be byte-identical;
 - `concat` requires a result output to equal the ordered bytewise
-  concatenation of its parts.
+  concatenation of its parts;
+- `numeric_equal` requires identical text structure and numerical agreement
+  within explicitly declared tolerances and a reason (PPPM float atomics only).
 
 A relation runs only after all referenced cases pass. `full` includes every
-relation member, so all 23 relations run for both executables. Passing work
+relation member, so all 25 relations run for their declared roles. Passing work
 directories are retained until applicable relations complete. A relation
 failure retains all implicated case directories and exits unsuccessfully.
 
@@ -269,7 +347,7 @@ Coverage is recorded through generic `covers` tags rather than inferred from
 case names.
 
 This is a regression gate, not an exhaustive validation of every GPUMD build
-configuration or potential family. Optional NetCDF and MDI paths are not
+configuration or potential family. Optional NetCDF paths are not
 covered by executable-level cases. Other optional or normally disabled
 potential implementations require separate coverage before making claims
 about them.

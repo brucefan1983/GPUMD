@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run strict, two-executable GPUMD regression tests.
+"""Run strict baseline/candidate GPUMD/NEP regression tests.
 
 Each selected case is run exactly once with the baseline executable and once
 with the candidate executable. The runner uses the Python standard library
@@ -27,6 +27,7 @@ import time
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Sequence, Set, Tuple
 
 import post_checks
+import pppm_checks
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
@@ -41,7 +42,9 @@ NUMBER_RE = re.compile(
 )
 NONFINITE_RE = re.compile(r"(?<![A-Za-z_])[-+]?(?:nan|inf(?:inity)?)(?![A-Za-z_])", re.I)
 IGNORED_STDOUT_LINES = (
+    re.compile(rb"^\*\s+version \d+(?:\.\d+)*(?:[-+][A-Za-z0-9_.-]+)?\s+\*$"),
     re.compile(rb"^\s*Time used(?: for this run)?\s*=.*$"),
+    re.compile(rb"^\s*Time used for (?:initialization|training|predicting)\s*=.*$"),
     re.compile(rb"^\s*Speed of this run\s*=.*$"),
 )
 IGNORED_STDERR_LINES = (
@@ -330,7 +333,7 @@ def validate_relation_reference(
 
 
 def relation_references(relation: Mapping[str, Any]) -> List[Mapping[str, str]]:
-    if relation["operation"] == "equal":
+    if relation["operation"] in ("equal", "numeric_equal"):
         return list(relation["members"])
     return list(relation["parts"]) + [relation["result"]]
 
@@ -367,8 +370,11 @@ def validate_relations(
                 f"Relation {relation_id} roles must be a unique non-empty role list"
             )
         operation = relation.get("operation")
-        if operation == "equal":
+        if operation in ("equal", "numeric_equal"):
             allowed = {"id", "description", "roles", "operation", "members"}
+            if operation == "numeric_equal":
+                allowed.add("comparison")
+                validate_comparisons({"relation": relation.get("comparison")}, {"relation"}, relation_id)
             if set(relation) != allowed:
                 raise ConfigurationError(
                     f"Relation {relation_id} equal relation must contain exactly "
@@ -402,7 +408,7 @@ def validate_relations(
             references = parts + [relation["result"]]
         else:
             raise ConfigurationError(
-                f"Relation {relation_id} operation must be equal or concat"
+                f"Relation {relation_id} operation must be equal, numeric_equal or concat"
             )
 
         normalized_references = [
@@ -416,16 +422,6 @@ def validate_relations(
                 f"Relation {relation_id} contains duplicate output references"
             )
         referenced_case_ids = {case_id for case_id, _ in normalized_references}
-        candidate_only_cases = sorted(
-            case_id
-            for case_id in referenced_case_ids
-            if cases_by_id[case_id].get("candidate_only", False)
-        )
-        if candidate_only_cases:
-            raise ConfigurationError(
-                f"Relation {relation_id} cannot reference candidate-only case(s): "
-                f"{candidate_only_cases}"
-            )
         shared_suites = set.intersection(
             *(set(cases_by_id[case_id]["suites"]) for case_id in referenced_case_ids)
         )
@@ -435,12 +431,12 @@ def validate_relations(
             )
         for role in roles:
             for case_id, output in normalized_references:
-                if expectation_for_role(cases_by_id[case_id], role)["expect"] != "success":
+                if cases_by_id[case_id]["expect"] != "success":
                     raise ConfigurationError(
                         f"Relation {relation_id} references {case_id} for {role}, "
                         "but that role is not expected to succeed"
                     )
-                if output not in expected_outputs_for_role(cases_by_id[case_id], role):
+                if output not in cases_by_id[case_id]["outputs"]:
                     raise ConfigurationError(
                         f"Relation {relation_id} references {case_id}:{output} for {role}, "
                         "but that output is not expected for the role"
@@ -505,6 +501,7 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
         raise ConfigurationError("cases must be a non-empty list")
     allowed_case = {
         "id",
+        "program",
         "description",
         "suites",
         "fixture",
@@ -520,11 +517,9 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
         "stderr_contains",
         "mutable_inputs",
         "comparisons",
-        "role_expectations",
-        "compare_cross_version",
-        "candidate_only",
         "allow_empty_outputs",
         "post_checks",
+        "pppm",
     }
     ids: Set[str] = set()
     full_coverage: Set[str] = set()
@@ -543,6 +538,12 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
             raise ConfigurationError(f"Duplicate case id: {case_id}")
         ids.add(case_id)
 
+        program = case.get("program", "gpumd")
+        if program not in ("gpumd", "nep"):
+            raise ConfigurationError(
+                f"Case {case_id} program must be gpumd or nep"
+            )
+
         description = case.get("description")
         if not isinstance(description, str) or not description.strip():
             raise ConfigurationError(f"Case {case_id} description must be non-empty")
@@ -560,7 +561,6 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
             or len(suites) != len(set(suites))
         ):
             raise ConfigurationError(f"Case {case_id} suites is invalid")
-        has_role_expectations = "role_expectations" in case
         if "full" not in suites:
             raise ConfigurationError(
                 f"Case {case_id} must belong to the full suite"
@@ -575,54 +575,27 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
             raise ConfigurationError(f"Case {case_id} covers must be unique valid tags")
 
         style = case.get("input_style", "canonical")
-        if style not in ("canonical", "compatibility", "intentional_invalid"):
+        if program == "gpumd":
+            if style not in ("canonical", "compatibility", "intentional_invalid"):
+                raise ConfigurationError(
+                    f"Case {case_id} input_style must be canonical, compatibility, "
+                    "or intentional_invalid"
+                )
+            if style == "intentional_invalid" and case.get("expect") != "failure":
+                raise ConfigurationError(
+                    f"Case {case_id} intentional_invalid input must expect failure"
+                )
+        elif "input_style" in case:
             raise ConfigurationError(
-                f"Case {case_id} input_style must be canonical, compatibility, "
-                "or intentional_invalid"
+                f"Case {case_id} input_style is only valid for gpumd cases"
             )
-        if style == "intentional_invalid" and case.get("expect") != "failure":
-            raise ConfigurationError(
-                f"Case {case_id} intentional_invalid input must expect failure"
-            )
-        candidate_only = case.get("candidate_only", False)
-        if "candidate_only" in case and candidate_only is not True:
-            raise ConfigurationError(
-                f"Case {case_id} candidate_only, when present, must be true"
-            )
-        if candidate_only:
-            if style != "intentional_invalid":
-                raise ConfigurationError(
-                    f"Case {case_id} candidate_only requires intentional_invalid input"
-                )
-            if "full" not in suites:
-                raise ConfigurationError(
-                    f"Case {case_id} candidate_only must belong to the full suite"
-                )
-            if case.get("expect") != "failure":
-                raise ConfigurationError(
-                    f"Case {case_id} candidate_only must expect candidate failure"
-                )
-            if case.get("expected_returncode") != 1:
-                raise ConfigurationError(
-                    f"Case {case_id} candidate_only must require candidate exit 1"
-                )
-            if not any(
-                diagnostic in case
-                for diagnostic in ("stdout_contains", "stderr_contains")
-            ):
-                raise ConfigurationError(
-                    f"Case {case_id} candidate_only must require a candidate diagnostic"
-                )
-            if has_role_expectations or "compare_cross_version" in case:
-                raise ConfigurationError(
-                    f"Case {case_id} candidate_only cannot use role expectations"
-                )
         input_path = resolve_source(case.get("input"), repo_root, f"case {case_id} input")
         if not input_path.is_file():
             raise ConfigurationError(f"Case {case_id} input is not a file: {input_path}")
-        validate_input_command_order(input_path, case_id, style)
-        if "full" in suites:
-            full_coverage.update(ensemble_keywords(input_path, case_id))
+        if program == "gpumd":
+            validate_input_command_order(input_path, case_id, style)
+            if "full" in suites:
+                full_coverage.update(ensemble_keywords(input_path, case_id))
 
         expectation_keys = (
             "expect",
@@ -632,73 +605,6 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
         )
         case_expectation = {key: case[key] for key in expectation_keys if key in case}
         validate_expectation(case_expectation, f"Case {case_id}")
-        role_expectations = case.get("role_expectations")
-        if has_role_expectations and role_expectations is None:
-            raise ConfigurationError(
-                f"Case {case_id} role_expectations cannot be null"
-            )
-        if role_expectations is not None:
-            if not isinstance(role_expectations, dict) or set(role_expectations) != {
-                "baseline",
-                "candidate",
-            }:
-                raise ConfigurationError(
-                    f"Case {case_id} role_expectations must contain baseline and candidate"
-                )
-            for role in ("baseline", "candidate"):
-                validate_expectation(
-                    role_expectations[role], f"Case {case_id} role_expectations.{role}"
-                )
-            candidate_expectation = role_expectations["candidate"]
-            if case_expectation["expect"] != candidate_expectation["expect"]:
-                raise ConfigurationError(
-                    f"Case {case_id} top-level expect must summarize candidate expect"
-                )
-            top_returncode = case_expectation.get(
-                "expected_returncode",
-                0 if case_expectation["expect"] == "success" else None,
-            )
-            candidate_returncode = candidate_expectation.get(
-                "expected_returncode",
-                0 if candidate_expectation["expect"] == "success" else None,
-            )
-            if top_returncode != candidate_returncode:
-                raise ConfigurationError(
-                    f"Case {case_id} top-level return code must summarize candidate"
-                )
-            for diagnostic in ("stdout_contains", "stderr_contains"):
-                if (
-                    diagnostic in case_expectation
-                    and case_expectation[diagnostic]
-                    != candidate_expectation.get(diagnostic)
-                ):
-                    raise ConfigurationError(
-                        f"Case {case_id} top-level {diagnostic} must summarize candidate"
-                    )
-        if "compare_cross_version" in case and not isinstance(
-            case["compare_cross_version"], bool
-        ):
-            raise ConfigurationError(f"Case {case_id} compare_cross_version must be boolean")
-        if "compare_cross_version" in case and role_expectations is None:
-            raise ConfigurationError(
-                f"Case {case_id} compare_cross_version is only valid with role_expectations"
-            )
-        if role_expectations is not None and case.get("compare_cross_version", False):
-            baseline_expectation = role_expectations["baseline"]
-            candidate_expectation = role_expectations["candidate"]
-            baseline_returncode = baseline_expectation.get(
-                "expected_returncode",
-                0 if baseline_expectation["expect"] == "success" else None,
-            )
-            candidate_returncode = candidate_expectation.get(
-                "expected_returncode",
-                0 if candidate_expectation["expect"] == "success" else None,
-            )
-            if baseline_returncode != candidate_returncode:
-                raise ConfigurationError(
-                    f"Case {case_id} cannot compare roles with different return codes"
-                )
-
         outputs = case.get("outputs", [])
         if (
             not isinstance(outputs, list)
@@ -708,10 +614,6 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
             raise ConfigurationError(f"Case {case_id} outputs must be a unique string list")
         for output in outputs:
             validate_relative_target(output, f"Case {case_id} output")
-        if candidate_only and outputs:
-            raise ConfigurationError(
-                f"Case {case_id} candidate_only cannot declare outputs"
-            )
         for index, left in enumerate(outputs):
             left_parts = Path(left).parts
             for right in outputs[index + 1 :]:
@@ -721,30 +623,8 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
                     raise ConfigurationError(
                         f"Case {case_id} has overlapping outputs: {left!r}, {right!r}"
                     )
-        if role_expectations is not None:
-            for role, expectation in role_expectations.items():
-                role_outputs = expectation.get("outputs", outputs)
-                unknown_role_outputs = set(role_outputs) - set(outputs)
-                if unknown_role_outputs:
-                    raise ConfigurationError(
-                        f"Case {case_id} role_expectations.{role}.outputs contains "
-                        f"output(s) absent from case outputs: {sorted(unknown_role_outputs)}"
-                    )
-            if case.get("compare_cross_version", False) and (
-                sorted(expected_outputs_for_role(case, "baseline"))
-                != sorted(expected_outputs_for_role(case, "candidate"))
-            ):
-                raise ConfigurationError(
-                    f"Case {case_id} cannot compare roles with different output inventories"
-                )
-        effective_expectations = (
-            role_expectations.values() if role_expectations is not None else (case_expectation,)
-        )
-        success_for_any_role = any(
-            expectation["expect"] == "success" for expectation in effective_expectations
-        )
-        if success_for_any_role and not outputs:
-            raise ConfigurationError(f"Successful case {case_id} must declare outputs")
+        if case["expect"] == "success" and not outputs and not case.get("stdout_contains"):
+            raise ConfigurationError(f"Successful case {case_id} must declare outputs or a stdout diagnostic")
         if "comparisons" in case:
             validate_comparisons(case["comparisons"], set(outputs), case_id)
 
@@ -763,6 +643,14 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
                 f"Case {case_id} allow_empty_outputs names undeclared output(s): "
                 f"{sorted(unknown_empty_outputs)}"
             )
+
+        if "pppm" in case:
+            try:
+                pppm_checks.validate_spec(case["pppm"])
+            except ValueError as exc:
+                raise ConfigurationError(f"Case {case_id}: {exc}") from exc
+            if case["expect"] != "success":
+                raise ConfigurationError(f"Case {case_id} pppm checks require success")
 
         post_check_specs = case.get("post_checks", [])
         if not isinstance(post_check_specs, list):
@@ -807,26 +695,27 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
                 item["source"], repo_root, f"case {case_id} potential source"
             ).is_dir()
         }
-        for fields in effective_commands(input_path, case_id):
-            if fields[0] != "potential":
-                continue
-            if len(fields) < 2:
-                raise ConfigurationError(
-                    f"Case {case_id} potential command must name a staged file"
+        if program == "gpumd":
+            for fields in effective_commands(input_path, case_id):
+                if fields[0] != "potential":
+                    continue
+                if len(fields) < 2:
+                    raise ConfigurationError(
+                        f"Case {case_id} potential command must name a staged file"
+                    )
+                potential_path = fields[1]
+                validate_relative_target(
+                    potential_path, f"Case {case_id} potential file"
                 )
-            potential_path = fields[1]
-            validate_relative_target(
-                potential_path, f"Case {case_id} potential file"
-            )
-            is_staged = potential_path in combined_targets or any(
-                Path(potential_path).is_relative_to(Path(directory_target))
-                for directory_target in staged_directory_targets
-            )
-            if not is_staged:
-                raise ConfigurationError(
-                    f"Case {case_id} potential file is not staged: {potential_path!r}"
+                is_staged = potential_path in combined_targets or any(
+                    Path(potential_path).is_relative_to(Path(directory_target))
+                    for directory_target in staged_directory_targets
                 )
-        reserved = {"run.in", "stdout.txt", "stderr.txt"}
+                if not is_staged:
+                    raise ConfigurationError(
+                        f"Case {case_id} potential file is not staged: {potential_path!r}"
+                    )
+        reserved = {"run.in", "nep.in", "stdout.txt", "stderr.txt"}
         if set(combined_targets) & reserved:
             raise ConfigurationError(f"Case {case_id} stages a runner-reserved filename")
         if set(outputs) & reserved:
@@ -852,21 +741,23 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
             )
         for path in mutable_inputs:
             validate_relative_target(path, f"Case {case_id} mutable input")
-        if candidate_only and mutable_inputs:
+        if program != "gpumd" and mutable_inputs:
             raise ConfigurationError(
-                f"Case {case_id} candidate_only cannot declare mutable inputs"
+                f"Case {case_id} mutable_inputs is only supported for gpumd cases"
             )
-        if mutable_inputs and "command:deposit" not in covers:
-            raise ConfigurationError(
-                f"Case {case_id} mutable_inputs is only allowed for command:deposit"
-            )
-        if mutable_inputs and not any(
-            fields[0] == "deposit" for fields in effective_commands(input_path, case_id)
-        ):
-            raise ConfigurationError(
-                f"Case {case_id} mutable_inputs requires an actual deposit command"
-            )
-        available_inputs = {"run.in"} | set(combined_targets)
+        if program == "gpumd":
+            if mutable_inputs and "command:deposit" not in covers:
+                raise ConfigurationError(
+                    f"Case {case_id} mutable_inputs is only allowed for command:deposit"
+                )
+            if mutable_inputs and not any(
+                fields[0] == "deposit" for fields in effective_commands(input_path, case_id)
+            ):
+                raise ConfigurationError(
+                    f"Case {case_id} mutable_inputs requires an actual deposit command"
+                )
+        input_filename = "nep.in" if program == "nep" else "run.in"
+        available_inputs = {input_filename} | set(combined_targets)
         undeclared_inputs = set(mutable_inputs) - available_inputs
         if undeclared_inputs:
             raise ConfigurationError(
@@ -917,6 +808,8 @@ def parse_arguments(manifest: Mapping[str, Any]) -> argparse.Namespace:
     )
     parser.add_argument("--baseline", help="Baseline executable path")
     parser.add_argument("--candidate", help="Candidate executable path")
+    parser.add_argument("--baseline-nep", help="Baseline nep executable path")
+    parser.add_argument("--candidate-nep", help="Candidate nep executable path")
     parser.add_argument(
         "--device",
         help="CUDA/HIP visible device id; defaults to the first already-visible device",
@@ -931,9 +824,6 @@ def parse_arguments(manifest: Mapping[str, Any]) -> argparse.Namespace:
     suites = available_suites(manifest)
     if args.suite not in suites:
         parser.error(f"unknown suite {args.suite!r}; choose from {', '.join(suites)}")
-    if not args.check_manifest and not args.list:
-        if args.baseline is None or args.candidate is None:
-            parser.error("--baseline and --candidate are required when running cases")
     return args
 
 
@@ -1004,7 +894,8 @@ def prepare_workdir(
         copy_stage_item(source, target)
 
     input_path = resolve_source(case["input"], repo_root, f"case {case['id']} input")
-    shutil.copy2(input_path, workdir / "run.in")
+    input_filename = "nep.in" if case.get("program", "gpumd") == "nep" else "run.in"
+    shutil.copy2(input_path, workdir / input_filename)
     staged_files, unsafe = inspect_workdir(workdir)
     if unsafe:
         raise ConfigurationError(
@@ -1284,7 +1175,7 @@ def filter_stream_lines(
 
 
 def normalize_stdout(data: bytes) -> bytes:
-    """Remove only GPUMD timing and speed lines."""
+    """Remove the GPUMD version banner and timing/speed metadata on both sides."""
     return filter_stream_lines(data, IGNORED_STDOUT_LINES)
 
 
@@ -1528,33 +1419,6 @@ def compare_run_pair(
     return metrics
 
 
-def expectation_for_role(case: Mapping[str, Any], role: str) -> Mapping[str, Any]:
-    role_expectations = case.get("role_expectations")
-    if role_expectations is not None:
-        return role_expectations[role]
-    return {
-        key: case[key]
-        for key in (
-            "expect",
-            "expected_returncode",
-            "stdout_contains",
-            "stderr_contains",
-        )
-        if key in case
-    }
-
-
-def expected_outputs_for_role(case: Mapping[str, Any], role: str) -> List[str]:
-    expectation = expectation_for_role(case, role)
-    if "role_expectations" not in case:
-        return list(case["outputs"])
-    if "outputs" in expectation:
-        return list(expectation["outputs"])
-    if expectation["expect"] == "failure":
-        return []
-    return list(case["outputs"])
-
-
 def validate_run_result(result: Mapping[str, Any], case: Mapping[str, Any]) -> None:
     role = result["role"]
     label = f"{case['id']}:{role}"
@@ -1571,7 +1435,7 @@ def validate_run_result(result: Mapping[str, Any], case: Mapping[str, Any]) -> N
             f"{result['unauthorized_input_changes']}"
         )
 
-    expectation = expectation_for_role(case, role)
+    expectation = case
     expect = expectation["expect"]
     expected_returncode = expectation.get(
         "expected_returncode", 0 if expect == "success" else None
@@ -1593,7 +1457,7 @@ def validate_run_result(result: Mapping[str, Any], case: Mapping[str, Any]) -> N
                 f"expected diagnostic {expected_diagnostic!r}"
             )
 
-    expected_outputs = sorted(expected_outputs_for_role(case, role))
+    expected_outputs = sorted(case["outputs"])
     if result["generated_files"] != expected_outputs:
         missing = sorted(set(expected_outputs) - set(result["generated_files"]))
         unexpected = sorted(set(result["generated_files"]) - set(expected_outputs))
@@ -1609,14 +1473,6 @@ def validate_run_result(result: Mapping[str, Any], case: Mapping[str, Any]) -> N
             f"{label}:{output}",
             allow_empty=output in allow_empty_outputs,
         )
-
-
-def cross_version_comparison_enabled(case: Mapping[str, Any]) -> bool:
-    if case.get("candidate_only", False):
-        return False
-    if "compare_cross_version" in case:
-        return bool(case["compare_cross_version"])
-    return "role_expectations" not in case
 
 
 def execute_case(
@@ -1636,17 +1492,7 @@ def execute_case(
     metrics: Dict[str, Any] = {}
     post_check_metrics: Dict[str, Any] = {}
     cross_version_compared = False
-    candidate_only = bool(case.get("candidate_only", False))
-    roles = (("candidate", candidate),) if candidate_only else (
-        ("baseline", baseline),
-        ("candidate", candidate),
-    )
-    not_run: Dict[str, str] = {}
-    if candidate_only:
-        reason = "not run by candidate_only validation contract"
-        not_run["baseline"] = reason
-        print(f"  baseline {reason}")
-    for role, executable in roles:
+    for role, executable in (("baseline", baseline), ("candidate", candidate)):
         print(f"  run {role}", flush=True)
         result = run_once(
             executable,
@@ -1661,6 +1507,11 @@ def execute_case(
         runs[role] = result
         try:
             validate_run_result(result, case)
+            if "pppm" in case:
+                try:
+                    metrics.setdefault("pppm", {})[role] = pppm_checks.check(case["pppm"], result)
+                except (ValueError, OSError, post_checks.PostCheckError) as exc:
+                    raise ComparisonError(f"{case['id']}:{role}: PPPM check failed: {exc}") from exc
             if case.get("post_checks"):
                 try:
                     post_check_metrics[role] = post_checks.run(
@@ -1671,10 +1522,10 @@ def execute_case(
         except ComparisonError as exc:
             errors.append(str(exc))
 
-    if not errors and cross_version_comparison_enabled(case):
+    if not errors:
         cross_version_compared = True
         try:
-            metrics = compare_run_pair(runs["baseline"], runs["candidate"], case, recorder)
+            metrics.update(compare_run_pair(runs["baseline"], runs["candidate"], case, recorder))
         except ComparisonError as exc:
             errors.append(str(exc))
 
@@ -1691,9 +1542,9 @@ def execute_case(
         "status": status,
         "errors": errors,
         "runs": runs,
-        "not_run": not_run,
-        "execution_contract": "candidate_only" if candidate_only else "two_sided",
-        "cross_version_comparison_enabled": cross_version_comparison_enabled(case),
+        "not_run": {},
+        "execution_contract": "two_sided",
+        "cross_version_comparison_enabled": True,
         "cross_version_compared": cross_version_compared,
         "metrics": metrics,
         "workdirs_retained": True,
@@ -1761,7 +1612,7 @@ def evaluate_relation(
 
     for role in relation["roles"]:
         try:
-            if relation["operation"] == "equal":
+            if relation["operation"] in ("equal", "numeric_equal"):
                 reference = relation["members"][0]
                 reference_data = relation_output_path(
                     reference, role, case_results
@@ -1771,14 +1622,23 @@ def evaluate_relation(
                     member_data = relation_output_path(
                         member, role, case_results
                     ).read_bytes()
-                    metric = compare_exact_bytes(
-                        reference_data,
-                        member_data,
-                        f"relation:{relation['id']}:{role}",
-                        recorder,
-                        relation_reference_name(reference, role),
-                        relation_reference_name(member, role),
-                    )
+                    if relation["operation"] == "numeric_equal":
+                        comparison = relation["comparison"]
+                        metric = compare_numeric_text(
+                            reference_data.decode("utf-8"), member_data.decode("utf-8"),
+                            f"relation:{relation['id']}:{role}",
+                            comparison["rtol"], comparison["atol"], recorder,
+                        )
+                        metric["reason"] = comparison["reason"]
+                    else:
+                        metric = compare_exact_bytes(
+                            reference_data,
+                            member_data,
+                            f"relation:{relation['id']}:{role}",
+                            recorder,
+                            relation_reference_name(reference, role),
+                            relation_reference_name(member, role),
+                        )
                     role_metrics.append(
                         {
                             "left": reference,
@@ -1812,7 +1672,7 @@ def evaluate_relation(
                     "result": result_reference,
                     "comparison": metric,
                 }
-        except (ComparisonError, OSError) as exc:
+        except (ComparisonError, OSError, UnicodeError) as exc:
             base_result["errors"].append(f"{relation['id']}:{role}: {exc}")
 
     base_result["status"] = "PASS" if not base_result["errors"] else "FAIL"
@@ -1936,13 +1796,51 @@ def main() -> int:
             print(f"{len(selected)} case(s)")
             return 0
 
-        baseline = resolve_command_path(args.baseline, repo_root)
-        candidate = resolve_command_path(args.candidate, repo_root)
-        for role, executable in (("baseline", baseline), ("candidate", candidate)):
-            if not executable.is_file():
-                raise ConfigurationError(f"{role} executable does not exist: {executable}")
-            if not os.access(executable, os.X_OK):
-                raise ConfigurationError(f"{role} executable is not executable: {executable}")
+        requested_programs = {
+            case.get("program", "gpumd") for case in selected
+        }
+        program_arguments = {
+            "gpumd": (
+                args.baseline,
+                args.candidate,
+                "--baseline",
+                "--candidate",
+            ),
+            "nep": (
+                args.baseline_nep,
+                args.candidate_nep,
+                "--baseline-nep",
+                "--candidate-nep",
+            ),
+        }
+        executables: Dict[str, Dict[str, Path]] = {}
+        for program in sorted(requested_programs):
+            baseline_value, candidate_value, baseline_option, candidate_option = (
+                program_arguments[program]
+            )
+            if baseline_value is None or candidate_value is None:
+                raise ConfigurationError(
+                    f"{baseline_option} and {candidate_option} are required "
+                    f"for selected {program} cases"
+                )
+            baseline_path = resolve_command_path(baseline_value, repo_root)
+            candidate_path = resolve_command_path(candidate_value, repo_root)
+            for role, executable in (
+                (f"{program} baseline", baseline_path),
+                (f"{program} candidate", candidate_path),
+            ):
+                if not executable.is_file():
+                    raise ConfigurationError(
+                        f"{role} executable does not exist: {executable}"
+                    )
+                if not os.access(executable, os.X_OK):
+                    raise ConfigurationError(
+                        f"{role} executable is not executable: {executable}"
+                    )
+            executables[program] = {
+                "baseline": baseline_path,
+                "candidate": candidate_path,
+            }
 
         if WORK_ROOT.exists():
             if WORK_ROOT.is_symlink():
@@ -1969,19 +1867,31 @@ def main() -> int:
             "run_id": run_id,
             "work_root": str(invocation_root),
             "repo_root": str(repo_root),
-            "baseline": executable_metadata(baseline),
-            "candidate": executable_metadata(candidate),
+            "executables": {
+                program: {
+                    role: executable_metadata(path)
+                    for role, path in pair.items()
+                }
+                for program, pair in executables.items()
+            },
             "manifest_sha256": sha256_file(MANIFEST_PATH),
             "cases": [],
         }
+        if "gpumd" in executables:
+            report["baseline"] = executable_metadata(executables["gpumd"]["baseline"])
+            report["candidate"] = executable_metadata(executables["gpumd"]["candidate"])
+        if "nep" in executables:
+            report["baseline_nep"] = executable_metadata(executables["nep"]["baseline"])
+            report["candidate_nep"] = executable_metadata(executables["nep"]["candidate"])
         recorder = DifferenceRecorder(invocation_root)
         for case in selected:
+            program = case.get("program", "gpumd")
             report["cases"].append(
                 execute_case(
                     case,
                     manifest,
-                    baseline,
-                    candidate,
+                    executables[program]["baseline"],
+                    executables[program]["candidate"],
                     invocation_root,
                     repo_root,
                     device_environment,

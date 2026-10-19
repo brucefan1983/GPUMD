@@ -1,13 +1,13 @@
 # Durable behavior-contract diagnostics
 
-`full` is the only acceptance suite. It runs all 195 manifest cases and then
-evaluates all 23 cross-case relations for both the baseline and candidate:
+`full` is the only acceptance suite. It runs all 255 manifest cases and then
+evaluates all 25 cross-case relations for their declared roles:
 
 ```text
-Summary: 195 passed, 0 failed; relations: 23 passed, 0 failed, 0 skipped
+Summary: 255 passed, 0 failed; relations: 25 passed, 0 failed, 0 skipped
 ```
 
-The 20 focused suites are diagnostic views of the same manifest. They may skip
+The 23 focused suites are diagnostic views of the same manifest. They may skip
 relations when not all members are selected and therefore do not replace the
 `full` acceptance run.
 
@@ -35,13 +35,17 @@ relations when not all members are selected and therefore do not replace the
 | `first_step_init` | initialization consumed by the first integration step |
 | `static` | non-dynamics calculations |
 | `transport` | transport measurements |
+| `pppm` | spacing input, mesh rounding, box changes, run reuse, and related qNEP cases |
+| `training` | NEP-family training with TTT, FFF, and mixed boundary conditions |
+| `prediction` | NEP prediction from a fixed model over multiple batches |
 
 ## Cross-case relation oracles
 
-All relations are evaluated independently for baseline and candidate. They
-express stronger behavior than baseline/candidate equality alone because they
-compare different inputs that should be physically or operationally
-equivalent.
+All 25 relations are evaluated independently for baseline and candidate.
+The two PPPM default-equivalence relations use narrowly declared numerical
+tolerances for same-mesh float atomics; see `PPPM.md`. The relations compare
+different inputs that should be physically or operationally equivalent,
+complementing the baseline/candidate comparisons.
 
 | Relation | Oracle |
 |---|---|
@@ -68,6 +72,8 @@ equivalent.
 | `dump_dipole_thermo_side_effect` | dipole response dumping leaves thermodynamics unchanged |
 | `dump_dipole_xyz_side_effect` | dipole response dumping leaves the trajectory unchanged |
 | `dump_polarizability_thermo_side_effect` | polarizability response dumping leaves thermodynamics unchanged |
+| `pppm_default_equivalence_thermo` | four default input forms give equivalent thermodynamics |
+| `pppm_default_equivalence_state` | four default input forms give equivalent coordinates, forces, energy and global virial |
 
 Several negative cases complement these relations. In particular, they
 preserve sequential validation of late or duplicate `replicate`, duplicate
@@ -87,4 +93,5 @@ python3 run_regression.py \
   --keep-all
 ```
 
-Acceptance always uses `--suite full`.
+Acceptance always uses `--suite full` with both the GPUMD and NEP
+baseline/candidate executable pairs.

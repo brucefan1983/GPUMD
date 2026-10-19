@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -38,7 +38,7 @@ private:
 
   double temperature1; // target initial temperature for a run
   double temperature2; // target final temperature for a run
-  double temperature;  // target temperature at a specific time
+  double temperature;  // initial target temperature that parse_ensemble records
   int num_target_pressure_components;
   int deform_x = 0;
   int deform_y = 0;
@@ -59,7 +59,15 @@ public:
   int get_move_grouping_method() const;
   double get_temperature1() const;
   double get_temperature2() const;
+  // The initial target temperature that parse_ensemble records from the ensemble.
+  // It stays fixed during the run, and ensembles without a target temperature leave it unchanged.
   double get_temperature() const;
+  // The target temperature that the ensemble applies in the current step, ramped from
+  // temperature1 to temperature2 over the run.
+  double get_target_temperature_of_step() const;
+  // The atoms that the temperature counts: all atoms except those of the fixed and move groups.
+  int get_number_of_atoms_for_temperature(
+    const int number_of_atoms, const std::vector<Group>& group) const;
   int get_num_target_pressure_components() const;
   int get_number_of_beads() const;
   const double* get_energy_transferred() const;

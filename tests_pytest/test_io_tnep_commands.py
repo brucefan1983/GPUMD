@@ -34,11 +34,15 @@ TNEP_CASES = {
         expected_output_file='polarizability.out'),
 }
 
-# A single-step run from a fixed seed reproduced bit-for-bit identically across repeated runs
-# when calibrating this (no GPU reduction-order noise visible at this trajectory length), so this
-# is tighter than TOLERANCES['force'] rather than matching it -- loosen only if genuine run-to-run
-# noise is observed later (e.g. on different hardware).
-TNEP_GOLDEN_TOLERANCE = dict(rtol=1e-6, atol=1e-8)
+# Repeated runs of the same binary on the same GPU reproduce these outputs bit for bit, so the
+# spread to absorb is the one between binaries: another CUDA toolkit, another GPU architecture
+# or a change in the evaluation code reorders the fp32 arithmetic, and the five velocity-Verlet
+# steps ahead of the last dumped row amplify it. Against the golden file that difference reaches
+# 1.1e-6 for the dipole, whose components are of order 1, and 4.6e-6 for the polarizability,
+# whose diagonal is of order 1e2 and whose off-diagonal components of order 1e-3 stay within
+# 8e-7. atol carries the near-zero components, where a relative bound alone is unstable, and
+# both bounds sit an order of magnitude above the differences observed.
+TNEP_GOLDEN_TOLERANCE = dict(rtol=1e-4, atol=1e-5)
 
 
 @pytest.mark.parametrize('case_name', list(TNEP_CASES))
@@ -57,7 +61,8 @@ def test_tnep_dump_command(tmp_path, gpumd_command, update_golden, case_name):
 
     io_case = CommandIOCase(
         name=case_name,
-        # Explicit PES potential plus the response model on the dump command -- see module docstring.
+        # Explicit PES potential plus the response model on the dump command -- see the
+        # module docstring.
         run_in_lines=[
             ('potential', str(pes_path)),
             (case['dump_command'], [1, str(tnep_path)]),

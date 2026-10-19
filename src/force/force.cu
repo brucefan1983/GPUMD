@@ -2,13 +2,13 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version. GPUMD is distributed in the hope that it will be useful, but
    WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-   PARTICULAR PURPOSE.  See the GNU General Public License for more details. You should have
-   received a copy of the GNU General Public License along with GPUMD.  If not, see
-   <http://www.gnu.org/licenses/>.
+   PARTICULAR PURPOSE.  See the GNU Lesser General Public License for more details. You should have
+   received a copy of the GNU Lesser General Public License along with GPUMD.  If not, see
+   <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -26,6 +26,9 @@ The driver class calculating force and related quantities.
 #include "eam_alloy.cuh"
 #include "fcp.cuh"
 #include "force.cuh"
+#ifdef GPUMD_WPE_ENABLED
+#include "wpe_adapter.cuh"
+#endif
 #include "ilp_nep.cuh"
 #include "ilp_tmd_sw.cuh"
 #include "ilp_tersoff.cuh"
@@ -193,6 +196,24 @@ void Force::parse_potential(
   const int number_of_atoms,
   const RunInput& run_input)
 {
+#ifdef GPUMD_WPE_ENABLED
+  if (tokens.size() != 2u) {
+    PRINT_INPUT_ERROR(
+      "Wisevolve Potential Engine integration supports exactly one potential file and no additional potential parameters.\n");
+  }
+  if (!potentials.empty()) {
+    PRINT_INPUT_ERROR(
+      "Wisevolve Potential Engine integration supports exactly one potential. Use standard GPUMD for multiple potentials.\n");
+  }
+  (void)box;
+  (void)run_input;
+  std::unique_ptr<Potential> wpe_potential(new WpePotential(
+    tokens[1].c_str(), number_of_atoms));
+  wpe_potential->N1 = 0;
+  wpe_potential->N2 = number_of_atoms;
+  potentials.push_back(std::move(wpe_potential));
+  return;
+#else
   const int num_param = tokens.size();
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("potential should have 1 or 2 parameters.\n");
@@ -232,7 +253,19 @@ void Force::parse_potential(
   if (potentials.size() > 1 && has_non_nep) {
     PRINT_INPUT_ERROR("Multiple potentials may only be used with NEP potentials.\n");
   }
+#endif
 }
+
+#ifdef GPUMD_WPE_ENABLED
+void Force::wpe_process_command(
+  const std::vector<std::string>& tokens,
+  const int current_number_of_atoms)
+{
+  WpeStageInfo stage{};
+  if (wpe_stage_state_.process_command(tokens, current_number_of_atoms, stage))
+    gpumd_wpe_activate_stage(potentials, stage);
+}
+#endif
 
 int Force::get_number_of_types(FILE* fid_potential)
 {
@@ -411,6 +444,36 @@ void Force::compute_single_potential(
     potential.compute(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   }
+}
+
+void Force::compute_one_potential(
+  const int potential_index,
+  Box& box,
+  GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& type,
+  const std::vector<Group>& group,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom)
+{
+  const int number_of_atoms = type.size();
+  initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms,
+    force_per_atom.data(),
+    force_per_atom.data() + number_of_atoms,
+    force_per_atom.data() + number_of_atoms * 2,
+    potential_per_atom.data(),
+    virial_per_atom.data());
+  GPU_CHECK_KERNEL
+  compute_single_potential(
+    *potentials[potential_index],
+    box,
+    position_per_atom,
+    type,
+    group,
+    potential_per_atom,
+    force_per_atom,
+    virial_per_atom);
 }
 
 void Force::compute_potentials(

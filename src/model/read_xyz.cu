@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -147,8 +147,8 @@ static void read_xyz_line_1(std::ifstream& input, int& N)
     PRINT_INPUT_ERROR("The first line for the xyz file should have one value.");
   }
   N = get_int_from_token(tokens[0], __FILE__, __LINE__);
-  if (N < 2) {
-    PRINT_INPUT_ERROR("Number of atoms should >= 2.");
+  if (N < 1) {
+    PRINT_INPUT_ERROR("Number of atoms should >= 1.");
   } else {
     printf("Number of atoms is %d.\n", N);
   }
@@ -538,13 +538,6 @@ void initialize_position(
   find_type_size(atom.number_of_atoms, number_of_types, atom.cpu_type, atom.cpu_type_size);
 }
 
-void initialize_position(
-  int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom)
-{
-  RunInput run_input("run.in");
-  initialize_position(run_input, has_velocity_in_xyz, number_of_types, box, group, atom);
-}
-
 void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo)
 {
   const int N = atom.number_of_atoms;
@@ -567,6 +560,7 @@ void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<doubl
   atom.position_per_atom.resize(N * 3);
   atom.position_per_atom.copy_from_host(atom.cpu_position_per_atom.data());
   atom.velocity_per_atom.resize(N * 3);
+  atom.velocity_per_atom.copy_from_host(atom.cpu_velocity_per_atom.data());
   atom.force_per_atom.resize(N * 3, 0);
   atom.virial_per_atom.resize(N * 9);
   atom.potential_per_atom.resize(N);

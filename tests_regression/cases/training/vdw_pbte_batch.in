@@ -1,0 +1,5 @@
+type 2 Pb Te
+vdw 1
+batch 9
+generation 10
+output_interval 10

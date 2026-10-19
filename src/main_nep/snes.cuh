@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -24,12 +24,13 @@
 #include <random>
 #include <vector>
 class Fitness;
-class Fitness;
+class Parameters;
 
 class SNES
 {
 public:
-  SNES(Parameters&, Fitness*);
+  SNES(Parameters& para);
+  void run(Parameters& para, Fitness* fitness_function);
 
 protected:
   std::mt19937 rng;
@@ -40,19 +41,10 @@ protected:
 
   std::vector<int> index;
   std::vector<float> fitness_total;
-  std::vector<float> fitness_L1;
-  std::vector<float> fitness_L2;
-  std::vector<float> fitness_energy;
-  std::vector<float> fitness_force;
-  std::vector<float> fitness_virial;
-  std::vector<float> fitness_charge;
-  std::vector<float> fitness_bec;
   std::vector<float> population;
   std::vector<float> mu;
   std::vector<float> sigma;
   std::vector<float> utility;
-  std::vector<float> cost_L1reg;
-  std::vector<float> cost_L2reg;
   std::vector<int> type_of_variable;
 
   GPU_Vector<gpurandState> curand_states;
@@ -63,18 +55,10 @@ protected:
   GPU_Vector<float> gpu_s;
   GPU_Vector<float> gpu_sigma;
   GPU_Vector<float> gpu_mu;
-  GPU_Vector<float> gpu_cost_L1reg;
-  GPU_Vector<float> gpu_cost_L2reg;
 
-  void initialize_rng();
-  void initialize_mu_and_sigma(Parameters& para);
-  void initialize_mu_and_sigma_fine_tune(Parameters& para);
+  void initialize_rng(const int seed);
   void calculate_utility();
-  void find_type_of_variable(Parameters& para);
-  void compute(Parameters&, Fitness*);
   void create_population();
-  void regularize(Parameters&);
-  void regularize_NEP4(Parameters& para);
   void sort_population(Parameters& para);
   void update_mu_and_sigma();
   void output_mu_and_sigma(Parameters& para, const char* filename);
