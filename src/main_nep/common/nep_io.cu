@@ -263,7 +263,7 @@ void read_nep_model(
   const std::string& filename, NEP_Parameters& para, float* parameters)
 {
   read_nep_txt(filename, para, parameters);
-  gpuSetDevice(0);
+  CHECK(gpuSetDevice(0));
   para.q_scaler_gpu[0].copy_from_host(para.q_scaler_cpu.data());
 }
 
