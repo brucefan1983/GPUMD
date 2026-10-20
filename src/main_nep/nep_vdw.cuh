@@ -20,7 +20,7 @@
 #include "nep_training.cuh"
 #include "energy_difference.cuh"
 #include "nep_common.cuh"
-#include "nep_compile.cuh"
+#include "nep_compiled_kernels.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <memory>
@@ -126,7 +126,43 @@ private:
   NEP_VDW_Data nep_data[16];
   NEP_ZBL zbl;
   VDW_Para vdw_para;
-  std::unique_ptr<NEP_Compile> compiled_kernel_;
+
+  struct Compiled_Kernel
+  {
+    NEP_Compile library;
+    NEP_Compiled_Kernels common;
+    using AnnChargeFunction =
+      int (*)(int, const int*, const float*, const float*, const float*,
+              float*, float*, float*, float*);
+    AnnChargeFunction ann_vdw_ = nullptr;
+    bool valid = false;
+    explicit Compiled_Kernel(const NEP_Compile_Config& config);
+    bool is_valid() const { return valid; }
+    void launch_ann_vdw(
+      int N,
+      const int* type,
+      const float* descriptors,
+      const float* q_scaler,
+      const float* parameters,
+      float* pe,
+      float* Fp,
+      float* C6,
+      float* C6_derivative);
+    void launch_force_vdw_radial(
+      int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+      const float* x12, const float* y12, const float* z12,
+      const float* parameters, const float* Fp,
+      const float* C6_derivative, const float* D_C6,
+      float* fx, float* fy, float* fz, float* virial);
+    void launch_force_vdw_angular(
+      int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+      const float* x12, const float* y12, const float* z12,
+      const float* parameters, const float* Fp,
+      const float* C6_derivative, const float* D_C6,
+      const float* sum_fxyz,
+      float* fx, float* fy, float* fz, float* virial);
+  };
+  std::unique_ptr<Compiled_Kernel> compiled_kernel_;
   void initialize_model(const NEP_Energy_Parameters& para);
   void initialize_device(const NEP_Energy_Parameters& para, int N, int Nc, int device_id);
   void initialize_compiled_kernel(const NEP_Energy_Parameters& para);

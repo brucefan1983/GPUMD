@@ -19,7 +19,7 @@
 #include "nep_parameters.cuh"
 #include "nep_training.cuh"
 #include "tnep_dataset.cuh"
-#include "nep_compile.cuh"
+#include "nep_compiled_kernels.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <memory>
@@ -125,7 +125,50 @@ private:
   ParaMB paramb;
   ANN annmb[16];
   TNEP_Data nep_data[16];
-  std::unique_ptr<NEP_Compile> compiled_kernel_;
+
+  struct Compiled_Kernel
+  {
+    NEP_Compile library;
+    NEP_Compiled_Kernels common;
+    using AnnNepFunction =
+      int (*)(int, const int*, const float*, const float*, const float*, float*, float*);
+    using AnnTnepPolFunction =
+      int (*)(int, const int*, const float*, const float*, const float*, float*, float*);
+    AnnNepFunction ann_nep_ = nullptr;
+    AnnTnepPolFunction ann_tnep_pol_ = nullptr;
+    bool valid = false;
+    explicit Compiled_Kernel(const NEP_Compile_Config& config);
+    bool is_valid() const { return valid; }
+    void launch_ann(
+      int N,
+      const int* type,
+      const float* descriptors,
+      const float* q_scaler,
+      const float* parameters,
+      float* pe,
+      float* Fp);
+    void launch_ann_tnep_pol(
+      int N,
+      const int* type,
+      const float* descriptors,
+      const float* q_scaler,
+      const float* parameters,
+      float* virial,
+      float* Fp);
+    void launch_force_tnep_radial(
+      bool is_dipole,
+      int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+      const float* x12, const float* y12, const float* z12,
+      const float* parameters, const float* Fp,
+      float* fx, float* fy, float* fz, float* virial);
+    void launch_force_tnep_angular(
+      bool is_dipole,
+      int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+      const float* x12, const float* y12, const float* z12,
+      const float* parameters, const float* Fp, const float* sum_fxyz,
+      float* fx, float* fy, float* fz, float* virial);
+  };
+  std::unique_ptr<Compiled_Kernel> compiled_kernel_;
   void initialize_model(const TNEP_Parameters& para);
   void initialize_device(const TNEP_Parameters& para, int N, int device_id);
   void initialize_compiled_kernel(const TNEP_Parameters& para);

@@ -446,13 +446,13 @@ void compute_nep_descriptors(
   const Dataset& dataset,
   const NEP_Neighbor& neighbor,
   NEP_Data& data,
-  NEP_Compile* compiled_kernel)
+  NEP_Compiled_Evaluation* compiled_kernel)
 {
   const int block_size = 32;
   const int grid_size = (dataset.N - 1) / block_size + 1;
 
   if (compiled_kernel) {
-    compiled_kernel->launch_descriptor_radial(
+    compiled_kernel->common.launch_descriptor_radial(
       dataset.N,
       dataset.NN_radial_sum.data(),
       dataset.NN_radial.data(),
@@ -480,7 +480,7 @@ void compute_nep_descriptors(
   }
 
   if (compiled_kernel) {
-    compiled_kernel->launch_descriptor_angular(
+    compiled_kernel->common.launch_descriptor_angular(
       dataset.N,
       dataset.NN_angular_sum.data(),
       dataset.NN_angular.data(),
@@ -516,7 +516,7 @@ void evaluate_nep_ann(
   Dataset& dataset,
   NEP_Data& data,
   float* q_scaler,
-  NEP_Compile* compiled_kernel)
+  NEP_Compiled_Evaluation* compiled_kernel)
 {
   const int block_size = 32;
   const int grid_size = (dataset.N - 1) / block_size + 1;
@@ -572,7 +572,7 @@ void compute_nep_forces(
   Dataset& dataset,
   const NEP_Neighbor& neighbor,
   NEP_Data& data,
-  NEP_Compile* compiled_kernel)
+  NEP_Compiled_Evaluation* compiled_kernel)
 {
   const int block_size = 32;
   const int grid_size = (dataset.N - 1) / block_size + 1;
@@ -650,4 +650,66 @@ void compute_nep_forces(
       dataset.virial.data());
     GPU_CHECK_KERNEL
   }
+}
+
+void NEP_Compiled_Evaluation::launch_ann(
+  int N,
+  const int* type,
+  const float* descriptors,
+  const float* q_scaler,
+  const float* parameters,
+  float* pe,
+  float* Fp)
+{
+  check_nep_launch(
+    ann_nep_(
+      N, type, descriptors, q_scaler, parameters, pe, Fp),
+    "ann_nep_jit");
+}
+
+void NEP_Compiled_Evaluation::launch_ann_temperature(
+  int N,
+  const int* type,
+  const float* descriptors,
+  float* q_scaler,
+  const float* temperature,
+  const float* parameters,
+  float* pe,
+  float* Fp)
+{
+  check_nep_launch(
+    ann_temperature_(
+      N, type, descriptors, q_scaler, temperature,
+      parameters, pe, Fp),
+    "ann_temperature_jit");
+}
+
+void NEP_Compiled_Evaluation::launch_force_radial(
+  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+  const float* x12, const float* y12, const float* z12,
+  const float* parameters, const float* Fp,
+  float* fx, float* fy, float* fz, float* virial)
+{
+  check_nep_launch(
+    common.force_radial_(
+      N, NN_sum, NN, NL, type, x12, y12, z12,
+      parameters, Fp,
+      nullptr, nullptr, nullptr, nullptr,
+      0, fx, fy, fz, virial),
+    "force_radial_jit");
+}
+
+void NEP_Compiled_Evaluation::launch_force_angular(
+  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+  const float* x12, const float* y12, const float* z12,
+  const float* parameters, const float* Fp, const float* sum_fxyz,
+  float* fx, float* fy, float* fz, float* virial)
+{
+  check_nep_launch(
+    common.force_angular_(
+      N, NN_sum, NN, NL, type, x12, y12, z12,
+      parameters, Fp,
+      nullptr, nullptr, nullptr, nullptr,
+      sum_fxyz, 0, fx, fy, fz, virial),
+    "force_angular_jit");
 }

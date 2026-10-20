@@ -95,12 +95,35 @@ void NEP::initialize_device(const NEP_Potential_Parameters& para, int N, int dev
   data.parameters.resize(ann.num_para);
 }
 
+namespace
+{
+NEP_Compile_Config make_compile_config(
+  const NEP_Potential_Parameters& para)
+{
+  NEP_Compile_Config config = make_nep_compile_config(para);
+  config.model_name = "NEP";
+  config.source_file = "main_nep/nep_specialized.cu";
+  return config;
+}
+} // namespace
+
+NEP_Compiled_Evaluation::NEP_Compiled_Evaluation(const NEP_Compile_Config& config)
+  : library(config)
+{
+  if (!library.is_valid()) {
+    return;
+  }
+  valid = common.load(library);
+  valid &= library.load_symbol("nep_train_launch_ann_nep", ann_nep_);
+  valid &= library.load_symbol("nep_train_launch_ann_temperature", ann_temperature_);
+}
+
 void NEP::initialize_compiled_kernel(const NEP_Potential_Parameters& para)
 {
   if (para.nep_compile && para.prediction == 0) {
     CHECK(gpuSetDevice(0));
-    compiled_kernel_.reset(new NEP_Compile(
-      make_nep_compile_config(para, NEP_Compile_Mode::NEP, nullptr, para.model_type)));
+    compiled_kernel_.reset(new NEP_Compiled_Evaluation(
+      make_compile_config(para)));
     if (!compiled_kernel_->is_valid()) {
       compiled_kernel_.reset();
     }

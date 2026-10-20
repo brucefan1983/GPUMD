@@ -20,19 +20,12 @@
 
 class NEP_Parameters;
 
-const int NEP_SPECIALIZED_INTERFACE_VERSION = 2;
-
-enum class NEP_Compile_Mode {
-  NEP = 0,
-  CHARGE = 1,
-  VDW = 2,
-  CHARGE_VDW = 3,
-  TNEP = 4
-};
+const int NEP_SPECIALIZED_INTERFACE_VERSION = 3;
 
 struct NEP_Compile_Config {
-  NEP_Compile_Mode mode = NEP_Compile_Mode::NEP;
-  int model_type = 0;
+  std::string model_name;
+  std::string source_file;
+  std::string extra_config;
 
   int num_types = 0;
   int ann_dim = 0;
@@ -60,20 +53,14 @@ struct NEP_Compile_Config {
   int num_L = 0;
   int num_c_radial = 0;
 
-  // Ordinary NEP/NEP-vdW follow USE_CJ when that build option is enabled.
-  // qNEP/charge-vdW/TNEP remain pair-dependent, matching their generic paths.
   bool descriptor_use_cj = false;
 
   std::vector<float> rc_radial;
   std::vector<float> rc_angular;
-  std::vector<float> c6_ref_sqrt;
 };
 
-NEP_Compile_Config make_nep_compile_config(
-  const NEP_Parameters& para,
-  NEP_Compile_Mode mode,
-  const float* c6_ref_sqrt = nullptr,
-  int model_type = 0);
+NEP_Compile_Config make_nep_compile_config(const NEP_Parameters& para);
+std::string make_nep_compile_array(const std::vector<float>& values);
 
 #if !defined(USE_HIP) && !defined(_WIN32)
 

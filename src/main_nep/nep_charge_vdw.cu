@@ -219,12 +219,101 @@ void NEP_Charge_VDW::initialize_device(const NEP_Charge_Parameters& para, int N,
   nep_data[device_id].kpoint_offset.resize(Nc + 1);
 }
 
+namespace
+{
+NEP_Compile_Config make_compile_config(
+  const NEP_Charge_Parameters& para, const float* c6_ref_sqrt)
+{
+#ifdef USE_CJ
+  warning_nep_compile(
+    "qNEP, charge-vdW, and TNEP specialization is not available in "
+    "this USE_CJ configuration.");
+  return NEP_Compile_Config();
+#endif
+  NEP_Compile_Config config = make_nep_compile_config(para);
+  config.model_name = "NEP-charge-vdW";
+  config.source_file = "main_nep/nep_charge_vdw_specialized.cu";
+  config.extra_config =
+    "#define C6_SCALING_FACTOR_JIT 1.000000000e-01f\n"
+    "static __device__ __constant__ float C6_REF_SQRT_JIT[NUM_TYPES_JIT] = " +
+    make_nep_compile_array(std::vector<float>(c6_ref_sqrt, c6_ref_sqrt + para.num_types)) + ";\n";
+  return config;
+}
+} // namespace
+
+NEP_Charge_VDW::Compiled_Kernel::Compiled_Kernel(const NEP_Compile_Config& config)
+  : library(config)
+{
+  if (!library.is_valid()) {
+    return;
+  }
+  valid = common.load(library);
+  valid &= bec.load(library);
+  valid &= library.load_symbol("nep_train_launch_ann_charge_vdw", ann_charge_vdw_);
+}
+
+void NEP_Charge_VDW::Compiled_Kernel::launch_ann_charge_vdw(
+  int N,
+  const int* type,
+  const float* descriptors,
+  const float* q_scaler,
+  const float* parameters,
+  float* pe,
+  float* Fp,
+  float* charge,
+  float* charge_derivative,
+  float* C6,
+  float* C6_derivative)
+{
+  check_nep_launch(
+    ann_charge_vdw_(
+      N, type, descriptors, q_scaler, parameters,
+      pe, Fp, charge, charge_derivative,
+      C6, C6_derivative),
+    "ann_charge_vdw_jit");
+}
+
+void NEP_Charge_VDW::Compiled_Kernel::launch_force_charge_vdw_radial(
+  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+  const float* x12, const float* y12, const float* z12,
+  const float* parameters, const float* Fp,
+  const float* charge_derivative, const float* D_real,
+  const float* C6_derivative, const float* D_C6,
+  float* fx, float* fy, float* fz, float* virial)
+{
+  check_nep_launch(
+    common.force_radial_(
+      N, NN_sum, NN, NL, type, x12, y12, z12,
+      parameters, Fp,
+      charge_derivative, D_real, C6_derivative, D_C6,
+      0, fx, fy, fz, virial),
+    "force_charge_vdw_radial_jit");
+}
+
+void NEP_Charge_VDW::Compiled_Kernel::launch_force_charge_vdw_angular(
+  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+  const float* x12, const float* y12, const float* z12,
+  const float* parameters, const float* Fp,
+  const float* charge_derivative, const float* D_real,
+  const float* C6_derivative, const float* D_C6,
+  const float* sum_fxyz,
+  float* fx, float* fy, float* fz, float* virial)
+{
+  check_nep_launch(
+    common.force_angular_(
+      N, NN_sum, NN, NL, type, x12, y12, z12,
+      parameters, Fp,
+      charge_derivative, D_real, C6_derivative, D_C6,
+      sum_fxyz, 0, fx, fy, fz, virial),
+    "force_charge_vdw_angular_jit");
+}
+
 void NEP_Charge_VDW::initialize_compiled_kernel(const NEP_Charge_Parameters& para)
 {
   if (para.nep_compile && para.prediction == 0) {
     CHECK(gpuSetDevice(0));
-    compiled_kernel_.reset(new NEP_Compile(
-      make_nep_compile_config(para, NEP_Compile_Mode::CHARGE_VDW, paramb.c6_ref_sqrt)));
+    compiled_kernel_.reset(new Compiled_Kernel(
+      make_compile_config(para, paramb.c6_ref_sqrt)));
     if (!compiled_kernel_->is_valid()) {
       compiled_kernel_.reset();
     }
@@ -1000,7 +1089,7 @@ void NEP_Charge_VDW::compute_descriptors(
   const int grid_size = (data.N - 1) / block_size + 1;
 
   if (compiled_kernel_) {
-    compiled_kernel_->launch_descriptor_radial(
+    compiled_kernel_->common.launch_descriptor_radial(
       data.N,
       data.NN_radial_sum.data(),
       data.NN_radial.data(),
@@ -1028,7 +1117,7 @@ void NEP_Charge_VDW::compute_descriptors(
   }
 
   if (compiled_kernel_) {
-    compiled_kernel_->launch_descriptor_angular(
+    compiled_kernel_->common.launch_descriptor_angular(
       data.N,
       data.NN_angular_sum.data(),
       data.NN_angular.data(),
@@ -1110,7 +1199,7 @@ void NEP_Charge_VDW::compute_bec(
 
   // get BEC (radial descriptor part)
   if (compiled_kernel_) {
-    compiled_kernel_->launch_bec_radial(
+    compiled_kernel_->bec.launch_bec_radial(
       data.N,
       data.NN_radial_sum.data(),
       data.NN_radial.data(),
@@ -1141,7 +1230,7 @@ void NEP_Charge_VDW::compute_bec(
 
   // get BEC (angular descriptor part)
   if (compiled_kernel_) {
-    compiled_kernel_->launch_bec_angular(
+    compiled_kernel_->bec.launch_bec_angular(
       data.N,
       data.NN_angular_sum.data(),
       data.NN_angular.data(),

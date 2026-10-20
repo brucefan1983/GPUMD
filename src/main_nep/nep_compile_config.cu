@@ -15,20 +15,12 @@
 
 #include "nep_compile_config.cuh"
 #include "nep_parameters.cuh"
+#include "nep_compile.cuh"
 #include <iomanip>
-#include <iostream>
 #include <sstream>
 
 namespace
 {
-void warning_compile(const std::string& message)
-{
-  std::cerr << "Warning: NEP training specialization disabled: "
-            << message << std::endl;
-}
-
-#if !defined(USE_HIP) && !defined(_WIN32)
-
 std::string float_literal(const float value)
 {
   std::ostringstream output;
@@ -36,7 +28,9 @@ std::string float_literal(const float value)
   return output.str();
 }
 
-std::string make_float_array(const std::vector<float>& values)
+} // namespace
+
+std::string make_nep_compile_array(const std::vector<float>& values)
 {
   std::ostringstream output;
   output << "{";
@@ -50,6 +44,9 @@ std::string make_float_array(const std::vector<float>& values)
   return output.str();
 }
 
+namespace
+{
+#if !defined(USE_HIP) && !defined(_WIN32)
 bool all_equal(const std::vector<float>& values)
 {
   if (values.empty()) return true;
@@ -61,27 +58,9 @@ bool all_equal(const std::vector<float>& values)
 #endif
 }
 
-NEP_Compile_Config make_nep_compile_config(
-  const NEP_Parameters& para,
-  const NEP_Compile_Mode mode,
-  const float* c6_ref_sqrt,
-  int model_type)
+NEP_Compile_Config make_nep_compile_config(const NEP_Parameters& para)
 {
-#ifdef USE_CJ
-  if (
-    mode == NEP_Compile_Mode::CHARGE ||
-    mode == NEP_Compile_Mode::CHARGE_VDW ||
-    mode == NEP_Compile_Mode::TNEP) {
-    warning_compile(
-      "qNEP, charge-vdW, and TNEP specialization is not available in "
-      "this USE_CJ configuration.");
-    return NEP_Compile_Config();
-  }
-#endif
-
   NEP_Compile_Config c;
-  c.mode = mode;
-  c.model_type = model_type;
   c.num_types = para.num_types;
   c.ann_dim = para.dim;
   c.num_neurons1 = para.num_neurons1;
@@ -109,8 +88,7 @@ NEP_Compile_Config make_nep_compile_config(
   c.num_L = para.dim_angular / (para.n_max_angular + 1);
 
 #ifdef USE_CJ
-  c.descriptor_use_cj =
-    (mode == NEP_Compile_Mode::NEP || mode == NEP_Compile_Mode::VDW);
+  c.descriptor_use_cj = true;
 #else
   c.descriptor_use_cj = false;
 #endif
@@ -122,30 +100,8 @@ NEP_Compile_Config make_nep_compile_config(
     (para.n_max_radial + 1) *
     (para.basis_size_radial + 1);
 
-  c.rc_radial.resize(para.num_types);
-  c.rc_angular.resize(para.num_types);
-  if (mode == NEP_Compile_Mode::CHARGE) {
-    // qNEP's generic ParaMB uses the first, uniform cutoff value.
-    for (int t = 0; t < para.num_types; ++t) {
-      c.rc_radial[t] = para.rc_radial[0];
-      c.rc_angular[t] = para.rc_angular[0];
-    }
-  } else {
-    for (int t = 0; t < para.num_types; ++t) {
-      c.rc_radial[t] = para.rc_radial[t];
-      c.rc_angular[t] = para.rc_angular[t];
-    }
-  }
-
-  if (
-    mode == NEP_Compile_Mode::VDW ||
-    mode == NEP_Compile_Mode::CHARGE_VDW) {
-    if (c6_ref_sqrt == nullptr) {
-      warning_compile("vdW specialization requires C6 reference values.");
-      return NEP_Compile_Config();
-    }
-    c.c6_ref_sqrt.assign(c6_ref_sqrt, c6_ref_sqrt + para.num_types);
-  }
+  c.rc_radial.assign(para.rc_radial.begin(), para.rc_radial.begin() + para.num_types);
+  c.rc_angular.assign(para.rc_angular.begin(), para.rc_angular.begin() + para.num_types);
 
   return c;
 }
@@ -155,37 +111,17 @@ NEP_Compile_Config make_nep_compile_config(
 bool validate_nep_compile_config(const NEP_Compile_Config& c)
 {
   if (c.num_types <= 0 || c.ann_dim <= 0 || c.num_neurons1 <= 0) {
-    warning_compile("Invalid NEP model dimensions.");
+    warning_nep_compile("Invalid NEP model dimensions.");
     return false;
   }
   if (
     static_cast<int>(c.rc_radial.size()) != c.num_types ||
     static_cast<int>(c.rc_angular.size()) != c.num_types) {
-    warning_compile("Invalid cutoff data.");
+    warning_nep_compile("Invalid cutoff data.");
     return false;
   }
   if (c.num_hidden_layers != 1 && c.num_hidden_layers != 2) {
-    warning_compile("Only one or two hidden ANN layers are supported.");
-    return false;
-  }
-  if (
-    (c.mode == NEP_Compile_Mode::CHARGE ||
-     c.mode == NEP_Compile_Mode::VDW ||
-     c.mode == NEP_Compile_Mode::CHARGE_VDW) &&
-    c.num_hidden_layers != 1) {
-    warning_compile(
-      "qNEP/vdW/charge-vdW specialization requires one hidden ANN layer.");
-    return false;
-  }
-  if (
-    (c.mode == NEP_Compile_Mode::VDW ||
-     c.mode == NEP_Compile_Mode::CHARGE_VDW) &&
-    static_cast<int>(c.c6_ref_sqrt.size()) != c.num_types) {
-    warning_compile("vdW specialization requires C6 reference values.");
-    return false;
-  }
-  if (c.mode == NEP_Compile_Mode::TNEP && c.model_type != 1 && c.model_type != 2) {
-    warning_compile("TNEP specialization requires model_type 1 or 2.");
+    warning_nep_compile("Only one or two hidden ANN layers are supported.");
     return false;
   }
   return true;
@@ -198,20 +134,10 @@ std::string make_nep_compile_config_text(const NEP_Compile_Config& c)
   const bool common_radial = all_equal(c.rc_radial);
   const bool common_angular = all_equal(c.rc_angular);
 
-  std::vector<float> c6 = c.c6_ref_sqrt;
-  if (c6.empty()) c6.assign(c.num_types, 0.0f);
-
   std::ostringstream output;
   output << "#pragma once\n";
   output << "#define NEP_SPECIAL_CONFIG_INTERFACE_VERSION "
          << NEP_SPECIALIZED_INTERFACE_VERSION << "\n";
-  output << "#define NEP_MODEL_NEP 0\n";
-  output << "#define NEP_MODEL_CHARGE 1\n";
-  output << "#define NEP_MODEL_VDW 2\n";
-  output << "#define NEP_MODEL_CHARGE_VDW 3\n";
-  output << "#define NEP_MODEL_TNEP 4\n";
-  output << "#define NEP_MODEL_MODE_JIT " << static_cast<int>(c.mode) << "\n";
-  output << "#define MODEL_TYPE_JIT " << c.model_type << "\n";
   output << "#define NUM_TYPES_JIT " << c.num_types << "\n";
   output << "#define ANN_DIM_JIT " << c.ann_dim << "\n";
   output << "#define NUM_NEURONS1_JIT " << c.num_neurons1 << "\n";
@@ -244,13 +170,11 @@ std::string make_nep_compile_config_text(const NEP_Compile_Config& c)
          << float_literal(c.rc_radial[0]) << "\n";
   output << "#define RC_ANGULAR_COMMON_VALUE_JIT "
          << float_literal(c.rc_angular[0]) << "\n";
-  output << "#define C6_SCALING_FACTOR_JIT 1.000000000e-01f\n";
   output << "static __device__ __constant__ float RC_RADIAL_JIT[NUM_TYPES_JIT] = "
-         << make_float_array(c.rc_radial) << ";\n";
+         << make_nep_compile_array(c.rc_radial) << ";\n";
   output << "static __device__ __constant__ float RC_ANGULAR_JIT[NUM_TYPES_JIT] = "
-         << make_float_array(c.rc_angular) << ";\n";
-  output << "static __device__ __constant__ float C6_REF_SQRT_JIT[NUM_TYPES_JIT] = "
-         << make_float_array(c6) << ";\n";
+         << make_nep_compile_array(c.rc_angular) << ";\n";
+  output << c.extra_config;
   return output.str();
 }
 

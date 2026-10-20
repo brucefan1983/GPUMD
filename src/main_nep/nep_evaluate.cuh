@@ -15,11 +15,53 @@
 
 #pragma once
 #include "utilities/common.cuh"
+#include "nep_compiled_kernels.cuh"
 #include "utilities/gpu_vector.cuh"
 
 class Dataset;
 class NEP_Neighbor;
-class NEP_Compile;
+
+struct NEP_Compiled_Evaluation
+{
+  NEP_Compile library;
+  NEP_Compiled_Kernels common;
+  using AnnNepFunction =
+    int (*)(int, const int*, const float*, const float*, const float*, float*, float*);
+  using AnnTemperatureFunction =
+    int (*)(int, const int*, const float*, float*, const float*, const float*, float*, float*);
+  AnnNepFunction ann_nep_ = nullptr;
+  AnnTemperatureFunction ann_temperature_ = nullptr;
+  bool valid = false;
+  explicit NEP_Compiled_Evaluation(const NEP_Compile_Config& config);
+  bool is_valid() const { return valid; }
+  void launch_ann(
+    int N,
+    const int* type,
+    const float* descriptors,
+    const float* q_scaler,
+    const float* parameters,
+    float* pe,
+    float* Fp);
+  void launch_ann_temperature(
+    int N,
+    const int* type,
+    const float* descriptors,
+    float* q_scaler,
+    const float* temperature,
+    const float* parameters,
+    float* pe,
+    float* Fp);
+  void launch_force_radial(
+    int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+    const float* x12, const float* y12, const float* z12,
+    const float* parameters, const float* Fp,
+    float* fx, float* fy, float* fz, float* virial);
+  void launch_force_angular(
+    int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+    const float* x12, const float* y12, const float* z12,
+    const float* parameters, const float* Fp, const float* sum_fxyz,
+    float* fx, float* fy, float* fz, float* virial);
+};
 
 struct NEP_Descriptor_Parameters {
   float rc_radial[NUM_ELEMENTS];  // radial cutoff
@@ -74,7 +116,7 @@ void compute_nep_descriptors(
   const Dataset& dataset,
   const NEP_Neighbor& neighbor,
   NEP_Data& data,
-  NEP_Compile* compiled_kernel);
+  NEP_Compiled_Evaluation* compiled_kernel);
 
 void evaluate_nep_ann(
   const NEP_ANN& ann,
@@ -82,7 +124,7 @@ void evaluate_nep_ann(
   Dataset& dataset,
   NEP_Data& data,
   float* q_scaler,
-  NEP_Compile* compiled_kernel);
+  NEP_Compiled_Evaluation* compiled_kernel);
 
 void compute_nep_forces(
   const NEP_Descriptor_Parameters& paramb,
@@ -90,4 +132,4 @@ void compute_nep_forces(
   Dataset& dataset,
   const NEP_Neighbor& neighbor,
   NEP_Data& data,
-  NEP_Compile* compiled_kernel);
+  NEP_Compiled_Evaluation* compiled_kernel);

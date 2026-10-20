@@ -77,7 +77,7 @@ private:
   NEP_ANN annmb[16];
   NEP_Data nep_data[16];
   NEP_ZBL zbl;
-  std::unique_ptr<NEP_Compile> compiled_kernel_;
+  std::unique_ptr<NEP_Compiled_Evaluation> compiled_kernel_;
   void initialize_model(const NEP_Potential_Parameters& para);
   void initialize_device(const NEP_Potential_Parameters& para, int N, int device_id);
   void initialize_compiled_kernel(const NEP_Potential_Parameters& para);

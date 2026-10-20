@@ -212,12 +212,103 @@ void TNEP::initialize_device(const TNEP_Parameters& para, int N, int device_id)
   data.parameters.resize(ann.num_para);
 }
 
+namespace
+{
+NEP_Compile_Config make_compile_config(
+  const TNEP_Parameters& para)
+{
+#ifdef USE_CJ
+  warning_nep_compile(
+    "qNEP, charge-vdW, and TNEP specialization is not available in "
+    "this USE_CJ configuration.");
+  return NEP_Compile_Config();
+#endif
+  NEP_Compile_Config config = make_nep_compile_config(para);
+  config.model_name = "TNEP";
+  config.source_file = "main_nep/tnep_specialized.cu";
+  return config;
+}
+} // namespace
+
+TNEP::Compiled_Kernel::Compiled_Kernel(const NEP_Compile_Config& config)
+  : library(config)
+{
+  if (!library.is_valid()) {
+    return;
+  }
+  valid = common.load(library);
+  valid &= library.load_symbol("nep_train_launch_ann_nep", ann_nep_);
+  valid &= library.load_symbol("nep_train_launch_ann_tnep_pol", ann_tnep_pol_);
+}
+
+void TNEP::Compiled_Kernel::launch_ann(
+  int N,
+  const int* type,
+  const float* descriptors,
+  const float* q_scaler,
+  const float* parameters,
+  float* pe,
+  float* Fp)
+{
+  check_nep_launch(
+    ann_nep_(
+      N, type, descriptors, q_scaler, parameters, pe, Fp),
+    "ann_nep_jit");
+}
+
+void TNEP::Compiled_Kernel::launch_ann_tnep_pol(
+  int N,
+  const int* type,
+  const float* descriptors,
+  const float* q_scaler,
+  const float* parameters,
+  float* virial,
+  float* Fp)
+{
+  check_nep_launch(
+    ann_tnep_pol_(
+      N, type, descriptors, q_scaler, parameters, virial, Fp),
+    "ann_tnep_pol_jit");
+}
+
+void TNEP::Compiled_Kernel::launch_force_tnep_radial(
+  bool is_dipole,
+  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+  const float* x12, const float* y12, const float* z12,
+  const float* parameters, const float* Fp,
+  float* fx, float* fy, float* fz, float* virial)
+{
+  check_nep_launch(
+    common.force_radial_(
+      N, NN_sum, NN, NL, type, x12, y12, z12,
+      parameters, Fp,
+      nullptr, nullptr, nullptr, nullptr,
+      is_dipole ? 1 : 0, fx, fy, fz, virial),
+    "force_tnep_radial_jit");
+}
+
+void TNEP::Compiled_Kernel::launch_force_tnep_angular(
+  bool is_dipole,
+  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
+  const float* x12, const float* y12, const float* z12,
+  const float* parameters, const float* Fp, const float* sum_fxyz,
+  float* fx, float* fy, float* fz, float* virial)
+{
+  check_nep_launch(
+    common.force_angular_(
+      N, NN_sum, NN, NL, type, x12, y12, z12,
+      parameters, Fp,
+      nullptr, nullptr, nullptr, nullptr,
+      sum_fxyz, is_dipole ? 1 : 0, fx, fy, fz, virial),
+    "force_tnep_angular_jit");
+}
+
 void TNEP::initialize_compiled_kernel(const TNEP_Parameters& para)
 {
   if (para.nep_compile && para.prediction == 0) {
     CHECK(gpuSetDevice(0));
-    compiled_kernel_.reset(new NEP_Compile(
-      make_nep_compile_config(para, NEP_Compile_Mode::TNEP, nullptr, para.model_type)));
+    compiled_kernel_.reset(new Compiled_Kernel(
+      make_compile_config(para)));
     if (!compiled_kernel_->is_valid()) {
       compiled_kernel_.reset();
     }
@@ -601,7 +692,7 @@ void TNEP::compute_descriptors(
   const int grid_size = (dataset.N - 1) / block_size + 1;
 
   if (compiled_kernel_) {
-    compiled_kernel_->launch_descriptor_radial(
+    compiled_kernel_->common.launch_descriptor_radial(
       dataset.N,
       dataset.NN_radial_sum.data(),
       dataset.NN_radial.data(),
@@ -629,7 +720,7 @@ void TNEP::compute_descriptors(
   }
 
   if (compiled_kernel_) {
-    compiled_kernel_->launch_descriptor_angular(
+    compiled_kernel_->common.launch_descriptor_angular(
       dataset.N,
       dataset.NN_angular_sum.data(),
       dataset.NN_angular.data(),
