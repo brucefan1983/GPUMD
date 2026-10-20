@@ -121,6 +121,9 @@ public:
   int dim;                            // dimension of the descriptor vector
   int dim_radial;                     // number of radial descriptor components
   int dim_angular;                    // number of angular descriptor components
+  std::string file_tag;
+  int ann_count;
+  int global_parameters;
   int number_of_variables;            // total number of parameters (NN and descriptor)
   int number_of_variables_ann;        // number of parameters in the ANN only
   int number_of_variables_ann_1;      // number of parameters in the ANN for one element

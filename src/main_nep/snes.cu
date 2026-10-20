@@ -25,7 +25,6 @@ https://doi.org/10.1145/2001576.2001692
 
 #include "fitness.cuh"
 #include "potential.cuh"
-#include "nep_io.cuh"
 #include "parameters.cuh"
 #include "snes.cuh"
 #include "utilities/error.cuh"
@@ -41,7 +40,7 @@ static __global__ void initialize_curand_states(gpurandState* state, int N, int 
   }
 }
 
-SNES::SNES(Parameters& para, Potential& potential)
+SNES::SNES(Parameters& para, Potential& potential) : potential(potential)
 {
   maximum_generation = para.maximum_generation;
   number_of_variables = para.number_of_variables;
@@ -264,5 +263,5 @@ void SNES::output_mu_and_sigma(Parameters& para, const char* filename)
   gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_to_host(mu.data());
   gpu_sigma.copy_to_host(sigma.data());
-  write_nep_restart(filename, para, mu, sigma);
+  potential.write_restart(filename, para, mu, sigma);
 }

@@ -17,6 +17,7 @@
 #include "nep_elements.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/nep_parameters.cuh"
 #include <algorithm>
 #include <cctype>
@@ -233,7 +234,7 @@ static bool read_nep_txt_header(const std::string& filename, NepTxtHeader& heade
 
 static void nep_parameters_to_channel_major(const Parameters& para, float* parameters)
 {
-  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
+  const int descriptor_offset = para.number_of_variables_ann * para.ann_count;
 #ifdef USE_CJ
   const int num_channels = para.num_types;
 #else
@@ -251,7 +252,7 @@ static void nep_parameters_to_channel_major(const Parameters& para, float* param
 
 static void nep_parameters_to_basis_major(const Parameters& para, float* parameters)
 {
-  const int descriptor_offset = para.number_of_variables_ann * (para.model_type == 2 ? 2 : 1);
+  const int descriptor_offset = para.number_of_variables_ann * para.ann_count;
 #ifdef USE_CJ
   const int num_channels = para.num_types;
 #else
@@ -267,7 +268,7 @@ static void nep_parameters_to_basis_major(const Parameters& para, float* paramet
     para.basis_size_angular);
 }
 
-void read_nep_txt(const std::string& filename, Parameters& para, float* parameters)
+static void read_nep_txt(const std::string& filename, Parameters& para, float* parameters)
 {
   NepTxtHeader header;
   std::string error;
@@ -291,6 +292,14 @@ void read_nep_txt(const std::string& filename, Parameters& para, float* paramete
     tokens = get_tokens(input);
     para.q_scaler_cpu[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
+}
+
+void read_nep_model(
+  const std::string& filename, Parameters& para, float* parameters)
+{
+  read_nep_txt(filename, para, parameters);
+  gpuSetDevice(0);
+  para.q_scaler_gpu[0].copy_from_host(para.q_scaler_cpu.data());
 }
 
 bool read_nep_restart(
@@ -371,7 +380,7 @@ void read_nep_q_scaler(Parameters& para)
     std::vector<std::string> tokens;
     const int NUM89 = 89;
     const int num_ann =
-      NUM89 * para.number_of_variables_ann_1 + ((para.charge_mode || para.charge_vdw) ? 2 : 1);
+      NUM89 * para.number_of_variables_ann_1 + para.global_parameters;
 #ifdef USE_CJ
     const int num_cnk_radial = NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
     const int num_cnk_angular = NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
@@ -405,62 +414,14 @@ void read_nep_q_scaler(Parameters& para)
   }
 }
 
-void write_nep_txt(
+static void write_nep_txt(
   FILE* fid_nep,
   const Parameters& para,
   const float* elite,
   const int max_NN_radial,
   const int max_NN_angular)
 {
-  if (para.model_type == 0) { // potential model
-    if (!(para.charge_mode || para.charge_vdw)) {
-      if (para.version == 4) {
-        if (para.enable_zbl) {
-          if (para.vdw) {
-            fprintf(fid_nep, "nep4_zbl_vdw %d ", para.num_types);
-          } else {
-            fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
-          }
-        } else {
-          if (para.vdw) {
-            fprintf(fid_nep, "nep4_vdw %d ", para.num_types);
-          } else {
-            fprintf(fid_nep, "nep4 %d ", para.num_types);
-          }
-        }
-      }
-    } else {
-      if (para.charge_vdw) {
-        if (para.enable_zbl) {
-          fprintf(fid_nep, "nep4_zbl_charge_vdw %d ", para.num_types);
-        } else {
-          fprintf(fid_nep, "nep4_charge_vdw %d ", para.num_types);
-        }
-      } else {
-        if (para.enable_zbl) {
-          fprintf(fid_nep, "nep4_zbl_charge%d %d ", para.charge_mode, para.num_types);
-        } else {
-          fprintf(fid_nep, "nep4_charge%d %d ", para.charge_mode, para.num_types);
-        }
-      }
-    }
-  } else if (para.model_type == 1) { // dipole model
-    if (para.version == 4) {
-      fprintf(fid_nep, "nep4_dipole %d ", para.num_types);
-    }
-  } else if (para.model_type == 2) { // polarizability model
-    if (para.version == 4) {
-      fprintf(fid_nep, "nep4_polarizability %d ", para.num_types);
-    }
-  } else if (para.model_type == 3) { // temperature model
-    if (para.version == 4) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep4_zbl_temperature %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep4_temperature %d ", para.num_types);
-      }
-    }
-  }
+  fprintf(fid_nep, "%s %d ", para.file_tag.c_str(), para.num_types);
 
   for (int n = 0; n < para.num_types; ++n) {
     fprintf(fid_nep, "%s ", para.elements[n].c_str());
@@ -520,6 +481,14 @@ void write_nep_txt(
       fprintf(fid_nep, "%15.7e\n", para.zbl_para[d]);
     }
   }
+}
+
+void write_nep_model(
+  FILE* file, Parameters& para, const float* parameters, int max_radial, int max_angular)
+{
+  gpuSetDevice(0);
+  para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
+  write_nep_txt(file, para, parameters, max_radial, max_angular);
 }
 
 static void compare_int(

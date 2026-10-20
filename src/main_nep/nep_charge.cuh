@@ -93,6 +93,12 @@ public:
     const Parameters& para, std::mt19937& rng,
     std::vector<float>& mu, std::vector<float>& sigma) override;
   void parameter_groups(const Parameters& para, std::vector<int>& groups) override;
+  void read_model(Parameters& para, float* parameters) override;
+  void write_model(
+    FILE* file, Parameters& para, const float* parameters, int max_radial, int max_angular) override;
+  void write_restart(
+    const char* filename, const Parameters& para,
+    const std::vector<float>& mu, const std::vector<float>& sigma) override;
   void initialize(Parameters& para, int N, int Nc, int deviceCount) override;
   void find_force(
     Parameters& para,

@@ -25,6 +25,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep_charge.cuh"
 #include "nep_model.cuh"
 #include "nep_init.cuh"
+#include "nep_io.cuh"
 #include "nep_long_range.cuh"
 #include "parameters.cuh"
 #include "utilities/common.cuh"
@@ -1396,6 +1397,7 @@ void NEP_Charge::find_force(
 
 void NEP_Charge::configure(Parameters& para)
 {
+  para.file_tag = std::string(para.enable_zbl ? "nep4_zbl" : "nep4") + ("_charge" + std::to_string(para.charge_mode));
   calculate_nep_model_parameters(para, 0, 1, 2, 1);
 }
 
@@ -1430,4 +1432,22 @@ void NEP_Charge::initialize_parameters(
 void NEP_Charge::parameter_groups(const Parameters& para, std::vector<int>& groups)
 {
   find_nep_type_of_variable(para, groups, 2, 1);
+}
+
+void NEP_Charge::read_model(Parameters& para, float* parameters)
+{
+  read_nep_model("nep.txt", para, parameters);
+}
+
+void NEP_Charge::write_model(
+  FILE* file, Parameters& para, const float* parameters, int max_radial, int max_angular)
+{
+  write_nep_model(file, para, parameters, max_radial, max_angular);
+}
+
+void NEP_Charge::write_restart(
+  const char* filename, const Parameters& para,
+  const std::vector<float>& mu, const std::vector<float>& sigma)
+{
+  write_nep_restart(filename, para, mu, sigma);
 }

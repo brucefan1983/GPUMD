@@ -20,7 +20,8 @@
 
 class Parameters;
 
-void read_nep_txt(const std::string& filename, Parameters& para, float* parameters);
+void read_nep_model(
+  const std::string& filename, Parameters& para, float* parameters);
 
 bool read_nep_restart(
   const char* filename,
@@ -39,11 +40,7 @@ void write_nep_restart(
 
 void read_nep_q_scaler(Parameters& para);
 
-void write_nep_txt(
-  FILE* fid_nep,
-  const Parameters& para,
-  const float* elite,
-  const int max_NN_radial,
-  const int max_NN_angular);
+void write_nep_model(
+  FILE* file, Parameters& para, const float* parameters, int max_radial, int max_angular);
 
 void check_existing_nep_model(Parameters& para);

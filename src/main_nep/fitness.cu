@@ -18,7 +18,6 @@ Get the fitness
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
-#include "nep_io.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/common.cuh"
@@ -507,9 +506,7 @@ void Fitness::output_atomic(
 
 void Fitness::write_potential(FILE* fid_nep, Parameters& para, float* elite)
 {
-  CHECK(gpuSetDevice(0));
-  para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
-  write_nep_txt(fid_nep, para, elite, max_NN_radial, max_NN_angular);
+  potential.write_model(fid_nep, para, elite, max_NN_radial, max_NN_angular);
 }
 
 void Fitness::get_save_potential_label(Parameters& para, const int generation, std::string& label) {

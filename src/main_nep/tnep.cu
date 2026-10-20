@@ -27,6 +27,7 @@ J. Chem. Theory Comput. 20, 3273 (2024).
 #include "tnep.cuh"
 #include "nep_model.cuh"
 #include "nep_init.cuh"
+#include "nep_io.cuh"
 #include "nep_common.cuh"
 #include "parameters.cuh"
 #include "utilities/common.cuh"
@@ -842,6 +843,7 @@ void TNEP::find_force(
 
 void TNEP::configure(Parameters& para)
 {
+  para.file_tag = std::string(para.enable_zbl ? "nep4_zbl" : "nep4") + (para.model_type == 1 ? "_dipole" : "_polarizability");
   calculate_nep_model_parameters(para, 0, 0, 1, para.model_type == 2 ? 2 : 1);
 }
 
@@ -855,4 +857,22 @@ void TNEP::initialize_parameters(
 void TNEP::parameter_groups(const Parameters& para, std::vector<int>& groups)
 {
   find_nep_type_of_variable(para, groups, 1, para.model_type == 2 ? 2 : 1);
+}
+
+void TNEP::read_model(Parameters& para, float* parameters)
+{
+  read_nep_model("nep.txt", para, parameters);
+}
+
+void TNEP::write_model(
+  FILE* file, Parameters& para, const float* parameters, int max_radial, int max_angular)
+{
+  write_nep_model(file, para, parameters, max_radial, max_angular);
+}
+
+void TNEP::write_restart(
+  const char* filename, const Parameters& para,
+  const std::vector<float>& mu, const std::vector<float>& sigma)
+{
+  write_nep_restart(filename, para, mu, sigma);
 }

@@ -34,6 +34,7 @@ public:
   void run(Parameters& para, Fitness* fitness_function);
 
 protected:
+  Potential& potential;
   std::mt19937 rng;
   int maximum_generation = 10000;
   int number_of_variables = 10;

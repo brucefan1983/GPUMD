@@ -16,6 +16,7 @@
 #pragma once
 #include <memory>
 #include <random>
+#include <cstdio>
 #include <vector>
 class Dataset;
 class Parameters;
@@ -28,6 +29,12 @@ public:
     const Parameters& para, std::mt19937& rng,
     std::vector<float>& mu, std::vector<float>& sigma) = 0;
   virtual void parameter_groups(const Parameters& para, std::vector<int>& groups) = 0;
+  virtual void read_model(Parameters& para, float* parameters) = 0;
+  virtual void write_model(
+    FILE* file, Parameters& para, const float* parameters, int max_radial, int max_angular) = 0;
+  virtual void write_restart(
+    const char* filename, const Parameters& para,
+    const std::vector<float>& mu, const std::vector<float>& sigma) = 0;
   virtual void configure(Parameters& para) = 0;
   virtual void initialize(Parameters& para, int N, int Nc, int deviceCount) = 0;
   virtual void find_force(

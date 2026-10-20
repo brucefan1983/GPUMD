@@ -23,6 +23,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep.cuh"
 #include "nep_model.cuh"
 #include "nep_init.cuh"
+#include "nep_io.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 
@@ -156,6 +157,7 @@ void NEP::find_force(
 
 void NEP::configure(Parameters& para)
 {
+  para.file_tag = std::string(para.enable_zbl ? "nep4_zbl" : "nep4") + (para.model_type == 3 ? "_temperature" : "");
   calculate_nep_model_parameters(para, para.model_type == 3 ? 1 : 0, 0, 1, 1);
 }
 
@@ -169,4 +171,22 @@ void NEP::initialize_parameters(
 void NEP::parameter_groups(const Parameters& para, std::vector<int>& groups)
 {
   find_nep_type_of_variable(para, groups, 1, 1);
+}
+
+void NEP::read_model(Parameters& para, float* parameters)
+{
+  read_nep_model("nep.txt", para, parameters);
+}
+
+void NEP::write_model(
+  FILE* file, Parameters& para, const float* parameters, int max_radial, int max_angular)
+{
+  write_nep_model(file, para, parameters, max_radial, max_angular);
+}
+
+void NEP::write_restart(
+  const char* filename, const Parameters& para,
+  const std::vector<float>& mu, const std::vector<float>& sigma)
+{
+  write_nep_restart(filename, para, mu, sigma);
 }

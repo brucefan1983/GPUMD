@@ -20,6 +20,8 @@
 void calculate_nep_model_parameters(
   Parameters& para, int extra_inputs, int extra_outputs, int global_parameters, int ann_count)
 {
+  para.ann_count = ann_count;
+  para.global_parameters = global_parameters;
   para.dim_radial = para.n_max_radial + 1;                // 2-body descriptors q^i_n
   para.dim_angular = (para.n_max_angular + 1) * para.L_max; // 3-body descriptors q^i_nl
   if (para.has_q_222) {
