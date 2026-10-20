@@ -197,7 +197,7 @@ The `nep` executable is implemented under `src/main_nep/` and shares utilities w
 | Directory under `src/main_nep/` | Purpose |
 | --- | --- |
 | Top level | Entry point, model selection, optimizer, scheduling, and shared data structures |
-| `common/` | Reusable NEP parameter, data, loss, I/O, neighbor, and runtime-compilation helpers |
+| `common/` | Reusable NEP parameter, data, loss, I/O, and runtime-compilation helpers |
 | `nep/` | Ordinary and temperature-dependent NEP |
 | `nep_charge/` | NEP charge modes 1 and 2 |
 | `nep_vdw/` | NEP with long-range dispersion |
@@ -246,9 +246,9 @@ The existing internal modes remain within their classes: ordinary/temperature NE
 
 Each model owns its specialized entry points and launcher bindings. Shared compilation and reusable kernels live in `common/`. Model-specific `*_specialized.cu` files use `NEP_SPECIALIZED_RUNTIME_BUILD`; device kernels remain local, while the required launcher wrappers are exported.
 
-`nep_compile on` enables CUDA training specialization. Standalone prediction does not use this training JIT path. Keep the matching source tree available; `GPUMD_SRC` can select its `src` directory and `CUDACXX` can select the compiler. Compilation or loading failures report a warning and fall back to the generic path.
+On Linux/CUDA builds, `nep_compile on` requests runtime specialization for supported training configurations. Standalone prediction does not use this training JIT path. Keep the matching source tree available; `GPUMD_SRC` can select its `src` directory and `CUDACXX` can select the compiler. Compilation or loading failures report a warning and fall back to the generic path.
 
-When changing evaluation code, compare `nep_compile on` and `off` with identical parameters and descriptor scalers, and confirm that the on run actually compiled successfully. Use fixed seeds for training regressions; small floating-point differences can change population ranking and subsequent optimization trajectories.
+When changing evaluation code, compare `nep_compile on` and `off` with identical parameters and descriptor scalers, and confirm that the on run actually used the specialized path after successful compilation and loading. Use fixed seeds for training regressions; small floating-point differences can change population ranking and subsequent optimization trajectories.
 
 ## 9. Units and documentation
 
