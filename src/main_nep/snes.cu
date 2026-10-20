@@ -115,6 +115,7 @@ void SNES::run(Parameters& para, Fitness* fitness_function)
 
   for (int n = 0; n < maximum_generation; ++n) {
     create_population();
+    potential.set_population_mean(gpu_mu.data());
     fitness_function->compute(
       n,
       para,
