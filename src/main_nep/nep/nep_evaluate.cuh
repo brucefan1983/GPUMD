@@ -95,7 +95,6 @@ struct NEP_ANN {
   const float* wb[NUM_ELEMENTS];  // weights and biases for the hidden layer
   const float* b;                 // bias for the output layer
   const float* c;                 // for elements in descriptor
-  const float* rc;
 };
 
 struct NEP_Data {
