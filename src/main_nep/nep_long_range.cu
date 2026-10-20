@@ -15,6 +15,7 @@
 
 #include "nep_long_range.cuh"
 #include "dataset.cuh"
+#include "nep_charge_dataset.cuh"
 #include "nep_vdw_parameters.cuh"
 #include "utilities/error.cuh"
 #include <climits>
@@ -296,11 +297,11 @@ static __global__ void find_force_vdw_long_range(
   }
 }
 
-void enforce_nep_total_charge(Dataset& dataset)
+void enforce_nep_total_charge(Dataset& dataset, NEP_Charge_Dataset& charge_dataset)
 {
   zero_total_charge<<<dataset.Nc, 1024>>>(
-    dataset.Na.data(), dataset.Na_sum.data(), dataset.charge_ref_gpu.data(),
-    dataset.charge.data(), dataset.charge_shifted.data());
+    dataset.Na.data(), dataset.Na_sum.data(), charge_dataset.charge_ref_gpu.data(),
+    charge_dataset.charge.data(), charge_dataset.charge_shifted.data());
   GPU_CHECK_KERNEL
 }
 
@@ -311,20 +312,20 @@ void subtract_nep_charge_derivative_mean(const Dataset& dataset, float* D_real)
   GPU_CHECK_KERNEL
 }
 
-void initialize_nep_bec(Dataset& dataset)
+void initialize_nep_bec(Dataset& dataset, NEP_Charge_Dataset& charge_dataset)
 {
   const int block_size = 32;
   const int grid_size = (dataset.N - 1) / block_size + 1;
   find_bec_diagonal<<<grid_size, block_size>>>(
-    dataset.N, dataset.charge_shifted.data(), dataset.bec.data());
+    dataset.N, charge_dataset.charge_shifted.data(), charge_dataset.bec.data());
   GPU_CHECK_KERNEL
 }
 
-void scale_nep_bec(Dataset& dataset, const float* sqrt_epsilon_inf)
+void scale_nep_bec(Dataset& dataset, NEP_Charge_Dataset& charge_dataset, const float* sqrt_epsilon_inf)
 {
   const int block_size = 32;
   const int grid_size = (dataset.N - 1) / block_size + 1;
-  scale_bec<<<grid_size, block_size>>>(dataset.N, sqrt_epsilon_inf, dataset.bec.data());
+  scale_bec<<<grid_size, block_size>>>(dataset.N, sqrt_epsilon_inf, charge_dataset.bec.data());
   GPU_CHECK_KERNEL
 }
 

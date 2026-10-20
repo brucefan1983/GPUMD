@@ -18,7 +18,7 @@
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 
-static void output(
+void write_nep_structure_predictions(
   bool is_stress,
   int num_components,
   FILE* fid,
@@ -54,7 +54,7 @@ static void output(
   }
 }
 
-static void output_atomic(
+void write_nep_atomic_predictions(
   int num_components,
   FILE* fid,
   float* prediction,
@@ -101,59 +101,13 @@ static void update_energy_force_virial(
       dataset.force_ref_cpu[n + dataset.N * 2]);
   }
 
-  output(
+  write_nep_structure_predictions(
     false, 1, fid_energy, dataset.energy_cpu.data(), dataset.energy_ref_cpu.data(), dataset, nc);
 
-  output(
+  write_nep_structure_predictions(
     false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset, nc);
-  output(
+  write_nep_structure_predictions(
     true, 6, fid_stress, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset, nc);
-}
-
-static void update_charge(FILE* fid_charge, Dataset& dataset, const int nc)
-{
-  for (int m = 0; m < dataset.Na_cpu[nc]; ++m) {
-    fprintf(fid_charge, "%g\n", dataset.charge_cpu[dataset.Na_sum_cpu[nc] + m]);
-  }
-}
-
-static void update_bec(FILE* fid_bec, Dataset& dataset, const int nc)
-{
-  output_atomic(9, fid_bec, dataset.bec_cpu.data(), dataset.bec_ref_cpu.data(), dataset, nc);
-}
-
-static void update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic, const int nc)
-{
-  if (!atomic) {
-    output(
-      false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset, nc);
-  } else {
-    output_atomic(
-      3, fid_dipole, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset, nc);
-  }
-}
-
-static void update_polarizability(
-  FILE* fid_polarizability, Dataset& dataset, bool atomic, const int nc)
-{
-  if (!atomic) {
-    output(
-      false,
-      6,
-      fid_polarizability,
-      dataset.virial_cpu.data(),
-      dataset.virial_ref_cpu.data(),
-      dataset,
-      nc);
-  } else {
-    output_atomic(
-      6,
-      fid_polarizability,
-      dataset.virial_cpu.data(),
-      dataset.avirial_ref_cpu.data(),
-      dataset,
-      nc);
-  }
 }
 
 void print_nep_energy_header(bool has_ediff)
@@ -231,14 +185,6 @@ void copy_nep_energy_predictions(Dataset& data)
   data.force.copy_to_host(data.force_cpu.data());
 }
 
-void copy_nep_charge_predictions(Dataset& data, bool has_bec)
-{
-  data.charge.copy_to_host(data.charge_cpu.data());
-  if (has_bec) {
-    data.bec.copy_to_host(data.bec_cpu.data());
-  }
-}
-
 static FILE* open_prediction_file(const char* quantity, const std::string& label)
 {
   return my_fopen((std::string(quantity) + "_" + label + ".out").c_str(), "w");
@@ -259,35 +205,4 @@ void write_nep_energy_predictions(
   fclose(fid_force);
   fclose(fid_virial);
   fclose(fid_stress);
-}
-
-void write_nep_charge_predictions(
-  const std::string& label, const std::vector<std::pair<Dataset*, int>>& structures, bool has_bec)
-{
-  FILE* fid_charge = open_prediction_file("charge", label);
-  FILE* fid_bec = has_bec ? open_prediction_file("bec", label) : nullptr;
-  for (const auto& structure : structures) {
-    update_charge(fid_charge, *structure.first, structure.second);
-    if (fid_bec) {
-      update_bec(fid_bec, *structure.first, structure.second);
-    }
-  }
-  fclose(fid_charge);
-  if (fid_bec) {
-    fclose(fid_bec);
-  }
-}
-
-void write_tnep_predictions(const std::string& label,
-  const std::vector<std::pair<Dataset*, int>>& structures, bool dipole, bool atomic)
-{
-  FILE* file = open_prediction_file(dipole ? "dipole" : "polarizability", label);
-  for (const auto& structure : structures) {
-    if (dipole) {
-      update_dipole(file, *structure.first, atomic, structure.second);
-    } else {
-      update_polarizability(file, *structure.first, atomic, structure.second);
-    }
-  }
-  fclose(file);
 }

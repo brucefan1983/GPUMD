@@ -18,11 +18,17 @@
 #include "potential.cuh"
 #include "parameters.cuh"
 #include "nep_training.cuh"
+#include "nep_batch_data.cuh"
+#include "energy_difference.cuh"
 #include "nep_compile.cuh"
 #include "nep_evaluate.cuh"
 #include "nep_common.cuh"
 #include <memory>
 class Parameters;
+
+struct NEP_Temperature_Data {
+  GPU_Vector<float> temperature;
+};
 
 class NEP : public Potential
 {
@@ -58,6 +64,8 @@ private:
   std::unique_ptr<Parameters> model_parameters;
   std::unique_ptr<NEP_Training> training;
   NEP_Energy_Loss energy_loss;
+  NEP_Batch_Data<NEP_Temperature_Data> temperature_data;
+  EnergyDifference energy_difference;
   NEP_Neighbor neighbor[16];
   NEP_Descriptor_Parameters paramb;
   NEP_ANN annmb[16];

@@ -23,6 +23,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep.cuh"
 #include "nep_output.cuh"
 #include "xyz_reader.cuh"
+#include "nep_energy_reader.cuh"
 #include "nep_model.cuh"
 #include "nep_init.cuh"
 #include "nep_io.cuh"
@@ -145,7 +146,9 @@ void NEP::find_force(
     zero_nep_outputs(dataset[device_id]);
 
     evaluate_nep_ann(
-      annmb[device_id], para.model_type == 3, dataset[device_id], nep_data[device_id],
+      annmb[device_id],
+      para.model_type == 3 ? temperature_data.get(dataset[device_id]).temperature.data() : nullptr,
+      dataset[device_id], nep_data[device_id],
       para.q_scaler_gpu[device_id].data(), compiled_kernel_.get());
 
     compute_nep_forces(
@@ -190,43 +193,64 @@ void NEP::write_restart(
 }
 
 namespace {
-class NEP_Reader : public NEP_Data_Reader
+class NEP_Reader : public NEP_Energy_Reader
 {
 public:
-  explicit NEP_Reader(Parameters& para) : NEP_Data_Reader(para) {}
+  NEP_Reader(Parameters& para, EnergyDifference& energy_difference,
+    NEP_Batch_Data<NEP_Temperature_Data>& temperature_data)
+    : NEP_Energy_Reader(para, energy_difference), temperature_data(temperature_data) {}
+
+  void prepare_dataset(Dataset& dataset) override
+  {
+    NEP_Energy_Reader::prepare_dataset(dataset);
+    if (para.model_type == 3) {
+      std::vector<float> temperature_cpu(dataset.N);
+      for (int n = 0; n < dataset.Nc; ++n) {
+        float temperature = temperatures[dataset.structures[n].index_in_file];
+        for (int na = 0; na < dataset.Na_cpu[n]; ++na) {
+          temperature_cpu[dataset.Na_sum_cpu[n] + na] = temperature;
+        }
+      }
+      auto& data = temperature_data.create(dataset);
+      data.temperature.resize(dataset.N);
+      data.temperature.copy_from_host(temperature_cpu.data());
+    }
+  }
 
   const char* energy_difference_conflict(const Structure& a, const Structure& b) const override
   {
-    if (para.model_type == 3 && a.temperature != b.temperature) {
+    if (para.model_type == 3 && temperatures[a.index_in_file] != temperatures[b.index_in_file]) {
       return nullptr;
     }
-    return NEP_Data_Reader::energy_difference_conflict(a, b);
+    return NEP_Energy_Reader::energy_difference_conflict(a, b);
   }
 
 private:
-  void read_structure(const XYZ_Record& record, Structure& structure) const override
+  NEP_Batch_Data<NEP_Temperature_Data>& temperature_data;
+  std::vector<float> temperatures;
+  void begin_reading() override { temperatures.clear(); }
+  void read_structure(const XYZ_Record& record, Structure& structure) override
   {
-    NEP_Data_Reader::read_structure(record, structure);
+    NEP_Energy_Reader::read_structure(record, structure);
     const auto& tokens = record.tokens;
     const auto& xyz_filename = record.filename;
     int line_number = record.comment_line_number;
-    structure.has_temperature = false;
+    bool has_temperature = false;
+    float temperature = 0.0f;
     for (const auto& token : tokens) {
       const std::string temperature_string = "temperature=";
       if (token.substr(0, temperature_string.length()) == temperature_string) {
-        structure.has_temperature = true;
-        structure.temperature = get_double_from_token(
+        has_temperature = true;
+        temperature = get_double_from_token(
           token.substr(temperature_string.length(), token.length()),
           xyz_filename.c_str(),
           line_number);
       }
     }
-    if (para.model_type == 3 && !structure.has_temperature) {
+    if (para.model_type == 3 && !has_temperature) {
       PRINT_INPUT_ERROR("'temperature' is missing in the second line of a frame.");
     }
-    if (!structure.has_temperature) {
-      structure.temperature = 0;
-    }
+    temperatures.push_back(temperature);
   }
 };
 } // namespace
@@ -241,7 +265,7 @@ NEP::NEP(std::unique_ptr<Parameters> model_parameters)
 int NEP::prepare_data()
 {
   Parameters& para = *model_parameters;
-  NEP_Reader reader(para);
+  NEP_Reader reader(para, energy_difference, temperature_data);
   training.reset(new NEP_Training(para, reader));
   initialize(para, training->N, training->Nc, training->device_count);
   if (para.prediction == 0) {
@@ -274,7 +298,7 @@ void NEP::evaluate(int batch, const float* population)
       training->train_set[batch], false, count);
     for (int device = 0; device < count; ++device) {
       Dataset& data = training->train_set[batch][device];
-      energy_loss.evaluate(para, data, training->energy_difference, batch, first + device, device);
+      energy_loss.evaluate(para, data, energy_difference, batch, first + device, device);
     }
   }
 }
@@ -297,13 +321,13 @@ void NEP::report_error(const TrainingReport& report)
   find_force(para, report.parameters, training->train_set[report.batch], false, 1);
   Dataset& train_data = training->train_set[report.batch][0];
   NEP_Energy_Error train = energy_loss.get_error(
-    para, train_data, training->energy_difference, true, report.batch);
+    para, train_data, energy_difference, true, report.batch);
   // Correct the last bias parameter in the energy network before evaluating the test set.
   report.parameters[para.number_of_variables_ann - 1] += train.energy_shift;
   NEP_Energy_Error test;
   if (training->has_test_set) {
     find_force(para, report.parameters, training->test_set, false, 1);
-    test = energy_loss.get_error(para, training->test_set[0], training->energy_difference, false, 0);
+    test = energy_loss.get_error(para, training->test_set[0], energy_difference, false, 0);
   }
   training->write_model(para, report);
   write_nep_energy_error(stdout, report, train, test, para.has_ediff_combinations);

@@ -25,6 +25,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep_vdw.cuh"
 #include "nep_output.cuh"
 #include "xyz_reader.cuh"
+#include "nep_energy_reader.cuh"
 #include "nep_model.cuh"
 #include "nep_init.cuh"
 #include "nep_io.cuh"
@@ -958,22 +959,23 @@ void NEP_VDW::write_restart(
 }
 
 namespace {
-class NEP_VDW_Reader : public NEP_Data_Reader
+class NEP_VDW_Reader : public NEP_Energy_Reader
 {
 public:
-  explicit NEP_VDW_Reader(Parameters& para) : NEP_Data_Reader(para) {}
+  NEP_VDW_Reader(Parameters& para, EnergyDifference& energy_difference)
+    : NEP_Energy_Reader(para, energy_difference) {}
 
 private:
-  void read_structure(const XYZ_Record& record, Structure& structure) const override
+  void read_structure(const XYZ_Record& record, Structure& structure) override
   {
     read_nep_boundaries(record, structure);
-    NEP_Data_Reader::read_structure(record, structure);
+    NEP_Energy_Reader::read_structure(record, structure);
   }
 
   void print_summary(const std::vector<Structure>& structures) const override
   {
     print_nep_boundaries(structures);
-    NEP_Data_Reader::print_summary(structures);
+    NEP_Energy_Reader::print_summary(structures);
   }
 };
 } // namespace
@@ -988,7 +990,7 @@ NEP_VDW::NEP_VDW(std::unique_ptr<Parameters> model_parameters)
 int NEP_VDW::prepare_data()
 {
   Parameters& para = *model_parameters;
-  NEP_VDW_Reader reader(para);
+  NEP_VDW_Reader reader(para, energy_difference);
   training.reset(new NEP_Training(para, reader));
   initialize(para, training->N, training->Nc, training->device_count);
   if (para.prediction == 0) {
@@ -1021,7 +1023,7 @@ void NEP_VDW::evaluate(int batch, const float* population)
       training->train_set[batch], false, count);
     for (int device = 0; device < count; ++device) {
       Dataset& data = training->train_set[batch][device];
-      energy_loss.evaluate(para, data, training->energy_difference, batch, first + device, device);
+      energy_loss.evaluate(para, data, energy_difference, batch, first + device, device);
     }
   }
 }
@@ -1044,13 +1046,13 @@ void NEP_VDW::report_error(const TrainingReport& report)
   find_force(para, report.parameters, training->train_set[report.batch], false, 1);
   Dataset& train_data = training->train_set[report.batch][0];
   NEP_Energy_Error train = energy_loss.get_error(
-    para, train_data, training->energy_difference, true, report.batch);
+    para, train_data, energy_difference, true, report.batch);
   // Correct the last bias parameter in the energy network before evaluating the test set.
   report.parameters[para.number_of_variables_ann - 1] += train.energy_shift;
   NEP_Energy_Error test;
   if (training->has_test_set) {
     find_force(para, report.parameters, training->test_set, false, 1);
-    test = energy_loss.get_error(para, training->test_set[0], training->energy_difference, false, 0);
+    test = energy_loss.get_error(para, training->test_set[0], energy_difference, false, 0);
   }
   training->write_model(para, report);
   write_nep_energy_error(stdout, report, train, test, para.has_ediff_combinations);

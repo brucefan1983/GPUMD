@@ -21,6 +21,7 @@ The energy-difference loss over the linear combinations of named structures in e
 #include "energy_difference.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
+#include "nep_energy_reader.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <algorithm>
@@ -323,7 +324,7 @@ static std::vector<int> place_groups_in_batches(
 static void check_distinct_structures(
   const std::vector<std::string>& names,
   const std::vector<const Structure*>& members,
-  const NEP_Data_Reader& reader,
+  const NEP_Energy_Reader& reader,
   const int line_number,
   const char* xyz_filename)
 {
@@ -383,7 +384,7 @@ std::vector<EnergyDifference::Combination> EnergyDifference::resolve(
   const std::vector<int>& batch_sizes,
   const char* xyz_filename,
   std::vector<bool>& is_in_set,
-  const NEP_Data_Reader& reader)
+  const NEP_Energy_Reader& reader)
 {
   auto name_to_index = get_name_to_index(structures, xyz_filename);
 
@@ -431,6 +432,31 @@ std::vector<EnergyDifference::Combination> EnergyDifference::resolve(
   return combinations;
 }
 
+// Sum in double to retain precision for the total energies of large structures.
+static __global__ void gpu_sum_total_energy(const int* g_Na, const int* g_Na_sum, const float* g_pe, double* g_total_pe)
+{
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int Na = g_Na[bid];
+  int N1 = g_Na_sum[bid];
+  int N2 = N1 + Na;
+  extern __shared__ double s_total_pe[];
+  s_total_pe[tid] = 0.0;
+  for (int n = N1 + tid; n < N2; n += blockDim.x) {
+    s_total_pe[tid] += g_pe[n];
+  }
+  __syncthreads();
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_total_pe[tid] += s_total_pe[tid + offset];
+    }
+    __syncthreads();
+  }
+  if (tid == 0) {
+    g_total_pe[bid] = s_total_pe[0];
+  }
+}
+
 /*----------------------------------------------------------------------------80
 Weighted RMSE of the energy combinations whose structures all lie in batch_id of the data set.
 The caller must have evaluated the dataset for the parameters of interest. The RMSE is 0 without
@@ -449,7 +475,13 @@ float EnergyDifference::get_rmse(
   if (!is_any_in_batch) {
     return 0.0f;
   }
-  dataset.compute_total_energies(device_id);
+  CHECK(gpuSetDevice(device_id));
+  auto& total = total_energy.get(dataset);
+  const int block_size = 256;
+  gpu_sum_total_energy<<<dataset.Nc, block_size, sizeof(double) * block_size>>>(
+    dataset.Na.data(), dataset.Na_sum.data(), dataset.energy.data(), total.gpu.data());
+  GPU_CHECK_KERNEL
+  total.gpu.copy_to_host(total.cpu.data());
   double sum_sq = 0.0;
   int num_combinations = 0;
   for (const auto& combination : combinations) {
@@ -459,7 +491,7 @@ float EnergyDifference::get_rmse(
     double difference = -combination.ref_total_eV;
     for (int i = 0; i < (int)combination.local.size(); ++i) {
       difference +=
-        combination.coefficient[i] * dataset.total_energy_pred_cpu[combination.local[i]];
+        combination.coefficient[i] * total.cpu[combination.local[i]];
     }
     sum_sq += combination.weight * difference * difference;
     ++num_combinations;
@@ -560,7 +592,7 @@ void EnergyDifference::read_train(
   const int batch_size,
   int& num_batches,
   std::vector<int>& batch_sizes,
-  const NEP_Data_Reader& reader)
+  const NEP_Energy_Reader& reader)
 {
   if (para.prediction == 0) {
     std::ifstream ediff_file("ediff.in");
@@ -603,7 +635,7 @@ void EnergyDifference::read_train(
 
 void EnergyDifference::read_test(
   const Parameters& para, const std::vector<Structure>& structures_test, const bool has_test_set,
-  const NEP_Data_Reader& reader)
+  const NEP_Energy_Reader& reader)
 {
   if (!para.has_ediff_combinations) {
     return;
@@ -644,12 +676,19 @@ void EnergyDifference::read_test(
 }
 
 float EnergyDifference::get_rmse_train(
-  Dataset& dataset, const int batch_id, const int device_id) const
+  Dataset& dataset, const int batch_id, const int device_id)
 {
   return get_rmse(combinations_train, dataset, batch_id, device_id);
 }
 
-float EnergyDifference::get_rmse_test(Dataset& dataset, const int device_id) const
+float EnergyDifference::get_rmse_test(Dataset& dataset, const int device_id)
 {
   return get_rmse(combinations_test, dataset, 0, device_id);
+}
+
+void EnergyDifference::prepare_dataset(Dataset& dataset)
+{
+  auto& total = total_energy.create(dataset);
+  total.gpu.resize(dataset.Nc);
+  total.cpu.resize(dataset.Nc);
 }

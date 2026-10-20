@@ -18,6 +18,8 @@
 #include "potential.cuh"
 #include "parameters.cuh"
 #include "nep_training.cuh"
+#include "nep_charge_dataset.cuh"
+#include "energy_difference.cuh"
 #include "nep_common.cuh"
 #include "nep_compile.cuh"
 #include "utilities/common.cuh"
@@ -120,6 +122,8 @@ private:
   std::unique_ptr<Parameters> model_parameters;
   std::unique_ptr<NEP_Training> training;
   NEP_Energy_Loss energy_loss;
+  NEP_Batch_Data<NEP_Charge_Dataset> charge_data;
+  EnergyDifference energy_difference;
   std::vector<float> fitness_charge;
   std::vector<float> fitness_bec;
   NEP_Neighbor neighbor[16];

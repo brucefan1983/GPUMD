@@ -512,7 +512,7 @@ void compute_nep_descriptors(
 
 void evaluate_nep_ann(
   const NEP_ANN& ann,
-  bool use_temperature,
+  const float* temperature,
   Dataset& dataset,
   NEP_Data& data,
   float* q_scaler,
@@ -521,14 +521,14 @@ void evaluate_nep_ann(
   const int block_size = 32;
   const int grid_size = (dataset.N - 1) / block_size + 1;
 
-  if (use_temperature) {
+  if (temperature) {
     if (compiled_kernel) {
       compiled_kernel->launch_ann_temperature(
         dataset.N,
         dataset.type.data(),
         data.descriptors.data(),
         q_scaler,
-        dataset.temperature_ref_gpu.data(),
+        temperature,
         data.parameters.data(),
         dataset.energy.data(),
         data.Fp.data());
@@ -539,7 +539,7 @@ void evaluate_nep_ann(
         dataset.type.data(),
         data.descriptors.data(),
         q_scaler,
-        dataset.temperature_ref_gpu.data(),
+        temperature,
         dataset.energy.data(),
         data.Fp.data());
       GPU_CHECK_KERNEL

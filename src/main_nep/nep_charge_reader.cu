@@ -17,10 +17,12 @@
 #include "parameters.cuh"
 #include "xyz_reader.cuh"
 
-void NEP_Charge_Reader::read_structure(const XYZ_Record& record, Structure& structure) const
+void NEP_Charge_Reader::read_structure(const XYZ_Record& record, Structure& structure)
 {
   read_nep_boundaries(record, structure);
-  NEP_Data_Reader::read_structure(record, structure);
+  NEP_Energy_Reader::read_structure(record, structure);
+  labels.emplace_back();
+  auto& label = labels.back();
   const auto& tokens = record.tokens;
   const auto& xyz_filename = record.filename;
   int line_number = record.comment_line_number;
@@ -28,19 +30,19 @@ void NEP_Charge_Reader::read_structure(const XYZ_Record& record, Structure& stru
   for (const auto& token : tokens) {
     const std::string charge_string = "charge=";
     if (token.substr(0, charge_string.length()) == charge_string) {
-      structure.charge = get_double_from_token(
+      label.charge = get_double_from_token(
         token.substr(charge_string.length(), token.length()), xyz_filename.c_str(), line_number);
     }
   }
 
   int bec_offset = record.get_property_offset("bec");
-  structure.has_bec = bec_offset >= 0;
-  structure.bec.resize(structure.num_atom * 9);
-  if (structure.has_bec) {
+  label.has_bec = bec_offset >= 0;
+  label.bec.resize(structure.num_atom * 9);
+  if (label.has_bec) {
     para.has_bec = true;
     for (int na = 0; na < structure.num_atom; ++na) {
       for (int d = 0; d < 9; ++d) {
-        structure.bec[na * 9 + d] = get_double_from_token(
+        label.bec[na * 9 + d] = get_double_from_token(
           record.atoms[na][d + bec_offset], xyz_filename.c_str(), line_number + na + 1);
       }
     }
@@ -50,15 +52,21 @@ void NEP_Charge_Reader::read_structure(const XYZ_Record& record, Structure& stru
 void NEP_Charge_Reader::print_summary(const std::vector<Structure>& structures) const
 {
   print_nep_boundaries(structures);
-  NEP_Data_Reader::print_summary(structures);
+  NEP_Energy_Reader::print_summary(structures);
 }
 
 const char* NEP_Charge_Reader::energy_difference_conflict(
   const Structure& a, const Structure& b) const
 {
-  const char* conflict = NEP_Data_Reader::energy_difference_conflict(a, b);
-  if (conflict && a.charge != b.charge) {
+  const char* conflict = NEP_Energy_Reader::energy_difference_conflict(a, b);
+  if (conflict && labels[a.index_in_file].charge != labels[b.index_in_file].charge) {
     return "differ only in charge=, for which a qNEP model predicts no meaningful energy difference.";
   }
   return conflict;
+}
+
+void NEP_Charge_Reader::prepare_dataset(Dataset& dataset)
+{
+  NEP_Energy_Reader::prepare_dataset(dataset);
+  charge_data.create(dataset).construct(dataset, labels);
 }

@@ -15,6 +15,7 @@
 
 #include "nep_training.cuh"
 #include "nep_io.cuh"
+#include "energy_difference.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/common.cuh"
@@ -72,7 +73,7 @@ static int get_batch_size(const int batch_id, const int n_total, const int num_b
   return is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
 }
 
-NEP_Training::NEP_Training(Parameters& para, const NEP_Data_Reader& reader)
+NEP_Training::NEP_Training(Parameters& para, NEP_Data_Reader& reader)
 {
   CHECK(gpuGetDeviceCount(&device_count));
   prepare_datasets(para, device_count, reader);
@@ -80,14 +81,14 @@ NEP_Training::NEP_Training(Parameters& para, const NEP_Data_Reader& reader)
 }
 
 void NEP_Training::prepare_datasets(
-  Parameters& para, const int deviceCount, const NEP_Data_Reader& reader)
+  Parameters& para, const int deviceCount, NEP_Data_Reader& reader)
 {
   std::vector<Structure> structures_train;
   reader.read_structures(true, structures_train);
   num_batches = (structures_train.size() - 1) / para.batch_size + 1;
-  const bool is_ediff_active = para.prediction == 0 && para.lambda_d > 0.0f;
+  const bool uses_grouped_batches = reader.uses_grouped_batches();
   if (
-    (para.prediction == 0) && (para.batch_size < structures_train.size()) && !is_ediff_active) {
+    (para.prediction == 0) && (para.batch_size < structures_train.size()) && !uses_grouped_batches) {
     reorder(num_batches, structures_train);
   }
   printf("Number of devices = %d\n", deviceCount);
@@ -102,10 +103,7 @@ void NEP_Training::prepare_datasets(
     batch_sizes[batch_id] = get_batch_size(batch_id, structures_train.size(), num_batches);
   }
 
-  // The training combinations are resolved before the batches are constructed, which allocate
-  // the total energies under para.has_ediff_combinations.
-  energy_difference.read_train(
-    para, structures_train, batch_size_old, num_batches, batch_sizes, reader);
+  reader.prepare_train(structures_train, batch_size_old, num_batches, batch_sizes);
 
   train_set.resize(num_batches);
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
@@ -122,21 +120,23 @@ void NEP_Training::prepare_datasets(
       printf("Constructing train_set in device  %d.\n", device_id);
       CHECK(gpuSetDevice(device_id));
       train_set[batch_id][device_id].construct(
-        para, structures_train, count - batch_size, count, device_id);
+        para, structures_train, count - batch_size, count, device_id, batch_id);
+      reader.prepare_dataset(train_set[batch_id][device_id]);
       print_line_2();
     }
   }
 
   std::vector<Structure> structures_test;
   has_test_set = reader.read_structures(false, structures_test);
-  energy_difference.read_test(para, structures_test, has_test_set, reader);
+  reader.prepare_test(structures_test, has_test_set);
   if (has_test_set) {
     test_set.resize(deviceCount);
     for (int device_id = 0; device_id < deviceCount; ++device_id) {
       print_line_1();
       printf("Constructing test_set in device  %d.\n", device_id);
       CHECK(gpuSetDevice(device_id));
-      test_set[device_id].construct(para, structures_test, 0, structures_test.size(), device_id);
+      test_set[device_id].construct(para, structures_test, 0, structures_test.size(), device_id, -1);
+      reader.prepare_dataset(test_set[device_id]);
       print_line_2();
     }
   }

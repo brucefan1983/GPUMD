@@ -14,15 +14,22 @@
 */
 
 #pragma once
-#include "structure.cuh"
+#include "nep_energy_reader.cuh"
+#include "nep_charge_dataset.cuh"
 
-class NEP_Charge_Reader : public NEP_Data_Reader
+class NEP_Charge_Reader : public NEP_Energy_Reader
 {
 public:
-  explicit NEP_Charge_Reader(Parameters& para) : NEP_Data_Reader(para) {}
+  NEP_Charge_Reader(Parameters& para, EnergyDifference& energy_difference,
+    NEP_Batch_Data<NEP_Charge_Dataset>& charge_data)
+    : NEP_Energy_Reader(para, energy_difference), charge_data(charge_data) {}
+  void prepare_dataset(Dataset& dataset) override;
   const char* energy_difference_conflict(const Structure& a, const Structure& b) const override;
 
 private:
-  void read_structure(const XYZ_Record& record, Structure& structure) const override;
+  NEP_Batch_Data<NEP_Charge_Dataset>& charge_data;
+  std::vector<NEP_Charge_Labels> labels;
+  void begin_reading() override { labels.clear(); }
+  void read_structure(const XYZ_Record& record, Structure& structure) override;
   void print_summary(const std::vector<Structure>& structures) const override;
 };

@@ -13,7 +13,6 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "energy_difference.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "xyz_reader.cuh"
@@ -176,11 +175,6 @@ void NEP_Data_Reader::read_energy(
     }
   }
 
-  // get name (optional), which only ediff.in refers to
-  if (para.prediction == 0 && para.lambda_d > 0.0f) {
-    structure.name = EnergyDifference::read_structure_name(record.comment, xyz_filename, line_number);
-  }
-
   bool has_energy_in_exyz = false;
   for (const auto& token : tokens) {
     const std::string energy_string = "energy=";
@@ -197,7 +191,7 @@ void NEP_Data_Reader::read_energy(
   }
 }
 
-void NEP_Data_Reader::read_structure(const XYZ_Record& record, Structure& structure) const
+void NEP_Data_Reader::read_structure(const XYZ_Record& record, Structure& structure)
 {
   read_geometry(record, structure);
   read_energy(record, structure, true);
@@ -338,8 +332,9 @@ void NEP_Data_Reader::print_summary(const std::vector<Structure>& structures) co
   }
 }
 
-bool NEP_Data_Reader::read_structures(bool is_train, std::vector<Structure>& structures) const
+bool NEP_Data_Reader::read_structures(bool is_train, std::vector<Structure>& structures)
 {
+  begin_reading();
   std::ifstream input(is_train ? "train.xyz" : "test.xyz");
   bool has_test_set = true;
   if (!input.is_open()) {
@@ -366,29 +361,4 @@ bool NEP_Data_Reader::read_structures(bool is_train, std::vector<Structure>& str
   }
 
   return has_test_set;
-}
-
-const char* NEP_Data_Reader::energy_difference_conflict(
-  const Structure& structure_a, const Structure& structure_b) const
-{
-  const float tolerance = 1.0e-5f;
-  if (
-    structure_a.num_atom != structure_b.num_atom || structure_a.type != structure_b.type ||
-    structure_a.pbc != structure_b.pbc) {
-    return nullptr;
-  }
-  for (int d = 0; structure_a.pbc && d < 9; ++d) {
-    if (std::fabs(structure_a.box_original[d] - structure_b.box_original[d]) > tolerance) {
-      return nullptr;
-    }
-  }
-  for (int n = 0; n < structure_a.num_atom; ++n) {
-    if (
-      std::fabs(structure_a.x[n] - structure_b.x[n]) > tolerance ||
-      std::fabs(structure_a.y[n] - structure_b.y[n]) > tolerance ||
-      std::fabs(structure_a.z[n] - structure_b.z[n]) > tolerance) {
-      return nullptr;
-    }
-  }
-  return "have the same geometry, for which the model predicts the same energy.";
 }

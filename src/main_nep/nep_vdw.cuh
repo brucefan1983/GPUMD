@@ -18,6 +18,7 @@
 #include "potential.cuh"
 #include "parameters.cuh"
 #include "nep_training.cuh"
+#include "energy_difference.cuh"
 #include "nep_common.cuh"
 #include "nep_compile.cuh"
 #include "utilities/common.cuh"
@@ -119,6 +120,7 @@ private:
   std::unique_ptr<Parameters> model_parameters;
   std::unique_ptr<NEP_Training> training;
   NEP_Energy_Loss energy_loss;
+  EnergyDifference energy_difference;
   NEP_Neighbor neighbor[16];
   ParaMB paramb;
   ANN annmb[16];

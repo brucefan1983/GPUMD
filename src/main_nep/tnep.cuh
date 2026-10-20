@@ -18,6 +18,7 @@
 #include "potential.cuh"
 #include "parameters.cuh"
 #include "nep_training.cuh"
+#include "tnep_dataset.cuh"
 #include "nep_compile.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -104,6 +105,8 @@ private:
   std::unique_ptr<Parameters> model_parameters;
   std::unique_ptr<NEP_Training> training;
   std::vector<float> fitness_tensor;
+  NEP_Batch_Data<TNEP_Atomic_Dataset> atomic_data;
+  std::vector<float> get_rmse(Dataset& dataset, bool use_weight, int device_id);
   NEP_Neighbor neighbor[16];
   ParaMB paramb;
   ANN annmb[16];

@@ -78,7 +78,7 @@ void compute_nep_descriptors(
 
 void evaluate_nep_ann(
   const NEP_ANN& ann,
-  bool use_temperature,
+  const float* temperature,
   Dataset& dataset,
   NEP_Data& data,
   float* q_scaler,

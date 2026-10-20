@@ -33,10 +33,9 @@ void write_nep_charge_error(FILE* file, const TrainingReport& report,
 void write_tnep_error(FILE* file, const TrainingReport& report, float train, float test);
 
 void copy_nep_energy_predictions(Dataset& data);
-void copy_nep_charge_predictions(Dataset& data, bool has_bec);
+void write_nep_structure_predictions(bool is_stress, int num_components, FILE* fid,
+  float* prediction, float* reference, Dataset& dataset, int nc);
+void write_nep_atomic_predictions(int num_components, FILE* fid, float* prediction,
+  float* reference, Dataset& dataset, int nc);
 void write_nep_energy_predictions(
   const std::string& label, const std::vector<std::pair<Dataset*, int>>& structures);
-void write_nep_charge_predictions(
-  const std::string& label, const std::vector<std::pair<Dataset*, int>>& structures, bool has_bec);
-void write_tnep_predictions(const std::string& label,
-  const std::vector<std::pair<Dataset*, int>>& structures, bool dipole, bool atomic);

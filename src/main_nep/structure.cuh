@@ -18,6 +18,7 @@
 #include <vector>
 
 class Parameters;
+class Dataset;
 struct XYZ_Record;
 
 struct Structure {
@@ -26,12 +27,7 @@ struct Structure {
   int num_cell[3];
   int num_atom;
   int has_virial = 0;
-  int has_atomic_virial = 0;
-  int atomic_virial_diag_only = 0;
-  int has_bec = 0;
-  int has_temperature = 0;
   float weight;
-  float charge = 0.0f;
   float energy = 0.0f;
   double energy_total = 0.0; // the reference total energy, for the combinations of ediff.in
   float energy_weight = 1.0f;
@@ -39,7 +35,6 @@ struct Structure {
   float box_original[9];
   float volume;
   float box[18];
-  float temperature = 0.0f;
   std::vector<int> type;
   std::vector<float> x;
   std::vector<float> y;
@@ -47,32 +42,30 @@ struct Structure {
   std::vector<float> fx;
   std::vector<float> fy;
   std::vector<float> fz;
-  std::vector<float> avirialxx;
-  std::vector<float> avirialyy;
-  std::vector<float> avirialzz;
-  std::vector<float> avirialxy;
-  std::vector<float> avirialyz;
-  std::vector<float> avirialzx;
-  std::vector<float> bec;
   std::string name; // lowercase label from the optional name= field
 };
 
 // The default reader handles energy, force and virial labels. Models extend it
-// locally for their own inputs and for the states distinguished by ediff.in.
+// locally for their own inputs and batch data.
 // The reader is needed only while constructing the training and test data.
 class NEP_Data_Reader
 {
 public:
   explicit NEP_Data_Reader(Parameters& para) : para(para) {}
   virtual ~NEP_Data_Reader() = default;
-  bool read_structures(bool is_train, std::vector<Structure>& structures) const;
-  // Return the reason to reject a pair in ediff.in, or nullptr if it is allowed.
-  virtual const char* energy_difference_conflict(
-    const Structure& a, const Structure& b) const;
+  bool read_structures(bool is_train, std::vector<Structure>& structures);
+  // Preparation hooks run before the reader switches to the next XYZ file.
+  // Model labels use index_in_file to survive sorting and ediff grouping.
+  virtual bool uses_grouped_batches() const { return false; }
+  virtual void prepare_train(std::vector<Structure>& structures, int batch_size,
+    int& num_batches, std::vector<int>& batch_sizes) {}
+  virtual void prepare_test(const std::vector<Structure>& structures, bool has_test_set) {}
+  virtual void prepare_dataset(Dataset& dataset) {}
 
 protected:
   Parameters& para;
-  virtual void read_structure(const XYZ_Record& record, Structure& structure) const;
+  virtual void begin_reading() {}
+  virtual void read_structure(const XYZ_Record& record, Structure& structure);
   virtual void print_summary(const std::vector<Structure>& structures) const;
   void read_geometry(const XYZ_Record& record, Structure& structure) const;
   void read_energy(const XYZ_Record& record, Structure& structure, bool required) const;

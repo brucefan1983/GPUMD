@@ -22,6 +22,8 @@ class Parameters;
 class Dataset
 {
 public:
+  int batch_index; // training batch index; -1 denotes the test set
+  int device_id;
   int Nc;             // number of configurations
   int N;              // total number of atoms (sum of Na[])
   int max_Na;         // number of atoms in the largest configuration
@@ -47,39 +49,22 @@ public:
   GPU_Vector<int> NN_radial_sum;  // prefix sum of NN_radial
   GPU_Vector<int> NN_angular_sum; // prefix sum of NN_angular
 
-  GPU_Vector<float> charge;      // calculated charge in GPU
-  GPU_Vector<float> charge_shifted;      // shifted charge in GPU
-  GPU_Vector<float> bec;         // Born effective charge in GPU
   GPU_Vector<float> energy;      // calculated energy in GPU
   GPU_Vector<float> virial;      // calculated virial in GPU
   GPU_Vector<float> force;       // calculated force in GPU
-  GPU_Vector<float> avirial; // calculated atomic virial in GPU
-  std::vector<float> charge_cpu;  // calculated charge in CPU
-  std::vector<float> bec_cpu;     // calculated BEC in CPU
   std::vector<float> energy_cpu; // calculated energy in CPU
   std::vector<float> virial_cpu; // calculated virial in CPU
   std::vector<float> force_cpu;  // calculated force in CPU
-  std::vector<float> avirial_cpu;   // calculated atomic virial in CPU
-  GPU_Vector<double> total_energy_pred_gpu; // calculated total energy of each configuration (eV)
-  std::vector<double> total_energy_pred_cpu;
 
   GPU_Vector<float> energy_weight_gpu;    // energy weight in GPU
-  GPU_Vector<float> charge_ref_gpu;       // reference charge in GPU
   GPU_Vector<float> energy_ref_gpu;       // reference energy in GPU
   GPU_Vector<float> virial_ref_gpu;       // reference virial in GPU
   GPU_Vector<float> force_ref_gpu;        // reference force in GPU
-  GPU_Vector<float> bec_ref_gpu;          // reference BEC in GPU
-  GPU_Vector<float> avirial_ref_gpu;     // reference atomic virial in GPU
-  GPU_Vector<float> temperature_ref_gpu;  // reference temperature in GPU
   std::vector<float> energy_weight_cpu;   // energy weight in CPU
-  std::vector<float> charge_ref_cpu;      // reference charge in CPU
   std::vector<float> energy_ref_cpu;      // reference energy in CPU
   std::vector<float> virial_ref_cpu;      // reference virial in CPU
   std::vector<float> force_ref_cpu;       // reference force in CPU
-  std::vector<float> bec_ref_cpu;         // reference BEC in CPU
-  std::vector<float> avirial_ref_cpu;      // reference atomic virial in CPU
   std::vector<float> weight_cpu;          // configuration weight in CPU
-  std::vector<float> temperature_ref_cpu; // reference temperature in CPU
 
   GPU_Vector<float> type_weight_gpu; // relative force weight for different atom types (GPU)
 
@@ -90,8 +75,8 @@ public:
 
   std::vector<Structure> structures;
 
-  void
-  construct(Parameters& para, std::vector<Structure>& structures, int n1, int n2, int device_id);
+  void construct(Parameters& para, std::vector<Structure>& structures,
+    int n1, int n2, int device_id, int batch_index);
   std::vector<float> get_rmse_force(Parameters& para, const bool use_weight, int device_id);
   std::vector<float> get_rmse_energy(
     Parameters& para,
@@ -99,11 +84,8 @@ public:
     const bool use_weight,
     const bool do_shift,
     int device_id);
-  std::vector<float> get_rmse_virial(Parameters& para, const bool use_weight, int device_id);
-  std::vector<float> get_rmse_avirial(Parameters& para, const bool use_weight, int device_id);
-  std::vector<float> get_rmse_charge(Parameters& para, int device_id);
-  std::vector<float> get_rmse_bec(Parameters& para, int device_id);
-  void compute_total_energies(int device_id);
+  std::vector<float> get_rmse_virial(
+    Parameters& para, const bool use_weight, int device_id, int num_components = 6);
 
 private:
   void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);

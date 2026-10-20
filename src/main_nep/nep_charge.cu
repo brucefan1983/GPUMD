@@ -1067,6 +1067,7 @@ void NEP_Charge::evaluate_ann(
   const ANN& ann, Dataset& data,
   NEP_Charge_Data& storage, const float* q_scaler)
 {
+  auto& charge_dataset = charge_data.get(data);
   const int block_size = 32;
   const int grid_size = (data.N - 1) / block_size + 1;
 
@@ -1079,7 +1080,7 @@ void NEP_Charge::evaluate_ann(
       storage.parameters.data(),
       data.energy.data(),
       storage.Fp.data(),
-      data.charge.data(),
+      charge_dataset.charge.data(),
       storage.charge_derivative.data());
   } else {
     apply_ann<<<grid_size, block_size>>>(
@@ -1091,7 +1092,7 @@ void NEP_Charge::evaluate_ann(
       q_scaler,
       data.energy.data(),
       storage.Fp.data(),
-      data.charge.data(),
+      charge_dataset.charge.data(),
       storage.charge_derivative.data());
     GPU_CHECK_KERNEL
   }
@@ -1101,11 +1102,12 @@ void NEP_Charge::compute_bec(
   const ANN& ann, Dataset& data, const NEP_Neighbor& neighbors,
   NEP_Charge_Data& storage)
 {
+  auto& charge_dataset = charge_data.get(data);
   const int block_size = 32;
   const int grid_size = (data.N - 1) / block_size + 1;
 
   // get BEC (the diagonal part)
-  initialize_nep_bec(data);
+  initialize_nep_bec(data, charge_dataset);
 
   // get BEC (radial descriptor part)
   if (compiled_kernel_) {
@@ -1120,7 +1122,7 @@ void NEP_Charge::compute_bec(
       neighbors.z12_radial.data(),
       storage.parameters.data(),
       storage.charge_derivative.data(),
-      data.bec.data());
+      charge_dataset.bec.data());
   } else {
     find_bec_radial<<<grid_size, block_size>>>(
       data.N,
@@ -1134,7 +1136,7 @@ void NEP_Charge::compute_bec(
       neighbors.y12_radial.data(),
       neighbors.z12_radial.data(),
       storage.charge_derivative.data(),
-      data.bec.data());
+      charge_dataset.bec.data());
     GPU_CHECK_KERNEL
   }
 
@@ -1152,7 +1154,7 @@ void NEP_Charge::compute_bec(
       storage.parameters.data(),
       storage.charge_derivative.data(),
       storage.sum_fxyz.data(),
-      data.bec.data());
+      charge_dataset.bec.data());
   } else {
     find_bec_angular<<<grid_size, block_size>>>(
       data.N,
@@ -1167,17 +1169,18 @@ void NEP_Charge::compute_bec(
       neighbors.z12_angular.data(),
       storage.charge_derivative.data(),
       storage.sum_fxyz.data(),
-      data.bec.data());
+      charge_dataset.bec.data());
     GPU_CHECK_KERNEL
   }
 
   // scale q to q * sqrt(epsilon_inf)
-  scale_nep_bec(data, ann.sqrt_epsilon_inf);
+  scale_nep_bec(data, charge_dataset, ann.sqrt_epsilon_inf);
 }
 
 void NEP_Charge::compute_charge_long_range(
   Dataset& data, NEP_Charge_Data& storage)
 {
+  auto& charge_dataset = charge_data.get(data);
   find_force_charge_long_range<<<data.Nc, 1024>>>(
     data.N,
     charge_para.alpha,
@@ -1186,7 +1189,7 @@ void NEP_Charge::compute_charge_long_range(
     data.Na.data(),
     data.Na_sum.data(),
     data.pbc.data(),
-    data.charge_shifted.data(),
+    charge_dataset.charge_shifted.data(),
     data.r.data(),
     data.r.data() + data.N,
     data.r.data() + data.N * 2,
@@ -1210,6 +1213,7 @@ void NEP_Charge::compute_charge_real_space(
   Dataset& data, const NEP_Neighbor& neighbors,
   NEP_Charge_Data& storage)
 {
+  auto& charge_dataset = charge_data.get(data);
   const int block_size = 32;
   const int grid_size = (data.N - 1) / block_size + 1;
 
@@ -1220,7 +1224,7 @@ void NEP_Charge::compute_charge_real_space(
     data.NN_radial_sum.data(),
     data.NN_radial.data(),
     neighbors.NL_radial.data(),
-    data.charge_shifted.data(),
+    charge_dataset.charge_shifted.data(),
     neighbors.x12_radial.data(),
     neighbors.y12_radial.data(),
     neighbors.z12_radial.data(),
@@ -1342,6 +1346,7 @@ void NEP_Charge::find_force(
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
     CHECK(gpuSetDevice(device_id));
     auto& data = dataset[device_id];
+    auto& charge_dataset = charge_data.get(data);
     auto& neighbors = neighbor[device_id];
     auto& storage = nep_data[device_id];
     const auto& ann = annmb[device_id];
@@ -1366,7 +1371,7 @@ void NEP_Charge::find_force(
     evaluate_ann(ann, data, storage, para.q_scaler_gpu[device_id].data());
 
     // enforce total charge is the target
-    enforce_nep_total_charge(data);
+    enforce_nep_total_charge(data, charge_dataset);
 
     if (para.has_bec) {
       compute_bec(ann, data, neighbors, storage);
@@ -1376,7 +1381,7 @@ void NEP_Charge::find_force(
     prepare_kpoints(data, device_id);
 
     compute_nep_structure_factor(
-      data, data.charge_shifted.data(), storage.kpoint_offset.data(),
+      data, charge_dataset.charge_shifted.data(), storage.kpoint_offset.data(),
       storage.kx.data(), storage.ky.data(), storage.kz.data(),
       storage.S_real.data(), storage.S_imag.data());
 
@@ -1460,7 +1465,7 @@ NEP_Charge::NEP_Charge(std::unique_ptr<Parameters> model_parameters)
 int NEP_Charge::prepare_data()
 {
   Parameters& para = *model_parameters;
-  NEP_Charge_Reader reader(para);
+  NEP_Charge_Reader reader(para, energy_difference, charge_data);
   training.reset(new NEP_Training(para, reader));
   initialize(para, training->N, training->Nc, training->device_count);
   if (para.prediction == 0) {
@@ -1496,9 +1501,9 @@ void NEP_Charge::evaluate(int batch, const float* population)
       training->train_set[batch], false, count);
     for (int device = 0; device < count; ++device) {
       Dataset& data = training->train_set[batch][device];
-      energy_loss.evaluate(para, data, training->energy_difference, batch, first + device, device);
-      auto rmse_charge_array = data.get_rmse_charge(para, device);
-      auto rmse_bec_array = data.get_rmse_bec(para, device);
+      energy_loss.evaluate(para, data, energy_difference, batch, first + device, device);
+      auto rmse_charge_array = charge_data.get(data).get_rmse_charge(para, data, device);
+      auto rmse_bec_array = charge_data.get(data).get_rmse_bec(para, data, device);
       for (int t = 0; t <= para.num_types; ++t) {
         int index = first + device + t * para.population_size;
         fitness_charge[index] = para.lambda_q * rmse_charge_array[t];
@@ -1529,9 +1534,9 @@ void NEP_Charge::report_error(const TrainingReport& report)
   find_force(para, report.parameters, training->train_set[report.batch], false, 1);
   Dataset& train_data = training->train_set[report.batch][0];
   NEP_Energy_Error train = energy_loss.get_error(
-    para, train_data, training->energy_difference, true, report.batch);
-  float charge_train = train_data.get_rmse_charge(para, 0).back();
-  float bec_train = train_data.get_rmse_bec(para, 0).back();
+    para, train_data, energy_difference, true, report.batch);
+  float charge_train = charge_data.get(train_data).get_rmse_charge(para, train_data, 0).back();
+  float bec_train = charge_data.get(train_data).get_rmse_bec(para, train_data, 0).back();
   float charge_test = 0.0f;
   float bec_test = 0.0f;
   // Correct the last bias parameter in the energy network before evaluating the test set.
@@ -1539,9 +1544,10 @@ void NEP_Charge::report_error(const TrainingReport& report)
   NEP_Energy_Error test;
   if (training->has_test_set) {
     find_force(para, report.parameters, training->test_set, false, 1);
-    test = energy_loss.get_error(para, training->test_set[0], training->energy_difference, false, 0);
-    charge_test = training->test_set[0].get_rmse_charge(para, 0).back();
-    bec_test = training->test_set[0].get_rmse_bec(para, 0).back();
+    Dataset& test_data = training->test_set[0];
+    test = energy_loss.get_error(para, test_data, energy_difference, false, 0);
+    charge_test = charge_data.get(test_data).get_rmse_charge(para, test_data, 0).back();
+    bec_test = charge_data.get(test_data).get_rmse_bec(para, test_data, 0).back();
   }
   training->write_model(para, report);
   write_nep_charge_error(stdout, report, train, test,
@@ -1551,13 +1557,13 @@ void NEP_Charge::report_error(const TrainingReport& report)
   if (training->has_test_set) {
     Dataset& data = training->test_set[0];
     copy_nep_energy_predictions(data);
-    copy_nep_charge_predictions(data, para.has_bec);
+    copy_nep_charge_predictions(charge_data.get(data), para.has_bec);
     std::vector<std::pair<Dataset*, int>> structures;
     for (int nc = 0; nc < data.Nc; ++nc) {
       structures.emplace_back(&data, nc);
     }
     write_nep_energy_predictions("test", structures);
-    write_nep_charge_predictions("test", structures, para.has_bec);
+    write_nep_charge_predictions("test", structures, charge_data, para.has_bec);
   }
 }
 
@@ -1568,10 +1574,10 @@ void NEP_Charge::predict(float* parameters)
     find_force(para, parameters, training->train_set[batch], false, 1);
     Dataset& data = training->train_set[batch][0];
     copy_nep_energy_predictions(data);
-    copy_nep_charge_predictions(data, para.has_bec);
+    copy_nep_charge_predictions(charge_data.get(data), para.has_bec);
   }
   std::vector<std::pair<Dataset*, int>> structures;
   training->get_prediction_order(structures);
   write_nep_energy_predictions("train", structures);
-  write_nep_charge_predictions("train", structures, para.has_bec);
+  write_nep_charge_predictions("train", structures, charge_data, para.has_bec);
 }

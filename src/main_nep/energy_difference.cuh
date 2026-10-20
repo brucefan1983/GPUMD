@@ -14,13 +14,14 @@
 */
 
 #pragma once
+#include "nep_batch_data.cuh"
 #include <fstream>
 #include <string>
 #include <vector>
 
 class Dataset;
 class Parameters;
-class NEP_Data_Reader;
+class NEP_Energy_Reader;
 struct Structure;
 
 // The loss term over the linear combinations of the total energies of named structures listed in
@@ -28,6 +29,8 @@ struct Structure;
 class EnergyDifference
 {
 public:
+  void prepare_dataset(Dataset& dataset);
+
   // Reads the optional name= field of a comment line of train.xyz or test.xyz and returns the
   // name in lowercase, or an empty string without the field.
   static std::string read_structure_name(
@@ -41,17 +44,23 @@ public:
     const int batch_size,
     int& num_batches,
     std::vector<int>& batch_sizes,
-    const NEP_Data_Reader& reader);
+    const NEP_Energy_Reader& reader);
   // Resolves the test combinations and prints the summary of ediff.in.
   void read_test(
     const Parameters& para, const std::vector<Structure>& structures_test, const bool has_test_set,
-    const NEP_Data_Reader& reader);
+    const NEP_Energy_Reader& reader);
   // Weighted RMSE of the training combinations in batch batch_id, which the caller has evaluated.
-  float get_rmse_train(Dataset& dataset, const int batch_id, const int device_id) const;
+  float get_rmse_train(Dataset& dataset, const int batch_id, const int device_id);
   // Weighted RMSE of the test combinations, which the caller has evaluated.
-  float get_rmse_test(Dataset& dataset, const int device_id) const;
+  float get_rmse_test(Dataset& dataset, const int device_id);
 
 private:
+  struct Total_Energy {
+    GPU_Vector<double> gpu;
+    std::vector<double> cpu;
+  };
+  NEP_Batch_Data<Total_Energy> total_energy;
+
   // One term of a line of ediff.in, with the name in lowercase.
   struct Term {
     std::string name;
@@ -89,8 +98,8 @@ private:
     const std::vector<int>& batch_sizes,
     const char* xyz_filename,
     std::vector<bool>& is_in_set,
-    const NEP_Data_Reader& reader);
-  static float get_rmse(
+    const NEP_Energy_Reader& reader);
+  float get_rmse(
     const std::vector<Combination>& combinations,
     Dataset& dataset,
     const int batch_id,

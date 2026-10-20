@@ -17,16 +17,17 @@
 #include "utilities/gpu_vector.cuh"
 
 class Dataset;
+class NEP_Charge_Dataset;
 
 // All GPU operations use the device selected by the caller.
 // K-point generation, storage, and cache lifetime remain model-specific.
-void enforce_nep_total_charge(Dataset& dataset);
+void enforce_nep_total_charge(Dataset& dataset, NEP_Charge_Dataset& charge_dataset);
 
 void subtract_nep_charge_derivative_mean(const Dataset& dataset, float* D_real);
 
-void initialize_nep_bec(Dataset& dataset);
+void initialize_nep_bec(Dataset& dataset, NEP_Charge_Dataset& charge_dataset);
 
-void scale_nep_bec(Dataset& dataset, const float* sqrt_epsilon_inf);
+void scale_nep_bec(Dataset& dataset, NEP_Charge_Dataset& charge_dataset, const float* sqrt_epsilon_inf);
 
 void compute_nep_structure_factor(
   const Dataset& dataset,

@@ -879,11 +879,21 @@ namespace {
 class TNEP_Reader : public NEP_Data_Reader
 {
 public:
-  explicit TNEP_Reader(Parameters& para) : NEP_Data_Reader(para) {}
+  TNEP_Reader(Parameters& para, NEP_Batch_Data<TNEP_Atomic_Dataset>& atomic_data)
+    : NEP_Data_Reader(para), atomic_data(atomic_data) {}
+  void prepare_dataset(Dataset& dataset) override
+  {
+    atomic_data.create(dataset).construct(dataset, labels);
+  }
 
 private:
-  void read_structure(const XYZ_Record& record, Structure& structure) const override
+  NEP_Batch_Data<TNEP_Atomic_Dataset>& atomic_data;
+  std::vector<TNEP_Atomic_Labels> labels;
+  void begin_reading() override { labels.clear(); }
+  void read_structure(const XYZ_Record& record, Structure& structure) override
   {
+    labels.emplace_back();
+    auto& label = labels.back();
     read_geometry(record, structure);
     // Optional energy labels retain the existing ordering of mini-batches.
     read_energy(record, structure, false);
@@ -954,8 +964,8 @@ private:
     int adipole_offset = record.get_property_offset("adipole", "atomic_dipole");
     int apol_offset = record.get_property_offset("apol", "atomic_polarizability");
     int avirial_offset = adipole_offset > apol_offset ? adipole_offset : apol_offset;
-    structure.has_atomic_virial = avirial_offset >= 0;
-    structure.atomic_virial_diag_only = adipole_offset > apol_offset;
+    label.has_atomic_virial = avirial_offset >= 0;
+    label.atomic_virial_diag_only = adipole_offset > apol_offset;
     if (avirial_offset < 0 && para.atomic_v == 1) {
       if (para.model_type == 1) {
         PRINT_INPUT_ERROR("'adipole' or 'atomic_dipole' is missing in properties.");
@@ -963,39 +973,39 @@ private:
         PRINT_INPUT_ERROR("'apol' or 'atomic_polarizability' is missing in properties.");
       }
     }
-    if (structure.has_atomic_virial) {
-      structure.avirialxx.resize(structure.num_atom);
-      structure.avirialyy.resize(structure.num_atom);
-      structure.avirialzz.resize(structure.num_atom);
-      if (!structure.atomic_virial_diag_only) {
-        structure.avirialxy.resize(structure.num_atom);
-        structure.avirialyz.resize(structure.num_atom);
-        structure.avirialzx.resize(structure.num_atom);
+    if (label.has_atomic_virial) {
+      label.avirialxx.resize(structure.num_atom);
+      label.avirialyy.resize(structure.num_atom);
+      label.avirialzz.resize(structure.num_atom);
+      if (!label.atomic_virial_diag_only) {
+        label.avirialxy.resize(structure.num_atom);
+        label.avirialyz.resize(structure.num_atom);
+        label.avirialzx.resize(structure.num_atom);
       }
     }
     for (int na = 0; na < structure.num_atom; ++na) {
       const auto& tokens = record.atoms[na];
       line_number = record.comment_line_number + na + 1;
-      if (structure.has_atomic_virial) {
-        if (structure.atomic_virial_diag_only) {
-          structure.avirialxx[na] =
+      if (label.has_atomic_virial) {
+        if (label.atomic_virial_diag_only) {
+          label.avirialxx[na] =
             get_double_from_token(tokens[0 + avirial_offset], xyz_filename.c_str(), line_number);
-          structure.avirialyy[na] =
+          label.avirialyy[na] =
             get_double_from_token(tokens[1 + avirial_offset], xyz_filename.c_str(), line_number);
-          structure.avirialzz[na] =
+          label.avirialzz[na] =
             get_double_from_token(tokens[2 + avirial_offset], xyz_filename.c_str(), line_number);
         } else {
-          structure.avirialxx[na] =
+          label.avirialxx[na] =
             get_double_from_token(tokens[0 + avirial_offset], xyz_filename.c_str(), line_number);
-          structure.avirialyy[na] =
+          label.avirialyy[na] =
             get_double_from_token(tokens[4 + avirial_offset], xyz_filename.c_str(), line_number);
-          structure.avirialzz[na] =
+          label.avirialzz[na] =
             get_double_from_token(tokens[8 + avirial_offset], xyz_filename.c_str(), line_number);
-          structure.avirialxy[na] =
+          label.avirialxy[na] =
             get_double_from_token(tokens[3 + avirial_offset], xyz_filename.c_str(), line_number);
-          structure.avirialyz[na] =
+          label.avirialyz[na] =
             get_double_from_token(tokens[7 + avirial_offset], xyz_filename.c_str(), line_number);
-          structure.avirialzx[na] =
+          label.avirialzx[na] =
             get_double_from_token(tokens[6 + avirial_offset], xyz_filename.c_str(), line_number);
         }
       }
@@ -1014,7 +1024,7 @@ TNEP::TNEP(std::unique_ptr<Parameters> model_parameters)
 int TNEP::prepare_data()
 {
   Parameters& para = *model_parameters;
-  TNEP_Reader reader(para);
+  TNEP_Reader reader(para, atomic_data);
   training.reset(new NEP_Training(para, reader));
   initialize(para, training->N, training->Nc, training->device_count);
   if (para.prediction == 0) {
@@ -1047,7 +1057,7 @@ void TNEP::evaluate(int batch, const float* population)
       training->train_set[batch], false, count);
     for (int device = 0; device < count; ++device) {
       Dataset& data = training->train_set[batch][device];
-      auto error = data.get_rmse_virial(para, true, device);
+      auto error = get_rmse(data, true, device);
       for (int t = 0; t <= para.num_types; ++t) {
         fitness_tensor[first + device + t * para.population_size] = para.lambda_v * error[t];
       }
@@ -1073,11 +1083,11 @@ void TNEP::report_error(const TrainingReport& report)
   Parameters& para = *model_parameters;
   find_force(para, report.parameters, training->train_set[report.batch], false, 1);
   Dataset& train_data = training->train_set[report.batch][0];
-  float train = train_data.get_rmse_virial(para, false, 0).back();
+  float train = get_rmse(train_data, false, 0).back();
   float test = 0.0f;
   if (training->has_test_set) {
     find_force(para, report.parameters, training->test_set, false, 1);
-    test = training->test_set[0].get_rmse_virial(para, false, 0).back();
+    test = get_rmse(training->test_set[0], false, 0).back();
   }
   training->write_model(para, report);
   write_tnep_error(stdout, report, train, test);
@@ -1089,7 +1099,7 @@ void TNEP::report_error(const TrainingReport& report)
     for (int nc = 0; nc < data.Nc; ++nc) {
       structures.emplace_back(&data, nc);
     }
-    write_tnep_predictions("test", structures, para.model_type == 1, para.atomic_v);
+    write_tnep_predictions("test", structures, atomic_data, para.model_type == 1, para.atomic_v);
   }
 }
 
@@ -1103,5 +1113,14 @@ void TNEP::predict(float* parameters)
   }
   std::vector<std::pair<Dataset*, int>> structures;
   training->get_prediction_order(structures);
-  write_tnep_predictions("train", structures, para.model_type == 1, para.atomic_v);
+  write_tnep_predictions("train", structures, atomic_data, para.model_type == 1, para.atomic_v);
+}
+
+std::vector<float> TNEP::get_rmse(Dataset& dataset, bool use_weight, int device_id)
+{
+  Parameters& para = *model_parameters;
+  if (para.atomic_v) {
+    return atomic_data.get(dataset).get_rmse(para, dataset, use_weight, device_id);
+  }
+  return dataset.get_rmse_virial(para, use_weight, device_id, para.model_type == 1 ? 3 : 6);
 }

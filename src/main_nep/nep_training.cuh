@@ -15,13 +15,13 @@
 
 #pragma once
 #include "dataset.cuh"
-#include "energy_difference.cuh"
 #include "potential.cuh"
 #include <cstdio>
 #include <utility>
 #include <vector>
 
 class Parameters;
+class EnergyDifference;
 
 struct NEP_Energy_Error
 {
@@ -37,7 +37,7 @@ struct NEP_Energy_Error
 class NEP_Training
 {
 public:
-  explicit NEP_Training(Parameters& para, const NEP_Data_Reader& reader);
+  explicit NEP_Training(Parameters& para, NEP_Data_Reader& reader);
   ~NEP_Training();
   NEP_Training(const NEP_Training&) = delete;
   NEP_Training& operator=(const NEP_Training&) = delete;
@@ -50,7 +50,6 @@ public:
   int max_NN_radial;
   int max_NN_angular;
   FILE* fid_loss_out = NULL;
-  EnergyDifference energy_difference;
   std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;
 
@@ -59,7 +58,7 @@ public:
   void get_prediction_order(std::vector<std::pair<Dataset*, int>>& structures);
 
 private:
-  void prepare_datasets(Parameters& para, int deviceCount, const NEP_Data_Reader& reader);
+  void prepare_datasets(Parameters& para, int deviceCount, NEP_Data_Reader& reader);
   void find_dataset_sizes(int& N, int& Nc);
 };
 
