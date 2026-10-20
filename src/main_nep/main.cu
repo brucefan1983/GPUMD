@@ -38,7 +38,7 @@ static void predict(Parameters& para, Potential& potential, Fitness& fitness)
 
   std::vector<float> parameters(para.number_of_variables);
   potential.read_model(parameters.data());
-  fitness.predict(para, parameters.data());
+  fitness.predict(parameters.data());
 }
 
 int main(int argc, char* argv[])

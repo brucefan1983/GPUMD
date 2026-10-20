@@ -31,7 +31,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/error.cuh"
 #include <algorithm>
 
-void NEP::initialize(NEP_Potential_Parameters& para, int N, int Nc, int deviceCount)
+void NEP::initialize(NEP_Potential_Parameters& para, int N, int deviceCount)
 {
   initialize_model(para);
   for (int device_id = 0; device_id < deviceCount; ++device_id) {
@@ -294,7 +294,7 @@ int NEP::prepare_data()
   NEP_Potential_Parameters& para = *model_parameters;
   NEP_Reader reader(para, energy_difference, temperature_data);
   training.reset(new NEP_Training(para, reader));
-  initialize(para, training->N, training->Nc, training->device_count);
+  initialize(para, training->N, training->device_count);
   if (para.prediction == 0) {
     energy_loss.initialize(para);
     training->open_loss_file(para,

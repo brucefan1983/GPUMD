@@ -155,7 +155,7 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-void TNEP::initialize(TNEP_Parameters& para, int N, int Nc, int deviceCount)
+void TNEP::initialize(TNEP_Parameters& para, int N, int deviceCount)
 {
   initialize_model(para);
   for (int device_id = 0; device_id < deviceCount; ++device_id) {
@@ -1127,7 +1127,7 @@ int TNEP::prepare_data()
   TNEP_Parameters& para = *model_parameters;
   TNEP_Reader reader(para, atomic_data);
   training.reset(new NEP_Training(para, reader));
-  initialize(para, training->N, training->Nc, training->device_count);
+  initialize(para, training->N, training->device_count);
   if (para.prediction == 0) {
     fitness_tensor.resize(para.population_size * (para.num_types + 1));
     training->open_loss_file(para, para.model_type == 1 ?

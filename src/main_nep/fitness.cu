@@ -169,7 +169,7 @@ void Fitness::report_error(
     potential.report_error(report);
   }
   if ((generation + 1) % 1000 == 0) {
-    predict(para, elite);
+    predict(elite);
   }
 }
 

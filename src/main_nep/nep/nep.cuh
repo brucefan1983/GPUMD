@@ -60,7 +60,7 @@ public:
 
 private:
   void configure(NEP_Potential_Parameters& para);
-  void initialize(NEP_Potential_Parameters& para, int N, int Nc, int deviceCount);
+  void initialize(NEP_Potential_Parameters& para, int N, int deviceCount);
   void find_force(
     NEP_Potential_Parameters& para,
     const float* parameters,

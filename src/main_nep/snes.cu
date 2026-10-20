@@ -111,7 +111,7 @@ void SNES::run(Parameters& para, Fitness* fitness_function)
   printf("Started training.\n");
   print_line_2();
 
-  fitness_function->print_training_header(para);
+  fitness_function->print_training_header();
 
   for (int n = 0; n < maximum_generation; ++n) {
     create_population();

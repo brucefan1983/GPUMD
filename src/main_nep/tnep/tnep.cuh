@@ -109,7 +109,7 @@ public:
 
 private:
   void configure(TNEP_Parameters& para);
-  void initialize(TNEP_Parameters& para, int N, int Nc, int deviceCount);
+  void initialize(TNEP_Parameters& para, int N, int deviceCount);
   void find_force(
     TNEP_Parameters& para,
     const float* parameters,
