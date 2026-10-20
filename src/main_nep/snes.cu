@@ -24,7 +24,7 @@ https://doi.org/10.1145/2001576.2001692
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
-#include "nep_init.cuh"
+#include "potential.cuh"
 #include "nep_io.cuh"
 #include "parameters.cuh"
 #include "snes.cuh"
@@ -41,7 +41,7 @@ static __global__ void initialize_curand_states(gpurandState* state, int N, int 
   }
 }
 
-SNES::SNES(Parameters& para)
+SNES::SNES(Parameters& para, Potential& potential)
 {
   maximum_generation = para.maximum_generation;
   number_of_variables = para.number_of_variables;
@@ -70,14 +70,14 @@ SNES::SNES(Parameters& para)
     curand_states.data(), N, para.seed >= 0 ? para.seed : 1234567);
   GPU_CHECK_KERNEL
 
-  initialize_nep_mu_and_sigma(para, rng, mu, sigma);
+  potential.initialize_parameters(para, rng, mu, sigma);
   gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_from_host(mu.data());
   gpu_sigma.copy_from_host(sigma.data());
 
   calculate_utility();
   gpu_utility.copy_from_host(utility.data());
-  find_nep_type_of_variable(para, type_of_variable);
+  potential.parameter_groups(para, type_of_variable);
   gpu_type_of_variable.copy_from_host(type_of_variable.data());
 }
 

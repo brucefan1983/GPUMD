@@ -26,6 +26,7 @@ J. Chem. Theory Comput. 20, 3273 (2024).
 #include "mic.cuh"
 #include "tnep.cuh"
 #include "nep_model.cuh"
+#include "nep_init.cuh"
 #include "nep_common.cuh"
 #include "parameters.cuh"
 #include "utilities/common.cuh"
@@ -842,4 +843,16 @@ void TNEP::find_force(
 void TNEP::configure(Parameters& para)
 {
   calculate_nep_model_parameters(para, 0, 0, 1, para.model_type == 2 ? 2 : 1);
+}
+
+void TNEP::initialize_parameters(
+  const Parameters& para, std::mt19937& rng,
+  std::vector<float>& mu, std::vector<float>& sigma)
+{
+  initialize_nep_mu_and_sigma(para, rng, mu, sigma, 1);
+}
+
+void TNEP::parameter_groups(const Parameters& para, std::vector<int>& groups)
+{
+  find_nep_type_of_variable(para, groups, 1, para.model_type == 2 ? 2 : 1);
 }

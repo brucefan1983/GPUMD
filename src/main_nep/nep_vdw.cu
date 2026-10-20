@@ -24,6 +24,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "mic.cuh"
 #include "nep_vdw.cuh"
 #include "nep_model.cuh"
+#include "nep_init.cuh"
 #include "nep_long_range.cuh"
 #include "nep_vdw_parameters.cuh"
 #include "parameters.cuh"
@@ -924,4 +925,16 @@ void NEP_VDW::find_force(
 void NEP_VDW::configure(Parameters& para)
 {
   calculate_nep_model_parameters(para, 0, 1, 1, 1);
+}
+
+void NEP_VDW::initialize_parameters(
+  const Parameters& para, std::mt19937& rng,
+  std::vector<float>& mu, std::vector<float>& sigma)
+{
+  initialize_nep_mu_and_sigma(para, rng, mu, sigma, 1);
+}
+
+void NEP_VDW::parameter_groups(const Parameters& para, std::vector<int>& groups)
+{
+  find_nep_type_of_variable(para, groups, 1, 1);
 }

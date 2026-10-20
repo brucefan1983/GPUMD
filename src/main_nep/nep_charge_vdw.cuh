@@ -91,6 +91,10 @@ public:
 
   NEP_Charge_VDW() = default;
   void configure(Parameters& para) override;
+  void initialize_parameters(
+    const Parameters& para, std::mt19937& rng,
+    std::vector<float>& mu, std::vector<float>& sigma) override;
+  void parameter_groups(const Parameters& para, std::vector<int>& groups) override;
   void initialize(Parameters& para, int N, int Nc, int deviceCount) override;
   void find_force(
     Parameters& para,

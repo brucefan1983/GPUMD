@@ -24,6 +24,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "mic.cuh"
 #include "nep_charge_vdw.cuh"
 #include "nep_model.cuh"
+#include "nep_init.cuh"
 #include "nep_long_range.cuh"
 #include "nep_vdw_parameters.cuh"
 #include "parameters.cuh"
@@ -1382,4 +1383,37 @@ void NEP_Charge_VDW::find_force(
 void NEP_Charge_VDW::configure(Parameters& para)
 {
   calculate_nep_model_parameters(para, 0, 2, 2, 1);
+}
+
+void NEP_Charge_VDW::initialize_parameters(
+  const Parameters& para, std::mt19937& rng,
+  std::vector<float>& mu, std::vector<float>& sigma)
+{
+  NEP_Initialization initialization = initialize_nep_mu_and_sigma(para, rng, mu, sigma, 2);
+  if (initialization == NEP_Initialization::RANDOM) {
+    // make sure the initial charge and vdW output weights are zero
+    for (int t = 0; t < para.num_types; ++t) {
+      int charge_begin =
+        para.number_of_variables_ann_1 * t + (para.dim + 2) * para.num_neurons1;
+      int vdw_end = charge_begin + 2 * para.num_neurons1;
+      for (int n = charge_begin; n < vdw_end; ++n) {
+        mu[n] = 0.0f;
+      }
+    }
+    mu[para.number_of_variables_ann_1 * para.num_types] = 2.0f; // initial sqrt(epsilon_inf)
+  } else if (initialization == NEP_Initialization::RESTART && para.flip_charge) {
+    for (int t = 0; t < para.num_types; ++t) {
+      int charge_begin =
+        para.number_of_variables_ann_1 * t + (para.dim + 2) * para.num_neurons1;
+      int charge_end = charge_begin + para.num_neurons1;
+      for (int n = charge_begin; n < charge_end; ++n) {
+        mu[n] = -mu[n];
+      }
+    }
+  }
+}
+
+void NEP_Charge_VDW::parameter_groups(const Parameters& para, std::vector<int>& groups)
+{
+  find_nep_type_of_variable(para, groups, 2, 1);
 }

@@ -22,6 +22,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 #include "nep.cuh"
 #include "nep_model.cuh"
+#include "nep_init.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 
@@ -156,4 +157,16 @@ void NEP::find_force(
 void NEP::configure(Parameters& para)
 {
   calculate_nep_model_parameters(para, para.model_type == 3 ? 1 : 0, 0, 1, 1);
+}
+
+void NEP::initialize_parameters(
+  const Parameters& para, std::mt19937& rng,
+  std::vector<float>& mu, std::vector<float>& sigma)
+{
+  initialize_nep_mu_and_sigma(para, rng, mu, sigma, 1);
+}
+
+void NEP::parameter_groups(const Parameters& para, std::vector<int>& groups)
+{
+  find_nep_type_of_variable(para, groups, 1, 1);
 }

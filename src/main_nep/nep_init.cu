@@ -18,7 +18,7 @@
 #include "parameters.cuh"
 
 static void initialize_nep_mu_and_sigma_fine_tune(
-  const Parameters& para, std::vector<float>& mu, std::vector<float>& sigma)
+  const Parameters& para, std::vector<float>& mu, std::vector<float>& sigma, int global_parameters)
 {
   // This map is needed because the foundation model misses 5 elements between H-Pu
   const int element_map[94] = {
@@ -30,7 +30,7 @@ static void initialize_nep_mu_and_sigma_fine_tune(
   };
   // read in the whole foundation file first
   const int NUM89 = 89;
-  const int num_ann = NUM89 * para.number_of_variables_ann_1 + ((para.charge_mode || para.charge_vdw) ? 2 : 1);
+  const int num_ann = NUM89 * para.number_of_variables_ann_1 + global_parameters;
 #ifdef USE_CJ
   const int num_cnk_radial = NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
   const int num_cnk_angular = NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
@@ -54,7 +54,7 @@ static void initialize_nep_mu_and_sigma_fine_tune(
       ++count;
     }
   }
-  count += (para.charge_mode || para.charge_vdw) ? 2 : 1; // the global parameters
+  count += global_parameters; // the global parameters
 
 #ifdef USE_CJ
 
@@ -139,57 +139,38 @@ static void initialize_nep_mu_and_sigma_fine_tune(
 #endif
 }
 
-void initialize_nep_mu_and_sigma(
+NEP_Initialization initialize_nep_mu_and_sigma(
   const Parameters& para,
   std::mt19937& rng,
   std::vector<float>& mu,
-  std::vector<float>& sigma)
+  std::vector<float>& sigma,
+  int global_parameters)
 {
   if (para.fine_tune) {
-    initialize_nep_mu_and_sigma_fine_tune(para, mu, sigma);
-    return;
+    initialize_nep_mu_and_sigma_fine_tune(para, mu, sigma, global_parameters);
+    return NEP_Initialization::FINE_TUNE;
   }
 
-  if (!read_nep_restart("nep.restart", para, mu, sigma)) {
-    std::uniform_real_distribution<float> r1(0, 1);
-    for (int n = 0; n < para.number_of_variables; ++n) {
-      mu[n] = (r1(rng) - 0.5f) * 2.0f;
-      sigma[n] = para.sigma0;
-    }
-    // make sure the initial charges are zero
-    if ((para.charge_mode || para.charge_vdw)) {
-      const int num_part = (para.dim + 2) * para.num_neurons1;
-      for (int t = 0; t < para.num_types; ++t) {
-        for (int n = para.number_of_variables_ann_1 * t + num_part; n < para.number_of_variables_ann_1 * (t + 1); ++n) {
-          mu[n] = 0.0f;
-        }
-      }
-      mu[para.number_of_variables_ann_1 * para.num_types] = 2.0f; // make sure initial sqrt(epsilon_inf) > 0
-    }
-  } else {
-    // flip the charges if needed
-    if ((para.charge_mode || para.charge_vdw) && para.flip_charge) {
-      const int num1 = (para.dim + 2) * para.num_neurons1;
-      for (int t = 0; t < para.num_types; ++t) {
-        int num2 = para.number_of_variables_ann_1 * (t + 1);
-        if (para.charge_vdw) {
-          num2 -= para.num_neurons1;
-        }
-        for (int n = para.number_of_variables_ann_1 * t + num1; n < num2; ++n) {
-          mu[n] = -mu[n];
-        }
-      }
-    }
+  if (read_nep_restart("nep.restart", para, mu, sigma)) {
+    return NEP_Initialization::RESTART;
   }
+
+  std::uniform_real_distribution<float> r1(0, 1);
+  for (int n = 0; n < para.number_of_variables; ++n) {
+    mu[n] = (r1(rng) - 0.5f) * 2.0f;
+    sigma[n] = para.sigma0;
+  }
+  return NEP_Initialization::RANDOM;
 }
 
-void find_nep_type_of_variable(const Parameters& para, std::vector<int>& type_of_variable)
+void find_nep_type_of_variable(
+  const Parameters& para, std::vector<int>& type_of_variable, int global_parameters, int ann_count)
 {
   type_of_variable.assign(para.number_of_variables, para.num_types);
   int offset = 0;
 
   // NN part
-  int num_ann = (para.model_type == 2) ? 2 : 1;
+  int num_ann = ann_count;
   for (int ann = 0; ann < num_ann; ++ann) {
     for (int t = 0; t < para.num_types; ++t) {
       for (int n = 0; n < para.number_of_variables_ann_1; ++n) {
@@ -197,7 +178,7 @@ void find_nep_type_of_variable(const Parameters& para, std::vector<int>& type_of
       }
       offset += para.number_of_variables_ann_1;
     }
-    offset += (para.charge_mode || para.charge_vdw) ? 2 : 1; // the bias
+    offset += global_parameters; // the bias
   }
 
   // descriptor part

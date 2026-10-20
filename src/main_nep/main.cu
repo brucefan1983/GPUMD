@@ -69,7 +69,7 @@ int main(int argc, char* argv[])
 
   const auto time_begin2 = std::chrono::high_resolution_clock::now();
   if (para.prediction == 0) {
-    SNES snes(para);
+    SNES snes(para, *potential);
     snes.run(para, &fitness);
   } else {
     predict(para, fitness);

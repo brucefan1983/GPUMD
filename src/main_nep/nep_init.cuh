@@ -19,10 +19,14 @@
 
 class Parameters;
 
-void initialize_nep_mu_and_sigma(
+enum class NEP_Initialization { RANDOM, RESTART, FINE_TUNE };
+
+NEP_Initialization initialize_nep_mu_and_sigma(
   const Parameters& para,
   std::mt19937& rng,
   std::vector<float>& mu,
-  std::vector<float>& sigma);
+  std::vector<float>& sigma,
+  int global_parameters);
 
-void find_nep_type_of_variable(const Parameters& para, std::vector<int>& type_of_variable);
+void find_nep_type_of_variable(
+  const Parameters& para, std::vector<int>& type_of_variable, int global_parameters, int ann_count);

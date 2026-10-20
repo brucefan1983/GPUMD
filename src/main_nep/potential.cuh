@@ -15,6 +15,7 @@
 
 #pragma once
 #include <memory>
+#include <random>
 #include <vector>
 class Dataset;
 class Parameters;
@@ -23,6 +24,10 @@ class Potential
 {
 public:
   virtual ~Potential() = default;
+  virtual void initialize_parameters(
+    const Parameters& para, std::mt19937& rng,
+    std::vector<float>& mu, std::vector<float>& sigma) = 0;
+  virtual void parameter_groups(const Parameters& para, std::vector<int>& groups) = 0;
   virtual void configure(Parameters& para) = 0;
   virtual void initialize(Parameters& para, int N, int Nc, int deviceCount) = 0;
   virtual void find_force(
