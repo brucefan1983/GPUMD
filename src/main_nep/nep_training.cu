@@ -16,7 +16,7 @@
 #include "nep_training.cuh"
 #include "nep_io.cuh"
 #include "energy_difference.cuh"
-#include "parameters.cuh"
+#include "nep_parameters.cuh"
 #include "structure.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -73,7 +73,7 @@ static int get_batch_size(const int batch_id, const int n_total, const int num_b
   return is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
 }
 
-NEP_Training::NEP_Training(Parameters& para, NEP_Data_Reader& reader)
+NEP_Training::NEP_Training(NEP_Parameters& para, NEP_Data_Reader& reader)
 {
   CHECK(gpuGetDeviceCount(&device_count));
   prepare_datasets(para, device_count, reader);
@@ -81,7 +81,7 @@ NEP_Training::NEP_Training(Parameters& para, NEP_Data_Reader& reader)
 }
 
 void NEP_Training::prepare_datasets(
-  Parameters& para, const int deviceCount, NEP_Data_Reader& reader)
+  NEP_Parameters& para, const int deviceCount, NEP_Data_Reader& reader)
 {
   std::vector<Structure> structures_train;
   reader.read_structures(true, structures_train);
@@ -179,7 +179,7 @@ NEP_Training::~NEP_Training()
 }
 
 void NEP_Training::open_loss_file(
-  const Parameters& para, const char* columns, bool include_ediff)
+  const NEP_Parameters& para, const char* columns, bool include_ediff)
 {
   fid_loss_out = my_fopen("loss.out", "a");
   fprintf(fid_loss_out, "# format_version 1\n");
@@ -192,7 +192,7 @@ void NEP_Training::open_loss_file(
   fflush(fid_loss_out);
 }
 
-void NEP_Training::write_model(Parameters& para, const TrainingReport& report)
+void NEP_Training::write_model(NEP_Parameters& para, const TrainingReport& report)
 {
   FILE* file = my_fopen("nep.txt", "w");
   write_nep_model(file, para, report.parameters, max_NN_radial, max_NN_angular);
@@ -222,7 +222,7 @@ void NEP_Training::get_prediction_order(std::vector<std::pair<Dataset*, int>>& s
     });
 }
 
-void NEP_Energy_Loss::initialize(const Parameters& para)
+void NEP_Energy_Loss::initialize(const NEP_Energy_Parameters& para)
 {
   fitness_energy.resize(para.population_size * (para.num_types + 1));
   fitness_force.resize(para.population_size * (para.num_types + 1));
@@ -231,7 +231,7 @@ void NEP_Energy_Loss::initialize(const Parameters& para)
 }
 
 void NEP_Energy_Loss::evaluate(
-  Parameters& para, Dataset& data, EnergyDifference& energy_difference,
+  NEP_Energy_Parameters& para, Dataset& data, EnergyDifference& energy_difference,
   int batch, int candidate, int device_id)
 {
   float energy_shift_per_structure_not_used;
@@ -249,7 +249,7 @@ void NEP_Energy_Loss::evaluate(
     para.lambda_d * energy_difference.get_rmse_train(data, batch, device_id);
 }
 
-void NEP_Energy_Loss::accumulate_fitness(const Parameters& para, float* fitness_total)
+void NEP_Energy_Loss::accumulate_fitness(const NEP_Energy_Parameters& para, float* fitness_total)
 {
   for (int t = 0; t <= para.num_types; ++t) {
     for (int p = 0; p < para.population_size; ++p) {
@@ -261,7 +261,7 @@ void NEP_Energy_Loss::accumulate_fitness(const Parameters& para, float* fitness_
 }
 
 void NEP_Energy_Loss::accumulate_energy_difference(
-  const Parameters& para, float* fitness_total)
+  const NEP_Energy_Parameters& para, float* fitness_total)
 {
   for (int t = 0; t <= para.num_types; ++t) {
     for (int p = 0; p < para.population_size; ++p) {
@@ -271,7 +271,7 @@ void NEP_Energy_Loss::accumulate_energy_difference(
 }
 
 NEP_Energy_Error NEP_Energy_Loss::get_error(
-  Parameters& para, Dataset& data, EnergyDifference& energy_difference, bool is_train, int batch)
+  NEP_Energy_Parameters& para, Dataset& data, EnergyDifference& energy_difference, bool is_train, int batch)
 {
   NEP_Energy_Error error;
   error.energy = data.get_rmse_energy(para, error.energy_shift, false, is_train, 0).back();

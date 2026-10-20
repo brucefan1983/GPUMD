@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-class Parameters;
+class NEP_Parameters;
 
 const int NEP_SPECIALIZED_INTERFACE_VERSION = 2;
 
@@ -70,9 +70,10 @@ struct NEP_Compile_Config {
 };
 
 NEP_Compile_Config make_nep_compile_config(
-  const Parameters& para,
+  const NEP_Parameters& para,
   NEP_Compile_Mode mode,
-  const float* c6_ref_sqrt = nullptr);
+  const float* c6_ref_sqrt = nullptr,
+  int model_type = 0);
 
 #if !defined(USE_HIP) && !defined(_WIN32)
 

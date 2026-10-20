@@ -25,13 +25,14 @@ J. Chem. Theory Comput. 20, 3273 (2024).
 #include "dataset.cuh"
 #include "mic.cuh"
 #include "tnep.cuh"
+#include "utilities/read_file.cuh"
 #include "nep_output.cuh"
 #include "xyz_reader.cuh"
 #include "nep_model.cuh"
 #include "nep_init.cuh"
 #include "nep_io.cuh"
 #include "nep_common.cuh"
-#include "parameters.cuh"
+#include "nep_parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -154,7 +155,7 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-void TNEP::initialize(Parameters& para, int N, int Nc, int deviceCount)
+void TNEP::initialize(TNEP_Parameters& para, int N, int Nc, int deviceCount)
 {
   initialize_model(para);
   for (int device_id = 0; device_id < deviceCount; ++device_id) {
@@ -164,7 +165,7 @@ void TNEP::initialize(Parameters& para, int N, int Nc, int deviceCount)
   initialize_compiled_kernel(para);
 }
 
-void TNEP::initialize_model(const Parameters& para)
+void TNEP::initialize_model(const TNEP_Parameters& para)
 {
   paramb.version = para.version;
   paramb.num_types = para.num_types;
@@ -191,7 +192,7 @@ void TNEP::initialize_model(const Parameters& para)
     paramb.num_types_sq * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
 }
 
-void TNEP::initialize_device(const Parameters& para, int N, int device_id)
+void TNEP::initialize_device(const TNEP_Parameters& para, int N, int device_id)
 {
   ANN& ann = annmb[device_id];
   TNEP_Data& data = nep_data[device_id];
@@ -211,19 +212,19 @@ void TNEP::initialize_device(const Parameters& para, int N, int device_id)
   data.parameters.resize(ann.num_para);
 }
 
-void TNEP::initialize_compiled_kernel(const Parameters& para)
+void TNEP::initialize_compiled_kernel(const TNEP_Parameters& para)
 {
   if (para.nep_compile && para.prediction == 0) {
     CHECK(gpuSetDevice(0));
     compiled_kernel_.reset(new NEP_Compile(
-      make_nep_compile_config(para, NEP_Compile_Mode::TNEP)));
+      make_nep_compile_config(para, NEP_Compile_Mode::TNEP, nullptr, para.model_type)));
     if (!compiled_kernel_->is_valid()) {
       compiled_kernel_.reset();
     }
   }
 }
 
-void TNEP::bind_parameters(const Parameters& para, const float* parameters, ANN& ann)
+void TNEP::bind_parameters(const TNEP_Parameters& para, const float* parameters, ANN& ann)
 {
   const float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
@@ -805,7 +806,7 @@ void TNEP::compute_tensor(
 }
 
 void TNEP::find_force(
-  Parameters& para,
+  TNEP_Parameters& para,
   const float* parameters,
   std::vector<Dataset>& dataset,
   bool calculate_q_scaler,
@@ -844,7 +845,7 @@ void TNEP::find_force(
   }
 }
 
-void TNEP::configure(Parameters& para)
+void TNEP::configure(TNEP_Parameters& para)
 {
   para.file_tag = std::string(para.enable_zbl ? "nep4_zbl" : "nep4") + (para.model_type == 1 ? "_dipole" : "_polarizability");
   calculate_nep_model_parameters(para, 0, 0, 1, para.model_type == 2 ? 2 : 1);
@@ -854,13 +855,13 @@ void TNEP::initialize_parameters(
   std::mt19937& rng,
   std::vector<float>& mu, std::vector<float>& sigma)
 {
-  Parameters& para = *model_parameters;
+  TNEP_Parameters& para = *model_parameters;
   initialize_nep_mu_and_sigma(para, rng, mu, sigma, 1);
 }
 
 void TNEP::parameter_groups(std::vector<int>& groups)
 {
-  Parameters& para = *model_parameters;
+  TNEP_Parameters& para = *model_parameters;
   find_nep_type_of_variable(para, groups, 1, para.model_type == 2 ? 2 : 1);
 }
 
@@ -879,14 +880,15 @@ namespace {
 class TNEP_Reader : public NEP_Data_Reader
 {
 public:
-  TNEP_Reader(Parameters& para, NEP_Batch_Data<TNEP_Atomic_Dataset>& atomic_data)
-    : NEP_Data_Reader(para), atomic_data(atomic_data) {}
+  TNEP_Reader(TNEP_Parameters& para, NEP_Batch_Data<TNEP_Atomic_Dataset>& atomic_data)
+    : NEP_Data_Reader(para), model_parameters(para), atomic_data(atomic_data) {}
   void prepare_dataset(Dataset& dataset) override
   {
     atomic_data.create(dataset).construct(dataset, labels);
   }
 
 private:
+  TNEP_Parameters& model_parameters;
   NEP_Batch_Data<TNEP_Atomic_Dataset>& atomic_data;
   std::vector<TNEP_Atomic_Labels> labels;
   void begin_reading() override { labels.clear(); }
@@ -901,7 +903,7 @@ private:
     const auto& xyz_filename = record.filename;
     int line_number = record.comment_line_number;
     // use the virial variable to keep the dipole data
-    if (para.model_type == 1) {
+    if (model_parameters.model_type == 1) {
       structure.has_virial = false;
       for (int n = 0; n < tokens.size(); ++n) {
         const std::string dipole_string = "dipole=";
@@ -932,7 +934,7 @@ private:
       }
     }
     // use the virial variable to keep the polarizability data
-    if (para.model_type == 2) {
+    if (model_parameters.model_type == 2) {
       structure.has_virial = false;
       for (int n = 0; n < tokens.size(); ++n) {
         const std::string pol_string = "pol=";
@@ -966,8 +968,8 @@ private:
     int avirial_offset = adipole_offset > apol_offset ? adipole_offset : apol_offset;
     label.has_atomic_virial = avirial_offset >= 0;
     label.atomic_virial_diag_only = adipole_offset > apol_offset;
-    if (avirial_offset < 0 && para.atomic_v == 1) {
-      if (para.model_type == 1) {
+    if (avirial_offset < 0 && model_parameters.atomic_v == 1) {
+      if (model_parameters.model_type == 1) {
         PRINT_INPUT_ERROR("'adipole' or 'atomic_dipole' is missing in properties.");
       } else {
         PRINT_INPUT_ERROR("'apol' or 'atomic_polarizability' is missing in properties.");
@@ -1014,16 +1016,24 @@ private:
 };
 } // namespace
 
-TNEP::TNEP(std::unique_ptr<Parameters> model_parameters)
-  : model_parameters(std::move(model_parameters))
+TNEP::TNEP(const ParameterInput& input)
+  : model_parameters(new TNEP_Parameters)
 {
-  configure(*this->model_parameters);
-  this->model_parameters->finish_reading();
+  auto& para = *model_parameters;
+  para.model_type = input.model_type;
+  para.read(input);
+  para.lambda_e = para.lambda_f = 0.0f;
+  para.enable_zbl = false;
+  if (!para.is_lambda_v_set) {
+    para.lambda_v = 1.0f;
+  }
+  configure(para);
+  para.finish_reading(input, para.model_type == 1 ? "dipole" : "polarizability");
 }
 
 int TNEP::prepare_data()
 {
-  Parameters& para = *model_parameters;
+  TNEP_Parameters& para = *model_parameters;
   TNEP_Reader reader(para, atomic_data);
   training.reset(new NEP_Training(para, reader));
   initialize(para, training->N, training->Nc, training->device_count);
@@ -1038,7 +1048,7 @@ int TNEP::prepare_data()
 
 void TNEP::prepare_training()
 {
-  Parameters& para = *model_parameters;
+  TNEP_Parameters& para = *model_parameters;
   int devices = training->device_count;
   std::vector<float> dummy_solution(para.number_of_variables * devices, para.initial_para);
   for (int batch = 0; batch < training->num_batches; ++batch) {
@@ -1049,7 +1059,7 @@ void TNEP::prepare_training()
 
 void TNEP::evaluate(int batch, const float* population)
 {
-  Parameters& para = *model_parameters;
+  TNEP_Parameters& para = *model_parameters;
   int devices = training->device_count;
   for (int first = 0; first < para.population_size; first += devices) {
     int count = std::min(devices, para.population_size - first);
@@ -1067,7 +1077,7 @@ void TNEP::evaluate(int batch, const float* population)
 
 void TNEP::accumulate_fitness(float* fitness_total)
 {
-  Parameters& para = *model_parameters;
+  TNEP_Parameters& para = *model_parameters;
   for (int i = 0; i < para.population_size * (para.num_types + 1); ++i) {
     fitness_total[i] += fitness_tensor[i];
   }
@@ -1080,7 +1090,7 @@ void TNEP::print_training_header()
 
 void TNEP::report_error(const TrainingReport& report)
 {
-  Parameters& para = *model_parameters;
+  TNEP_Parameters& para = *model_parameters;
   find_force(para, report.parameters, training->train_set[report.batch], false, 1);
   Dataset& train_data = training->train_set[report.batch][0];
   float train = get_rmse(train_data, false, 0).back();
@@ -1105,7 +1115,7 @@ void TNEP::report_error(const TrainingReport& report)
 
 void TNEP::predict(float* parameters)
 {
-  Parameters& para = *model_parameters;
+  TNEP_Parameters& para = *model_parameters;
   for (int batch = 0; batch < training->num_batches; ++batch) {
     find_force(para, parameters, training->train_set[batch], false, 1);
     Dataset& data = training->train_set[batch][0];
@@ -1118,9 +1128,42 @@ void TNEP::predict(float* parameters)
 
 std::vector<float> TNEP::get_rmse(Dataset& dataset, bool use_weight, int device_id)
 {
-  Parameters& para = *model_parameters;
+  TNEP_Parameters& para = *model_parameters;
   if (para.atomic_v) {
     return atomic_data.get(dataset).get_rmse(para, dataset, use_weight, device_id);
   }
   return dataset.get_rmse_virial(para, use_weight, device_id, para.model_type == 1 ? 3 : 6);
+}
+
+bool TNEP_Parameters::parse_keyword(const char** param, int num_param)
+{
+  if (strcmp(param[0], "atomic_v") == 0) {
+    parse_atomic_v(param, num_param);
+  } else {
+    return NEP_Parameters::parse_keyword(param, num_param);
+  }
+  return true;
+}
+
+void TNEP_Parameters::parse_atomic_v(const char** param, int num_param)
+{
+  is_atomic_v_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("atomic_v should have 1 parameter.\n");
+  }
+
+  if (!is_valid_int(param[1], &atomic_v)) {
+    PRINT_INPUT_ERROR("atomic_v should be an integer.\n");
+  }
+
+  if (atomic_v != 0 && atomic_v != 1) {
+    PRINT_INPUT_ERROR("atomic_v should = 0 or 1.");
+  }
+}
+
+void TNEP_Parameters::report_model_inputs() const
+{
+  printf("    (%s) %satomic_v = %d.\n", is_atomic_v_set ? "input" : "default",
+    is_atomic_v_set ? "  " : "", atomic_v);
 }

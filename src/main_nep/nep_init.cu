@@ -15,10 +15,10 @@
 
 #include "nep_init.cuh"
 #include "nep_io.cuh"
-#include "parameters.cuh"
+#include "nep_parameters.cuh"
 
 static void initialize_nep_mu_and_sigma_fine_tune(
-  const Parameters& para, std::vector<float>& mu, std::vector<float>& sigma, int global_parameters)
+  const NEP_Parameters& para, std::vector<float>& mu, std::vector<float>& sigma, int global_parameters)
 {
   // This map is needed because the foundation model misses 5 elements between H-Pu
   const int element_map[94] = {
@@ -140,7 +140,7 @@ static void initialize_nep_mu_and_sigma_fine_tune(
 }
 
 NEP_Initialization initialize_nep_mu_and_sigma(
-  const Parameters& para,
+  const NEP_Parameters& para,
   std::mt19937& rng,
   std::vector<float>& mu,
   std::vector<float>& sigma,
@@ -164,7 +164,7 @@ NEP_Initialization initialize_nep_mu_and_sigma(
 }
 
 void find_nep_type_of_variable(
-  const Parameters& para, std::vector<int>& type_of_variable, int global_parameters, int ann_count)
+  const NEP_Parameters& para, std::vector<int>& type_of_variable, int global_parameters, int ann_count)
 {
   type_of_variable.assign(para.number_of_variables, para.num_types);
   int offset = 0;

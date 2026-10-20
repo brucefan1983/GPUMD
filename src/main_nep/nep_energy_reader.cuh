@@ -15,13 +15,14 @@
 
 #pragma once
 #include "structure.cuh"
+#include "nep_parameters.cuh"
 class EnergyDifference;
 
 class NEP_Energy_Reader : public NEP_Data_Reader
 {
 public:
-  NEP_Energy_Reader(Parameters& para, EnergyDifference& energy_difference)
-    : NEP_Data_Reader(para), energy_difference(energy_difference) {}
+  NEP_Energy_Reader(NEP_Energy_Parameters& para, EnergyDifference& energy_difference)
+    : NEP_Data_Reader(para), energy_parameters(para), energy_difference(energy_difference) {}
   bool uses_grouped_batches() const override;
   void prepare_train(std::vector<Structure>& structures, int batch_size,
     int& num_batches, std::vector<int>& batch_sizes) override;
@@ -34,5 +35,6 @@ protected:
   void read_structure(const XYZ_Record& record, Structure& structure) override;
 
 private:
+  NEP_Energy_Parameters& energy_parameters;
   EnergyDifference& energy_difference;
 };

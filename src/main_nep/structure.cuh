@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-class Parameters;
+class NEP_Parameters;
 class Dataset;
 struct XYZ_Record;
 
@@ -51,7 +51,7 @@ struct Structure {
 class NEP_Data_Reader
 {
 public:
-  explicit NEP_Data_Reader(Parameters& para) : para(para) {}
+  explicit NEP_Data_Reader(NEP_Parameters& para) : para(para) {}
   virtual ~NEP_Data_Reader() = default;
   bool read_structures(bool is_train, std::vector<Structure>& structures);
   // Preparation hooks run before the reader switches to the next XYZ file.
@@ -63,7 +63,7 @@ public:
   virtual void prepare_dataset(Dataset& dataset) {}
 
 protected:
-  Parameters& para;
+  NEP_Parameters& para;
   virtual void begin_reading() {}
   virtual void read_structure(const XYZ_Record& record, Structure& structure);
   virtual void print_summary(const std::vector<Structure>& structures) const;

@@ -19,7 +19,7 @@ The energy-difference loss over the linear combinations of named structures in e
 
 #include "dataset.cuh"
 #include "energy_difference.cuh"
-#include "parameters.cuh"
+#include "nep_parameters.cuh"
 #include "structure.cuh"
 #include "nep_energy_reader.cuh"
 #include "utilities/error.cuh"
@@ -380,7 +380,7 @@ static void check_balance(
 std::vector<EnergyDifference::Combination> EnergyDifference::resolve(
   const std::vector<Entry>& entries,
   const std::vector<Structure>& structures,
-  const Parameters& para,
+  const NEP_Energy_Parameters& para,
   const std::vector<int>& batch_sizes,
   const char* xyz_filename,
   std::vector<bool>& is_in_set,
@@ -587,7 +587,7 @@ std::string EnergyDifference::read_structure_name(
 }
 
 void EnergyDifference::read_train(
-  Parameters& para,
+  NEP_Energy_Parameters& para,
   std::vector<Structure>& structures_train,
   const int batch_size,
   int& num_batches,
@@ -634,7 +634,7 @@ void EnergyDifference::read_train(
 }
 
 void EnergyDifference::read_test(
-  const Parameters& para, const std::vector<Structure>& structures_test, const bool has_test_set,
+  const NEP_Energy_Parameters& para, const std::vector<Structure>& structures_test, const bool has_test_set,
   const NEP_Energy_Reader& reader)
 {
   if (!para.has_ediff_combinations) {

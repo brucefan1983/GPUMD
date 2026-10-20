@@ -14,7 +14,7 @@
 */
 
 #include "nep_charge_reader.cuh"
-#include "parameters.cuh"
+#include "nep_charge_parameters.cuh"
 #include "xyz_reader.cuh"
 
 void NEP_Charge_Reader::read_structure(const XYZ_Record& record, Structure& structure)
@@ -39,7 +39,7 @@ void NEP_Charge_Reader::read_structure(const XYZ_Record& record, Structure& stru
   label.has_bec = bec_offset >= 0;
   label.bec.resize(structure.num_atom * 9);
   if (label.has_bec) {
-    para.has_bec = true;
+    charge_parameters.has_bec = true;
     for (int na = 0; na < structure.num_atom; ++na) {
       for (int d = 0; d < 9; ++d) {
         label.bec[na * 9 + d] = get_double_from_token(

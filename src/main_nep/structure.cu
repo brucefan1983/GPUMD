@@ -13,7 +13,7 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "parameters.cuh"
+#include "nep_parameters.cuh"
 #include "structure.cuh"
 #include "xyz_reader.cuh"
 #include "utilities/error.cuh"
@@ -36,7 +36,7 @@ static float get_det(const float* box)
          box[2] * (box[3] * box[7] - box[4] * box[6]);
 }
 
-static void change_box(const Parameters& para, Structure& structure)
+static void change_box(const NEP_Parameters& para, Structure& structure)
 {
   float a[3] = {structure.box_original[0], structure.box_original[3], structure.box_original[6]};
   float b[3] = {structure.box_original[1], structure.box_original[4], structure.box_original[7]};

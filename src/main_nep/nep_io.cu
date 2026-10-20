@@ -15,7 +15,7 @@
 
 #include "nep_io.cuh"
 #include "nep_elements.cuh"
-#include "parameters.cuh"
+#include "nep_parameters.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_parameters.cuh"
@@ -27,10 +27,6 @@
 struct NepTxtHeader {
   std::string model_token;
   int version;
-  int model_type;
-  int charge_mode;
-  int vdw;
-  int charge_vdw;
   bool enable_zbl;
   bool flexible_zbl;
   bool use_typewise_cutoff_zbl;
@@ -58,52 +54,17 @@ struct NepTxtHeader {
   int number_of_header_lines; // 6 without a zbl line, 7 with one
 };
 
-// decompose a model token such as nep4_zbl_charge1 into the properties it encodes
+// The shared codec reads the NEP prefix and optional ZBL header. The owning
+// model supplies the complete expected file tag; suffixes are not dispatched here.
 static bool parse_model_token(const std::string& token, NepTxtHeader& header)
 {
-  if (
-    token.size() < 4 || token.compare(0, 3, "nep") != 0 ||
-    !isdigit(static_cast<unsigned char>(token[3]))) {
+  if (token.size() < 4 || token.compare(0, 3, "nep") != 0 ||
+      !isdigit(static_cast<unsigned char>(token[3]))) {
     return false;
   }
   header.version = token[3] - '0';
-  header.enable_zbl = false;
-  header.model_type = 0;
-  header.charge_mode = 0;
-  header.vdw = 0;
-  header.charge_vdw = 0;
-  std::string rest = token.substr(4);
-  if (rest.compare(0, 4, "_zbl") == 0) {
-    header.enable_zbl = true;
-    rest = rest.substr(4);
-  }
-  if (rest.empty() || rest == "_temperature") {
-    header.model_type = rest.empty() ? 0 : 3;
-    return true;
-  }
-  if (rest == "_vdw") {
-    header.vdw = 1;
-    return true;
-  }
-  if (rest == "_charge_vdw") {
-    header.charge_vdw = 1;
-    return true;
-  }
-  if (rest == "_dipole") {
-    header.model_type = 1;
-    return true;
-  }
-  if (rest == "_polarizability") {
-    header.model_type = 2;
-    return true;
-  }
-  if (
-    rest.size() == 8 && rest.compare(0, 7, "_charge") == 0 &&
-    isdigit(static_cast<unsigned char>(rest[7]))) {
-    header.charge_mode = rest[7] - '0';
-    return true;
-  }
-  return false;
+  header.enable_zbl = token.compare(4, 4, "_zbl") == 0;
+  return true;
 }
 
 static bool check_header_line(
@@ -232,7 +193,7 @@ static bool read_nep_txt_header(const std::string& filename, NepTxtHeader& heade
   return true;
 }
 
-static void nep_parameters_to_channel_major(const Parameters& para, float* parameters)
+static void nep_parameters_to_channel_major(const NEP_Parameters& para, float* parameters)
 {
   const int descriptor_offset = para.number_of_variables_ann * para.ann_count;
 #ifdef USE_CJ
@@ -250,7 +211,7 @@ static void nep_parameters_to_channel_major(const Parameters& para, float* param
     para.basis_size_angular);
 }
 
-static void nep_parameters_to_basis_major(const Parameters& para, float* parameters)
+static void nep_parameters_to_basis_major(const NEP_Parameters& para, float* parameters)
 {
   const int descriptor_offset = para.number_of_variables_ann * para.ann_count;
 #ifdef USE_CJ
@@ -268,12 +229,16 @@ static void nep_parameters_to_basis_major(const Parameters& para, float* paramet
     para.basis_size_angular);
 }
 
-static void read_nep_txt(const std::string& filename, Parameters& para, float* parameters)
+static void read_nep_txt(const std::string& filename, NEP_Parameters& para, float* parameters)
 {
   NepTxtHeader header;
   std::string error;
   if (!read_nep_txt_header(filename, header, error)) {
     PRINT_INPUT_ERROR(error.c_str());
+  }
+  if (header.model_token != para.file_tag) {
+    PRINT_INPUT_ERROR(("Expected " + para.file_tag + " in " + filename +
+      ", found " + header.model_token + ".").c_str());
   }
   std::ifstream input(filename);
   if (!input.is_open()) {
@@ -295,7 +260,7 @@ static void read_nep_txt(const std::string& filename, Parameters& para, float* p
 }
 
 void read_nep_model(
-  const std::string& filename, Parameters& para, float* parameters)
+  const std::string& filename, NEP_Parameters& para, float* parameters)
 {
   read_nep_txt(filename, para, parameters);
   gpuSetDevice(0);
@@ -304,7 +269,7 @@ void read_nep_model(
 
 bool read_nep_restart(
   const char* filename,
-  const Parameters& para,
+  const NEP_Parameters& para,
   std::vector<float>& mu,
   std::vector<float>& sigma)
 {
@@ -346,7 +311,7 @@ void read_nep_foundation_restart(
 
 void write_nep_restart(
   const char* filename,
-  const Parameters& para,
+  const NEP_Parameters& para,
   const std::vector<float>& mu,
   const std::vector<float>& sigma)
 {
@@ -370,7 +335,7 @@ static std::string float_to_string(const float value)
   return std::string(buffer);
 }
 
-void read_nep_q_scaler(Parameters& para)
+void read_nep_q_scaler(NEP_Parameters& para)
 {
   if (para.fine_tune) {
     std::ifstream input(para.fine_tune_nep_txt);
@@ -416,7 +381,7 @@ void read_nep_q_scaler(Parameters& para)
 
 static void write_nep_txt(
   FILE* fid_nep,
-  const Parameters& para,
+  const NEP_Parameters& para,
   const float* elite,
   const int max_NN_radial,
   const int max_NN_angular)
@@ -484,7 +449,7 @@ static void write_nep_txt(
 }
 
 void write_nep_model(
-  FILE* file, Parameters& para, const float* parameters, int max_radial, int max_angular)
+  FILE* file, NEP_Parameters& para, const float* parameters, int max_radial, int max_angular)
 {
   gpuSetDevice(0);
   para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
@@ -524,7 +489,7 @@ static void compare_float(
 }
 
 static void compare_with_nep_txt_fine_tune(
-  Parameters& para, const std::string& filename, std::vector<std::string>& mismatches)
+  NEP_Parameters& para, const std::string& filename, std::vector<std::string>& mismatches)
 {
   NepTxtHeader header;
   std::string error;
@@ -558,30 +523,12 @@ static void compare_with_nep_txt_fine_tune(
     }
   }
 
+  if (header.model_token != para.file_tag) {
+    mismatches.push_back("model: nep.in implies " + para.file_tag + ", " + filename +
+      " holds " + header.model_token + ".");
+  }
   compare_int(
     "version", para.version, para.is_version_set, header.version, filename, mismatches);
-  compare_int(
-    "model_type",
-    para.model_type,
-    para.is_model_type_set,
-    header.model_type,
-    filename,
-    mismatches);
-  compare_int(
-    "charge_mode",
-    para.charge_mode,
-    para.is_charge_mode_set,
-    header.charge_mode,
-    filename,
-    mismatches);
-  compare_int("vdw", para.vdw, para.is_vdw_set, header.vdw, filename, mismatches);
-  compare_int(
-    "charge_vdw",
-    para.charge_vdw,
-    para.is_charge_vdw_set,
-    header.charge_vdw,
-    filename,
-    mismatches);
 
   if (para.enable_zbl != header.enable_zbl) {
     mismatches.push_back(
@@ -731,7 +678,7 @@ static void compare_with_nep_txt_fine_tune(
 }
 
 static void compare_with_nep_txt(
-  Parameters& para, const std::string& filename, std::vector<std::string>& mismatches)
+  NEP_Parameters& para, const std::string& filename, std::vector<std::string>& mismatches)
 {
   NepTxtHeader header;
   std::string error;
@@ -741,14 +688,11 @@ static void compare_with_nep_txt(
   }
   para.number_of_nep_txt_header_lines = header.number_of_header_lines;
 
+  if (header.model_token != para.file_tag) {
+    mismatches.push_back("model: nep.in implies " + para.file_tag + ", " + filename +
+      " holds " + header.model_token + ".");
+  }
   compare_int("version", para.version, para.is_version_set, header.version, filename, mismatches);
-  compare_int(
-    "model_type", para.model_type, para.is_model_type_set, header.model_type, filename, mismatches);
-  compare_int(
-    "charge_mode", para.charge_mode, para.is_charge_mode_set, header.charge_mode, filename, mismatches);
-  compare_int("vdw", para.vdw, para.is_vdw_set, header.vdw, filename, mismatches);
-  compare_int(
-    "charge_vdw", para.charge_vdw, para.is_charge_vdw_set, header.charge_vdw, filename, mismatches);
   compare_int(
     "type (number of types)", para.num_types, para.is_type_set, header.num_types, filename, mismatches);
   if (para.num_types == header.num_types && para.elements != header.elements) {
@@ -857,7 +801,7 @@ static void compare_with_nep_txt(
 }
 
 static void check_nep_txt(
-  Parameters& para, const std::string& filename, const char* remedy)
+  NEP_Parameters& para, const std::string& filename, const char* remedy)
 {
   std::vector<std::string> mismatches;
   compare_with_nep_txt(para, filename, mismatches);
@@ -872,7 +816,7 @@ static void check_nep_txt(
   PRINT_INPUT_ERROR(("nep.in is inconsistent with " + filename + ".").c_str());
 }
 
-static void check_nep_restart(Parameters& para)
+static void check_nep_restart(NEP_Parameters& para)
 {
   std::ifstream input("nep.restart");
   if (!input.is_open()) {
@@ -908,7 +852,7 @@ static bool does_file_exist(const char* filename)
   return input.is_open();
 }
 
-void check_existing_nep_model(Parameters& para)
+void check_existing_nep_model(NEP_Parameters& para)
 {
   if (para.fine_tune) {
     std::vector<std::string> mismatches;

@@ -20,7 +20,8 @@
 #include <utility>
 #include <vector>
 
-class Parameters;
+class NEP_Parameters;
+class NEP_Energy_Parameters;
 class EnergyDifference;
 
 struct NEP_Energy_Error
@@ -37,7 +38,7 @@ struct NEP_Energy_Error
 class NEP_Training
 {
 public:
-  explicit NEP_Training(Parameters& para, NEP_Data_Reader& reader);
+  explicit NEP_Training(NEP_Parameters& para, NEP_Data_Reader& reader);
   ~NEP_Training();
   NEP_Training(const NEP_Training&) = delete;
   NEP_Training& operator=(const NEP_Training&) = delete;
@@ -53,12 +54,12 @@ public:
   std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;
 
-  void open_loss_file(const Parameters& para, const char* columns, bool include_ediff);
-  void write_model(Parameters& para, const TrainingReport& report);
+  void open_loss_file(const NEP_Parameters& para, const char* columns, bool include_ediff);
+  void write_model(NEP_Parameters& para, const TrainingReport& report);
   void get_prediction_order(std::vector<std::pair<Dataset*, int>>& structures);
 
 private:
-  void prepare_datasets(Parameters& para, int deviceCount, NEP_Data_Reader& reader);
+  void prepare_datasets(NEP_Parameters& para, int deviceCount, NEP_Data_Reader& reader);
   void find_dataset_sizes(int& N, int& Nc);
 };
 
@@ -67,12 +68,12 @@ private:
 class NEP_Energy_Loss
 {
 public:
-  void initialize(const Parameters& para);
-  void evaluate(Parameters& para, Dataset& data, EnergyDifference& energy_difference,
+  void initialize(const NEP_Energy_Parameters& para);
+  void evaluate(NEP_Energy_Parameters& para, Dataset& data, EnergyDifference& energy_difference,
     int batch, int candidate, int device_id);
-  void accumulate_fitness(const Parameters& para, float* fitness_total);
-  void accumulate_energy_difference(const Parameters& para, float* fitness_total);
-  NEP_Energy_Error get_error(Parameters& para, Dataset& data,
+  void accumulate_fitness(const NEP_Energy_Parameters& para, float* fitness_total);
+  void accumulate_energy_difference(const NEP_Energy_Parameters& para, float* fitness_total);
+  NEP_Energy_Error get_error(NEP_Energy_Parameters& para, Dataset& data,
     EnergyDifference& energy_difference, bool is_train, int batch);
 
 private:

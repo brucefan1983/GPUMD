@@ -14,11 +14,11 @@
 */
 
 #include "nep_model.cuh"
-#include "parameters.cuh"
+#include "nep_parameters.cuh"
 #include "utilities/error.cuh"
 
 void calculate_nep_model_parameters(
-  Parameters& para, int extra_inputs, int extra_outputs, int global_parameters, int ann_count)
+  NEP_Parameters& para, int extra_inputs, int extra_outputs, int global_parameters, int ann_count)
 {
   para.ann_count = ann_count;
   para.global_parameters = global_parameters;

@@ -15,7 +15,7 @@
 
 #include "dataset.cuh"
 #include "mic.cuh"
-#include "parameters.cuh"
+#include "nep_parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -29,7 +29,7 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
   structures.assign(structures_input.begin() + n1, structures_input.begin() + n2);
 }
 
-void Dataset::find_has_type(Parameters& para)
+void Dataset::find_has_type(NEP_Parameters& para)
 {
   has_type.resize((para.num_types + 1) * Nc, false);
   for (int n = 0; n < Nc; ++n) {
@@ -40,7 +40,7 @@ void Dataset::find_has_type(Parameters& para)
   }
 }
 
-void Dataset::find_Na(Parameters& para)
+void Dataset::find_Na(NEP_Parameters& para)
 {
   Na_cpu.resize(Nc);
   Na_sum_cpu.resize(Nc);
@@ -72,7 +72,7 @@ void Dataset::find_Na(Parameters& para)
   Na_sum.copy_from_host(Na_sum_cpu.data());
 }
 
-void Dataset::initialize_gpu_data(Parameters& para)
+void Dataset::initialize_gpu_data(NEP_Parameters& para)
 {
   std::vector<float> box_cpu(Nc * 18);
   std::vector<float> box_original_cpu(Nc * 9);
@@ -297,7 +297,7 @@ static __global__ void gpu_find_neighbor_list(
   }
 }
 
-void NEP_Neighbor::prepare(Parameters& para, Dataset& dataset, int device_id)
+void NEP_Neighbor::prepare(NEP_Parameters& para, Dataset& dataset, int device_id)
 {
   // Training datasets and their positions are immutable after construction.
   if (neighbor_dataset == &dataset) {
@@ -358,7 +358,7 @@ void NEP_Neighbor::prepare(Parameters& para, Dataset& dataset, int device_id)
   neighbor_dataset = &dataset;
 }
 
-void Dataset::find_neighbor(Parameters& para)
+void Dataset::find_neighbor(NEP_Parameters& para)
 {
   NN_radial.resize(N);
   NN_angular.resize(N);
@@ -456,7 +456,7 @@ void Dataset::find_neighbor(Parameters& para)
 }
 
 void Dataset::construct(
-  Parameters& para, std::vector<Structure>& structures_input,
+  NEP_Parameters& para, std::vector<Structure>& structures_input,
   int n1, int n2, int device_id, int batch_index)
 {
   this->device_id = device_id;
@@ -526,7 +526,7 @@ static __global__ void gpu_sum_force_error(
   }
 }
 
-std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weight, int device_id)
+std::vector<float> Dataset::get_rmse_force(NEP_Parameters& para, const bool use_weight, int device_id)
 {
   CHECK(gpuSetDevice(device_id));
   const int block_size = 256;
@@ -638,7 +638,7 @@ static __global__ void gpu_sum_pe_error(
 }
 
 std::vector<float> Dataset::get_rmse_energy(
-  Parameters& para,
+  NEP_Parameters& para,
   float& energy_shift_per_structure,
   const bool use_weight,
   const bool do_shift,
@@ -744,7 +744,7 @@ static __global__ void gpu_sum_virial_error(
 }
 
 std::vector<float> Dataset::get_rmse_virial(
-  Parameters& para, const bool use_weight, int device_id, int num_components)
+  NEP_Parameters& para, const bool use_weight, int device_id, int num_components)
 {
   CHECK(gpuSetDevice(device_id));
 

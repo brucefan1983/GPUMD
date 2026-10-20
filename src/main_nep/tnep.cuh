@@ -16,14 +16,13 @@
 #pragma once
 #include "dataset.cuh"
 #include "potential.cuh"
-#include "parameters.cuh"
+#include "nep_parameters.cuh"
 #include "nep_training.cuh"
 #include "tnep_dataset.cuh"
 #include "nep_compile.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <memory>
-class Parameters;
 class Dataset;
 
 struct TNEP_Data {
@@ -31,6 +30,21 @@ struct TNEP_Data {
   GPU_Vector<float> Fp;          // gradient of descriptors
   GPU_Vector<float> sum_fxyz;
   GPU_Vector<float> parameters; // parameters to be optimized
+};
+
+class TNEP_Parameters : public NEP_Parameters
+{
+public:
+  int model_type = 1;
+  int atomic_v = 0;
+  bool is_atomic_v_set = false;
+  bool parse_keyword(const char** param, int num_param) override;
+
+protected:
+  void report_model_inputs() const override;
+
+private:
+  void parse_atomic_v(const char** param, int num_param);
 };
 
 class TNEP : public Potential
@@ -74,7 +88,7 @@ public:
     const float* c;
   };
 
-  explicit TNEP(std::unique_ptr<Parameters> model_parameters);
+  explicit TNEP(const ParameterInput& input);
   int prepare_data() override;
   void prepare_training() override;
   void evaluate(int batch, const float* population) override;
@@ -94,15 +108,15 @@ public:
     const char* filename, const std::vector<float>& mu, const std::vector<float>& sigma) override;
 
 private:
-  void configure(Parameters& para);
-  void initialize(Parameters& para, int N, int Nc, int deviceCount);
+  void configure(TNEP_Parameters& para);
+  void initialize(TNEP_Parameters& para, int N, int Nc, int deviceCount);
   void find_force(
-    Parameters& para,
+    TNEP_Parameters& para,
     const float* parameters,
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
     int deviceCount);
-  std::unique_ptr<Parameters> model_parameters;
+  std::unique_ptr<TNEP_Parameters> model_parameters;
   std::unique_ptr<NEP_Training> training;
   std::vector<float> fitness_tensor;
   NEP_Batch_Data<TNEP_Atomic_Dataset> atomic_data;
@@ -112,10 +126,10 @@ private:
   ANN annmb[16];
   TNEP_Data nep_data[16];
   std::unique_ptr<NEP_Compile> compiled_kernel_;
-  void initialize_model(const Parameters& para);
-  void initialize_device(const Parameters& para, int N, int device_id);
-  void initialize_compiled_kernel(const Parameters& para);
-  void bind_parameters(const Parameters& para, const float* parameters, ANN& ann);
+  void initialize_model(const TNEP_Parameters& para);
+  void initialize_device(const TNEP_Parameters& para, int N, int device_id);
+  void initialize_compiled_kernel(const TNEP_Parameters& para);
+  void bind_parameters(const TNEP_Parameters& para, const float* parameters, ANN& ann);
 
   // Evaluation stages use the device selected by find_force().
   void compute_descriptors(

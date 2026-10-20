@@ -30,7 +30,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep_io.cuh"
 #include "nep_long_range.cuh"
 #include "nep_vdw_parameters.cuh"
-#include "parameters.cuh"
+#include "nep_charge_parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -153,7 +153,7 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-void NEP_Charge_VDW::initialize(Parameters& para, int N, int Nc, int deviceCount)
+void NEP_Charge_VDW::initialize(NEP_Charge_Parameters& para, int N, int Nc, int deviceCount)
 {
   initialize_model(para);
   for (int device_id = 0; device_id < deviceCount; ++device_id) {
@@ -162,7 +162,7 @@ void NEP_Charge_VDW::initialize(Parameters& para, int N, int Nc, int deviceCount
   initialize_compiled_kernel(para);
 }
 
-void NEP_Charge_VDW::initialize_model(const Parameters& para)
+void NEP_Charge_VDW::initialize_model(const NEP_Charge_Parameters& para)
 {
   paramb.version = para.version;
   paramb.num_types = para.num_types;
@@ -199,7 +199,7 @@ void NEP_Charge_VDW::initialize_model(const Parameters& para)
   charge_para.alpha_factor = 0.25f / (charge_para.alpha * charge_para.alpha);
 }
 
-void NEP_Charge_VDW::initialize_device(const Parameters& para, int N, int Nc, int device_id)
+void NEP_Charge_VDW::initialize_device(const NEP_Charge_Parameters& para, int N, int Nc, int device_id)
 {
   CHECK(gpuSetDevice(device_id));
   annmb[device_id].dim = para.dim;
@@ -219,7 +219,7 @@ void NEP_Charge_VDW::initialize_device(const Parameters& para, int N, int Nc, in
   nep_data[device_id].kpoint_offset.resize(Nc + 1);
 }
 
-void NEP_Charge_VDW::initialize_compiled_kernel(const Parameters& para)
+void NEP_Charge_VDW::initialize_compiled_kernel(const NEP_Charge_Parameters& para)
 {
   if (para.nep_compile && para.prediction == 0) {
     CHECK(gpuSetDevice(0));
@@ -1306,7 +1306,7 @@ void NEP_Charge_VDW::compute_forces(
 }
 
 void NEP_Charge_VDW::find_force(
-  Parameters& para,
+  NEP_Charge_Parameters& para,
   const float* parameters,
   std::vector<Dataset>& dataset,
   bool calculate_q_scaler,
@@ -1388,7 +1388,7 @@ void NEP_Charge_VDW::find_force(
   }
 }
 
-void NEP_Charge_VDW::configure(Parameters& para)
+void NEP_Charge_VDW::configure(NEP_Charge_Parameters& para)
 {
   para.file_tag = std::string(para.enable_zbl ? "nep4_zbl" : "nep4") + "_charge_vdw";
   calculate_nep_model_parameters(para, 0, 2, 2, 1);
@@ -1398,7 +1398,7 @@ void NEP_Charge_VDW::initialize_parameters(
   std::mt19937& rng,
   std::vector<float>& mu, std::vector<float>& sigma)
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   NEP_Initialization initialization = initialize_nep_mu_and_sigma(para, rng, mu, sigma, 2);
   if (initialization == NEP_Initialization::RANDOM) {
     // make sure the initial charge and vdW output weights are zero
@@ -1425,7 +1425,7 @@ void NEP_Charge_VDW::initialize_parameters(
 
 void NEP_Charge_VDW::parameter_groups(std::vector<int>& groups)
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   find_nep_type_of_variable(para, groups, 2, 1);
 }
 
@@ -1440,16 +1440,23 @@ void NEP_Charge_VDW::write_restart(
   write_nep_restart(filename, *model_parameters, mu, sigma);
 }
 
-NEP_Charge_VDW::NEP_Charge_VDW(std::unique_ptr<Parameters> model_parameters)
-  : model_parameters(std::move(model_parameters))
+NEP_Charge_VDW::NEP_Charge_VDW(const ParameterInput& input)
+  : model_parameters(new NEP_Charge_Parameters)
 {
-  configure(*this->model_parameters);
-  this->model_parameters->finish_reading();
+  auto& para = *model_parameters;
+  para.charge_mode = input.charge_mode;
+  para.flip_charge = input.flip_charge;
+  para.read(input);
+  if (para.num_hidden_layers == 2) {
+    PRINT_INPUT_ERROR("Can only use one hidden layer.");
+  }
+  configure(para);
+  para.finish_reading(input, "potential", "use the combined charge-vdW model.");
 }
 
 int NEP_Charge_VDW::prepare_data()
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   NEP_Charge_Reader reader(para, energy_difference, charge_data);
   training.reset(new NEP_Training(para, reader));
   initialize(para, training->N, training->Nc, training->device_count);
@@ -1467,7 +1474,7 @@ int NEP_Charge_VDW::prepare_data()
 
 void NEP_Charge_VDW::prepare_training()
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   int devices = training->device_count;
   std::vector<float> dummy_solution(para.number_of_variables * devices, para.initial_para);
   for (int batch = 0; batch < training->num_batches; ++batch) {
@@ -1478,7 +1485,7 @@ void NEP_Charge_VDW::prepare_training()
 
 void NEP_Charge_VDW::evaluate(int batch, const float* population)
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   int devices = training->device_count;
   for (int first = 0; first < para.population_size; first += devices) {
     int count = std::min(devices, para.population_size - first);
@@ -1500,7 +1507,7 @@ void NEP_Charge_VDW::evaluate(int batch, const float* population)
 
 void NEP_Charge_VDW::accumulate_fitness(float* fitness_total)
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   energy_loss.accumulate_fitness(para, fitness_total);
   for (int i = 0; i < para.population_size * (para.num_types + 1); ++i) {
     fitness_total[i] = fitness_total[i] + fitness_charge[i] + fitness_bec[i];
@@ -1515,7 +1522,7 @@ void NEP_Charge_VDW::print_training_header()
 
 void NEP_Charge_VDW::report_error(const TrainingReport& report)
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   find_force(para, report.parameters, training->train_set[report.batch], false, 1);
   Dataset& train_data = training->train_set[report.batch][0];
   NEP_Energy_Error train = energy_loss.get_error(
@@ -1554,7 +1561,7 @@ void NEP_Charge_VDW::report_error(const TrainingReport& report)
 
 void NEP_Charge_VDW::predict(float* parameters)
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   for (int batch = 0; batch < training->num_batches; ++batch) {
     find_force(para, parameters, training->train_set[batch], false, 1);
     Dataset& data = training->train_set[batch][0];

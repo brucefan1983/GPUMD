@@ -18,14 +18,14 @@
 #include <string>
 #include <vector>
 
-class Parameters;
+class NEP_Parameters;
 
 void read_nep_model(
-  const std::string& filename, Parameters& para, float* parameters);
+  const std::string& filename, NEP_Parameters& para, float* parameters);
 
 bool read_nep_restart(
   const char* filename,
-  const Parameters& para,
+  const NEP_Parameters& para,
   std::vector<float>& mu,
   std::vector<float>& sigma);
 
@@ -34,13 +34,13 @@ void read_nep_foundation_restart(
 
 void write_nep_restart(
   const char* filename,
-  const Parameters& para,
+  const NEP_Parameters& para,
   const std::vector<float>& mu,
   const std::vector<float>& sigma);
 
-void read_nep_q_scaler(Parameters& para);
+void read_nep_q_scaler(NEP_Parameters& para);
 
 void write_nep_model(
-  FILE* file, Parameters& para, const float* parameters, int max_radial, int max_angular);
+  FILE* file, NEP_Parameters& para, const float* parameters, int max_radial, int max_angular);
 
-void check_existing_nep_model(Parameters& para);
+void check_existing_nep_model(NEP_Parameters& para);

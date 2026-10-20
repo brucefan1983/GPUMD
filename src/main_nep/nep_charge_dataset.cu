@@ -14,7 +14,7 @@
 */
 
 #include "nep_charge_dataset.cuh"
-#include "parameters.cuh"
+#include "nep_charge_parameters.cuh"
 #include "nep_output.cuh"
 #include "utilities/common.cuh"
 
@@ -118,7 +118,7 @@ static __global__ void gpu_sum_bec_error(
 }
 
 std::vector<float> NEP_Charge_Dataset::get_rmse_charge(
-  Parameters& para, Dataset& dataset, int device_id)
+  NEP_Charge_Parameters& para, Dataset& dataset, int device_id)
 {
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
 
@@ -155,7 +155,7 @@ std::vector<float> NEP_Charge_Dataset::get_rmse_charge(
 }
 
 std::vector<float> NEP_Charge_Dataset::get_rmse_bec(
-  Parameters& para, Dataset& dataset, int device_id)
+  NEP_Charge_Parameters& para, Dataset& dataset, int device_id)
 {
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
   if (!para.has_bec) {

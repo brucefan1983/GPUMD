@@ -18,6 +18,8 @@
 #include <string>
 #include <utility>
 
+class NEP_Charge_Parameters;
+
 struct NEP_Charge_Labels {
   float charge = 0.0f;
   bool has_bec = false;
@@ -40,8 +42,8 @@ public:
   std::vector<bool> has_bec;
 
   void construct(const Dataset& dataset, const std::vector<NEP_Charge_Labels>& labels);
-  std::vector<float> get_rmse_charge(Parameters& para, Dataset& dataset, int device_id);
-  std::vector<float> get_rmse_bec(Parameters& para, Dataset& dataset, int device_id);
+  std::vector<float> get_rmse_charge(NEP_Charge_Parameters& para, Dataset& dataset, int device_id);
+  std::vector<float> get_rmse_bec(NEP_Charge_Parameters& para, Dataset& dataset, int device_id);
 };
 
 void copy_nep_charge_predictions(NEP_Charge_Dataset& data, bool has_bec);

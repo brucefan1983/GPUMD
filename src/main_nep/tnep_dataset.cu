@@ -14,7 +14,7 @@
 */
 
 #include "tnep_dataset.cuh"
-#include "parameters.cuh"
+#include "nep_parameters.cuh"
 #include "nep_output.cuh"
 #include "utilities/common.cuh"
 #include <stdexcept>
@@ -152,7 +152,7 @@ static __global__ void gpu_sum_avirial_error(
 }
 
 std::vector<float> TNEP_Atomic_Dataset::get_rmse(
-  Parameters& para, Dataset& dataset, const bool use_weight, int device_id)
+  NEP_Parameters& para, Dataset& dataset, const bool use_weight, int device_id)
 {
   CHECK(gpuSetDevice(device_id));
   const int block_size = 256;

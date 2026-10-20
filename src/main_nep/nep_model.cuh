@@ -15,7 +15,7 @@
 
 #pragma once
 
-class Parameters;
+class NEP_Parameters;
 
 void calculate_nep_model_parameters(
-  Parameters& para, int extra_inputs, int extra_outputs, int global_parameters, int ann_count);
+  NEP_Parameters& para, int extra_inputs, int extra_outputs, int global_parameters, int ann_count);

@@ -15,7 +15,7 @@
 
 #include "nep_energy_reader.cuh"
 #include "energy_difference.cuh"
-#include "parameters.cuh"
+#include "nep_parameters.cuh"
 #include "xyz_reader.cuh"
 #include <cmath>
 
@@ -30,19 +30,19 @@ void NEP_Energy_Reader::read_structure(const XYZ_Record& record, Structure& stru
 
 bool NEP_Energy_Reader::uses_grouped_batches() const
 {
-  return para.prediction == 0 && para.lambda_d > 0.0f;
+  return para.prediction == 0 && energy_parameters.lambda_d > 0.0f;
 }
 
 void NEP_Energy_Reader::prepare_train(std::vector<Structure>& structures, int batch_size,
   int& num_batches, std::vector<int>& batch_sizes)
 {
-  energy_difference.read_train(para, structures, batch_size, num_batches, batch_sizes, *this);
+  energy_difference.read_train(energy_parameters, structures, batch_size, num_batches, batch_sizes, *this);
 }
 
 void NEP_Energy_Reader::prepare_test(
   const std::vector<Structure>& structures, bool has_test_set)
 {
-  energy_difference.read_test(para, structures, has_test_set, *this);
+  energy_difference.read_test(energy_parameters, structures, has_test_set, *this);
 }
 
 void NEP_Energy_Reader::prepare_dataset(Dataset& dataset)
@@ -52,7 +52,7 @@ void NEP_Energy_Reader::prepare_dataset(Dataset& dataset)
     num_virial_configurations += structure.has_virial;
   }
   printf("Number of configurations having virial = %d.\n", num_virial_configurations);
-  if (para.has_ediff_combinations) {
+  if (energy_parameters.has_ediff_combinations) {
     energy_difference.prepare_dataset(dataset);
   }
 }

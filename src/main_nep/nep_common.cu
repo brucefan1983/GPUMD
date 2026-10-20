@@ -15,12 +15,12 @@
 
 #include "nep_common.cuh"
 #include "dataset.cuh"
-#include "parameters.cuh"
+#include "nep_parameters.cuh"
 #include "utilities/error.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <algorithm>
 
-void initialize_nep_zbl(const Parameters& para, NEP_ZBL& zbl)
+void initialize_nep_zbl(const NEP_Parameters& para, NEP_ZBL& zbl)
 {
   zbl.use_typewise_cutoff_zbl = para.use_typewise_cutoff_zbl;
   zbl.typewise_cutoff_zbl_factor = para.typewise_cutoff_zbl_factor;

@@ -16,7 +16,7 @@
 #pragma once
 #include "dataset.cuh"
 #include "potential.cuh"
-#include "parameters.cuh"
+#include "nep_parameters.cuh"
 #include "nep_training.cuh"
 #include "nep_batch_data.cuh"
 #include "energy_difference.cuh"
@@ -24,16 +24,22 @@
 #include "nep_evaluate.cuh"
 #include "nep_common.cuh"
 #include <memory>
-class Parameters;
 
 struct NEP_Temperature_Data {
   GPU_Vector<float> temperature;
 };
 
+// Modes retained inside ordinary NEP: potential and temperature-dependent free energy.
+class NEP_Potential_Parameters : public NEP_Energy_Parameters
+{
+public:
+  int model_type = 0;
+};
+
 class NEP : public Potential
 {
 public:
-  explicit NEP(std::unique_ptr<Parameters> model_parameters);
+  explicit NEP(const ParameterInput& input);
   int prepare_data() override;
   void prepare_training() override;
   void evaluate(int batch, const float* population) override;
@@ -53,15 +59,15 @@ public:
     const char* filename, const std::vector<float>& mu, const std::vector<float>& sigma) override;
 
 private:
-  void configure(Parameters& para);
-  void initialize(Parameters& para, int N, int Nc, int deviceCount);
+  void configure(NEP_Potential_Parameters& para);
+  void initialize(NEP_Potential_Parameters& para, int N, int Nc, int deviceCount);
   void find_force(
-    Parameters& para,
+    NEP_Potential_Parameters& para,
     const float* parameters,
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
     int deviceCount);
-  std::unique_ptr<Parameters> model_parameters;
+  std::unique_ptr<NEP_Potential_Parameters> model_parameters;
   std::unique_ptr<NEP_Training> training;
   NEP_Energy_Loss energy_loss;
   NEP_Batch_Data<NEP_Temperature_Data> temperature_data;
@@ -72,7 +78,7 @@ private:
   NEP_Data nep_data[16];
   NEP_ZBL zbl;
   std::unique_ptr<NEP_Compile> compiled_kernel_;
-  void initialize_model(const Parameters& para);
-  void initialize_device(const Parameters& para, int N, int device_id);
-  void initialize_compiled_kernel(const Parameters& para);
+  void initialize_model(const NEP_Potential_Parameters& para);
+  void initialize_device(const NEP_Potential_Parameters& para, int N, int device_id);
+  void initialize_compiled_kernel(const NEP_Potential_Parameters& para);
 };

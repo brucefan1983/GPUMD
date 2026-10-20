@@ -14,7 +14,7 @@
 */
 
 #include "nep_compile_config.cuh"
-#include "parameters.cuh"
+#include "nep_parameters.cuh"
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -62,9 +62,10 @@ bool all_equal(const std::vector<float>& values)
 }
 
 NEP_Compile_Config make_nep_compile_config(
-  const Parameters& para,
+  const NEP_Parameters& para,
   const NEP_Compile_Mode mode,
-  const float* c6_ref_sqrt)
+  const float* c6_ref_sqrt,
+  int model_type)
 {
 #ifdef USE_CJ
   if (
@@ -80,7 +81,7 @@ NEP_Compile_Config make_nep_compile_config(
 
   NEP_Compile_Config c;
   c.mode = mode;
-  c.model_type = para.model_type;
+  c.model_type = model_type;
   c.num_types = para.num_types;
   c.ann_dim = para.dim;
   c.num_neurons1 = para.num_neurons1;
@@ -91,10 +92,7 @@ NEP_Compile_Config make_nep_compile_config(
 
   // All NEP-family parameter vectors place descriptor cij immediately after
   // the ANN parameter block. TNEP polarizability has two ANN parameter sets.
-  c.c_offset = para.number_of_variables_ann;
-  if (mode == NEP_Compile_Mode::TNEP && para.model_type == 2) {
-    c.c_offset *= 2;
-  }
+  c.c_offset = para.number_of_variables_ann * para.ann_count;
 
   c.n_max_radial = para.n_max_radial;
   c.n_max_angular = para.n_max_angular;

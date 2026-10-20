@@ -29,7 +29,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep_init.cuh"
 #include "nep_io.cuh"
 #include "nep_long_range.cuh"
-#include "parameters.cuh"
+#include "nep_charge_parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -152,7 +152,7 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-void NEP_Charge::initialize(Parameters& para, int N, int Nc, int deviceCount)
+void NEP_Charge::initialize(NEP_Charge_Parameters& para, int N, int Nc, int deviceCount)
 {
   initialize_model(para);
   for (int device_id = 0; device_id < deviceCount; ++device_id) {
@@ -161,7 +161,7 @@ void NEP_Charge::initialize(Parameters& para, int N, int Nc, int deviceCount)
   initialize_compiled_kernel(para);
 }
 
-void NEP_Charge::initialize_model(const Parameters& para)
+void NEP_Charge::initialize_model(const NEP_Charge_Parameters& para)
 {
   paramb.charge_mode = para.charge_mode;
   paramb.version = para.version;
@@ -196,7 +196,7 @@ void NEP_Charge::initialize_model(const Parameters& para)
   charge_para.B = - erfc(float(PI)) / paramb.rc_radial - charge_para.A * paramb.rc_radial;
 }
 
-void NEP_Charge::initialize_device(const Parameters& para, int N, int Nc, int device_id)
+void NEP_Charge::initialize_device(const NEP_Charge_Parameters& para, int N, int Nc, int device_id)
 {
   CHECK(gpuSetDevice(device_id));
   annmb[device_id].dim = para.dim;
@@ -213,7 +213,7 @@ void NEP_Charge::initialize_device(const Parameters& para, int N, int Nc, int de
   nep_data[device_id].kpoint_offset.resize(Nc + 1);
 }
 
-void NEP_Charge::initialize_compiled_kernel(const Parameters& para)
+void NEP_Charge::initialize_compiled_kernel(const NEP_Charge_Parameters& para)
 {
   if (para.nep_compile && para.prediction == 0) {
     CHECK(gpuSetDevice(0));
@@ -1328,7 +1328,7 @@ void NEP_Charge::compute_forces(
 }
 
 void NEP_Charge::find_force(
-  Parameters& para,
+  NEP_Charge_Parameters& para,
   const float* parameters,
   std::vector<Dataset>& dataset,
   bool calculate_q_scaler,
@@ -1403,7 +1403,7 @@ void NEP_Charge::find_force(
   }
 }
 
-void NEP_Charge::configure(Parameters& para)
+void NEP_Charge::configure(NEP_Charge_Parameters& para)
 {
   para.file_tag = std::string(para.enable_zbl ? "nep4_zbl" : "nep4") + ("_charge" + std::to_string(para.charge_mode));
   calculate_nep_model_parameters(para, 0, 1, 2, 1);
@@ -1413,7 +1413,7 @@ void NEP_Charge::initialize_parameters(
   std::mt19937& rng,
   std::vector<float>& mu, std::vector<float>& sigma)
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   NEP_Initialization initialization = initialize_nep_mu_and_sigma(para, rng, mu, sigma, 2);
   if (initialization == NEP_Initialization::RANDOM) {
     // make sure the initial charges are zero
@@ -1440,7 +1440,7 @@ void NEP_Charge::initialize_parameters(
 
 void NEP_Charge::parameter_groups(std::vector<int>& groups)
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   find_nep_type_of_variable(para, groups, 2, 1);
 }
 
@@ -1455,16 +1455,28 @@ void NEP_Charge::write_restart(
   write_nep_restart(filename, *model_parameters, mu, sigma);
 }
 
-NEP_Charge::NEP_Charge(std::unique_ptr<Parameters> model_parameters)
-  : model_parameters(std::move(model_parameters))
+NEP_Charge::NEP_Charge(const ParameterInput& input)
+  : model_parameters(new NEP_Charge_Parameters)
 {
-  configure(*this->model_parameters);
-  this->model_parameters->finish_reading();
+  auto& para = *model_parameters;
+  para.charge_mode = input.charge_mode;
+  para.flip_charge = input.flip_charge;
+  para.read(input);
+  if (para.num_hidden_layers == 2) {
+    PRINT_INPUT_ERROR("Can only use one hidden layer.");
+  }
+  if (para.has_multiple_cutoffs) {
+    PRINT_INPUT_ERROR("Can only use uniform cutoff for qNEP.");
+  }
+  configure(para);
+  para.finish_reading(input, "potential", para.charge_mode == 1 ?
+    "use NEP-Charge and include both real-space and k-space." :
+    "use NEP-Charge and include k-space only.");
 }
 
 int NEP_Charge::prepare_data()
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   NEP_Charge_Reader reader(para, energy_difference, charge_data);
   training.reset(new NEP_Training(para, reader));
   initialize(para, training->N, training->Nc, training->device_count);
@@ -1482,7 +1494,7 @@ int NEP_Charge::prepare_data()
 
 void NEP_Charge::prepare_training()
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   int devices = training->device_count;
   std::vector<float> dummy_solution(para.number_of_variables * devices, para.initial_para);
   for (int batch = 0; batch < training->num_batches; ++batch) {
@@ -1493,7 +1505,7 @@ void NEP_Charge::prepare_training()
 
 void NEP_Charge::evaluate(int batch, const float* population)
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   int devices = training->device_count;
   for (int first = 0; first < para.population_size; first += devices) {
     int count = std::min(devices, para.population_size - first);
@@ -1515,7 +1527,7 @@ void NEP_Charge::evaluate(int batch, const float* population)
 
 void NEP_Charge::accumulate_fitness(float* fitness_total)
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   energy_loss.accumulate_fitness(para, fitness_total);
   for (int i = 0; i < para.population_size * (para.num_types + 1); ++i) {
     fitness_total[i] = fitness_total[i] + fitness_charge[i] + fitness_bec[i];
@@ -1530,7 +1542,7 @@ void NEP_Charge::print_training_header()
 
 void NEP_Charge::report_error(const TrainingReport& report)
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   find_force(para, report.parameters, training->train_set[report.batch], false, 1);
   Dataset& train_data = training->train_set[report.batch][0];
   NEP_Energy_Error train = energy_loss.get_error(
@@ -1569,7 +1581,7 @@ void NEP_Charge::report_error(const TrainingReport& report)
 
 void NEP_Charge::predict(float* parameters)
 {
-  Parameters& para = *model_parameters;
+  NEP_Charge_Parameters& para = *model_parameters;
   for (int batch = 0; batch < training->num_batches; ++batch) {
     find_force(para, parameters, training->train_set[batch], false, 1);
     Dataset& data = training->train_set[batch][0];

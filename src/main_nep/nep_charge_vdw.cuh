@@ -16,7 +16,7 @@
 #pragma once
 #include "dataset.cuh"
 #include "potential.cuh"
-#include "parameters.cuh"
+#include "nep_charge_parameters.cuh"
 #include "nep_training.cuh"
 #include "nep_charge_dataset.cuh"
 #include "energy_difference.cuh"
@@ -25,7 +25,6 @@
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <memory>
-class Parameters;
 class Dataset;
 
 class NEP_Charge_VDW : public Potential
@@ -93,7 +92,7 @@ public:
     float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
   };
 
-  explicit NEP_Charge_VDW(std::unique_ptr<Parameters> model_parameters);
+  explicit NEP_Charge_VDW(const ParameterInput& input);
   int prepare_data() override;
   void prepare_training() override;
   void evaluate(int batch, const float* population) override;
@@ -113,15 +112,15 @@ public:
     const char* filename, const std::vector<float>& mu, const std::vector<float>& sigma) override;
 
 private:
-  void configure(Parameters& para);
-  void initialize(Parameters& para, int N, int Nc, int deviceCount);
+  void configure(NEP_Charge_Parameters& para);
+  void initialize(NEP_Charge_Parameters& para, int N, int Nc, int deviceCount);
   void find_force(
-    Parameters& para,
+    NEP_Charge_Parameters& para,
     const float* parameters,
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
     int deviceCount);
-  std::unique_ptr<Parameters> model_parameters;
+  std::unique_ptr<NEP_Charge_Parameters> model_parameters;
   std::unique_ptr<NEP_Training> training;
   NEP_Energy_Loss energy_loss;
   NEP_Batch_Data<NEP_Charge_Dataset> charge_data;
@@ -135,9 +134,9 @@ private:
   NEP_ZBL zbl;
   Charge_Para charge_para;
   std::unique_ptr<NEP_Compile> compiled_kernel_;
-  void initialize_model(const Parameters& para);
-  void initialize_device(const Parameters& para, int N, int Nc, int device_id);
-  void initialize_compiled_kernel(const Parameters& para);
+  void initialize_model(const NEP_Charge_Parameters& para);
+  void initialize_device(const NEP_Charge_Parameters& para, int N, int Nc, int device_id);
+  void initialize_compiled_kernel(const NEP_Charge_Parameters& para);
   void bind_parameters(const float* parameters, ANN& ann);
   void prepare_kpoints(Dataset& dataset, int device_id);
   void compute_descriptors(

@@ -27,11 +27,11 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep_model.cuh"
 #include "nep_init.cuh"
 #include "nep_io.cuh"
-#include "parameters.cuh"
+#include "nep_parameters.cuh"
 #include "utilities/error.cuh"
 #include <algorithm>
 
-void NEP::initialize(Parameters& para, int N, int Nc, int deviceCount)
+void NEP::initialize(NEP_Potential_Parameters& para, int N, int Nc, int deviceCount)
 {
   initialize_model(para);
   for (int device_id = 0; device_id < deviceCount; ++device_id) {
@@ -41,7 +41,7 @@ void NEP::initialize(Parameters& para, int N, int Nc, int deviceCount)
   initialize_compiled_kernel(para);
 }
 
-void NEP::initialize_model(const Parameters& para)
+void NEP::initialize_model(const NEP_Potential_Parameters& para)
 {
   paramb.version = para.version;
   paramb.num_types = para.num_types;
@@ -75,7 +75,7 @@ void NEP::initialize_model(const Parameters& para)
   initialize_nep_zbl(para, zbl);
 }
 
-void NEP::initialize_device(const Parameters& para, int N, int device_id)
+void NEP::initialize_device(const NEP_Potential_Parameters& para, int N, int device_id)
 {
   NEP_ANN& ann = annmb[device_id];
   NEP_Data& data = nep_data[device_id];
@@ -95,12 +95,12 @@ void NEP::initialize_device(const Parameters& para, int N, int device_id)
   data.parameters.resize(ann.num_para);
 }
 
-void NEP::initialize_compiled_kernel(const Parameters& para)
+void NEP::initialize_compiled_kernel(const NEP_Potential_Parameters& para)
 {
   if (para.nep_compile && para.prediction == 0) {
     CHECK(gpuSetDevice(0));
     compiled_kernel_.reset(new NEP_Compile(
-      make_nep_compile_config(para, NEP_Compile_Mode::NEP)));
+      make_nep_compile_config(para, NEP_Compile_Mode::NEP, nullptr, para.model_type)));
     if (!compiled_kernel_->is_valid()) {
       compiled_kernel_.reset();
     }
@@ -108,7 +108,7 @@ void NEP::initialize_compiled_kernel(const Parameters& para)
 }
 
 void NEP::find_force(
-  Parameters& para,
+  NEP_Potential_Parameters& para,
   const float* parameters,
   std::vector<Dataset>& dataset,
   bool calculate_q_scaler,
@@ -161,7 +161,7 @@ void NEP::find_force(
   }
 }
 
-void NEP::configure(Parameters& para)
+void NEP::configure(NEP_Potential_Parameters& para)
 {
   para.file_tag = std::string(para.enable_zbl ? "nep4_zbl" : "nep4") + (para.model_type == 3 ? "_temperature" : "");
   calculate_nep_model_parameters(para, para.model_type == 3 ? 1 : 0, 0, 1, 1);
@@ -171,13 +171,13 @@ void NEP::initialize_parameters(
   std::mt19937& rng,
   std::vector<float>& mu, std::vector<float>& sigma)
 {
-  Parameters& para = *model_parameters;
+  NEP_Potential_Parameters& para = *model_parameters;
   initialize_nep_mu_and_sigma(para, rng, mu, sigma, 1);
 }
 
 void NEP::parameter_groups(std::vector<int>& groups)
 {
-  Parameters& para = *model_parameters;
+  NEP_Potential_Parameters& para = *model_parameters;
   find_nep_type_of_variable(para, groups, 1, 1);
 }
 
@@ -196,14 +196,14 @@ namespace {
 class NEP_Reader : public NEP_Energy_Reader
 {
 public:
-  NEP_Reader(Parameters& para, EnergyDifference& energy_difference,
+  NEP_Reader(NEP_Potential_Parameters& para, EnergyDifference& energy_difference,
     NEP_Batch_Data<NEP_Temperature_Data>& temperature_data)
-    : NEP_Energy_Reader(para, energy_difference), temperature_data(temperature_data) {}
+    : NEP_Energy_Reader(para, energy_difference), model_parameters(para), temperature_data(temperature_data) {}
 
   void prepare_dataset(Dataset& dataset) override
   {
     NEP_Energy_Reader::prepare_dataset(dataset);
-    if (para.model_type == 3) {
+    if (model_parameters.model_type == 3) {
       std::vector<float> temperature_cpu(dataset.N);
       for (int n = 0; n < dataset.Nc; ++n) {
         float temperature = temperatures[dataset.structures[n].index_in_file];
@@ -219,13 +219,14 @@ public:
 
   const char* energy_difference_conflict(const Structure& a, const Structure& b) const override
   {
-    if (para.model_type == 3 && temperatures[a.index_in_file] != temperatures[b.index_in_file]) {
+    if (model_parameters.model_type == 3 && temperatures[a.index_in_file] != temperatures[b.index_in_file]) {
       return nullptr;
     }
     return NEP_Energy_Reader::energy_difference_conflict(a, b);
   }
 
 private:
+  NEP_Potential_Parameters& model_parameters;
   NEP_Batch_Data<NEP_Temperature_Data>& temperature_data;
   std::vector<float> temperatures;
   void begin_reading() override { temperatures.clear(); }
@@ -247,7 +248,7 @@ private:
           line_number);
       }
     }
-    if (para.model_type == 3 && !has_temperature) {
+    if (model_parameters.model_type == 3 && !has_temperature) {
       PRINT_INPUT_ERROR("'temperature' is missing in the second line of a frame.");
     }
     temperatures.push_back(temperature);
@@ -255,16 +256,19 @@ private:
 };
 } // namespace
 
-NEP::NEP(std::unique_ptr<Parameters> model_parameters)
-  : model_parameters(std::move(model_parameters))
+NEP::NEP(const ParameterInput& input)
+  : model_parameters(new NEP_Potential_Parameters)
 {
-  configure(*this->model_parameters);
-  this->model_parameters->finish_reading();
+  auto& para = *model_parameters;
+  para.model_type = input.model_type;
+  para.read(input);
+  configure(para);
+  para.finish_reading(input, para.model_type == 3 ? "temperature-dependent free energy" : "potential");
 }
 
 int NEP::prepare_data()
 {
-  Parameters& para = *model_parameters;
+  NEP_Potential_Parameters& para = *model_parameters;
   NEP_Reader reader(para, energy_difference, temperature_data);
   training.reset(new NEP_Training(para, reader));
   initialize(para, training->N, training->Nc, training->device_count);
@@ -279,7 +283,7 @@ int NEP::prepare_data()
 
 void NEP::prepare_training()
 {
-  Parameters& para = *model_parameters;
+  NEP_Potential_Parameters& para = *model_parameters;
   int devices = training->device_count;
   std::vector<float> dummy_solution(para.number_of_variables * devices, para.initial_para);
   for (int batch = 0; batch < training->num_batches; ++batch) {
@@ -290,7 +294,7 @@ void NEP::prepare_training()
 
 void NEP::evaluate(int batch, const float* population)
 {
-  Parameters& para = *model_parameters;
+  NEP_Potential_Parameters& para = *model_parameters;
   int devices = training->device_count;
   for (int first = 0; first < para.population_size; first += devices) {
     int count = std::min(devices, para.population_size - first);
@@ -305,7 +309,7 @@ void NEP::evaluate(int batch, const float* population)
 
 void NEP::accumulate_fitness(float* fitness_total)
 {
-  Parameters& para = *model_parameters;
+  NEP_Potential_Parameters& para = *model_parameters;
   energy_loss.accumulate_fitness(para, fitness_total);
   energy_loss.accumulate_energy_difference(para, fitness_total);
 }
@@ -317,7 +321,7 @@ void NEP::print_training_header()
 
 void NEP::report_error(const TrainingReport& report)
 {
-  Parameters& para = *model_parameters;
+  NEP_Potential_Parameters& para = *model_parameters;
   find_force(para, report.parameters, training->train_set[report.batch], false, 1);
   Dataset& train_data = training->train_set[report.batch][0];
   NEP_Energy_Error train = energy_loss.get_error(
@@ -345,7 +349,7 @@ void NEP::report_error(const TrainingReport& report)
 
 void NEP::predict(float* parameters)
 {
-  Parameters& para = *model_parameters;
+  NEP_Potential_Parameters& para = *model_parameters;
   for (int batch = 0; batch < training->num_batches; ++batch) {
     find_force(para, parameters, training->train_set[batch], false, 1);
     Dataset& data = training->train_set[batch][0];

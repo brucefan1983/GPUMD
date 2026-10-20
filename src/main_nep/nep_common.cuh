@@ -18,7 +18,7 @@
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
-class Parameters;
+class NEP_Parameters;
 class Dataset;
 class NEP_Neighbor;
 
@@ -34,7 +34,7 @@ struct NEP_ZBL {
   int atomic_numbers[NUM_ELEMENTS];
 };
 
-void initialize_nep_zbl(const Parameters& para, NEP_ZBL& zbl);
+void initialize_nep_zbl(const NEP_Parameters& para, NEP_ZBL& zbl);
 
 // GPU operations use the current device selected by the caller.
 void update_nep_q_scaler(

@@ -37,7 +37,7 @@ public:
   bool atomic_virial_diag_only;
 
   void construct(const Dataset& dataset, const std::vector<TNEP_Atomic_Labels>& labels);
-  std::vector<float> get_rmse(Parameters& para, Dataset& dataset, bool use_weight, int device_id);
+  std::vector<float> get_rmse(NEP_Parameters& para, Dataset& dataset, bool use_weight, int device_id);
 };
 
 void write_tnep_predictions(const std::string& label,

@@ -17,7 +17,7 @@
 #include "structure.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
-class Parameters;
+class NEP_Parameters;
 
 class Dataset
 {
@@ -75,24 +75,24 @@ public:
 
   std::vector<Structure> structures;
 
-  void construct(Parameters& para, std::vector<Structure>& structures,
+  void construct(NEP_Parameters& para, std::vector<Structure>& structures,
     int n1, int n2, int device_id, int batch_index);
-  std::vector<float> get_rmse_force(Parameters& para, const bool use_weight, int device_id);
+  std::vector<float> get_rmse_force(NEP_Parameters& para, const bool use_weight, int device_id);
   std::vector<float> get_rmse_energy(
-    Parameters& para,
+    NEP_Parameters& para,
     float& energy_shift_per_structure,
     const bool use_weight,
     const bool do_shift,
     int device_id);
   std::vector<float> get_rmse_virial(
-    Parameters& para, const bool use_weight, int device_id, int num_components = 6);
+    NEP_Parameters& para, const bool use_weight, int device_id, int num_components = 6);
 
 private:
   void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);
-  void find_has_type(Parameters& para);
-  void find_Na(Parameters& para);
-  void initialize_gpu_data(Parameters& para);
-  void find_neighbor(Parameters& para);
+  void find_has_type(NEP_Parameters& para);
+  void find_Na(NEP_Parameters& para);
+  void initialize_gpu_data(NEP_Parameters& para);
+  void find_neighbor(NEP_Parameters& para);
 };
 
 class NEP_Neighbor
@@ -107,7 +107,7 @@ public:
   GPU_Vector<float> y12_angular;
   GPU_Vector<float> z12_angular;
 
-  void prepare(Parameters& para, Dataset& dataset, int device_id);
+  void prepare(NEP_Parameters& para, Dataset& dataset, int device_id);
 
 private:
   GPU_Vector<float> rc_radial;

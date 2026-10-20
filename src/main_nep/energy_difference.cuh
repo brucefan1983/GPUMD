@@ -20,7 +20,7 @@
 #include <vector>
 
 class Dataset;
-class Parameters;
+class NEP_Energy_Parameters;
 class NEP_Energy_Reader;
 struct Structure;
 
@@ -39,7 +39,7 @@ public:
   // combination in one batch, and resolves the training combinations. batch_size is the batch size
   // of nep.in, and num_batches and batch_sizes describe the batches, which the grouping revises.
   void read_train(
-    Parameters& para,
+    NEP_Energy_Parameters& para,
     std::vector<Structure>& structures_train,
     const int batch_size,
     int& num_batches,
@@ -47,7 +47,7 @@ public:
     const NEP_Energy_Reader& reader);
   // Resolves the test combinations and prints the summary of ediff.in.
   void read_test(
-    const Parameters& para, const std::vector<Structure>& structures_test, const bool has_test_set,
+    const NEP_Energy_Parameters& para, const std::vector<Structure>& structures_test, const bool has_test_set,
     const NEP_Energy_Reader& reader);
   // Weighted RMSE of the training combinations in batch batch_id, which the caller has evaluated.
   float get_rmse_train(Dataset& dataset, const int batch_id, const int device_id);
@@ -94,7 +94,7 @@ private:
   static std::vector<Combination> resolve(
     const std::vector<Entry>& entries,
     const std::vector<Structure>& structures,
-    const Parameters& para,
+    const NEP_Energy_Parameters& para,
     const std::vector<int>& batch_sizes,
     const char* xyz_filename,
     std::vector<bool>& is_in_set,
