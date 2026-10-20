@@ -24,6 +24,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "mic.cuh"
 #include "nep_vdw.cuh"
 #include "nep_output.cuh"
+#include "xyz_reader.cuh"
 #include "nep_model.cuh"
 #include "nep_init.cuh"
 #include "nep_io.cuh"
@@ -956,6 +957,27 @@ void NEP_VDW::write_restart(
   write_nep_restart(filename, *model_parameters, mu, sigma);
 }
 
+namespace {
+class NEP_VDW_Reader : public NEP_Data_Reader
+{
+public:
+  explicit NEP_VDW_Reader(Parameters& para) : NEP_Data_Reader(para) {}
+
+private:
+  void read_structure(const XYZ_Record& record, Structure& structure) const override
+  {
+    read_nep_boundaries(record, structure);
+    NEP_Data_Reader::read_structure(record, structure);
+  }
+
+  void print_summary(const std::vector<Structure>& structures) const override
+  {
+    print_nep_boundaries(structures);
+    NEP_Data_Reader::print_summary(structures);
+  }
+};
+} // namespace
+
 NEP_VDW::NEP_VDW(std::unique_ptr<Parameters> model_parameters)
   : model_parameters(std::move(model_parameters))
 {
@@ -966,7 +988,8 @@ NEP_VDW::NEP_VDW(std::unique_ptr<Parameters> model_parameters)
 int NEP_VDW::prepare_data()
 {
   Parameters& para = *model_parameters;
-  training.reset(new NEP_Training(para));
+  NEP_VDW_Reader reader(para);
+  training.reset(new NEP_Training(para, reader));
   initialize(para, training->N, training->Nc, training->device_count);
   if (para.prediction == 0) {
     energy_loss.initialize(para);

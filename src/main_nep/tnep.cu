@@ -26,6 +26,7 @@ J. Chem. Theory Comput. 20, 3273 (2024).
 #include "mic.cuh"
 #include "tnep.cuh"
 #include "nep_output.cuh"
+#include "xyz_reader.cuh"
 #include "nep_model.cuh"
 #include "nep_init.cuh"
 #include "nep_io.cuh"
@@ -874,6 +875,135 @@ void TNEP::write_restart(
   write_nep_restart(filename, *model_parameters, mu, sigma);
 }
 
+namespace {
+class TNEP_Reader : public NEP_Data_Reader
+{
+public:
+  explicit TNEP_Reader(Parameters& para) : NEP_Data_Reader(para) {}
+
+private:
+  void read_structure(const XYZ_Record& record, Structure& structure) const override
+  {
+    read_geometry(record, structure);
+    // Optional energy labels retain the existing ordering of mini-batches.
+    read_energy(record, structure, false);
+    const auto& tokens = record.tokens;
+    const auto& xyz_filename = record.filename;
+    int line_number = record.comment_line_number;
+    // use the virial variable to keep the dipole data
+    if (para.model_type == 1) {
+      structure.has_virial = false;
+      for (int n = 0; n < tokens.size(); ++n) {
+        const std::string dipole_string = "dipole=";
+        if (tokens[n].substr(0, dipole_string.length()) == dipole_string) {
+          structure.has_virial = true;
+          for (int m = 0; m < 6; ++m) {
+            structure.virial[m] = 0.0f;
+          }
+          for (int m = 0; m < 3; ++m) {
+            structure.virial[m] = get_double_from_token(
+              tokens[n + m].substr(
+                (m == 0) ? (dipole_string.length() + 1) : 0,
+                (m == 2) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
+              xyz_filename.c_str(),
+              line_number);
+            structure.virial[m] /= structure.num_atom;
+          }
+        }
+      }
+      if (!structure.has_virial) {
+        if (para.prediction == 0) {
+          PRINT_INPUT_ERROR("'dipole' is missing in the second line of a frame.");
+        } else {
+          for (int m = 0; m < 6; ++m) {
+            structure.virial[m] = -1e6;
+          }
+        }
+      }
+    }
+    // use the virial variable to keep the polarizability data
+    if (para.model_type == 2) {
+      structure.has_virial = false;
+      for (int n = 0; n < tokens.size(); ++n) {
+        const std::string pol_string = "pol=";
+        if (tokens[n].substr(0, pol_string.length()) == pol_string) {
+          structure.has_virial = true;
+          const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
+          for (int m = 0; m < 9; ++m) {
+            structure.virial[reduced_index[m]] = get_double_from_token(
+              tokens[n + m].substr(
+                (m == 0) ? (pol_string.length() + 1) : 0,
+                (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
+              xyz_filename.c_str(),
+              line_number);
+            structure.virial[reduced_index[m]] /= structure.num_atom;
+          }
+        }
+      }
+      if (!structure.has_virial) {
+        if (para.prediction == 0) {
+          PRINT_INPUT_ERROR("'pol' is missing in the second line of a frame.");
+        } else {
+          for (int m = 0; m < 6; ++m) {
+            structure.virial[m] = -1e6;
+          }
+        }
+      }
+    }
+    // Retain the last atomic tensor property, as in the existing reader.
+    int adipole_offset = record.get_property_offset("adipole", "atomic_dipole");
+    int apol_offset = record.get_property_offset("apol", "atomic_polarizability");
+    int avirial_offset = adipole_offset > apol_offset ? adipole_offset : apol_offset;
+    structure.has_atomic_virial = avirial_offset >= 0;
+    structure.atomic_virial_diag_only = adipole_offset > apol_offset;
+    if (avirial_offset < 0 && para.atomic_v == 1) {
+      if (para.model_type == 1) {
+        PRINT_INPUT_ERROR("'adipole' or 'atomic_dipole' is missing in properties.");
+      } else {
+        PRINT_INPUT_ERROR("'apol' or 'atomic_polarizability' is missing in properties.");
+      }
+    }
+    if (structure.has_atomic_virial) {
+      structure.avirialxx.resize(structure.num_atom);
+      structure.avirialyy.resize(structure.num_atom);
+      structure.avirialzz.resize(structure.num_atom);
+      if (!structure.atomic_virial_diag_only) {
+        structure.avirialxy.resize(structure.num_atom);
+        structure.avirialyz.resize(structure.num_atom);
+        structure.avirialzx.resize(structure.num_atom);
+      }
+    }
+    for (int na = 0; na < structure.num_atom; ++na) {
+      const auto& tokens = record.atoms[na];
+      line_number = record.comment_line_number + na + 1;
+      if (structure.has_atomic_virial) {
+        if (structure.atomic_virial_diag_only) {
+          structure.avirialxx[na] =
+            get_double_from_token(tokens[0 + avirial_offset], xyz_filename.c_str(), line_number);
+          structure.avirialyy[na] =
+            get_double_from_token(tokens[1 + avirial_offset], xyz_filename.c_str(), line_number);
+          structure.avirialzz[na] =
+            get_double_from_token(tokens[2 + avirial_offset], xyz_filename.c_str(), line_number);
+        } else {
+          structure.avirialxx[na] =
+            get_double_from_token(tokens[0 + avirial_offset], xyz_filename.c_str(), line_number);
+          structure.avirialyy[na] =
+            get_double_from_token(tokens[4 + avirial_offset], xyz_filename.c_str(), line_number);
+          structure.avirialzz[na] =
+            get_double_from_token(tokens[8 + avirial_offset], xyz_filename.c_str(), line_number);
+          structure.avirialxy[na] =
+            get_double_from_token(tokens[3 + avirial_offset], xyz_filename.c_str(), line_number);
+          structure.avirialyz[na] =
+            get_double_from_token(tokens[7 + avirial_offset], xyz_filename.c_str(), line_number);
+          structure.avirialzx[na] =
+            get_double_from_token(tokens[6 + avirial_offset], xyz_filename.c_str(), line_number);
+        }
+      }
+    }
+  }
+};
+} // namespace
+
 TNEP::TNEP(std::unique_ptr<Parameters> model_parameters)
   : model_parameters(std::move(model_parameters))
 {
@@ -884,7 +1014,8 @@ TNEP::TNEP(std::unique_ptr<Parameters> model_parameters)
 int TNEP::prepare_data()
 {
   Parameters& para = *model_parameters;
-  training.reset(new NEP_Training(para));
+  TNEP_Reader reader(para);
+  training.reset(new NEP_Training(para, reader));
   initialize(para, training->N, training->Nc, training->device_count);
   if (para.prediction == 0) {
     fitness_tensor.resize(para.population_size * (para.num_types + 1));

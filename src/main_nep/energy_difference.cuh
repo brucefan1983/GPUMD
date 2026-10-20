@@ -20,6 +20,7 @@
 
 class Dataset;
 class Parameters;
+class NEP_Data_Reader;
 struct Structure;
 
 // The loss term over the linear combinations of the total energies of named structures listed in
@@ -39,10 +40,12 @@ public:
     std::vector<Structure>& structures_train,
     const int batch_size,
     int& num_batches,
-    std::vector<int>& batch_sizes);
+    std::vector<int>& batch_sizes,
+    const NEP_Data_Reader& reader);
   // Resolves the test combinations and prints the summary of ediff.in.
   void read_test(
-    const Parameters& para, const std::vector<Structure>& structures_test, const bool has_test_set);
+    const Parameters& para, const std::vector<Structure>& structures_test, const bool has_test_set,
+    const NEP_Data_Reader& reader);
   // Weighted RMSE of the training combinations in batch batch_id, which the caller has evaluated.
   float get_rmse_train(Dataset& dataset, const int batch_id, const int device_id) const;
   // Weighted RMSE of the test combinations, which the caller has evaluated.
@@ -85,7 +88,8 @@ private:
     const Parameters& para,
     const std::vector<int>& batch_sizes,
     const char* xyz_filename,
-    std::vector<bool>& is_in_set);
+    std::vector<bool>& is_in_set,
+    const NEP_Data_Reader& reader);
   static float get_rmse(
     const std::vector<Combination>& combinations,
     Dataset& dataset,

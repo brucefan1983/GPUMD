@@ -18,17 +18,18 @@
 #include <vector>
 
 class Parameters;
+struct XYZ_Record;
 
 struct Structure {
   int index_in_file = 0; // position of the structure in train.xyz or test.xyz
   int pbc = 1; // 1 for PPP and 0 for FFF in long-range training
   int num_cell[3];
   int num_atom;
-  int has_virial;
-  int has_atomic_virial;
-  int atomic_virial_diag_only;
-  int has_bec;
-  int has_temperature;
+  int has_virial = 0;
+  int has_atomic_virial = 0;
+  int atomic_virial_diag_only = 0;
+  int has_bec = 0;
+  int has_temperature = 0;
   float weight;
   float charge = 0.0f;
   float energy = 0.0f;
@@ -38,7 +39,7 @@ struct Structure {
   float box_original[9];
   float volume;
   float box[18];
-  float temperature;
+  float temperature = 0.0f;
   std::vector<int> type;
   std::vector<float> x;
   std::vector<float> y;
@@ -56,4 +57,27 @@ struct Structure {
   std::string name; // lowercase label from the optional name= field
 };
 
-bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures);
+// The default reader handles energy, force and virial labels. Models extend it
+// locally for their own inputs and for the states distinguished by ediff.in.
+// The reader is needed only while constructing the training and test data.
+class NEP_Data_Reader
+{
+public:
+  explicit NEP_Data_Reader(Parameters& para) : para(para) {}
+  virtual ~NEP_Data_Reader() = default;
+  bool read_structures(bool is_train, std::vector<Structure>& structures) const;
+  // Return the reason to reject a pair in ediff.in, or nullptr if it is allowed.
+  virtual const char* energy_difference_conflict(
+    const Structure& a, const Structure& b) const;
+
+protected:
+  Parameters& para;
+  virtual void read_structure(const XYZ_Record& record, Structure& structure) const;
+  virtual void print_summary(const std::vector<Structure>& structures) const;
+  void read_geometry(const XYZ_Record& record, Structure& structure) const;
+  void read_energy(const XYZ_Record& record, Structure& structure, bool required) const;
+};
+
+// Boundary handling shared by the long-range models.
+void read_nep_boundaries(const XYZ_Record& record, Structure& structure);
+void print_nep_boundaries(const std::vector<Structure>& structures);

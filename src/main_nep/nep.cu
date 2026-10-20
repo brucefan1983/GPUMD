@@ -22,6 +22,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 #include "nep.cuh"
 #include "nep_output.cuh"
+#include "xyz_reader.cuh"
 #include "nep_model.cuh"
 #include "nep_init.cuh"
 #include "nep_io.cuh"
@@ -188,6 +189,48 @@ void NEP::write_restart(
   write_nep_restart(filename, *model_parameters, mu, sigma);
 }
 
+namespace {
+class NEP_Reader : public NEP_Data_Reader
+{
+public:
+  explicit NEP_Reader(Parameters& para) : NEP_Data_Reader(para) {}
+
+  const char* energy_difference_conflict(const Structure& a, const Structure& b) const override
+  {
+    if (para.model_type == 3 && a.temperature != b.temperature) {
+      return nullptr;
+    }
+    return NEP_Data_Reader::energy_difference_conflict(a, b);
+  }
+
+private:
+  void read_structure(const XYZ_Record& record, Structure& structure) const override
+  {
+    NEP_Data_Reader::read_structure(record, structure);
+    const auto& tokens = record.tokens;
+    const auto& xyz_filename = record.filename;
+    int line_number = record.comment_line_number;
+    structure.has_temperature = false;
+    for (const auto& token : tokens) {
+      const std::string temperature_string = "temperature=";
+      if (token.substr(0, temperature_string.length()) == temperature_string) {
+        structure.has_temperature = true;
+        structure.temperature = get_double_from_token(
+          token.substr(temperature_string.length(), token.length()),
+          xyz_filename.c_str(),
+          line_number);
+      }
+    }
+    if (para.model_type == 3 && !structure.has_temperature) {
+      PRINT_INPUT_ERROR("'temperature' is missing in the second line of a frame.");
+    }
+    if (!structure.has_temperature) {
+      structure.temperature = 0;
+    }
+  }
+};
+} // namespace
+
 NEP::NEP(std::unique_ptr<Parameters> model_parameters)
   : model_parameters(std::move(model_parameters))
 {
@@ -198,7 +241,8 @@ NEP::NEP(std::unique_ptr<Parameters> model_parameters)
 int NEP::prepare_data()
 {
   Parameters& para = *model_parameters;
-  training.reset(new NEP_Training(para));
+  NEP_Reader reader(para);
+  training.reset(new NEP_Training(para, reader));
   initialize(para, training->N, training->Nc, training->device_count);
   if (para.prediction == 0) {
     energy_loss.initialize(para);

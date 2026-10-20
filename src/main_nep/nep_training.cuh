@@ -37,7 +37,7 @@ struct NEP_Energy_Error
 class NEP_Training
 {
 public:
-  explicit NEP_Training(Parameters& para);
+  explicit NEP_Training(Parameters& para, const NEP_Data_Reader& reader);
   ~NEP_Training();
   NEP_Training(const NEP_Training&) = delete;
   NEP_Training& operator=(const NEP_Training&) = delete;
@@ -59,7 +59,7 @@ public:
   void get_prediction_order(std::vector<std::pair<Dataset*, int>>& structures);
 
 private:
-  void prepare_datasets(Parameters& para, int deviceCount);
+  void prepare_datasets(Parameters& para, int deviceCount, const NEP_Data_Reader& reader);
   void find_dataset_sizes(int& N, int& Nc);
 };
 

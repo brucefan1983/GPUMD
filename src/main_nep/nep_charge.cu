@@ -24,6 +24,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "mic.cuh"
 #include "nep_charge.cuh"
 #include "nep_output.cuh"
+#include "nep_charge_reader.cuh"
 #include "nep_model.cuh"
 #include "nep_init.cuh"
 #include "nep_io.cuh"
@@ -1459,7 +1460,8 @@ NEP_Charge::NEP_Charge(std::unique_ptr<Parameters> model_parameters)
 int NEP_Charge::prepare_data()
 {
   Parameters& para = *model_parameters;
-  training.reset(new NEP_Training(para));
+  NEP_Charge_Reader reader(para);
+  training.reset(new NEP_Training(para, reader));
   initialize(para, training->N, training->Nc, training->device_count);
   if (para.prediction == 0) {
     energy_loss.initialize(para);

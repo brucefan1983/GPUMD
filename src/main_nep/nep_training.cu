@@ -72,17 +72,18 @@ static int get_batch_size(const int batch_id, const int n_total, const int num_b
   return is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
 }
 
-NEP_Training::NEP_Training(Parameters& para)
+NEP_Training::NEP_Training(Parameters& para, const NEP_Data_Reader& reader)
 {
   CHECK(gpuGetDeviceCount(&device_count));
-  prepare_datasets(para, device_count);
+  prepare_datasets(para, device_count, reader);
   find_dataset_sizes(N, Nc);
 }
 
-void NEP_Training::prepare_datasets(Parameters& para, const int deviceCount)
+void NEP_Training::prepare_datasets(
+  Parameters& para, const int deviceCount, const NEP_Data_Reader& reader)
 {
   std::vector<Structure> structures_train;
-  read_structures(true, para, structures_train);
+  reader.read_structures(true, structures_train);
   num_batches = (structures_train.size() - 1) / para.batch_size + 1;
   const bool is_ediff_active = para.prediction == 0 && para.lambda_d > 0.0f;
   if (
@@ -103,7 +104,8 @@ void NEP_Training::prepare_datasets(Parameters& para, const int deviceCount)
 
   // The training combinations are resolved before the batches are constructed, which allocate
   // the total energies under para.has_ediff_combinations.
-  energy_difference.read_train(para, structures_train, batch_size_old, num_batches, batch_sizes);
+  energy_difference.read_train(
+    para, structures_train, batch_size_old, num_batches, batch_sizes, reader);
 
   train_set.resize(num_batches);
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
@@ -126,8 +128,8 @@ void NEP_Training::prepare_datasets(Parameters& para, const int deviceCount)
   }
 
   std::vector<Structure> structures_test;
-  has_test_set = read_structures(false, para, structures_test);
-  energy_difference.read_test(para, structures_test, has_test_set);
+  has_test_set = reader.read_structures(false, structures_test);
+  energy_difference.read_test(para, structures_test, has_test_set, reader);
   if (has_test_set) {
     test_set.resize(deviceCount);
     for (int device_id = 0; device_id < deviceCount; ++device_id) {

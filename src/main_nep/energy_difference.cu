@@ -318,62 +318,22 @@ static std::vector<int> place_groups_in_batches(
   return batch_sizes;
 }
 
-// Whether two structures are the same structure for the model: the same types, positions to
-// 1e-5 A, boundaries, cell for periodic boundaries, and for model_type 3 temperature. Atoms are
-// compared in order. The total charge is compared by the caller.
-static bool are_the_same_structure(
-  const Structure& structure_a, const Structure& structure_b, const int model_type)
-{
-  const float tolerance = 1.0e-5f;
-  if (
-    structure_a.num_atom != structure_b.num_atom || structure_a.type != structure_b.type ||
-    structure_a.pbc != structure_b.pbc) {
-    return false;
-  }
-  if (model_type == 3 && structure_a.temperature != structure_b.temperature) {
-    return false;
-  }
-  for (int d = 0; structure_a.pbc && d < 9; ++d) {
-    if (std::fabs(structure_a.box_original[d] - structure_b.box_original[d]) > tolerance) {
-      return false;
-    }
-  }
-  for (int n = 0; n < structure_a.num_atom; ++n) {
-    if (
-      std::fabs(structure_a.x[n] - structure_b.x[n]) > tolerance ||
-      std::fabs(structure_a.y[n] - structure_b.y[n]) > tolerance ||
-      std::fabs(structure_a.z[n] - structure_b.z[n]) > tolerance) {
-      return false;
-    }
-  }
-  return true;
-}
-
 // Stops with an input error when two structures of a combination, given by their names and
 // structures, are the same structure for the model.
 static void check_distinct_structures(
   const std::vector<std::string>& names,
   const std::vector<const Structure*>& members,
-  const Parameters& para,
+  const NEP_Data_Reader& reader,
   const int line_number,
   const char* xyz_filename)
 {
   for (int i = 0; i < (int)members.size(); ++i) {
     for (int j = i + 1; j < (int)members.size(); ++j) {
-      if (!are_the_same_structure(*members[i], *members[j], para.model_type)) {
-        continue;
+      const char* conflict = reader.energy_difference_conflict(*members[i], *members[j]);
+      if (conflict) {
+        const std::string pair = names[i] + " and " + names[j] + " in " + xyz_filename;
+        print_ediff_in_error(line_number, pair + " " + conflict);
       }
-      const std::string pair = names[i] + " and " + names[j] + " in " + xyz_filename;
-      const bool is_charge_model = para.charge_mode || para.charge_vdw;
-      if (is_charge_model && members[i]->charge != members[j]->charge) {
-        print_ediff_in_error(
-          line_number,
-          pair + " differ only in charge=, for which a qNEP model predicts no meaningful energy "
-                 "difference.");
-      }
-      print_ediff_in_error(
-        line_number,
-        pair + " have the same geometry, for which the model predicts the same energy.");
     }
   }
 }
@@ -422,7 +382,8 @@ std::vector<EnergyDifference::Combination> EnergyDifference::resolve(
   const Parameters& para,
   const std::vector<int>& batch_sizes,
   const char* xyz_filename,
-  std::vector<bool>& is_in_set)
+  std::vector<bool>& is_in_set,
+  const NEP_Data_Reader& reader)
 {
   auto name_to_index = get_name_to_index(structures, xyz_filename);
 
@@ -462,7 +423,7 @@ std::vector<EnergyDifference::Combination> EnergyDifference::resolve(
       combination.coefficient.push_back(term.coefficient);
       combination.ref_total_eV += term.coefficient * structures[index].energy_total;
     }
-    check_distinct_structures(names, members, para, entry.line_number, xyz_filename);
+    check_distinct_structures(names, members, reader, entry.line_number, xyz_filename);
     check_balance(combination.coefficient, members, para.elements, entry.line_number, xyz_filename);
     combinations.push_back(combination);
     is_in_set[k] = true;
@@ -598,7 +559,8 @@ void EnergyDifference::read_train(
   std::vector<Structure>& structures_train,
   const int batch_size,
   int& num_batches,
-  std::vector<int>& batch_sizes)
+  std::vector<int>& batch_sizes,
+  const NEP_Data_Reader& reader)
 {
   if (para.prediction == 0) {
     std::ifstream ediff_file("ediff.in");
@@ -628,7 +590,7 @@ void EnergyDifference::read_train(
         batch_sizes = place_groups_in_batches(groups, structures_train, batch_size, num_batches);
       }
       combinations_train =
-        resolve(entries, structures_train, para, batch_sizes, "train.xyz", is_entry_in_train);
+        resolve(entries, structures_train, para, batch_sizes, "train.xyz", is_entry_in_train, reader);
       if (combinations_train.empty()) {
         PRINT_INPUT_ERROR("No combination in ediff.in has all its structures in train.xyz.");
       }
@@ -640,14 +602,15 @@ void EnergyDifference::read_train(
 }
 
 void EnergyDifference::read_test(
-  const Parameters& para, const std::vector<Structure>& structures_test, const bool has_test_set)
+  const Parameters& para, const std::vector<Structure>& structures_test, const bool has_test_set,
+  const NEP_Data_Reader& reader)
 {
   if (!para.has_ediff_combinations) {
     return;
   }
   if (has_test_set) {
     combinations_test = resolve(
-      entries, structures_test, para, {(int)structures_test.size()}, "test.xyz", is_entry_in_test);
+      entries, structures_test, para, {(int)structures_test.size()}, "test.xyz", is_entry_in_test, reader);
   }
   int num_in_both = 0;
   int num_skipped = 0;
