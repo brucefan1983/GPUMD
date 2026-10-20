@@ -24,13 +24,11 @@ struct NEP_Energy_Error;
 
 void print_nep_energy_header(bool has_ediff);
 void print_nep_charge_header(bool has_ediff);
-void print_tnep_header();
 void write_nep_energy_error(FILE* file, const TrainingReport& report,
   const NEP_Energy_Error& train, const NEP_Energy_Error& test, bool has_ediff);
 void write_nep_charge_error(FILE* file, const TrainingReport& report,
   const NEP_Energy_Error& train, const NEP_Energy_Error& test,
   float charge_train, float bec_train, float charge_test, float bec_test, bool has_ediff);
-void write_tnep_error(FILE* file, const TrainingReport& report, float train, float test);
 
 void copy_nep_energy_predictions(Dataset& data);
 void write_nep_structure_predictions(bool is_stress, int num_components, FILE* fid,

@@ -41,6 +41,13 @@ J. Chem. Theory Comput. 20, 3273 (2024).
 #include <cstring>
 #include <algorithm>
 
+static void write_tnep_error(FILE* file, const TrainingReport& report, float train, float test)
+{
+  fprintf(file, "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f\n",
+    report.generation + 1, report.total, report.l1, report.l2, train, test);
+  fflush(file);
+}
+
 static __global__ void find_descriptors_radial(
   const int N,
   const int* g_NN_sum,
@@ -1176,7 +1183,8 @@ void TNEP::accumulate_fitness(float* fitness_total)
 
 void TNEP::print_training_header()
 {
-  print_tnep_header();
+  printf("%-8s %-11s %-11s %-11s %-13s %-13s\n",
+    "Step", "Total-Loss", "L1Reg-Loss", "L2Reg-Loss", "RMSE-P-Train", "RMSE-P-Test");
 }
 
 void TNEP::report_error(const TrainingReport& report)

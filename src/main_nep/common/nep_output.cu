@@ -134,12 +134,6 @@ void print_nep_charge_header(bool has_ediff)
   printf("\n");
 }
 
-void print_tnep_header()
-{
-  printf("%-8s %-11s %-11s %-11s %-13s %-13s\n",
-    "Step", "Total-Loss", "L1Reg-Loss", "L2Reg-Loss", "RMSE-P-Train", "RMSE-P-Test");
-}
-
 void write_nep_energy_error(FILE* file, const TrainingReport& report,
   const NEP_Energy_Error& train, const NEP_Energy_Error& test, bool has_ediff)
 {
@@ -168,13 +162,6 @@ void write_nep_charge_error(FILE* file, const TrainingReport& report,
     fprintf(file, " %-9.5f %-9.5f", train.ediff, test.ediff);
   }
   fprintf(file, "\n");
-  fflush(file);
-}
-
-void write_tnep_error(FILE* file, const TrainingReport& report, float train, float test)
-{
-  fprintf(file, "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f\n",
-    report.generation + 1, report.total, report.l1, report.l2, train, test);
   fflush(file);
 }
 
