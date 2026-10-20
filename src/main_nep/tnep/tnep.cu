@@ -23,7 +23,6 @@ J. Chem. Theory Comput. 20, 3273 (2024).
 ------------------------------------------------------------------------------*/
 
 #include "main_nep/dataset.cuh"
-#include "main_nep/mic.cuh"
 #include "tnep.cuh"
 #include "utilities/read_file.cuh"
 #include "main_nep/common/nep_output.cuh"

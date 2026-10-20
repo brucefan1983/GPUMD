@@ -16,6 +16,7 @@
 #include "nep_charge_reader.cuh"
 #include "nep_charge_parameters.cuh"
 #include "main_nep/xyz_reader.cuh"
+#include "utilities/error.cuh"
 
 void NEP_Charge_Reader::read_structure(const XYZ_Record& record, Structure& structure)
 {

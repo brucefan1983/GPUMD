@@ -21,7 +21,6 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 ------------------------------------------------------------------------------*/
 
 #include "main_nep/dataset.cuh"
-#include "main_nep/mic.cuh"
 #include "nep_vdw.cuh"
 #include "main_nep/common/nep_output.cuh"
 #include "main_nep/xyz_reader.cuh"
