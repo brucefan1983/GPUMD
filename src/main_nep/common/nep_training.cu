@@ -23,6 +23,15 @@
 #include <algorithm>
 #include <numeric>
 
+// Number of structures in one mini-batch. The first n_total % num_batches batches take one
+// structure more than the rest, so the batches differ in size by at most one.
+static int get_batch_size(const int batch_id, const int n_total, const int num_batches)
+{
+  const int batch_size_minimal = n_total / num_batches;
+  const bool is_larger_batch = batch_id < n_total % num_batches;
+  return is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
+}
+
 static void find_permuted_indices(
   const int num_batches,
   const std::vector<Structure>& structures,
@@ -41,9 +50,7 @@ static void find_permuted_indices(
 
   int count = 0;
   for (int b = 0; b < num_batches; ++b) {
-    const int batch_size_minimal = structures.size() / num_batches;
-    const bool is_larger_batch = b + batch_size_minimal * num_batches < structures.size();
-    const int batch_size = is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
+    const int batch_size = get_batch_size(b, structures.size(), num_batches);
     for (int c = 0; c < batch_size; ++c) {
       permuted_indices[count + c] = energy_index[b + num_batches * c];
     }
@@ -62,15 +69,6 @@ static void reorder(const int num_batches, std::vector<Structure>& structures)
     structures_reordered.push_back(structures[configuration_id[nc]]);
   }
   structures.swap(structures_reordered);
-}
-
-// Number of structures in one mini-batch. The first n_total % num_batches batches take one
-// structure more than the rest, so the batches differ in size by at most one.
-static int get_batch_size(const int batch_id, const int n_total, const int num_batches)
-{
-  const int batch_size_minimal = n_total / num_batches;
-  const bool is_larger_batch = batch_id + batch_size_minimal * num_batches < n_total;
-  return is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
 }
 
 NEP_Training::NEP_Training(NEP_Parameters& para, NEP_Data_Reader& reader)
