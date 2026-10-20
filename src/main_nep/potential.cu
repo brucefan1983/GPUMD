@@ -14,11 +14,11 @@
 */
 
 #include "potential.cuh"
-#include "nep.cuh"
-#include "nep_vdw.cuh"
-#include "nep_charge.cuh"
-#include "nep_charge_vdw.cuh"
-#include "tnep.cuh"
+#include "main_nep/nep/nep.cuh"
+#include "main_nep/nep_vdw/nep_vdw.cuh"
+#include "main_nep/nep_charge/nep_charge.cuh"
+#include "main_nep/nep_charge_vdw/nep_charge_vdw.cuh"
+#include "main_nep/tnep/tnep.cuh"
 #include "parameter_input.cuh"
 
 std::unique_ptr<Potential> create_potential()

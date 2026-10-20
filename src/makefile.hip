@@ -38,6 +38,7 @@ SOURCES_GPUMD =                   \
 	$(wildcard utilities/*.cu)
 SOURCES_NEP =                     \
 	$(wildcard main_nep/*.cu)     \
+	$(wildcard main_nep/*/*.cu)   \
 	$(wildcard utilities/*.cu)
 
 
@@ -61,7 +62,8 @@ HEADERS =                         \
 	$(wildcard measure/*.cuh)     \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
-	$(wildcard main_nep/*.cuh)
+	$(wildcard main_nep/*.cuh)    \
+	$(wildcard main_nep/*/*.cuh)
 
 
 ###########################################################
@@ -109,5 +111,5 @@ main_nep/%.o: main_nep/%.cu $(HEADERS)
 # clean up
 ###########################################################
 clean:
-	rm -f */*.o gpumd nep
+	rm -f */*.o main_nep/*/*.o gpumd nep
 

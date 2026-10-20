@@ -13,7 +13,7 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "nep_parameters.cuh"
+#include "main_nep/common/nep_parameters.cuh"
 #include "structure.cuh"
 #include "xyz_reader.cuh"
 #include "utilities/error.cuh"
