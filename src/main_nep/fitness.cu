@@ -38,7 +38,7 @@ Fitness::Fitness(Potential& potential) : potential(potential)
   }
 }
 
-void Fitness::print_training_header(const Parameters&)
+void Fitness::print_training_header()
 {
   potential.print_training_header();
 }
@@ -173,7 +173,7 @@ void Fitness::report_error(
   }
 }
 
-void Fitness::predict(Parameters&, float* elite)
+void Fitness::predict(float* elite)
 {
   potential.predict(elite);
 }

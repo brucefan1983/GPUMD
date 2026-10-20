@@ -27,7 +27,7 @@ public:
   explicit Fitness(Potential& potential);
   Fitness(const Fitness&) = delete;
   Fitness& operator=(const Fitness&) = delete;
-  void print_training_header(const Parameters& para);
+  void print_training_header();
   void compute(
     const int generation,
     Parameters& para,
@@ -41,7 +41,7 @@ public:
     const float loss_total,
     const int best_index,
     float* elite);
-  void predict(Parameters& para, float* elite);
+  void predict(float* elite);
   void get_save_potential_label(Parameters& para, const int generation, std::string& filename);
 
 private:
