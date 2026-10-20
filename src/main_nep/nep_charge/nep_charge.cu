@@ -191,9 +191,6 @@ void NEP_Charge::initialize_model(const NEP_Charge_Parameters& para)
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
   charge_para.two_alpha_over_sqrt_pi = 2.0f * charge_para.alpha / sqrt(float(PI));
   charge_para.alpha_factor = 0.25f / (charge_para.alpha * charge_para.alpha);
-  charge_para.A = erfc(float(PI)) / (paramb.rc_radial * paramb.rc_radial);
-  charge_para.A += charge_para.two_alpha_over_sqrt_pi * exp(-float(PI * PI)) / paramb.rc_radial;
-  charge_para.B = - erfc(float(PI)) / paramb.rc_radial - charge_para.A * paramb.rc_radial;
 }
 
 void NEP_Charge::initialize_device(const NEP_Charge_Parameters& para, int N, int Nc, int device_id)
