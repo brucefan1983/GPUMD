@@ -37,7 +37,7 @@ static void predict(Parameters& para, Potential& potential, Fitness& fitness)
   print_line_2();
 
   std::vector<float> parameters(para.number_of_variables);
-  potential.read_model(para, parameters.data());
+  potential.read_model(parameters.data());
   fitness.predict(para, parameters.data());
 }
 
@@ -54,9 +54,9 @@ int main(int argc, char* argv[])
   print_line_2();
 
   const auto time_begin1 = std::chrono::high_resolution_clock::now();
-  Parameters para;
-  std::unique_ptr<Potential> potential = create_potential(para);
-  Fitness fitness(para, *potential);
+  std::unique_ptr<Potential> potential = create_potential();
+  Parameters& para = potential->get_parameters();
+  Fitness fitness(*potential);
   const auto time_finish1 = std::chrono::high_resolution_clock::now();
 
   const std::chrono::duration<double> time_used1 = time_finish1 - time_begin1;

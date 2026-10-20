@@ -14,13 +14,9 @@
 */
 
 #pragma once
-#include "dataset.cuh"
-#include "energy_difference.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
-#include <stdio.h>
 #include <string>
-#include <utility>
 #include <vector>
 
 class Parameters;
@@ -28,8 +24,7 @@ class Parameters;
 class Fitness
 {
 public:
-  Fitness(Parameters& para, Potential& potential);
-  ~Fitness();
+  explicit Fitness(Potential& potential);
   Fitness(const Fitness&) = delete;
   Fitness& operator=(const Fitness&) = delete;
   void print_training_header(const Parameters& para);
@@ -49,70 +44,18 @@ public:
   void predict(Parameters& para, float* elite);
   void get_save_potential_label(Parameters& para, const int generation, std::string& filename);
 
-protected:
-  bool has_test_set = false;
-  int num_batches = 0;
-  int max_NN_radial;  // radial neighbor list size
-  int max_NN_angular; // angular neighbor list size
-  FILE* fid_loss_out = NULL;
-  EnergyDifference energy_difference;
+private:
   Potential& potential;
-  std::vector<std::vector<Dataset>> train_set;
-  std::vector<Dataset> test_set;
+  int num_batches = 0;
   std::vector<float> fitness_L1;
   std::vector<float> fitness_L2;
-  std::vector<float> fitness_energy;
-  std::vector<float> fitness_force;
-  std::vector<float> fitness_virial;
-  std::vector<float> fitness_charge;
-  std::vector<float> fitness_bec;
-  std::vector<float> fitness_ediff;
   std::vector<float> cost_L1reg;
   std::vector<float> cost_L2reg;
   GPU_Vector<float> gpu_cost_L1reg;
   GPU_Vector<float> gpu_cost_L2reg;
-  void regularize_NEP4(
+  void regularize(
     Parameters& para,
     const float* gpu_population,
     const int* gpu_type_of_variable,
     float* fitness_total);
-  void output(
-    bool is_stress,
-    int num_components,
-    FILE* fid,
-    float* prediction,
-    float* reference,
-    Dataset& dataset,
-    const int nc);
-  void output_atomic(
-    int num_components,
-    FILE* fid,
-    float* prediction,
-    float* reference,
-    Dataset& dataset,
-    const int nc);
-  void copy_predictions_to_host(Parameters& para, Dataset& dataset);
-  void update_energy_force_virial(
-    FILE* fid_energy,
-    FILE* fid_force,
-    FILE* fid_virial,
-    FILE* fid_stress,
-    Dataset& dataset,
-    const int nc);
-  void update_charge(FILE* fid_charge, Dataset& dataset, const int nc);
-  void update_bec(FILE* fid_bec, Dataset& dataset, const int nc);
-  void update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic, const int nc);
-  void update_polarizability(FILE* fid_polarizability, Dataset& dataset, bool atomic, const int nc);
-  // writes the predictions of the structures, in the order given, to <quantity>_<label>.out
-  void write_predictions(
-    Parameters& para,
-    const std::string& label,
-    const std::vector<std::pair<Dataset*, int>>& structures);
-  void write_potential(FILE* fid_nep, Parameters& para, float* elite);
-
-private:
-  void prepare_datasets(Parameters& para, const int deviceCount);
-  void find_dataset_sizes(int& N, int& Nc);
-  void initialize_training_workspace(const Parameters& para);
-  void open_loss_file(const Parameters& para);
 };

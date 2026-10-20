@@ -21,23 +21,23 @@
 #include "tnep.cuh"
 #include "parameters.cuh"
 
-std::unique_ptr<Potential> create_potential(Parameters& para)
+std::unique_ptr<Potential> create_potential()
 {
+  std::unique_ptr<Parameters> model_parameters(new Parameters);
+  Parameters& para = *model_parameters;
   std::unique_ptr<Potential> potential;
   if (para.model_type == 1 || para.model_type == 2) {
-    potential.reset(new TNEP);
+    potential.reset(new TNEP(std::move(model_parameters)));
   } else {
     if (para.charge_vdw) {
-      potential.reset(new NEP_Charge_VDW);
+      potential.reset(new NEP_Charge_VDW(std::move(model_parameters)));
     } else if (para.charge_mode) {
-      potential.reset(new NEP_Charge);
+      potential.reset(new NEP_Charge(std::move(model_parameters)));
     } else if (para.vdw) {
-      potential.reset(new NEP_VDW);
+      potential.reset(new NEP_VDW(std::move(model_parameters)));
     } else {
-      potential.reset(new NEP);
+      potential.reset(new NEP(std::move(model_parameters)));
     }
   }
-  potential->configure(para);
-  para.finish_reading();
   return potential;
 }

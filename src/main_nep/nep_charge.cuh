@@ -16,6 +16,8 @@
 #pragma once
 #include "dataset.cuh"
 #include "potential.cuh"
+#include "parameters.cuh"
+#include "nep_training.cuh"
 #include "nep_common.cuh"
 #include "nep_compile.cuh"
 #include "utilities/common.cuh"
@@ -87,27 +89,39 @@ public:
     float B;
   };
 
-  NEP_Charge() = default;
-  void configure(Parameters& para) override;
+  explicit NEP_Charge(std::unique_ptr<Parameters> model_parameters);
+  int prepare_data() override;
+  void prepare_training() override;
+  void evaluate(int batch, const float* population) override;
+  void accumulate_fitness(float* fitness_total) override;
+  void print_training_header() override;
+  void report_error(const TrainingReport& report) override;
+  void predict(float* parameters) override;
+  Parameters& get_parameters() override { return *model_parameters; }
+
   void initialize_parameters(
-    const Parameters& para, std::mt19937& rng,
+    std::mt19937& rng,
     std::vector<float>& mu, std::vector<float>& sigma) override;
-  void parameter_groups(const Parameters& para, std::vector<int>& groups) override;
-  void read_model(Parameters& para, float* parameters) override;
-  void write_model(
-    FILE* file, Parameters& para, const float* parameters, int max_radial, int max_angular) override;
+  void parameter_groups(std::vector<int>& groups) override;
+  void read_model(float* parameters) override;
+
   void write_restart(
-    const char* filename, const Parameters& para,
-    const std::vector<float>& mu, const std::vector<float>& sigma) override;
-  void initialize(Parameters& para, int N, int Nc, int deviceCount) override;
+    const char* filename, const std::vector<float>& mu, const std::vector<float>& sigma) override;
+
+private:
+  void configure(Parameters& para);
+  void initialize(Parameters& para, int N, int Nc, int deviceCount);
   void find_force(
     Parameters& para,
     const float* parameters,
     std::vector<Dataset>& dataset,
     bool calculate_q_scaler,
-    int deviceCount) override;
-
-private:
+    int deviceCount);
+  std::unique_ptr<Parameters> model_parameters;
+  std::unique_ptr<NEP_Training> training;
+  NEP_Energy_Loss energy_loss;
+  std::vector<float> fitness_charge;
+  std::vector<float> fitness_bec;
   NEP_Neighbor neighbor[16];
   ParaMB paramb;
   ANN annmb[16];

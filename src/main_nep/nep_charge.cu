@@ -23,6 +23,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "dataset.cuh"
 #include "mic.cuh"
 #include "nep_charge.cuh"
+#include "nep_output.cuh"
 #include "nep_model.cuh"
 #include "nep_init.cuh"
 #include "nep_io.cuh"
@@ -34,6 +35,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <cstring>
+#include <algorithm>
 
 static __global__ void find_descriptors_radial(
   const int N,
@@ -1402,9 +1404,10 @@ void NEP_Charge::configure(Parameters& para)
 }
 
 void NEP_Charge::initialize_parameters(
-  const Parameters& para, std::mt19937& rng,
+  std::mt19937& rng,
   std::vector<float>& mu, std::vector<float>& sigma)
 {
+  Parameters& para = *model_parameters;
   NEP_Initialization initialization = initialize_nep_mu_and_sigma(para, rng, mu, sigma, 2);
   if (initialization == NEP_Initialization::RANDOM) {
     // make sure the initial charges are zero
@@ -1429,25 +1432,144 @@ void NEP_Charge::initialize_parameters(
   }
 }
 
-void NEP_Charge::parameter_groups(const Parameters& para, std::vector<int>& groups)
+void NEP_Charge::parameter_groups(std::vector<int>& groups)
 {
+  Parameters& para = *model_parameters;
   find_nep_type_of_variable(para, groups, 2, 1);
 }
 
-void NEP_Charge::read_model(Parameters& para, float* parameters)
+void NEP_Charge::read_model(float* parameters)
 {
-  read_nep_model("nep.txt", para, parameters);
-}
-
-void NEP_Charge::write_model(
-  FILE* file, Parameters& para, const float* parameters, int max_radial, int max_angular)
-{
-  write_nep_model(file, para, parameters, max_radial, max_angular);
+  read_nep_model("nep.txt", *model_parameters, parameters);
 }
 
 void NEP_Charge::write_restart(
-  const char* filename, const Parameters& para,
-  const std::vector<float>& mu, const std::vector<float>& sigma)
+  const char* filename, const std::vector<float>& mu, const std::vector<float>& sigma)
 {
-  write_nep_restart(filename, para, mu, sigma);
+  write_nep_restart(filename, *model_parameters, mu, sigma);
+}
+
+NEP_Charge::NEP_Charge(std::unique_ptr<Parameters> model_parameters)
+  : model_parameters(std::move(model_parameters))
+{
+  configure(*this->model_parameters);
+  this->model_parameters->finish_reading();
+}
+
+int NEP_Charge::prepare_data()
+{
+  Parameters& para = *model_parameters;
+  training.reset(new NEP_Training(para));
+  initialize(para, training->N, training->Nc, training->device_count);
+  if (para.prediction == 0) {
+    energy_loss.initialize(para);
+    fitness_charge.resize(para.population_size * (para.num_types + 1));
+    fitness_bec.resize(para.population_size * (para.num_types + 1));
+    training->open_loss_file(para,
+      " rmse_energy_train rmse_force_train rmse_virial_train rmse_charge_train rmse_bec_train"
+      " rmse_energy_test rmse_force_test rmse_virial_test rmse_charge_test rmse_bec_test",
+      para.has_ediff_combinations);
+  }
+  return training->num_batches;
+}
+
+void NEP_Charge::prepare_training()
+{
+  Parameters& para = *model_parameters;
+  int devices = training->device_count;
+  std::vector<float> dummy_solution(para.number_of_variables * devices, para.initial_para);
+  for (int batch = 0; batch < training->num_batches; ++batch) {
+    find_force(para, dummy_solution.data(), training->train_set[batch],
+      (para.fine_tune || para.import_q_scaler) ? false : true, devices);
+  }
+}
+
+void NEP_Charge::evaluate(int batch, const float* population)
+{
+  Parameters& para = *model_parameters;
+  int devices = training->device_count;
+  for (int first = 0; first < para.population_size; first += devices) {
+    int count = std::min(devices, para.population_size - first);
+    find_force(para, population + first * para.number_of_variables,
+      training->train_set[batch], false, count);
+    for (int device = 0; device < count; ++device) {
+      Dataset& data = training->train_set[batch][device];
+      energy_loss.evaluate(para, data, training->energy_difference, batch, first + device, device);
+      auto rmse_charge_array = data.get_rmse_charge(para, device);
+      auto rmse_bec_array = data.get_rmse_bec(para, device);
+      for (int t = 0; t <= para.num_types; ++t) {
+        int index = first + device + t * para.population_size;
+        fitness_charge[index] = para.lambda_q * rmse_charge_array[t];
+        fitness_bec[index] = para.lambda_z * rmse_bec_array[t];
+      }
+    }
+  }
+}
+
+void NEP_Charge::accumulate_fitness(float* fitness_total)
+{
+  Parameters& para = *model_parameters;
+  energy_loss.accumulate_fitness(para, fitness_total);
+  for (int i = 0; i < para.population_size * (para.num_types + 1); ++i) {
+    fitness_total[i] = fitness_total[i] + fitness_charge[i] + fitness_bec[i];
+  }
+  energy_loss.accumulate_energy_difference(para, fitness_total);
+}
+
+void NEP_Charge::print_training_header()
+{
+  print_nep_charge_header(model_parameters->has_ediff_combinations);
+}
+
+void NEP_Charge::report_error(const TrainingReport& report)
+{
+  Parameters& para = *model_parameters;
+  find_force(para, report.parameters, training->train_set[report.batch], false, 1);
+  Dataset& train_data = training->train_set[report.batch][0];
+  NEP_Energy_Error train = energy_loss.get_error(
+    para, train_data, training->energy_difference, true, report.batch);
+  float charge_train = train_data.get_rmse_charge(para, 0).back();
+  float bec_train = train_data.get_rmse_bec(para, 0).back();
+  float charge_test = 0.0f;
+  float bec_test = 0.0f;
+  // Correct the last bias parameter in the energy network before evaluating the test set.
+  report.parameters[para.number_of_variables_ann - 1] += train.energy_shift;
+  NEP_Energy_Error test;
+  if (training->has_test_set) {
+    find_force(para, report.parameters, training->test_set, false, 1);
+    test = energy_loss.get_error(para, training->test_set[0], training->energy_difference, false, 0);
+    charge_test = training->test_set[0].get_rmse_charge(para, 0).back();
+    bec_test = training->test_set[0].get_rmse_bec(para, 0).back();
+  }
+  training->write_model(para, report);
+  write_nep_charge_error(stdout, report, train, test,
+    charge_train, bec_train, charge_test, bec_test, para.has_ediff_combinations);
+  write_nep_charge_error(training->fid_loss_out, report, train, test,
+    charge_train, bec_train, charge_test, bec_test, para.has_ediff_combinations);
+  if (training->has_test_set) {
+    Dataset& data = training->test_set[0];
+    copy_nep_energy_predictions(data);
+    copy_nep_charge_predictions(data, para.has_bec);
+    std::vector<std::pair<Dataset*, int>> structures;
+    for (int nc = 0; nc < data.Nc; ++nc) {
+      structures.emplace_back(&data, nc);
+    }
+    write_nep_energy_predictions("test", structures);
+    write_nep_charge_predictions("test", structures, para.has_bec);
+  }
+}
+
+void NEP_Charge::predict(float* parameters)
+{
+  Parameters& para = *model_parameters;
+  for (int batch = 0; batch < training->num_batches; ++batch) {
+    find_force(para, parameters, training->train_set[batch], false, 1);
+    Dataset& data = training->train_set[batch][0];
+    copy_nep_energy_predictions(data);
+    copy_nep_charge_predictions(data, para.has_bec);
+  }
+  std::vector<std::pair<Dataset*, int>> structures;
+  training->get_prediction_order(structures);
+  write_nep_energy_predictions("train", structures);
+  write_nep_charge_predictions("train", structures, para.has_bec);
 }

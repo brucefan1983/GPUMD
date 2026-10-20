@@ -14,35 +14,44 @@
 */
 
 #pragma once
+#include <cstdio>
 #include <memory>
 #include <random>
-#include <cstdio>
+#include <string>
 #include <vector>
-class Dataset;
 class Parameters;
+
+struct TrainingReport
+{
+  int generation;
+  int batch;
+  float total;
+  float l1;
+  float l2;
+  float* parameters;
+  std::string checkpoint;
+};
 
 class Potential
 {
 public:
   virtual ~Potential() = default;
+  virtual Parameters& get_parameters() = 0;
   virtual void initialize_parameters(
-    const Parameters& para, std::mt19937& rng,
-    std::vector<float>& mu, std::vector<float>& sigma) = 0;
-  virtual void parameter_groups(const Parameters& para, std::vector<int>& groups) = 0;
-  virtual void read_model(Parameters& para, float* parameters) = 0;
-  virtual void write_model(
-    FILE* file, Parameters& para, const float* parameters, int max_radial, int max_angular) = 0;
+    std::mt19937& rng, std::vector<float>& mu, std::vector<float>& sigma) = 0;
+  virtual void parameter_groups(std::vector<int>& groups) = 0;
+  virtual void read_model(float* parameters) = 0;
   virtual void write_restart(
-    const char* filename, const Parameters& para,
-    const std::vector<float>& mu, const std::vector<float>& sigma) = 0;
-  virtual void configure(Parameters& para) = 0;
-  virtual void initialize(Parameters& para, int N, int Nc, int deviceCount) = 0;
-  virtual void find_force(
-    Parameters& para,
-    const float* parameters,
-    std::vector<Dataset>& dataset,
-    bool calculate_q_scaler,
-    int DeviceCount) = 0;
+    const char* filename, const std::vector<float>& mu, const std::vector<float>& sigma) = 0;
+  virtual int prepare_data() = 0;
+  virtual void prepare_training() = 0;
+  // Evaluate candidate parameter vectors stored contiguously on the host. The model
+  // owns intermediate losses; accumulate_fitness adds them after common regularization.
+  virtual void evaluate(int batch, const float* population) = 0;
+  virtual void accumulate_fitness(float* fitness_total) = 0;
+  virtual void print_training_header() = 0;
+  virtual void report_error(const TrainingReport& report) = 0;
+  virtual void predict(float* parameters) = 0;
 };
 
-std::unique_ptr<Potential> create_potential(Parameters& para);
+std::unique_ptr<Potential> create_potential();

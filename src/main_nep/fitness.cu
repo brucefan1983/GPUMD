@@ -19,287 +19,28 @@ Get the fitness
 
 #include "fitness.cuh"
 #include "parameters.cuh"
-#include "structure.cuh"
-#include "utilities/common.cuh"
 #include "utilities/error.cuh"
-#include "utilities/gpu_macro.cuh"
-#include "utilities/gpu_vector.cuh"
-#include <algorithm>
-#include <chrono>
 #include <cmath>
 #include <ctime>
-#include <iostream>
-#include <numeric>
-#include <random>
-#include <sstream>
-#include <vector>
-#include <cstring>
 
-static void find_permuted_indices(
-  const int num_batches,
-  const std::vector<Structure>& structures,
-  std::vector<int>& permuted_indices)
+Fitness::Fitness(Potential& potential) : potential(potential)
 {
-  std::vector<float> energy(structures.size());
-  for (int nc = 0; nc < structures.size(); ++nc) {
-    energy[nc] = structures[nc].energy;
-  }
-
-  std::vector<int> energy_index(structures.size());
-  std::iota(energy_index.begin(), energy_index.end(), 0);
-  std::stable_sort(energy_index.begin(), energy_index.end(), [&energy](size_t i1, size_t i2) {
-    return energy[i1] < energy[i2];
-  });
-
-  int count = 0;
-  for (int b = 0; b < num_batches; ++b) {
-    const int batch_size_minimal = structures.size() / num_batches;
-    const bool is_larger_batch = b + batch_size_minimal * num_batches < structures.size();
-    const int batch_size = is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
-    for (int c = 0; c < batch_size; ++c) {
-      permuted_indices[count + c] = energy_index[b + num_batches * c];
-    }
-    count += batch_size;
-  }
-}
-
-static void reorder(const int num_batches, std::vector<Structure>& structures)
-{
-  std::vector<int> configuration_id(structures.size());
-  find_permuted_indices(num_batches, structures, configuration_id);
-
-  std::vector<Structure> structures_reordered;
-  structures_reordered.reserve(structures.size());
-  for (int nc = 0; nc < structures.size(); ++nc) {
-    structures_reordered.push_back(structures[configuration_id[nc]]);
-  }
-  structures.swap(structures_reordered);
-}
-
-// Number of structures in one mini-batch. The first n_total % num_batches batches take one
-// structure more than the rest, so the batches differ in size by at most one.
-static int get_batch_size(const int batch_id, const int n_total, const int num_batches)
-{
-  const int batch_size_minimal = n_total / num_batches;
-  const bool is_larger_batch = batch_id + batch_size_minimal * num_batches < n_total;
-  return is_larger_batch ? batch_size_minimal + 1 : batch_size_minimal;
-}
-
-Fitness::Fitness(Parameters& para, Potential& potential) : potential(potential)
-{
-  int deviceCount;
-  CHECK(gpuGetDeviceCount(&deviceCount));
-
-  prepare_datasets(para, deviceCount);
-
-  int N;
-  int Nc;
-  find_dataset_sizes(N, Nc);
-  potential.initialize(para, N, Nc, deviceCount);
-
+  Parameters& para = potential.get_parameters();
+  num_batches = potential.prepare_data();
   if (para.prediction == 0) {
-    initialize_training_workspace(para);
-    open_loss_file(para);
+    fitness_L1.resize(para.population_size * (para.num_types + 1));
+    fitness_L2.resize(para.population_size * (para.num_types + 1));
+    cost_L1reg.resize(para.population_size);
+    cost_L2reg.resize(para.population_size);
+    gpuSetDevice(0);
+    gpu_cost_L1reg.resize(para.population_size);
+    gpu_cost_L2reg.resize(para.population_size);
   }
 }
 
-void Fitness::prepare_datasets(Parameters& para, const int deviceCount)
+void Fitness::print_training_header(const Parameters&)
 {
-  std::vector<Structure> structures_train;
-  read_structures(true, para, structures_train);
-  num_batches = (structures_train.size() - 1) / para.batch_size + 1;
-  const bool is_ediff_active = para.prediction == 0 && para.lambda_d > 0.0f;
-  if (
-    (para.prediction == 0) && (para.batch_size < structures_train.size()) && !is_ediff_active) {
-    reorder(num_batches, structures_train);
-  }
-  printf("Number of devices = %d\n", deviceCount);
-  printf("Number of batches = %d\n", num_batches);
-  int batch_size_old = para.batch_size;
-  para.batch_size = (structures_train.size() - 1) / num_batches + 1;
-  if (batch_size_old != para.batch_size) {
-    printf("Hello, I changed the batch_size from %d to %d.\n", batch_size_old, para.batch_size);
-  }
-  std::vector<int> batch_sizes(num_batches);
-  for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-    batch_sizes[batch_id] = get_batch_size(batch_id, structures_train.size(), num_batches);
-  }
-
-  // The training combinations are resolved before the batches are constructed, which allocate
-  // the total energies under para.has_ediff_combinations.
-  energy_difference.read_train(para, structures_train, batch_size_old, num_batches, batch_sizes);
-
-  train_set.resize(num_batches);
-  for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-    train_set[batch_id].resize(deviceCount);
-  }
-  int count = 0;
-  for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-    const int batch_size = batch_sizes[batch_id];
-    count += batch_size;
-    printf("\nBatch %d:\n", batch_id);
-    printf("Number of configurations = %d.\n", batch_size);
-    for (int device_id = 0; device_id < deviceCount; ++device_id) {
-      print_line_1();
-      printf("Constructing train_set in device  %d.\n", device_id);
-      CHECK(gpuSetDevice(device_id));
-      train_set[batch_id][device_id].construct(
-        para, structures_train, count - batch_size, count, device_id);
-      print_line_2();
-    }
-  }
-
-  std::vector<Structure> structures_test;
-  has_test_set = read_structures(false, para, structures_test);
-  energy_difference.read_test(para, structures_test, has_test_set);
-  if (has_test_set) {
-    test_set.resize(deviceCount);
-    for (int device_id = 0; device_id < deviceCount; ++device_id) {
-      print_line_1();
-      printf("Constructing test_set in device  %d.\n", device_id);
-      CHECK(gpuSetDevice(device_id));
-      test_set[device_id].construct(para, structures_test, 0, structures_test.size(), device_id);
-      print_line_2();
-    }
-  }
-}
-
-void Fitness::find_dataset_sizes(int& N, int& Nc)
-{
-  N = -1;
-  Nc = -1;
-  max_NN_radial = -1;
-  max_NN_angular = -1;
-  if (has_test_set) {
-    N = test_set[0].N;
-    Nc = test_set[0].Nc;
-    max_NN_radial = test_set[0].max_NN_radial;
-    max_NN_angular = test_set[0].max_NN_angular;
-  }
-  for (int n = 0; n < num_batches; ++n) {
-    if (train_set[n][0].N > N) {
-      N = train_set[n][0].N;
-    };
-    if (train_set[n][0].Nc > Nc) {
-      Nc = train_set[n][0].Nc;
-    };
-
-    if (train_set[n][0].max_NN_radial > max_NN_radial) {
-      max_NN_radial = train_set[n][0].max_NN_radial;
-    }
-    if (train_set[n][0].max_NN_angular > max_NN_angular) {
-      max_NN_angular = train_set[n][0].max_NN_angular;
-    }
-  }
-}
-
-void Fitness::initialize_training_workspace(const Parameters& para)
-{
-  fitness_L1.resize(para.population_size * (para.num_types + 1));
-  fitness_L2.resize(para.population_size * (para.num_types + 1));
-  fitness_energy.resize(para.population_size * (para.num_types + 1));
-  fitness_force.resize(para.population_size * (para.num_types + 1));
-  fitness_virial.resize(para.population_size * (para.num_types + 1));
-  fitness_charge.resize(para.population_size * (para.num_types + 1));
-  fitness_bec.resize(para.population_size * (para.num_types + 1));
-  fitness_ediff.resize(para.population_size, 0.0f);
-  cost_L1reg.resize(para.population_size);
-  cost_L2reg.resize(para.population_size);
-
-  gpuSetDevice(0);
-  gpu_cost_L1reg.resize(para.population_size);
-  gpu_cost_L2reg.resize(para.population_size);
-}
-
-void Fitness::open_loss_file(const Parameters& para)
-{
-  fid_loss_out = my_fopen("loss.out", "a");
-  fprintf(fid_loss_out, "# format_version 1\n");
-  fprintf(fid_loss_out, "# output_interval %d\n", para.output_interval);
-  fprintf(fid_loss_out, "# columns generation total L1 L2");
-  if (para.model_type == 0 || para.model_type == 3) {
-    if (para.charge_mode || para.charge_vdw) {
-      fprintf(
-        fid_loss_out,
-        " rmse_energy_train rmse_force_train rmse_virial_train rmse_charge_train rmse_bec_train"
-        " rmse_energy_test rmse_force_test rmse_virial_test rmse_charge_test rmse_bec_test");
-    } else {
-      fprintf(
-        fid_loss_out,
-        " rmse_energy_train rmse_force_train rmse_virial_train"
-        " rmse_energy_test rmse_force_test rmse_virial_test");
-    }
-    if (para.has_ediff_combinations) {
-      fprintf(fid_loss_out, " rmse_ediff_train rmse_ediff_test");
-    }
-    fprintf(fid_loss_out, "\n");
-  } else if (para.model_type == 1) {
-    fprintf(fid_loss_out, " rmse_dipole_train rmse_dipole_test\n");
-  } else {
-    fprintf(fid_loss_out, " rmse_polarizability_train rmse_polarizability_test\n");
-  }
-  fflush(fid_loss_out);
-}
-
-Fitness::~Fitness()
-{
-  if (fid_loss_out != NULL) {
-    fclose(fid_loss_out);
-  }
-}
-
-void Fitness::print_training_header(const Parameters& para)
-{
-  if (para.model_type == 0 || para.model_type == 3) {
-    if (!(para.charge_mode || para.charge_vdw)) {
-      printf(
-        "%-8s %-11s %-11s %-11s %-13s %-13s %-13s %-13s %-13s %-13s",
-        "Step",
-        "Total-Loss",
-        "L1Reg-Loss",
-        "L2Reg-Loss",
-        "RMSE-E-Train",
-        "RMSE-F-Train",
-        "RMSE-V-Train",
-        "RMSE-E-Test",
-        "RMSE-F-Test",
-        "RMSE-V-Test");
-      if (para.has_ediff_combinations) {
-        printf(" %-13s %-13s", "RMSE-D-Train", "RMSE-D-Test");
-      }
-      printf("\n");
-    } else {
-      printf(
-        "%-8s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s",
-        "Step",
-        "Total",
-        "L1Reg",
-        "L2Reg",
-        "E-Train",
-        "F-Train",
-        "V-Train",
-        "Q-Train",
-        "Z-Train",
-        "E-Test",
-        "F-Test",
-        "V-Test",
-        "Q-Test",
-        "Z-Test");
-      if (para.has_ediff_combinations) {
-        printf(" %-9s %-9s", "D-Train", "D-Test");
-      }
-      printf("\n");
-    }
-  } else {
-    printf(
-      "%-8s %-11s %-11s %-11s %-13s %-13s\n",
-      "Step",
-      "Total-Loss",
-      "L1Reg-Loss",
-      "L2Reg-Loss",
-      "RMSE-P-Train",
-      "RMSE-P-Test");
-  }
+  potential.print_training_header();
 }
 
 void Fitness::compute(
@@ -310,58 +51,16 @@ void Fitness::compute(
   const int* gpu_type_of_variable,
   float* fitness_total)
 {
-  int deviceCount;
-  CHECK(gpuGetDeviceCount(&deviceCount));
-  int population_iter = (para.population_size - 1) / deviceCount + 1;
-
   if (generation == 0) {
-    std::vector<float> dummy_solution(para.number_of_variables * deviceCount, para.initial_para);
-    for (int n = 0; n < num_batches; ++n) {
-      potential.find_force(
-        para,
-        dummy_solution.data(),
-        train_set[n],
-        (para.fine_tune || para.import_q_scaler) ? false : true,
-        deviceCount);
-    }
+    potential.prepare_training();
   } else {
-    int batch_id = generation % num_batches;
-    for (int n = 0; n < population_iter; ++n) {
-      const float* individual = population + deviceCount * n * para.number_of_variables;
-      potential.find_force(para, individual, train_set[batch_id], false, deviceCount);
-      for (int m = 0; m < deviceCount; ++m) {
-        float energy_shift_per_structure_not_used;
-        auto rmse_energy_array = train_set[batch_id][m].get_rmse_energy(
-          para, energy_shift_per_structure_not_used, true, true, m);
-        auto rmse_force_array = train_set[batch_id][m].get_rmse_force(para, true, m);
-        auto rmse_virial_array = train_set[batch_id][m].get_rmse_virial(para, true, m);
-        auto rmse_charge_array = train_set[batch_id][m].get_rmse_charge(para, m);
-        auto rmse_bec_array = train_set[batch_id][m].get_rmse_bec(para, m);
-
-        for (int t = 0; t <= para.num_types; ++t) {
-          fitness_energy[deviceCount * n + m + t * para.population_size] =
-            para.lambda_e * rmse_energy_array[t];
-          fitness_force[deviceCount * n + m + t * para.population_size] =
-            para.lambda_f * rmse_force_array[t];
-          fitness_virial[deviceCount * n + m + t * para.population_size] =
-            para.lambda_v * rmse_virial_array[t];
-          fitness_charge[deviceCount * n + m + t * para.population_size] =
-            para.lambda_q * rmse_charge_array[t];
-          fitness_bec[deviceCount * n + m + t * para.population_size] =
-            para.lambda_z * rmse_bec_array[t];
-        }
-
-        const float rmse_ediff =
-          energy_difference.get_rmse_train(train_set[batch_id][m], batch_id, m);
-        fitness_ediff[deviceCount * n + m] = para.lambda_d * rmse_ediff;
-      }
-    }
+    potential.evaluate(generation % num_batches, population);
   }
-
-  regularize_NEP4(para, gpu_population, gpu_type_of_variable, fitness_total);
+  regularize(para, gpu_population, gpu_type_of_variable, fitness_total);
+  potential.accumulate_fitness(fitness_total);
 }
 
-static __global__ void gpu_find_L1_L2_NEP4(
+static __global__ void gpu_find_L1_L2(
   const int number_of_variables,
   const int g_num_types,
   const int g_type,
@@ -400,7 +99,7 @@ static __global__ void gpu_find_L1_L2_NEP4(
   }
 }
 
-void Fitness::regularize_NEP4(
+void Fitness::regularize(
   Parameters& para,
   const float* gpu_population,
   const int* gpu_type_of_variable,
@@ -416,7 +115,7 @@ void Fitness::regularize_NEP4(
       num_variables = para.number_of_variables;
     }
 
-    gpu_find_L1_L2_NEP4<<<population_size, 1024>>>(
+    gpu_find_L1_L2<<<population_size, 1024>>>(
       number_of_variables,
       para.num_types,
       t,
@@ -432,81 +131,11 @@ void Fitness::regularize_NEP4(
     for (int p = 0; p < population_size; ++p) {
       float cost_L1 = para.lambda_1 * cost_L1reg[p] / num_variables;
       float cost_L2 = para.lambda_2 * sqrt(cost_L2reg[p] / num_variables);
-      fitness_total[p + t * population_size] =
-        cost_L1 + cost_L2 + fitness_energy[p + t * population_size] +
-        fitness_force[p + t * population_size] + fitness_virial[p + t * population_size] +
-        fitness_charge[p + t * population_size] + fitness_bec[p + t * population_size] +
-        fitness_ediff[p];
+      fitness_total[p + t * population_size] = cost_L1 + cost_L2;
       fitness_L1[p + t * population_size] = cost_L1;
       fitness_L2[p + t * population_size] = cost_L2;
     }
   }
-}
-
-void Fitness::output(
-  bool is_stress,
-  int num_components,
-  FILE* fid,
-  float* prediction,
-  float* reference,
-  Dataset& dataset,
-  const int nc)
-{
-  for (int n = 0; n < num_components; ++n) {
-    int offset = n * dataset.N + dataset.Na_sum_cpu[nc];
-    float data_nc = 0.0f;
-    for (int m = 0; m < dataset.Na_cpu[nc]; ++m) {
-      data_nc += prediction[offset + m];
-    }
-    if (!is_stress) {
-      fprintf(fid, "%g ", data_nc / dataset.Na_cpu[nc]);
-    } else {
-      fprintf(fid, "%g ", data_nc / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION);
-    }
-  }
-  for (int n = 0; n < num_components; ++n) {
-    float ref_value = reference[n * dataset.Nc + nc];
-    if (is_stress) {
-      if (ref_value > -1e5) {
-        ref_value *= dataset.Na_cpu[nc] / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION;
-      }
-    }
-    if (n == num_components - 1) {
-      fprintf(fid, "%g\n", ref_value);
-    } else {
-      fprintf(fid, "%g ", ref_value);
-    }
-  }
-}
-
-void Fitness::output_atomic(
-  int num_components,
-  FILE* fid,
-  float* prediction,
-  float* reference,
-  Dataset& dataset,
-  const int nc)
-{
-  int offset = dataset.Na_sum_cpu[nc];
-  for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
-    for (int n = 0; n < num_components; ++n) {
-      int index = n * dataset.N + offset + m;
-      fprintf(fid, "%g ", prediction[index]);
-    }
-    for (int n = 0; n < num_components; ++n) {
-      float ref_value = reference[n * dataset.N + offset + m];
-      if (n == num_components - 1) {
-        fprintf(fid, "%g\n", ref_value);
-      } else {
-        fprintf(fid, "%g ", ref_value);
-      }
-    }
-  }
-}
-
-void Fitness::write_potential(FILE* fid_nep, Parameters& para, float* elite)
-{
-  potential.write_model(fid_nep, para, elite, max_NN_radial, max_NN_angular);
 }
 
 void Fitness::get_save_potential_label(Parameters& para, const int generation, std::string& label) {
@@ -529,312 +158,22 @@ void Fitness::report_error(
   const int best_index,
   float* elite)
 {
-  if (0 == (generation + 1) % para.output_interval) {
-    const int fitness_index = para.num_types * para.population_size + best_index;
-    const float loss_L1 = fitness_L1[fitness_index];
-    const float loss_L2 = fitness_L2[fitness_index];
-    int batch_id = generation % num_batches;
-    potential.find_force(para, elite, train_set[batch_id], false, 1);
-    float energy_shift_per_structure;
-    auto rmse_energy_train_array =
-      train_set[batch_id][0].get_rmse_energy(para, energy_shift_per_structure, false, true, 0);
-    auto rmse_force_train_array = train_set[batch_id][0].get_rmse_force(para, false, 0);
-    auto rmse_virial_train_array = train_set[batch_id][0].get_rmse_virial(para, false, 0);
-    auto rmse_charge_train_array = train_set[batch_id][0].get_rmse_charge(para, 0);
-    auto rmse_bec_train_array = train_set[batch_id][0].get_rmse_bec(para, 0);
-
-    float rmse_energy_train = rmse_energy_train_array.back();
-    float rmse_force_train = rmse_force_train_array.back();
-    float rmse_virial_train = rmse_virial_train_array.back();
-    float rmse_charge_train = rmse_charge_train_array.back();
-    float rmse_bec_train = rmse_bec_train_array.back();
-
-    float rmse_ediff_train = 0.0f;
-    if (para.has_ediff_combinations) {
-      rmse_ediff_train = energy_difference.get_rmse_train(train_set[batch_id][0], batch_id, 0);
+  if ((generation + 1) % para.output_interval == 0) {
+    int index = para.num_types * para.population_size + best_index;
+    TrainingReport report = {generation, generation % num_batches,
+                             loss_total, fitness_L1[index], fitness_L2[index], elite, ""};
+    if ((generation + 1) % para.save_potential == 0) {
+      get_save_potential_label(para, generation, report.checkpoint);
+      report.checkpoint += ".txt";
     }
-
-    // correct the last bias parameter in the NN
-    if (para.model_type == 0 || para.model_type == 3) {
-      elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
-    }
-
-    float rmse_energy_test = 0.0f;
-    float rmse_force_test = 0.0f;
-    float rmse_virial_test = 0.0f;
-    float rmse_charge_test = 0.0f;
-    float rmse_bec_test = 0.0f;
-    float rmse_ediff_test = 0.0f;
-    if (has_test_set) {
-      potential.find_force(para, elite, test_set, false, 1);
-      float energy_shift_per_structure_not_used;
-      auto rmse_energy_test_array =
-        test_set[0].get_rmse_energy(para, energy_shift_per_structure_not_used, false, false, 0);
-      auto rmse_force_test_array = test_set[0].get_rmse_force(para, false, 0);
-      auto rmse_virial_test_array = test_set[0].get_rmse_virial(para, false, 0);
-      auto rmse_charge_test_array = test_set[0].get_rmse_charge(para, 0);
-      auto rmse_bec_test_array = test_set[0].get_rmse_bec(para, 0);
-      rmse_energy_test = rmse_energy_test_array.back();
-      rmse_force_test = rmse_force_test_array.back();
-      rmse_virial_test = rmse_virial_test_array.back();
-      rmse_charge_test = rmse_charge_test_array.back();
-      rmse_bec_test = rmse_bec_test_array.back();
-      rmse_ediff_test = energy_difference.get_rmse_test(test_set[0], 0);
-    }
-
-    FILE* fid_nep = my_fopen("nep.txt", "w");
-    write_potential(fid_nep, para, elite);
-    fclose(fid_nep);
-
-    if (0 == (generation + 1) % para.save_potential) {
-      std::string filename;
-      get_save_potential_label(para, generation, filename);
-      filename += ".txt";
-
-      FILE* fid_nep = my_fopen(filename.c_str(), "w");
-      write_potential(fid_nep, para, elite);
-      fclose(fid_nep);
-    }
-
-    auto write_row = [&](FILE* fid) {
-      if (para.model_type == 0 || para.model_type == 3) {
-        const char* ediff_format = " %-13.5f %-13.5f";
-        if (!(para.charge_mode || para.charge_vdw)) {
-          // NEP models
-          fprintf(
-            fid,
-            "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f",
-            generation + 1,
-            loss_total,
-            loss_L1,
-            loss_L2,
-            rmse_energy_train,
-            rmse_force_train,
-            rmse_virial_train,
-            rmse_energy_test,
-            rmse_force_test,
-            rmse_virial_test);
-        } else {
-          // qNEP models:
-          fprintf(
-            fid,
-            "%-8d %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f "
-            "%-9.5f %-9.5f",
-            generation + 1,
-            loss_total,
-            loss_L1,
-            loss_L2,
-            rmse_energy_train,
-            rmse_force_train,
-            rmse_virial_train,
-            rmse_charge_train,
-            rmse_bec_train,
-            rmse_energy_test,
-            rmse_force_test,
-            rmse_virial_test,
-            rmse_charge_test,
-            rmse_bec_test);
-          ediff_format = " %-9.5f %-9.5f";
-        }
-        // The ediff columns follow all others, so that the other columns keep their positions.
-        if (para.has_ediff_combinations) {
-          fprintf(fid, ediff_format, rmse_ediff_train, rmse_ediff_test);
-        }
-      } else {
-        // TNEP models:
-        fprintf(
-          fid,
-          "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f",
-          generation + 1,
-          loss_total,
-          loss_L1,
-          loss_L2,
-          rmse_virial_train,
-          rmse_virial_test);
-      }
-      fprintf(fid, "\n");
-    };
-    write_row(stdout);
-    write_row(fid_loss_out);
-    fflush(stdout);
-    fflush(fid_loss_out);
-
-    if (has_test_set) {
-      copy_predictions_to_host(para, test_set[0]);
-      std::vector<std::pair<Dataset*, int>> structures;
-      for (int nc = 0; nc < test_set[0].Nc; ++nc) {
-        structures.emplace_back(&test_set[0], nc);
-      }
-      write_predictions(para, "test", structures);
-    }
+    potential.report_error(report);
   }
-
-  if (0 == (generation + 1) % 1000) {
+  if ((generation + 1) % 1000 == 0) {
     predict(para, elite);
   }
 }
 
-void Fitness::copy_predictions_to_host(Parameters& para, Dataset& dataset)
+void Fitness::predict(Parameters&, float* elite)
 {
-  dataset.energy.copy_to_host(dataset.energy_cpu.data());
-  dataset.virial.copy_to_host(dataset.virial_cpu.data());
-  dataset.force.copy_to_host(dataset.force_cpu.data());
-  if (para.charge_mode || para.charge_vdw) {
-    dataset.charge.copy_to_host(dataset.charge_cpu.data());
-    if (para.has_bec) {
-      dataset.bec.copy_to_host(dataset.bec_cpu.data());
-    }
-  }
-}
-
-void Fitness::update_energy_force_virial(
-  FILE* fid_energy,
-  FILE* fid_force,
-  FILE* fid_virial,
-  FILE* fid_stress,
-  Dataset& dataset,
-  const int nc)
-{
-  int offset = dataset.Na_sum_cpu[nc];
-  for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
-    int n = offset + m;
-    fprintf(
-      fid_force,
-      "%g %g %g %g %g %g\n",
-      dataset.force_cpu[n],
-      dataset.force_cpu[n + dataset.N],
-      dataset.force_cpu[n + dataset.N * 2],
-      dataset.force_ref_cpu[n],
-      dataset.force_ref_cpu[n + dataset.N],
-      dataset.force_ref_cpu[n + dataset.N * 2]);
-  }
-
-  output(
-    false, 1, fid_energy, dataset.energy_cpu.data(), dataset.energy_ref_cpu.data(), dataset, nc);
-
-  output(
-    false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset, nc);
-  output(
-    true, 6, fid_stress, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset, nc);
-}
-
-void Fitness::update_charge(FILE* fid_charge, Dataset& dataset, const int nc)
-{
-  for (int m = 0; m < dataset.Na_cpu[nc]; ++m) {
-    fprintf(fid_charge, "%g\n", dataset.charge_cpu[dataset.Na_sum_cpu[nc] + m]);
-  }
-}
-
-void Fitness::update_bec(FILE* fid_bec, Dataset& dataset, const int nc)
-{
-  output_atomic(9, fid_bec, dataset.bec_cpu.data(), dataset.bec_ref_cpu.data(), dataset, nc);
-}
-
-void Fitness::update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic, const int nc)
-{
-  if (!atomic) {
-    output(
-      false, 3, fid_dipole, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset, nc);
-  } else {
-    output_atomic(
-      3, fid_dipole, dataset.virial_cpu.data(), dataset.avirial_ref_cpu.data(), dataset, nc);
-  }
-}
-
-void Fitness::update_polarizability(
-  FILE* fid_polarizability, Dataset& dataset, bool atomic, const int nc)
-{
-  if (!atomic) {
-    output(
-      false,
-      6,
-      fid_polarizability,
-      dataset.virial_cpu.data(),
-      dataset.virial_ref_cpu.data(),
-      dataset,
-      nc);
-  } else {
-    output_atomic(
-      6,
-      fid_polarizability,
-      dataset.virial_cpu.data(),
-      dataset.avirial_ref_cpu.data(),
-      dataset,
-      nc);
-  }
-}
-
-void Fitness::write_predictions(
-  Parameters& para,
-  const std::string& label,
-  const std::vector<std::pair<Dataset*, int>>& structures)
-{
-  auto open = [&label](const char* quantity) {
-    return my_fopen((std::string(quantity) + "_" + label + ".out").c_str(), "w");
-  };
-  if (para.model_type == 0 || para.model_type == 3) {
-    const bool has_charge = para.charge_mode || para.charge_vdw;
-    FILE* fid_force = open("force");
-    FILE* fid_energy = open("energy");
-    FILE* fid_virial = open("virial");
-    FILE* fid_stress = open("stress");
-    FILE* fid_charge = has_charge ? open("charge") : nullptr;
-    FILE* fid_bec = has_charge && para.has_bec ? open("bec") : nullptr;
-    for (const auto& structure : structures) {
-      Dataset& dataset = *structure.first;
-      update_energy_force_virial(
-        fid_energy, fid_force, fid_virial, fid_stress, dataset, structure.second);
-      if (fid_charge) {
-        update_charge(fid_charge, dataset, structure.second);
-      }
-      if (fid_bec) {
-        update_bec(fid_bec, dataset, structure.second);
-      }
-    }
-    fclose(fid_energy);
-    fclose(fid_force);
-    fclose(fid_virial);
-    fclose(fid_stress);
-    if (fid_charge) {
-      fclose(fid_charge);
-    }
-    if (fid_bec) {
-      fclose(fid_bec);
-    }
-  } else if (para.model_type == 1) {
-    FILE* fid_dipole = open("dipole");
-    for (const auto& structure : structures) {
-      update_dipole(fid_dipole, *structure.first, para.atomic_v, structure.second);
-    }
-    fclose(fid_dipole);
-  } else if (para.model_type == 2) {
-    FILE* fid_polarizability = open("polarizability");
-    for (const auto& structure : structures) {
-      update_polarizability(fid_polarizability, *structure.first, para.atomic_v, structure.second);
-    }
-    fclose(fid_polarizability);
-  }
-}
-
-void Fitness::predict(Parameters& para, float* elite)
-{
-  // The batches need not follow the order of train.xyz. predict evaluates every batch first and
-  // then writes the structures in the order of index_in_file.
-  std::vector<std::pair<Dataset*, int>> structures;
-  for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-    Dataset& dataset = train_set[batch_id][0];
-    potential.find_force(para, elite, train_set[batch_id], false, 1);
-    copy_predictions_to_host(para, dataset);
-    for (int nc = 0; nc < dataset.Nc; ++nc) {
-      structures.emplace_back(&dataset, nc);
-    }
-  }
-  std::sort(
-    structures.begin(),
-    structures.end(),
-    [](const std::pair<Dataset*, int>& a, const std::pair<Dataset*, int>& b) {
-      return a.first->structures[a.second].index_in_file <
-             b.first->structures[b.second].index_in_file;
-    });
-  write_predictions(para, "train", structures);
+  potential.predict(elite);
 }

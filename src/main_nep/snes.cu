@@ -69,14 +69,14 @@ SNES::SNES(Parameters& para, Potential& potential) : potential(potential)
     curand_states.data(), N, para.seed >= 0 ? para.seed : 1234567);
   GPU_CHECK_KERNEL
 
-  potential.initialize_parameters(para, rng, mu, sigma);
+  potential.initialize_parameters(rng, mu, sigma);
   gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_from_host(mu.data());
   gpu_sigma.copy_from_host(sigma.data());
 
   calculate_utility();
   gpu_utility.copy_from_host(utility.data());
-  potential.parameter_groups(para, type_of_variable);
+  potential.parameter_groups(type_of_variable);
   gpu_type_of_variable.copy_from_host(type_of_variable.data());
 }
 
@@ -263,5 +263,5 @@ void SNES::output_mu_and_sigma(Parameters& para, const char* filename)
   gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_to_host(mu.data());
   gpu_sigma.copy_to_host(sigma.data());
-  potential.write_restart(filename, para, mu, sigma);
+  potential.write_restart(filename, mu, sigma);
 }

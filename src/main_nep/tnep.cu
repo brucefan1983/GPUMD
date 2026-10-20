@@ -25,6 +25,7 @@ J. Chem. Theory Comput. 20, 3273 (2024).
 #include "dataset.cuh"
 #include "mic.cuh"
 #include "tnep.cuh"
+#include "nep_output.cuh"
 #include "nep_model.cuh"
 #include "nep_init.cuh"
 #include "nep_io.cuh"
@@ -36,6 +37,7 @@ J. Chem. Theory Comput. 20, 3273 (2024).
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <cstring>
+#include <algorithm>
 
 static __global__ void find_descriptors_radial(
   const int N,
@@ -848,31 +850,127 @@ void TNEP::configure(Parameters& para)
 }
 
 void TNEP::initialize_parameters(
-  const Parameters& para, std::mt19937& rng,
+  std::mt19937& rng,
   std::vector<float>& mu, std::vector<float>& sigma)
 {
+  Parameters& para = *model_parameters;
   initialize_nep_mu_and_sigma(para, rng, mu, sigma, 1);
 }
 
-void TNEP::parameter_groups(const Parameters& para, std::vector<int>& groups)
+void TNEP::parameter_groups(std::vector<int>& groups)
 {
+  Parameters& para = *model_parameters;
   find_nep_type_of_variable(para, groups, 1, para.model_type == 2 ? 2 : 1);
 }
 
-void TNEP::read_model(Parameters& para, float* parameters)
+void TNEP::read_model(float* parameters)
 {
-  read_nep_model("nep.txt", para, parameters);
-}
-
-void TNEP::write_model(
-  FILE* file, Parameters& para, const float* parameters, int max_radial, int max_angular)
-{
-  write_nep_model(file, para, parameters, max_radial, max_angular);
+  read_nep_model("nep.txt", *model_parameters, parameters);
 }
 
 void TNEP::write_restart(
-  const char* filename, const Parameters& para,
-  const std::vector<float>& mu, const std::vector<float>& sigma)
+  const char* filename, const std::vector<float>& mu, const std::vector<float>& sigma)
 {
-  write_nep_restart(filename, para, mu, sigma);
+  write_nep_restart(filename, *model_parameters, mu, sigma);
+}
+
+TNEP::TNEP(std::unique_ptr<Parameters> model_parameters)
+  : model_parameters(std::move(model_parameters))
+{
+  configure(*this->model_parameters);
+  this->model_parameters->finish_reading();
+}
+
+int TNEP::prepare_data()
+{
+  Parameters& para = *model_parameters;
+  training.reset(new NEP_Training(para));
+  initialize(para, training->N, training->Nc, training->device_count);
+  if (para.prediction == 0) {
+    fitness_tensor.resize(para.population_size * (para.num_types + 1));
+    training->open_loss_file(para, para.model_type == 1 ?
+      " rmse_dipole_train rmse_dipole_test" :
+      " rmse_polarizability_train rmse_polarizability_test", false);
+  }
+  return training->num_batches;
+}
+
+void TNEP::prepare_training()
+{
+  Parameters& para = *model_parameters;
+  int devices = training->device_count;
+  std::vector<float> dummy_solution(para.number_of_variables * devices, para.initial_para);
+  for (int batch = 0; batch < training->num_batches; ++batch) {
+    find_force(para, dummy_solution.data(), training->train_set[batch],
+      (para.fine_tune || para.import_q_scaler) ? false : true, devices);
+  }
+}
+
+void TNEP::evaluate(int batch, const float* population)
+{
+  Parameters& para = *model_parameters;
+  int devices = training->device_count;
+  for (int first = 0; first < para.population_size; first += devices) {
+    int count = std::min(devices, para.population_size - first);
+    find_force(para, population + first * para.number_of_variables,
+      training->train_set[batch], false, count);
+    for (int device = 0; device < count; ++device) {
+      Dataset& data = training->train_set[batch][device];
+      auto error = data.get_rmse_virial(para, true, device);
+      for (int t = 0; t <= para.num_types; ++t) {
+        fitness_tensor[first + device + t * para.population_size] = para.lambda_v * error[t];
+      }
+    }
+  }
+}
+
+void TNEP::accumulate_fitness(float* fitness_total)
+{
+  Parameters& para = *model_parameters;
+  for (int i = 0; i < para.population_size * (para.num_types + 1); ++i) {
+    fitness_total[i] += fitness_tensor[i];
+  }
+}
+
+void TNEP::print_training_header()
+{
+  print_tnep_header();
+}
+
+void TNEP::report_error(const TrainingReport& report)
+{
+  Parameters& para = *model_parameters;
+  find_force(para, report.parameters, training->train_set[report.batch], false, 1);
+  Dataset& train_data = training->train_set[report.batch][0];
+  float train = train_data.get_rmse_virial(para, false, 0).back();
+  float test = 0.0f;
+  if (training->has_test_set) {
+    find_force(para, report.parameters, training->test_set, false, 1);
+    test = training->test_set[0].get_rmse_virial(para, false, 0).back();
+  }
+  training->write_model(para, report);
+  write_tnep_error(stdout, report, train, test);
+  write_tnep_error(training->fid_loss_out, report, train, test);
+  if (training->has_test_set) {
+    Dataset& data = training->test_set[0];
+    data.virial.copy_to_host(data.virial_cpu.data());
+    std::vector<std::pair<Dataset*, int>> structures;
+    for (int nc = 0; nc < data.Nc; ++nc) {
+      structures.emplace_back(&data, nc);
+    }
+    write_tnep_predictions("test", structures, para.model_type == 1, para.atomic_v);
+  }
+}
+
+void TNEP::predict(float* parameters)
+{
+  Parameters& para = *model_parameters;
+  for (int batch = 0; batch < training->num_batches; ++batch) {
+    find_force(para, parameters, training->train_set[batch], false, 1);
+    Dataset& data = training->train_set[batch][0];
+    data.virial.copy_to_host(data.virial_cpu.data());
+  }
+  std::vector<std::pair<Dataset*, int>> structures;
+  training->get_prediction_order(structures);
+  write_tnep_predictions("train", structures, para.model_type == 1, para.atomic_v);
 }
