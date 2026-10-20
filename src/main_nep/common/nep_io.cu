@@ -451,7 +451,7 @@ static void write_nep_txt(
 void write_nep_model(
   FILE* file, NEP_Parameters& para, const float* parameters, int max_radial, int max_angular)
 {
-  gpuSetDevice(0);
+  CHECK(gpuSetDevice(0));
   para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
   write_nep_txt(file, para, parameters, max_radial, max_angular);
 }
