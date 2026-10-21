@@ -46,9 +46,11 @@ with::
 
 Each group needs at least three distinct ``response_coordinate`` values, and
 the trainer sorts each complete group by this coordinate and derives
-``d spin / d response_coordinate`` with the same second-order, three-point
-nonuniform finite difference used by TorchNEP. The coordinate does not have
-to be globally comparable between groups.
+``d spin / d response_coordinate`` using second-order, three-point nonuniform
+weights in local spin coordinates. Angular displacements use the sphere
+logarithm at the current spin; magnitude differences are differentiated
+separately. This avoids a spurious radial tangent for a fixed-length rotation.
+The coordinate does not have to be globally comparable between groups.
 
 For a rotation angle :math:`\theta`, ``response_coordinate`` should be
 :math:`\theta` in radians. ``spin`` must contain the moments from the final
@@ -58,10 +60,17 @@ Atoms excluded by :ref:`spin_dof_type <kw_spin_dof_type>` are masked from the
 derived response automatically. ``spin_tangent:R:3`` is not accepted as an
 input label.
 
-With this tangent convention,
-:math:`R_a=-\partial U_a/\partial\theta`. Matching TorchNEP's
-``neutral-group-balanced-mean-plus-centered-mforce-generator-v3`` contract,
-each group contributes equally. A single group-balanced target-response RMS
-normalizes both the centered-shape and group-mean Huber terms; the latter has
-weight 0.25. Coordinates define the path derivative but do not create an
-additional reliability weight.
+The rotation path must be resolved: angular separations within a stencil must
+be less than pi. Antipodal samples are ambiguous and require intermediate
+frames. At zero moment the tangent uses Cartesian differences. Constant-rate
+great-circle rotations are differentiated exactly apart from floating-point
+rounding; other paths retain the finite-stencil approximation.
+
+With this tangent convention, :math:`R_a\approx-\partial U_a/\partial\theta`.
+Each group contributes equally and uses its own uncentered target-response
+RMS, with a floor of :math:`10^{-6}`, to normalize its centered-shape and
+group-mean Huber terms. The latter has weight 0.25. A large exchange response
+in one group therefore cannot suppress a small anisotropy response in another.
+Coordinates do not create an additional reliability weight. This GPUMD
+reduction differs from the older shared-scale, Cartesian-tangent policy;
+cross-implementation parity with TorchNEP must be checked explicitly.

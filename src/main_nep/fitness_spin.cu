@@ -658,21 +658,16 @@ float ResponseLoss::value() const
     return 0.0f;
   }
 
-  double group_power_sum = 0.0;
-  for (const auto& item : groups) {
-    const auto& members = item.second;
-    double target_power = 0.0;
-    for (const auto* point : members) {
-      target_power += point->target * point->target;
-    }
-    group_power_sum += target_power / members.size();
-  }
-  const double scale = std::max(
-    std::sqrt(group_power_sum / groups.size()), 1.0e-6);
   double shape_loss = 0.0;
   double mean_loss = 0.0;
   for (const auto& item : groups) {
     const auto& members = item.second;
+    // Equal group weighting also requires a group-local target scale: a strong
+    // exchange scan must not suppress a weak anisotropy scan. Retain the
+    // absolute floor for zero/near-zero reference responses.
+    double target_power = 0.0;
+    for (const auto* point : members) target_power += point->target * point->target;
+    const double scale = std::max(std::sqrt(target_power / members.size()), 1.0e-6);
     double mean_prediction = 0.0;
     double mean_target = 0.0;
     for (const auto* point : members) {

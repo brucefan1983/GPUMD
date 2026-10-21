@@ -93,12 +93,10 @@ def grouped_response_loss(predicted, metadata):
         absolute = abs(value)
         return 0.5 * value * value if absolute <= 1.0 else absolute - 0.5
 
-    scale = max(math.sqrt(statistics.fmean(
-        statistics.fmean(point[2] * point[2] for point in members)
-        for members in groups.values())), 1.0e-6)
     shape_terms = []
     mean_terms = []
     for members in groups.values():
+        scale = max(math.sqrt(statistics.fmean(point[2] * point[2] for point in members)), 1.0e-6)
         mean_prediction = statistics.fmean(point[1] for point in members)
         mean_target = statistics.fmean(point[2] for point in members)
         shape_terms.append(statistics.fmean(huber(
