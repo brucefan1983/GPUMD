@@ -139,7 +139,7 @@ def validate_parser(root):
         "invalid_spin_cutoff_arity": NEP_IN.replace(
             "spin_cutoff 6.0", "spin_cutoff 4.0 5.0 6.0"),
         "removed_spin_chiral": NEP_IN.replace("spin_soc 1", "spin_soc 1\nspin_chiral 1"),
-        "curriculum_requires_o3": NEP_IN.replace("spin_order 3", "spin_order 2").replace(
+        "removed_curriculum": NEP_IN.replace("spin_order 3", "spin_order 2").replace(
             "lambda_tau 0.5", "lambda_tau 0.5\nspin_curriculum 1"),
         "response_requires_metadata": NEP_IN.replace(
             "lambda_tau 0.5", "lambda_tau 0.5\nlambda_spin_response 0.3"),
@@ -160,6 +160,8 @@ def validate_parser(root):
     ).replace("generation 1", "generation 0")
     tangent_xyz = response_xyz().replace(
         "mforce:R:3", "mforce:R:3:spin_tangent:R:3")
+    tangent_xyz = "\n".join(line + " 0 0 0" if i % 6 >= 2 else line
+                            for i, line in enumerate(tangent_xyz.splitlines())) + "\n"
     write_case(tangent_case, tangent_input, tangent_xyz)
     result = run(NEP, tangent_case)
     results["spin_tangent_is_not_a_label"] = result.returncode
@@ -171,26 +173,22 @@ def validate_parser(root):
 def validate_response_training(root):
     nep_in = NEP_IN.replace(
         "lambda_tau 0.5",
-        "lambda_tau 0.5\nspin_curriculum 1\nlambda_spin_response 0.3",
+        "lambda_tau 0.5\nlambda_spin_response 0.3",
     ).replace("generation 1", "generation 3")
     write_case(root, nep_in.replace("batch 3", "batch 1"))
     (root / "response.xyz").write_text(response_xyz())
     result = run(NEP, root)
     if result.returncode:
         raise RuntimeError(result.stdout + result.stderr)
-    if "O3 curriculum generation 1: perturbation_scale=0.000000" not in result.stdout:
-        raise AssertionError("missing closed-O3 curriculum state")
-    if "O3 curriculum generation 2: perturbation_scale=1.000000" not in result.stdout:
-        raise AssertionError("missing full-O3 curriculum state")
     loss = (root / "loss.out").read_text().splitlines()[-1]
     if re.search(r"\b(?:nan|inf)\b", loss, re.IGNORECASE):
         raise AssertionError("response training produced a non-finite loss")
-    return {"training_loss": loss, "curriculum_schedule": "0 -> 1"}
+    return {"training_loss": loss}
 
 
 def validate_training_and_runtime(
         root, enable_zbl=False, spin_compress=2, typewise_spin_cutoff=False,
-        all_spin_types=False, check_restart=False, torque_only=False):
+        all_spin_types=False, check_restart=False, torque_only=False, wide_spin_cutoff=False):
     root.mkdir()
     training = root / "training"
     nep_in = NEP_IN.replace("version 4", "version 4\nzbl 2.5") \
@@ -207,7 +205,11 @@ def validate_training_and_runtime(
         # Nontrivial channel/basis axes expose incorrect parameter transposes.
         nep_in = nep_in.replace("n_max 0 0", "n_max 4 4").replace(
             "basis_size 0 0", "basis_size 2 2")
-    write_case(training, nep_in)
+    xyz = TRAIN_XYZ
+    if wide_spin_cutoff:
+        nep_in = nep_in.replace("spin_cutoff 6.0", "spin_cutoff 7.0").replace("batch 3", "batch 1")
+        xyz = xyz.replace("24 0 0 0 24 0 0 0 24", "13 0 0 0 13 0 0 0 13").replace("Ge 2.8", "Ge 8.0")
+    write_case(training, nep_in, xyz)
     result = run(NEP, training)
     if result.returncode:
         raise RuntimeError(result.stdout + result.stderr)
@@ -240,7 +242,8 @@ def validate_training_and_runtime(
     expected_spin_cutoff = (
         "spin_cutoff 5.0000000000000000e+00 7.0000000000000000e+00\n"
         if typewise_spin_cutoff else
-        "spin_cutoff 6.0000000000000000e+00\n")
+        ("spin_cutoff 7.0000000000000000e+00\n" if wide_spin_cutoff else
+         "spin_cutoff 6.0000000000000000e+00\n"))
     if expected_spin_cutoff not in checkpoint:
         raise AssertionError("Spin3 checkpoint did not preserve spin_cutoff arity")
 
@@ -249,9 +252,9 @@ def validate_training_and_runtime(
         raise AssertionError("spin3 training produced a non-finite loss")
     loss_values = [float(value) for value in loss.split()]
     regularization_only = loss_values[2] + loss_values[3]
-    if loss_values[1] <= regularization_only + 1.0e-4:
+    if abs(loss_values[1] - regularization_only) > 2.0e-5:
         raise AssertionError(
-            "generation-one total loss does not contain the training fitness")
+            "generation zero must use upstream regularization-only fitness")
 
     spin_descriptor_dims = {1: 21, 2: 55, 3: 91}
     structural_dim = 15 if check_restart else 3
@@ -283,7 +286,7 @@ def validate_training_and_runtime(
     runtime = root / "runtime"
     runtime.mkdir()
     shutil.copy(training / "nep.txt", runtime / "nep.txt")
-    model_lines = TRAIN_XYZ.splitlines()[:6]
+    model_lines = xyz.splitlines()[:6]
     model_lines[1] = model_lines[1].replace("mforce:R:3", "mforce:R:3:group:I:1")
     for i in range(2, 6):
         model_lines[i] += " 0" if i < 4 else " 1"
@@ -426,25 +429,25 @@ def validate_native_compiled_checkpoint(root):
         cases = []
         for compiled in (0, 1):
             case = root / f"c{channels}-compiled-{compiled}"
-            # Upstream writes atom-resolved training output every 1000 steps;
-            # output_interval controls loss.out only. Freeze all search draws.
-            output_config = config.replace("generation 1\n", "generation 1000\n")
-            output_config = output_config.replace("output_interval 1\n", "output_interval 1000\n")
-            output_config = output_config.replace("save_potential 1 0 0", "save_potential 1000 0 0")
+            # Report test outputs at fixed parameters after the first physical evaluation.
+            output_config = config.replace("generation 1\n", "generation 2\n")
+            output_config = output_config.replace("output_interval 1\n", "output_interval 1\n")
+            output_config = output_config.replace("save_potential 1 0 0", "save_potential 1 0 0")
             write_case(case, output_config + f"nep_compile {compiled}\n", xyz)
+            (case / "test.xyz").write_text(xyz)
             (case / "nep.txt").write_text(checkpoint)
             (case / "nep.restart").write_text(frozen)
             result = run(NEP, case)
             if result.returncode:
                 raise RuntimeError(result.stdout + result.stderr)
             if compiled and (
-                    "Compile specialized NEP training kernels" not in result.stdout or
+                    "Compile specialized Spin3 training kernels" not in result.stdout or
                     "specialization disabled" in (result.stdout + result.stderr).lower()):
                 raise AssertionError("Spin3 JIT did not compile successfully")
             cases.append(case)
         errors = {}
         for name, width in (("energy", 1), ("force", 3), ("virial", 6), ("mforce", 3)):
-            values = [columns(case / f"{name}_train.out", width) for case in cases]
+            values = [columns(case / f"{name}_test.out", width) for case in cases]
             error = maximum_error(*values)
             tolerance = parity_tolerance(*values)
             if not math.isfinite(error) or error > tolerance:
@@ -481,6 +484,8 @@ def main():
                 typewise_spin_cutoff=True, torque_only=True),
             "zbl_training_runtime": validate_training_and_runtime(
                 root / "zbl", enable_zbl=True),
+            "magnetic_cutoff_small_cell": validate_training_and_runtime(
+                root / "wide-spin-cutoff", all_spin_types=True, wide_spin_cutoff=True),
             "channel_layout_restart": validate_training_and_runtime(
                 root / "restart", spin_compress=3,
                 all_spin_types=True, check_restart=True),

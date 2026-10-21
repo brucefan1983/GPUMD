@@ -51,5 +51,4 @@ search mean is performed during restart.
 
 As in the existing SNES lifecycle, a restart begins a new requested generation
 segment and resets RNG initialization. The legacy file does not store global
-generation or curriculum progress; it is not an exact replay of an uninterrupted
-trajectory. Use ``spin_curriculum 0`` when continuing a completed curriculum.
+generation progress; it is not an exact replay of an uninterrupted trajectory.

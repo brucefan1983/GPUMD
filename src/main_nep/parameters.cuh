@@ -14,56 +14,15 @@
 */
 
 #pragma once
-#include "utilities/gpu_vector.cuh"
-#include <string>
-#include <vector>
 
-// the model hyperparameters as recorded in the header of a nep.txt file
-struct NepTxtHeader {
-  int spin_mode = 0;
-  std::string model_token;
-  int version;
-  int model_type;
-  int charge_mode;
-  int vdw;
-  int charge_vdw;
-  bool enable_zbl;
-  bool flexible_zbl;
-  bool use_typewise_cutoff_zbl;
-  float zbl_rc_inner;
-  float zbl_rc_outer;
-  float typewise_cutoff_zbl_factor;
-  int num_types;
-  std::vector<std::string> elements;
-  bool has_multiple_cutoffs;
-  std::vector<float> rc_radial;
-  std::vector<float> rc_angular;
-  int n_max_radial;
-  int n_max_angular;
-  int basis_size_radial;
-  int basis_size_angular;
-  int L_max;
-  int has_q_222; // as written to nep.txt, that is 2 or 0
-  int has_q_1111;
-  int has_q_112;
-  int has_q_123;
-  int has_q_233;
-  int has_q_134;
-  int num_neurons1;
-  int num_neurons2;
-  int number_of_header_lines; // 6 without a zbl line, 7 with one
-};
-
-// parse the header of a nep.txt file; returns false and sets error if it cannot be parsed
-bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std::string& error);
-
+// Settings used by the optimizer and scheduler, independent of the model.
 class Parameters
 {
 public:
   Parameters();
+  bool parse_keyword(const char** param, int num_param);
+  void set_regularization_defaults();
 
-  // parameters to be read in
-  int version;            // NEP version; only NEP4 is supported
   int batch_size;         // number of configurations in one batch
   int num_types;          // number of atom types
   int population_size;    // population size for SNES
@@ -73,222 +32,32 @@ public:
   int save_potential_format;   // format of checkpoint nep.txt file name
   int save_potential_restart;  // if restart files should be written or not. 0=no, 1=yes
   int output_interval;    // number of generations between writing loss.out, nep.txt, nep.restart and related output
-  int num_neurons1;       // number of neurons in the first hidden layer
-  int num_neurons2;       // number of neurons in the second hidden layer; 0 if unused
-  int num_hidden_layers;  // number of hidden layers
-  int basis_size_radial;
-  int basis_size_angular;
-  int n_max_radial;       // maximum order of the radial Chebyshev polynomials
-  int n_max_angular;      // maximum order of the angular Chebyshev polynomials
-  int L_max;              // maximum order of the three-body spherical harmonics
-  int has_q_222;          // has q_222
-  int has_q_1111;         // has q_1111
-  int has_q_112;          // has q_112
-  int has_q_123;          // has q_123
-  int has_q_233;          // has q_233
-  int has_q_134;          // has q_134
   float lambda_1;         // weight parameter for L1 regularization loss
   float lambda_2;         // weight parameter for L2 regularization loss
-  float lambda_e;         // weight parameter for energy RMSE loss
-  float lambda_f;         // weight parameter for force RMSE loss
-  float lambda_v;         // weight parameter for virial RMSE loss
-  float lambda_m;         // weight parameter for magnetic-force RMSE loss
-  float lambda_tau;       // weight parameter for spin-torque RMSE loss
-  float lambda_spin_response; // weight for grouped magnetic-response loss
-  float lambda_shear;     // extra weight parameter for shear virial
-  float lambda_q;         // weight for global charge
-  float lambda_z;         // weight for BEC
-  float lambda_d;         // weight for the energy-difference loss over the pairs in ediff.in
-  float force_delta;      // a parameter used to modify the force loss
-  bool enable_zbl;        // true for including the universal ZBL potential
-  bool flexible_zbl;      // true for including the flexible ZBL potential
-  float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
-  float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
-  int model_type; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
   int prediction; // 0=no, 1=yes
   float initial_para;
   float sigma0;
-  int atomic_v;
-  bool use_typewise_cutoff_zbl;
-  float typewise_cutoff_zbl_factor;
-  int output_descriptor;
-  int charge_mode; // add dynamic charge to NEP potential model
-  int spin_mode;   // 0=ordinary NEP, 3=Spin3 angular-exchange O/C polynomial
-  int spin_compress;
-  int spin_order;
-  int spin_soc;
-  int spin_curriculum;
-  int spin_basis_size[2];
-  int spin_l_max[3];
-  float spin_cutoff;
-  int vdw;         // add environment-dependent vdW to ordinary NEP
-  int charge_vdw;  // combined charge-vdW model
-  bool has_bec = false; // check if there are target BEC values
-  // set by EnergyDifference when ediff.in resolves a training combination
-  bool has_ediff_combinations = false;
-  int flip_charge = 0; // 1 for flipping charges upon restarting
-  int fine_tune = 0; // fine_tune option; 0=no, 1=yes
-  int fine_tune_descriptor = 1; // fine-tune descriptor; 0=no, 1=yes
-  std::string fine_tune_nep_txt = "";
-  std::string fine_tune_nep_restart = "";
-  bool spin_restart = false; // restore the model scaler paired with legacy mu/sigma files
-  bool import_q_scaler = false; // read q_scaler from the local nep.txt instead of recomputing it
-  bool nep_compile = true; // runtime-specialize NEP-family training kernels
-
-  // check if a parameter has been set:
-  bool is_model_type_set;
   bool is_prediction_set;
-  bool is_version_set;
-  bool is_type_set;
-  bool is_cutoff_set;
-  bool is_n_max_set;
-  bool is_basis_size_set;
-  bool is_l_max_set;
-  bool is_neuron_set;
   bool is_lambda_1_set;
   bool is_lambda_2_set;
-  bool is_lambda_e_set;
-  bool is_lambda_f_set;
-  bool is_lambda_v_set;
-  bool is_lambda_m_set;
-  bool is_lambda_tau_set;
-  bool is_lambda_spin_response_set;
-  bool is_atomic_v_set;
-  bool is_lambda_shear_set;
-  bool is_lambda_d_set;
   bool is_batch_set;
   bool is_population_set;
   bool is_seed_set;
   bool is_generation_set;
   bool is_save_potential_set;
   bool is_output_interval_set;
-  bool is_type_weight_set;
-  bool is_force_delta_set;
-  bool is_zbl_set;
-  bool is_use_typewise_cutoff_zbl_set;
-  bool is_charge_mode_set;
-  bool is_spin_mode_set;
-  bool is_spin_compress_set;
-  bool is_spin_order_set;
-  bool is_spin_soc_set;
-  bool is_spin_curriculum_set;
-  bool is_spin_basis_size_set;
-  bool is_spin_l_max_set;
-  bool is_spin_cutoff_set;
-  bool is_spin_dof_type_set;
-  bool is_spin_env_type_set;
-  bool is_vdw_set;
-  bool is_charge_vdw_set;
-
-  // other parameters
-  int dim;                            // dimension of the descriptor vector
-  int dim_radial;                     // number of radial descriptor components
-  int dim_angular;                    // number of angular descriptor components
-  int dim_struct;                     // structural descriptor dimension
-  int dim_spin;                       // spin descriptor dimension
   int number_of_variables;            // total number of parameters (NN and descriptor)
-  int number_of_variables_ann;        // number of parameters in the ANN only
-  int number_of_variables_ann_1;      // number of parameters in the ANN for one element
-  int number_of_variables_descriptor; // number of parameters in the descriptor only
-  int number_of_variables_descriptor_spin;
-  int number_of_variables_spin_projection;
-  int spin_order3_descriptor_start;
-  int number_of_nep_txt_header_lines = 0; // header length of the nep.txt file that has been checked
-
-  // some arrays
-
-  std::vector<float> type_weight_cpu; // relative force weight for different atom types (CPU)
-  std::vector<float> q_scaler_cpu;    // used to scale some descriptor components (CPU)
-  std::vector<std::string> elements;  // atom symbols
-  std::vector<std::string> spin_dof_type_names;
-  std::vector<std::string> spin_env_type_names;
-  std::vector<int> spin_dof_type_active;
-  std::vector<int> spin_env_type_active;
-  std::vector<float> spin_baseline;
-  std::vector<float> spin_cutoff_by_type;
-  std::vector<int> atomic_numbers;    // atomic numbers
-  std::vector<float> zbl_para;        // parameters of zbl potential
-  std::vector<float> rc_radial;       // radial cutoff distance
-  std::vector<float> rc_angular;      // angular cutoff distance
-  float rc_radial_max = 0.0f;         // maximal radial cutoff
-  float rc_angular_max = 0.0f;        // maximal angular cutoff
-  bool has_multiple_cutoffs = false;
-
-  GPU_Vector<float> q_scaler_gpu[16]; // used to scale some descriptor components (GPU)
-  GPU_Vector<float> q_scaler_max[16]; // used to scale some descriptor components (GPU)
-  GPU_Vector<float> q_scaler_min[16]; // used to scale some descriptor components (GPU)
-  GPU_Vector<float> q_scaler_square_sum[16];
-  GPU_Vector<unsigned long long> q_scaler_count[16];
 
 private:
-  void set_default_parameters();
-  void read_nep_in();
-  void read_zbl_in();
-  void calculate_parameters();
-  bool parse_spin_keyword(const char** param, int num_param);
-  void validate_spin_parameters();
-  void calculate_spin_dimensions();
-  void report_inputs();
-  void check_existing_model();
-  void check_nep_txt(const std::string& filename, const bool fatal, const char* remedy);
-  void check_nep_restart();
-  void compare_with_nep_txt(const std::string& filename, std::vector<std::string>& mismatches);
-
-  void parse_one_keyword(std::vector<std::string>& tokens);
-
-  void parse_model_type(const char** param, int num_param);
   void parse_prediction(const char** param, int num_param);
-  void parse_version(const char** param, int num_param);
-  void parse_type(const char** param, int num_param);
-  void parse_type_weight(const char** param, int num_param);
-  void parse_zbl(const char** param, int num_param);
-  void parse_cutoff(const char** param, int num_param);
-  void parse_n_max(const char** param, int num_param);
-  void parse_basis_size(const char** param, int num_param);
-  void parse_l_max(const char** param, int num_param);
-  void parse_neuron(const char** param, int num_param);
   void parse_lambda_1(const char** param, int num_param);
   void parse_lambda_2(const char** param, int num_param);
-  void parse_lambda_e(const char** param, int num_param);
-  void parse_lambda_f(const char** param, int num_param);
-  void parse_lambda_v(const char** param, int num_param);
-  void parse_lambda_m(const char** param, int num_param);
-  void parse_lambda_tau(const char** param, int num_param);
-  void parse_lambda_spin_response(const char** param, int num_param);
-  void parse_lambda_q(const char** param, int num_param);
-  void parse_lambda_z(const char** param, int num_param);
-  void parse_lambda_d(const char** param, int num_param);
-  void parse_lambda_shear(const char** param, int num_param);
-  void parse_force_delta(const char** param, int num_param);
   void parse_batch(const char** param, int num_param);
   void parse_population(const char** param, int num_param);
   void parse_seed(const char** param, int num_param);
   void parse_generation(const char** param, int num_param);
-  void parse_initial_para(const char** param, int num_param);
-  void parse_sigma0(const char** param, int num_param);
-  void parse_atomic_v(const char** param, int num_param);
-  void parse_use_typewise_cutoff_zbl(const char** param, int num_param);
-  void parse_output_descriptor(const char** param, int num_param);
-  void parse_charge_mode(const char** param, int num_param);
-  void parse_spin_mode(const char** param, int num_param);
-  void parse_spin_compress(const char** param, int num_param);
-  void parse_spin_order(const char** param, int num_param);
-  void parse_spin_soc(const char** param, int num_param);
-  void parse_spin_curriculum(const char** param, int num_param);
-  void parse_spin_basis_size(const char** param, int num_param);
-  void parse_spin_l_max(const char** param, int num_param);
-  void parse_spin_cutoff(const char** param, int num_param);
-  void parse_spin_active_types(
-    const char** param,
-    int num_param,
-    const char* keyword,
-    std::vector<std::string>& names,
-    bool& is_set);
-  void parse_vdw(const char** param, int num_param);
-  void parse_charge_vdw(const char** param, int num_param);
-  void parse_fine_tune(const char** param, int num_param);
   void parse_save_potential(const char** param, int num_param);
   void parse_output_interval(const char** param, int num_param);
-  void parse_import_q_scaler(const char** param, int num_param);
-  void parse_nep_compile(const char** param, int num_param);
+  void parse_initial_para(const char** param, int num_param);
+  void parse_sigma0(const char** param, int num_param);
 };

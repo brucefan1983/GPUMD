@@ -24,65 +24,44 @@
 #include <random>
 #include <vector>
 class Fitness;
-class Fitness;
+class Potential;
+class Parameters;
 
 class SNES
 {
 public:
-  SNES(Parameters&, Fitness*);
+  SNES(Parameters& para, Potential& potential);
+  void run(Parameters& para, Fitness* fitness_function);
 
 protected:
+  Potential& potential;
   std::mt19937 rng;
   int maximum_generation = 10000;
   int number_of_variables = 10;
   int population_size = 20;
   float eta_sigma = 0.1f;
-  bool curriculum_enabled = false;
 
   std::vector<int> index;
   std::vector<float> fitness_total;
-  std::vector<float> fitness_L1;
-  std::vector<float> fitness_L2;
-  std::vector<float> fitness_energy;
-  std::vector<float> fitness_force;
-  std::vector<float> fitness_virial;
-  std::vector<float> fitness_charge;
-  std::vector<float> fitness_bec;
-  std::vector<float> fitness_mforce;
-  std::vector<float> fitness_tau;
-  std::vector<float> fitness_spin_response;
-  std::vector<float> fitness_ediff; // one value per member, the same for every type
   std::vector<float> population;
   std::vector<float> mu;
   std::vector<float> sigma;
   std::vector<float> utility;
-  std::vector<float> cost_L1reg;
-  std::vector<float> cost_L2reg;
   std::vector<int> type_of_variable;
-  std::vector<int> curriculum_parameter;
 
   GPU_Vector<gpurandState> curand_states;
   GPU_Vector<int> gpu_type_of_variable;
-  GPU_Vector<int> gpu_curriculum_parameter;
   GPU_Vector<int> gpu_index;
   GPU_Vector<float> gpu_utility;
   GPU_Vector<float> gpu_population;
   GPU_Vector<float> gpu_s;
   GPU_Vector<float> gpu_sigma;
   GPU_Vector<float> gpu_mu;
-  GPU_Vector<float> gpu_cost_L1reg;
-  GPU_Vector<float> gpu_cost_L2reg;
 
   void initialize_rng(const int seed);
-  void initialize_mu_and_sigma(Parameters& para);
-  void initialize_mu_and_sigma_fine_tune(Parameters& para);
   void calculate_utility();
-  void find_type_of_variable(Parameters& para);
-  void compute(Parameters&, Fitness*);
-  void create_population(float curriculum_scale);
-  void regularize(Parameters&);
-  void regularize_NEP4(Parameters& para);
+  void create_population();
   void sort_population(Parameters& para);
-  void update_mu_and_sigma(float curriculum_scale);
+  void update_mu_and_sigma();
   void output_mu_and_sigma(Parameters& para, const char* filename);
 };

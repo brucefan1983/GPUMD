@@ -583,10 +583,9 @@ angular separations below pi. Atom types excluded by ``spin_dof_type`` are
 masked from the derived tangent. See :ref:`lambda_spin_response
 <kw_lambda_spin_response>` for zero-moment and finite-stencil limitations.
 
-When :ref:`spin_curriculum <kw_spin_curriculum>` is enabled, ANN weights
-connected to order-3 magnetic coordinates are held fixed during the first
-third of SNES training, released linearly during the second third, and fully
-active during the final third.
+Spin3 uses the shared SNES lifecycle: generation zero prepares training scalers
+and uses regularization-only fitness. Physical losses are evaluated from the
+next generation. All magnetic descriptor orders participate throughout training.
 
 Model formats and input
 =======================

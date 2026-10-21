@@ -15,33 +15,21 @@
 
 #include "dataset.cuh"
 #include "mic.cuh"
-#include "parameters.cuh"
+#include "main_nep/common/nep_parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
-#include <algorithm>
 #include <cstring>
 #include <iostream>
-#include <limits>
-#include <stdexcept>
 
 void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, int n2)
 {
   Nc = n2 - n1;
   structures.assign(structures_input.begin() + n1, structures_input.begin() + n2);
-
-  for (int n = 0; n < Nc; ++n) {
-    if (structures[n].has_atomic_virial != structures[0].has_atomic_virial) {
-      throw std::runtime_error("All structures must have the same has_atomic_virial flag.");
-    }
-    if (structures[n].atomic_virial_diag_only != structures[0].atomic_virial_diag_only) {
-      throw std::runtime_error("All structures must have the same atomic_virial_diag_only flag.");
-    }
-  }
 }
 
-void Dataset::find_has_type(Parameters& para)
+void Dataset::find_has_type(NEP_Parameters& para)
 {
   has_type.resize((para.num_types + 1) * Nc, false);
   for (int n = 0; n < Nc; ++n) {
@@ -52,14 +40,13 @@ void Dataset::find_has_type(Parameters& para)
   }
 }
 
-void Dataset::find_Na(Parameters& para)
+void Dataset::find_Na(NEP_Parameters& para)
 {
   Na_cpu.resize(Nc);
   Na_sum_cpu.resize(Nc);
 
   N = 0;
   max_Na = 0;
-  int num_virial_configurations = 0;
   for (int nc = 0; nc < Nc; ++nc) {
     Na_cpu[nc] = structures[nc].num_atom;
     Na_sum_cpu[nc] = 0;
@@ -70,7 +57,6 @@ void Dataset::find_Na(Parameters& para)
     if (structures[nc].num_atom > max_Na) {
       max_Na = structures[nc].num_atom;
     }
-    num_virial_configurations += structures[nc].has_virial;
   }
 
   for (int nc = 1; nc < Nc; ++nc) {
@@ -79,9 +65,6 @@ void Dataset::find_Na(Parameters& para)
 
   printf("Total number of atoms = %d.\n", N);
   printf("Number of atoms in the largest configuration = %d.\n", max_Na);
-  if (para.model_type == 0 || para.model_type == 3) {
-    printf("Number of configurations having virial = %d.\n", num_virial_configurations);
-  }
 
   Na.resize(Nc);
   Na_sum.resize(Nc);
@@ -89,44 +72,18 @@ void Dataset::find_Na(Parameters& para)
   Na_sum.copy_from_host(Na_sum_cpu.data());
 }
 
-void Dataset::initialize_gpu_data(Parameters& para)
+void Dataset::initialize_gpu_data(NEP_Parameters& para)
 {
   std::vector<float> box_cpu(Nc * 18);
   std::vector<float> box_original_cpu(Nc * 9);
   std::vector<int> num_cell_cpu(Nc * 3);
   std::vector<int> pbc_cpu(Nc);
   std::vector<float> r_cpu(N * 3);
-  std::vector<double> r_spin_cpu;
-  std::vector<double> spin_cpu;
   std::vector<int> type_cpu(N);
-  if (para.spin_mode) {
-    r_spin_cpu.resize(N * 3);
-    spin_cpu.resize(N * 3);
-  }
-
-  if ((para.charge_mode || para.charge_vdw)) {
-    charge.resize(N);
-    charge_shifted.resize(N);
-    charge_cpu.resize(N);
-    charge_ref_cpu.resize(Nc);
-    charge_ref_gpu.resize(Nc);
-    bec.resize(N * 9);
-    bec_cpu.resize(N * 9);
-    bec_ref_cpu.resize(N * 9);
-    bec_ref_gpu.resize(N * 9);
-  }
 
   energy.resize(N);
   virial.resize(N * 6);
   force.resize(N * 3);
-  if (para.spin_mode) {
-    mforce.resize(N * 3);
-    mforce_cpu.resize(N * 3);
-    mforce_ref_cpu.resize(N * 3);
-    mforce_ref_gpu.resize(N * 3);
-    has_mforce_cpu.resize(Nc);
-    has_mforce_gpu.resize(Nc);
-  }
   energy_cpu.resize(N);
   virial_cpu.resize(N * 6);
   force_cpu.resize(N * 3);
@@ -135,22 +92,12 @@ void Dataset::initialize_gpu_data(Parameters& para)
   energy_weight_cpu.resize(Nc);
   virial_ref_cpu.resize(Nc * 6);
   force_ref_cpu.resize(N * 3);
-  if (structures[0].has_atomic_virial) {
-    avirial_ref_cpu.resize(N * (structures[0].atomic_virial_diag_only ? 3 : 6));
-  }
-  temperature_ref_cpu.resize(N);
 
   for (int n = 0; n < Nc; ++n) {
     pbc_cpu[n] = structures[n].pbc;
     weight_cpu[n] = structures[n].weight;
-    if ((para.charge_mode || para.charge_vdw)) {
-      charge_ref_cpu[n] = structures[n].charge;
-    }
     energy_ref_cpu[n] = structures[n].energy;
     energy_weight_cpu[n] = structures[n].energy_weight;
-    if (para.spin_mode) {
-      has_mforce_cpu[n] = structures[n].has_mforce;
-    }
     for (int k = 0; k < 6; ++k) {
       virial_ref_cpu[k * Nc + n] = structures[n].virial[k];
     }
@@ -168,94 +115,38 @@ void Dataset::initialize_gpu_data(Parameters& para)
       r_cpu[Na_sum_cpu[n] + na] = structures[n].x[na];
       r_cpu[Na_sum_cpu[n] + na + N] = structures[n].y[na];
       r_cpu[Na_sum_cpu[n] + na + N * 2] = structures[n].z[na];
-      if (para.spin_mode) {
-        r_spin_cpu[Na_sum_cpu[n] + na] = structures[n].x[na];
-        r_spin_cpu[Na_sum_cpu[n] + na + N] = structures[n].y[na];
-        r_spin_cpu[Na_sum_cpu[n] + na + N * 2] = structures[n].z[na];
-        spin_cpu[Na_sum_cpu[n] + na] = structures[n].sx[na];
-        spin_cpu[Na_sum_cpu[n] + na + N] = structures[n].sy[na];
-        spin_cpu[Na_sum_cpu[n] + na + N * 2] = structures[n].sz[na];
-        mforce_ref_cpu[Na_sum_cpu[n] + na] = structures[n].mfx[na];
-        mforce_ref_cpu[Na_sum_cpu[n] + na + N] = structures[n].mfy[na];
-        mforce_ref_cpu[Na_sum_cpu[n] + na + N * 2] = structures[n].mfz[na];
-      }
       force_ref_cpu[Na_sum_cpu[n] + na] = structures[n].fx[na];
       force_ref_cpu[Na_sum_cpu[n] + na + N] = structures[n].fy[na];
       force_ref_cpu[Na_sum_cpu[n] + na + N * 2] = structures[n].fz[na];
-      temperature_ref_cpu[Na_sum_cpu[n] + na] = structures[n].temperature;
-      if (structures[n].has_atomic_virial) {
-        avirial_ref_cpu[Na_sum_cpu[n] + na] = structures[n].avirialxx[na];
-        avirial_ref_cpu[Na_sum_cpu[n] + na + N] = structures[n].avirialyy[na];
-        avirial_ref_cpu[Na_sum_cpu[n] + na + N * 2] = structures[n].avirialzz[na];
-        if (!structures[n].atomic_virial_diag_only) {
-          avirial_ref_cpu[Na_sum_cpu[n] + na + N * 3] = structures[n].avirialxy[na];
-          avirial_ref_cpu[Na_sum_cpu[n] + na + N * 4] = structures[n].avirialyz[na];
-          avirial_ref_cpu[Na_sum_cpu[n] + na + N * 5] = structures[n].avirialzx[na];
-        }
-      }
-      if ((para.charge_mode || para.charge_vdw)) {
-        for (int d = 0; d < 9; ++d) {
-          bec_ref_cpu[Na_sum_cpu[n] + na + N * d] = structures[n].bec[na * 9 + d];
-        }
-      }
     }
   }
 
   type_weight_gpu.resize(NUM_ELEMENTS);
-  if (para.spin_mode) {
-    spin_dof_type_active_gpu.resize(para.num_types);
-  }
   
   energy_ref_gpu.resize(Nc);
   energy_weight_gpu.resize(Nc);
   virial_ref_gpu.resize(Nc * 6);
   force_ref_gpu.resize(N * 3);
-  if (structures[0].has_atomic_virial) {
-    avirial_ref_gpu.resize(N * (structures[0].atomic_virial_diag_only ? 3 : 6));
-  }
-  temperature_ref_gpu.resize(N);
   type_weight_gpu.copy_from_host(para.type_weight_cpu.data());
-  if ((para.charge_mode || para.charge_vdw)) {
-    charge_ref_gpu.copy_from_host(charge_ref_cpu.data());
-    bec_ref_gpu.copy_from_host(bec_ref_cpu.data());
-  }
   energy_ref_gpu.copy_from_host(energy_ref_cpu.data());
   energy_weight_gpu.copy_from_host(energy_weight_cpu.data());
   virial_ref_gpu.copy_from_host(virial_ref_cpu.data());
   force_ref_gpu.copy_from_host(force_ref_cpu.data());
-  if (para.spin_mode) {
-    mforce_ref_gpu.copy_from_host(mforce_ref_cpu.data());
-    has_mforce_gpu.copy_from_host(has_mforce_cpu.data());
-    spin_dof_type_active_gpu.copy_from_host(para.spin_dof_type_active.data());
-  }
-  if (structures[0].has_atomic_virial) {
-    avirial_ref_gpu.copy_from_host(avirial_ref_cpu.data());
-  }
-  temperature_ref_gpu.copy_from_host(temperature_ref_cpu.data());
 
   box.resize(Nc * 18);
   box_original.resize(Nc * 9);
   num_cell.resize(Nc * 3);
   pbc.resize(Nc);
   r.resize(N * 3);
-  if (para.spin_mode) {
-    r_spin.resize(N * 3);
-    spin.resize(N * 3);
-  }
   type.resize(N);
   box.copy_from_host(box_cpu.data());
   box_original.copy_from_host(box_original_cpu.data());
   num_cell.copy_from_host(num_cell_cpu.data());
   pbc.copy_from_host(pbc_cpu.data());
   r.copy_from_host(r_cpu.data());
-  if (para.spin_mode) {
-    r_spin.copy_from_host(r_spin_cpu.data());
-    spin.copy_from_host(spin_cpu.data());
-  }
   type.copy_from_host(type_cpu.data());
 }
 
-template <bool Spin>
 static __global__ void gpu_find_neighbor_number(
   const int N,
   const int* Na,
@@ -263,7 +154,6 @@ static __global__ void gpu_find_neighbor_number(
   const int* g_type,
   const float* g_rc_radial,
   const float* g_rc_angular,
-  const float rc_spin,
   const float* __restrict__ g_box,
   const float* __restrict__ g_box_original,
   const int* __restrict__ g_num_cell,
@@ -272,8 +162,7 @@ static __global__ void gpu_find_neighbor_number(
   const float* y,
   const float* z,
   int* NN_radial,
-  int* NN_angular,
-  int* NN_spin)
+  int* NN_angular)
 {
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
@@ -288,7 +177,6 @@ static __global__ void gpu_find_neighbor_number(
     int t1 = g_type[n1];
     int count_radial = 0;
     int count_angular = 0;
-    int count_spin = 0;
     for (int n2 = N1; n2 < N2; ++n2) {
       for (int ia = 0; ia < num_cell[0]; ++ia) {
         for (int ib = 0; ib < num_cell[1]; ++ib) {
@@ -315,24 +203,15 @@ static __global__ void gpu_find_neighbor_number(
             if (distance_square < rc_angular * rc_angular) {
               count_angular++;
             }
-            if constexpr (Spin) {
-              if (distance_square < rc_spin * rc_spin) {
-                count_spin++;
-              }
-            }
           }
         }
       }
     }
     NN_radial[n1] = count_radial;
     NN_angular[n1] = count_angular;
-    if constexpr (Spin) {
-      NN_spin[n1] = count_spin;
-    }
   }
 }
 
-template <bool Spin>
 static __global__ void gpu_find_neighbor_list(
   const int N,
   const int* Na,
@@ -340,7 +219,6 @@ static __global__ void gpu_find_neighbor_list(
   const int* g_type,
   const float* g_rc_radial,
   const float* g_rc_angular,
-  const float rc_spin,
   const float* __restrict__ g_box,
   const float* __restrict__ g_box_original,
   const int* __restrict__ g_num_cell,
@@ -359,11 +237,7 @@ static __global__ void gpu_find_neighbor_list(
   float* z12_radial,
   float* x12_angular,
   float* y12_angular,
-  float* z12_angular,
-  int spin_plane_size,
-  int* NN_spin,
-  int* NL_spin,
-  double* r12_spin)
+  float* z12_angular)
 {
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
@@ -378,7 +252,6 @@ static __global__ void gpu_find_neighbor_list(
     int t1 = g_type[n1];
     int count_radial = 0;
     int count_angular = 0;
-    int count_spin = 0;
     for (int n2 = N1; n2 < N2; ++n2) {
       for (int ia = 0; ia < num_cell[0]; ++ia) {
         for (int ib = 0; ib < num_cell[1]; ++ib) {
@@ -401,33 +274,19 @@ static __global__ void gpu_find_neighbor_list(
             float rc_angular = (g_rc_angular[t1] + g_rc_angular[t2]) * 0.5f;
             if (distance_square < rc_radial * rc_radial) {
               int index = NN_radial_sum[n1] + count_radial;
-              if (NL_radial != nullptr) {
               NL_radial[index] = n2;
               x12_radial[index] = x12;
               y12_radial[index] = y12;
               z12_radial[index] = z12;
-              }
               count_radial++;
             }
             if (distance_square < rc_angular * rc_angular) {
               int index = NN_angular_sum[n1] + count_angular;
-              if (NL_angular != nullptr) {
               NL_angular[index] = n2;
               x12_angular[index] = x12;
               y12_angular[index] = y12;
               z12_angular[index] = z12;
-              }
               count_angular++;
-            }
-            if constexpr (Spin) {
-              if (distance_square < rc_spin * rc_spin) {
-                int index = n1 + N * count_spin;
-                NL_spin[index] = n2;
-                r12_spin[index] = x12;
-                r12_spin[spin_plane_size + index] = y12;
-                r12_spin[2 * spin_plane_size + index] = z12;
-                count_spin++;
-              }
             }
           }
         }
@@ -435,13 +294,10 @@ static __global__ void gpu_find_neighbor_list(
     }
     NN_radial[n1] = count_radial;
     NN_angular[n1] = count_angular;
-    if constexpr (Spin) {
-      NN_spin[n1] = count_spin;
-    }
   }
 }
 
-void NEP_Neighbor::prepare(Parameters& para, Dataset& dataset, int device_id)
+void NEP_Neighbor::prepare(NEP_Parameters& para, Dataset& dataset, int device_id)
 {
   // Training datasets and their positions are immutable after construction.
   if (neighbor_dataset == &dataset) {
@@ -471,14 +327,13 @@ void NEP_Neighbor::prepare(Parameters& para, Dataset& dataset, int device_id)
     z12_angular.resize(dataset.total_NN_angular);
   }
 
-  gpu_find_neighbor_list<false><<<dataset.Nc, 256>>>(
+  gpu_find_neighbor_list<<<dataset.Nc, 256>>>(
     dataset.N,
     dataset.Na.data(),
     dataset.Na_sum.data(),
     dataset.type.data(),
     rc_radial.data(),
     rc_angular.data(),
-    0.0f,
     dataset.box.data(),
     dataset.box_original.data(),
     dataset.num_cell.data(),
@@ -497,76 +352,44 @@ void NEP_Neighbor::prepare(Parameters& para, Dataset& dataset, int device_id)
     z12_radial.data(),
     x12_angular.data(),
     y12_angular.data(),
-    z12_angular.data(),
-    0, nullptr, nullptr, nullptr);
+    z12_angular.data());
   GPU_CHECK_KERNEL
 
   neighbor_dataset = &dataset;
 }
 
-void Dataset::find_neighbor(Parameters& para)
+void Dataset::find_neighbor(NEP_Parameters& para)
 {
   NN_radial.resize(N);
   NN_angular.resize(N);
   std::vector<int> NN_radial_cpu(N);
   std::vector<int> NN_angular_cpu(N);
-  std::vector<int> NN_spin_cpu;
-  if (para.spin_mode) {
-    NN_spin.resize(N);
-    NN_spin_cpu.resize(N);
-  }
 
   GPU_Vector<float> rc_radial(para.rc_radial.size());
   rc_radial.copy_from_host(para.rc_radial.data());
   GPU_Vector<float> rc_angular(para.rc_angular.size());
   rc_angular.copy_from_host(para.rc_angular.data());
 
-  if (para.spin_mode) {
-    gpu_find_neighbor_number<true><<<Nc, 256>>>(
-      N,
-      Na.data(),
-      Na_sum.data(),
-      type.data(),
-      rc_radial.data(),
-      rc_angular.data(),
-      para.spin_cutoff,
-      box.data(),
-      box_original.data(),
-      num_cell.data(),
-      pbc.data(),
-      r.data(),
-      r.data() + N,
-      r.data() + N * 2,
-      NN_radial.data(),
-      NN_angular.data(),
-      NN_spin.data());
-  } else {
-    gpu_find_neighbor_number<false><<<Nc, 256>>>(
-      N,
-      Na.data(),
-      Na_sum.data(),
-      type.data(),
-      rc_radial.data(),
-      rc_angular.data(),
-      0.0f,
-      box.data(),
-      box_original.data(),
-      num_cell.data(),
-      pbc.data(),
-      r.data(),
-      r.data() + N,
-      r.data() + N * 2,
-      NN_radial.data(),
-      NN_angular.data(),
-      nullptr);
-  }
+  gpu_find_neighbor_number<<<Nc, 256>>>(
+    N,
+    Na.data(),
+    Na_sum.data(),
+    type.data(),
+    rc_radial.data(),
+    rc_angular.data(),
+    box.data(),
+    box_original.data(),
+    num_cell.data(),
+    pbc.data(),
+    r.data(),
+    r.data() + N,
+    r.data() + N * 2,
+    NN_radial.data(),
+    NN_angular.data());
   GPU_CHECK_KERNEL
 
   NN_radial.copy_to_host(NN_radial_cpu.data());
   NN_angular.copy_to_host(NN_angular_cpu.data());
-  if (para.spin_mode) {
-    NN_spin.copy_to_host(NN_spin_cpu.data());
-  }
 
   total_NN_radial = 0;
   int min_NN_radial = 10000;
@@ -594,18 +417,6 @@ void Dataset::find_neighbor(Parameters& para)
     }
   }
 
-  max_NN_spin = 0;
-  int min_NN_spin = 0;
-  long long sum_NN_spin = 0;
-  if (para.spin_mode) {
-    min_NN_spin = NN_spin_cpu.empty() ? 0 : NN_spin_cpu[0];
-    for (int count : NN_spin_cpu) {
-      min_NN_spin = std::min(min_NN_spin, count);
-      max_NN_spin = std::max(max_NN_spin, count);
-      sum_NN_spin += count;
-    }
-  }
-
   std::vector<int> NN_radial_sum_cpu(N, 0);
   std::vector<int> NN_angular_sum_cpu(N, 0);
   NN_radial_sum.resize(N);
@@ -617,51 +428,6 @@ void Dataset::find_neighbor(Parameters& para)
   NN_radial_sum.copy_from_host(NN_radial_sum_cpu.data());
   NN_angular_sum.copy_from_host(NN_angular_sum_cpu.data());
 
-  const long long spin_plane_size_wide =
-    static_cast<long long>(N) * static_cast<long long>(max_NN_spin);
-  if (spin_plane_size_wide > std::numeric_limits<int>::max()) {
-    PRINT_INPUT_ERROR("Spin neighbor slot count exceeds the supported int range.\n");
-  }
-  const int spin_plane_size = static_cast<int>(spin_plane_size_wide);
-  if (para.spin_mode) {
-    NL_spin.resize(spin_plane_size);
-    r12_spin.resize(3 * spin_plane_size);
-  }
-
-  if (para.spin_mode) {
-    gpu_find_neighbor_list<true><<<Nc, 256>>>(
-      N,
-      Na.data(),
-      Na_sum.data(),
-      type.data(),
-      rc_radial.data(),
-      rc_angular.data(),
-      para.spin_cutoff,
-      box.data(),
-      box_original.data(),
-      num_cell.data(),
-      pbc.data(),
-      r.data(),
-      r.data() + N,
-      r.data() + N * 2,
-      NN_radial_sum.data(),
-      NN_angular_sum.data(),
-      NN_radial.data(),
-      nullptr,
-      NN_angular.data(),
-      nullptr,
-      nullptr,
-      nullptr,
-      nullptr,
-      nullptr,
-      nullptr,
-      nullptr,
-      spin_plane_size,
-      NN_spin.data(),
-      NL_spin.data(),
-      r12_spin.data());
-  }
-  GPU_CHECK_KERNEL
   printf("Radial descriptor with a cutoff of %g A:\n", para.rc_radial_max);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_radial);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_radial);
@@ -670,14 +436,6 @@ void Dataset::find_neighbor(Parameters& para)
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_angular);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_angular);
   printf("    Average number of neighbors for one atom = %g.\n", total_NN_angular / float(N));
-  if (para.spin_mode) {
-    printf("Spin descriptor with a maximum cutoff of %g A:\n", para.spin_cutoff);
-    printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_spin);
-    printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_spin);
-    printf(
-      "    Average number of neighbors for one atom = %g.\n",
-      sum_NN_spin / float(N));
-  }
 #ifdef OUTPUT_NEIGHBOR_FOR_TRAIN
   FILE* fid = fopen("neighbor.txt", "a");
   for (int nc = 0; nc < Nc; ++nc) {
@@ -698,58 +456,20 @@ void Dataset::find_neighbor(Parameters& para)
 }
 
 void Dataset::construct(
-  Parameters& para, std::vector<Structure>& structures_input, int n1, int n2, int device_id)
+  NEP_Parameters& para, std::vector<Structure>& structures_input,
+  int n1, int n2, int device_id, int batch_index)
 {
+  this->device_id = device_id;
+  this->batch_index = batch_index;
   CHECK(gpuSetDevice(device_id));
   copy_structures(structures_input, n1, n2);
   find_has_type(para);
   error_cpu.resize(Nc);
   error_gpu.resize(Nc);
-  if (para.has_ediff_combinations) {
-    total_energy_pred_gpu.resize(Nc);
-    total_energy_pred_cpu.resize(Nc);
-  }
 
   find_Na(para);
   initialize_gpu_data(para);
   find_neighbor(para);
-}
-
-// Sums in double, since the total energy of a large structure exceeds the precision of a float
-// long before its per-atom energies do.
-static __global__ void
-gpu_sum_total_energy(const int* g_Na, const int* g_Na_sum, const float* g_pe, double* g_total_pe)
-{
-  int tid = threadIdx.x;
-  int bid = blockIdx.x;
-  int Na = g_Na[bid];
-  int N1 = g_Na_sum[bid];
-  int N2 = N1 + Na;
-  extern __shared__ double s_total_pe[];
-  s_total_pe[tid] = 0.0;
-  for (int n = N1 + tid; n < N2; n += blockDim.x) {
-    s_total_pe[tid] += g_pe[n];
-  }
-  __syncthreads();
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_total_pe[tid] += s_total_pe[tid + offset];
-    }
-    __syncthreads();
-  }
-  if (tid == 0) {
-    g_total_pe[bid] = s_total_pe[0];
-  }
-}
-
-void Dataset::compute_total_energies(int device_id)
-{
-  CHECK(gpuSetDevice(device_id));
-  const int block_size = 256;
-  gpu_sum_total_energy<<<Nc, block_size, sizeof(double) * block_size>>>(
-    Na.data(), Na_sum.data(), energy.data(), total_energy_pred_gpu.data());
-  GPU_CHECK_KERNEL
-  total_energy_pred_gpu.copy_to_host(total_energy_pred_cpu.data());
 }
 
 static __global__ void gpu_sum_force_error(
@@ -806,7 +526,7 @@ static __global__ void gpu_sum_force_error(
   }
 }
 
-std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weight, int device_id)
+std::vector<float> Dataset::get_rmse_force(NEP_Parameters& para, const bool use_weight, int device_id)
 {
   CHECK(gpuSetDevice(device_id));
   const int block_size = 256;
@@ -842,157 +562,6 @@ std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weig
   for (int t = 0; t <= para.num_types; ++t) {
     if (count_array[t] > 0) {
       rmse_array[t] = sqrt(rmse_array[t] / (count_array[t] * 3));
-    }
-  }
-  return rmse_array;
-}
-
-static __global__ void gpu_sum_avirial_diag_only_error(
-  const int N,
-  int* g_Na,
-  int* g_Na_sum,
-  int* g_type,
-  float* g_type_weight,
-  float* g_virial,
-  float* g_avxx_ref,
-  float* g_avyy_ref,
-  float* g_avzz_ref,
-  float* error_gpu)
-{
-  int tid = threadIdx.x;
-  int bid = blockIdx.x;
-  int N1 = g_Na_sum[bid];
-  int N2 = N1 + g_Na[bid];
-  extern __shared__ float s_error[];
-  s_error[tid] = 0.0f;
-
-  for (int n = N1 + tid; n < N2; n += blockDim.x) {
-    float avxx_ref = g_avxx_ref[n];
-    float avyy_ref = g_avyy_ref[n];
-    float avzz_ref = g_avzz_ref[n];
-    float dxx = g_virial[n] - avxx_ref;
-    float dyy = g_virial[1 * N + n] - avyy_ref;
-    float dzz = g_virial[2 * N + n] - avzz_ref;
-    float diff_square = dxx * dxx + dyy * dyy + dzz * dzz;
-    s_error[tid] += diff_square;
-  }
-  __syncthreads();
-
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_error[tid] += s_error[tid + offset];
-    }
-    __syncthreads();
-  }
-
-  if (tid == 0) {
-    error_gpu[bid] = s_error[0];
-  }
-}
-
-static __global__ void gpu_sum_avirial_error(
-  const int N,
-  int* g_Na,
-  int* g_Na_sum,
-  int* g_type,
-  float* g_type_weight,
-  float* g_virial,
-  float* g_avxx_ref,
-  float* g_avyy_ref,
-  float* g_avzz_ref,
-  float* g_avxy_ref,
-  float* g_avyz_ref,
-  float* g_avzx_ref,
-  float* error_gpu)
-{
-  int tid = threadIdx.x;
-  int bid = blockIdx.x;
-  int N1 = g_Na_sum[bid];
-  int N2 = N1 + g_Na[bid];
-  extern __shared__ float s_error[];
-  s_error[tid] = 0.0f;
-
-  for (int n = N1 + tid; n < N2; n += blockDim.x) {
-    float avxx_ref = g_avxx_ref[n];
-    float avyy_ref = g_avyy_ref[n];
-    float avzz_ref = g_avzz_ref[n];
-    float avxy_ref = g_avxy_ref[n];
-    float avyz_ref = g_avyz_ref[n];
-    float avzx_ref = g_avzx_ref[n];
-    float dxx = g_virial[n] - avxx_ref;
-    float dyy = g_virial[1 * N + n] - avyy_ref;
-    float dzz = g_virial[2 * N + n] - avzz_ref;
-    float dxy = g_virial[3 * N + n] - avxy_ref;
-    float dyz = g_virial[4 * N + n] - avyz_ref;
-    float dzx = g_virial[5 * N + n] - avzx_ref;
-    float diff_square = dxx * dxx + dyy * dyy + dzz * dzz + dxy * dxy + dyz * dyz + dzx * dzx;
-    s_error[tid] += diff_square;
-  }
-  __syncthreads();
-
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_error[tid] += s_error[tid + offset];
-    }
-    __syncthreads();
-  }
-
-  if (tid == 0) {
-    error_gpu[bid] = s_error[0];
-  }
-}
-
-std::vector<float> Dataset::get_rmse_avirial(Parameters& para, const bool use_weight, int device_id)
-{
-  CHECK(gpuSetDevice(device_id));
-  const int block_size = 256;
-
-  if (structures[0].atomic_virial_diag_only) {
-    gpu_sum_avirial_diag_only_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-      N,
-      Na.data(),
-      Na_sum.data(),
-      type.data(),
-      type_weight_gpu.data(),
-      virial.data(),
-      avirial_ref_gpu.data(),
-      avirial_ref_gpu.data() + N,
-      avirial_ref_gpu.data() + N * 2,
-      error_gpu.data());
-  } else {
-    gpu_sum_avirial_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-      N,
-      Na.data(),
-      Na_sum.data(),
-      type.data(),
-      type_weight_gpu.data(),
-      virial.data(),
-      avirial_ref_gpu.data(),
-      avirial_ref_gpu.data() + N,
-      avirial_ref_gpu.data() + N * 2,
-      avirial_ref_gpu.data() + N * 3,
-      avirial_ref_gpu.data() + N * 4,
-      avirial_ref_gpu.data() + N * 5,
-      error_gpu.data());
-  }
-  int mem = sizeof(float) * Nc;
-  CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
-
-  std::vector<float> rmse_array(para.num_types + 1, 0.0f);
-  std::vector<int> count_array(para.num_types + 1, 0);
-  for (int n = 0; n < Nc; ++n) {
-    float rmse_temp = use_weight ? weight_cpu[n] * weight_cpu[n] * error_cpu[n] : error_cpu[n];
-    for (int t = 0; t < para.num_types + 1; ++t) {
-      if (has_type[t * Nc + n]) {
-        rmse_array[t] += rmse_temp;
-        count_array[t] += Na_cpu[n];
-      }
-    }
-  }
-
-  for (int t = 0; t <= para.num_types; ++t) {
-    if (count_array[t] > 0) {
-      rmse_array[t] = sqrt(rmse_array[t] / (count_array[t] * 6));
     }
   }
   return rmse_array;
@@ -1069,7 +638,7 @@ static __global__ void gpu_sum_pe_error(
 }
 
 std::vector<float> Dataset::get_rmse_energy(
-  Parameters& para,
+  NEP_Parameters& para,
   float& energy_shift_per_structure,
   const bool use_weight,
   const bool do_shift,
@@ -1174,11 +743,9 @@ static __global__ void gpu_sum_virial_error(
   }
 }
 
-std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_weight, int device_id)
+std::vector<float> Dataset::get_rmse_virial(
+  NEP_Parameters& para, const bool use_weight, int device_id, int num_components)
 {
-  if (para.atomic_v) {
-    return get_rmse_avirial(para, use_weight, device_id);
-  }
   CHECK(gpuSetDevice(device_id));
 
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
@@ -1188,7 +755,7 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
   const int block_size = 256;
 
   float shear_weight =
-    (para.model_type != 1) ? (use_weight ? para.lambda_shear * para.lambda_shear : 1.0f) : 0.0f;
+    (num_components == 6) ? (use_weight ? para.lambda_shear * para.lambda_shear : 1.0f) : 0.0f;
   gpu_sum_virial_error<<<Nc, block_size, sizeof(float) * block_size * 6>>>(
     N,
     shear_weight,
@@ -1204,158 +771,7 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
       for (int t = 0; t < para.num_types + 1; ++t) {
         if (has_type[t * Nc + n]) {
           rmse_array[t] += rmse_temp;
-          count_array[t] += (para.model_type != 1) ? 6 : 3;
-        }
-      }
-    }
-  }
-
-  for (int t = 0; t <= para.num_types; ++t) {
-    if (count_array[t] > 0) {
-      rmse_array[t] = sqrt(rmse_array[t] / count_array[t]);
-    }
-  }
-  return rmse_array;
-}
-
-static __global__ void gpu_sum_charge_error(
-  int* g_Na, 
-  int* g_Na_sum, 
-  float* g_charge, 
-  float* g_charge_ref,  
-  float* error_gpu)
-{
-  int tid = threadIdx.x;
-  int bid = blockIdx.x;
-  int Na = g_Na[bid];
-  int N1 = g_Na_sum[bid];
-  int N2 = N1 + Na;
-  extern __shared__ float s_charge[];
-  s_charge[tid] = 0.0f;
-
-  for (int n = N1 + tid; n < N2; n += blockDim.x) {
-    s_charge[tid] += g_charge[n];
-  }
-  __syncthreads();
-
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_charge[tid] += s_charge[tid + offset];
-    }
-    __syncthreads();
-  }
-
-  if (tid == 0) {
-    float diff = (s_charge[0] - g_charge_ref[bid]) / Na;
-    error_gpu[bid] = diff * diff;
-  }
-}
-
-static __global__ void gpu_sum_bec_error(
-  const int N,
-  int* g_Na,
-  int* g_Na_sum,
-  float* g_bec,
-  float* g_bec_ref,
-  float* error_gpu)
-{
-  int tid = threadIdx.x;
-  int bid = blockIdx.x;
-  int N1 = g_Na_sum[bid];
-  int N2 = N1 + g_Na[bid];
-  extern __shared__ float s_error[];
-  s_error[tid] = 0.0f;
-
-  for (int n = N1 + tid; n < N2; n += blockDim.x) {
-    float diff_square = 0.0f;
-    for (int d = 0; d < 9; ++d) {
-      const float diff = g_bec[n + N * d] - g_bec_ref[n + N * d];
-      diff_square += diff * diff;
-    }
-    s_error[tid] += diff_square;
-  }
-  __syncthreads();
-
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_error[tid] += s_error[tid + offset];
-    }
-    __syncthreads();
-  }
-
-  if (tid == 0) {
-    error_gpu[bid] = s_error[0];
-  }
-}
-
-std::vector<float> Dataset::get_rmse_charge(Parameters& para, int device_id)
-{
-  std::vector<float> rmse_array(para.num_types + 1, 0.0f);
-  if (!(para.charge_mode || para.charge_vdw)) {
-    return rmse_array;
-  }
-
-  CHECK(gpuSetDevice(device_id));
-
-  std::vector<int> count_array(para.num_types + 1, 0);
-
-  int mem = sizeof(float) * Nc;
-  const int block_size = 256;
-
-  gpu_sum_charge_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(),
-    Na_sum.data(),
-    charge.data(),
-    charge_ref_gpu.data(),
-    error_gpu.data());
-  CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
-    float rmse_temp = error_cpu[n];
-    for (int t = 0; t < para.num_types + 1; ++t) {
-      if (has_type[t * Nc + n]) {
-        rmse_array[t] += rmse_temp;
-        count_array[t] += 1;
-      }
-    }
-  }
-
-  for (int t = 0; t <= para.num_types; ++t) {
-    if (count_array[t] > 0) {
-      rmse_array[t] = sqrt(rmse_array[t] / count_array[t]);
-    }
-  }
-  return rmse_array;
-}
-
-std::vector<float> Dataset::get_rmse_bec(Parameters& para, int device_id)
-{
-  std::vector<float> rmse_array(para.num_types + 1, 0.0f);
-  if (!((para.charge_mode || para.charge_vdw) && para.has_bec)) {
-    return rmse_array;
-  }
-
-  CHECK(gpuSetDevice(device_id));
-
-  std::vector<int> count_array(para.num_types + 1, 0);
-
-  int mem = sizeof(float) * Nc;
-  const int block_size = 256;
-
-  gpu_sum_bec_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    N,
-    Na.data(),
-    Na_sum.data(),
-    bec.data(),
-    bec_ref_gpu.data(),
-    error_gpu.data());
-  CHECK(gpuMemcpy(error_cpu.data(), error_gpu.data(), mem, gpuMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
-    if (structures[n].has_bec) {
-      float rmse_temp = error_cpu[n];
-      for (int t = 0; t < para.num_types + 1; ++t) {
-        if (has_type[t * Nc + n]) {
-          rmse_array[t] += rmse_temp / (Na_cpu[n]);
-          count_array[t] += 9;
+          count_array[t] += num_components;
         }
       }
     }

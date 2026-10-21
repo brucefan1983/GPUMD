@@ -31,5 +31,3 @@ order 3. ``spin_order`` is **not** the body order of the final energy. The
 neural network is nonlinear and can combine these coordinates with each other
 and with the structural NEP descriptor. See :ref:`nep_spin_contractions` for
 the explicit construction.
-
-:ref:`spin_curriculum <kw_spin_curriculum>` requires ``spin_order 3``.

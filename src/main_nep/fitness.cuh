@@ -14,14 +14,9 @@
 */
 
 #pragma once
-#include "dataset.cuh"
-#include "energy_difference.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
-#include <memory>
-#include <stdio.h>
 #include <string>
-#include <utility>
 #include <vector>
 
 class Parameters;
@@ -29,75 +24,39 @@ class Parameters;
 class Fitness
 {
 public:
-  Fitness(Parameters& para);
-  ~Fitness();
-  void initialize_q_scaler(Parameters& para);
+  explicit Fitness(Potential& potential);
+  Fitness(const Fitness&) = delete;
+  Fitness& operator=(const Fitness&) = delete;
+  void print_training_header();
   void compute(
     const int generation,
     Parameters& para,
-    const float*,
-    float*,
-    float*,
-    float*,
-    float*,
-    float*,
-    float*,
-    float*,
-    float*,
-    float* fitness_ediff = nullptr);
+    const float* population,
+    const float* gpu_population,
+    const int* gpu_type_of_variable,
+    float* fitness_total);
   void report_error(
     Parameters& para,
     const int generation,
     const float loss_total,
-    const float loss_L1,
-    const float loss_L2,
-    float* elite);
-  void predict(Parameters& para, float* elite);
+    const int best_index,
+    float* elite,
+    const std::string& checkpoint_base);
+  void predict(float* elite);
   void get_save_potential_label(Parameters& para, const int generation, std::string& filename);
 
-protected:
-  bool has_test_set = false;
+private:
+  Potential& potential;
   int num_batches = 0;
-  int max_NN_radial;  // radial neighbor list size
-  int max_NN_angular; // angular neighbor list size
-  int max_NN_spin;    // spin neighbor list size
-  FILE* fid_loss_out = NULL;
-  EnergyDifference energy_difference;
-  std::unique_ptr<Potential> potential;
-  std::vector<std::vector<Dataset>> train_set;
-  std::vector<Dataset> test_set;
-  std::vector<Dataset> response_set; // complete response.xyz, replicated per device
-  void output(
-    bool is_stress,
-    int num_components,
-    FILE* fid,
-    float* prediction,
-    float* reference,
-    Dataset& dataset,
-    const int nc);
-  void output_atomic(
-    int num_components,
-    FILE* fid,
-    float* prediction,
-    float* reference,
-    Dataset& dataset,
-    const int nc);
-  void copy_predictions_to_host(Parameters& para, Dataset& dataset);
-  void update_energy_force_virial(
-    FILE* fid_energy,
-    FILE* fid_force,
-    FILE* fid_virial,
-    FILE* fid_stress,
-    Dataset& dataset,
-    const int nc);
-  void update_charge(FILE* fid_charge, Dataset& dataset, const int nc);
-  void update_bec(FILE* fid_bec, Dataset& dataset, const int nc);
-  void update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic, const int nc);
-  void update_polarizability(FILE* fid_polarizability, Dataset& dataset, bool atomic, const int nc);
-  // writes the predictions of the structures, in the order given, to <quantity>_<label>.out
-  void write_predictions(
+  std::vector<float> fitness_L1;
+  std::vector<float> fitness_L2;
+  std::vector<float> cost_L1reg;
+  std::vector<float> cost_L2reg;
+  GPU_Vector<float> gpu_cost_L1reg;
+  GPU_Vector<float> gpu_cost_L2reg;
+  void regularize(
     Parameters& para,
-    const std::string& label,
-    const std::vector<std::pair<Dataset*, int>>& structures);
-  void write_nep_txt(FILE* fid_nep, Parameters& para, float* elite);
+    const float* gpu_population,
+    const int* gpu_type_of_variable,
+    float* fitness_total);
 };

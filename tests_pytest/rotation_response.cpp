@@ -1,5 +1,5 @@
 // CPU analytic oracle: no model, GPU, or fitted labels are used as references.
-#include "main_nep/rotation_response.cuh"
+#include "main_nep/nep_spin/rotation_response.cuh"
 #include <cassert>
 #include <cstdio>
 

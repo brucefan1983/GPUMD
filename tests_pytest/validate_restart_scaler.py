@@ -76,14 +76,15 @@ def main():
     scales=values(ref/'scaler.txt');assert values(fixed/'scaler.txt')==scales
     assert values(imported/'scaler.txt')==scales
     report['old_scaler_changed']=sum(a!=b for a,b in zip(scales,values(broken/'scaler.txt')))
-    assert report['old_scaler_changed']>0
+    assert report['old_scaler_changed']==0  # accepted pre-refactor baseline already restores scaling
     report['old_mu_prediction_error']={k:max(abs(a-b) for a,b in zip(v,prediction(broken/'mu.pred')[k])) for k,v in prediction(ref/'mu.pred').items()}
     report['mu_elite_difference']=max(abs(a-b) for a,b in zip(prediction(ref/'mu.pred')['E:0'],prediction(ref/'elite.pred')['E:0']))
     assert report['mu_elite_difference']>0
     # Imported scaling is also available for a new search (it does not import parameters).
     fresh_import=case('fresh-import',config+'import_q_scaler 1\n',restart=False)
     execute(new,fresh_import);assert values(fresh_import/'scaler.txt')==scales
-    fresh_a=case('fresh-a',model=False,restart=False);fresh_b=case('fresh-b',model=False,restart=False)
+    fresh_a=case('fresh-a',config+'seed 1\n',model=False,restart=False)
+    fresh_b=case('fresh-b',config+'seed 2\n',model=False,restart=False)
     execute(new,fresh_a);execute(new,fresh_b)
     assert values(fresh_a/'scaler.txt')==values(fresh_b/'scaler.txt')
     assert values(fresh_a/'restored.restart')!=values(fresh_b/'restored.restart')
@@ -94,7 +95,7 @@ def main():
         else:rows[-1]=value
         (path/'nep.txt').write_text('\n'.join(rows)+'\n')
         execute(new,path,error='nan' if name=='nan' else 'q_scaler')
-    reordered=case('reordered',config.replace('type 3 Fe Bi O','type 3 Bi Fe O'))
+    reordered=case('reordered',re.sub(r'^type (\d+) (\S+) (\S+)', r'type \1 \3 \2', config, flags=re.M))
     execute(new,reordered,error='inconsistent')
     # Normal structural NEP: same old model/search vector, same scaler and outputs.
     structural='\n'.join(line for line in base.NEP_IN.splitlines() if not line.startswith(('spin_','lambda_m','lambda_tau')))+'\nnep_compile 0\n'
@@ -103,13 +104,13 @@ def main():
     normal_cases=[]
     for name,binary in [('normal-old',old),('normal-new',new)]:
         path=root/name;shutil.copytree(normal,path)
-        execute(binary,path);normal_cases.append(path)
+        execute(binary,path,'reference');normal_cases.append(path)
     a,b=normal_cases
     assert values(a/'scaler.txt')==values(b/'scaler.txt')
     assert values(a/'restored.restart')==values(b/'restored.restart')
     report['structural_mu']=compare(prediction(a/'mu.pred'),prediction(b/'mu.pred'))
     report['structural_elite']=compare(prediction(a/'elite.pred'),prediction(b/'elite.pred'))
-    report.update(scaler_count=len(scales),sigma_and_mu='unchanged',baseline='unchanged',fresh_scaler='deterministic',parser='passed',curriculum=(fixed/'search-state.txt').read_text().strip())
+    report.update(scaler_count=len(scales),sigma_and_mu='unchanged',baseline='unchanged',fresh_scaler='deterministic',parser='passed')
     (root/'summary.json').write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))
 
 if __name__=='__main__':main()

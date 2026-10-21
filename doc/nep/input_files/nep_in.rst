@@ -66,7 +66,6 @@ Keywords
      - atom types whose spins are active degrees of freedom
    * - :ref:`spin_env_type <kw_spin_env_type>`
      - atom types allowed to contribute to magnetic environments
-   * - :ref:`spin_curriculum <kw_spin_curriculum>`
      - progressively activate order-3 Spin3 neural-network connections
    * - :ref:`use_typewise_cutoff_zbl <kw_use_typewise_cutoff_zbl>`
      - enable typewise cutoff radii for the ZBL part of the model
