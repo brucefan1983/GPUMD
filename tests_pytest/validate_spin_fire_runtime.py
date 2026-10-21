@@ -64,7 +64,7 @@ def run_case(root, name, potential, model, commands, dump=True, single_gpu=False
     case.mkdir()
     (case/'nep.txt').write_text(potential)
     (case/'model.xyz').write_text(model)
-    suffix = ('ensemble nve\ntime_step 0\ndump_xyz 1 state.xyz precision double velocity spin mforce spin_velocity unwrapped_position\nrun 1\n' if dump else '')
+    suffix = ('ensemble nve\ntime_step 0\ndump_xyz 1 state.xyz precision double velocity force potential virial spin mforce spin_velocity unwrapped_position\nrun 1\n' if dump else '')
     (case/'run.in').write_text('potential nep.txt\n'+commands+suffix)
     env = os.environ.copy()
     if single_gpu and env.get('CUDA_VISIBLE_DEVICES'):
@@ -161,6 +161,90 @@ def validate(root):
     assert summary['fixed_radial']['steps']==0
     assert max(map(norm,state['mforce']))>.1
 
+    # Joint modes reduce to the known onsite problem when the potential has no
+    # position dependence. Zero cell gradient must not introduce cell drift.
+    for suffix in ('0', '0 0', '0 1', '0 1 0', '0 1 1'):
+        name='joint_onsite_'+suffix.replace(' ','_')
+        case,run = run_case(root,name,analytic_model(True),structure(),
+                            'minimize spin_fire 1e-6 3000 1 '+suffix+'\n')
+        summary[name],state = check_run(case,run,1e-6)
+        assert max(map(norm,state['spin'])) < 6e-6
+        assert 'max_force 0.000000000e+00 max_stress_GPa 0.000000000e+00' in run.stdout
+        before=re.search(r'Lattice="([^"]+)"',(case/'model.xyz').read_text()).group(1).split()
+        after=re.search(r'Lattice="([^"]+)"',(case/'state.xyz').read_text()).group(1).split()
+        assert list(map(float,before)) == list(map(float,after))
+
+    # Preserve unwrapped coordinates both when FIRE creates the image arrays
+    # and when an earlier run has already populated them.
+    shifted=structure().splitlines()
+    for i in range(2,len(shifted)):
+        row=shifted[i].split(); row[1]=str(float(row[1])+40); row[2]=str(float(row[2])-20)
+        shifted[i]=' '.join(row)
+    for existing_images in (False,True):
+        prefix=('ensemble nve\ntime_step 0\ndump_xyz 1 before.xyz unwrapped_position\nrun 1\n'
+                if existing_images else '')
+        case,run=run_case(root,'joint_images_'+str(int(existing_images)),analytic_model(True),
+                          '\n'.join(shifted)+'\n',prefix+'minimize spin_fire 1e-6 3000 1 0\n')
+        summary[case.name],_=check_run(case,run,1e-6)
+
+    # First-step oracle from independently dumped force, magnetic force and
+    # nonsymmetric virial. At zero initial fictitious velocity, FIRE mixing
+    # leaves v=dt*g; this checks simultaneous Cartesian and affine updates.
+    potential=(FIXTURE/'nep4_spin3_o3c2_uniform.nep').read_text()
+    skew=structure().replace('20 0 0 0 20 0 0 0 20','20 0 0 2 20 0 0 1 20')
+    case,run=run_case(root,'joint_reference',potential,skew,'')
+    assert run.returncode==0,run.stderr
+    ref=read_frame(case/'state.xyz')
+    h=[[20.,2.,0.],[0.,20.,1.],[0.,0.,20.]]
+    w=[sum(row[k] for row in ref['virial']) for k in range(9)]
+    strain=[[.01*w[3*j+i]/400 for j in range(3)] for i in range(3)]
+    assert norm([v for row in strain for v in row])<.01
+    assert 1e-10 < max(map(norm,ref['forces'])) < 10
+    assert max(map(norm,ref['mforce'])) < 10
+    case,run=run_case(root,'joint_one_step',potential,skew,'minimize spin_fire 1e-14 1 1 0 1\n')
+    assert run.returncode==0,run.stderr
+    final=read_frame(case/'state.xyz')
+    errors={'position':0.,'spin':0.,'cell':0.}
+    for p,f,s,g,q,t in zip(ref['unwrapped_position'],ref['forces'],ref['spin'],ref['mforce'],
+                         final['unwrapped_position'],final['spin']):
+        expected=[p[i]+.01*f[i]+sum(strain[i][j]*p[j] for j in range(3)) for i in range(3)]
+        errors['position']=max(errors['position'],max(abs(x-y) for x,y in zip(expected,q)))
+        errors['spin']=max(errors['spin'],max(abs(s[i]+.01*g[i]-t[i]) for i in range(3)))
+    cell=list(map(float,re.search(r'Lattice="([^"]+)"',(case/'state.xyz').read_text()).group(1).split()))
+    errors['cell']=max(abs(cell[3*j+i]-h[i][j]-sum(strain[i][k]*h[k][j] for k in range(3)))
+                       for i in range(3) for j in range(3))
+    assert max(errors.values())<1e-8,errors
+    summary['joint_one_step_oracle']=errors
+
+    # Explicit fixed_atoms=0 must retain the joint update, including cell motion.
+    joint_cell=cell
+    case,run=run_case(root,'explicit_moving_atoms',potential,skew,
+                      'minimize spin_fire 1e-14 1 1 0 1 0\n')
+    assert run.returncode==0,(case,run.stderr)
+    assert read_frame(case/'state.xyz')==final
+    cell=list(map(float,re.search(r'Lattice="([^"]+)"',(case/'state.xyz').read_text()).group(1).split()))
+    assert cell==joint_cell
+    summary['explicit_moving_atoms']={'matches_joint_one_step':True}
+
+    # Nonzero atomic forces make this a meaningful freeze test. Both magnitude
+    # modes must match the legacy spin-only path and preserve the skew cell.
+    for mode in (0,1):
+        endpoints=[]
+        records=[]
+        for suffix in ('', ' 1', ' 1 0', ' 1 0 0'):
+            name='fixed_atoms_'+str(mode)+'_'+str(len(endpoints))
+            case,run=run_case(root,name,potential,skew,
+                              'minimize spin_fire 1e-14 1 '+str(mode)+suffix+'\n')
+            record,state=check_run(case,run,converged=False)
+            endpoints.append(state)
+            records.append(record)
+            cell=list(map(float,re.search(r'Lattice="([^"]+)"',(case/'state.xyz').read_text()).group(1).split()))
+            assert cell==[h[i][j] for j in range(3) for i in range(3)]
+            assert max(abs(a-b) for s,t in zip(ref['spin'],state['spin']) for a,b in zip(s,t))>1e-12
+        assert all(state==endpoints[0] for state in endpoints[1:])
+        assert all(record==records[0] for record in records[1:])
+        summary['fixed_atoms_'+str(mode)]=dict(records[1],matches_legacy=True)
+
     case,run = run_case(root,'max_steps',analytic_model(False),model,
                         field+'minimize spin_fire 1e-7 1 0\n')
     summary['max_steps'],_ = check_run(case,run,converged=False)
@@ -170,9 +254,20 @@ def validate(root):
                                 'minimize spin_fire 1e-5 20 wrong', 'minimize spin_fire 1e-5 20',
                                 'minimize spin_fire nan 20 0', 'minimize fire 1e-5 20',
                                 'minimize spin_fire 1e-5 20 2', 'minimize spin_fire 1e-5 20 -1',
-                                'minimize spin_fire 1e-5 20 fixed', 'minimize spin_fire 1e-5 20 variable')):
+                                'minimize spin_fire 1e-5 20 fixed', 'minimize spin_fire 1e-5 20 variable',
+                                'minimize spin_fire 1e-5 20 1 2', 'minimize spin_fire 1e-5 20 1 1 2',
+                                'minimize spin_fire 1e-5 20 1 1 1', 'minimize spin_fire 1e-5 20 1 1 0 0 0',
+                                'minimize spin_fire 1e-5 20 1 0 0 2', 'minimize spin_fire 1e-5 20 1 0 0 -1',
+                                'minimize spin_fire 1e-5 20 1 0 0 wrong', 'minimize spin_fire 1e-5 20 1 1 0 1',
+                                'minimize spin_fire 1e-5 20 1 0 0 1', 'minimize spin_fire 1e-5 20 1 0 2 0',
+                                'minimize spin_fire 1e-5 20 1 -1', 'minimize spin_fire 1e-5 20 1 wrong')):
         case,run = run_case(root,'invalid_'+str(i),analytic_model(False),model,command+'\n',False)
         assert run.returncode != 0, case
+    case,run=run_case(root,'joint_nonperiodic',analytic_model(True),
+                      model.replace('pbc="T T T"','pbc="T F T"'),
+                      'minimize spin_fire 1e-5 20 1 0 1\n',False)
+    assert run.returncode != 0 and 'periodic boundaries' in run.stderr
+
     # Ordinary lattice FIRE remains available with a non-spin potential.
     # Its upstream multi-GPU backend does not support this small periodic cell.
     fixtures = FIXTURE.parent
