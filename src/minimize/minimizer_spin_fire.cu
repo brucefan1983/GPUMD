@@ -81,7 +81,7 @@ __global__ void kick(int n, double dt, const double* gradient, double* velocity)
 }
 
 __global__ void move_spins(
-  int n, bool fixed, double dt, double alpha, double ratio,
+  int n, bool fixed, double dt, double alpha, double ratio, double max_step,
   const double* radius, const double* gradient, double* velocity, double* spin)
 {
   const int i=blockIdx.x*blockDim.x+threadIdx.x;
@@ -93,8 +93,8 @@ __global__ void move_spins(
   }
   const double norm=sqrt(norm2);
   if (norm==0) return;
-  // Limit each update to 0.1 rad (fixed) or 0.1 mu_B (variable).
-  const double limit=fixed ? 0.1*radius[i] : 0.1;
+  // Convert the angular limit to an arc length for fixed-magnitude spins.
+  const double limit=fixed ? max_step*radius[i] : max_step;
   const double scale=fmin(1.0,limit/(dt*norm));
   if (!fixed) {
     for (int c=0; c<3; ++c) { velocity[c*n+i]=v[c]*scale; spin[c*n+i]+=dt*v[c]*scale; }
@@ -147,7 +147,7 @@ __global__ void collect_lattice_stats(
 }
 
 __global__ void move_atoms(
-  int n, double dt, double alpha, double ratio, const double* force,
+  int n, double dt, double alpha, double ratio, double max_step, const double* force,
   const double* strain, double* velocity, double* position)
 {
   const int i=blockIdx.x*blockDim.x+threadIdx.x;
@@ -158,7 +158,7 @@ __global__ void move_atoms(
     v[c]=(1-alpha)*velocity[c*n+i]+alpha*ratio*force[c*n+i];
     norm2+=v[c]*v[c];
   }
-  const double scale=norm2>0 ? fmin(1.0,0.1/(dt*sqrt(norm2))) : 1.0;
+  const double scale=norm2>0 ? fmin(1.0,max_step/(dt*sqrt(norm2))) : 1.0;
   for (int c=0; c<3; ++c) {
     velocity[c*n+i]=v[c]*scale;
     position[c*n+i]=r[c]+dt*v[c]*scale;
@@ -166,7 +166,6 @@ __global__ void move_atoms(
   }
 }
 
-constexpr double STRESS_TOLERANCE_GPA=1.0e-4; // Same zero-pressure target as lattice FIRE.
 constexpr double EV_A3_TO_GPA=160.2176621;
 } // namespace
 
@@ -256,7 +255,7 @@ void Minimizer_Spin_FIRE::compute(
   auto residual = [&]() {
     double result=sqrt(stats[4])/force_tolerance_;
     if (relax_atoms_) result=std::max(result,max_force/force_tolerance_);
-    if (box_change_) result=std::max(result,max_stress/STRESS_TOLERANCE_GPA);
+    if (box_change_) result=std::max(result,max_stress/stress_tolerance_gpa);
     return result;
   };
   auto reset_velocity = [&]() {
@@ -264,7 +263,8 @@ void Minimizer_Spin_FIRE::compute(
     if (relax_atoms_) lattice_velocity.fill(0.0);
     for (double& v : cell_velocity) v=0;
   };
-  double dt=0.1, alpha=0.1;
+  double dt=dt_0, alpha=alpha_start;
+  const double dt_max=relax_atoms_ ? dt_max_joint : dt_max_spin;
   int positive=0, nonfinite_retries=0, power_resets=0, steps=0, tiny_updates=0;
   const int interval=std::max(1,number_of_steps_/20);
   atom.spin_per_atom.copy_to_device(saved.data());
@@ -275,7 +275,7 @@ void Minimizer_Spin_FIRE::compute(
     relax_atoms_ ? (box_change_ ? "joint atoms/spins/cell" : "joint atoms/spins; fixed cell") : "fixed lattice",
     force_tolerance_);
   if (relax_atoms_) printf("Atomic force tolerance %.9e eV/A; cell stress tolerance %.9e GPa; hydrostatic_strain %d.\n",
-    force_tolerance_,STRESS_TOLERANCE_GPA,int(hydrostatic_strain_));
+    force_tolerance_,stress_tolerance_gpa,int(hydrostatic_strain_));
   report(0,dt);
   double progress_residual=residual();
   int last_progress=0;
@@ -283,7 +283,7 @@ void Minimizer_Spin_FIRE::compute(
   const char* stagnation="none";
   for (; steps<number_of_steps_; ) {
     if (residual()<=1) { reason="converged"; break; }
-    if (dt<1.0e-12) { reason="stalled"; stagnation="time_step_floor"; break; }
+    if (dt<dt_min) { reason="stalled"; stagnation="time_step_floor"; break; }
     atom.spin_per_atom.copy_to_device(saved.data());
     if (relax_atoms_) lattice_position.copy_to_device(saved_position.data());
     saved_box=working_box;
@@ -300,7 +300,7 @@ void Minimizer_Spin_FIRE::compute(
     measure();
     if (stats[5]) PRINT_INPUT_ERROR("Spin FIRE encountered non-finite fictitious velocities.");
     if (stats[3]<=0) {
-      reset_velocity(); dt*=0.5; alpha=0.1; positive=0; ++power_resets;
+      reset_velocity(); dt*=f_dec; alpha=alpha_start; positive=0; ++power_resets;
     } else {
       const double ratio=sqrt(stats[2]/stats[1]);
       if (relax_atoms_) {
@@ -311,7 +311,7 @@ void Minimizer_Spin_FIRE::compute(
             strain[k]=dt*cell_velocity[k]/cell_scale;
             strain2+=strain[k]*strain[k];
           }
-          const double scale=strain2>0 ? std::min(1.0,0.01/sqrt(strain2)) : 1.0;
+          const double scale=strain2>0 ? std::min(1.0,max_cell_strain/sqrt(strain2)) : 1.0;
           for (int k=0; k<9; ++k) { strain[k]*=scale; cell_velocity[k]*=scale; }
           for (int i=0; i<3; ++i) for (int j=0; j<3; ++j) {
             working_box.cpu_h[3*i+j]=saved_box.cpu_h[3*i+j];
@@ -321,11 +321,12 @@ void Minimizer_Spin_FIRE::compute(
           working_box.set_is_orthogonal();
         }
         strain_gpu.copy_from_host(strain);
-        move_atoms<<<blocks,BLOCK>>>(n,dt,alpha,ratio,atom.force_per_atom.data(),
+        move_atoms<<<blocks,BLOCK>>>(n,dt,alpha,ratio,max_atom_displacement,atom.force_per_atom.data(),
           strain_gpu.data(),lattice_velocity.data(),lattice_position.data());
         GPU_CHECK_KERNEL
       }
       move_spins<<<blocks,BLOCK>>>(n,fixed_magnitude_,dt,alpha,sqrt(stats[2]/stats[1]),
+        fixed_magnitude_ ? max_spin_angle : max_spin_displacement,
         radius.data(),gradient.data(),velocity.data(),atom.spin_per_atom.data());
       GPU_CHECK_KERNEL
       evaluate(); measure();
@@ -333,26 +334,26 @@ void Minimizer_Spin_FIRE::compute(
         saved.copy_to_device(atom.spin_per_atom.data());
         if (relax_atoms_) saved_position.copy_to_device(lattice_position.data());
         working_box=saved_box;
-        reset_velocity(); dt*=0.5; alpha=0.1; positive=0; ++nonfinite_retries;
+        reset_velocity(); dt*=f_dec; alpha=alpha_start; positive=0; ++nonfinite_retries;
         tiny_updates=0;
         // Restore all endpoint caches as well as spins, including magnetic forces.
         evaluate(); measure();
         if (stats[5]) PRINT_INPUT_ERROR("Spin FIRE could not restore a finite state.");
       } else {
-        tiny_updates = stats[6]<=8*std::numeric_limits<double>::epsilon() ? tiny_updates+1 : 0;
-        if (++positive>5) { dt=std::min(dt*1.1,relax_atoms_ ? 0.3 : 1.0); alpha*=0.99; }
+        tiny_updates = stats[6]<=tiny_update_epsilon_factor*std::numeric_limits<double>::epsilon() ? tiny_updates+1 : 0;
+        if (++positive>N_min) { dt=std::min(dt*f_inc,dt_max); alpha*=f_alpha; }
       }
     }
     const double current_residual=residual();
     // Accumulated improvement counts, rather than requiring a 1% improvement
     // on each step. This conservative limit also catches cycling at a model's
     // force precision floor; it never relaxes the requested force tolerance.
-    if (current_residual<0.99*progress_residual) { progress_residual=current_residual; last_progress=steps; }
+    if (current_residual<residual_progress_ratio*progress_residual) { progress_residual=current_residual; last_progress=steps; }
     if (steps%interval==0) report(steps,dt);
     if (current_residual<=1) { reason="converged"; break; }
-    if (tiny_updates>=20 || steps-last_progress>=1000) {
+    if (tiny_updates>=max_tiny_updates || steps-last_progress>=max_steps_without_progress) {
       reason="stalled";
-      stagnation=tiny_updates>=20 ? (relax_atoms_ ? "unresolved_updates" : "unresolved_spin_updates") : "no_residual_progress";
+      stagnation=tiny_updates>=max_tiny_updates ? (relax_atoms_ ? "unresolved_updates" : "unresolved_spin_updates") : "no_residual_progress";
       break;
     }
   }
