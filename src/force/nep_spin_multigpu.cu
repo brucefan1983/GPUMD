@@ -1,4 +1,4 @@
-/* Single-process spatial decomposition for NEP-Spin. GPL-3.0-or-later. */
+/* Single-process spatial decomposition for NEP-Spin. LGPL-3.0-or-later. */
 #include "nep_spin_multigpu.cuh"
 #include "nep_partition.cuh"
 #include <algorithm>

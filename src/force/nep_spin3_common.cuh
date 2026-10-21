@@ -1,3 +1,8 @@
+/*
+    This file is part of GPUMD.
+    SPDX-License-Identifier: LGPL-3.0-or-later
+*/
+
 #pragma once
 
 // Small device helpers shared by the Spin3 runtime and training paths.

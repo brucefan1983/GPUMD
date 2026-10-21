@@ -1,7 +1,7 @@
 /*
     Copyright 2017 Zheyong Fan and GPUMD development team
     Copyright 2026 NEPAdapters contributors
-    This file is part of GPUMD and is distributed under GPLv3 or later.
+    This file is part of GPUMD and is distributed under LGPLv3 or later.
 
     The Spin3 protocol follows TorchNEP spin commit 3e2a5b3 and the matching
     NEPAdapters dev implementation inspected on 2026-09-03 (GPLv3+).

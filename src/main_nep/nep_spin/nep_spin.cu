@@ -1,6 +1,6 @@
 /*
     Copyright 2017 Zheyong Fan and GPUMD development team
-    This file is part of GPUMD and is distributed under GPLv3 or later.
+    This file is part of GPUMD and is distributed under LGPLv3 or later.
 */
 
 #include "nep_spin.cuh"
