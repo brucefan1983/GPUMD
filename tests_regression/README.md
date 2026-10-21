@@ -38,12 +38,12 @@ regression-specific inputs self-contained.
 
 ## Acceptance contract
 
-`full` is the only acceptance suite. It contains all 253 cases and evaluates
+`full` is the only acceptance suite. It contains all 255 cases and evaluates
 all 25 cross-case relations after the cases pass. Every case and relation runs
 for both the baseline and candidate, using the same expectations. A successful run ends with:
 
 ```text
-Summary: 253 passed, 0 failed; relations: 25 passed, 0 failed, 0 skipped
+Summary: 255 passed, 0 failed; relations: 25 passed, 0 failed, 0 skipped
 ```
 
 Focused suites are diagnostic subsets only. A focused result is not a
@@ -68,7 +68,7 @@ python3 tests_regression/run_regression.py \
   --suite full --keep-all
 ```
 
-The intended self-comparison result is 253 passing cases and 25 passing
+The intended self-comparison result is 255 passing cases and 25 passing
 relations. A failure requires inspecting the diagnostic or numerical delta;
 using the same executable does not bypass any check or guarantee bitwise
 GPU reproducibility. After self-comparison, use the accepted and candidate
@@ -132,7 +132,7 @@ python3 tests_regression/run_regression.py \
 
 ## Suites
 
-The manifest defines 23 suites. `full` is the acceptance gate; the other
+The manifest defines 24 suites. `full` is the acceptance gate; the other
 suites exist only to isolate a failure:
 
 | Suite | Diagnostic scope |
@@ -158,8 +158,9 @@ suites exist only to isolate a failure:
 | `static` | non-dynamics calculations |
 | `transport` | transport measurements |
 | `training` | NEP, qNEP, vdW, charge-vdW, and tensorial-NEP training paths |
+| `prediction` | NEP prediction from an existing model over multiple batches |
 | `pppm` | spacing, mesh sizing, resource lifecycle, and related existing qNEP cases |
-| `full` | all 253 cases and all 25 relations |
+| `full` | all 255 cases and all 25 relations |
 
 For example, a focused rerun may help diagnose a full-suite failure:
 
@@ -186,13 +187,32 @@ the two runs. Version-specific expectations and switches that disable a role
 or its result comparison are not supported. See [PPPM.md](PPPM.md) for PPPM
 checks and numerical bounds.
 
-Cases default to `program: gpumd`. Training cases declare `program: nep`, which
-causes the runner to stage their input as `nep.in` and select the NEP executable
+Cases default to `program: gpumd`. Training and prediction cases declare
+`program: nep`, which causes the runner to stage their input as `nep.in` and select the NEP executable
 pair. GPUMD cases continue to use `run.in` and the original executable pair.
-Training inputs are deliberately minimal: model type, batch size, 10 generations,
+The model-coverage training inputs are deliberately minimal: model type, batch size, 10 generations,
 `output_interval 10`, and only model-selection keywords that are required to enter
 qNEP, vdW, charge-vdW, dipole, or polarizability paths. `loss.out`, `nep.txt`, and
 `nep.restart` are byte-exact regression outputs.
+
+The energy-difference case adds `lambda_d 0.1` and uses `output_interval 1`.
+Four PbTe structures carry `name` labels; their physical data are unchanged.
+Two weighted energy differences occupy two of the three training batches, leaving
+one batch without a combination. The same structures also serve as the test set
+to exercise reporting. A semantic check requires positive energy-difference RMSE
+for the selected combinations and zero training RMSE in the empty batch at
+generations 3, 6, and 9. Test-set prediction files are also compared; only
+`force_test.out` uses the force-rounding bounds described below.
+
+The prediction case reuses the fixed model from `examples/nep_prediction/nep.txt`
+and the PbTe training fixture, split into three batches. It compares
+`energy_train.out`, `virial_train.out`, and `stress_train.out` byte for byte.
+`force_train.out` uses `rtol = 1e-5` and `atol = 2e-7` eV/angstrom because
+prediction accumulates forces with single-precision atomics and writes six
+significant digits with `%g`. The absolute bound covers cancellation near zero;
+the relative bound allows last-digit rounding changes. The staged `nep.txt` must
+remain unchanged, and training outputs such as `loss.out` or `nep.restart` are
+not permitted.
 
 Comparison is deliberately strict:
 

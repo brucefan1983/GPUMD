@@ -244,7 +244,7 @@ def test_package_fixture_hashes_are_pinned():
         "fixtures/potentials/graphene_tersoff_1988_params.txt":
             "baf64d6b7f5bbfc32f7af38b64b601af9ce4b4417e8e6c2af320d00610f4f9ef",
         "fixtures/training/pbte.xyz":
-            "3b9f1d55fe61def164ab87370dce66b760d6740d3c1cc35ec6bc3db057572c5c",
+            "374154710cda7bb2d5ad6a05fbe4cfdc93b70910226d192705bd84654f7f8ed7",
         "fixtures/training/pbte_water_mixed.xyz":
             "78cda019ae1243eda4764afc98b53abe287e4a84f2aeaf2c53d37a01b0c04743",
         "fixtures/training/tnep_120.xyz":
@@ -290,11 +290,11 @@ def test_training_cases_use_nep_program_and_minimal_inputs():
     training_cases = [
         case for case in manifest["cases"] if "training" in case["suites"]
     ]
-    assert len(training_cases) == 22
+    assert len(training_cases) == 23
     assert all(case.get("program") == "nep" for case in training_cases)
     assert all("full" in case["suites"] for case in training_cases)
     assert all(
-        case["outputs"] == ["loss.out", "nep.txt", "nep.restart"]
+        case["outputs"][:3] == ["loss.out", "nep.txt", "nep.restart"]
         for case in training_cases
     )
     assert all("stage" not in case for case in training_cases)
@@ -319,7 +319,13 @@ def test_training_cases_use_nep_program_and_minimal_inputs():
             fields for fields in commands if fields[0] == "output_interval"
         )
         assert generation == ["generation", "10"], case["id"]
-        assert output_interval == ["output_interval", "10"], case["id"]
+        interval = "1" if case["id"] == "train_nep_pbte_ediff" else "10"
+        assert output_interval == ["output_interval", interval], case["id"]
+        expected_outputs = ["loss.out", "nep.txt", "nep.restart"]
+        if case["id"] == "train_nep_pbte_ediff":
+            expected_outputs += ["energy_test.out", "force_test.out", "virial_test.out", "stress_test.out"]
+            assert ["lambda_d", "0.1"] in commands
+        assert case["outputs"] == expected_outputs, case["id"]
 
     mixed_cases = [case for case in training_cases if case["id"].endswith("_mixed")]
     assert len(mixed_cases) == 4
@@ -337,6 +343,27 @@ def test_training_cases_use_nep_program_and_minimal_inputs():
             continue
         input_path = PACKAGE_ROOT / case["input"].removeprefix("package:")
         assert "batch 61" in input_path.read_text(encoding="utf-8"), case["id"]
+
+
+def test_energy_difference_fixture_preserves_pbte_data():
+    path = PACKAGE_ROOT / "fixtures/training/pbte.xyz"
+    text = path.read_text()
+    names = re.findall(r" name=(pbte_\d+)$", text, re.MULTILINE)
+    assert names == ["pbte_01", "pbte_02", "pbte_03", "pbte_04"]
+    original = re.sub(r" name=pbte_0[1-4](?=\n)", "", text)
+    assert hashlib.sha256(original.encode()).hexdigest() == (
+        "3b9f1d55fe61def164ab87370dce66b760d6740d3c1cc35ec6bc3db057572c5c"
+    )
+    frames = runner.post_checks.read_extxyz(path)
+    assert len(frames) == 25
+    for a, b in ((0, 1), (2, 3)):
+        left, right = frames[a], frames[b]
+        assert left["natoms"] == right["natoms"] == 250
+        for species in ("Pb", "Te"):
+            assert sum(left["arrays"]["species"] == species) == 125
+            assert sum(right["arrays"]["species"] == species) == 125
+        assert not (left["arrays"]["pos"] == right["arrays"]["pos"]).all()
+        assert abs(float(left["fields"]["energy"]) - float(right["fields"]["energy"])) > 1
 
 
 def test_behavior_contract_cases_are_full_differential_cases():
@@ -452,14 +479,13 @@ def test_parsing_validation_cases_match_the_accepted_baseline():
 
 
 
-def test_semantic_postchecks_preserve_byte_exact_cross_version_outputs():
+def test_semantic_postchecks_preserve_cross_version_comparisons():
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     post_checked = [case for case in manifest["cases"] if case.get("post_checks")]
     assert post_checked
     for case in post_checked:
-        # Semantic tolerances are independent post-processing oracles only.
-        # Baseline/candidate output comparison stays byte-exact.
-        assert case.get("comparisons", {}) == {}
+        expected = {"force_test.out"} if case["id"] == "train_nep_pbte_ediff" else set()
+        assert set(case.get("comparisons", {})) == expected
         assert "role_expectations" not in case
         assert case.get("compare_cross_version", True) is True
 
@@ -492,6 +518,12 @@ def test_numeric_exceptions_are_explicit_per_output():
         )
     }
     expected = {
+        "train_nep_pbte_ediff": {
+            "force_test.out": (1e-5, 2e-7),
+        },
+        "predict_nep_pbte_batch": {
+            "force_train.out": (1e-5, 2e-7),
+        },
         "qnep_ewald_future_bec": {
             "bec.xyz": (0.0, 3e-6),
             "dpdt.out": (0.0, 2e-7),
@@ -552,10 +584,11 @@ if __name__ == "__main__":
         test_package_fixture_hashes_are_pinned,
         test_successful_nep_cases_declare_neighbor_output,
         test_training_cases_use_nep_program_and_minimal_inputs,
+        test_energy_difference_fixture_preserves_pbte_data,
         test_behavior_contract_cases_are_full_differential_cases,
         test_default_runtime_consumers_are_full_cases,
         test_parsing_validation_cases_match_the_accepted_baseline,
-        test_semantic_postchecks_preserve_byte_exact_cross_version_outputs,
+        test_semantic_postchecks_preserve_cross_version_comparisons,
         test_regression_has_no_dependency_on_migrated_gpumd_test_directories,
         test_numeric_exceptions_are_explicit_per_output,
     )

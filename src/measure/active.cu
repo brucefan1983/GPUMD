@@ -18,16 +18,16 @@ Run active learning on-the-fly during MD
 
 #include "active.cuh"
 #include "force/force.cuh"
+#include "integrate/integrate.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
-#include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
-#include <iostream>
+#include <algorithm>
+#include <cmath>
 #include <vector>
-#include <cstring>
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
 {
@@ -52,60 +52,40 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-static __global__ void initialize_properties(
-  int N, double* g_fx, double* g_fy, double* g_fz, double* g_pe, double* g_virial)
+// Welford's update with the forces of the k-th potential.
+// Each term added to the sum of squared deviations is the product of two numbers that cannot
+// have opposite signs.
+// The sum therefore stays non-negative in floating point.
+static __global__ void accumulate_force_statistics(
+  const int size,
+  const int k,
+  const double* g_force,
+  double* g_mean,
+  double* g_squared_deviation_sum)
 {
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    g_fx[n1] = 0.0;
-    g_fy[n1] = 0.0;
-    g_fz[n1] = 0.0;
-    g_pe[n1] = 0.0;
-    g_virial[n1 + 0 * N] = 0.0;
-    g_virial[n1 + 1 * N] = 0.0;
-    g_virial[n1 + 2 * N] = 0.0;
-    g_virial[n1 + 3 * N] = 0.0;
-    g_virial[n1 + 4 * N] = 0.0;
-    g_virial[n1 + 5 * N] = 0.0;
-    g_virial[n1 + 6 * N] = 0.0;
-    g_virial[n1 + 7 * N] = 0.0;
-    g_virial[n1 + 8 * N] = 0.0;
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < size) {
+    const double force = g_force[n];
+    const double deviation = force - g_mean[n];
+    g_mean[n] += deviation / k;
+    g_squared_deviation_sum[n] += deviation * (force - g_mean[n]);
   }
 }
 
-static __global__ void initialize_mean_vectors(int N, double* g_m, double* g_m_sq)
+// The uncertainty of an atom is the norm of the standard deviations of its three force components
+// over the potentials, with the factor 1/number_of_potentials.
+static __global__ void compute_uncertainty(
+  const int number_of_atoms,
+  const int number_of_potentials,
+  const double* g_squared_deviation_sum,
+  double* g_uncertainty)
 {
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  // 3*N since 3 cartesian directions
-  if (n1 < 3 * N) {
-    g_m[n1] = 0.0;
-    g_m_sq[n1] = 0.0;
-  }
-}
-
-static __global__ void
-compute_mean(int N, int M, double* g_m, double* g_m_sq, double* g_fx, double* g_fy, double* g_fz)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    // Average over number of potentials, M
-    g_m[n1 + 0 * N] += g_fx[n1] / M;
-    g_m[n1 + 1 * N] += g_fy[n1] / M;
-    g_m[n1 + 2 * N] += g_fz[n1] / M;
-    g_m_sq[n1 + 0 * N] += g_fx[n1] * g_fx[n1] / M;
-    g_m_sq[n1 + 1 * N] += g_fy[n1] * g_fy[n1] / M;
-    g_m_sq[n1 + 2 * N] += g_fz[n1] * g_fz[n1] / M;
-  }
-}
-
-static __global__ void compute_uncertainty(int N, double* g_m, double* g_m_sq, double* g_u)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    double var_x = g_m_sq[n1 + 0 * N] - g_m[n1 + 0 * N] * g_m[n1 + 0 * N];
-    double var_y = g_m_sq[n1 + 1 * N] - g_m[n1 + 1 * N] * g_m[n1 + 1 * N];
-    double var_z = g_m_sq[n1 + 2 * N] - g_m[n1 + 2 * N] * g_m[n1 + 2 * N];
-    g_u[n1] = sqrt(var_x + var_y + var_z);
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_of_atoms) {
+    g_uncertainty[n] = sqrt(
+      (g_squared_deviation_sum[n] + g_squared_deviation_sum[n + number_of_atoms] +
+       g_squared_deviation_sum[n + 2 * number_of_atoms]) /
+      number_of_potentials);
   }
 }
 
@@ -118,7 +98,6 @@ Active::Active(const std::vector<std::string>& tokens)
 void Active::parse(const std::vector<std::string>& tokens)
 {
   const int num_param = tokens.size();
-  check_ = true;
   printf("Active learning.\n");
 
   if (num_param != 6) {
@@ -178,24 +157,22 @@ void Active::pre_run(
   Box& box,
   Force& force)
 {
-  // Always use mode "observe" with all other potentials for active learning.
-  // Only propagate MD with the main potential.
-  if (check_) {
-    force.set_multiple_potentials_mode("observe");
-    std::string exyz_filename = "active.xyz";
-    std::string out_filename = "active.out";
-    exyz_file_ = my_fopen(exyz_filename.c_str(), "a");
-    out_file_ = my_fopen(out_filename.c_str(), "a");
-    gpu_total_virial_.resize(6);
-    cpu_total_virial_.resize(6);
-    if (has_force_) {
-      cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
-    }
-    mean_force_.resize(atom.number_of_atoms * 3);
-    mean_force_sq_.resize(atom.number_of_atoms * 3);
-    gpu_uncertainty_.resize(atom.number_of_atoms);
-    cpu_uncertainty_.resize(atom.number_of_atoms);
+  // Force accepts several potentials only when every one of them is a NEP potential.
+  if (force.get_number_of_potentials() < 2) {
+    PRINT_INPUT_ERROR("active requires at least two potentials.\n");
   }
+  exyz_file_ = my_fopen("active.xyz", "a");
+  out_file_ = my_fopen("active.out", "a");
+  gpu_total_virial_.resize(6);
+  mean_force_.resize(atom.number_of_atoms * 3);
+  squared_force_deviation_sum_.resize(atom.number_of_atoms * 3);
+  gpu_uncertainty_.resize(atom.number_of_atoms);
+  cpu_uncertainty_.resize(atom.number_of_atoms);
+  active_potential_per_atom_.resize(atom.number_of_atoms);
+  active_force_per_atom_.resize(atom.number_of_atoms * 3);
+  active_virial_per_atom_.resize(atom.number_of_atoms * 9);
+  // Ensemble::find_thermo writes T, U and the six components of the stress.
+  active_thermo_.resize(8);
 }
 
 void Active::end_of_step(
@@ -212,115 +189,96 @@ void Active::end_of_step(
   Atom& atom,
   Force& force)
 {
-  // Only run if should check, since forces have to be recomputed with each potential.
-  if (!check_)
-    return;
   if ((step + 1) % check_interval_ != 0)
     return;
 
   const int number_of_potentials = force.get_number_of_potentials();
-  const int number_of_atoms = atom.type.size();
-  // Reset mean vectors to zero
-  initialize_mean_vectors<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, mean_force_.data(), mean_force_sq_.data());
-  GPU_CHECK_KERNEL
+  const int number_of_atoms = atom.number_of_atoms;
+  mean_force_.fill(0.0);
+  squared_force_deviation_sum_.fill(0.0);
 
-  // Loop backwards over files to evaluate the main potential last, keeping it's properties intact
+  // Every potential is evaluated into scratch arrays, which leaves the per-atom arrays and the
+  // thermo vector of the run unchanged.
+  // Potential 0 is evaluated last and leaves its properties in the scratch arrays for active.xyz.
   for (int potential_index = number_of_potentials - 1; potential_index >= 0; potential_index--) {
-    // Set potential/force/virials to zero
-    initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms,
-      atom.force_per_atom.data(),
-      atom.force_per_atom.data() + number_of_atoms,
-      atom.force_per_atom.data() + number_of_atoms * 2,
-      atom.potential_per_atom.data(),
-      atom.virial_per_atom.data());
-    GPU_CHECK_KERNEL
-    // Compute new potential properties
-    force.get_potential(potential_index).compute(
+    force.compute_one_potential(
+      potential_index,
       box,
-      atom.type,
       atom.position_per_atom,
-      atom.potential_per_atom,
-      atom.force_per_atom,
-      atom.virial_per_atom);
-    // Write properties to GPU vector
-    compute_mean<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms,
-      number_of_potentials,
+      atom.type,
+      group,
+      active_potential_per_atom_,
+      active_force_per_atom_,
+      active_virial_per_atom_);
+    accumulate_force_statistics<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
+      3 * number_of_atoms,
+      number_of_potentials - potential_index,
+      active_force_per_atom_.data(),
       mean_force_.data(),
-      mean_force_sq_.data(),
-      atom.force_per_atom.data(),
-      atom.force_per_atom.data() + number_of_atoms,
-      atom.force_per_atom.data() + number_of_atoms * 2);
+      squared_force_deviation_sum_.data());
     GPU_CHECK_KERNEL
   }
-  // Sum mean and mean_sq on GPU, move sum to CPU
   compute_uncertainty<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, mean_force_.data(), mean_force_sq_.data(), gpu_uncertainty_.data());
+    number_of_atoms,
+    number_of_potentials,
+    squared_force_deviation_sum_.data(),
+    gpu_uncertainty_.data());
   GPU_CHECK_KERNEL
   gpu_uncertainty_.copy_to_host(cpu_uncertainty_.data());
-  double uncertainty = -1.0;
-  for (int i = 0; i < number_of_atoms; i++) {
-    if (uncertainty < cpu_uncertainty_[i]) {
-      uncertainty = cpu_uncertainty_[i];
-    }
-  }
-  write_uncertainty(step, global_time, uncertainty);
-  if (uncertainty > threshold_) {
-    write_exyz(
-      step,
-      global_time,
-      box,
-      atom.cpu_atom_symbol,
-      atom.cpu_type,
-      atom.position_per_atom,
-      atom.cpu_position_per_atom,
+  // A NaN, from a model with forces that are not finite, ranks above every number.
+  const double uncertainty = *std::max_element(
+    cpu_uncertainty_.begin(), cpu_uncertainty_.end(), [](const double a, const double b) {
+      return std::isnan(b) ? !std::isnan(a) : a < b;
+    });
+  fprintf(out_file_, "%20.10e%20.10e\n", global_time * TIME_UNIT_CONVERSION, uncertainty);
+  fflush(out_file_);
+  if (std::isnan(uncertainty) || uncertainty > threshold_) {
+    integrate.find_thermo(
+      box.get_volume(),
+      group,
+      atom.mass,
+      active_potential_per_atom_,
       atom.velocity_per_atom,
-      atom.cpu_velocity_per_atom,
-      atom.force_per_atom,
-      atom.virial_per_atom,
-      thermo,
-      uncertainty);
+      active_virial_per_atom_,
+      active_thermo_);
+    write_frame(global_time, box, atom, uncertainty);
   }
 }
 
-void Active::write_uncertainty(const int step, const double time, double uncertainty)
+void Active::write_frame(
+  const double global_time, const Box& box, Atom& atom, const double uncertainty)
 {
-  if (!check_)
-    return;
-  if ((step + 1) % check_interval_ != 0)
-    return;
+  const int number_of_atoms = atom.number_of_atoms;
+  // The velocity keyword of a later run reads the host copies in Atom, which active leaves alone.
+  std::vector<double> cpu_position(number_of_atoms * 3);
+  atom.position_per_atom.copy_to_host(cpu_position.data());
+  std::vector<double> cpu_velocity(has_velocity_ ? number_of_atoms * 3 : 0);
+  if (has_velocity_) {
+    atom.velocity_per_atom.copy_to_host(cpu_velocity.data());
+  }
+  std::vector<double> cpu_force(has_force_ ? number_of_atoms * 3 : 0);
+  if (has_force_) {
+    active_force_per_atom_.copy_to_host(cpu_force.data());
+  }
+  double cpu_thermo[8];
+  active_thermo_.copy_to_host(cpu_thermo);
+  gpu_sum<<<6, 1024>>>(number_of_atoms, active_virial_per_atom_.data(), gpu_total_virial_.data());
+  GPU_CHECK_KERNEL
+  double cpu_total_virial[6];
+  gpu_total_virial_.copy_to_host(cpu_total_virial);
 
-  FILE* fid_ = out_file_;
-
-  // Write time, uncertainty to file
-  fprintf(fid_, "%20.10e%20.10e\n", time * TIME_UNIT_CONVERSION, uncertainty);
-  fflush(fid_);
-}
-
-void Active::output_line2(
-  const double time,
-  const Box& box,
-  const std::vector<std::string>& cpu_atom_symbol,
-  GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& gpu_thermo,
-  double uncertainty,
-  FILE* fid_)
-{
-  // time
-  fprintf(fid_, "Time=%.8f", time * TIME_UNIT_CONVERSION); // output time is in units of fs
-
-  // PBC
+  // The time is in fs, the energy and the virial in eV, and the stress in eV/A^3.
+  fprintf(exyz_file_, "%d\n", number_of_atoms);
+  fprintf(exyz_file_, "Time=%.8f", global_time * TIME_UNIT_CONVERSION);
   fprintf(
-    fid_, " pbc=\"%c %c %c\"", box.pbc_x ? 'T' : 'F', box.pbc_y ? 'T' : 'F', box.pbc_z ? 'T' : 'F');
-
-  // Uncertainty
-  fprintf(fid_, " uncertainty=%.8f", uncertainty);
-
-  // box
+    exyz_file_,
+    " pbc=\"%c %c %c\"",
+    box.pbc_x ? 'T' : 'F',
+    box.pbc_y ? 'T' : 'F',
+    box.pbc_z ? 'T' : 'F');
+  fprintf(exyz_file_, " uncertainty=%.8f", uncertainty);
   fprintf(
-    fid_,
+    exyz_file_,
     " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
     box.cpu_h[0],
     box.cpu_h[3],
@@ -331,29 +289,21 @@ void Active::output_line2(
     box.cpu_h[2],
     box.cpu_h[5],
     box.cpu_h[8]);
-
-  // energy and virial (symmetric tensor) in eV, and stress (symmetric tensor) in eV/A^3
-  double cpu_thermo[8];
-  gpu_thermo.copy_to_host(cpu_thermo, 8);
-  const int N = virial_per_atom.size() / 9;
-  gpu_sum<<<6, 1024>>>(N, virial_per_atom.data(), gpu_total_virial_.data());
-  gpu_total_virial_.copy_to_host(cpu_total_virial_.data());
-
-  fprintf(fid_, " energy=%.8f", cpu_thermo[1]);
+  fprintf(exyz_file_, " energy=%.8f", cpu_thermo[1]);
   fprintf(
-    fid_,
+    exyz_file_,
     " virial=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-    cpu_total_virial_[0],
-    cpu_total_virial_[3],
-    cpu_total_virial_[4],
-    cpu_total_virial_[3],
-    cpu_total_virial_[1],
-    cpu_total_virial_[5],
-    cpu_total_virial_[4],
-    cpu_total_virial_[5],
-    cpu_total_virial_[2]);
+    cpu_total_virial[0],
+    cpu_total_virial[3],
+    cpu_total_virial[4],
+    cpu_total_virial[3],
+    cpu_total_virial[1],
+    cpu_total_virial[5],
+    cpu_total_virial[4],
+    cpu_total_virial[5],
+    cpu_total_virial[2]);
   fprintf(
-    fid_,
+    exyz_file_,
     " stress=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
     cpu_thermo[2],
     cpu_thermo[5],
@@ -364,85 +314,40 @@ void Active::output_line2(
     cpu_thermo[6],
     cpu_thermo[7],
     cpu_thermo[4]);
-
-  // Properties
-  fprintf(fid_, " Properties=species:S:1:pos:R:3");
-
+  fprintf(exyz_file_, " Properties=species:S:1:pos:R:3");
   if (has_velocity_) {
-    fprintf(fid_, ":vel:R:3");
+    fprintf(exyz_file_, ":vel:R:3");
   }
   if (has_force_) {
-    fprintf(fid_, ":forces:R:3");
+    fprintf(exyz_file_, ":forces:R:3");
   }
   if (has_uncertainty_) {
-    fprintf(fid_, ":uncertainty:R:1");
+    fprintf(exyz_file_, ":uncertainty:R:1");
   }
+  fprintf(exyz_file_, "\n");
 
-  // Over
-  fprintf(fid_, "\n");
-}
-
-void Active::write_exyz(
-  const int step,
-  const double global_time,
-  const Box& box,
-  const std::vector<std::string>& cpu_atom_symbol,
-  const std::vector<int>& cpu_type,
-  GPU_Vector<double>& position_per_atom,
-  std::vector<double>& cpu_position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
-  std::vector<double>& cpu_velocity_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& gpu_thermo,
-  double uncertainty)
-{
-  if (!check_)
-    return;
-  if ((step + 1) % check_interval_ != 0)
-    return;
-
-  const int num_atoms_total = position_per_atom.size() / 3;
-  FILE* fid_ = exyz_file_;
-  position_per_atom.copy_to_host(cpu_position_per_atom.data());
-  if (has_velocity_) {
-    velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
-  }
-  if (has_force_) {
-    force_per_atom.copy_to_host(cpu_force_per_atom_.data());
-  }
-
-  // line 1
-  fprintf(fid_, "%d\n", num_atoms_total);
-
-  // line 2
-  output_line2(global_time, box, cpu_atom_symbol, virial_per_atom, gpu_thermo, uncertainty, fid_);
-
-  // other lines
-  for (int n = 0; n < num_atoms_total; n++) {
-    fprintf(fid_, "%s", cpu_atom_symbol[n].c_str());
+  const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
+  for (int n = 0; n < number_of_atoms; n++) {
+    fprintf(exyz_file_, "%s", atom.cpu_atom_symbol[n].c_str());
     for (int d = 0; d < 3; ++d) {
-      fprintf(fid_, " %.8f", cpu_position_per_atom[n + num_atoms_total * d]);
+      fprintf(exyz_file_, " %.8f", cpu_position[n + number_of_atoms * d]);
     }
     if (has_velocity_) {
-      const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
       for (int d = 0; d < 3; ++d) {
-        fprintf(
-          fid_, " %.8f", cpu_velocity_per_atom[n + num_atoms_total * d] * natural_to_A_per_fs);
+        fprintf(exyz_file_, " %.8f", cpu_velocity[n + number_of_atoms * d] * natural_to_A_per_fs);
       }
     }
     if (has_force_) {
       for (int d = 0; d < 3; ++d) {
-        fprintf(fid_, " %.8f", cpu_force_per_atom_[n + num_atoms_total * d]);
+        fprintf(exyz_file_, " %.8f", cpu_force[n + number_of_atoms * d]);
       }
     }
     if (has_uncertainty_) {
-      fprintf(fid_, " %.8f", cpu_uncertainty_[n]);
+      fprintf(exyz_file_, " %.8f", cpu_uncertainty_[n]);
     }
-    fprintf(fid_, "\n");
+    fprintf(exyz_file_, "\n");
   }
-
-  fflush(fid_);
+  fflush(exyz_file_);
 }
 
 void Active::post_run(
@@ -453,9 +358,6 @@ void Active::post_run(
   const double time_step,
   const double temperature)
 {
-  if (check_) {
-    fclose(exyz_file_);
-    fclose(out_file_);
-    check_ = false;
-  }
+  fclose(exyz_file_);
+  fclose(out_file_);
 }

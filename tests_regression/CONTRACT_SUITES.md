@@ -1,13 +1,13 @@
 # Durable behavior-contract diagnostics
 
-`full` is the only acceptance suite. It runs all 253 manifest cases and then
+`full` is the only acceptance suite. It runs all 255 manifest cases and then
 evaluates all 25 cross-case relations for their declared roles:
 
 ```text
-Summary: 253 passed, 0 failed; relations: 25 passed, 0 failed, 0 skipped
+Summary: 255 passed, 0 failed; relations: 25 passed, 0 failed, 0 skipped
 ```
 
-The 22 focused suites are diagnostic views of the same manifest. They may skip
+The 23 focused suites are diagnostic views of the same manifest. They may skip
 relations when not all members are selected and therefore do not replace the
 `full` acceptance run.
 
@@ -37,6 +37,7 @@ relations when not all members are selected and therefore do not replace the
 | `transport` | transport measurements |
 | `pppm` | spacing input, mesh rounding, box changes, run reuse, and related qNEP cases |
 | `training` | NEP-family training with TTT, FFF, and mixed boundary conditions |
+| `prediction` | NEP prediction from a fixed model over multiple batches |
 
 ## Cross-case relation oracles
 

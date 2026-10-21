@@ -460,6 +460,22 @@
         }
       ]
     },
+    "training_pbte_ediff": {
+      "stage": [
+        {
+          "source": "package:fixtures/training/pbte.xyz",
+          "target": "train.xyz"
+        },
+        {
+          "source": "package:fixtures/training/pbte.xyz",
+          "target": "test.xyz"
+        },
+        {
+          "source": "package:fixtures/training/pbte_ediff.in",
+          "target": "ediff.in"
+        }
+      ]
+    },
     "training_tnep": {
       "stage": [
         {
@@ -5868,6 +5884,44 @@
       ]
     },
     {
+      "id": "predict_nep_pbte_batch",
+      "program": "nep",
+      "description": "NEP prediction from a fixed model on the three-batch PbTe TTT dataset",
+      "suites": [
+        "prediction",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "stage": [
+        {
+          "source": "repo:examples/nep_prediction/nep.txt",
+          "target": "nep.txt"
+        }
+      ],
+      "input": "package:cases/prediction/nep_pbte_batch.in",
+      "covers": [
+        "prediction:nep",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "stdout_contains": "Started predicting.",
+      "outputs": [
+        "energy_train.out",
+        "force_train.out",
+        "virial_train.out",
+        "stress_train.out"
+      ],
+      "comparisons": {
+        "force_train.out": {
+          "mode": "numeric",
+          "rtol": 1e-05,
+          "atol": 2e-07,
+          "reason": "Prediction uses unordered single-precision atomic force accumulation. The relative bound allows the last of six significant digits written by %g to change; the absolute bound covers cancellation near zero, in eV/angstrom."
+        }
+      }
+    },
+    {
       "id": "train_nep_pbte_full",
       "program": "nep",
       "description": "NEP training on the full-batch PbTe TTT dataset",
@@ -5910,6 +5964,53 @@
         "loss.out",
         "nep.txt",
         "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_nep_pbte_ediff",
+      "program": "nep",
+      "description": "NEP energy-difference loss across batches with and without combinations, including test-set reporting",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte_ediff",
+      "input": "package:cases/training/nep_pbte_ediff.in",
+      "covers": [
+        "training:nep",
+        "training:energy-difference",
+        "boundary:ttt",
+        "batch:multi",
+        "batch:no-energy-difference"
+      ],
+      "expect": "success",
+      "stdout_contains": "ediff.in: 2 combinations, 2 in train.xyz, 2 in test.xyz (2 in both), 0 skipped.",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart",
+        "energy_test.out",
+        "force_test.out",
+        "virial_test.out",
+        "stress_test.out"
+      ],
+      "comparisons": {
+        "force_test.out": {
+          "mode": "numeric",
+          "rtol": 1e-05,
+          "atol": 2e-07,
+          "reason": "Test-set reporting uses the same single-precision atomic force accumulation and six-significant-digit output as predict_nep_pbte_batch. Apply its force-only rounding bounds, in eV/angstrom."
+        }
+      },
+      "post_checks": [
+        {
+          "name": "nep_energy_difference",
+          "output": "loss.out",
+          "generations": 10,
+          "batches": 3,
+          "empty_batch": 2
+        }
       ],
       "timeout_s": 900
     },

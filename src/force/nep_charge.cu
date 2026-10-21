@@ -49,6 +49,8 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
 
 void NEP_Charge::check_ewald_pppm(const RunInput& run_input)
 {
+  // With alpha = pi / rc_radial, the default spacing keeps alpha * spacing at or below pi / 6.
+  pppm_spacing = std::fmin(1.0, paramb.rc_radial / 6.0);
   for (const auto& line : run_input.lines()) {
     const std::vector<std::string>& tokens = line.tokens;
     if (!tokens.empty() && tokens[0] == "kspace") {
