@@ -371,12 +371,12 @@ void Fitness::output(
 {
   for (int n = 0; n < num_components; ++n) {
     int offset = n * dataset.N + dataset.Na_sum_cpu[nc];
-    float data_nc = 0.0f;
+    double data_nc = 0.0;
     for (int m = 0; m < dataset.Na_cpu[nc]; ++m) {
       data_nc += prediction[offset + m];
     }
     if (!is_stress) {
-      fprintf(fid, "%g ", data_nc / dataset.Na_cpu[nc]);
+      fprintf(fid, "%.16g ", data_nc / dataset.Na_cpu[nc]);
     } else {
       fprintf(fid, "%g ", data_nc / dataset.structures[nc].volume * PRESSURE_UNIT_CONVERSION);
     }
@@ -389,7 +389,7 @@ void Fitness::output(
       }
     }
     if (n == num_components - 1) {
-      fprintf(fid, "%g\n", ref_value);
+      fprintf(fid, "%.16g\n", static_cast<double>(ref_value));
     } else {
       fprintf(fid, "%g ", ref_value);
     }
