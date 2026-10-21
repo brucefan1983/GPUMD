@@ -14,7 +14,6 @@
 */
 
 #include "fitness.cuh"
-#include "nep_io.cuh"
 #include "parameters.cuh"
 #include "potential.cuh"
 #include "snes.cuh"
@@ -31,17 +30,15 @@
 
 void print_welcome_information(void);
 
-static void predict(Parameters& para, Fitness& fitness)
+static void predict(Parameters& para, Potential& potential, Fitness& fitness)
 {
   print_line_1();
   printf("Started predicting.\n");
   print_line_2();
 
   std::vector<float> parameters(para.number_of_variables);
-  read_nep_txt("nep.txt", para, parameters.data());
-  gpuSetDevice(0);
-  para.q_scaler_gpu[0].copy_from_host(para.q_scaler_cpu.data());
-  fitness.predict(para, parameters.data());
+  potential.read_model(parameters.data());
+  fitness.predict(parameters.data());
 }
 
 int main(int argc, char* argv[])
@@ -57,9 +54,9 @@ int main(int argc, char* argv[])
   print_line_2();
 
   const auto time_begin1 = std::chrono::high_resolution_clock::now();
-  Parameters para;
-  std::unique_ptr<Potential> potential = create_potential(para);
-  Fitness fitness(para, *potential);
+  std::unique_ptr<Potential> potential = create_potential();
+  Parameters& para = potential->get_parameters();
+  Fitness fitness(*potential);
   const auto time_finish1 = std::chrono::high_resolution_clock::now();
 
   const std::chrono::duration<double> time_used1 = time_finish1 - time_begin1;
@@ -69,10 +66,10 @@ int main(int argc, char* argv[])
 
   const auto time_begin2 = std::chrono::high_resolution_clock::now();
   if (para.prediction == 0) {
-    SNES snes(para);
+    SNES snes(para, *potential);
     snes.run(para, &fitness);
   } else {
-    predict(para, fitness);
+    predict(para, *potential, fitness);
   }
   const auto time_finish2 = std::chrono::high_resolution_clock::now();
 

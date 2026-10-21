@@ -26,7 +26,7 @@ WARN_FLAGS += -Wformat -Wformat-security -Wformat-overflow -Wformat-truncation
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)"
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)" 
 endif
 ifeq ($(GNEP_TEST_DIAGNOSTICS),1)
 CFLAGS += -DGNEP_TEST_DIAGNOSTICS
@@ -60,6 +60,7 @@ SOURCES_GPUMD =                   \
 	$(wildcard utilities/*.cu)
 SOURCES_NEP =                     \
 	$(wildcard main_nep/*.cu)     \
+	$(wildcard main_nep/*/*.cu)   \
 	$(wildcard utilities/*.cu)
 SOURCES_GNEP =                     \
 	$(wildcard main_gnep/*.cu)     \
@@ -94,6 +95,7 @@ HEADERS =                         \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
 	$(wildcard main_nep/*.cuh)    \
+	$(wildcard main_nep/*/*.cuh)  \
 	$(wildcard main_gnep/*.cuh)
 
 
@@ -187,5 +189,5 @@ clean: clean_replica
 ifdef OS
 	del /s *.obj *.exp *.lib *.exe
 else
-	rm -f */*.o gpumd nep gnep
+	rm -f */*.o main_nep/*/*.o gpumd nep gnep
 endif

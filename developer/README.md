@@ -52,7 +52,7 @@ The main source directories are:
 | `src/utilities/` | Shared utilities, GPU wrappers, input helpers, and containers |
 | `src/main_nep/` | `nep` executable |
 
-Files added under an existing source directory are normally collected automatically by the makefiles.
+Files added under an existing source directory are normally collected automatically by the makefiles. For `nep`, the CUDA and HIP makefiles also collect `.cu` files one directory below `src/main_nep/`.
 
 ## 3. Main `gpumd` architecture
 
@@ -170,13 +170,14 @@ For performance-sensitive code:
 - avoid unnecessary host-device transfers and synchronization;
 - avoid repeated allocation inside MD steps;
 - use the GPU abstraction layer in `src/utilities/gpu_macro.cuh` for code shared by CUDA and HIP;
-- keep backend-specific code localized when a common implementation is not practical.
+- keep backend-specific code localized when a common implementation is not practical;
+- keep kernels and file-local helpers `static` or in an anonymous namespace; expose only the wrappers needed by other translation units.
 
 The main ownership pattern for polymorphic objects uses `std::unique_ptr`, for example for potentials, ensembles, and actions.
 
 ## 7. Input and errors
 
-Input lines are tokenized by `RunInput` before being passed to individual modules.
+For `gpumd`, input lines are tokenized by `RunInput` before being passed to individual modules. The `nep` input path is described below.
 
 When adding a keyword:
 
@@ -189,23 +190,65 @@ Common error utilities are defined in `src/utilities/error.cuh`.
 
 ## 8. The `nep` executable
 
-The `nep` executable is implemented mainly under `src/main_nep/` and shares utilities with GPUMD.
+The `nep` executable is implemented under `src/main_nep/` and shares utilities with GPUMD. Its training `Potential` interface is separate from the MD `Potential` interface in `src/force/`.
 
-Its top-level structure is compact:
+### Source layout
 
-```text
-Parameters
-    |
-    v
-Fitness
-    |
-    v
-SNES
+| Directory under `src/main_nep/` | Purpose |
+| --- | --- |
+| Top level | Entry point, model selection, optimizer, scheduling, and shared data structures |
+| `common/` | Reusable NEP parameter, data, loss, I/O, and runtime-compilation helpers |
+| `nep/` | Ordinary and temperature-dependent NEP |
+| `nep_charge/` | NEP charge modes 1 and 2 |
+| `nep_vdw/` | NEP with long-range dispersion |
+| `nep_charge_vdw/` | NEP with charge and dispersion |
+| `tnep/` | Dipole and polarizability models |
+
+Helpers in `common/` may serve a subset of models, such as the two charge models. Model-independent data and logic can remain shared.
+
+### Construction and responsibilities
+
+`ParameterInput` reads `nep.in` and identifies the model selectors. `create_potential()` in `potential.cu` constructs the selected model, whose parameter class parses and validates the remaining settings. The entry point then uses:
+
+```cpp
+std::unique_ptr<Potential> potential = create_potential();
+Parameters& para = potential->get_parameters();
+Fitness fitness(*potential);
 ```
 
-`Parameters` handles the input configuration, `Fitness` contains the model/data evaluation logic, and `SNES` performs optimization.
+| Component | Responsibility |
+| --- | --- |
+| `Parameters` | Common optimizer and scheduling settings; model-specific settings belong to the model's parameter class |
+| `Potential` implementation | Parameter layout and initialization, model and restart I/O, data preparation, evaluation, physical losses, reporting, and prediction |
+| `Fitness` | Batch scheduling, common L1/L2 regularization, and delegation through `Potential` |
+| `SNES` | Population generation and optimization; obtains parameter groups, initialization, and restart output through `Potential` |
 
-Changes to `nep.in`, model formats, or training data formats should remain synchronized with the NEP manual.
+The model owns its parameter object. `Fitness` and `SNES` use references to the model and should not branch on its concrete type.
+
+Construction configures the model. The `Fitness` constructor calls `prepare_data()` to build datasets and initialize model workspaces. At zero-based generation 0, training calls `prepare_training()`, which prepares descriptor scaling for the existing NEP models; subsequent generations call `evaluate()`. Prediction reads the model through `read_model()` and calls `predict()`, without initializing an SNES population.
+
+### Data and losses
+
+Shared structure and dataset code handles common data. Model-specific labels, GPU arrays, validation, and losses belong to the corresponding model or a helper shared by the models that need them. Existing models use `NEP_Data_Reader` hooks and `NEP_Batch_Data<T>` for model-owned batch/device data.
+
+`evaluate()` receives contiguous candidate parameter vectors on the host. The model owns intermediate losses; `accumulate_fitness()` adds their contributions after common regularization. Keep model-specific reduction and transfer decisions behind these interfaces, so later GPU reduction or population parallelism does not require model branches in `Fitness` or `SNES`.
+
+### Adding a training model
+
+1. Implement the `Potential` interface in the model's subdirectory, with its parameter parsing, labels, workspaces, losses, and output handling.
+2. Add any new model selector to `parameter_input.cu/.cuh` and register construction in `potential.cu`. Ordinary model-specific keywords should be parsed by the selected model; unsupported keywords must be rejected. For example, `lambda_q` is accepted only by charge models.
+3. Reuse suitable common helpers. New physical quantities should normally be implemented in the model's own reader, data, loss, and output code. Extend shared structures only for common data or behavior.
+4. Cover initialization, restart, training, prediction, and supported device configurations with regression cases. Keep input and output documentation synchronized with the implementation.
+
+The existing internal modes remain within their classes: ordinary/temperature NEP, dipole/polarizability TNEP, and charge modes 1/2 do not need separate model classes.
+
+### Runtime specialization
+
+Each model owns its specialized entry points and launcher bindings. Shared compilation and reusable kernels live in `common/`. Model-specific `*_specialized.cu` files use `NEP_SPECIALIZED_RUNTIME_BUILD`; device kernels remain local, while the required launcher wrappers are exported.
+
+On Linux/CUDA builds, `nep_compile on` requests runtime specialization for supported training configurations. Standalone prediction does not use this training JIT path. Keep the matching source tree available; `GPUMD_SRC` can select its `src` directory and `CUDACXX` can select the compiler. Compilation or loading failures report a warning and fall back to the generic path.
+
+When changing evaluation code, compare `nep_compile on` and `off` with identical parameters and descriptor scalers, and confirm that the on run actually used the specialized path after successful compilation and loading. Use fixed seeds for training regressions; small floating-point differences can change population ranking and subsequent optimization trajectories.
 
 ## 9. Units and documentation
 

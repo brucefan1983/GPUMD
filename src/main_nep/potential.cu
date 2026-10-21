@@ -14,27 +14,28 @@
 */
 
 #include "potential.cuh"
-#include "nep.cuh"
-#include "nep_vdw.cuh"
-#include "nep_charge.cuh"
-#include "nep_charge_vdw.cuh"
-#include "tnep.cuh"
-#include "parameters.cuh"
+#include "main_nep/nep/nep.cuh"
+#include "main_nep/nep_vdw/nep_vdw.cuh"
+#include "main_nep/nep_charge/nep_charge.cuh"
+#include "main_nep/nep_charge_vdw/nep_charge_vdw.cuh"
+#include "main_nep/tnep/tnep.cuh"
+#include "parameter_input.cuh"
 
-std::unique_ptr<Potential> create_potential(Parameters& para)
+std::unique_ptr<Potential> create_potential()
 {
+  ParameterInput input;
   std::unique_ptr<Potential> potential;
-  if (para.model_type == 1 || para.model_type == 2) {
-    potential.reset(new TNEP);
+  if (input.model_type == 1 || input.model_type == 2) {
+    potential.reset(new TNEP(input));
   } else {
-    if (para.charge_vdw) {
-      potential.reset(new NEP_Charge_VDW);
-    } else if (para.charge_mode) {
-      potential.reset(new NEP_Charge);
-    } else if (para.vdw) {
-      potential.reset(new NEP_VDW);
+    if (input.charge_vdw) {
+      potential.reset(new NEP_Charge_VDW(input));
+    } else if (input.charge_mode) {
+      potential.reset(new NEP_Charge(input));
+    } else if (input.vdw) {
+      potential.reset(new NEP_VDW(input));
     } else {
-      potential.reset(new NEP);
+      potential.reset(new NEP(input));
     }
   }
   return potential;

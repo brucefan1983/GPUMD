@@ -13,22 +13,13 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "energy_difference.cuh"
-#include "parameters.cuh"
+#include "main_nep/common/nep_parameters.cuh"
 #include "structure.cuh"
+#include "xyz_reader.cuh"
 #include "utilities/error.cuh"
-#include "utilities/gpu_macro.cuh"
-#include <algorithm>
-#include <cctype>
-#include <chrono>
+#include <cmath>
 #include <fstream>
 #include <iostream>
-#include <iterator>
-#include <random>
-#include <sstream>
-#include <string>
-#include <vector>
-#include <cstring>
 
 static float get_area(const float* a, const float* b)
 {
@@ -45,7 +36,7 @@ static float get_det(const float* box)
          box[2] * (box[3] * box[7] - box[4] * box[6]);
 }
 
-static void change_box(const Parameters& para, Structure& structure)
+static void change_box(const NEP_Parameters& para, Structure& structure)
 {
   float a[3] = {structure.box_original[0], structure.box_original[3], structure.box_original[6]};
   float b[3] = {structure.box_original[1], structure.box_original[4], structure.box_original[7]};
@@ -91,207 +82,13 @@ static void change_box(const Parameters& para, Structure& structure)
   }
 }
 
-static void read_force(
-  const int num_columns,
-  const int species_offset,
-  const int pos_offset,
-  const int force_offset,
-  const int avirial_offset,
-  const int bec_offset,
-  std::ifstream& input,
-  const Parameters& para,
-  Structure& structure,
-  std::string& xyz_filename,
-  int& line_number,
-  int model_type)
+void NEP_Data_Reader::read_geometry(const XYZ_Record& record, Structure& structure) const
 {
-  structure.type.resize(structure.num_atom);
-  structure.x.resize(structure.num_atom);
-  structure.y.resize(structure.num_atom);
-  structure.z.resize(structure.num_atom);
-  structure.fx.resize(structure.num_atom);
-  structure.fy.resize(structure.num_atom);
-  structure.fz.resize(structure.num_atom);
-  structure.bec.resize(structure.num_atom * 9);
-  if (structure.has_atomic_virial) {
-    structure.avirialxx.resize(structure.num_atom);
-    structure.avirialyy.resize(structure.num_atom);
-    structure.avirialzz.resize(structure.num_atom);
-    if (!structure.atomic_virial_diag_only) {
-      structure.avirialxy.resize(structure.num_atom);
-      structure.avirialyz.resize(structure.num_atom);
-      structure.avirialzx.resize(structure.num_atom);
-    }
-  }
-
-  for (int na = 0; na < structure.num_atom; ++na) {
-    std::vector<std::string> tokens = get_tokens(input);
-    line_number++;
-
-    if (tokens.size() != num_columns) {
-      PRINT_INPUT_ERROR("Number of items for an atom line mismatches properties.");
-    }
-    std::string atom_symbol(tokens[0 + species_offset]);
-    structure.x[na] =
-      get_double_from_token(tokens[0 + pos_offset], xyz_filename.c_str(), line_number);
-    structure.y[na] =
-      get_double_from_token(tokens[1 + pos_offset], xyz_filename.c_str(), line_number);
-    structure.z[na] =
-      get_double_from_token(tokens[2 + pos_offset], xyz_filename.c_str(), line_number);
-    if (num_columns > 4 && (model_type == 0 || model_type == 3)) {
-      structure.fx[na] =
-        get_double_from_token(tokens[0 + force_offset], xyz_filename.c_str(), line_number);
-      structure.fy[na] =
-        get_double_from_token(tokens[1 + force_offset], xyz_filename.c_str(), line_number);
-      structure.fz[na] =
-        get_double_from_token(tokens[2 + force_offset], xyz_filename.c_str(), line_number);
-    }
-
-    if (num_columns > 4 && structure.has_atomic_virial) {
-      if (structure.atomic_virial_diag_only) {
-        structure.avirialxx[na] =
-          get_double_from_token(tokens[0 + avirial_offset], xyz_filename.c_str(), line_number);
-        structure.avirialyy[na] =
-          get_double_from_token(tokens[1 + avirial_offset], xyz_filename.c_str(), line_number);
-        structure.avirialzz[na] =
-          get_double_from_token(tokens[2 + avirial_offset], xyz_filename.c_str(), line_number);
-      } else {
-        structure.avirialxx[na] =
-          get_double_from_token(tokens[0 + avirial_offset], xyz_filename.c_str(), line_number);
-        structure.avirialyy[na] =
-          get_double_from_token(tokens[4 + avirial_offset], xyz_filename.c_str(), line_number);
-        structure.avirialzz[na] =
-          get_double_from_token(tokens[8 + avirial_offset], xyz_filename.c_str(), line_number);
-        structure.avirialxy[na] =
-          get_double_from_token(tokens[3 + avirial_offset], xyz_filename.c_str(), line_number);
-        structure.avirialyz[na] =
-          get_double_from_token(tokens[7 + avirial_offset], xyz_filename.c_str(), line_number);
-        structure.avirialzx[na] =
-          get_double_from_token(tokens[6 + avirial_offset], xyz_filename.c_str(), line_number);
-      }
-    }
-
-    if (num_columns > 4 && structure.has_bec) {
-      for (int d = 0; d < 9; ++d) {
-        structure.bec[na * 9 + d] =
-          get_double_from_token(tokens[d + bec_offset], xyz_filename.c_str(), line_number);
-      }
-    }
-
-    bool is_allowed_element = false;
-    for (int n = 0; n < para.elements.size(); ++n) {
-      if (atom_symbol == para.elements[n]) {
-        structure.type[na] = n;
-        is_allowed_element = true;
-      }
-    }
-    if (!is_allowed_element) {
-      PRINT_INPUT_ERROR("There is atom in train.xyz or test.xyz that are not in nep.in.\n");
-    }
-  }
-}
-
-static void read_one_structure(
-  Parameters& para,
-  std::ifstream& input,
-  Structure& structure,
-  std::string& xyz_filename,
-  int& line_number)
-{
-  std::string comment_line;
-  std::getline(input, comment_line);
-  std::vector<std::string> tokens = get_tokens_without_unwanted_spaces(comment_line);
-  line_number++;
-
-  for (auto& token : tokens) {
-    std::transform(
-      token.begin(), token.end(), token.begin(), [](unsigned char c) { return std::tolower(c); });
-  }
-
-  if (tokens.size() == 0) {
-    PRINT_INPUT_ERROR("The second line for each frame should not be empty.");
-  }
-
-  // Read boundaries for long-range models. Keep PPP as the default for
-  // existing training data.
-  if (para.charge_mode || para.vdw || para.charge_vdw) {
-    for (int n = 0; n < tokens.size(); ++n) {
-      const std::string pbc_string = "pbc=";
-      if (tokens[n].substr(0, pbc_string.length()) == pbc_string) {
-        if (n + 2 >= tokens.size()) {
-          PRINT_INPUT_ERROR("The pbc field should contain three values.");
-        }
-        const char pbc[3] = {
-          tokens[n].back(), tokens[n + 1].front(), tokens[n + 2].front()};
-        for (int d = 0; d < 3; ++d) {
-          if (pbc[d] != 't' && pbc[d] != 'f') {
-            PRINT_INPUT_ERROR("Each pbc value should be T or F.");
-          }
-        }
-        if (pbc[0] != pbc[1] || pbc[1] != pbc[2]) {
-          PRINT_INPUT_ERROR("Long-range models support only pbc=\"T T T\" or pbc=\"F F F\".");
-        }
-        structure.pbc = (pbc[0] == 't');
-      }
-    }
-  }
-
-  // get energy_weight (optional)
-  for (const auto& token : tokens) {
-    const std::string energy_weight_string = "energy_weight=";
-    if (token.substr(0, energy_weight_string.length()) == energy_weight_string) {
-      structure.energy_weight = get_double_from_token(
-        token.substr(energy_weight_string.length(), token.length()), xyz_filename.c_str(), line_number);
-    }
-  }
-
-  // get name (optional), which only ediff.in refers to
-  if (para.prediction == 0 && para.lambda_d > 0.0f) {
-    structure.name = EnergyDifference::read_structure_name(comment_line, xyz_filename, line_number);
-  }
-
-  bool has_energy_in_exyz = false;
-  for (const auto& token : tokens) {
-    const std::string energy_string = "energy=";
-    if (token.substr(0, energy_string.length()) == energy_string) {
-      has_energy_in_exyz = true;
-      structure.energy_total = get_double_from_token(
-        token.substr(energy_string.length(), token.length()), xyz_filename.c_str(), line_number);
-      structure.energy = structure.energy_total;
-      structure.energy /= structure.num_atom;
-    }
-  }
-  if ((para.model_type == 0 || para.model_type == 3) && !has_energy_in_exyz) {
-    PRINT_INPUT_ERROR("'energy' is missing in the second line of a frame.");
-  }
-
-  // get total charge (optional; default is 0)
-  for (const auto& token : tokens) {
-    const std::string charge_string = "charge=";
-    if (token.substr(0, charge_string.length()) == charge_string) {
-      structure.charge = get_double_from_token(
-        token.substr(charge_string.length(), token.length()), xyz_filename.c_str(), line_number);
-    }
-  }
-
-  structure.has_temperature = false;
-  for (const auto& token : tokens) {
-    const std::string temperature_string = "temperature=";
-    if (token.substr(0, temperature_string.length()) == temperature_string) {
-      structure.has_temperature = true;
-      structure.temperature = get_double_from_token(
-        token.substr(temperature_string.length(), token.length()),
-        xyz_filename.c_str(),
-        line_number);
-    }
-  }
-  if (para.model_type == 3 && !structure.has_temperature) {
-    PRINT_INPUT_ERROR("'temperature' is missing in the second line of a frame.");
-  }
-  if (!structure.has_temperature) {
-    structure.temperature = 0;
-  }
-
+  structure.num_atom = record.num_atoms;
+  structure.index_in_file = record.index;
+  const auto& tokens = record.tokens;
+  const auto& xyz_filename = record.filename;
+  int line_number = record.comment_line_number;
   structure.weight = 1.0f;
   for (const auto& token : tokens) {
     const std::string weight_string = "weight=";
@@ -325,6 +122,82 @@ static void read_one_structure(
     PRINT_INPUT_ERROR("'lattice' is missing in the second line of a frame.");
   }
 
+  int species_offset = record.get_property_offset("species");
+  int pos_offset = record.get_property_offset("pos");
+  if (species_offset < 0) {
+    PRINT_INPUT_ERROR("'species' is missing in properties.");
+  }
+  if (pos_offset < 0) {
+    PRINT_INPUT_ERROR("'pos' is missing in properties.");
+  }
+  structure.type.resize(structure.num_atom);
+  structure.x.resize(structure.num_atom);
+  structure.y.resize(structure.num_atom);
+  structure.z.resize(structure.num_atom);
+  structure.fx.resize(structure.num_atom);
+  structure.fy.resize(structure.num_atom);
+  structure.fz.resize(structure.num_atom);
+  for (int na = 0; na < structure.num_atom; ++na) {
+    const auto& tokens = record.atoms[na];
+    line_number = record.comment_line_number + na + 1;
+    std::string atom_symbol(tokens[species_offset]);
+    structure.x[na] =
+      get_double_from_token(tokens[0 + pos_offset], xyz_filename.c_str(), line_number);
+    structure.y[na] =
+      get_double_from_token(tokens[1 + pos_offset], xyz_filename.c_str(), line_number);
+    structure.z[na] =
+      get_double_from_token(tokens[2 + pos_offset], xyz_filename.c_str(), line_number);
+    bool is_allowed_element = false;
+    for (int n = 0; n < para.elements.size(); ++n) {
+      if (atom_symbol == para.elements[n]) {
+        structure.type[na] = n;
+        is_allowed_element = true;
+      }
+    }
+    if (!is_allowed_element) {
+      PRINT_INPUT_ERROR("There is atom in train.xyz or test.xyz that are not in nep.in.\n");
+    }
+  }
+}
+
+void NEP_Data_Reader::read_energy(
+  const XYZ_Record& record, Structure& structure, bool required) const
+{
+  const auto& tokens = record.tokens;
+  const auto& xyz_filename = record.filename;
+  int line_number = record.comment_line_number;
+  // get energy_weight (optional)
+  for (const auto& token : tokens) {
+    const std::string energy_weight_string = "energy_weight=";
+    if (token.substr(0, energy_weight_string.length()) == energy_weight_string) {
+      structure.energy_weight = get_double_from_token(
+        token.substr(energy_weight_string.length(), token.length()), xyz_filename.c_str(), line_number);
+    }
+  }
+
+  bool has_energy_in_exyz = false;
+  for (const auto& token : tokens) {
+    const std::string energy_string = "energy=";
+    if (token.substr(0, energy_string.length()) == energy_string) {
+      has_energy_in_exyz = true;
+      structure.energy_total = get_double_from_token(
+        token.substr(energy_string.length(), token.length()), xyz_filename.c_str(), line_number);
+      structure.energy = structure.energy_total;
+      structure.energy /= structure.num_atom;
+    }
+  }
+  if (required && !has_energy_in_exyz) {
+    PRINT_INPUT_ERROR("'energy' is missing in the second line of a frame.");
+  }
+}
+
+void NEP_Data_Reader::read_structure(const XYZ_Record& record, Structure& structure)
+{
+  read_geometry(record, structure);
+  read_energy(record, structure, true);
+  const auto& tokens = record.tokens;
+  const auto& xyz_filename = record.filename;
+  int line_number = record.comment_line_number;
   structure.has_virial = false;
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string virial_string = "virial=";
@@ -389,211 +262,61 @@ static void read_one_structure(
     }
   }
 
-  // use the virial variable to keep the dipole data
-  if (para.model_type == 1) {
-    structure.has_virial = false;
-    for (int n = 0; n < tokens.size(); ++n) {
-      const std::string dipole_string = "dipole=";
-      if (tokens[n].substr(0, dipole_string.length()) == dipole_string) {
-        structure.has_virial = true;
-        for (int m = 0; m < 6; ++m) {
-          structure.virial[m] = 0.0f;
-        }
-        for (int m = 0; m < 3; ++m) {
-          structure.virial[m] = get_double_from_token(
-            tokens[n + m].substr(
-              (m == 0) ? (dipole_string.length() + 1) : 0,
-              (m == 2) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-            xyz_filename.c_str(),
-            line_number);
-          structure.virial[m] /= structure.num_atom;
-        }
-      }
-    }
-    if (!structure.has_virial) {
-      if (para.prediction == 0) {
-        PRINT_INPUT_ERROR("'dipole' is missing in the second line of a frame.");
-      } else {
-        for (int m = 0; m < 6; ++m) {
-          structure.virial[m] = -1e6;
-        }
-      }
-    }
+  int force_offset = record.get_property_offset("force", "forces");
+  if (force_offset < 0) {
+    PRINT_INPUT_ERROR("'force' or 'forces' is missing in properties.");
   }
-
-  // use the virial variable to keep the polarizability data
-  if (para.model_type == 2) {
-    structure.has_virial = false;
-    for (int n = 0; n < tokens.size(); ++n) {
-      const std::string pol_string = "pol=";
-      if (tokens[n].substr(0, pol_string.length()) == pol_string) {
-        structure.has_virial = true;
-        const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
-        for (int m = 0; m < 9; ++m) {
-          structure.virial[reduced_index[m]] = get_double_from_token(
-            tokens[n + m].substr(
-              (m == 0) ? (pol_string.length() + 1) : 0,
-              (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-            xyz_filename.c_str(),
-            line_number);
-          structure.virial[reduced_index[m]] /= structure.num_atom;
-        }
-      }
-    }
-    if (!structure.has_virial) {
-      if (para.prediction == 0) {
-        PRINT_INPUT_ERROR("'pol' is missing in the second line of a frame.");
-      } else {
-        for (int m = 0; m < 6; ++m) {
-          structure.virial[m] = -1e6;
-        }
-      }
-    }
+  for (int na = 0; na < structure.num_atom; ++na) {
+    const auto& tokens = record.atoms[na];
+    line_number = record.comment_line_number + na + 1;
+    structure.fx[na] =
+      get_double_from_token(tokens[0 + force_offset], xyz_filename.c_str(), line_number);
+    structure.fy[na] =
+      get_double_from_token(tokens[1 + force_offset], xyz_filename.c_str(), line_number);
+    structure.fz[na] =
+      get_double_from_token(tokens[2 + force_offset], xyz_filename.c_str(), line_number);
   }
-
-  int species_offset = 0;
-  int pos_offset = 0;
-  int force_offset = 0;
-  int avirial_offset = 0;
-  int bec_offset = 0;
-  int num_columns = 0;
-  structure.has_atomic_virial = false;
-  structure.atomic_virial_diag_only = false;
-  structure.has_bec = false;
-  for (int n = 0; n < tokens.size(); ++n) {
-    const std::string properties_string = "properties=";
-    if (tokens[n].substr(0, properties_string.length()) == properties_string) {
-      std::string line = tokens[n].substr(properties_string.length(), tokens[n].length());
-      for (auto& letter : line) {
-        if (letter == ':') {
-          letter = ' ';
-        }
-      }
-      std::vector<std::string> sub_tokens = get_tokens(line);
-      int species_position = -1;
-      int pos_position = -1;
-      int force_position = -1;
-      int avirial_position = -1;
-      int bec_position = -1;
-      for (int k = 0; k < sub_tokens.size() / 3; ++k) {
-        if (sub_tokens[k * 3] == "species") {
-          species_position = k;
-        }
-        if (sub_tokens[k * 3] == "pos") {
-          pos_position = k;
-        }
-        if (sub_tokens[k * 3] == "force" || sub_tokens[k * 3] == "forces") {
-          force_position = k;
-        }   
-        if (sub_tokens[k * 3] == "adipole" || sub_tokens[k * 3] == "atomic_dipole") {
-          avirial_position = k;
-          structure.has_atomic_virial = true;
-          structure.atomic_virial_diag_only = true;
-        }
-        if (sub_tokens[k * 3] == "apol" || sub_tokens[k * 3] == "atomic_polarizability") {
-          avirial_position = k;
-          structure.has_atomic_virial = true;
-          structure.atomic_virial_diag_only = false;
-        }
-        if (sub_tokens[k * 3] == "bec") {
-          bec_position = k;
-          structure.has_bec = true;
-          para.has_bec = true;
-        }
-      }
-      if (species_position < 0) {
-        PRINT_INPUT_ERROR("'species' is missing in properties.");
-      }
-      if (pos_position < 0) {
-        PRINT_INPUT_ERROR("'pos' is missing in properties.");
-      }
-      if (force_position < 0 && (para.model_type == 0 || para.model_type == 3)) {
-        PRINT_INPUT_ERROR("'force' or 'forces' is missing in properties.");
-      }
-      if (avirial_position < 0 && para.model_type == 1 && para.atomic_v == 1) {
-        PRINT_INPUT_ERROR("'adipole' or 'atomic_dipole' is missing in properties.");
-      }
-      if (avirial_position < 0 && para.model_type == 2 && para.atomic_v == 1) {
-        PRINT_INPUT_ERROR("'apol' or 'atomic_polarizability' is missing in properties.");
-      }
-      for (int k = 0; k < sub_tokens.size() / 3; ++k) {
-        if (k < species_position) {
-          species_offset +=
-            get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
-        }
-        if (k < pos_position) {
-          pos_offset +=
-            get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
-        }
-        if (k < force_position) {
-          force_offset +=
-            get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
-        }
-        if (k < avirial_position) {
-          avirial_offset +=
-            get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
-        }
-        if (k < bec_position) {
-          bec_offset +=
-            get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
-        }
-        num_columns += get_int_from_token(sub_tokens[k * 3 + 2], xyz_filename.c_str(), line_number);
-      }
-    }
-  }
-
-  read_force(
-    num_columns,
-    species_offset,
-    pos_offset,
-    force_offset,
-    avirial_offset,
-    bec_offset,
-    input,
-    para,
-    structure,
-    xyz_filename,
-    line_number,
-    para.model_type);
 }
 
-static void read_exyz(
-  Parameters& para,
-  std::ifstream& input,
-  std::vector<Structure>& structures,
-  std::string& xyz_filename)
+void read_nep_boundaries(const XYZ_Record& record, Structure& structure)
 {
-  int line_number = 0;
-  int Nc = 0;
-  while (true) {
-    std::vector<std::string> tokens = get_tokens(input);
-    line_number++;
-
-    if (tokens.size() == 0) {
-      break;
-    } else if (tokens.size() > 1) {
-      PRINT_INPUT_ERROR("The first line for each frame should have one value.");
+  const auto& tokens = record.tokens;
+  // Read boundaries for long-range models. Keep PPP as the default for
+  // existing training data.
+  for (int n = 0; n < tokens.size(); ++n) {
+    const std::string pbc_string = "pbc=";
+    if (tokens[n].substr(0, pbc_string.length()) == pbc_string) {
+      if (n + 2 >= tokens.size()) {
+        PRINT_INPUT_ERROR("The pbc field should contain three values.");
+      }
+      const char pbc[3] = {
+        tokens[n].back(), tokens[n + 1].front(), tokens[n + 2].front()};
+      for (int d = 0; d < 3; ++d) {
+        if (pbc[d] != 't' && pbc[d] != 'f') {
+          PRINT_INPUT_ERROR("Each pbc value should be T or F.");
+        }
+      }
+      if (pbc[0] != pbc[1] || pbc[1] != pbc[2]) {
+        PRINT_INPUT_ERROR("Long-range models support only pbc=\"T T T\" or pbc=\"F F F\".");
+      }
+      structure.pbc = (pbc[0] == 't');
     }
-    Structure structure;
-    structure.num_atom = get_int_from_token(tokens[0], xyz_filename.c_str(), line_number);
-    if (structure.num_atom < 1) {
-      PRINT_INPUT_ERROR("Number of atoms for each frame should >= 1.");
-    }
-    read_one_structure(para, input, structure, xyz_filename, line_number);
-    structure.index_in_file = Nc;
-    structures.emplace_back(structure);
-    ++Nc;
   }
-  printf("Number of configurations = %d.\n", Nc);
-  if (para.charge_mode || para.vdw || para.charge_vdw) {
-    int num_fff = 0;
-    for (const auto& structure : structures) {
-      num_fff += 1 - structure.pbc;
-    }
-    printf("Number of PPP configurations = %d.\n", Nc - num_fff);
-    printf("Number of FFF configurations = %d.\n", num_fff);
-  }
+}
 
+void print_nep_boundaries(const std::vector<Structure>& structures)
+{
+  int Nc = structures.size();
+  int num_fff = 0;
+  for (const auto& structure : structures) {
+    num_fff += 1 - structure.pbc;
+  }
+  printf("Number of PPP configurations = %d.\n", Nc - num_fff);
+  printf("Number of FFF configurations = %d.\n", num_fff);
+}
+
+void NEP_Data_Reader::print_summary(const std::vector<Structure>& structures) const
+{
   for (const auto& s : structures) {
     if (s.energy < -100.0f) {
       std::cout << "Warning: \n";
@@ -609,8 +332,9 @@ static void read_exyz(
   }
 }
 
-bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures)
+bool NEP_Data_Reader::read_structures(bool is_train, std::vector<Structure>& structures)
 {
+  begin_reading();
   std::ifstream input(is_train ? "train.xyz" : "test.xyz");
   bool has_test_set = true;
   if (!input.is_open()) {
@@ -624,7 +348,15 @@ bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& st
     std::string xyz_filename = is_train ? "train.xyz" : "test.xyz";
     std::cout << "Started reading " << xyz_filename << std::endl;
     print_line_2();
-    read_exyz(para, input, structures, xyz_filename);
+    XYZ_Reader reader(input, xyz_filename);
+    XYZ_Record record;
+    while (reader.read(record)) {
+      Structure structure;
+      read_structure(record, structure);
+      structures.emplace_back(std::move(structure));
+    }
+    printf("Number of configurations = %d.\n", (int)structures.size());
+    print_summary(structures);
     input.close();
   }
 

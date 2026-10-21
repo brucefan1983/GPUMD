@@ -24,8 +24,7 @@ https://doi.org/10.1145/2001576.2001692
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
-#include "nep_init.cuh"
-#include "nep_io.cuh"
+#include "potential.cuh"
 #include "parameters.cuh"
 #include "snes.cuh"
 #include "utilities/error.cuh"
@@ -41,7 +40,7 @@ static __global__ void initialize_curand_states(gpurandState* state, int N, int 
   }
 }
 
-SNES::SNES(Parameters& para)
+SNES::SNES(Parameters& para, Potential& potential) : potential(potential)
 {
   maximum_generation = para.maximum_generation;
   number_of_variables = para.number_of_variables;
@@ -70,14 +69,14 @@ SNES::SNES(Parameters& para)
     curand_states.data(), N, para.seed >= 0 ? para.seed : 1234567);
   GPU_CHECK_KERNEL
 
-  initialize_nep_mu_and_sigma(para, rng, mu, sigma);
+  potential.initialize_parameters(rng, mu, sigma);
   gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_from_host(mu.data());
   gpu_sigma.copy_from_host(sigma.data());
 
   calculate_utility();
   gpu_utility.copy_from_host(utility.data());
-  find_nep_type_of_variable(para, type_of_variable);
+  potential.parameter_groups(type_of_variable);
   gpu_type_of_variable.copy_from_host(type_of_variable.data());
 }
 
@@ -112,10 +111,11 @@ void SNES::run(Parameters& para, Fitness* fitness_function)
   printf("Started training.\n");
   print_line_2();
 
-  fitness_function->print_training_header(para);
+  fitness_function->print_training_header();
 
   for (int n = 0; n < maximum_generation; ++n) {
     create_population();
+    potential.set_population_mean(gpu_mu.data());
     fitness_function->compute(
       n,
       para,
@@ -126,13 +126,19 @@ void SNES::run(Parameters& para, Fitness* fitness_function)
 
     sort_population(para);
 
+    std::string checkpoint_base;
+    if (0 == (n + 1) % para.save_potential) {
+      fitness_function->get_save_potential_label(para, n, checkpoint_base);
+    }
+
     int best_index = index[para.num_types * population_size];
     fitness_function->report_error(
       para,
       n,
       fitness_total[para.num_types * population_size + 0], // already sorted, hence 0
       best_index,
-      population.data() + number_of_variables * best_index);
+      population.data() + number_of_variables * best_index,
+      checkpoint_base);
 
     update_mu_and_sigma();
     if (0 == (n + 1) % para.output_interval) {
@@ -140,10 +146,8 @@ void SNES::run(Parameters& para, Fitness* fitness_function)
       output_mu_and_sigma(para, filename);
     }
     // Optionally save the nep.restart file at the same time as save_potential
-    if (0 == (n + 1) % para.save_potential && para.save_potential_restart) {
-      std::string restart_file;
-      fitness_function->get_save_potential_label(para, n, restart_file);
-      restart_file += ".restart";
+    if (!checkpoint_base.empty() && para.save_potential_restart) {
+      const std::string restart_file = checkpoint_base + ".restart";
       output_mu_and_sigma(para, restart_file.c_str());
     }
   }
@@ -264,5 +268,5 @@ void SNES::output_mu_and_sigma(Parameters& para, const char* filename)
   gpuSetDevice(0); // normally use GPU-0
   gpu_mu.copy_to_host(mu.data());
   gpu_sigma.copy_to_host(sigma.data());
-  write_nep_restart(filename, para, mu, sigma);
+  potential.write_restart(filename, mu, sigma);
 }

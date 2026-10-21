@@ -6,6 +6,8 @@
 src/.vscode/*
 src/*/*.obj
 src/*/*.o
+src/*/*/*.obj
+src/*/*/*.o
 src/gpumd*
 src/nep*
 src/gnep*

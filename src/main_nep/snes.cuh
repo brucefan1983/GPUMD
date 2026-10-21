@@ -24,15 +24,17 @@
 #include <random>
 #include <vector>
 class Fitness;
+class Potential;
 class Parameters;
 
 class SNES
 {
 public:
-  SNES(Parameters& para);
+  SNES(Parameters& para, Potential& potential);
   void run(Parameters& para, Fitness* fitness_function);
 
 protected:
+  Potential& potential;
   std::mt19937 rng;
   int maximum_generation = 10000;
   int number_of_variables = 10;
