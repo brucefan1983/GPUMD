@@ -101,6 +101,11 @@ int next_line(std::istream& input, std::string& line)
     if (!input.eof() || input.bad()) {
       return -1;
     }
+  } catch (...) {
+    if (!input.bad()) {
+      throw;
+    }
+    return -1;
   }
   if (input.bad() || (input.fail() && !input.eof())) {
     return -1;
@@ -447,6 +452,11 @@ bool write(std::ostream& output, const Document& document, std::string& error)
       }
     }
   } catch (const std::ios_base::failure&) {
+    return fail(error, "output stream failure.");
+  } catch (...) {
+    if (!output.bad()) {
+      throw;
+    }
     return fail(error, "output stream failure.");
   }
   if (!output) {
