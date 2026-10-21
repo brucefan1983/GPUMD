@@ -19,10 +19,6 @@
 
 struct Structure;
 
-// Fit energy_total / num_atom to the element fractions, with squared-error weight
-// energy_weight * weight^2. Returns the minimum-norm reference energies in eV/atom
-// and the numerical rank. Zero-weight structures do not contribute to the fit.
-// On failure, reference is empty, rank is zero, and error describes the cause.
 bool fit_nep_energy_reference(
   const std::vector<Structure>& structures,
   int num_types,

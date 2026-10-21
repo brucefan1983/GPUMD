@@ -49,7 +49,6 @@ public:
   GPU_Vector<int> NN_radial_sum;  // prefix sum of NN_radial
   GPU_Vector<int> NN_angular_sum; // prefix sum of NN_angular
 
-  // ANN evaluation is float; energy storage and accumulation are double.
   GPU_Vector<double> energy;      // calculated energy in GPU
   GPU_Vector<float> virial;       // calculated virial in GPU
   GPU_Vector<float> force;        // calculated force in GPU
