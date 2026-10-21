@@ -26,9 +26,9 @@ struct NEP_Compiled_Evaluation
   NEP_Compile library;
   NEP_Compiled_Kernels common;
   using AnnNepFunction =
-    int (*)(int, const int*, const float*, const float*, const float*, float*, float*);
+    int (*)(int, const int*, const float*, const float*, const float*, double*, float*);
   using AnnTemperatureFunction =
-    int (*)(int, const int*, const float*, float*, const float*, const float*, float*, float*);
+    int (*)(int, const int*, const float*, float*, const float*, const float*, double*, float*);
   AnnNepFunction ann_nep_ = nullptr;
   AnnTemperatureFunction ann_temperature_ = nullptr;
   bool valid = false;
@@ -40,7 +40,7 @@ struct NEP_Compiled_Evaluation
     const float* descriptors,
     const float* q_scaler,
     const float* parameters,
-    float* pe,
+    double* pe,
     float* Fp);
   void launch_ann_temperature(
     int N,
@@ -49,7 +49,7 @@ struct NEP_Compiled_Evaluation
     float* q_scaler,
     const float* temperature,
     const float* parameters,
-    float* pe,
+    double* pe,
     float* Fp);
   void launch_force_radial(
     int N, const int* NN_sum, const int* NN, const int* NL, const int* type,

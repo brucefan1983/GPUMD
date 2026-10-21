@@ -266,7 +266,7 @@ void NEP_VDW::Compiled_Kernel::launch_ann_vdw(
   const float* descriptors,
   const float* q_scaler,
   const float* parameters,
-  float* pe,
+  double* pe,
   float* Fp,
   float* C6,
   float* C6_derivative)
@@ -342,7 +342,7 @@ static __global__ void apply_ann_vdw(
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
-  float* g_pe,
+  double* g_pe,
   float* g_Fp,
   float* g_C6,
   float* g_C6_derivative)
@@ -376,7 +376,7 @@ static __global__ void apply_ann_vdw(
       C6,
       C6_derivative);
 
-    g_pe[n1] = F;
+    g_pe[n1] = static_cast<double>(F);
     const float SCALING_FACTOR = 0.1f;
     float C6_exp = paramb.c6_ref_sqrt[type] * expf(C6 * SCALING_FACTOR);
     g_C6[n1] = C6_exp;

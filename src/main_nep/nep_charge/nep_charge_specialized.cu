@@ -27,7 +27,7 @@ static __global__ void ann_charge_jit(
   const float* descriptors,
   const float* q_scaler,
   const float* parameters,
-  float* pe,
+  double* pe,
   float* Fp_out,
   float* charge_out,
   float* charge_derivative_out)
@@ -66,7 +66,7 @@ static __global__ void ann_charge_jit(
     charge,
     charge_derivative);
 
-  pe[n1] = F;
+  pe[n1] = static_cast<double>(F);
   charge_out[n1] = charge;
 #pragma unroll
   for (int d = 0; d < ANN_DIM_JIT; ++d) {
@@ -82,7 +82,7 @@ extern "C" int nep_train_launch_ann_charge(
   const float* descriptors,
   const float* q_scaler,
   const float* parameters,
-  float* pe,
+  double* pe,
   float* Fp,
   float* charge,
   float* charge_derivative)

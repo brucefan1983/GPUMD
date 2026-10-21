@@ -123,11 +123,11 @@ static __global__ void find_force_ZBL(
   float* g_fy,
   float* g_fz,
   float* g_virial,
-  float* g_pe)
+  double* g_pe)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
-    float s_pe = 0.0f;
+    double s_pe = 0.0;
     float s_virial_xx = 0.0f;
     float s_virial_yy = 0.0f;
     float s_virial_zz = 0.0f;
@@ -191,7 +191,7 @@ static __global__ void find_force_ZBL(
       s_virial_xy -= r12[0] * f12[1];
       s_virial_yz -= r12[1] * f12[2];
       s_virial_zx -= r12[2] * f12[0];
-      s_pe += f * 0.5f;
+      s_pe += f * 0.5;
     }
     g_virial[n1 + N * 0] += s_virial_xx;
     g_virial[n1 + N * 1] += s_virial_yy;

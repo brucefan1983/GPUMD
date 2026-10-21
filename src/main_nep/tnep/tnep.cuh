@@ -131,7 +131,7 @@ private:
     NEP_Compile library;
     NEP_Compiled_Kernels common;
     using AnnNepFunction =
-      int (*)(int, const int*, const float*, const float*, const float*, float*, float*);
+      int (*)(int, const int*, const float*, const float*, const float*, double*, float*);
     using AnnTnepPolFunction =
       int (*)(int, const int*, const float*, const float*, const float*, float*, float*);
     AnnNepFunction ann_nep_ = nullptr;
@@ -145,7 +145,7 @@ private:
       const float* descriptors,
       const float* q_scaler,
       const float* parameters,
-      float* pe,
+      double* pe,
       float* Fp);
     void launch_ann_tnep_pol(
       int N,

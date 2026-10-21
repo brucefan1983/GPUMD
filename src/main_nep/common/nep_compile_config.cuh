@@ -20,7 +20,7 @@
 
 class NEP_Parameters;
 
-const int NEP_SPECIALIZED_INTERFACE_VERSION = 3;
+const int NEP_SPECIALIZED_INTERFACE_VERSION = 4;
 
 struct NEP_Compile_Config {
   std::string model_name;

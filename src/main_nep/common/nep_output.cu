@@ -101,8 +101,11 @@ static void update_energy_force_virial(
       dataset.force_ref_cpu[n + dataset.N * 2]);
   }
 
-  write_nep_structure_predictions(
-    false, 1, fid_energy, dataset.energy_cpu.data(), dataset.energy_ref_cpu.data(), dataset, nc);
+  double energy = 0.0;
+  for (int m = 0; m < dataset.Na_cpu[nc]; ++m) {
+    energy += dataset.energy_cpu[offset + m];
+  }
+  fprintf(fid_energy, "%.17g %.17g\n", energy / dataset.Na_cpu[nc], dataset.energy_ref_cpu[nc]);
 
   write_nep_structure_predictions(
     false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset, nc);

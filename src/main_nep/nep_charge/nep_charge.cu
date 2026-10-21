@@ -248,7 +248,7 @@ void NEP_Charge::Compiled_Kernel::launch_ann_charge(
   const float* descriptors,
   const float* q_scaler,
   const float* parameters,
-  float* pe,
+  double* pe,
   float* Fp,
   float* charge,
   float* charge_derivative)
@@ -331,7 +331,7 @@ static __global__ void apply_ann(
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
-  float* g_pe,
+  double* g_pe,
   float* g_Fp,
   float* g_charge,
   float* g_charge_derivative)
@@ -363,7 +363,7 @@ static __global__ void apply_ann(
       charge,
       charge_derivative);
 
-    g_pe[n1] = F;
+    g_pe[n1] = static_cast<double>(F);
     g_charge[n1] = charge;
 
     for (int d = 0; d < annmb.dim; ++d) {
@@ -758,7 +758,7 @@ static __global__ void find_force_charge_long_range(
   float* g_fy,
   float* g_fz,
   float* g_virial,
-  float* g_pe)
+  double* g_pe)
 {
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
@@ -770,7 +770,7 @@ static __global__ void find_force_charge_long_range(
     int n = threadIdx.x + batch * 1024 + N1;
     if (n < N2) {
       if (is_periodic) {
-        float temp_energy_sum = 0.0f;
+        double temp_energy_sum = 0.0;
         float temp_virial_sum[6] = {0.0f};
         float temp_force_sum[3] = {0.0f};
         float temp_D_real_sum = 0.0f;
@@ -813,7 +813,7 @@ static __global__ void find_force_charge_long_range(
         const float q1 = g_charge[n];
         const float alpha_squared = alpha * alpha;
         // The r=0 limit of erf(alpha*r)/r gives the positive self term.
-        float temp_energy_sum = 0.5f * q1 * q1 * two_alpha_over_sqrt_pi;
+        double temp_energy_sum = 0.5 * q1 * q1 * two_alpha_over_sqrt_pi;
         float temp_D_real_sum = q1 * two_alpha_over_sqrt_pi;
         float temp_force_sum[3] = {0.0f};
         float temp_virial_sum[6] = {0.0f};
@@ -835,7 +835,7 @@ static __global__ void find_force_charge_long_range(
             (erf_r - two_alpha_over_sqrt_pi * exp_alpha) / d12sq;
           const float f12[3] = {x12 * f2, y12 * f2, z12 * f2};
 
-          temp_energy_sum += 0.5f * qq * erf_r;
+          temp_energy_sum += 0.5 * qq * erf_r;
           temp_D_real_sum += q2 * erf_r;
           temp_force_sum[0] += f12[0];
           temp_force_sum[1] += f12[1];
@@ -875,7 +875,7 @@ static __global__ void find_force_charge_real_space(
   float* g_fy,
   float* g_fz,
   float* g_virial,
-  float* g_pe,
+  double* g_pe,
   float* g_D_real)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
@@ -887,7 +887,7 @@ static __global__ void find_force_charge_real_space(
     float s_virial_yz = 0.0f;
     float s_virial_zx = 0.0f;
     float q1 = g_charge[n1];
-    float s_pe = -two_alpha_over_sqrt_pi * 0.5f * q1 * q1; // self energy part
+    double s_pe = -two_alpha_over_sqrt_pi * 0.5 * q1 * q1; // self energy part
     float D_real = -q1 * two_alpha_over_sqrt_pi; // self energy part
 
     int neighbor_number = g_NN[n1];
@@ -906,7 +906,7 @@ static __global__ void find_force_charge_real_space(
       f2 *= -0.5f * K_C_SP * qq * d12inv * d12inv;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
 
-      s_pe += 0.5f * qq * erfc_r;
+      s_pe += 0.5 * qq * erfc_r;
       atomicAdd(&g_fx[n1], f12[0]);
       atomicAdd(&g_fy[n1], f12[1]);
       atomicAdd(&g_fz[n1], f12[2]);

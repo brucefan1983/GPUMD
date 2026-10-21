@@ -28,7 +28,7 @@ struct Structure {
   int num_atom;
   int has_virial = 0;
   float weight;
-  float energy = 0.0f;
+  double energy = 0.0;
   double energy_total = 0.0; // the reference total energy, for the combinations of ediff.in
   float energy_weight = 1.0f;
   float virial[6];
