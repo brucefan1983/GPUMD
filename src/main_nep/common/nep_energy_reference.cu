@@ -66,8 +66,9 @@ static bool orthogonalize_reference_columns(
     largest_column = std::max(largest_column, reference_column_norm(r, n, j));
   }
   // The largest column norm is a lower bound on the largest singular value.
-  // The sqrt(n) factor keeps even the combined norm of all skipped columns
-  // below the rank cutoff; individually small columns can share a valid mode.
+  // The sqrt(n) factor bounds the combined norm of the negligible columns.
+  // Skip rotations only within that block: a small column must still rotate
+  // with a larger one to preserve its contribution to a retained direction.
   const double zero_tolerance = relative_cutoff * largest_column / std::sqrt(double(n));
   for (int sweep = 0; sweep < 100; ++sweep) {
     bool changed = false;
@@ -75,7 +76,8 @@ static bool orthogonalize_reference_columns(
       for (int q = p + 1; q < n; ++q) {
         const double norm_p = reference_column_norm(r, n, p);
         const double norm_q = reference_column_norm(r, n, q);
-        if (norm_p <= zero_tolerance || norm_q <= zero_tolerance) {
+        if (norm_p == 0.0 || norm_q == 0.0 ||
+            (norm_p <= zero_tolerance && norm_q <= zero_tolerance)) {
           continue;
         }
         double correlation = 0.0;
@@ -85,7 +87,6 @@ static bool orthogonalize_reference_columns(
         if (std::abs(correlation) <= tolerance) {
           continue;
         }
-        changed = true;
         // Scale the pair before forming squares and products, including for
         // weak retained directions. The rotation is invariant to this scale.
         const double scale = std::max(norm_p, norm_q);
@@ -94,8 +95,20 @@ static bool orthogonalize_reference_columns(
         const double alpha = scaled_p * scaled_p;
         const double beta = scaled_q * scaled_q;
         const double gamma = correlation * scaled_p * scaled_q;
-        const double tau = (beta - alpha) / (2.0 * gamma);
-        const double t = std::copysign(1.0, tau) / (std::abs(tau) + std::hypot(1.0, tau));
+        // This equivalent rotation formula avoids dividing by a tiny gamma.
+        const double delta = beta - alpha;
+        const double t = 2.0 * gamma /
+                         (delta + std::copysign(std::hypot(delta, 2.0 * gamma), delta));
+        if (t == 0.0) {
+          continue;
+        }
+        // Always apply this rotation, including to V. A negligible column
+        // with only a roundoff-sized rotation must not keep sweeps running;
+        // pairs of significant columns still require relative orthogonality.
+        if ((norm_p > zero_tolerance && norm_q > zero_tolerance) ||
+            std::abs(t) > tolerance) {
+          changed = true;
+        }
         const double c = 1.0 / std::hypot(1.0, t);
         const double s = t * c;
         for (int i = 0; i < n; ++i) {
