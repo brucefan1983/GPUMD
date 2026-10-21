@@ -21,8 +21,7 @@
 namespace nep_file
 {
 
-struct ModelLayout
-{
+struct ModelLayout {
   int dim_radial = 0;
   int dim_angular = 0;
   int dim = 0;
@@ -34,8 +33,7 @@ struct ModelLayout
   int number_of_variables = 0;
 };
 
-struct Model
-{
+struct Model {
   std::string name;
   std::vector<std::string> elements;
   int num_types = 0;
@@ -72,4 +70,4 @@ struct Model
 
 bool read_model(std::istream& input, Model& model, std::string& error);
 
-}
+} // namespace nep_file

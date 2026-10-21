@@ -13,8 +13,8 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "nep_energy_reference.cuh"
 #include "main_nep/structure.cuh"
+#include "nep_energy_reference.cuh"
 #include "utilities/common.cuh"
 #include <algorithm>
 #include <cmath>
@@ -71,8 +71,9 @@ static bool orthogonalize_reference_columns(
       for (int q = p + 1; q < n; ++q) {
         const double norm_p = reference_column_norm(r, n, p);
         const double norm_q = reference_column_norm(r, n, q);
-        if (norm_p == 0.0 || norm_q == 0.0 ||
-            (norm_p <= zero_tolerance && norm_q <= zero_tolerance)) {
+        if (
+          norm_p == 0.0 || norm_q == 0.0 ||
+          (norm_p <= zero_tolerance && norm_q <= zero_tolerance)) {
           continue;
         }
         double correlation = 0.0;
@@ -91,14 +92,13 @@ static bool orthogonalize_reference_columns(
         const double gamma = correlation * scaled_p * scaled_q;
 
         const double delta = beta - alpha;
-        const double t = 2.0 * gamma /
-                         (delta + std::copysign(std::hypot(delta, 2.0 * gamma), delta));
+        const double t =
+          2.0 * gamma / (delta + std::copysign(std::hypot(delta, 2.0 * gamma), delta));
         if (t == 0.0) {
           continue;
         }
 
-        if ((norm_p > zero_tolerance && norm_q > zero_tolerance) ||
-            std::abs(t) > tolerance) {
+        if ((norm_p > zero_tolerance && norm_q > zero_tolerance) || std::abs(t) > tolerance) {
           changed = true;
         }
         const double c = 1.0 / std::hypot(1.0, t);
@@ -153,9 +153,10 @@ bool fit_nep_energy_reference(
       error = location + " has an invalid atom count.";
       return false;
     }
-    if (!std::isfinite(structure.energy_total) || !std::isfinite(structure.weight) ||
-        !std::isfinite(structure.energy_weight) || structure.weight < 0.0f ||
-        structure.energy_weight < 0.0f) {
+    if (
+      !std::isfinite(structure.energy_total) || !std::isfinite(structure.weight) ||
+      !std::isfinite(structure.energy_weight) || structure.weight < 0.0f ||
+      structure.energy_weight < 0.0f) {
       error = location + " requires finite energy and finite nonnegative weights.";
       return false;
     }
@@ -189,8 +190,8 @@ bool fit_nep_energy_reference(
   for (int t = 0; t < n; ++t) {
     v[t * n + t] = 1.0;
   }
-  const double relative_cutoff = std::numeric_limits<double>::epsilon() *
-                                 std::max(num_rows, size_t(n));
+  const double relative_cutoff =
+    std::numeric_limits<double>::epsilon() * std::max(num_rows, size_t(n));
   if (!orthogonalize_reference_columns(r, v, n, relative_cutoff)) {
     error = "Energy reference fit did not converge.";
     return false;

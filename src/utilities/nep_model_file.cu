@@ -13,8 +13,8 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "nep_model_file.cuh"
 #include "nep_file.cuh"
+#include "nep_model_file.cuh"
 #include <cmath>
 #include <limits>
 #include <utility>
@@ -34,10 +34,14 @@ bool read_integer(
   const Field& field, std::size_t index, int minimum, int maximum, int& value, std::string& error)
 {
   std::size_t parsed;
-  if (!parse_size(field.values[index], parsed) || parsed < static_cast<std::size_t>(minimum) ||
-      parsed > static_cast<std::size_t>(maximum)) {
-    return fail(error, "'" + field.name + "' requires an integer in [" +
-      std::to_string(minimum) + ", " + std::to_string(maximum) + "].", field.line);
+  if (
+    !parse_size(field.values[index], parsed) || parsed < static_cast<std::size_t>(minimum) ||
+    parsed > static_cast<std::size_t>(maximum)) {
+    return fail(
+      error,
+      "'" + field.name + "' requires an integer in [" + std::to_string(minimum) + ", " +
+        std::to_string(maximum) + "].",
+      field.line);
   }
   value = static_cast<int>(parsed);
   return true;
@@ -62,8 +66,12 @@ bool read_float(const Field& field, std::size_t index, float& value, std::string
 }
 
 const Field* require_field(
-  const Document& document, const char* name, std::size_t minimum, std::size_t maximum,
-  std::vector<std::string>& handled, std::string& error)
+  const Document& document,
+  const char* name,
+  std::size_t minimum,
+  std::size_t maximum,
+  std::vector<std::string>& handled,
+  std::string& error)
 {
   const Field* field = find_field(document, name);
   if (field == nullptr) {
@@ -79,16 +87,23 @@ const Field* require_field(
 }
 
 bool read_block(
-  const Document& document, const char* name, int count, std::vector<float>& values,
-  std::vector<std::string>& handled, std::string& error)
+  const Document& document,
+  const char* name,
+  int count,
+  std::vector<float>& values,
+  std::vector<std::string>& handled,
+  std::string& error)
 {
   const Block* block = find_block(document, name);
   if (block == nullptr) {
     return fail(error, "missing block '" + std::string(name) + "'.");
   }
   if (block->values.size() != static_cast<std::size_t>(count)) {
-    return fail(error, "block '" + block->name + "' requires " + std::to_string(count) +
-      " values, found " + std::to_string(block->values.size()) + ".", block->line);
+    return fail(
+      error,
+      "block '" + block->name + "' requires " + std::to_string(count) + " values, found " +
+        std::to_string(block->values.size()) + ".",
+      block->line);
   }
   values.resize(count);
   for (int i = 0; i < count; ++i) {
@@ -111,7 +126,8 @@ bool read_descriptor(
   model.has_multiple_cutoffs = field->values.size() != 4;
   const int count = model.has_multiple_cutoffs ? model.num_types : 1;
   if (field->values.size() != static_cast<std::size_t>(2 * count + 2)) {
-    return fail(error,
+    return fail(
+      error,
       "cutoff requires two radii or one pair per element, followed by two neighbor counts.",
       field->line);
   }
@@ -119,28 +135,33 @@ bool read_descriptor(
   model.rc_angular.resize(model.num_types);
   for (int t = 0; t < model.num_types; ++t) {
     const int offset = model.has_multiple_cutoffs ? 2 * t : 0;
-    if (!read_float(*field, offset, model.rc_radial[t], error) ||
-        !read_float(*field, offset + 1, model.rc_angular[t], error)) {
+    if (
+      !read_float(*field, offset, model.rc_radial[t], error) ||
+      !read_float(*field, offset + 1, model.rc_angular[t], error)) {
       return false;
     }
-    if (model.rc_angular[t] < 3.0f || model.rc_angular[t] > model.rc_radial[t] ||
-        model.rc_radial[t] > 100.0f) {
+    if (
+      model.rc_angular[t] < 3.0f || model.rc_angular[t] > model.rc_radial[t] ||
+      model.rc_radial[t] > 100.0f) {
       return fail(error, "cutoff requires 3 <= angular <= radial <= 100 Angstrom.", field->line);
     }
   }
   const int max_count = std::numeric_limits<int>::max();
-  if (!read_integer(*field, 2 * count, 0, max_count, model.max_radial, error) ||
-      !read_integer(*field, 2 * count + 1, 0, max_count, model.max_angular, error)) {
+  if (
+    !read_integer(*field, 2 * count, 0, max_count, model.max_radial, error) ||
+    !read_integer(*field, 2 * count + 1, 0, max_count, model.max_angular, error)) {
     return false;
   }
   field = require_field(document, "n_max", 2, 2, handled, error);
-  if (field == nullptr || !read_integer(*field, 0, 0, 12, model.n_max_radial, error) ||
-      !read_integer(*field, 1, 0, 12, model.n_max_angular, error)) {
+  if (
+    field == nullptr || !read_integer(*field, 0, 0, 12, model.n_max_radial, error) ||
+    !read_integer(*field, 1, 0, 12, model.n_max_angular, error)) {
     return false;
   }
   field = require_field(document, "basis_size", 2, 2, handled, error);
-  if (field == nullptr || !read_integer(*field, 0, 0, 16, model.basis_size_radial, error) ||
-      !read_integer(*field, 1, 0, 12, model.basis_size_angular, error)) {
+  if (
+    field == nullptr || !read_integer(*field, 0, 0, 16, model.basis_size_radial, error) ||
+    !read_integer(*field, 1, 0, 12, model.basis_size_angular, error)) {
     return false;
   }
   field = require_field(document, "l_max", 3, 7, handled, error);
@@ -164,15 +185,16 @@ bool read_descriptor(
   model.has_q_134 = flags[5];
   model.layout.dim_radial = model.n_max_radial + 1;
   model.layout.dim_angular = (model.n_max_angular + 1) *
-    (model.L_max + model.has_q_222 + model.has_q_1111 + model.has_q_112 +
-     model.has_q_123 + model.has_q_233 + model.has_q_134);
+                             (model.L_max + model.has_q_222 + model.has_q_1111 + model.has_q_112 +
+                              model.has_q_123 + model.has_q_233 + model.has_q_134);
   if (model.layout.dim_angular > 90) {
     return fail(error, "number of angular descriptors exceeds 90.", field->line);
   }
   model.layout.dim = model.layout.dim_radial + model.layout.dim_angular;
   field = require_field(document, "ann", 2, 2, handled, error);
-  if (field == nullptr || !read_integer(*field, 0, 1, 120, model.num_neurons1, error) ||
-      !read_integer(*field, 1, 0, 120, model.num_neurons2, error)) {
+  if (
+    field == nullptr || !read_integer(*field, 0, 1, 120, model.num_neurons1, error) ||
+    !read_integer(*field, 1, 0, 120, model.num_neurons2, error)) {
     return false;
   }
   return true;
@@ -181,8 +203,8 @@ bool read_descriptor(
 bool read_reference(
   const Document& document, Model& model, std::vector<std::string>& handled, std::string& error)
 {
-  const Field* field = require_field(
-    document, "energy_reference", model.num_types, model.num_types, handled, error);
+  const Field* field =
+    require_field(document, "energy_reference", model.num_types, model.num_types, handled, error);
   if (field == nullptr) {
     return false;
   }
@@ -196,15 +218,19 @@ bool read_reference(
 }
 
 bool read_zbl(
-  const Document& document, Model& model, std::vector<std::string>& fields,
-  std::vector<std::string>& blocks, std::string& error)
+  const Document& document,
+  Model& model,
+  std::vector<std::string>& fields,
+  std::vector<std::string>& blocks,
+  std::string& error)
 {
   if (find_field(document, "zbl") == nullptr) {
     return true;
   }
   const Field* field = require_field(document, "zbl", 2, 3, fields, error);
-  if (field == nullptr || !read_float(*field, 0, model.zbl_rc_inner, error) ||
-      !read_float(*field, 1, model.zbl_rc_outer, error)) {
+  if (
+    field == nullptr || !read_float(*field, 0, model.zbl_rc_inner, error) ||
+    !read_float(*field, 1, model.zbl_rc_outer, error)) {
     return false;
   }
   model.enable_zbl = true;
@@ -218,9 +244,11 @@ bool read_zbl(
       return false;
     }
     for (int i = 0; i < count; i += 10) {
-      if (model.zbl_parameters[i] < 0.0f ||
-          model.zbl_parameters[i + 1] <= model.zbl_parameters[i]) {
-        return fail(error, "each zbl_parameters pair requires 0 <= inner < outer.",
+      if (
+        model.zbl_parameters[i] < 0.0f || model.zbl_parameters[i + 1] <= model.zbl_parameters[i]) {
+        return fail(
+          error,
+          "each zbl_parameters pair requires 0 <= inner < outer.",
           find_block(document, "zbl_parameters")->line);
       }
     }
@@ -248,43 +276,50 @@ void calculate_layout(Model& model, int extra_inputs, int extra_outputs, int glo
   layout.ann_count = ann_count;
   layout.global_parameters = globals;
   if (model.num_neurons2 > 0) {
-    layout.number_of_variables_ann_1 = (layout.dim + 1) * model.num_neurons1 +
-      (model.num_neurons1 + 2) * model.num_neurons2;
+    layout.number_of_variables_ann_1 =
+      (layout.dim + 1) * model.num_neurons1 + (model.num_neurons1 + 2) * model.num_neurons2;
   } else {
     layout.number_of_variables_ann_1 = (layout.dim + 2 + extra_outputs) * model.num_neurons1;
   }
   layout.number_of_variables_ann = layout.number_of_variables_ann_1 * model.num_types + globals;
-  layout.number_of_variables_descriptor = model.num_types * model.num_types *
+  layout.number_of_variables_descriptor =
+    model.num_types * model.num_types *
     ((model.n_max_radial + 1) * (model.basis_size_radial + 1) +
      (model.n_max_angular + 1) * (model.basis_size_angular + 1));
-  layout.number_of_variables = layout.number_of_variables_ann * ann_count +
-    layout.number_of_variables_descriptor;
+  layout.number_of_variables =
+    layout.number_of_variables_ann * ann_count + layout.number_of_variables_descriptor;
 }
 
 bool read_nep_options(
-  const Document& document, Model& model, std::vector<std::string>& fields,
-  std::vector<std::string>& blocks, std::string& error)
+  const Document& document,
+  Model& model,
+  std::vector<std::string>& fields,
+  std::vector<std::string>& blocks,
+  std::string& error)
 {
   calculate_layout(model, model.name == "nep_temperature" ? 1 : 0, 0, 1, 1);
   return read_reference(document, model, fields, error) &&
-    read_zbl(document, model, fields, blocks, error);
+         read_zbl(document, model, fields, blocks, error);
 }
 
 bool read_qnep_options(
-  const Document& document, Model& model, std::vector<std::string>& fields,
-  std::vector<std::string>& blocks, std::string& error)
+  const Document& document,
+  Model& model,
+  std::vector<std::string>& fields,
+  std::vector<std::string>& blocks,
+  std::string& error)
 {
   if (model.num_neurons2 != 0) {
-    return fail(error, model.name + " supports only one hidden layer.",
-      find_field(document, "ann")->line);
+    return fail(
+      error, model.name + " supports only one hidden layer.", find_field(document, "ann")->line);
   }
   if (model.has_multiple_cutoffs) {
-    return fail(error, model.name + " supports only uniform cutoffs.",
-      find_field(document, "cutoff")->line);
+    return fail(
+      error, model.name + " supports only uniform cutoffs.", find_field(document, "cutoff")->line);
   }
   calculate_layout(model, 0, 1, 2, 1);
   return read_reference(document, model, fields, error) &&
-    read_zbl(document, model, fields, blocks, error);
+         read_zbl(document, model, fields, blocks, error);
 }
 
 void read_tnep_options(Model& model)
@@ -293,20 +328,23 @@ void read_tnep_options(Model& model)
 }
 
 bool read_vdw_options(
-  const Document& document, Model& model, std::vector<std::string>& fields,
-  std::vector<std::string>& blocks, std::string& error)
+  const Document& document,
+  Model& model,
+  std::vector<std::string>& fields,
+  std::vector<std::string>& blocks,
+  std::string& error)
 {
   if (model.num_neurons2 != 0) {
-    return fail(error, model.name + " supports only one hidden layer.",
-      find_field(document, "ann")->line);
+    return fail(
+      error, model.name + " supports only one hidden layer.", find_field(document, "ann")->line);
   }
   const bool charge = model.name == "qnep2_vdw";
   calculate_layout(model, 0, charge ? 2 : 1, charge ? 2 : 1, 1);
   return read_reference(document, model, fields, error) &&
-    read_zbl(document, model, fields, blocks, error);
+         read_zbl(document, model, fields, blocks, error);
 }
 
-}
+} // namespace
 
 bool read_model(std::istream& input, Model& model, std::string& error)
 {
@@ -326,8 +364,8 @@ bool read_model(std::istream& input, Model& model, std::string& error)
   const bool tnep = parsed.name == "nep_dipole" || parsed.name == "nep_polarizability";
   const bool vdw = parsed.name == "nep_vdw" || parsed.name == "qnep2_vdw";
   if (!nep && !qnep && !tnep && !vdw) {
-    return fail(error, "unsupported model '" + parsed.name + "'.",
-      find_field(document, "model")->line);
+    return fail(
+      error, "unsupported model '" + parsed.name + "'.", find_field(document, "model")->line);
   }
   if (!read_descriptor(document, parsed, fields, error)) {
     return false;
@@ -347,14 +385,20 @@ bool read_model(std::istream& input, Model& model, std::string& error)
   if (parsed.layout.dim > 103) {
     return fail(error, "descriptor dimension exceeds 103.", find_field(document, "l_max")->line);
   }
-  if (!read_block(document, "parameters", parsed.layout.number_of_variables,
-        parsed.parameters, blocks, error) ||
-      !read_block(document, "q_scaler", parsed.layout.dim, parsed.q_scaler, blocks, error) ||
-      !check_unhandled(document, fields, blocks, error)) {
+  if (
+    !read_block(
+      document,
+      "parameters",
+      parsed.layout.number_of_variables,
+      parsed.parameters,
+      blocks,
+      error) ||
+    !read_block(document, "q_scaler", parsed.layout.dim, parsed.q_scaler, blocks, error) ||
+    !check_unhandled(document, fields, blocks, error)) {
     return false;
   }
   model = std::move(parsed);
   return true;
 }
 
-}
+} // namespace nep_file

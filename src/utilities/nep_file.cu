@@ -77,12 +77,12 @@ bool fail(std::string& error, const std::string& message, std::size_t line = 0)
 std::string element_symbol(const std::string& token)
 {
   static const char* const symbols[] = {
-    "H", "He", "Li", "Be", "B", "C", "N", "O", "F", "Ne", "Na", "Mg", "Al", "Si", "P", "S",
-    "Cl", "Ar", "K", "Ca", "Sc", "Ti", "V", "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge",
-    "As", "Se", "Br", "Kr", "Rb", "Sr", "Y", "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
-    "In", "Sn", "Sb", "Te", "I", "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd",
-    "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W", "Re", "Os", "Ir", "Pt", "Au", "Hg",
-    "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U", "Np", "Pu"};
+    "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
+    "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge",
+    "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
+    "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd",
+    "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
+    "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
   const std::string name = lower(token);
   for (const char* symbol : symbols) {
     if (lower(symbol) == name) {
@@ -236,12 +236,9 @@ bool compare_fields(const Field& a, const Field& b)
   return a.name < b.name;
 }
 
-bool compare_blocks(const Block& a, const Block& b)
-{
-  return a.name < b.name;
-}
+bool compare_blocks(const Block& a, const Block& b) { return a.name < b.name; }
 
-}
+} // namespace
 
 const Field* find_field(const Document& document, const std::string& name)
 {
@@ -369,8 +366,8 @@ bool read(std::istream& input, Document& document, std::string& error)
       for (const std::string& token : tokens) {
         double value;
         if (!parse_double(token, value)) {
-          return fail(error, "expected finite decimal value in block '" + block.name + "'.",
-            line_number);
+          return fail(
+            error, "expected finite decimal value in block '" + block.name + "'.", line_number);
         }
         block.values.push_back(value);
       }
@@ -402,8 +399,8 @@ bool read(std::istream& input, Document& document, std::string& error)
     return fail(error, "input stream failure.", line_number + 1);
   }
   if (remaining != 0) {
-    return fail(error, "truncated block '" + parsed.blocks.back().name + "'.",
-      parsed.blocks.back().line);
+    return fail(
+      error, "truncated block '" + parsed.blocks.back().name + "'.", parsed.blocks.back().line);
   }
   if (!validate(parsed, error)) {
     return false;
@@ -485,4 +482,4 @@ bool check_unhandled(
   return true;
 }
 
-}
+} // namespace nep_file

@@ -22,22 +22,19 @@
 namespace nep_file
 {
 
-struct Field
-{
+struct Field {
   std::string name;
   std::vector<std::string> values;
   std::size_t line = 0;
 };
 
-struct Block
-{
+struct Block {
   std::string name;
   std::vector<double> values;
   std::size_t line = 0;
 };
 
-struct Document
-{
+struct Document {
   std::vector<std::string> elements;
   std::vector<Field> fields;
   std::vector<Block> blocks;
@@ -58,4 +55,4 @@ bool check_unhandled(
   const std::vector<std::string>& handled_blocks,
   std::string& error);
 
-}
+} // namespace nep_file
