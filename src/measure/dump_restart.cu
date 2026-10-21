@@ -18,6 +18,7 @@ Dump a restart file
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_restart.cuh"
+#include "integrate/integrate.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "utilities/common.cuh"
@@ -114,6 +115,20 @@ void Dump_Restart::end_of_step(
     box.cpu_h[5],
     box.cpu_h[8]);
 
+  const std::string mttk_state = integrate.mttk_restart_state();
+  const std::string nhc_state = integrate.nhc_restart_state();
+  if (!mttk_state.empty()) {
+    fprintf(fid, "mttk_state=%s mttk_time=%.17g ", mttk_state.c_str(), global_time);
+  }
+  if (!nhc_state.empty()) {
+    fprintf(fid, "nhc_state=%s nhc_time=%.17g ", nhc_state.c_str(), global_time);
+  }
+  if (atom.spin_glsd_seed != 0) {
+    // Spin and thermostat checkpoints refer to the same completed step.
+    fprintf(fid, "spin_glsd_step=%llu spin_glsd_seed=%llu ",
+      static_cast<unsigned long long>(atom.spin_glsd_step),
+      static_cast<unsigned long long>(atom.spin_glsd_seed));
+  }
   fprintf(fid, "Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3");
   if (atom.has_spin) {
     fprintf(fid, ":spin:R:3");
@@ -143,7 +158,7 @@ void Dump_Restart::end_of_step(
     if (atom.has_spin) {
       fprintf(
         fid,
-        "%g %g %g ",
+        (atom.spin_glsd_seed || !mttk_state.empty() || !nhc_state.empty()) ? "%.17g %.17g %.17g " : "%g %g %g ",
         atom.cpu_spin_per_atom[n],
         atom.cpu_spin_per_atom[n + number_of_atoms],
         atom.cpu_spin_per_atom[n + 2 * number_of_atoms]);

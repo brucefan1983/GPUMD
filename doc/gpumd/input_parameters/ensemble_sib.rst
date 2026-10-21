@@ -147,3 +147,7 @@ SIB propagates every nonzero ``spin:R:3`` vector; ``spin_dof_type`` masks the
 potential response but is not an integration constraint. In particular, an
 excluded type has zero deterministic magnetic field but can still rotate
 under thermal noise.
+
+For variable-magnitude dynamics use the independent
+:ref:`GLSD ensembles <kw_ensemble_glsd>`. SIB does not accept ``lsf``, ``damping`` or
+``mobility``; its fixed-magnitude equation and Cayley integration are unchanged.

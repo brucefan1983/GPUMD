@@ -95,3 +95,14 @@ with three different options for specifying :attr:`pressure_control_parameters`:
 :attr:`npt_scr`
 ^^^^^^^^^^^^^^^
 If the first parameter is :attr:`npt_scr`, it is similar to the case of :attr:`npt_ber`, but using the :ref:`stochastic cell rescaling method <stochastic_cell_rescaling>`.
+
+NHC restart continuation
+------------------------
+
+For ``nvt_nhc``, :ref:`dump_restart <kw_dump_restart>` preserves the four
+thermostat masses, positions and conjugate momenta together with the original
+temperature ramp phase and global time. Load the checkpoint as ``model.xyz``
+and keep the same timestep, temperature endpoints and coupling; do not
+regenerate velocities. This also applies to the atomic NHC in ``nvt_glsd``
+when lattice motion is enabled. See ``dump_restart`` for compatibility and
+stateful-modifier limitations.

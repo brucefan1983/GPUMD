@@ -136,6 +136,8 @@ Run::Run(const RunInput& run_input)
     box,
     group,
     atom);
+  if (!atom.mttk_restart.empty()) global_time = atom.mttk_restart_time;
+  if (!atom.nhc_restart.empty()) global_time = atom.nhc_restart_time;
   first_potential_filename_ = get_first_potential_filename(run_input);
 
   if (has_replicate_) {
@@ -276,14 +278,14 @@ void Run::perform_a_run(const int number_of_steps)
   if (force.has_mfield() && (!force.has_spin_potential() || !atom.has_spin)) {
     PRINT_INPUT_ERROR("add_mfield requires a Spin potential and spin:R:3.");
   }
-  if ((integrate.use_spin_tspin || integrate.use_spin_sib) &&
+  if ((integrate.use_spin_tspin || integrate.use_spin_sib || integrate.use_spin_glsd) &&
       (!force.has_spin_potential() || !atom.has_spin)) {
     PRINT_INPUT_ERROR("A spin ensemble requires a Spin potential and spin:R:3 in model.xyz.");
   }
   integrate.initialize(time_step, atom, box, group);
-  GPU_Vector<double> sib_midpoint_base_force;
-  if (integrate.use_spin_sib) {
-    sib_midpoint_base_force.resize(3 * atom.number_of_atoms);
+  GPU_Vector<double> spin_predictor_base_force;
+  if (integrate.use_spin_sib || integrate.use_spin_glsd) {
+    spin_predictor_base_force.resize(3 * atom.number_of_atoms);
   }
   measure.pre_run(number_of_steps, time_step, integrate, group, atom, box, force);
 
@@ -312,8 +314,8 @@ void Run::perform_a_run(const int number_of_steps)
 
     measure.pre_force(step, time_step, integrate, group, atom, box, force);
     compute_force();
-    if (integrate.use_spin_sib) {
-      sib_midpoint_base_force.copy_from_device(atom.force_per_atom.data());
+    if (integrate.use_spin_sib || integrate.use_spin_glsd) {
+      spin_predictor_base_force.copy_from_device(atom.force_per_atom.data());
     }
 
     atom.update_unwrapped_position(box);
@@ -322,22 +324,22 @@ void Run::perform_a_run(const int number_of_steps)
     integrate.compute2(time_step, step, number_of_steps, group, box, atom, thermo, force);
     atom.update_unwrapped_position(box);
 
-    // SIB's force above is evaluated at its unnormalized chord midpoint.  The
+    // The field above is at SIB's chord midpoint (GLSD: Euler predictor). The
     // endpoint field is the starting field of the next predictor and the
     // state consumed by measurements, so refresh the complete endpoint state.
     // Preserve the already-sampled external-force increment instead of
     // invoking stateful modifiers (random force/electron stopping) twice.
-    if (integrate.use_spin_sib) {
+    if (integrate.use_spin_sib || integrate.use_spin_glsd) {
       const int force_size = 3 * atom.number_of_atoms;
       gpu_form_force_delta<<<(force_size - 1) / 128 + 1, 128>>>(
         force_size,
         atom.force_per_atom.data(),
-        sib_midpoint_base_force.data());
+        spin_predictor_base_force.data());
       GPU_CHECK_KERNEL
       compute_force();
       gpu_add_force_delta<<<(force_size - 1) / 128 + 1, 128>>>(
         force_size,
-        sib_midpoint_base_force.data(),
+        spin_predictor_base_force.data(),
         atom.force_per_atom.data());
       GPU_CHECK_KERNEL
       integrate.find_thermo(
@@ -451,6 +453,7 @@ void Run::parse_one_keyword(
   } else if (tokens[0] == "ensemble") {
     if (tokens.size() < 2 || (tokens[1] != "nve" && tokens[1] != "nvt_nhc" &&
         tokens[1] != "nve_sib" && tokens[1] != "nvt_sib" && tokens[1] != "npt_sib" &&
+        tokens[1] != "nve_glsd" && tokens[1] != "nvt_glsd" && tokens[1] != "npt_glsd" &&
         tokens[1] != "nvt_tspin" && tokens[1] != "npt_tspin")) {
       mark_spin_unsupported("ensemble");
     }

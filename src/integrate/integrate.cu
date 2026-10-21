@@ -43,6 +43,7 @@ The driver class for the various integrators.
 #include "ensemble_wall_piston.cuh"
 #include "integrate.cuh"
 #include "spin_sib.cuh"
+#include "spin_glsd.cuh"
 #include "spin_tspin.cuh"
 #include "ensemble_fixed_lattice.cuh"
 #include <algorithm>
@@ -62,9 +63,10 @@ bool is_tspin_option(const char* value)
     strcmp(value, "mass_factor") == 0 || strcmp(value, "seed") == 0;
 }
 
-bool is_sib_option(const char* value)
+bool is_langevin_spin_option(const char* value)
 {
   return strcmp(value, "lattice") == 0 || strcmp(value, "alpha") == 0 ||
+    strcmp(value, "damping") == 0 || strcmp(value, "mobility") == 0 ||
     strcmp(value, "gamma") == 0 || strcmp(value, "stemp") == 0 ||
     strcmp(value, "seed") == 0;
 }
@@ -130,6 +132,23 @@ double Integrate::get_temperature2() const
 double Integrate::get_temperature() const
 {
   return temperature;
+}
+
+std::string Integrate::mttk_restart_state() const
+{
+  return type == EnsembleType::MTTK ? static_cast<const Ensemble_MTTK*>(ensemble_.get())->restart_state() : "";
+}
+
+bool Integrate::has_nhc_driver() const
+{
+  // lattice off uses Ensemble_Fixed_Lattice despite the NVT_NHC type tag.
+  return type == EnsembleType::NVT_NHC &&
+    (!(use_spin_tspin || use_spin_sib || use_spin_glsd) || spin_lattice_enabled);
+}
+
+std::string Integrate::nhc_restart_state() const
+{
+  return has_nhc_driver() ? static_cast<const Ensemble_NHC*>(ensemble_.get())->restart_state() : "";
 }
 
 double Integrate::get_target_temperature_of_step() const { return ensemble_->temperature; }
@@ -235,8 +254,17 @@ void Integrate::initialize(
   ensemble.deform_xy = deform_xy;
   ensemble.deform_xz = deform_xz;
   ensemble.deform_yz = deform_yz;
+  if (type != EnsembleType::MTTK && !atom.mttk_restart.empty()) {
+    printf("Discarding MTTK restart state for a different ensemble.\n");
+    atom.mttk_restart.clear();
+  }
+  if (!has_nhc_driver() && !atom.nhc_restart.empty()) {
+    printf("Discarding NVT NHC restart state for a different ensemble or lattice off.\n");
+    atom.nhc_restart.clear();
+  }
   ensemble.initialize_run(time_step, atom, box, group);
   spin_integrator.reset();
+  if (!use_spin_glsd) atom.spin_glsd_step = atom.spin_glsd_seed = 0;
   if (use_spin_tspin) {
     spin_integrator.reset(new Spin_TSPIN(
       temperature1,
@@ -249,10 +277,15 @@ void Integrate::initialize(
   } else if (use_spin_sib) {
     spin_integrator.reset(new Spin_SIB(
       spin_sib_alpha,
-      spin_sib_gamma,
-      spin_sib_temperature,
-      spin_sib_seed,
+      spin_dynamics_gamma,
+      spin_dynamics_temperature,
+      spin_dynamics_seed,
       atom));
+    spin_integrator->temperature = temperature;
+  } else if (use_spin_glsd) {
+    spin_integrator.reset(new Spin_GLSD(
+      spin_dynamics_gamma, spin_glsd_mobility, spin_dynamics_temperature,
+      spin_dynamics_seed, atom));
     spin_integrator->temperature = temperature;
   }
 
@@ -265,7 +298,7 @@ void Integrate::finalize(const Atom& atom, const Box& box)
   }
   ensemble_.reset();
   spin_integrator.reset();
-  use_spin_tspin = use_spin_sib = false;
+  use_spin_tspin = use_spin_sib = use_spin_glsd = false;
   type = EnsembleType::UNKNOWN;
   fixed_group = -1; // no group has an index of -1
   move_group = -1;
@@ -289,18 +322,25 @@ void Integrate::compute1(
   GPU_Vector<double>& thermo)
 {
   Ensemble& ensemble = *ensemble_;
-  const double step_over_number_of_steps = double(step) / number_of_steps;
+  if (step == 0 && type == EnsembleType::MTTK) {
+    ensemble.initialize_before_first_step(
+      time_step, number_of_steps, group, box, atom, thermo);
+  }
+  const double step_over_number_of_steps = type == EnsembleType::MTTK ?
+    static_cast<Ensemble_MTTK&>(ensemble).protocol_fraction(step, number_of_steps) :
+    (has_nhc_driver() ? static_cast<Ensemble_NHC&>(ensemble).protocol_fraction(step, number_of_steps) :
+    double(step) / number_of_steps);
   if (
     type == EnsembleType::NVE || type == EnsembleType::RPMD ||
     type == EnsembleType::TRPMD) {
     ensemble.temperature = temperature2;
   } else if (is_standard_nvt(type) || is_standard_npt(type) || type == EnsembleType::PIMD ||
-             (type == EnsembleType::MTTK && (use_spin_tspin || use_spin_sib))) {
+             (type == EnsembleType::MTTK && (use_spin_tspin || use_spin_sib || use_spin_glsd))) {
     ensemble.temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
 
-  if (step == 0) {
+  if (step == 0 && type != EnsembleType::MTTK) {
     ensemble.initialize_before_first_step(
       time_step, number_of_steps, group, box, atom, thermo);
   }
@@ -322,13 +362,16 @@ void Integrate::compute2(
   Force& force)
 {
   Ensemble& ensemble = *ensemble_;
-  const double step_over_number_of_steps = double(step) / number_of_steps;
+  const double step_over_number_of_steps = type == EnsembleType::MTTK ?
+    static_cast<Ensemble_MTTK&>(ensemble).protocol_fraction(step, number_of_steps) :
+    (has_nhc_driver() ? static_cast<Ensemble_NHC&>(ensemble).protocol_fraction(step, number_of_steps) :
+    double(step) / number_of_steps);
   if (
     type == EnsembleType::NVE || type == EnsembleType::RPMD ||
     type == EnsembleType::TRPMD) {
     ensemble.temperature = temperature2;
   } else if (is_standard_nvt(type) || is_standard_npt(type) || type == EnsembleType::PIMD ||
-             (type == EnsembleType::MTTK && (use_spin_tspin || use_spin_sib))) {
+             (type == EnsembleType::MTTK && (use_spin_tspin || use_spin_sib || use_spin_glsd))) {
     ensemble.temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
@@ -358,7 +401,8 @@ void Integrate::parse_ensemble(
 
   use_spin_tspin = tokens[1] == "nvt_tspin" || tokens[1] == "npt_tspin";
   use_spin_sib = tokens[1] == "nve_sib" || tokens[1] == "nvt_sib" || tokens[1] == "npt_sib";
-  if (use_spin_tspin || use_spin_sib) {
+  use_spin_glsd = tokens[1] == "nve_glsd" || tokens[1] == "nvt_glsd" || tokens[1] == "npt_glsd";
+  if (use_spin_tspin || use_spin_sib || use_spin_glsd) {
     parse_spin_ensemble(tokens, atom, box, group);
     return;
   }
@@ -635,19 +679,21 @@ void Integrate::parse_spin_ensemble(
   std::vector<const char*> args;
   for (const auto& token : tokens) args.push_back(token.c_str());
   const char** param = args.data();
-  spin_lattice_enabled = tokens[1] != "nve_sib";
+  const bool spin_only = tokens[1] == "nve_sib" || tokens[1] == "nve_glsd";
+  spin_lattice_enabled = !spin_only;
   spin_mass_factor_by_type.assign(atom.cpu_type_size.size(), 1.0);
   spin_seed = 12345;
   spin_sib_alpha = 0.0;
-  spin_sib_gamma = 2.0 * 1000.0 / (HBAR * TIME_UNIT_CONVERSION);
-  spin_sib_temperature = tokens[1] == "nve_sib" ? -1.0 : 0.0;
-  spin_sib_seed = 12345;
-  const bool npt = tokens[1] == "npt_tspin" || tokens[1] == "npt_sib";
-  int spin_option_start = tokens[1] == "nve_sib" ? 2 : 5;
+  spin_dynamics_gamma = 2.0 * 1000.0 / (HBAR * TIME_UNIT_CONVERSION);
+  spin_dynamics_temperature = spin_only ? -1.0 : 0.0;
+  spin_dynamics_seed = 12345;
+  spin_glsd_damping = spin_glsd_mobility = 0.0;
+  const bool npt = tokens[1] == "npt_tspin" || tokens[1] == "npt_sib" || tokens[1] == "npt_glsd";
+  int spin_option_start = spin_only ? 2 : 5;
   if (npt) {
     spin_option_start = num_param;
     for (int i = 2; i < num_param; ++i) {
-      if (use_spin_tspin ? is_tspin_option(param[i]) : is_sib_option(param[i])) {
+      if (use_spin_tspin ? is_tspin_option(param[i]) : is_langevin_spin_option(param[i])) {
         spin_option_start = i;
         break;
       }
@@ -753,8 +799,9 @@ void Integrate::parse_spin_ensemble(
     }
   }
 
-  if (use_spin_sib) {
+  if (use_spin_sib || use_spin_glsd) {
     bool has_lattice = false;
+    bool has_damping = false;
     bool has_alpha = false;
     bool has_gamma = false;
     bool has_spin_temperature = false;
@@ -762,14 +809,14 @@ void Integrate::parse_spin_ensemble(
     int index = spin_option_start;
     while (index < num_param) {
       if (index + 1 >= num_param) {
-        PRINT_INPUT_ERROR("SIB optional keywords require a value.");
+        PRINT_INPUT_ERROR("SIB/GLSD optional keywords require a value.");
       }
       if (strcmp(param[index], "lattice") == 0) {
-        if (strcmp(param[1], "nvt_sib") != 0) {
-          PRINT_INPUT_ERROR("SIB lattice is only valid for nvt_sib.");
+        if (strcmp(param[1], "nvt_sib") != 0 && strcmp(param[1], "nvt_glsd") != 0) {
+          PRINT_INPUT_ERROR("lattice is only valid for nvt_sib or nvt_glsd.");
         }
         if (has_lattice) {
-          PRINT_INPUT_ERROR("SIB lattice cannot be repeated.");
+          PRINT_INPUT_ERROR("SIB/GLSD lattice cannot be repeated.");
         }
         has_lattice = true;
         if (strcmp(param[index + 1], "on") == 0) {
@@ -777,11 +824,19 @@ void Integrate::parse_spin_ensemble(
         } else if (strcmp(param[index + 1], "off") == 0) {
           spin_lattice_enabled = false;
         } else {
-          PRINT_INPUT_ERROR("SIB lattice should be on or off.");
+          PRINT_INPUT_ERROR("SIB/GLSD lattice should be on or off.");
         }
+      } else if (strcmp(param[index], "damping") == 0) {
+        if (!use_spin_glsd || has_damping || !is_valid_real(param[index + 1], &spin_glsd_damping) ||
+            !std::isfinite(spin_glsd_damping) || spin_glsd_damping < 0.0) {
+          PRINT_INPUT_ERROR("GLSD requires finite dimensionless damping >= 0 exactly once; SIB does not accept damping.");
+        }
+        has_damping = true;
+      } else if (strcmp(param[index], "mobility") == 0) {
+        PRINT_INPUT_ERROR("mobility is not supported; GLSD uses dimensionless damping = hbar * gamma_s_prime.");
       } else if (strcmp(param[index], "alpha") == 0) {
-        if (has_alpha) {
-          PRINT_INPUT_ERROR("SIB alpha cannot be repeated.");
+        if (use_spin_glsd || has_alpha) {
+          PRINT_INPUT_ERROR("alpha belongs only to SIB and cannot be repeated.");
         }
         has_alpha = true;
         if (!is_valid_real(param[index + 1], &spin_sib_alpha) ||
@@ -790,40 +845,51 @@ void Integrate::parse_spin_ensemble(
         }
       } else if (strcmp(param[index], "gamma") == 0) {
         if (has_gamma) {
-          PRINT_INPUT_ERROR("SIB gamma cannot be repeated.");
+          PRINT_INPUT_ERROR("SIB/GLSD gamma cannot be repeated.");
         }
         has_gamma = true;
-        if (!is_valid_real(param[index + 1], &spin_sib_gamma) ||
-            !std::isfinite(spin_sib_gamma) || spin_sib_gamma <= 0.0) {
-          PRINT_INPUT_ERROR("SIB gamma should be finite and > 0.");
+        if (!is_valid_real(param[index + 1], &spin_dynamics_gamma) ||
+            !std::isfinite(spin_dynamics_gamma) || spin_dynamics_gamma <= 0.0) {
+          PRINT_INPUT_ERROR("SIB/GLSD gamma should be finite and > 0.");
         }
       } else if (strcmp(param[index], "stemp") == 0) {
         if (has_spin_temperature) {
-          PRINT_INPUT_ERROR("SIB stemp cannot be repeated.");
+          PRINT_INPUT_ERROR("SIB/GLSD stemp cannot be repeated.");
         }
         has_spin_temperature = true;
-        if (!is_valid_real(param[index + 1], &spin_sib_temperature) ||
-            !std::isfinite(spin_sib_temperature) ||
-            (spin_sib_temperature < 0.0 && spin_sib_temperature != -1.0)) {
-          PRINT_INPUT_ERROR("SIB stemp should be -1, 0, or a positive temperature.");
+        if (!is_valid_real(param[index + 1], &spin_dynamics_temperature) ||
+            !std::isfinite(spin_dynamics_temperature) ||
+            (spin_dynamics_temperature < 0.0 && spin_dynamics_temperature != -1.0)) {
+          PRINT_INPUT_ERROR("SIB/GLSD stemp should be -1, 0, or a positive temperature.");
         }
       } else if (strcmp(param[index], "seed") == 0) {
         if (has_seed) {
-          PRINT_INPUT_ERROR("SIB seed cannot be repeated.");
+          PRINT_INPUT_ERROR("SIB/GLSD seed cannot be repeated.");
         }
         has_seed = true;
-        if (!is_valid_int(param[index + 1], &spin_sib_seed) || spin_sib_seed <= 0) {
-          PRINT_INPUT_ERROR("SIB seed should be a positive integer.");
+        if (!is_valid_int(param[index + 1], &spin_dynamics_seed) || spin_dynamics_seed <= 0) {
+          PRINT_INPUT_ERROR("SIB/GLSD seed should be a positive integer.");
         }
       } else {
-        PRINT_INPUT_ERROR("Unknown SIB optional keyword.");
+        PRINT_INPUT_ERROR("Unknown SIB/GLSD optional keyword.");
       }
       index += 2;
     }
-    if (strcmp(param[1], "nve_sib") == 0 && spin_sib_temperature == 0.0) {
+    if (use_spin_glsd) {
+      if (!has_damping) PRINT_INPUT_ERROR("GLSD requires explicit dimensionless damping.");
+      // gamma = g_L / hbar, eta = hbar * gamma_s_prime, hence lambda = eta * gamma^2 * hbar.
+      // Convert after parsing all options so keyword order cannot affect the model.
+      const double hbar_ps = HBAR * TIME_UNIT_CONVERSION / 1000.0;
+      spin_glsd_mobility = spin_glsd_damping * spin_dynamics_gamma * (spin_dynamics_gamma * hbar_ps);
+      if (!std::isfinite(spin_glsd_mobility) ||
+          (spin_glsd_damping > 0.0 && spin_glsd_mobility == 0.0)) {
+        PRINT_INPUT_ERROR("GLSD damping/gamma conversion exceeds the representable mobility range.");
+      }
+    }
+    if (spin_only && spin_dynamics_temperature == 0.0) {
       PRINT_INPUT_ERROR(
-        "SIB stemp 0 requires a temperature-controlled ensemble; use stemp -1 "
-        "or a positive temperature with nve_sib.");
+        "SIB/GLSD stemp 0 requires a temperature-controlled ensemble; use stemp -1 "
+        "or a positive temperature with nve_sib/nve_glsd.");
     }
   }
 
@@ -838,7 +904,7 @@ void Integrate::parse_spin_ensemble(
     temperature_coupling = mttk->get_temperature_period();
     type = EnsembleType::MTTK;
     ensemble_ = std::move(mttk);
-  } else if (tokens[1] == "nve_sib") {
+  } else if (spin_only) {
     temperature = temperature1 = temperature2 = 0.0;
     type = EnsembleType::NVE;
     ensemble_ = std::make_unique<Ensemble_Fixed_Lattice>(type);
@@ -857,8 +923,15 @@ void Integrate::parse_spin_ensemble(
     printf("Integrate spins with TSPIN.\n");
     print_spin_mass_factors(atom, spin_mass_factor_by_type);
   } else {
-    printf("Integrate spins with the semi-implicit B (SIB) method.\n");
-    printf("    alpha = %g, gamma = %g (eV ps)^-1, stemp = %g K, seed = %d.\n",
-      spin_sib_alpha, spin_sib_gamma, spin_sib_temperature, spin_sib_seed);
+    if (use_spin_glsd) {
+      printf("Integrate variable-magnitude spins with Ma-Dudarev GLSD (Heun).\n");
+      printf("    damping = %.17g (dimensionless hbar * gamma_s_prime).\n", spin_glsd_damping);
+      printf("    converted mobility = %.17g muB^2/(eV ps); Cartesian Boltzmann measure.\n", spin_glsd_mobility);
+    } else {
+      printf("Integrate spins with the semi-implicit B (SIB) method.\n");
+      printf("    alpha = %g.\n", spin_sib_alpha);
+    }
+    printf("    gamma = %g (eV ps)^-1, stemp = %g K, seed = %d.\n",
+      spin_dynamics_gamma, spin_dynamics_temperature, spin_dynamics_seed);
   }
 }

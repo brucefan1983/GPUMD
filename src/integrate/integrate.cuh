@@ -57,11 +57,16 @@ private:
   double temperature_coupling = 100.0;
   std::vector<double> spin_mass_factor_by_type;
   int spin_seed = 12345;
-  double spin_sib_alpha = 0.0, spin_sib_gamma = 0.0, spin_sib_temperature = 0.0;
-  int spin_sib_seed = 12345;
+  double spin_sib_alpha = 0.0, spin_dynamics_gamma = 0.0, spin_dynamics_temperature = 0.0;
+  int spin_dynamics_seed = 12345;
+  double spin_glsd_damping = 0.0; // dimensionless hbar * gamma_s_prime
+  double spin_glsd_mobility = 0.0; // converted muB^2 / (eV ps), internal only
+  bool has_nhc_driver() const;
 public:
-  bool use_spin_tspin = false, use_spin_sib = false, spin_lattice_enabled = true;
+  bool use_spin_tspin = false, use_spin_sib = false, use_spin_glsd = false, spin_lattice_enabled = true;
   bool has_ensemble() const;
+  std::string mttk_restart_state() const;
+  std::string nhc_restart_state() const;
   EnsembleType get_type() const;
   int get_fixed_group() const;
   int get_move_group() const;

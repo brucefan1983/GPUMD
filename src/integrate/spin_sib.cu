@@ -8,6 +8,7 @@
 */
 
 #include "spin_sib.cuh"
+#include "spin_noise.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -17,38 +18,6 @@
 
 namespace
 {
-__device__ std::uint64_t splitmix64(std::uint64_t value)
-{
-  value += 0x9e3779b97f4a7c15ULL;
-  value = (value ^ (value >> 30)) * 0xbf58476d1ce4e5b9ULL;
-  value = (value ^ (value >> 27)) * 0x94d049bb133111ebULL;
-  return value ^ (value >> 31);
-}
-
-__device__ double uniform_01(std::uint64_t& state)
-{
-  state = splitmix64(state);
-  return (state >> 11) * (1.0 / 9007199254740992.0);
-}
-
-__device__ double gaussian(
-  const std::uint64_t seed,
-  const std::uint64_t atom_index,
-  const std::uint64_t step,
-  const int component)
-{
-  std::uint64_t state = seed;
-  state ^= atom_index * 0xd1b54a32d192ed03ULL;
-  state ^= step * 0x9e3779b97f4a7c15ULL;
-  state ^= static_cast<std::uint64_t>(component) * 0x94d049bb133111ebULL;
-  double u1 = 0.0;
-  do {
-    u1 = uniform_01(state);
-  } while (u1 <= 0.0);
-  const double u2 = uniform_01(state);
-  return sqrt(-2.0 * log(u1)) * cos(2.0 * PI * u2);
-}
-
 __device__ void cayley_direction(
   const double ex,
   const double ey,
@@ -120,9 +89,9 @@ static __global__ void gpu_sib_predictor_midpoint(
   const double hy = mforce[number_of_atoms + atom];
   const double hz = mforce[2 * number_of_atoms + atom];
   const double sigma = noise_prefactor > 0.0 ? sqrt(noise_prefactor / magnitude) : 0.0;
-  const double nx = sigma * gaussian(seed, atom + 1, step, 0);
-  const double ny = sigma * gaussian(seed, atom + 1, step, 1);
-  const double nz = sigma * gaussian(seed, atom + 1, step, 2);
+  const double nx = sigma * spin_noise::gaussian(seed, atom + 1, step, 0);
+  const double ny = sigma * spin_noise::gaussian(seed, atom + 1, step, 1);
+  const double nz = sigma * spin_noise::gaussian(seed, atom + 1, step, 2);
   noise_increment[atom] = nx;
   noise_increment[number_of_atoms + atom] = ny;
   noise_increment[2 * number_of_atoms + atom] = nz;

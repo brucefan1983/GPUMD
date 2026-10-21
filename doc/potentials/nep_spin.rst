@@ -612,4 +612,5 @@ under :ref:`train_test_xyz`. Runtime ``model.xyz`` files require one
 and spin thermostats is available through :attr:`nvt_tspin`;
 pressure-controlled TSPIN dynamics uses :attr:`npt_tspin`. Fixed-magnitude
 stochastic LLG dynamics is available through :ref:`nvt_sib <kw_nvt_sib>` and
-:ref:`npt_sib <kw_npt_sib>`.
+:ref:`npt_sib <kw_npt_sib>`. Variable-magnitude, first-order Langevin dynamics
+is available through the independent :ref:`GLSD ensembles <kw_ensemble_glsd>`.

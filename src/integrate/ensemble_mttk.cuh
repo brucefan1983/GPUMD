@@ -18,6 +18,7 @@
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
 #include <math.h>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -61,11 +62,20 @@ public:
     GPU_Vector<double>& thermo,
     Force& force) override;
 
+  // Checkpoint contains endpoint state and the original temperature/pressure protocol.
+  std::string restart_state() const;
+  double protocol_fraction(int step, int number_of_steps) const;
+
   double t_current = 0, t_start = 0, t_stop = 0, t_target = 0;
   double get_temperature_period() const { return t_period; }
 
 protected:
   void initialize_nose_hoover_chains();
+  std::vector<double> restart_configuration() const;
+  void restore_restart(const std::string& state);
+  std::uint64_t restart_offset = 0, completed_steps = 0;
+  int protocol_steps = 0;
+  bool initialized = false;
   virtual void init_mttk(
     const std::vector<Group>& group,
     const Box& box,

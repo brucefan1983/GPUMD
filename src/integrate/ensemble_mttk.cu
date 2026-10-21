@@ -22,6 +22,10 @@ P and T are both set -> NPT ensemable
 
 #include "ensemble_mttk.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <sstream>
+#include <stdexcept>
+#include <iomanip>
+#include <cmath>
 
 namespace
 {
@@ -381,7 +385,7 @@ void Ensemble_MTTK::init_mttk(
 
 double Ensemble_MTTK::get_delta(const int step, const int number_of_steps)
 {
-  return (double)step / (double)number_of_steps;
+  return protocol_fraction(step, number_of_steps);
 }
 
 void Ensemble_MTTK::get_target_temp(
@@ -447,7 +451,7 @@ void Ensemble_MTTK::get_p_hydro()
 void Ensemble_MTTK::get_sigma(const int step, const Box& box)
 {
   if (h0_reset_interval > 0) {
-    if (step % h0_reset_interval == 0) {
+    if ((restart_offset + step) % h0_reset_interval == 0) {
       std::copy(&h_inv[0][0], &h_inv[0][0] + 9, &h_ref_inv[0][0]);
       vol_ref = box.get_volume();
     }
@@ -927,13 +931,21 @@ void Ensemble_MTTK::nh_v_press(Atom& atom)
 
 void Ensemble_MTTK::initialize_before_first_step(
   const double,
-  const int,
+  const int number_of_steps,
   const std::vector<Group>& group,
   Box& box,
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
   init_mttk(group, box, atom, thermo);
+  protocol_steps = number_of_steps;
+  if (!atom.mttk_restart.empty()) {
+    restore_restart(atom.mttk_restart);
+    atom.mttk_restart.clear();
+    printf("Restored MTTK endpoint after %llu steps (protocol length %d).\n",
+      static_cast<unsigned long long>(restart_offset), protocol_steps);
+  }
+  initialized = true;
 }
 
 void Ensemble_MTTK::compute1(
@@ -1001,4 +1013,93 @@ void Ensemble_MTTK::compute2(
     nhc_press_integrate(atom);
 
   find_thermo(group, box, atom, thermo);
+  completed_steps = restart_offset + static_cast<std::uint64_t>(step) + 1;
+}
+
+// Only persistent endpoint variables are serialized. Matrix scratch buffers,
+// frequencies and substep sizes are recomputed from the checked configuration.
+std::vector<double> Ensemble_MTTK::restart_configuration() const
+{
+  std::vector<double> values = {
+    double(ensemble_type), double(use_thermostat), double(use_barostat), double(couple_type),
+    double(non_hydrostatic), double(h0_reset_interval), double(tchain), double(pchain),
+    double(temperature_dof), dt, t_start, t_stop, t_period,
+    double(fixed_group), double(move_group), double(fixed_grouping_method), double(move_grouping_method)};
+  for (int i = 0; i < 3; ++i) for (int j = 0; j < 3; ++j) {
+    values.insert(values.end(), {p_start[i][j], p_stop[i][j], p_period[i][j],
+      double(p_flag[i][j]), double(need_scale[i][j])});
+  }
+  return values;
+}
+
+double Ensemble_MTTK::protocol_fraction(int step, int number_of_steps) const
+{
+  const int length = protocol_steps ? protocol_steps : number_of_steps;
+  return std::min(1.0, double(restart_offset + step) / length);
+}
+
+std::string Ensemble_MTTK::restart_state() const
+{
+  if (!initialized) return "";
+  // Numeric CSV avoids whitespace/quote ambiguity in extended XYZ headers.
+  std::vector<double> values = {1.0, double(completed_steps), double(protocol_steps)};
+  const auto config = restart_configuration();
+  values.insert(values.end(), config.begin(), config.end());
+  values.insert(values.end(), {t_current, t_target, t_for_barostat,
+    double(t_current_from_thermo), factor_eta, vol_ref});
+  for (auto matrix : {h_ref_inv, omega_dot, omega_mass, p_current, p_target, p_hydro, sigma}) {
+    for (int i = 0; i < 3; ++i) for (int j = 0; j < 3; ++j) values.push_back(matrix[i][j]);
+  }
+  for (int n = 0; n < tchain; ++n) values.insert(values.end(), {Q[n], eta_dot[n], eta_dotdot[n]});
+  values.push_back(eta_dot[tchain]);
+  for (int n = 0; n < pchain; ++n) values.insert(values.end(), {Q_p[n], eta_p_dot[n], eta_p_dotdot[n]});
+  values.push_back(eta_p_dot[pchain]);
+  std::ostringstream stream;
+  stream << std::setprecision(17);
+  for (size_t i = 0; i < values.size(); ++i) {
+    if (!std::isfinite(values[i])) PRINT_INPUT_ERROR("Cannot write non-finite MTTK checkpoint.");
+    if (i) stream << ',';
+    stream << values[i];
+  }
+  return stream.str();
+}
+
+void Ensemble_MTTK::restore_restart(const std::string& state)
+{
+  std::vector<double> values;
+  std::istringstream input(state);
+  std::string token;
+  if (state.empty() || state.back() == ',') PRINT_INPUT_ERROR("Invalid MTTK checkpoint.");
+  while (std::getline(input, token, ',')) {
+    try {
+      size_t end = 0;
+      double value = std::stod(token, &end);
+      if (end != token.size() || !std::isfinite(value)) throw std::invalid_argument("value");
+      values.push_back(value);
+    } catch (...) { PRINT_INPUT_ERROR("Invalid number in MTTK checkpoint."); }
+  }
+  const auto config = restart_configuration();
+  const size_t expected = 3 + config.size() + 6 + 7 * 9 + 3 * (tchain + pchain) + 2;
+  if (values.size() != expected || values[0] != 1.0) PRINT_INPUT_ERROR("Unsupported or truncated MTTK checkpoint.");
+  if (values[1] < 0 || values[1] > 9007197107257343.0 || std::floor(values[1]) != values[1] ||
+      values[2] < 1 || values[2] > 2147483647.0 || std::floor(values[2]) != values[2]) {
+    PRINT_INPUT_ERROR("Invalid MTTK checkpoint step/protocol length.");
+  }
+  for (size_t i = 0; i < config.size(); ++i) {
+    if (values[3 + i] != config[i]) PRINT_INPUT_ERROR("MTTK restart parameters, atom count or timestep do not match.");
+  }
+  restart_offset = completed_steps = static_cast<std::uint64_t>(values[1]);
+  protocol_steps = static_cast<int>(values[2]);
+  size_t index = 3 + config.size();
+  t_current = values[index++]; t_target = values[index++]; t_for_barostat = values[index++];
+  if (values[index] != 0.0 && values[index] != 1.0) PRINT_INPUT_ERROR("Invalid MTTK temperature-cache flag.");
+  t_current_from_thermo = values[index++] != 0;
+  factor_eta = values[index++]; vol_ref = values[index++];
+  for (auto matrix : {h_ref_inv, omega_dot, omega_mass, p_current, p_target, p_hydro, sigma}) {
+    for (int i = 0; i < 3; ++i) for (int j = 0; j < 3; ++j) matrix[i][j] = values[index++];
+  }
+  for (int n = 0; n < tchain; ++n) { Q[n] = values[index++]; eta_dot[n] = values[index++]; eta_dotdot[n] = values[index++]; }
+  eta_dot[tchain] = values[index++];
+  for (int n = 0; n < pchain; ++n) { Q_p[n] = values[index++]; eta_p_dot[n] = values[index++]; eta_p_dotdot[n] = values[index++]; }
+  eta_p_dot[pchain] = values[index++];
 }
