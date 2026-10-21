@@ -402,7 +402,7 @@ void NEP_Spin_Model::write_magnetic_predictions(
     Dataset& data = *entry.first;
     auto& spin = magnetic(data);
     const int nc = entry.second;
-    if (!spin.labels[nc].has_mforce) continue;
+    if (!model_parameters->prediction && !spin.labels[nc].has_mforce) continue;
     for (int a = 0; a < data.Na_cpu[nc]; ++a) {
       const int atom = data.Na_sum_cpu[nc] + a;
       fprintf(file, "%g %g %g %g %g %g\n",

@@ -24,35 +24,6 @@
 #include <cmath>
 #include <iostream>
 
-struct NepTxtHeader {
-  std::string model_token;
-  int version;
-  bool enable_zbl;
-  bool flexible_zbl;
-  bool use_typewise_cutoff_zbl;
-  float zbl_rc_inner;
-  float zbl_rc_outer;
-  float typewise_cutoff_zbl_factor;
-  int num_types;
-  std::vector<std::string> elements;
-  bool has_multiple_cutoffs;
-  std::vector<float> rc_radial;
-  std::vector<float> rc_angular;
-  int n_max_radial;
-  int n_max_angular;
-  int basis_size_radial;
-  int basis_size_angular;
-  int L_max;
-  int has_q_222; // as written to nep.txt, that is 2 or 0
-  int has_q_1111;
-  int has_q_112;
-  int has_q_123;
-  int has_q_233;
-  int has_q_134;
-  int num_neurons1;
-  int num_neurons2;
-  int number_of_header_lines; // 6 without a zbl line, 7 with one
-};
 
 // The shared codec reads the NEP prefix and optional ZBL header. The owning
 // model supplies the complete expected file tag; suffixes are not dispatched here.
@@ -110,6 +81,13 @@ static bool read_nep_txt_header(const std::string& filename, NepTxtHeader& heade
   header.elements.assign(tokens.begin() + 2, tokens.end());
   header.number_of_header_lines = 1;
 
+  return read_nep_structural_header(input, filename, header, error);
+}
+
+bool read_nep_structural_header(
+  std::ifstream& input, const std::string& filename, NepTxtHeader& header, std::string& error)
+{
+  std::vector<std::string> tokens;
   // second line: zbl, written only for a model with ZBL
   header.flexible_zbl = false;
   header.use_typewise_cutoff_zbl = false;
@@ -189,7 +167,6 @@ static bool read_nep_txt_header(const std::string& filename, NepTxtHeader& heade
   header.num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
   header.num_neurons2 = get_int_from_token(tokens[2], __FILE__, __LINE__);
 
-  input.close();
   return true;
 }
 
@@ -392,6 +369,13 @@ static void write_nep_txt(
     fprintf(fid_nep, "%s ", para.elements[n].c_str());
   }
   fprintf(fid_nep, "\n");
+  write_nep_model_body(fid_nep, para, elite, max_NN_radial, max_NN_angular);
+}
+
+void write_nep_model_body(
+  FILE* fid_nep, const NEP_Parameters& para, const float* elite,
+  int max_NN_radial, int max_NN_angular)
+{
   if (para.enable_zbl) {
     if (para.flexible_zbl) {
       fprintf(fid_nep, "zbl 0 0\n");

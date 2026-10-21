@@ -216,8 +216,9 @@ def validate_training_and_runtime(
 
     checkpoint = (training / "nep.txt").read_text()
     expected_header = "nep4_spin3_zbl" if enable_zbl else "nep4_spin3"
+    header_count = 9 if all_spin_types else 11
     if not checkpoint.startswith(
-            f"{expected_header} 2 Fe Ge \nspin_mode 3 11\n"):
+            f"{expected_header} 2 Fe Ge \nspin_mode 3 {header_count}\n"):
         raise AssertionError("invalid counted spin3 checkpoint")
     if enable_zbl and "\nzbl 1.25 2.5\ncutoff " not in checkpoint:
         raise AssertionError("spin3 ZBL checkpoint is missing its zbl line")
@@ -228,9 +229,11 @@ def validate_training_and_runtime(
         "spin_order 3\n",
         "spin_soc 1\n",
         "spin_scaler 1\n",
-        "spin_dof_type Fe Ge\n" if all_spin_types else "spin_dof_type Fe\n",
-        "spin_env_type Fe Ge\n",
     )
+    if not all_spin_types:
+        required += ("spin_dof_type Fe\n", "spin_env_type Fe Ge\n")
+    elif "spin_dof_type" in checkpoint or "spin_env_type" in checkpoint:
+        raise AssertionError("default all-active masks should use the canonical implicit representation")
     for line in required:
         if line not in checkpoint:
             raise AssertionError(f"missing checkpoint line: {line.strip()}")

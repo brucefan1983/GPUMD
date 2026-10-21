@@ -27,6 +27,8 @@ public:
   std::vector<float> spin_baseline, spin_cutoff_by_type;
   GPU_Vector<float> q_scaler_square_sum[16];
   GPU_Vector<unsigned long long> q_scaler_count[16];
+protected:
+  void report_model_inputs() const override;
 private:
   void validate_spin_parameters();
   void calculate_spin_dimensions();

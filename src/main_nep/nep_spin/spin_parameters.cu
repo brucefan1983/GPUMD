@@ -35,10 +35,35 @@ Spin_Parameters::Spin_Parameters(const ParameterInput& input) {
   file_tag = enable_zbl ? "nep4_spin3_zbl" : "nep4_spin3";
   set_regularization_defaults();
   initialize_spin_checkpoint(*this);
+  // Check the effective masks after any omitted input fields were restored.
+  for (int type = 0; type < num_types; ++type) {
+    if (spin_dof_type_active[type] && !spin_env_type_active[type]) {
+      PRINT_INPUT_ERROR("spin_dof_type must be a subset of spin_env_type.");
+    }
+  }
+  report_inputs(input, "Spin3 potential", nullptr);
   printf("Spin3 O%d/C%d: %d structural + %d magnetic descriptors, %d parameters.\n",
     spin_order, spin_compress, dim_struct, dim_spin, number_of_variables);
   printf("Finished reading nep.in.\n");
 }
+void Spin_Parameters::report_model_inputs() const
+{
+  NEP_Energy_Parameters::report_model_inputs();
+  printf("    spin_order = %d, spin_compress = %d, spin_soc = %d.\n", spin_order, spin_compress, spin_soc);
+  printf("    spin_basis_size = %d, spin_l_max = %d.\n", spin_basis_size[0], spin_l_max[0]);
+  printf("    lambda_m = %g, lambda_tau = %g, lambda_spin_response = %g.\n", lambda_m, lambda_tau, lambda_spin_response);
+  printf("    sigma0 = %g.\n", sigma0);
+  printf("    spin_cutoff:");
+  for (int t = 0; t < num_types; ++t) printf(" %s=%g", elements[t].c_str(), spin_cutoff_by_type[t]);
+  printf("\n    spin_dof_type:");
+  for (int t = 0; t < num_types; ++t) if (spin_dof_type_active[t]) printf(" %s", elements[t].c_str());
+  printf("\n    spin_env_type:");
+  for (int t = 0; t < num_types; ++t) if (spin_env_type_active[t]) printf(" %s", elements[t].c_str());
+  printf("\n    Spin q_scaler = %s; restart = %s.\n",
+    (prediction || spin_restart || import_q_scaler) ? "loaded from nep.txt" : "fixed reference initialization",
+    spin_restart ? "yes" : "no");
+}
+
 bool Spin_Parameters::parse_keyword(const char** param, int num_param)
 {
   if (strcmp(param[0], "lambda_m") == 0 ||
@@ -139,11 +164,6 @@ void Spin_Parameters::validate_spin_parameters()
         spin_env_type_active);
     } else {
       spin_env_type_active = spin_dof_type_active;
-    }
-    for (int type = 0; type < num_types; ++type) {
-      if (spin_dof_type_active[type] && !spin_env_type_active[type]) {
-        PRINT_INPUT_ERROR("spin_dof_type must be a subset of spin_env_type.\n");
-      }
     }
     spin_baseline.assign(num_types, 0.0f);
   } else {

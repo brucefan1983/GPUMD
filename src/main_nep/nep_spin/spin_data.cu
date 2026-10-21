@@ -12,192 +12,51 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
-template <bool Spin>
-static __global__ void gpu_find_neighbor_number(
-  const int N,
-  const int* Na,
-  const int* Na_sum,
-  const int* g_type,
-  const float* g_rc_radial,
-  const float* g_rc_angular,
-  const float rc_spin,
-  const float* __restrict__ g_box,
-  const float* __restrict__ g_box_original,
-  const int* __restrict__ g_num_cell,
-  const int* __restrict__ g_pbc,
-  const float* x,
-  const float* y,
-  const float* z,
-  int* NN_radial,
-  int* NN_angular,
-  int* NN_spin)
+// Both passes traverse the same periodic geometry; structural neighbors belong to Dataset.
+template <bool Store>
+static __global__ void gpu_find_spin_neighbors(
+  const int N, const int* Na, const int* Na_sum, const float rc_spin,
+  const float* __restrict__ g_box, const float* __restrict__ g_box_original,
+  const int* __restrict__ g_num_cell, const float* x, const float* y, const float* z,
+  const int plane_size, int* NN_spin, int* NL_spin, double* r12_spin)
 {
-  int N1 = Na_sum[blockIdx.x];
-  int N2 = N1 + Na[blockIdx.x];
+  const int N1 = Na_sum[blockIdx.x];
+  const int N2 = N1 + Na[blockIdx.x];
+  const float* box = g_box + 18 * blockIdx.x;
+  const float* box_original = g_box_original + 9 * blockIdx.x;
+  const int* num_cell = g_num_cell + 3 * blockIdx.x;
   for (int n1 = N1 + threadIdx.x; n1 < N2; n1 += blockDim.x) {
-    const float* __restrict__ box = g_box + 18 * blockIdx.x;
-    const float* __restrict__ box_original = g_box_original + 9 * blockIdx.x;
-    const int* __restrict__ num_cell = g_num_cell + 3 * blockIdx.x;
-    const int is_periodic = g_pbc[blockIdx.x];
-    float x1 = x[n1];
-    float y1 = y[n1];
-    float z1 = z[n1];
-    int t1 = g_type[n1];
-    int count_radial = 0;
-    int count_angular = 0;
-    int count_spin = 0;
+    const float x1 = x[n1], y1 = y[n1], z1 = z[n1];
+    int count = 0;
     for (int n2 = N1; n2 < N2; ++n2) {
       for (int ia = 0; ia < num_cell[0]; ++ia) {
         for (int ib = 0; ib < num_cell[1]; ++ib) {
           for (int ic = 0; ic < num_cell[2]; ++ic) {
-            if (ia == 0 && ib == 0 && ic == 0 && n1 == n2) {
-              continue; // exclude self
-            }
-            float delta_x = box_original[0] * ia + box_original[1] * ib + box_original[2] * ic;
-            float delta_y = box_original[3] * ia + box_original[4] * ib + box_original[5] * ic;
-            float delta_z = box_original[6] * ia + box_original[7] * ib + box_original[8] * ic;
-            float x12 = x[n2] + delta_x - x1;
-            float y12 = y[n2] + delta_y - y1;
-            float z12 = z[n2] + delta_z - z1;
-            if (is_periodic) {
-              dev_apply_mic(box, x12, y12, z12);
-            }
-            float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
-            int t2 = g_type[n2];
-            float rc_radial = (g_rc_radial[t1] + g_rc_radial[t2]) * 0.5f;
-            float rc_angular = (g_rc_angular[t1] + g_rc_angular[t2]) * 0.5f;
-            if (distance_square < rc_radial * rc_radial) {
-              count_radial++;
-            }
-            if (distance_square < rc_angular * rc_angular) {
-              count_angular++;
-            }
-            if constexpr (Spin) {
-              if (distance_square < rc_spin * rc_spin) {
-                count_spin++;
-              }
-            }
-          }
-        }
-      }
-    }
-    NN_radial[n1] = count_radial;
-    NN_angular[n1] = count_angular;
-    if constexpr (Spin) {
-      NN_spin[n1] = count_spin;
-    }
-  }
-}
-
-template <bool Spin>
-static __global__ void gpu_find_neighbor_list(
-  const int N,
-  const int* Na,
-  const int* Na_sum,
-  const int* g_type,
-  const float* g_rc_radial,
-  const float* g_rc_angular,
-  const float rc_spin,
-  const float* __restrict__ g_box,
-  const float* __restrict__ g_box_original,
-  const int* __restrict__ g_num_cell,
-  const int* __restrict__ g_pbc,
-  const float* x,
-  const float* y,
-  const float* z,
-  const int* NN_radial_sum,
-  const int* NN_angular_sum,
-  int* NN_radial,
-  int* NL_radial,
-  int* NN_angular,
-  int* NL_angular,
-  float* x12_radial,
-  float* y12_radial,
-  float* z12_radial,
-  float* x12_angular,
-  float* y12_angular,
-  float* z12_angular,
-  int spin_plane_size,
-  int* NN_spin,
-  int* NL_spin,
-  double* r12_spin)
-{
-  int N1 = Na_sum[blockIdx.x];
-  int N2 = N1 + Na[blockIdx.x];
-  for (int n1 = N1 + threadIdx.x; n1 < N2; n1 += blockDim.x) {
-    const float* __restrict__ box = g_box + 18 * blockIdx.x;
-    const float* __restrict__ box_original = g_box_original + 9 * blockIdx.x;
-    const int* __restrict__ num_cell = g_num_cell + 3 * blockIdx.x;
-    const int is_periodic = g_pbc[blockIdx.x];
-    float x1 = x[n1];
-    float y1 = y[n1];
-    float z1 = z[n1];
-    int t1 = g_type[n1];
-    int count_radial = 0;
-    int count_angular = 0;
-    int count_spin = 0;
-    for (int n2 = N1; n2 < N2; ++n2) {
-      for (int ia = 0; ia < num_cell[0]; ++ia) {
-        for (int ib = 0; ib < num_cell[1]; ++ib) {
-          for (int ic = 0; ic < num_cell[2]; ++ic) {
-            if (ia == 0 && ib == 0 && ic == 0 && n1 == n2) {
-              continue; // exclude self
-            }
-            float delta_x = box_original[0] * ia + box_original[1] * ib + box_original[2] * ic;
-            float delta_y = box_original[3] * ia + box_original[4] * ib + box_original[5] * ic;
-            float delta_z = box_original[6] * ia + box_original[7] * ib + box_original[8] * ic;
-            float x12 = x[n2] + delta_x - x1;
-            float y12 = y[n2] + delta_y - y1;
-            float z12 = z[n2] + delta_z - z1;
-            if (is_periodic) {
-              dev_apply_mic(box, x12, y12, z12);
-            }
-            float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
-            int t2 = g_type[n2];
-            float rc_radial = (g_rc_radial[t1] + g_rc_radial[t2]) * 0.5f;
-            float rc_angular = (g_rc_angular[t1] + g_rc_angular[t2]) * 0.5f;
-            if (distance_square < rc_radial * rc_radial) {
-              int index = NN_radial_sum[n1] + count_radial;
-              if (NL_radial != nullptr) {
-              NL_radial[index] = n2;
-              x12_radial[index] = x12;
-              y12_radial[index] = y12;
-              z12_radial[index] = z12;
-              }
-              count_radial++;
-            }
-            if (distance_square < rc_angular * rc_angular) {
-              int index = NN_angular_sum[n1] + count_angular;
-              if (NL_angular != nullptr) {
-              NL_angular[index] = n2;
-              x12_angular[index] = x12;
-              y12_angular[index] = y12;
-              z12_angular[index] = z12;
-              }
-              count_angular++;
-            }
-            if constexpr (Spin) {
-              if (distance_square < rc_spin * rc_spin) {
-                int index = n1 + N * count_spin;
+            if (ia == 0 && ib == 0 && ic == 0 && n1 == n2) continue;
+            float dx = box_original[0] * ia + box_original[1] * ib + box_original[2] * ic;
+            float dy = box_original[3] * ia + box_original[4] * ib + box_original[5] * ic;
+            float dz = box_original[6] * ia + box_original[7] * ib + box_original[8] * ic;
+            float x12 = x[n2] + dx - x1;
+            float y12 = y[n2] + dy - y1;
+            float z12 = z[n2] + dz - z1;
+            dev_apply_mic(box, x12, y12, z12);
+            if (x12 * x12 + y12 * y12 + z12 * z12 < rc_spin * rc_spin) {
+              if constexpr (Store) {
+                const int index = n1 + N * count;
                 NL_spin[index] = n2;
                 r12_spin[index] = x12;
-                r12_spin[spin_plane_size + index] = y12;
-                r12_spin[2 * spin_plane_size + index] = z12;
-                count_spin++;
+                r12_spin[plane_size + index] = y12;
+                r12_spin[2 * plane_size + index] = z12;
               }
+              ++count;
             }
           }
         }
       }
     }
-    NN_radial[n1] = count_radial;
-    NN_angular[n1] = count_angular;
-    if constexpr (Spin) {
-      NN_spin[n1] = count_spin;
-    }
+    NN_spin[n1] = count;
   }
 }
-
 
 void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::vector<Spin_Labels>& input) {
   const int N=dataset.N, Nc=dataset.Nc;
@@ -224,23 +83,18 @@ void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::ve
   spin_dof_type_active_gpu.resize(para.num_types);
   spin_dof_type_active_gpu.copy_from_host(para.spin_dof_type_active.data());
   NN_spin.resize(N);
-  GPU_Vector<float> rc_radial(para.rc_radial.size()), rc_angular(para.rc_angular.size());
-  rc_radial.copy_from_host(para.rc_radial.data()); rc_angular.copy_from_host(para.rc_angular.data());
-  gpu_find_neighbor_number<true><<<Nc,256>>>(N,dataset.Na.data(),dataset.Na_sum.data(),dataset.type.data(),
-    rc_radial.data(),rc_angular.data(),para.spin_cutoff,dataset.box.data(),dataset.box_original.data(),
-    dataset.num_cell.data(),dataset.pbc.data(),dataset.r.data(),dataset.r.data()+N,dataset.r.data()+2*N,
-    dataset.NN_radial.data(),dataset.NN_angular.data(),NN_spin.data());
+  gpu_find_spin_neighbors<false><<<Nc,256>>>(N,dataset.Na.data(),dataset.Na_sum.data(),
+    para.spin_cutoff,dataset.box.data(),dataset.box_original.data(),dataset.num_cell.data(),
+    dataset.r.data(),dataset.r.data()+N,dataset.r.data()+2*N,0,NN_spin.data(),nullptr,nullptr);
   GPU_CHECK_KERNEL
   std::vector<int> counts(N); NN_spin.copy_to_host(counts.data());
   for (int count:counts) max_NN_spin=std::max(max_NN_spin,count);
   const long long slots=static_cast<long long>(N)*max_NN_spin;
   if (slots>std::numeric_limits<int>::max()) PRINT_INPUT_ERROR("Spin neighbor slot count exceeds the supported int range.");
   NL_spin.resize(slots); r12_spin.resize(3*slots);
-  gpu_find_neighbor_list<true><<<Nc,256>>>(N,dataset.Na.data(),dataset.Na_sum.data(),dataset.type.data(),
-    rc_radial.data(),rc_angular.data(),para.spin_cutoff,dataset.box.data(),dataset.box_original.data(),
-    dataset.num_cell.data(),dataset.pbc.data(),dataset.r.data(),dataset.r.data()+N,dataset.r.data()+2*N,
-    dataset.NN_radial_sum.data(),dataset.NN_angular_sum.data(),dataset.NN_radial.data(),nullptr,
-    dataset.NN_angular.data(),nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,
+  gpu_find_spin_neighbors<true><<<Nc,256>>>(N,dataset.Na.data(),dataset.Na_sum.data(),
+    para.spin_cutoff,dataset.box.data(),dataset.box_original.data(),dataset.num_cell.data(),
+    dataset.r.data(),dataset.r.data()+N,dataset.r.data()+2*N,
     static_cast<int>(slots),NN_spin.data(),NL_spin.data(),r12_spin.data());
   GPU_CHECK_KERNEL
 }

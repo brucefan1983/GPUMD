@@ -28,7 +28,6 @@ static std::string frame_key(const Structure& geometry, const Spin_Labels& label
 float Spin_Reader::geometry_cutoff() const { return std::max(parameters.rc_radial_max,parameters.spin_cutoff); }
 
 void Spin_Reader::read_structure(const XYZ_Record& record, Structure& structure) {
-  read_nep_boundaries(record,structure);
   NEP_Energy_Reader::read_structure(record,structure);
   labels.emplace_back();
   auto& label=labels.back();
@@ -97,6 +96,10 @@ void Spin_Reader::read_structure(const XYZ_Record& record, Structure& structure)
 
 void Spin_Reader::prepare_train(std::vector<Structure>& structures, int batch_size, int& batches, std::vector<int>& sizes) {
   if (!parameters.prediction && !parameters.spin_restart) fitness_spin::fit_spin_energy_baseline(structures,parameters);
+  printf("    Spin energy baseline (eV/atom):");
+  for (int t = 0; t < parameters.num_types; ++t)
+    printf(" %s=%g", parameters.elements[t].c_str(), parameters.spin_baseline[t]);
+  printf("\n");
   for (const auto& structure:structures) {
     const auto& label=labels.at(structure.index_in_file);
     if (label.has_spin_response_metadata) train_groups.insert(label.spin_response_group);

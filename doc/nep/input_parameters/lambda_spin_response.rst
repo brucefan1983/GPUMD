@@ -16,7 +16,8 @@ an input error. With weight 0, the file is not opened.
 
 Ordinary ``train.xyz`` data still use the ``batch`` setting. All complete
 response groups are evaluated separately for every candidate in every SNES
-generation, so response groups are never split by ordinary minibatches. There
+generation after initialization (generation 0). As in ordinary NEP, generation 0
+prepares training state without physical candidate fitness. Response groups are never split by ordinary minibatches. There
 is no ``response_file`` keyword or additional response batch setting.
 
 Response frames contribute only this loss. They do not contribute ordinary

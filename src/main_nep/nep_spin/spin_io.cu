@@ -7,6 +7,7 @@
 */
 
 #include "spin_io.cuh"
+#include "main_nep/common/nep_io.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/nep_parameters.cuh"
@@ -15,61 +16,11 @@
 #include <fstream>
 #include <limits>
 namespace {
-struct NepTxtHeader {
-  int spin_mode = 0;
-  std::string model_token;
-  int version;
-  int model_type;
-  int charge_mode;
-  int vdw;
-  int charge_vdw;
-  bool enable_zbl;
-  bool flexible_zbl;
-  bool use_typewise_cutoff_zbl;
-  float zbl_rc_inner;
-  float zbl_rc_outer;
-  float typewise_cutoff_zbl_factor;
-  int num_types;
-  std::vector<std::string> elements;
-  bool has_multiple_cutoffs;
-  std::vector<float> rc_radial;
-  std::vector<float> rc_angular;
-  int n_max_radial;
-  int n_max_angular;
-  int basis_size_radial;
-  int basis_size_angular;
-  int L_max;
-  int has_q_222; // as written to nep.txt, that is 2 or 0
-  int has_q_1111;
-  int has_q_112;
-  int has_q_123;
-  int has_q_233;
-  int has_q_134;
-  int num_neurons1;
-  int num_neurons2;
-  int number_of_header_lines; // 6 without a zbl line, 7 with one
-};
-
 // parse the header of a nep.txt file; returns false and sets error if it cannot be parsed
 static bool parse_model_token(const std::string& token, NepTxtHeader& header) {
   if (token != "nep4_spin3" && token != "nep4_spin3_zbl") return false;
   header.version = 4;
-  header.spin_mode = 3;
   header.enable_zbl = token == "nep4_spin3_zbl";
-  return true;
-}
-static bool check_header_line(
-  const std::vector<std::string>& tokens,
-  const char* keyword,
-  const size_t min_size,
-  const size_t max_size,
-  const std::string& filename,
-  std::string& error)
-{
-  if (tokens.size() < min_size || tokens.size() > max_size || tokens[0] != keyword) {
-    error = "The " + std::string(keyword) + " line of " + filename + " is malformed.";
-    return false;
-  }
   return true;
 }
 bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std::string& error)
@@ -99,7 +50,7 @@ bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std:
   }
   header.elements.assign(tokens.begin() + 2, tokens.end());
   header.number_of_header_lines = 1;
-  if (header.spin_mode == 3) {
+  {
     tokens = get_tokens(input);
     if (tokens.size() != 3 || tokens[0] != "spin_mode" ||
         get_int_from_token(tokens[1], __FILE__, __LINE__) != 3) {
@@ -120,88 +71,9 @@ bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std:
     header.number_of_header_lines += count + 1;
   }
 
-  // second line: zbl, written only for a model with ZBL
-  header.flexible_zbl = false;
-  header.use_typewise_cutoff_zbl = false;
-  header.zbl_rc_inner = 0.0f;
-  header.zbl_rc_outer = 0.0f;
-  header.typewise_cutoff_zbl_factor = -1.0f;
-  if (header.enable_zbl) {
-    tokens = get_tokens(input);
-    ++header.number_of_header_lines;
-    if (!check_header_line(tokens, "zbl", 3, 4, filename, error)) {
-      return false;
-    }
-    header.zbl_rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
-    header.zbl_rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
-    header.flexible_zbl = (header.zbl_rc_inner == 0.0f && header.zbl_rc_outer == 0.0f);
-    if (tokens.size() == 4) {
-      header.use_typewise_cutoff_zbl = true;
-      header.typewise_cutoff_zbl_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
-    }
-  }
-
-  // cutoff line: the two neighbor counts at the end depend on the training set and are ignored
-  tokens = get_tokens(input);
-  ++header.number_of_header_lines;
-  if (!check_header_line(tokens, "cutoff", 5, size_t(header.num_types) * 2 + 3, filename, error)) {
-    return false;
-  }
-  header.has_multiple_cutoffs =
-    (tokens.size() == size_t(header.num_types) * 2 + 3 && tokens.size() > 5);
-  const int num_cutoffs = header.has_multiple_cutoffs ? header.num_types : 1;
-  if (tokens.size() != size_t(num_cutoffs) * 2 + 3) {
-    error = "The cutoff line of " + filename + " is malformed.";
-    return false;
-  }
-  header.rc_radial.resize(num_cutoffs);
-  header.rc_angular.resize(num_cutoffs);
-  for (int n = 0; n < num_cutoffs; ++n) {
-    header.rc_radial[n] = get_double_from_token(tokens[1 + n * 2], __FILE__, __LINE__);
-    header.rc_angular[n] = get_double_from_token(tokens[2 + n * 2], __FILE__, __LINE__);
-  }
-
-  tokens = get_tokens(input);
-  ++header.number_of_header_lines;
-  if (!check_header_line(tokens, "n_max", 3, 3, filename, error)) {
-    return false;
-  }
-  header.n_max_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  header.n_max_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
-
-  tokens = get_tokens(input);
-  ++header.number_of_header_lines;
-  if (!check_header_line(tokens, "basis_size", 3, 3, filename, error)) {
-    return false;
-  }
-  header.basis_size_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  header.basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
-
-  // l_max line: between 3 and 7 values, the trailing ones defaulting to zero when absent
-  tokens = get_tokens(input);
-  ++header.number_of_header_lines;
-  if (!check_header_line(tokens, "l_max", 4, 8, filename, error)) {
-    return false;
-  }
-  header.L_max = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  header.has_q_222 = get_int_from_token(tokens[2], __FILE__, __LINE__);
-  header.has_q_1111 = get_int_from_token(tokens[3], __FILE__, __LINE__);
-  header.has_q_112 = (tokens.size() > 4) ? get_int_from_token(tokens[4], __FILE__, __LINE__) : 0;
-  header.has_q_123 = (tokens.size() > 5) ? get_int_from_token(tokens[5], __FILE__, __LINE__) : 0;
-  header.has_q_233 = (tokens.size() > 6) ? get_int_from_token(tokens[6], __FILE__, __LINE__) : 0;
-  header.has_q_134 = (tokens.size() > 7) ? get_int_from_token(tokens[7], __FILE__, __LINE__) : 0;
-
-  tokens = get_tokens(input);
-  ++header.number_of_header_lines;
-  if (!check_header_line(tokens, "ANN", 3, 3, filename, error)) {
-    return false;
-  }
-  header.num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  header.num_neurons2 = get_int_from_token(tokens[2], __FILE__, __LINE__);
-
-  input.close();
-  return true;
+  return read_nep_structural_header(input, filename, header, error);
 }
+
 void load_spin_checkpoint_metadata(Spin_Parameters& para)
 {
   std::ifstream input("nep.txt");
@@ -374,6 +246,12 @@ void load_spin_checkpoint_metadata(Spin_Parameters& para)
       PRINT_INPUT_ERROR("spin_dof_type must be a subset of spin_env_type.");
     }
   }
+  if (para.is_spin_dof_type_set && para.spin_dof_type_active != dof) {
+    PRINT_INPUT_ERROR("spin_dof_type in nep.in conflicts with the Spin3 checkpoint.");
+  }
+  if (para.is_spin_env_type_set && para.spin_env_type_active != env) {
+    PRINT_INPUT_ERROR("spin_env_type in nep.in conflicts with the Spin3 checkpoint.");
+  }
   para.spin_dof_type_active = dof;
   para.spin_env_type_active = env;
   if (para.enable_zbl) {
@@ -395,10 +273,12 @@ void load_spin_checkpoint_metadata(Spin_Parameters& para)
 }
 void write_checkpoint_metadata(FILE* fid_nep, const Spin_Parameters& para)
 {
-  const int spin_header_lines =
-    9 +
-    static_cast<int>(para.is_spin_dof_type_set) +
-    static_cast<int>(para.is_spin_env_type_set);
+  // Serialize effective model state, including masks inherited from a checkpoint.
+  const bool write_dof = std::any_of(
+    para.spin_dof_type_active.begin(), para.spin_dof_type_active.end(),
+    [](int active) { return active != 1; });
+  const bool write_env = para.spin_env_type_active != para.spin_dof_type_active;
+  const int spin_header_lines = 9 + static_cast<int>(write_dof) + static_cast<int>(write_env);
   fprintf(fid_nep, "spin_mode %d %d\n", para.spin_mode, spin_header_lines);
   fprintf(fid_nep, "spin_baseline");
   for (const float value : para.spin_baseline) {
@@ -427,7 +307,7 @@ void write_checkpoint_metadata(FILE* fid_nep, const Spin_Parameters& para)
     "spin_projection_size %d\n",
     para.number_of_variables_spin_projection);
   fprintf(fid_nep, "spin_scaler 1\n");
-  if (para.is_spin_dof_type_set) {
+  if (write_dof) {
     fprintf(fid_nep, "spin_dof_type");
     for (int type = 0; type < para.num_types; ++type) {
       if (para.spin_dof_type_active[type]) {
@@ -436,7 +316,7 @@ void write_checkpoint_metadata(FILE* fid_nep, const Spin_Parameters& para)
     }
     fprintf(fid_nep, "\n");
   }
-  if (para.is_spin_env_type_set) {
+  if (write_env) {
     fprintf(fid_nep, "spin_env_type");
     for (int type = 0; type < para.num_types; ++type) {
       if (para.spin_env_type_active[type]) {
@@ -537,77 +417,7 @@ void write_spin_model(FILE* fid_nep, Spin_Parameters& para, const float* elite, 
   }
   fprintf(fid_nep, "\n");
   write_checkpoint_metadata(fid_nep, para);
-  if (para.enable_zbl) {
-    if (para.flexible_zbl) {
-      fprintf(fid_nep, "zbl 0 0\n");
-    } else if (para.use_typewise_cutoff_zbl) {
-      fprintf(fid_nep, "zbl %g %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer, para.typewise_cutoff_zbl_factor);
-    } else {
-      fprintf(fid_nep, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
-    }
-  }
-
-  fprintf(fid_nep, "cutoff %g %g ", para.rc_radial[0], para.rc_angular[0]);
-  if (para.has_multiple_cutoffs) {
-    for (int n = 1; n < para.num_types; ++n) {
-      fprintf(fid_nep, "%g %g ", para.rc_radial[n], para.rc_angular[n]);
-    }
-  }
-  fprintf(
-    fid_nep,
-    "%d %d\n",
-    max_NN_radial,
-    max_NN_angular);
-
-  fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
-  fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
-  fprintf(fid_nep, "l_max %d %d %d ", para.L_max, (para.has_q_222 ? 2 : 0), para.has_q_1111);
-  if (para.has_q_112 || para.has_q_123 || para.has_q_233 || para.has_q_134) {
-    fprintf(fid_nep, "%d ", para.has_q_112);
-  }
-  if (para.has_q_123 || para.has_q_233 || para.has_q_134) {
-    fprintf(fid_nep, "%d ", para.has_q_123);
-  }
-  if (para.has_q_233 || para.has_q_134) {
-    fprintf(fid_nep, "%d ", para.has_q_233);
-  }
-  if (para.has_q_134) {
-    fprintf(fid_nep, "%d ", para.has_q_134);
-  }
-  fprintf(fid_nep, "\n");
-
-  if (para.num_hidden_layers == 2) {
-    fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, para.num_neurons2);
-  } else {
-    fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
-  }
-
-  std::vector<float> parameters_file(elite, elite + para.number_of_variables);
-  const int descriptor_offset = para.number_of_variables_ann;
-#ifdef USE_CJ
-  const int num_channels = para.num_types;
-#else
-  const int num_channels = para.num_types * para.num_types;
-#endif
-  descriptor_parameters_to_basis_major(
-    parameters_file.data(),
-    descriptor_offset,
-    num_channels,
-    para.n_max_radial,
-    para.n_max_angular,
-    para.basis_size_radial,
-    para.basis_size_angular);
-  for (int m = 0; m < para.number_of_variables; ++m) {
-    fprintf(fid_nep, "%15.7e\n", parameters_file[m]);
-  }
   CHECK(gpuSetDevice(0));
   para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
-  for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
-    fprintf(fid_nep, "%15.7e\n", para.q_scaler_cpu[d]);
-  }
-  if (para.flexible_zbl) {
-    for (int d = 0; d < 10 * (para.num_types * (para.num_types + 1) / 2); ++d) {
-      fprintf(fid_nep, "%15.7e\n", para.zbl_para[d]);
-    }
-  }
+  write_nep_model_body(fid_nep, para, elite, max_NN_radial, max_NN_angular);
 }
