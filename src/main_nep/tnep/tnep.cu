@@ -253,7 +253,7 @@ void TNEP::Compiled_Kernel::launch_ann(
   const float* descriptors,
   const float* q_scaler,
   const float* parameters,
-  float* pe,
+  double* pe,
   float* Fp)
 {
   check_nep_launch(
@@ -350,7 +350,7 @@ static __global__ void apply_ann(
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
-  float* g_pe,
+  double* g_pe,
   float* g_Fp)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
@@ -394,7 +394,7 @@ static __global__ void apply_ann(
         F,
         Fp);
     }
-    g_pe[n1] = F;
+    g_pe[n1] = static_cast<double>(F);
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];

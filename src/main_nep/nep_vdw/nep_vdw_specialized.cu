@@ -26,7 +26,7 @@ static __global__ void ann_vdw_jit(
   const float* descriptors,
   const float* q_scaler,
   const float* parameters,
-  float* pe,
+  double* pe,
   float* Fp_out,
   float* C6_out,
   float* C6_derivative_out)
@@ -65,7 +65,7 @@ static __global__ void ann_vdw_jit(
     C6,
     C6_derivative);
 
-  pe[n1] = F;
+  pe[n1] = static_cast<double>(F);
   const float C6_exp =
     C6_REF_SQRT_JIT[t] * expf(C6 * C6_SCALING_FACTOR_JIT);
   C6_out[n1] = C6_exp;
@@ -84,7 +84,7 @@ extern "C" int nep_train_launch_ann_vdw(
   const float* descriptors,
   const float* q_scaler,
   const float* parameters,
-  float* pe,
+  double* pe,
   float* Fp,
   float* C6,
   float* C6_derivative)

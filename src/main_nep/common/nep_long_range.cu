@@ -183,7 +183,7 @@ static __global__ void find_force_vdw_long_range(
   float* g_fy,
   float* g_fz,
   float* g_virial,
-  float* g_pe)
+  double* g_pe)
 {
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
@@ -199,7 +199,7 @@ static __global__ void find_force_vdw_long_range(
       const float alpha_sixth =
         alpha_squared * alpha_squared * alpha_squared;
       if (!is_periodic) {
-        float temp_energy_sum = 0.0f;
+        double temp_energy_sum = 0.0;
         float temp_D_C6_sum = 0.0f;
         float temp_virial_sum[6] = {0.0f};
         float temp_force_sum[3] = {0.0f};
@@ -226,7 +226,7 @@ static __global__ void find_force_vdw_long_range(
             x12 * C6_product * force_factor,
             y12 * C6_product * force_factor,
             z12 * C6_product * force_factor};
-          temp_energy_sum += 0.5f * C6_product * potential;
+          temp_energy_sum += 0.5 * C6_product * potential;
           temp_D_C6_sum += C6_2 * potential;
           temp_force_sum[0] += f12[0];
           temp_force_sum[1] += f12[1];
@@ -249,7 +249,7 @@ static __global__ void find_force_vdw_long_range(
         continue;
       }
 
-      float temp_energy_sum = 0.0f;
+      double temp_energy_sum = 0.0;
       float temp_virial_sum[6] = {0.0f};
       float temp_force_sum[3] = {0.0f};
       float temp_D_C6_sum = 0.0f;
@@ -283,7 +283,7 @@ static __global__ void find_force_vdw_long_range(
       }
       // Remove the r=0 self interaction contained in the structure factor.
       g_pe[n] += temp_energy_sum / (N2 - N1) +
-        alpha_sixth * C6_1 * C6_1 / 12.0f;
+        double(alpha_sixth) * C6_1 * C6_1 / 12.0;
       for (int d = 0; d < 6; ++d) {
         g_virial[n + N * d] += temp_virial_sum[d] / (N2 - N1);
       }

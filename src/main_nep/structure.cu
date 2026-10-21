@@ -182,8 +182,7 @@ void NEP_Data_Reader::read_energy(
       has_energy_in_exyz = true;
       structure.energy_total = get_double_from_token(
         token.substr(energy_string.length(), token.length()), xyz_filename.c_str(), line_number);
-      structure.energy = structure.energy_total;
-      structure.energy /= structure.num_atom;
+      structure.energy = structure.energy_total / structure.num_atom;
     }
   }
   if (required && !has_energy_in_exyz) {

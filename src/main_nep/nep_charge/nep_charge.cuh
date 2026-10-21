@@ -137,7 +137,7 @@ private:
     NEP_Compiled_BEC bec;
     using AnnChargeFunction =
       int (*)(int, const int*, const float*, const float*, const float*,
-              float*, float*, float*, float*);
+              double*, float*, float*, float*);
     AnnChargeFunction ann_charge_ = nullptr;
     bool valid = false;
     explicit Compiled_Kernel(const NEP_Compile_Config& config);
@@ -148,7 +148,7 @@ private:
       const float* descriptors,
       const float* q_scaler,
       const float* parameters,
-      float* pe,
+      double* pe,
       float* Fp,
       float* charge,
       float* charge_derivative);

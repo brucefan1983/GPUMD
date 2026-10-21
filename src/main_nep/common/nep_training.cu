@@ -37,7 +37,7 @@ static void find_permuted_indices(
   const std::vector<Structure>& structures,
   std::vector<int>& permuted_indices)
 {
-  std::vector<float> energy(structures.size());
+  std::vector<double> energy(structures.size());
   for (int nc = 0; nc < structures.size(); ++nc) {
     energy[nc] = structures[nc].energy;
   }
@@ -232,7 +232,7 @@ void NEP_Energy_Loss::evaluate(
   NEP_Energy_Parameters& para, Dataset& data, EnergyDifference& energy_difference,
   int batch, int candidate, int device_id)
 {
-  float energy_shift_per_structure_not_used;
+  double energy_shift_per_structure_not_used;
   auto rmse_energy_array =
     data.get_rmse_energy(para, energy_shift_per_structure_not_used, true, true, device_id);
   auto rmse_force_array = data.get_rmse_force(para, true, device_id);

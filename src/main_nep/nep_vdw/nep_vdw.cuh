@@ -133,7 +133,7 @@ private:
     NEP_Compiled_Kernels common;
     using AnnChargeFunction =
       int (*)(int, const int*, const float*, const float*, const float*,
-              float*, float*, float*, float*);
+              double*, float*, float*, float*);
     AnnChargeFunction ann_vdw_ = nullptr;
     bool valid = false;
     explicit Compiled_Kernel(const NEP_Compile_Config& config);
@@ -144,7 +144,7 @@ private:
       const float* descriptors,
       const float* q_scaler,
       const float* parameters,
-      float* pe,
+      double* pe,
       float* Fp,
       float* C6,
       float* C6_derivative);
