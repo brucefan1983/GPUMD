@@ -26,7 +26,7 @@ Run simulation according to the inputs in the run.in file.
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
 #include "phonon/hessian.cuh"
-#include "phonon/nep_hessian_command.cuh"
+#include "keyword_dispatcher.cuh"
 #include "replicate.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
@@ -342,13 +342,6 @@ void Run::parse_one_keyword(
       PRINT_INPUT_ERROR("replicate keyword not found in run.in file.");
     }
     hessian.compute(force, box, atom, group, replicate_size_);
-  } else if (tokens[0] == "compute_hessian") {
-    NEP_Hessian_Command hessian;
-    std::vector<const char*> params;
-    params.reserve(tokens.size());
-    for (const auto& token : tokens) params.push_back(token.c_str());
-    hessian.parse(params.data(), static_cast<int>(params.size()));
-    hessian.compute(force, box, atom, group);
   } else if (tokens[0] == "compute_cohesive") {
     Cohesive cohesive;
     cohesive.parse(tokens, 0);
@@ -392,6 +385,12 @@ void Run::parse_one_keyword(
                box,
                force,
                first_potential_filename_)) {
+    keyword_dispatcher::Context dispatcher_ctx{
+      force, box, atom, group, has_replicate_,
+      {replicate_size_[0], replicate_size_[1], replicate_size_[2]}};
+    if (keyword_dispatcher::dispatch(tokens, dispatcher_ctx)) {
+      return;
+    }
     PRINT_KEYWORD_ERROR(tokens[0].c_str());
   }
 }

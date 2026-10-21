@@ -34,33 +34,8 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include <fstream>
 #include <iostream>
 #include <cstddef>
-#include <limits>
 #include <string>
 #include <vector>
-
-namespace {
-int small_box_neighbor_capacity(const int num_atoms, const NEP::ExpandedBox& ebox)
-{
-  if (num_atoms <= 0) {
-    return 0;
-  }
-  size_t capacity = static_cast<size_t>(num_atoms);
-  for (int axis = 0; axis < 3; ++axis) {
-    const int count = ebox.num_cells[axis];
-    if (count <= 0 ||
-        capacity > std::numeric_limits<size_t>::max() / static_cast<size_t>(count)) {
-      std::cerr << "The expanded small-box periodic-image count is invalid.\n";
-      exit(1);
-    }
-    capacity *= static_cast<size_t>(count);
-  }
-  if (capacity > static_cast<size_t>(std::numeric_limits<int>::max())) {
-    std::cerr << "The expanded small-box neighbor list exceeds the index range.\n";
-    exit(1);
-  }
-  return static_cast<int>(capacity);
-}
-} // namespace
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
@@ -364,7 +339,6 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   nep_data.NN_angular.resize(num_atoms);
   nep_data.NL_angular.resize(num_atoms * paramb.MN_angular);
   nep_data.Fp.resize(static_cast<size_t>(num_atoms) * annmb.dim);
-  nep_data.q_descriptors.resize(static_cast<size_t>(num_atoms) * annmb.dim);
   nep_data.sum_fxyz.resize(
     static_cast<size_t>(num_atoms) * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
   nep_data.cpu_NN_radial.resize(num_atoms);
@@ -376,16 +350,6 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
 NEP::~NEP(void)
 {
   // nothing
-}
-
-bool NEP::requires_expanded_box(const Box& box) const
-{
-  const double volume = box.get_volume();
-  const double cutoff = paramb.rc_radial_max;
-  return
-    (box.pbc_x && volume / box.get_area(0) <= 2.5 * (cutoff + 1.0)) ||
-    (box.pbc_y && volume / box.get_area(1) <= 2.5 * (cutoff + 1.0)) ||
-    (box.pbc_z && volume / box.get_area(2) <= 2.5 * (cutoff + 1.0));
 }
 
 void NEP::update_potential(float* parameters, ANN& ann)
@@ -475,8 +439,7 @@ static __global__ void find_descriptor(
   double* g_pe,
   float* g_Fp,
   double* g_virial,
-  float* g_sum_fxyz,
-  float* g_q_desc)
+  float* g_sum_fxyz)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -554,7 +517,6 @@ static __global__ void find_descriptor(
     // normalize descriptor
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = q[d] * annmb.q_scaler[d];
-      g_q_desc[static_cast<size_t>(d) * N + n1] = q[d];
     }
 
     // get energy and energy gradient
@@ -966,8 +928,7 @@ void NEP::compute_large_box(
     potential_per_atom.data(),
     nep_data.Fp.data(),
     virial_per_atom.data(),
-    nep_data.sum_fxyz.data(),
-    nep_data.q_descriptors.data());
+    nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
 
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
@@ -1058,9 +1019,8 @@ void NEP::compute_small_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  const int neighbor_capacity = static_cast<int>(
-    small_box_data.NL_radial.size() / static_cast<size_t>(N));
-  const int size_x12 = N * neighbor_capacity;
+  const int big_neighbor_size = 2000;
+  const int size_x12 = N * big_neighbor_size;
 
   find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1129,8 +1089,7 @@ void NEP::compute_small_box(
     potential_per_atom.data(),
     nep_data.Fp.data(),
     virial_per_atom.data(),
-    nep_data.sum_fxyz.data(),
-    nep_data.q_descriptors.data());
+    nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
 
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
@@ -1267,17 +1226,10 @@ void NEP::compute(
   if (is_small_box) {
     // update small_box_data
     const int current_num_atoms = type.size();
-    const int required_neighbor_capacity =
-      small_box_neighbor_capacity(current_num_atoms, ebox);
-    const size_t current_neighbor_capacity = current_num_atoms > 0
-      ? small_box_data.NL_radial.size() / static_cast<size_t>(current_num_atoms)
-      : 0;
-    if (small_box_data.NN_radial.size() != static_cast<size_t>(current_num_atoms) ||
-        current_neighbor_capacity < static_cast<size_t>(required_neighbor_capacity) ||
-        small_box_data.NL_angular.size() <
-          static_cast<size_t>(current_num_atoms) * required_neighbor_capacity) {
-      const size_t size_x12 =
-        static_cast<size_t>(current_num_atoms) * required_neighbor_capacity;
+    if (small_box_data.NN_radial.size() != static_cast<size_t>(current_num_atoms)) {
+        const int big_neighbor_size = 2000;
+        const size_t size_x12 = static_cast<size_t>(current_num_atoms) * big_neighbor_size;
+
       small_box_data.NN_radial.resize(current_num_atoms);
       small_box_data.NL_radial.resize(size_x12);
       small_box_data.NN_angular.resize(current_num_atoms);
@@ -1316,8 +1268,7 @@ static __global__ void find_descriptor(
   double* g_pe,
   float* g_Fp,
   double* g_virial,
-  float* g_sum_fxyz,
-  float* g_q_desc)
+  float* g_sum_fxyz)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -1395,7 +1346,6 @@ static __global__ void find_descriptor(
     q[annmb.dim - 1] = temperature;
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = q[d] * annmb.q_scaler[d];
-      g_q_desc[static_cast<size_t>(d) * N + n1] = q[d];
     }
 
     // get energy and energy gradient
@@ -1488,8 +1438,7 @@ void NEP::compute_large_box(
     potential_per_atom.data(),
     nep_data.Fp.data(),
     virial_per_atom.data(),
-    nep_data.sum_fxyz.data(),
-    nep_data.q_descriptors.data());
+    nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
 
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
@@ -1581,9 +1530,8 @@ void NEP::compute_small_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  const int neighbor_capacity = static_cast<int>(
-    small_box_data.NL_radial.size() / static_cast<size_t>(N));
-  const int size_x12 = N * neighbor_capacity;
+  const int big_neighbor_size = 2000;
+  const int size_x12 = N * big_neighbor_size;
 
   find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1653,8 +1601,7 @@ void NEP::compute_small_box(
     potential_per_atom.data(),
     nep_data.Fp.data(),
     virial_per_atom.data(),
-    nep_data.sum_fxyz.data(),
-    nep_data.q_descriptors.data());
+    nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
 
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
@@ -1732,17 +1679,10 @@ void NEP::compute(
   if (is_small_box) {
     // update small_box_data
     const int current_num_atoms = type.size();
-    const int required_neighbor_capacity =
-      small_box_neighbor_capacity(current_num_atoms, ebox);
-    const size_t current_neighbor_capacity = current_num_atoms > 0
-      ? small_box_data.NL_radial.size() / static_cast<size_t>(current_num_atoms)
-      : 0;
-    if (small_box_data.NN_radial.size() != static_cast<size_t>(current_num_atoms) ||
-        current_neighbor_capacity < static_cast<size_t>(required_neighbor_capacity) ||
-        small_box_data.NL_angular.size() <
-          static_cast<size_t>(current_num_atoms) * required_neighbor_capacity) {
-      const size_t size_x12 =
-        static_cast<size_t>(current_num_atoms) * required_neighbor_capacity;
+    if (small_box_data.NN_radial.size() != static_cast<size_t>(current_num_atoms)) {
+        const int big_neighbor_size = 2000;
+        const size_t size_x12 = static_cast<size_t>(current_num_atoms) * big_neighbor_size;
+
       small_box_data.NN_radial.resize(current_num_atoms);
       small_box_data.NL_radial.resize(size_x12);
       small_box_data.NN_angular.resize(current_num_atoms);

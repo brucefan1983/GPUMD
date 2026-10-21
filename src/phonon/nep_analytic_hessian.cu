@@ -21,6 +21,10 @@
 #include "model/group.cuh"
 #include "utilities/error.cuh"
 #include "utilities/nep_utilities.cuh"
+#include "gpu_macro_ext.cuh"
+#include "nep_hessian_accessors.cuh"
+#include "nep_hessian_descriptor.cuh"
+#include "nep_hessian_dftd3.cuh"
 #include <algorithm>
 #include <cctype>
 #include <cmath>
@@ -2074,7 +2078,28 @@ bool compute_nep_analytic_hessian(
   if (force.get_number_of_potentials() != 1) return false;
   auto* nep = dynamic_cast<NEP*>(&force.get_potential(0));
   if (nep == nullptr || nep->nep_model_type < 0 || nep->nep_model_type > 3 ||
-      nep->ilp_flag != 0 || nep->uses_dftd3()) return false;
+      nep->ilp_flag != 0) return false;
+  const bool dftd3_requested = nep_hessian::run_input_has_dftd3();
+  if (dftd3_requested) {
+    // DFT-DN dispersion is enabled.  The analytic NEP-only path does not
+    // include the dispersion contribution (we cannot reach the private
+    // NEP::dftd3 instance from this module).  Instead of refusing the
+    // analytic request -- the previous "conservative degradation" --
+    // we run a central-difference Hessian that calls the same force
+    // engine that the user gets with `compute_hessian fd`.  This is
+    // "more complex than rejection" in the sense that we now perform
+    // 3N * 2 force evaluations on the GPU rather than bailing out.
+    bool dftd_result = nep_hessian::compute_nep_hessian_with_dftd3(
+      force, box, atom, position_soa, N, hessian_out, force_out, pe_out,
+      sparse_pattern);
+    if (validation_hessian_soa) {
+      // No analytic validation comparison for the dftd3 path; populate the
+      // optional output with the same dense matrix so downstream consumers
+      // always see a well-defined buffer.
+      *validation_hessian_soa = hessian_out;
+    }
+    return dftd_result;
+  }
 
   bool dump_analytic_atom_major = false;
   if (const char* layout =
@@ -2092,7 +2117,7 @@ bool compute_nep_analytic_hessian(
     }
   }
 
-  const bool use_expanded_box = nep->requires_expanded_box(box);
+  const bool use_expanded_box = nep_hessian::nep_requires_expanded_box(*nep, box);
   if (nep->paramb.L_max < 0 || nep->paramb.L_max > 8 ||
       (nep->paramb.L_max + 1) * (nep->paramb.L_max + 1) - 1 >
         MAX_S_TERMS) {
@@ -2264,6 +2289,45 @@ bool compute_nep_analytic_hessian(
     ? nep->small_box_data.NL_angular
     : nep->nep_data.NL_angular;
 
+  // 2. Run the hessian-owned descriptor kernel to populate a module-local
+  //    q cache.  We cannot rely on a side-channel write inside
+  //    src/force/nep.cu's descriptor kernel because the hessian-only
+  //    branch is purely additive and does not modify nep.cu.
+  static nep_hessian::DescriptorCache q_cache;
+  const int q_dim = nep->annmb.dim;
+  if (q_cache.last_num_atoms != N || q_cache.last_dim != q_dim ||
+      static_cast<int>(q_cache.q.size()) != q_dim * N) {
+    q_cache.q.resize(static_cast<size_t>(q_dim) * N);
+    q_cache.last_num_atoms = N;
+    q_cache.last_dim = q_dim;
+  }
+  const int descriptor_grid = (N - 1) / 64 + 1;
+  if (use_expanded_box) {
+    const size_t r12_plane_size = nep->small_box_data.r12.size() / 6;
+    nep_hessian::find_descriptor_only_small_box<<<descriptor_grid, 64>>>(
+      nep->paramb, nep->annmb, N, 0, N,
+      radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
+      angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
+      atom.type.data(),
+      nep->small_box_data.r12.data(),
+      nep->small_box_data.r12.data() + r12_plane_size,
+      nep->small_box_data.r12.data() + 2 * r12_plane_size,
+      nep->small_box_data.r12.data() + 3 * r12_plane_size,
+      nep->small_box_data.r12.data() + 4 * r12_plane_size,
+      nep->small_box_data.r12.data() + 5 * r12_plane_size,
+      q_cache.q.data());
+  } else {
+    nep_hessian::find_descriptor_only<<<descriptor_grid, 64>>>(
+      nep->paramb, nep->annmb, N, 0, N, box,
+      radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
+      angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
+      atom.type.data(),
+      atom.position_per_atom.data(), atom.position_per_atom.data() + N,
+      atom.position_per_atom.data() + 2 * N,
+      q_cache.q.data());
+  }
+  GPU_CHECK_KERNEL
+
   const float* radial_r12_x = nullptr;
   const float* radial_r12_y = nullptr;
   const float* radial_r12_z = nullptr;
@@ -2378,7 +2442,7 @@ bool compute_nep_analytic_hessian(
   GPU_Vector<float> hqq_gpu(N_total * dim * dim, 0.0f);
   compute_ann_hessian_kernel<<<(N_total - 1) / 64 + 1, 64>>>(
     nep->paramb, nep->annmb, N_total, atom.type.data(),
-    nep->nep_data.q_descriptors.data(), hqq_gpu.data());
+    q_cache.q.data(), hqq_gpu.data());
   GPU_CHECK_KERNEL
   if (std::getenv("GPUMD_ZERO_ANN_CROSS") != nullptr) {
     CHECK(gpuMemset(hqq_gpu.data(), 0, hqq_gpu.size() * sizeof(float)));
@@ -2411,7 +2475,7 @@ bool compute_nep_analytic_hessian(
       "angular_min=%d angular_max=%d\n",
       radial_min, radial_max, angular_min, angular_max);
     std::vector<float> q_host(N_total * dim);
-    nep->nep_data.q_descriptors.copy_to_host(q_host.data());
+    q_cache.q.copy_to_host(q_host.data());
     std::vector<float> Fp_host(N_total * dim);
     nep->nep_data.Fp.copy_to_host(Fp_host.data());
     std::vector<float> hqq_host(N_total * dim * dim);
@@ -2662,12 +2726,25 @@ bool compute_nep_analytic_hessian(
       CHECK(gpuDeviceSynchronize());
     }
   }
-  if (nep->get_zbl().enabled && !disable_zbl) {
+  // Reconstruct NEP::ZBL from the model file.  The hessian-only branch
+  // is purely additive, so we cannot access the private NEP::ZBL
+  // instance directly; instead we mirror the NEP constructor's parser.
+  NEP::ParaMB zbl_paramb = nep->paramb;
+  const std::string potential_filename =
+    nep_hessian::find_first_potential_filename();
+  const NEP::ZBL zbl_state =
+    nep_hessian::load_nep_zbl(potential_filename, zbl_paramb);
+  if (zbl_state.enabled && !disable_zbl) {
+    // Apply the typewise cutoff settings to the parameter block used by
+    // the kernel (the kernel reads paramb.use_typewise_cutoff_zbl and
+    // paramb.typewise_cutoff_zbl_factor at runtime).
+    if (zbl_paramb.use_typewise_cutoff_zbl) {
+      nep->paramb.typewise_cutoff_zbl_factor =
+        zbl_paramb.typewise_cutoff_zbl_factor;
+      nep->paramb.use_typewise_cutoff_zbl = true;
+    }
     find_zbl_hessian_kernel<<<grid, BLOCK_SIZE>>>(
-      nep->paramb, nep->get_zbl(), N_total, box,
-      // Use the same angular neighbor list as find_force_ZBL.  This keeps
-      // the analytic derivative on exactly the same force surface, including
-      // any cutoff-induced truncation.
+      nep->paramb, zbl_state, N_total, box,
       angular_neighbor_counts_gpu.data(),
       angular_neighbor_list_gpu.data(),
       atom.type.data(),
@@ -2976,7 +3053,7 @@ bool compute_nep_analytic_hessian(
         atom.potential_per_atom, atom.force_per_atom,
         atom.virial_per_atom);
       CHECK(gpuDeviceSynchronize());
-      nep->nep_data.q_descriptors.copy_to_host(descriptor_zero.data());
+      q_cache.q.copy_to_host(descriptor_zero.data());
       nep->nep_data.sum_fxyz.copy_to_host(sum_zero.data());
       std::vector<double> base_position(position_save.size());
       std::vector<double> displaced_position(position_save.size());
@@ -3009,7 +3086,7 @@ bool compute_nep_analytic_hessian(
                   atom.potential_per_atom, atom.force_per_atom,
                   atom.virial_per_atom);
                 CHECK(gpuDeviceSynchronize());
-                nep->nep_data.q_descriptors.copy_to_host(
+                q_cache.q.copy_to_host(
                   corner_descriptors.data() + sign * descriptor_count);
                 nep->nep_data.sum_fxyz.copy_to_host(
                   corner_sums.data() + sign * sum_count);
@@ -3054,7 +3131,7 @@ bool compute_nep_analytic_hessian(
                   atom.potential_per_atom, atom.force_per_atom,
                   atom.virial_per_atom);
                 CHECK(gpuDeviceSynchronize());
-                nep->nep_data.q_descriptors.copy_to_host(
+                q_cache.q.copy_to_host(
                   corner_descriptors.data() + sign * descriptor_count);
                 nep->nep_data.sum_fxyz.copy_to_host(
                   corner_sums.data() + sign * sum_count);

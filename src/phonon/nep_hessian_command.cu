@@ -25,6 +25,7 @@ Both can optionally solve phonons from the resulting Hessian.
 #include "analytic_phonon.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "gpu_macro_ext.cuh"
 #include "utilities/read_file.cuh"
 #ifdef USE_HIP
 #include <hipsolver/hipsolver.h>
@@ -1339,3 +1340,30 @@ void NEP_Hessian_Command::compute_fd(
     N, displacement_, inspect_matrix(fd_raw, N, true).asymmetry_max,
     inspect_matrix(fd_raw, N, true).translation_max);
 }
+
+// Register the compute_hessian keyword with the dispatcher so this module
+// adds the keyword without modifying src/main_gpumd/run.cu's chain.
+#include "main_gpumd/keyword_dispatcher.cuh"
+#include "main_gpumd/run.cuh"
+
+namespace {
+void nep_hessian_keyword_handler(
+  const std::vector<std::string>& tokens,
+  const keyword_dispatcher::Context& ctx)
+{
+  NEP_Hessian_Command hessian;
+  std::vector<const char*> params;
+  params.reserve(tokens.size());
+  for (const auto& token : tokens) params.push_back(token.c_str());
+  hessian.parse(params.data(), static_cast<int>(params.size()));
+  hessian.compute(ctx.force, ctx.box, ctx.atom, ctx.group);
+}
+
+struct AutoRegister {
+  AutoRegister() {
+    keyword_dispatcher::register_handler("compute_hessian",
+                                         &nep_hessian_keyword_handler);
+  }
+};
+const AutoRegister nep_hessian_auto_register;
+} // namespace
