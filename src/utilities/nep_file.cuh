@@ -19,40 +19,39 @@
 #include <string>
 #include <vector>
 
-namespace nep_file
+class NEP_File
 {
+public:
+  struct Field {
+    std::string name;
+    std::vector<std::string> values;
+    std::size_t line = 0;
+  };
 
-struct Field {
-  std::string name;
-  std::vector<std::string> values;
-  std::size_t line = 0;
-};
+  struct Block {
+    std::string name;
+    std::vector<double> values;
+    std::size_t line = 0;
+  };
 
-struct Block {
-  std::string name;
-  std::vector<double> values;
-  std::size_t line = 0;
-};
-
-struct Document {
   std::vector<std::string> elements;
   std::vector<Field> fields;
   std::vector<Block> blocks;
+
+  const Field* find_field(const std::string& name) const;
+  const Block* find_block(const std::string& name) const;
+
+  static bool parse_size(const std::string& token, std::size_t& value);
+  static bool parse_double(const std::string& token, double& value);
+
+  bool read(std::istream& input, std::string& error);
+  bool write(std::ostream& output, std::string& error) const;
+
+  bool check_unhandled(
+    const std::vector<std::string>& handled_fields,
+    const std::vector<std::string>& handled_blocks,
+    std::string& error) const;
+
+private:
+  bool validate(std::string& error);
 };
-
-const Field* find_field(const Document& document, const std::string& name);
-const Block* find_block(const Document& document, const std::string& name);
-
-bool parse_size(const std::string& token, std::size_t& value);
-bool parse_double(const std::string& token, double& value);
-
-bool read(std::istream& input, Document& document, std::string& error);
-bool write(std::ostream& output, const Document& document, std::string& error);
-
-bool check_unhandled(
-  const Document& document,
-  const std::vector<std::string>& handled_fields,
-  const std::vector<std::string>& handled_blocks,
-  std::string& error);
-
-} // namespace nep_file

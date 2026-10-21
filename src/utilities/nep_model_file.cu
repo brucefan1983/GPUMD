@@ -19,23 +19,24 @@
 #include <limits>
 #include <utility>
 
-namespace nep_file
-{
-namespace
-{
-
-bool fail(std::string& error, const std::string& message, std::size_t line = 0)
+static bool fail(std::string& error, const std::string& message, std::size_t line = 0)
 {
   error = "NEP model" + (line ? " line " + std::to_string(line) : "") + ": " + message;
   return false;
 }
 
-bool read_integer(
-  const Field& field, std::size_t index, int minimum, int maximum, int& value, std::string& error)
+static bool read_integer(
+  const NEP_File::Field& field,
+  std::size_t index,
+  int minimum,
+  int maximum,
+  int& value,
+  std::string& error)
 {
   std::size_t parsed;
   if (
-    !parse_size(field.values[index], parsed) || parsed < static_cast<std::size_t>(minimum) ||
+    !NEP_File::parse_size(field.values[index], parsed) ||
+    parsed < static_cast<std::size_t>(minimum) ||
     parsed > static_cast<std::size_t>(maximum)) {
     return fail(
       error,
@@ -47,7 +48,7 @@ bool read_integer(
   return true;
 }
 
-bool to_float(double value, float& result)
+static bool to_float(double value, float& result)
 {
   if (!std::isfinite(value) || std::abs(value) > std::numeric_limits<float>::max()) {
     return false;
@@ -56,24 +57,25 @@ bool to_float(double value, float& result)
   return value == 0.0 || result != 0.0f;
 }
 
-bool read_float(const Field& field, std::size_t index, float& value, std::string& error)
+static bool read_float(
+  const NEP_File::Field& field, std::size_t index, float& value, std::string& error)
 {
   double parsed;
-  if (!parse_double(field.values[index], parsed) || !to_float(parsed, value)) {
+  if (!NEP_File::parse_double(field.values[index], parsed) || !to_float(parsed, value)) {
     return fail(error, "invalid float value in '" + field.name + "'.", field.line);
   }
   return true;
 }
 
-const Field* require_field(
-  const Document& document,
+static const NEP_File::Field* require_field(
+  const NEP_File& document,
   const char* name,
   std::size_t minimum,
   std::size_t maximum,
   std::vector<std::string>& handled,
   std::string& error)
 {
-  const Field* field = find_field(document, name);
+  const NEP_File::Field* field = document.find_field(name);
   if (field == nullptr) {
     fail(error, "missing field '" + std::string(name) + "'.");
     return nullptr;
@@ -86,15 +88,15 @@ const Field* require_field(
   return field;
 }
 
-bool read_block(
-  const Document& document,
+static bool read_block(
+  const NEP_File& document,
   const char* name,
   int count,
   std::vector<float>& values,
   std::vector<std::string>& handled,
   std::string& error)
 {
-  const Block* block = find_block(document, name);
+  const NEP_File::Block* block = document.find_block(name);
   if (block == nullptr) {
     return fail(error, "missing block '" + std::string(name) + "'.");
   }
@@ -115,10 +117,13 @@ bool read_block(
   return true;
 }
 
-bool read_descriptor(
-  const Document& document, Model& model, std::vector<std::string>& handled, std::string& error)
+static bool read_descriptor(
+  const NEP_File& document,
+  NEP_Model_File& model,
+  std::vector<std::string>& handled,
+  std::string& error)
 {
-  const Field* field =
+  const NEP_File::Field* field =
     require_field(document, "cutoff", 4, 2 * model.num_types + 2, handled, error);
   if (field == nullptr) {
     return false;
@@ -200,34 +205,37 @@ bool read_descriptor(
   return true;
 }
 
-bool read_reference(
-  const Document& document, Model& model, std::vector<std::string>& handled, std::string& error)
+static bool read_reference(
+  const NEP_File& document,
+  NEP_Model_File& model,
+  std::vector<std::string>& handled,
+  std::string& error)
 {
-  const Field* field =
+  const NEP_File::Field* field =
     require_field(document, "energy_reference", model.num_types, model.num_types, handled, error);
   if (field == nullptr) {
     return false;
   }
   model.energy_reference.resize(model.num_types);
   for (int t = 0; t < model.num_types; ++t) {
-    if (!parse_double(field->values[t], model.energy_reference[t])) {
+    if (!NEP_File::parse_double(field->values[t], model.energy_reference[t])) {
       return fail(error, "invalid double value in energy_reference.", field->line);
     }
   }
   return true;
 }
 
-bool read_zbl(
-  const Document& document,
-  Model& model,
+static bool read_zbl(
+  const NEP_File& document,
+  NEP_Model_File& model,
   std::vector<std::string>& fields,
   std::vector<std::string>& blocks,
   std::string& error)
 {
-  if (find_field(document, "zbl") == nullptr) {
+  if (document.find_field("zbl") == nullptr) {
     return true;
   }
-  const Field* field = require_field(document, "zbl", 2, 3, fields, error);
+  const NEP_File::Field* field = require_field(document, "zbl", 2, 3, fields, error);
   if (
     field == nullptr || !read_float(*field, 0, model.zbl_rc_inner, error) ||
     !read_float(*field, 1, model.zbl_rc_outer, error)) {
@@ -249,7 +257,7 @@ bool read_zbl(
         return fail(
           error,
           "each zbl_parameters pair requires 0 <= inner < outer.",
-          find_block(document, "zbl_parameters")->line);
+          document.find_block("zbl_parameters")->line);
       }
     }
   } else {
@@ -269,9 +277,10 @@ bool read_zbl(
   return true;
 }
 
-void calculate_layout(Model& model, int extra_inputs, int extra_outputs, int globals, int ann_count)
+static void calculate_layout(
+  NEP_Model_File& model, int extra_inputs, int extra_outputs, int globals, int ann_count)
 {
-  ModelLayout& layout = model.layout;
+  NEP_Model_File::ModelLayout& layout = model.layout;
   layout.dim += extra_inputs;
   layout.ann_count = ann_count;
   layout.global_parameters = globals;
@@ -290,9 +299,9 @@ void calculate_layout(Model& model, int extra_inputs, int extra_outputs, int glo
     layout.number_of_variables_ann * ann_count + layout.number_of_variables_descriptor;
 }
 
-bool read_nep_options(
-  const Document& document,
-  Model& model,
+static bool read_nep_options(
+  const NEP_File& document,
+  NEP_Model_File& model,
   std::vector<std::string>& fields,
   std::vector<std::string>& blocks,
   std::string& error)
@@ -302,41 +311,41 @@ bool read_nep_options(
          read_zbl(document, model, fields, blocks, error);
 }
 
-bool read_qnep_options(
-  const Document& document,
-  Model& model,
+static bool read_qnep_options(
+  const NEP_File& document,
+  NEP_Model_File& model,
   std::vector<std::string>& fields,
   std::vector<std::string>& blocks,
   std::string& error)
 {
   if (model.num_neurons2 != 0) {
     return fail(
-      error, model.name + " supports only one hidden layer.", find_field(document, "ann")->line);
+      error, model.name + " supports only one hidden layer.", document.find_field("ann")->line);
   }
   if (model.has_multiple_cutoffs) {
     return fail(
-      error, model.name + " supports only uniform cutoffs.", find_field(document, "cutoff")->line);
+      error, model.name + " supports only uniform cutoffs.", document.find_field("cutoff")->line);
   }
   calculate_layout(model, 0, 1, 2, 1);
   return read_reference(document, model, fields, error) &&
          read_zbl(document, model, fields, blocks, error);
 }
 
-void read_tnep_options(Model& model)
+static void read_tnep_options(NEP_Model_File& model)
 {
   calculate_layout(model, 0, 0, 1, model.name == "nep_polarizability" ? 2 : 1);
 }
 
-bool read_vdw_options(
-  const Document& document,
-  Model& model,
+static bool read_vdw_options(
+  const NEP_File& document,
+  NEP_Model_File& model,
   std::vector<std::string>& fields,
   std::vector<std::string>& blocks,
   std::string& error)
 {
   if (model.num_neurons2 != 0) {
     return fail(
-      error, model.name + " supports only one hidden layer.", find_field(document, "ann")->line);
+      error, model.name + " supports only one hidden layer.", document.find_field("ann")->line);
   }
   const bool charge = model.name == "qnep2_vdw";
   calculate_layout(model, 0, charge ? 2 : 1, charge ? 2 : 1, 1);
@@ -344,17 +353,15 @@ bool read_vdw_options(
          read_zbl(document, model, fields, blocks, error);
 }
 
-} // namespace
-
-bool read_model(std::istream& input, Model& model, std::string& error)
+bool NEP_Model_File::read(std::istream& input, std::string& error)
 {
-  model = Model();
-  Document document;
-  if (!read(input, document, error)) {
+  *this = NEP_Model_File();
+  NEP_File document;
+  if (!document.read(input, error)) {
     return false;
   }
-  Model parsed;
-  parsed.name = find_field(document, "model")->values[0];
+  NEP_Model_File parsed;
+  parsed.name = document.find_field("model")->values[0];
   parsed.elements = document.elements;
   parsed.num_types = static_cast<int>(parsed.elements.size());
   std::vector<std::string> fields = {"format_version", "model"};
@@ -365,7 +372,7 @@ bool read_model(std::istream& input, Model& model, std::string& error)
   const bool vdw = parsed.name == "nep_vdw" || parsed.name == "qnep2_vdw";
   if (!nep && !qnep && !tnep && !vdw) {
     return fail(
-      error, "unsupported model '" + parsed.name + "'.", find_field(document, "model")->line);
+      error, "unsupported model '" + parsed.name + "'.", document.find_field("model")->line);
   }
   if (!read_descriptor(document, parsed, fields, error)) {
     return false;
@@ -383,7 +390,7 @@ bool read_model(std::istream& input, Model& model, std::string& error)
     return false;
   }
   if (parsed.layout.dim > 103) {
-    return fail(error, "descriptor dimension exceeds 103.", find_field(document, "l_max")->line);
+    return fail(error, "descriptor dimension exceeds 103.", document.find_field("l_max")->line);
   }
   if (
     !read_block(
@@ -394,11 +401,9 @@ bool read_model(std::istream& input, Model& model, std::string& error)
       blocks,
       error) ||
     !read_block(document, "q_scaler", parsed.layout.dim, parsed.q_scaler, blocks, error) ||
-    !check_unhandled(document, fields, blocks, error)) {
+    !document.check_unhandled(fields, blocks, error)) {
     return false;
   }
-  model = std::move(parsed);
+  *this = std::move(parsed);
   return true;
 }
-
-} // namespace nep_file

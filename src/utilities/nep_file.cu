@@ -25,12 +25,7 @@
 #include <sstream>
 #include <utility>
 
-namespace nep_file
-{
-namespace
-{
-
-std::string lower(std::string text)
+static std::string lower(std::string text)
 {
   for (char& c : text) {
     if (c >= 'A' && c <= 'Z') {
@@ -40,7 +35,7 @@ std::string lower(std::string text)
   return text;
 }
 
-bool identifier(const std::string& text)
+static bool identifier(const std::string& text)
 {
   if (text.empty()) {
     return false;
@@ -55,7 +50,7 @@ bool identifier(const std::string& text)
   return true;
 }
 
-bool token_valid(const std::string& token)
+static bool token_valid(const std::string& token)
 {
   if (token.empty()) {
     return false;
@@ -68,13 +63,13 @@ bool token_valid(const std::string& token)
   return true;
 }
 
-bool fail(std::string& error, const std::string& message, std::size_t line = 0)
+static bool fail(std::string& error, const std::string& message, std::size_t line = 0)
 {
   error = "NEP file" + (line ? " line " + std::to_string(line) : "") + ": " + message;
   return false;
 }
 
-std::string element_symbol(const std::string& token)
+static std::string element_symbol(const std::string& token)
 {
   static const char* const symbols[] = {
     "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
@@ -92,7 +87,7 @@ std::string element_symbol(const std::string& token)
   return "";
 }
 
-int next_line(std::istream& input, std::string& line)
+static int next_line(std::istream& input, std::string& line)
 {
   line.clear();
   try {
@@ -113,7 +108,7 @@ int next_line(std::istream& input, std::string& line)
   return input.fail() ? 0 : 1;
 }
 
-bool tokenize(std::string line, std::vector<std::string>& tokens)
+static bool tokenize(std::string line, std::vector<std::string>& tokens)
 {
   tokens.clear();
   if (!line.empty() && line.back() == '\r') {
@@ -137,24 +132,24 @@ bool tokenize(std::string line, std::vector<std::string>& tokens)
   return true;
 }
 
-bool validate(Document& document, std::string& error)
+bool NEP_File::validate(std::string& error)
 {
-  if (document.elements.empty()) {
+  if (elements.empty()) {
     return fail(error, "empty element list.", 1);
   }
-  std::set<std::string> elements;
-  for (std::string& element : document.elements) {
+  std::set<std::string> seen_elements;
+  for (std::string& element : elements) {
     const std::string symbol = element_symbol(element);
     if (symbol.empty()) {
       return fail(error, "unknown element '" + element + "'.", 1);
     }
-    if (!elements.insert(symbol).second) {
+    if (!seen_elements.insert(symbol).second) {
       return fail(error, "duplicate element '" + symbol + "'.", 1);
     }
     element = symbol;
   }
   std::set<std::string> names;
-  for (Field& field : document.fields) {
+  for (Field& field : fields) {
     field.name = lower(field.name);
     if (!identifier(field.name)) {
       return fail(error, "invalid field name.", field.line);
@@ -177,7 +172,7 @@ bool validate(Document& document, std::string& error)
       field.values[0] = lower(field.values[0]);
     }
   }
-  for (Block& block : document.blocks) {
+  for (Block& block : blocks) {
     block.name = lower(block.name);
     if (!identifier(block.name)) {
       return fail(error, "invalid block name.", block.line);
@@ -191,20 +186,20 @@ bool validate(Document& document, std::string& error)
       }
     }
   }
-  const Field* version = find_field(document, "format_version");
+  const Field* version = find_field("format_version");
   if (version == nullptr) {
     return fail(error, "missing format_version.");
   }
   if (version->values.size() != 1 || version->values[0] != "1") {
     return fail(error, "unsupported format_version (expected 1).", version->line);
   }
-  if (find_field(document, "model") == nullptr) {
+  if (find_field("model") == nullptr) {
     return fail(error, "missing model.");
   }
   return true;
 }
 
-bool contains(const std::vector<std::string>& names, const std::string& name)
+static bool contains(const std::vector<std::string>& names, const std::string& name)
 {
   for (const std::string& entry : names) {
     if (lower(entry) == lower(name)) {
@@ -214,7 +209,7 @@ bool contains(const std::vector<std::string>& names, const std::string& name)
   return false;
 }
 
-void put_line(std::ostream& output, std::ostringstream& line)
+static void put_line(std::ostream& output, std::ostringstream& line)
 {
   line << '\n';
   const std::string text = line.str();
@@ -222,7 +217,7 @@ void put_line(std::ostream& output, std::ostringstream& line)
   line.str("");
 }
 
-bool compare_fields(const Field& a, const Field& b)
+static bool compare_fields(const NEP_File::Field& a, const NEP_File::Field& b)
 {
   if (a.name == b.name) {
     return false;
@@ -236,13 +231,14 @@ bool compare_fields(const Field& a, const Field& b)
   return a.name < b.name;
 }
 
-bool compare_blocks(const Block& a, const Block& b) { return a.name < b.name; }
-
-} // namespace
-
-const Field* find_field(const Document& document, const std::string& name)
+static bool compare_blocks(const NEP_File::Block& a, const NEP_File::Block& b)
 {
-  for (const Field& field : document.fields) {
+  return a.name < b.name;
+}
+
+const NEP_File::Field* NEP_File::find_field(const std::string& name) const
+{
+  for (const Field& field : fields) {
     if (lower(field.name) == lower(name)) {
       return &field;
     }
@@ -250,9 +246,9 @@ const Field* find_field(const Document& document, const std::string& name)
   return nullptr;
 }
 
-const Block* find_block(const Document& document, const std::string& name)
+const NEP_File::Block* NEP_File::find_block(const std::string& name) const
 {
-  for (const Block& block : document.blocks) {
+  for (const Block& block : blocks) {
     if (lower(block.name) == lower(name)) {
       return &block;
     }
@@ -260,7 +256,7 @@ const Block* find_block(const Document& document, const std::string& name)
   return nullptr;
 }
 
-bool parse_size(const std::string& token, std::size_t& value)
+bool NEP_File::parse_size(const std::string& token, std::size_t& value)
 {
   if (token.empty()) {
     return false;
@@ -280,7 +276,7 @@ bool parse_size(const std::string& token, std::size_t& value)
   return true;
 }
 
-bool parse_double(const std::string& token, double& value)
+bool NEP_File::parse_double(const std::string& token, double& value)
 {
   std::size_t i = 0;
   if (i < token.size() && (token[i] == '+' || token[i] == '-')) {
@@ -329,11 +325,11 @@ bool parse_double(const std::string& token, double& value)
   return true;
 }
 
-bool read(std::istream& input, Document& document, std::string& error)
+bool NEP_File::read(std::istream& input, std::string& error)
 {
-  document = Document();
+  *this = NEP_File();
   error.clear();
-  Document parsed;
+  NEP_File parsed;
   std::string line;
   std::vector<std::string> tokens;
   int status = next_line(input, line);
@@ -402,18 +398,18 @@ bool read(std::istream& input, Document& document, std::string& error)
     return fail(
       error, "truncated block '" + parsed.blocks.back().name + "'.", parsed.blocks.back().line);
   }
-  if (!validate(parsed, error)) {
+  if (!parsed.validate(error)) {
     return false;
   }
-  document = std::move(parsed);
+  *this = std::move(parsed);
   return true;
 }
 
-bool write(std::ostream& output, const Document& document, std::string& error)
+bool NEP_File::write(std::ostream& output, std::string& error) const
 {
   error.clear();
-  Document normalized = document;
-  if (!validate(normalized, error)) {
+  NEP_File normalized = *this;
+  if (!normalized.validate(error)) {
     return false;
   }
 
@@ -462,24 +458,21 @@ bool write(std::ostream& output, const Document& document, std::string& error)
   return true;
 }
 
-bool check_unhandled(
-  const Document& document,
+bool NEP_File::check_unhandled(
   const std::vector<std::string>& handled_fields,
   const std::vector<std::string>& handled_blocks,
-  std::string& error)
+  std::string& error) const
 {
   error.clear();
-  for (const Field& field : document.fields) {
+  for (const Field& field : fields) {
     if (!contains(handled_fields, field.name)) {
       return fail(error, "unhandled field '" + field.name + "'.", field.line);
     }
   }
-  for (const Block& block : document.blocks) {
+  for (const Block& block : blocks) {
     if (!contains(handled_blocks, block.name)) {
       return fail(error, "unhandled block '" + block.name + "'.", block.line);
     }
   }
   return true;
 }
-
-} // namespace nep_file

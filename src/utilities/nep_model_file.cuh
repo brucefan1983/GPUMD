@@ -18,22 +18,21 @@
 #include <string>
 #include <vector>
 
-namespace nep_file
+class NEP_Model_File
 {
+public:
+  struct ModelLayout {
+    int dim_radial = 0;
+    int dim_angular = 0;
+    int dim = 0;
+    int ann_count = 0;
+    int global_parameters = 0;
+    int number_of_variables_ann_1 = 0;
+    int number_of_variables_ann = 0;
+    int number_of_variables_descriptor = 0;
+    int number_of_variables = 0;
+  };
 
-struct ModelLayout {
-  int dim_radial = 0;
-  int dim_angular = 0;
-  int dim = 0;
-  int ann_count = 0;
-  int global_parameters = 0;
-  int number_of_variables_ann_1 = 0;
-  int number_of_variables_ann = 0;
-  int number_of_variables_descriptor = 0;
-  int number_of_variables = 0;
-};
-
-struct Model {
   std::string name;
   std::vector<std::string> elements;
   int num_types = 0;
@@ -66,8 +65,6 @@ struct Model {
   std::vector<float> parameters;
   std::vector<float> q_scaler;
   std::vector<float> zbl_parameters;
+
+  bool read(std::istream& input, std::string& error);
 };
-
-bool read_model(std::istream& input, Model& model, std::string& error);
-
-} // namespace nep_file
