@@ -154,9 +154,9 @@ def test_zbl_added_to_a_model_without_it_is_fatal(tmp_path, nep_command):
 @pytest.mark.parametrize(
     'base_model, charge_mode, expected_text',
     [
-        ('qnep_mode2', '1', 'nep.in gives 1 (input), nep.txt gives 2'),
-        ('qnep_mode1', None, 'nep.in gives 0 (default), nep.txt gives 1'),
-        ('nep', '2', 'nep.in gives 2 (input), nep.txt gives 0'),
+        ('qnep_mode2', '1', 'model: nep.in implies nep4_zbl_charge1, nep.txt holds nep4_zbl_charge2.'),
+        ('qnep_mode1', None, 'model: nep.in implies nep4_zbl, nep.txt holds nep4_zbl_charge1.'),
+        ('nep', '2', 'model: nep.in implies nep4_zbl_charge2, nep.txt holds nep4_zbl.'),
     ],
     ids=['mode 2 model read as mode 1', 'charge model read as plain', 'plain model read as qNEP'],
 )
@@ -170,7 +170,7 @@ def test_charge_mode_mismatch_is_fatal(
 
     result = run_nep(tmp_path, nep_command, keywords_for(base_model, charge_mode=charge_mode))
     assert result.returncode != 0
-    assert 'charge_mode: ' + expected_text in result.stdout
+    assert expected_text in result.stdout
 
 
 def test_prediction_with_mismatched_nep_txt_is_fatal(tmp_path, nep_command):

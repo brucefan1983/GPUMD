@@ -338,7 +338,7 @@ INPUT_ERRORS = {
         {},
         'No combination in ediff.in has all its structures in train.xyz',
     ),
-    'dipole model': ('s0 - s1\n', {'model_type': '1'}, 'lambda_d is only supported'),
+    'dipole model': ('s0 - s1\n', {'model_type': '1'}, 'lambda_d is not supported by this model.'),
     'nan lambda_d': (
         's0 - s1\n',
         {'lambda_d': 'nan'},
