@@ -47,30 +47,53 @@ static void add_reference_row(
   }
 }
 
+static double reference_column_norm(const std::vector<double>& r, const int n, const int column)
+{
+  double norm = 0.0;
+  for (int i = 0; i < n; ++i) {
+    norm = std::hypot(norm, r[i * n + column]);
+  }
+  return norm;
+}
+
 // One-sided Jacobi SVD of the small QR factor; r becomes U*S and v contains V.
 static bool orthogonalize_reference_columns(
-  std::vector<double>& r, std::vector<double>& v, const int n)
+  std::vector<double>& r, std::vector<double>& v, const int n, const double relative_cutoff)
 {
   const double tolerance = 8.0 * std::numeric_limits<double>::epsilon();
+  double largest_column = 0.0;
+  for (int j = 0; j < n; ++j) {
+    largest_column = std::max(largest_column, reference_column_norm(r, n, j));
+  }
+  // The largest column norm is a lower bound on the largest singular value.
+  // The sqrt(n) factor keeps even the combined norm of all skipped columns
+  // below the rank cutoff; individually small columns can share a valid mode.
+  const double zero_tolerance = relative_cutoff * largest_column / std::sqrt(double(n));
   for (int sweep = 0; sweep < 100; ++sweep) {
     bool changed = false;
     for (int p = 0; p < n; ++p) {
       for (int q = p + 1; q < n; ++q) {
-        double alpha = 0.0;
-        double beta = 0.0;
-        double gamma = 0.0;
-        for (int i = 0; i < n; ++i) {
-          const double x = r[i * n + p];
-          const double y = r[i * n + q];
-          alpha += x * x;
-          beta += y * y;
-          gamma += x * y;
+        const double norm_p = reference_column_norm(r, n, p);
+        const double norm_q = reference_column_norm(r, n, q);
+        if (norm_p <= zero_tolerance || norm_q <= zero_tolerance) {
+          continue;
         }
-        if (alpha == 0.0 || beta == 0.0 ||
-            std::abs(gamma) <= tolerance * std::sqrt(alpha) * std::sqrt(beta)) {
+        double correlation = 0.0;
+        for (int i = 0; i < n; ++i) {
+          correlation += (r[i * n + p] / norm_p) * (r[i * n + q] / norm_q);
+        }
+        if (std::abs(correlation) <= tolerance) {
           continue;
         }
         changed = true;
+        // Scale the pair before forming squares and products, including for
+        // weak retained directions. The rotation is invariant to this scale.
+        const double scale = std::max(norm_p, norm_q);
+        const double scaled_p = norm_p / scale;
+        const double scaled_q = norm_q / scale;
+        const double alpha = scaled_p * scaled_p;
+        const double beta = scaled_q * scaled_q;
+        const double gamma = correlation * scaled_p * scaled_q;
         const double tau = (beta - alpha) / (2.0 * gamma);
         const double t = std::copysign(1.0, tau) / (std::abs(tau) + std::hypot(1.0, tau));
         const double c = 1.0 / std::hypot(1.0, t);
@@ -161,19 +184,18 @@ bool fit_nep_energy_reference(
   for (int t = 0; t < n; ++t) {
     v[t * n + t] = 1.0;
   }
-  if (!orthogonalize_reference_columns(r, v, n)) {
+  const double relative_cutoff = std::numeric_limits<double>::epsilon() *
+                                 std::max(num_rows, size_t(n));
+  if (!orthogonalize_reference_columns(r, v, n, relative_cutoff)) {
     error = "Energy reference fit did not converge.";
     return false;
   }
   std::vector<double> singular_values(n, 0.0);
   for (int j = 0; j < n; ++j) {
-    for (int i = 0; i < n; ++i) {
-      singular_values[j] = std::hypot(singular_values[j], r[i * n + j]);
-    }
+    singular_values[j] = reference_column_norm(r, n, j);
   }
   const double largest = *std::max_element(singular_values.begin(), singular_values.end());
-  const double cutoff = std::numeric_limits<double>::epsilon() *
-                        std::max(num_rows, size_t(n)) * largest;
+  const double cutoff = relative_cutoff * largest;
   std::vector<double> solution(n, 0.0);
   int fitted_rank = 0;
   for (int j = 0; j < n; ++j) {
