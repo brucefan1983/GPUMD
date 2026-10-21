@@ -156,15 +156,15 @@ void Fitness::report_error(
   const int generation,
   const float loss_total,
   const int best_index,
-  float* elite)
+  float* elite,
+  const std::string& checkpoint_base)
 {
   if ((generation + 1) % para.output_interval == 0) {
     int index = para.num_types * para.population_size + best_index;
     TrainingReport report = {generation, generation % num_batches,
                              loss_total, fitness_L1[index], fitness_L2[index], elite, ""};
-    if ((generation + 1) % para.save_potential == 0) {
-      get_save_potential_label(para, generation, report.checkpoint);
-      report.checkpoint += ".txt";
+    if (!checkpoint_base.empty()) {
+      report.checkpoint = checkpoint_base + ".txt";
     }
     potential.report_error(report);
   }

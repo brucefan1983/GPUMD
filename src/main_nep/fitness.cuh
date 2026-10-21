@@ -40,7 +40,8 @@ public:
     const int generation,
     const float loss_total,
     const int best_index,
-    float* elite);
+    float* elite,
+    const std::string& checkpoint_base);
   void predict(float* elite);
   void get_save_potential_label(Parameters& para, const int generation, std::string& filename);
 
