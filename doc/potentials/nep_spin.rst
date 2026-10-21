@@ -565,20 +565,23 @@ generator evaluated for frame :math:`n` is
 
 The grouped response loss first centers :math:`G_n` within each group. Each
 group contributes equally to the centered-curve Huber loss, independent of its
-number of scan points. A single group-balanced RMS of the uncentered target
-responses normalizes both this shape term and a second Huber term comparing
-group means; the mean term is multiplied by 0.25. This is the same
-``neutral-group-balanced-mean-plus-centered-mforce-generator-v3`` reduction
-used by TorchNEP. ``response_coordinate`` defines the path derivative but does
-not add a separate reliability weight.
+number of scan points. Each group's uncentered target-response RMS, floored
+at :math:`10^{-6}`, normalizes its shape term and a second Huber term comparing
+group means; the mean term is multiplied by 0.25. ``response_coordinate``
+defines the path derivative but does not add a separate reliability weight.
+This GPUMD policy differs from the older shared-scale reduction.
 
 The group coordinate is explicit because Cartesian spin snapshots alone do
 not determine their path ordering or parameterization. The trainer sorts each
 group and derives
 :math:`\partial\boldsymbol{s}/\partial\theta` from the final constrained-DFT
-spins with a second-order, three-point nonuniform finite difference. It retains
-longitudinal moment relaxation as well as transverse rotation. Atom types
-excluded by ``spin_dof_type`` are masked from the derived tangent.
+spins with second-order, three-point nonuniform weights applied to sphere-log
+angular displacements and separate magnitude differences. This preserves
+longitudinal moment relaxation without injecting the radial chord error of
+Cartesian interpolation into constant-length rotations. Stencils must resolve
+angular separations below pi. Atom types excluded by ``spin_dof_type`` are
+masked from the derived tangent. See :ref:`lambda_spin_response
+<kw_lambda_spin_response>` for zero-moment and finite-stencil limitations.
 
 When :ref:`spin_curriculum <kw_spin_curriculum>` is enabled, ANN weights
 connected to order-3 magnetic coordinates are held fixed during the first

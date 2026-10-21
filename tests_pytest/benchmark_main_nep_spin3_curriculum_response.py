@@ -72,23 +72,11 @@ def grouped_response_loss(predicted, metadata):
     groups = {}
     for group, indexed in grouped_metadata.items():
         indexed.sort(key=lambda pair: pair[1]["coordinate"])
-        coordinates = [item["coordinate"] for _, item in indexed]
         for k, (frame, item) in enumerate(indexed):
-            first = 0 if k == 0 else (k - 2 if k + 1 == len(indexed) else k - 1)
-            nodes = (first, first + 1, first + 2)
-            x0, x1, x2 = (coordinates[index] for index in nodes)
-            x = coordinates[k]
-            weights = (
-                (2 * x - x1 - x2) / ((x0 - x1) * (x0 - x2)),
-                (2 * x - x0 - x2) / ((x1 - x0) * (x1 - x2)),
-                (2 * x - x0 - x1) / ((x2 - x0) * (x2 - x1)),
-            )
-            tangents = []
-            for atom in range(4):
-                tangents.append(tuple(
-                    sum(weights[n] * indexed[nodes[n]][1]["spins"][atom][component]
-                        for n in range(3))
-                    for component in range(3)))
+            # Independent analytic tangent of make_scan's second spin.
+            x = item["coordinate"]
+            tangents = [(0.0, 0.0, 0.0), (-math.sin(x), math.cos(x), 0.0),
+                        (0.0, 0.0, 0.0), (0.0, 0.0, 0.0)]
             generator_prediction = 0.0
             generator_target = 0.0
             for atom, tangent in enumerate(tangents):
@@ -105,12 +93,10 @@ def grouped_response_loss(predicted, metadata):
         absolute = abs(value)
         return 0.5 * value * value if absolute <= 1.0 else absolute - 0.5
 
-    scale = max(math.sqrt(statistics.fmean(
-        statistics.fmean(point[2] * point[2] for point in members)
-        for members in groups.values())), 1.0e-6)
     shape_terms = []
     mean_terms = []
     for members in groups.values():
+        scale = max(math.sqrt(statistics.fmean(point[2] * point[2] for point in members)), 1.0e-6)
         mean_prediction = statistics.fmean(point[1] for point in members)
         mean_target = statistics.fmean(point[2] for point in members)
         shape_terms.append(statistics.fmean(huber(

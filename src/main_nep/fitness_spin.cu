@@ -14,6 +14,7 @@
 */
 
 #include "fitness_spin.cuh"
+#include "rotation_response.cuh"
 #include "parameters.cuh"
 #include "dataset.cuh"
 #include "structure.cuh"
@@ -575,24 +576,28 @@ void derive_spin_response_tangents(
       const double w2 = (2.0 * x - x0 - x1) / ((x2 - x0) * (x2 - x1));
       Structure& output = *members[k];
       for (int atom = 0; atom < output.num_atom; ++atom) {
-        const double tx =
-          w0 * members[first]->sx[atom] +
-          w1 * members[second]->sx[atom] +
-          w2 * members[third]->sx[atom];
-        const double ty =
-          w0 * members[first]->sy[atom] +
-          w1 * members[second]->sy[atom] +
-          w2 * members[third]->sy[atom];
-        const double tz =
-          w0 * members[first]->sz[atom] +
-          w1 * members[second]->sz[atom] +
-          w2 * members[third]->sz[atom];
         const bool active = para.spin_dof_type_active[output.type[atom]] != 0;
-        output.spin_tangent_x[atom] = active ? static_cast<float>(tx) : 0.0f;
-        output.spin_tangent_y[atom] = active ? static_cast<float>(ty) : 0.0f;
-        output.spin_tangent_z[atom] = active ? static_cast<float>(tz) : 0.0f;
+        std::array<double, 3> tangent = {{0.0, 0.0, 0.0}};
         if (active) {
-          tangent_power += tx * tx + ty * ty + tz * tz;
+          const std::array<double, 3> center = {{
+            output.sx[atom], output.sy[atom], output.sz[atom]}};
+          const std::size_t nodes[] = {first, second, third};
+          const double weights[] = {w0, w1, w2};
+          for (int j = 0; j < 3; ++j) {
+            const auto& node = *members[nodes[j]];
+            std::array<double, 3> delta;
+            if (!rotation_displacement(center, {{node.sx[atom], node.sy[atom], node.sz[atom]}}, delta)) {
+              PRINT_INPUT_ERROR(
+                "Antipodal spins in response rotation stencil; add intermediate rotation frames.\n");
+            }
+            for (int d = 0; d < 3; ++d) tangent[d] += weights[j] * delta[d];
+          }
+        }
+        output.spin_tangent_x[atom] = static_cast<float>(tangent[0]);
+        output.spin_tangent_y[atom] = static_cast<float>(tangent[1]);
+        output.spin_tangent_z[atom] = static_cast<float>(tangent[2]);
+        if (active) {
+          for (double value : tangent) tangent_power += value * value;
         }
       }
       output.has_spin_response = 1;
@@ -653,21 +658,16 @@ float ResponseLoss::value() const
     return 0.0f;
   }
 
-  double group_power_sum = 0.0;
-  for (const auto& item : groups) {
-    const auto& members = item.second;
-    double target_power = 0.0;
-    for (const auto* point : members) {
-      target_power += point->target * point->target;
-    }
-    group_power_sum += target_power / members.size();
-  }
-  const double scale = std::max(
-    std::sqrt(group_power_sum / groups.size()), 1.0e-6);
   double shape_loss = 0.0;
   double mean_loss = 0.0;
   for (const auto& item : groups) {
     const auto& members = item.second;
+    // Equal group weighting also requires a group-local target scale: a strong
+    // exchange scan must not suppress a weak anisotropy scan. Retain the
+    // absolute floor for zero/near-zero reference responses.
+    double target_power = 0.0;
+    for (const auto* point : members) target_power += point->target * point->target;
+    const double scale = std::max(std::sqrt(target_power / members.size()), 1.0e-6);
     double mean_prediction = 0.0;
     double mean_target = 0.0;
     for (const auto* point : members) {

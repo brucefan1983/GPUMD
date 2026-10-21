@@ -61,10 +61,10 @@ def main():
         assert min(values)>0 and max(values)-min(values)<1e-7  # same complete groups/candidates across minibatches
         groups={}
         for group,prediction,target in on['points']: groups.setdefault(group,[]).append((prediction,target))
-        scale=max(math.sqrt(sum(sum(t*t for _,t in points)/len(points) for points in groups.values())/len(groups)),1e-6)
         huber=lambda x: .5*x*x if abs(x)<=1 else abs(x)-.5
         loss=0
         for points in groups.values():
+            scale=max(math.sqrt(sum(t*t for _,t in points)/len(points)),1e-6)
             mp=sum(p for p,t in points)/len(points);mt=sum(t for p,t in points)/len(points)
             loss+=sum(huber(((p-mp)-(t-mt))/scale) for p,t in points)/len(points)+.25*huber((mp-mt)/scale)
         expected=.3*loss/len(groups)

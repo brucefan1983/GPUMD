@@ -128,5 +128,27 @@ int main()
   shifted.append(0, dataset);
   const double expected = 0.25 * (1.0 / std::sqrt(2.0 / 3.0) - 0.5);
   assert(std::abs(shifted.value() - expected) < 1.0e-7);
+
+  // Adding a much stronger, perfectly reproduced group must not hide the
+  // existing weak group's error; equal groups imply exactly half its loss.
+  for (int i = 0; i < 3; ++i) {
+    auto& frame = dataset.structures[i];
+    frame.spin_response_group = "strong";
+    frame.mfx[0] = 100.0f * (i - 1);
+    mf[i] = frame.mfx[0];
+  }
+  dataset.mforce.copy_from_host(mf.data());
+  shifted.append(0, dataset);
+  assert(std::abs(shifted.value() - 0.5 * expected) < 1.0e-7);
+
+  // A genuinely zero-response reference uses the documented finite floor.
+  fitness_spin::ResponseLoss zero;
+  for (int i = 0; i < 3; ++i) {
+    dataset.structures[i].mfx[0] = 0.0f;
+    mf[i] = 0.0f;
+  }
+  dataset.mforce.copy_from_host(mf.data());
+  zero.append(0, dataset);
+  assert(zero.value() == 0.0f);
   puts("spin training policy interface checks passed");
 }
