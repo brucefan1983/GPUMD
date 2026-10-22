@@ -181,7 +181,7 @@ static std::string make_compact_model_file(
   std::ifstream input(filename);
   NEP_File document;
   std::string error;
-  if (!NEP_Model_File::read_compact(input, active_species, document, error)) {
+  if (!NEP_Model_File::read_and_compact(input, active_species, document, error)) {
     PRINT_INPUT_ERROR(error.c_str());
   }
   const std::string compact_filename = get_compact_filename(file_index);

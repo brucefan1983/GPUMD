@@ -322,7 +322,7 @@ bool NEP_Model_File::parse(const NEP_File& document, std::string& error)
   parsed.num_types = static_cast<int>(parsed.elements.size());
   std::vector<std::string> fields = {"format_version", "model"};
   std::vector<std::string> blocks;
-  bool success;
+  bool success = false;
   if (parsed.name == "nep" || parsed.name == "nep_temperature") {
     success = parsed.read_nep(document, fields, blocks, error);
   } else if (parsed.name == "qnep1" || parsed.name == "qnep2") {

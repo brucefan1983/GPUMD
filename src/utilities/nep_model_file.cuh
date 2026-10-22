@@ -69,7 +69,7 @@ public:
 
   bool read(std::istream& input, std::string& error);
   bool get_md_input(std::string& input, std::string& error) const;
-  static bool read_compact(
+  static bool read_and_compact(
     std::istream& input,
     const std::vector<std::string>& active_species,
     NEP_File& document,

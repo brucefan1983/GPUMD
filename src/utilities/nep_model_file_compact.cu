@@ -27,7 +27,7 @@ static int triangular_pair_index(int type1, int type2, int num_types)
   return type1 * num_types - type1 * (type1 - 1) / 2 + type2 - type1;
 }
 
-bool NEP_Model_File::read_compact(
+bool NEP_Model_File::read_and_compact(
   std::istream& input,
   const std::vector<std::string>& active_species,
   NEP_File& document,
