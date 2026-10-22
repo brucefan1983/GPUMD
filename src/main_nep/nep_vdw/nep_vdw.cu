@@ -1057,7 +1057,6 @@ private:
   void print_summary(const std::vector<Structure>& structures) const override
   {
     print_nep_boundaries(structures);
-    NEP_Energy_Reader::print_summary(structures);
   }
 };
 } // namespace
