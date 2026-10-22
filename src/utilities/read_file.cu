@@ -21,9 +21,9 @@ Some functions for dealing with text files. Written by Mikko Ervasti.
 #include "nep_file.cuh"
 #include "nep_model_input.cuh"
 #include "read_file.cuh"
-#include <cstring>
 #include <ctype.h>
 #include <errno.h>
+#include <cstring>
 
 int is_valid_int(const char* s, int* result)
 {

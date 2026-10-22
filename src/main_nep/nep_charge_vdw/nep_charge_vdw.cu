@@ -1625,6 +1625,7 @@ void NEP_Charge_VDW::report_error(const TrainingReport& report)
   float bec_train = charge_data.get(train_data).get_rmse_bec(para, train_data, 0).back();
   float charge_test = 0.0f;
   float bec_test = 0.0f;
+  // Correct the last bias parameter in the energy network before evaluating the test set.
   report.parameters[para.number_of_variables_ann - 1] += train.energy_shift;
   NEP_Energy_Error test;
   if (training->has_test_set) {

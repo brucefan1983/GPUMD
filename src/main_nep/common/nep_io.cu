@@ -27,15 +27,11 @@
 #include <cstdlib>
 #include <fstream>
 
-static bool read_nep_file(
-  const std::string& filename,
-  NEP_Model_File& model,
-  std::string& error)
+static void read_nep_file(const std::string& filename, NEP_Model_File& model)
 {
   std::ifstream input(filename);
   if (!input.is_open()) {
-    error = "Failed to open " + filename + ".";
-    return false;
+    PRINT_INPUT_ERROR(("Failed to open " + filename + ".").c_str());
   }
   std::string token;
   input >> token;
@@ -43,17 +39,16 @@ static bool read_nep_file(
     c = std::tolower(static_cast<unsigned char>(c));
   }
   if (token != "nep") {
-    error = filename + ": the nep executable accepts only the new NEP format. "
-                       "Legacy potential files remain supported by gpumd for MD.";
-    return false;
+    PRINT_INPUT_ERROR(
+      (filename + ": the nep executable accepts only the new NEP format. "
+                  "Legacy potential files remain supported by gpumd for MD.").c_str());
   }
   input.clear();
   input.seekg(0);
-  const bool ok = model.read(input, error);
-  if (!ok) {
-    error = filename + ": " + error;
+  std::string error;
+  if (!model.read(input, error)) {
+    PRINT_INPUT_ERROR((filename + ": " + error).c_str());
   }
-  return ok;
 }
 
 static void nep_parameters_to_channel_major(const NEP_Parameters& para, float* parameters)
@@ -116,12 +111,12 @@ static std::vector<float> get_nep_parameters(
 }
 
 static void read_nep_parameters(
-  const NEP_Model_File& model, const NEP_Parameters& para,
-  const std::vector<float>& values, float* parameters)
+  const NEP_Model_File& model, const NEP_Parameters& para, float* parameters)
 {
   const std::vector<float> parsed = get_nep_parameters(
     model.num_types, model.layout.number_of_variables_ann * model.layout.ann_count,
-    model.layout.number_of_variables_descriptor / (model.num_types * model.num_types), values);
+    model.layout.number_of_variables_descriptor / (model.num_types * model.num_types),
+    model.parameters);
   if (
     model.name != para.model_name || model.elements != para.elements ||
     model.layout.dim != para.dim || model.layout.ann_count != para.ann_count ||
@@ -139,11 +134,8 @@ void read_nep_model(
   const std::string& filename, NEP_Parameters& para, float* parameters)
 {
   NEP_Model_File model;
-  std::string error;
-  if (!read_nep_file(filename, model, error)) {
-    PRINT_INPUT_ERROR(error.c_str());
-  }
-  read_nep_parameters(model, para, model.parameters, parameters);
+  read_nep_file(filename, model);
+  read_nep_parameters(model, para, parameters);
   para.q_scaler_cpu = model.q_scaler;
   para.energy_reference = model.energy_reference;
   CHECK(gpuSetDevice(0));
@@ -272,10 +264,7 @@ void read_nep_q_scaler(NEP_Parameters& para)
   }
   const std::string filename = para.fine_tune ? para.fine_tune_nep_txt : "nep.txt";
   NEP_Model_File model;
-  std::string error;
-  if (!read_nep_file(filename, model, error)) {
-    PRINT_INPUT_ERROR(error.c_str());
-  }
+  read_nep_file(filename, model);
   if (model.q_scaler.size() != para.q_scaler_cpu.size()) {
     PRINT_INPUT_ERROR("The q_scaler size does not match nep.in.");
   }
@@ -285,10 +274,7 @@ void read_nep_q_scaler(NEP_Parameters& para)
 void read_nep_prediction_zbl(NEP_Parameters& para)
 {
   NEP_Model_File model;
-  std::string error;
-  if (!read_nep_file("nep.txt", model, error)) {
-    PRINT_INPUT_ERROR(error.c_str());
-  }
+  read_nep_file("nep.txt", model);
   para.flexible_zbl = model.flexible_zbl;
   if (model.flexible_zbl) {
     if (model.zbl_parameters.size() > para.zbl_para.size()) {
@@ -369,14 +355,6 @@ static std::vector<float> get_nep_file_parameters(
   return values;
 }
 
-static void write_nep_zbl(FILE* file, const NEP_Parameters& para)
-{
-  if (para.flexible_zbl) {
-    write_nep_block(file, "zbl_parameters", para.zbl_para.data(),
-      5 * para.num_types * (para.num_types + 1));
-  }
-}
-
 void write_nep_restart(
   const char* filename,
   const NEP_Parameters& para,
@@ -409,7 +387,10 @@ void write_nep_model(
   const std::vector<float> values = get_nep_file_parameters(para, parameters);
   write_nep_block(file, "parameters", values.data(), values.size());
   write_nep_block(file, "q_scaler", para.q_scaler_cpu.data(), para.dim);
-  write_nep_zbl(file, para);
+  if (para.flexible_zbl) {
+    write_nep_block(file, "zbl_parameters", para.zbl_para.data(),
+      5 * para.num_types * (para.num_types + 1));
+  }
   if (ferror(file)) {
     PRINT_INPUT_ERROR("Failed to write the NEP model.");
   }
@@ -748,10 +729,7 @@ static void check_nep_file(
   const NEP_Parameters& para, const std::string& filename, bool fine_tune)
 {
   NEP_Model_File model;
-  std::string error;
-  if (!read_nep_file(filename, model, error)) {
-    PRINT_INPUT_ERROR(error.c_str());
-  }
+  read_nep_file(filename, model);
   std::vector<std::string> mismatches;
   if (fine_tune) {
     compare_with_nep_txt_fine_tune(para, model, filename, mismatches);

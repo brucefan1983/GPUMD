@@ -1,0 +1,241 @@
+From 2517e433c42d554722470b5c4c5bdfdfa8976b1d Mon Sep 17 00:00:00 2001
+From: Codex <codex@openai.com>
+Date: Thu, 22 Oct 2026 03:57:08 -0700
+Subject: [PATCH] nep: simplify model I/O helpers
+
+---
+ src/main_nep/common/nep_io.cu                 | 62 ++++++-------------
+ src/main_nep/nep/nep.cu                       |  1 +
+ src/main_nep/nep_charge/nep_charge.cu         |  1 +
+ src/main_nep/nep_charge_vdw/nep_charge_vdw.cu |  1 +
+ src/main_nep/nep_vdw/nep_vdw.cu               |  1 +
+ src/utilities/nep_model_file.cu               | 10 +--
+ src/utilities/read_file.cu                    |  2 +-
+ 7 files changed, 28 insertions(+), 50 deletions(-)
+
+diff --git a/src/main_nep/common/nep_io.cu b/src/main_nep/common/nep_io.cu
+index 67c32c72c..e87551137 100644
+--- a/src/main_nep/common/nep_io.cu
++++ b/src/main_nep/common/nep_io.cu
+@@ -27,15 +27,11 @@
+ #include <cstdlib>
+ #include <fstream>
+ 
+-static bool read_nep_file(
+-  const std::string& filename,
+-  NEP_Model_File& model,
+-  std::string& error)
++static void read_nep_file(const std::string& filename, NEP_Model_File& model)
+ {
+   std::ifstream input(filename);
+   if (!input.is_open()) {
+-    error = "Failed to open " + filename + ".";
+-    return false;
++    PRINT_INPUT_ERROR(("Failed to open " + filename + ".").c_str());
+   }
+   std::string token;
+   input >> token;
+@@ -43,17 +39,16 @@ static bool read_nep_file(
+     c = std::tolower(static_cast<unsigned char>(c));
+   }
+   if (token != "nep") {
+-    error = filename + ": the nep executable accepts only the new NEP format. "
+-                       "Legacy potential files remain supported by gpumd for MD.";
+-    return false;
++    PRINT_INPUT_ERROR(
++      (filename + ": the nep executable accepts only the new NEP format. "
++                  "Legacy potential files remain supported by gpumd for MD.").c_str());
+   }
+   input.clear();
+   input.seekg(0);
+-  const bool ok = model.read(input, error);
+-  if (!ok) {
+-    error = filename + ": " + error;
++  std::string error;
++  if (!model.read(input, error)) {
++    PRINT_INPUT_ERROR((filename + ": " + error).c_str());
+   }
+-  return ok;
+ }
+ 
+ static void nep_parameters_to_channel_major(const NEP_Parameters& para, float* parameters)
+@@ -116,12 +111,12 @@ static std::vector<float> get_nep_parameters(
+ }
+ 
+ static void read_nep_parameters(
+-  const NEP_Model_File& model, const NEP_Parameters& para,
+-  const std::vector<float>& values, float* parameters)
++  const NEP_Model_File& model, const NEP_Parameters& para, float* parameters)
+ {
+   const std::vector<float> parsed = get_nep_parameters(
+     model.num_types, model.layout.number_of_variables_ann * model.layout.ann_count,
+-    model.layout.number_of_variables_descriptor / (model.num_types * model.num_types), values);
++    model.layout.number_of_variables_descriptor / (model.num_types * model.num_types),
++    model.parameters);
+   if (
+     model.name != para.model_name || model.elements != para.elements ||
+     model.layout.dim != para.dim || model.layout.ann_count != para.ann_count ||
+@@ -139,11 +134,8 @@ void read_nep_model(
+   const std::string& filename, NEP_Parameters& para, float* parameters)
+ {
+   NEP_Model_File model;
+-  std::string error;
+-  if (!read_nep_file(filename, model, error)) {
+-    PRINT_INPUT_ERROR(error.c_str());
+-  }
+-  read_nep_parameters(model, para, model.parameters, parameters);
++  read_nep_file(filename, model);
++  read_nep_parameters(model, para, parameters);
+   para.q_scaler_cpu = model.q_scaler;
+   para.energy_reference = model.energy_reference;
+   CHECK(gpuSetDevice(0));
+@@ -272,10 +264,7 @@ void read_nep_q_scaler(NEP_Parameters& para)
+   }
+   const std::string filename = para.fine_tune ? para.fine_tune_nep_txt : "nep.txt";
+   NEP_Model_File model;
+-  std::string error;
+-  if (!read_nep_file(filename, model, error)) {
+-    PRINT_INPUT_ERROR(error.c_str());
+-  }
++  read_nep_file(filename, model);
+   if (model.q_scaler.size() != para.q_scaler_cpu.size()) {
+     PRINT_INPUT_ERROR("The q_scaler size does not match nep.in.");
+   }
+@@ -285,10 +274,7 @@ void read_nep_q_scaler(NEP_Parameters& para)
+ void read_nep_prediction_zbl(NEP_Parameters& para)
+ {
+   NEP_Model_File model;
+-  std::string error;
+-  if (!read_nep_file("nep.txt", model, error)) {
+-    PRINT_INPUT_ERROR(error.c_str());
+-  }
++  read_nep_file("nep.txt", model);
+   para.flexible_zbl = model.flexible_zbl;
+   if (model.flexible_zbl) {
+     if (model.zbl_parameters.size() > para.zbl_para.size()) {
+@@ -369,14 +355,6 @@ static std::vector<float> get_nep_file_parameters(
+   return values;
+ }
+ 
+-static void write_nep_zbl(FILE* file, const NEP_Parameters& para)
+-{
+-  if (para.flexible_zbl) {
+-    write_nep_block(file, "zbl_parameters", para.zbl_para.data(),
+-      5 * para.num_types * (para.num_types + 1));
+-  }
+-}
+-
+ void write_nep_restart(
+   const char* filename,
+   const NEP_Parameters& para,
+@@ -409,7 +387,10 @@ void write_nep_model(
+   const std::vector<float> values = get_nep_file_parameters(para, parameters);
+   write_nep_block(file, "parameters", values.data(), values.size());
+   write_nep_block(file, "q_scaler", para.q_scaler_cpu.data(), para.dim);
+-  write_nep_zbl(file, para);
++  if (para.flexible_zbl) {
++    write_nep_block(file, "zbl_parameters", para.zbl_para.data(),
++      5 * para.num_types * (para.num_types + 1));
++  }
+   if (ferror(file)) {
+     PRINT_INPUT_ERROR("Failed to write the NEP model.");
+   }
+@@ -748,10 +729,7 @@ static void check_nep_file(
+   const NEP_Parameters& para, const std::string& filename, bool fine_tune)
+ {
+   NEP_Model_File model;
+-  std::string error;
+-  if (!read_nep_file(filename, model, error)) {
+-    PRINT_INPUT_ERROR(error.c_str());
+-  }
++  read_nep_file(filename, model);
+   std::vector<std::string> mismatches;
+   if (fine_tune) {
+     compare_with_nep_txt_fine_tune(para, model, filename, mismatches);
+diff --git a/src/main_nep/nep/nep.cu b/src/main_nep/nep/nep.cu
+index d147e779a..65f2d0c78 100644
+--- a/src/main_nep/nep/nep.cu
++++ b/src/main_nep/nep/nep.cu
+@@ -355,6 +355,7 @@ void NEP::report_error(const TrainingReport& report)
+   Dataset& train_data = training->train_set[report.batch][0];
+   NEP_Energy_Error train = energy_loss.get_error(
+     para, train_data, energy_difference, true, report.batch);
++  // Correct the last bias parameter in the energy network before evaluating the test set.
+   report.parameters[para.number_of_variables_ann - 1] += train.energy_shift;
+   NEP_Energy_Error test;
+   if (training->has_test_set) {
+diff --git a/src/main_nep/nep_charge/nep_charge.cu b/src/main_nep/nep_charge/nep_charge.cu
+index 8d78c6d0d..6715ce37c 100644
+--- a/src/main_nep/nep_charge/nep_charge.cu
++++ b/src/main_nep/nep_charge/nep_charge.cu
+@@ -1637,6 +1637,7 @@ void NEP_Charge::report_error(const TrainingReport& report)
+   float bec_train = charge_data.get(train_data).get_rmse_bec(para, train_data, 0).back();
+   float charge_test = 0.0f;
+   float bec_test = 0.0f;
++  // Correct the last bias parameter in the energy network before evaluating the test set.
+   report.parameters[para.number_of_variables_ann - 1] += train.energy_shift;
+   NEP_Energy_Error test;
+   if (training->has_test_set) {
+diff --git a/src/main_nep/nep_charge_vdw/nep_charge_vdw.cu b/src/main_nep/nep_charge_vdw/nep_charge_vdw.cu
+index 3998ad243..fcf334b6c 100644
+--- a/src/main_nep/nep_charge_vdw/nep_charge_vdw.cu
++++ b/src/main_nep/nep_charge_vdw/nep_charge_vdw.cu
+@@ -1625,6 +1625,7 @@ void NEP_Charge_VDW::report_error(const TrainingReport& report)
+   float bec_train = charge_data.get(train_data).get_rmse_bec(para, train_data, 0).back();
+   float charge_test = 0.0f;
+   float bec_test = 0.0f;
++  // Correct the last bias parameter in the energy network before evaluating the test set.
+   report.parameters[para.number_of_variables_ann - 1] += train.energy_shift;
+   NEP_Energy_Error test;
+   if (training->has_test_set) {
+diff --git a/src/main_nep/nep_vdw/nep_vdw.cu b/src/main_nep/nep_vdw/nep_vdw.cu
+index 5d8bd6f20..8f1bfac51 100644
+--- a/src/main_nep/nep_vdw/nep_vdw.cu
++++ b/src/main_nep/nep_vdw/nep_vdw.cu
+@@ -1133,6 +1133,7 @@ void NEP_VDW::report_error(const TrainingReport& report)
+   Dataset& train_data = training->train_set[report.batch][0];
+   NEP_Energy_Error train = energy_loss.get_error(
+     para, train_data, energy_difference, true, report.batch);
++  // Correct the last bias parameter in the energy network before evaluating the test set.
+   report.parameters[para.number_of_variables_ann - 1] += train.energy_shift;
+   NEP_Energy_Error test;
+   if (training->has_test_set) {
+diff --git a/src/utilities/nep_model_file.cu b/src/utilities/nep_model_file.cu
+index 433cf3358..e720c9e07 100644
+--- a/src/utilities/nep_model_file.cu
++++ b/src/utilities/nep_model_file.cu
+@@ -399,13 +399,9 @@ bool NEP_Model_File::read(std::istream& input, std::string& error)
+       parsed.layout.number_of_variables,
+       parsed.parameters,
+       blocks,
+-      error)) {
+-    return false;
+-  }
+-  if (!read_block(document, "q_scaler", parsed.layout.dim, parsed.q_scaler, blocks, error)) {
+-    return false;
+-  }
+-  if (!document.check_unhandled(fields, blocks, error)) {
++      error) ||
++    !read_block(document, "q_scaler", parsed.layout.dim, parsed.q_scaler, blocks, error) ||
++    !document.check_unhandled(fields, blocks, error)) {
+     return false;
+   }
+   *this = std::move(parsed);
+diff --git a/src/utilities/read_file.cu b/src/utilities/read_file.cu
+index d7fcaa581..2b82fbc32 100644
+--- a/src/utilities/read_file.cu
++++ b/src/utilities/read_file.cu
+@@ -21,9 +21,9 @@ Some functions for dealing with text files. Written by Mikko Ervasti.
+ #include "nep_file.cuh"
+ #include "nep_model_input.cuh"
+ #include "read_file.cuh"
+-#include <cstring>
+ #include <ctype.h>
+ #include <errno.h>
++#include <cstring>
+ 
+ int is_valid_int(const char* s, int* result)
+ {
+-- 
+2.51.1
+

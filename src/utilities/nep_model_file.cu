@@ -399,13 +399,9 @@ bool NEP_Model_File::read(std::istream& input, std::string& error)
       parsed.layout.number_of_variables,
       parsed.parameters,
       blocks,
-      error)) {
-    return false;
-  }
-  if (!read_block(document, "q_scaler", parsed.layout.dim, parsed.q_scaler, blocks, error)) {
-    return false;
-  }
-  if (!document.check_unhandled(fields, blocks, error)) {
+      error) ||
+    !read_block(document, "q_scaler", parsed.layout.dim, parsed.q_scaler, blocks, error) ||
+    !document.check_unhandled(fields, blocks, error)) {
     return false;
   }
   *this = std::move(parsed);
