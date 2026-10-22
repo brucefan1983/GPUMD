@@ -79,6 +79,7 @@ public:
   GPU_Vector<double> gamma_full; // N x B_size
   GPU_Vector<double> gamma;      // maximum of each component: N
   GPU_Vector<double*> blas_A, blas_x, blas_y;
+  std::vector<double*> cpu_blas_A, cpu_blas_x, cpu_blas_y;
   Atom* atom;
   Box* box;
   int B_size_per_atom;
