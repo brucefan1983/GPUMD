@@ -15,7 +15,7 @@ Syntax
 The step count must be positive. This command must appear once, at the end of ``run.in``.
 
 * REMD: production steps per replica, excluding initial equilibration.
-* PRD: correlation and parallel MD steps, excluding dephasing, minimization, and extra replay work.
+* PRD: correlation and parallel MD steps, excluding dephasing and minimization.
 * Resume: additional steps beyond the saved state.
 
 Example

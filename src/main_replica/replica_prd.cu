@@ -332,7 +332,6 @@ struct PRD_Slot_Data {
     : device_id(slot.device_id)
     , hot(slot.device_id, slot.atom.number_of_atoms, true)
     , dephase_start(slot.device_id, slot.atom.number_of_atoms, true)
-    , block_start(slot.device_id, slot.atom.number_of_atoms, true)
     , basin(slot.device_id, slot.atom.number_of_atoms, false)
     , minimizer(slot.atom.number_of_atoms, quench_steps, force_tolerance)
     , maximum_displacement_squared(1)
@@ -345,12 +344,10 @@ struct PRD_Slot_Data {
   int device_id;
   Replica_State hot;
   Replica_State dephase_start;
-  Replica_State block_start;
   Replica_State basin;
   Minimizer_FIRE minimizer;
   GPU_Vector<double> maximum_displacement_squared;
   GPU_Pinned_Vector<double> host_maximum_displacement_squared;
-  BDP_RNG_State block_rng_state;
   Minimization_Result quench_result;
   double maximum_displacement = 0.0;
 };
@@ -435,8 +432,6 @@ private:
   Ensemble_BDP& bdp(int replica_id);
   void save_hot(const std::vector<int>& replica_ids);
   void restore_hot(const std::vector<int>& replica_ids);
-  void save_block_start(const std::vector<int>& replica_ids);
-  void restore_block_start(const std::vector<int>& replica_ids);
   void quench(const std::vector<int>& replica_ids);
   std::vector<int> detect_events(
     const std::vector<int>& replica_ids);
@@ -762,29 +757,6 @@ void PRD_Driver::restore_hot(const std::vector<int>& replica_ids)
   runtime_.compute_forces_selected(replica_ids);
 }
 
-void PRD_Driver::save_block_start(
-  const std::vector<int>& replica_ids)
-{
-  for (const int replica_id : replica_ids) {
-    Replica_Slot& slot = *runtime_.slots()[replica_id];
-    PRD_Slot_Data& data = *slot_data_[replica_id];
-    data.block_start.save(slot);
-    data.block_rng_state = bdp(replica_id).get_rng_state();
-  }
-}
-
-void PRD_Driver::restore_block_start(
-  const std::vector<int>& replica_ids)
-{
-  for (const int replica_id : replica_ids) {
-    Replica_Slot& slot = *runtime_.slots()[replica_id];
-    PRD_Slot_Data& data = *slot_data_[replica_id];
-    data.block_start.restore(slot);
-    bdp(replica_id).set_rng_state(data.block_rng_state);
-  }
-  runtime_.compute_forces_selected(replica_ids);
-}
-
 void PRD_Driver::quench(const std::vector<int>& replica_ids)
 {
   std::vector<std::thread> threads;
@@ -1007,11 +979,16 @@ Search_Result PRD_Driver::search_block(
   if (replica_ids.empty() || maximum_steps <= 0)
     PRINT_INPUT_ERROR("Invalid PRD event-search block.");
 
-  save_block_start(replica_ids);
+  // Discrete-time ParRep on the chain observed at block ends (Aristoff,
+  // Lelievre, Simpson 2014 with time step = block length). Every replica uses
+  // the same stopping rule: it has escaped if its quenched block-end state is
+  // outside the basin. Excursions that return within a block are ignored for
+  // all replicas alike, so no replay is needed. Use event_interval 1 for
+  // step-resolved escapes.
   runtime_.advance_selected(replica_ids, maximum_steps);
   save_hot(replica_ids);
   quench(replica_ids);
-  std::vector<int> candidates = detect_events(replica_ids);
+  const std::vector<int> candidates = detect_events(replica_ids);
 
   Search_Result result;
   result.steps = maximum_steps;
@@ -1020,32 +997,13 @@ Search_Result PRD_Driver::search_block(
     return result;
   }
 
-  // Once an event is present at a check point, replay the block to locate its
-  // first detected step. Exits that return before the check point are below
-  // the configured event_interval resolution.
-  restore_block_start(replica_ids);
-  for (int step = 0; step < maximum_steps; ++step) {
-    runtime_.advance_selected(replica_ids, 1);
-    save_hot(replica_ids);
-    quench(replica_ids);
-    const std::vector<int> events = detect_events(replica_ids);
-    if (!events.empty()) {
-      result.event = true;
-      // Discrete-time ParRep serializes each MD step in replica-ID order.
-      // The winner and accelerated clock must use the same ordering.
-      result.winner = *std::min_element(events.begin(), events.end());
-      result.steps = step + 1;
-      result.coincident = static_cast<int>(events.size());
-      result.maximum_displacement =
-        slot_data_[result.winner]->maximum_displacement;
-      result.quench = slot_data_[result.winner]->quench_result;
-      return result;
-    }
-    restore_hot(replica_ids);
-  }
-
-  PRINT_INPUT_ERROR(
-    "PRD event replay did not reproduce the block-end event.");
+  // Serialize the block in replica-ID order: the lowest escaped index wins.
+  result.event = true;
+  result.winner = *std::min_element(candidates.begin(), candidates.end());
+  result.coincident = static_cast<int>(candidates.size());
+  result.maximum_displacement =
+    slot_data_[result.winner]->maximum_displacement;
+  result.quench = slot_data_[result.winner]->quench_result;
   return result;
 }
 
@@ -1598,9 +1556,11 @@ void PRD_Driver::run()
         continue;
 
       // Count complete rounds plus the successful replica's position in the
-      // last round: N * (tau - 1) + K, with K numbered from 1.
-      // See Aristoff, Lelievre, Simpson (2014), arXiv:1401.4500.
-      clock_ -= config_.replicas - (result.winner + 1);
+      // last round, in units of the block length s: s * (N * (tau - 1) + K),
+      // with K numbered from 1. See Aristoff, Lelievre, Simpson (2014),
+      // arXiv:1401.4500. The block-end chain makes the step equal to s.
+      clock_ -= static_cast<long long>(result.steps) *
+                (config_.replicas - (result.winner + 1));
 
       accept_event(result, false);
       phase_ = PRD_Phase::correlation;
