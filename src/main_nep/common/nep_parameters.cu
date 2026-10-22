@@ -161,6 +161,9 @@ bool NEP_Parameters::parse_keyword(const char** param, int num_param)
 
 void NEP_Parameters::read_zbl_in()
 {
+  if (prediction == 1 && read_nep_prediction_zbl(*this)) {
+    return;
+  }
   FILE* fid_zbl = fopen("zbl.in", "r");
   if (fid_zbl == NULL) {
     flexible_zbl = false;

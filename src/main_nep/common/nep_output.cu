@@ -168,9 +168,16 @@ void write_nep_charge_error(FILE* file, const TrainingReport& report,
   fflush(file);
 }
 
-void copy_nep_energy_predictions(Dataset& data)
+void copy_nep_energy_predictions(Dataset& data, const std::vector<double>& energy_reference)
 {
   data.energy.copy_to_host(data.energy_cpu.data());
+  if (!energy_reference.empty()) {
+    for (int nc = 0; nc < data.Nc; ++nc) {
+      for (int n = 0; n < data.Na_cpu[nc]; ++n) {
+        data.energy_cpu[data.Na_sum_cpu[nc] + n] += energy_reference[data.structures[nc].type[n]];
+      }
+    }
+  }
   data.virial.copy_to_host(data.virial_cpu.data());
   data.force.copy_to_host(data.force_cpu.data());
 }

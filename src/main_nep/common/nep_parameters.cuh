@@ -88,6 +88,8 @@ public:
   int dim_radial;                     // number of radial descriptor components
   int dim_angular;                    // number of angular descriptor components
   std::string file_tag;
+  std::string model_name;
+  std::vector<double> energy_reference;
   int ann_count;
   int global_parameters;
   int number_of_variables_ann;        // number of parameters in the ANN only
