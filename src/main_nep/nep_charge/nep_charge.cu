@@ -1516,6 +1516,12 @@ void NEP_Charge::initialize_parameters(
       }
     }
   }
+  if (para.fine_tune) {
+    for (int batch = 0; batch < training->num_batches; ++batch) {
+      find_force(para, mu.data(), training->train_set[batch], false, 1);
+    }
+    training->align_energy_reference(para, energy_difference);
+  }
 }
 
 void NEP_Charge::parameter_groups(std::vector<int>& groups)

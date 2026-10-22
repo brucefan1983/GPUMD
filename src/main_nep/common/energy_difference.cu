@@ -434,6 +434,22 @@ std::vector<EnergyDifference::Combination> EnergyDifference::resolve(
   return combinations;
 }
 
+void EnergyDifference::set_energy_reference(
+  const Dataset& dataset, const std::vector<double>& reference)
+{
+  auto& combinations = dataset.batch_index < 0 ? combinations_test : combinations_train;
+  for (auto& combination : combinations) {
+    if (dataset.batch_index >= 0 && combination.batch != dataset.batch_index) {
+      continue;
+    }
+    combination.ref_total_eV = 0.0;
+    for (int k = 0; k < combination.local.size(); ++k) {
+      combination.ref_total_eV += combination.coefficient[k] *
+        get_nep_energy_residual(dataset.structures[combination.local[k]], reference);
+    }
+  }
+}
+
 // Sum in double to retain precision for the total energies of large structures.
 static __global__ void gpu_sum_total_energy(const int* g_Na, const int* g_Na_sum, const double* g_pe, double* g_total_pe)
 {

@@ -30,6 +30,7 @@ class EnergyDifference
 {
 public:
   void prepare_dataset(Dataset& dataset);
+  void set_energy_reference(const Dataset& dataset, const std::vector<double>& reference);
 
   // Reads the optional name= field of a comment line of train.xyz or test.xyz and returns the
   // name in lowercase, or an empty string without the field.

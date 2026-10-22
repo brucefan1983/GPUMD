@@ -30,7 +30,8 @@ static void initialize_nep_mu_and_sigma_fine_tune(
   };
   // read in the whole foundation file first
   const int NUM89 = 89;
-  const int num_ann = NUM89 * para.number_of_variables_ann_1 + global_parameters;
+  const int ann_stride = NUM89 * para.number_of_variables_ann_1 + global_parameters;
+  const int num_ann = ann_stride * para.ann_count;
 #ifdef USE_CJ
   const int num_cnk_radial = NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
   const int num_cnk_angular = NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
@@ -44,17 +45,24 @@ static void initialize_nep_mu_and_sigma_fine_tune(
 
   read_nep_foundation_restart(para.fine_tune_nep_restart, restart_mu, restart_sigma);
 
-  // get the required part
   int count = 0;
-  for (int i = 0; i < para.num_types; ++ i) {
-    int element_index = element_map[para.atomic_numbers[i] - 1];
-    for (int j = 0; j < para.number_of_variables_ann_1; ++j) {
-      mu[count] = restart_mu[element_index * para.number_of_variables_ann_1 + j];
-      sigma[count] = restart_sigma[element_index * para.number_of_variables_ann_1 + j];
+  for (int ann = 0; ann < para.ann_count; ++ann) {
+    for (int t = 0; t < para.num_types; ++t) {
+      int element_index = element_map[para.atomic_numbers[t] - 1];
+      int offset = ann * ann_stride + element_index * para.number_of_variables_ann_1;
+      for (int n = 0; n < para.number_of_variables_ann_1; ++n) {
+        mu[count] = restart_mu[offset + n];
+        sigma[count] = restart_sigma[offset + n];
+        ++count;
+      }
+    }
+    int offset = ann * ann_stride + NUM89 * para.number_of_variables_ann_1;
+    for (int n = 0; n < global_parameters; ++n) {
+      mu[count] = restart_mu[offset + n];
+      sigma[count] = restart_sigma[offset + n];
       ++count;
     }
   }
-  count += global_parameters; // the global parameters
 
 #ifdef USE_CJ
 

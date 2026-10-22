@@ -1015,6 +1015,12 @@ void NEP_VDW::initialize_parameters(
 {
   NEP_Energy_Parameters& para = *model_parameters;
   initialize_nep_mu_and_sigma(para, rng, mu, sigma, 1);
+  if (para.fine_tune) {
+    for (int batch = 0; batch < training->num_batches; ++batch) {
+      find_force(para, mu.data(), training->train_set[batch], false, 1);
+    }
+    training->align_energy_reference(para, energy_difference);
+  }
 }
 
 void NEP_VDW::parameter_groups(std::vector<int>& groups)

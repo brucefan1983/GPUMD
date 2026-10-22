@@ -79,6 +79,7 @@ public:
 
   void construct(NEP_Parameters& para, std::vector<Structure>& structures,
     int n1, int n2, int device_id, int batch_index);
+  void set_energy_reference(const std::vector<double>& reference);
   std::vector<float> get_rmse_force(NEP_Parameters& para, const bool use_weight, int device_id);
   std::vector<double> get_rmse_energy(
     NEP_Parameters& para, const bool use_weight, int device_id);

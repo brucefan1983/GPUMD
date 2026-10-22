@@ -17,10 +17,12 @@
 #include "nep_io.cuh"
 #include "energy_difference.cuh"
 #include "nep_parameters.cuh"
+#include "nep_energy_reference.cuh"
 #include "main_nep/structure.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include <algorithm>
+#include <cmath>
 #include <numeric>
 
 // Number of structures in one mini-batch. The first n_total % num_batches batches take one
@@ -200,6 +202,60 @@ void NEP_Training::write_model(NEP_Parameters& para, const TrainingReport& repor
     write_nep_model(file, para, report.parameters, max_NN_radial, max_NN_angular);
     fclose(file);
   }
+}
+
+void NEP_Training::align_energy_reference(
+  NEP_Parameters& para, EnergyDifference& energy_difference)
+{
+  CHECK(gpuSetDevice(0));
+  double weighted_error = 0.0;
+  double weight_sum = 0.0;
+  for (int batch = 0; batch < num_batches; ++batch) {
+    Dataset& data = train_set[batch][0];
+    data.energy.copy_to_host(data.energy_cpu.data());
+    for (int nc = 0; nc < data.Nc; ++nc) {
+      const Structure& structure = data.structures[nc];
+      double weight = double(structure.weight) * structure.weight * structure.energy_weight;
+      if (weight == 0.0) {
+        continue;
+      }
+      double predicted_energy = 0.0;
+      for (int n = 0; n < structure.num_atom; ++n) {
+        predicted_energy += data.energy_cpu[data.Na_sum_cpu[nc] + n];
+      }
+      double residual_energy = get_nep_energy_residual(structure, para.energy_reference);
+      weighted_error += weight * ((residual_energy - predicted_energy) / structure.num_atom);
+      weight_sum += weight;
+    }
+  }
+  double shift = weight_sum == 0.0 ? 0.0 : weighted_error / weight_sum;
+  if (!std::isfinite(shift)) {
+    PRINT_INPUT_ERROR("Fine-tune energy alignment is outside the double range.");
+  }
+  printf("Fine-tune energy reference shift = %.17g eV/atom.\n", shift);
+  for (int t = 0; t < para.num_types; ++t) {
+    para.energy_reference[t] += shift;
+    if (!std::isfinite(para.energy_reference[t])) {
+      PRINT_INPUT_ERROR("Aligned energy reference is outside the double range.");
+    }
+    printf("Aligned energy reference for %s = %.17g eV.\n",
+      para.elements[t].c_str(), para.energy_reference[t]);
+  }
+  for (int batch = 0; batch < num_batches; ++batch) {
+    energy_difference.set_energy_reference(train_set[batch][0], para.energy_reference);
+    for (int device = 0; device < device_count; ++device) {
+      CHECK(gpuSetDevice(device));
+      train_set[batch][device].set_energy_reference(para.energy_reference);
+    }
+  }
+  if (has_test_set) {
+    energy_difference.set_energy_reference(test_set[0], para.energy_reference);
+    for (int device = 0; device < device_count; ++device) {
+      CHECK(gpuSetDevice(device));
+      test_set[device].set_energy_reference(para.energy_reference);
+    }
+  }
+  CHECK(gpuSetDevice(0));
 }
 
 void NEP_Training::get_prediction_order(std::vector<std::pair<Dataset*, int>>& structures)
