@@ -154,7 +154,7 @@ bool NEP_Model_File::read_descriptor(
   }
   field = require_field(document, "n_max", 2, 2, handled, error);
   if (
-    field == nullptr || !read_integer(*field, 0, 0, 12, n_max_radial, error) ||
+    field == nullptr || !read_integer(*field, 0, 0, 15, n_max_radial, error) ||
     !read_integer(*field, 1, 0, 12, n_max_angular, error)) {
     return false;
   }
