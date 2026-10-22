@@ -132,7 +132,7 @@ static bool tokenize(std::string line, std::vector<std::string>& tokens)
   return true;
 }
 
-bool NEP_File::validate(std::string& error)
+static bool validate_elements(std::vector<std::string>& elements, std::string& error)
 {
   if (elements.empty()) {
     return fail(error, "empty element list.", 1);
@@ -147,6 +147,14 @@ bool NEP_File::validate(std::string& error)
       return fail(error, "duplicate element '" + symbol + "'.", 1);
     }
     element = symbol;
+  }
+  return true;
+}
+
+bool NEP_File::validate(std::string& error)
+{
+  if (!validate_elements(elements, error)) {
+    return false;
   }
   std::set<std::string> names;
   for (Field& field : fields) {
@@ -325,11 +333,11 @@ bool NEP_File::parse_double(const std::string& token, double& value)
   return true;
 }
 
-bool NEP_File::read(std::istream& input, std::string& error)
+bool NEP_File::read_header(
+  std::istream& input, std::vector<std::string>& elements, std::string& error)
 {
-  *this = NEP_File();
+  elements.clear();
   error.clear();
-  NEP_File parsed;
   std::string line;
   std::vector<std::string> tokens;
   int status = next_line(input, line);
@@ -343,7 +351,25 @@ bool NEP_File::read(std::istream& input, std::string& error)
   if (!parse_size(tokens[1], num_types) || num_types == 0 || num_types != tokens.size() - 2) {
     return fail(error, "element count does not match first line.", 1);
   }
-  parsed.elements.assign(tokens.begin() + 2, tokens.end());
+  std::vector<std::string> parsed(tokens.begin() + 2, tokens.end());
+  if (!validate_elements(parsed, error)) {
+    return false;
+  }
+  elements.swap(parsed);
+  return true;
+}
+
+bool NEP_File::read(std::istream& input, std::string& error)
+{
+  *this = NEP_File();
+  error.clear();
+  NEP_File parsed;
+  if (!read_header(input, parsed.elements, error)) {
+    return false;
+  }
+  std::string line;
+  std::vector<std::string> tokens;
+  int status;
   std::size_t line_number = 1;
   std::size_t remaining = 0;
   while ((status = next_line(input, line)) > 0) {

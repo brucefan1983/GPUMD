@@ -240,7 +240,7 @@ static __global__ void find_descriptor_small_box(
       q,
       F,
       Fp);
-    g_pe[n1] += F;
+    g_pe[n1] += double(F) + (annmb.energy_reference ? annmb.energy_reference[t1] : 0.0);
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
@@ -347,7 +347,7 @@ static __global__ void find_descriptor_small_box(
 
     apply_ann_one_layer(
       annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
-    g_pe[n1] += F;
+    g_pe[n1] += double(F) + (annmb.energy_reference ? annmb.energy_reference[t1] : 0.0);
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];

@@ -13,6 +13,9 @@
 
 #include "compact_nep.cuh"
 #include "error.cuh"
+#include "nep_file.cuh"
+#include "nep_model_file.cuh"
+#include "nep_model_input.cuh"
 #include "read_file.cuh"
 #include "run_input.cuh"
 #include <cstdio>
@@ -59,7 +62,7 @@ static bool is_compactable_nep(const std::vector<std::string>& tokens)
   if (tokens.size() < 3) {
     return false;
   }
-  return tokens[0].substr(0, 4) == "nep4";
+  return tokens[0].substr(0, 4) == "nep4" || NEP_Model_Input::is_new_format(tokens[0]);
 }
 
 static std::vector<std::string> get_potential_files(const RunInput& run_input)
@@ -80,7 +83,7 @@ static std::vector<std::string> get_first_line(const std::string& filename)
     std::string error = "Cannot open potential file " + filename + ".";
     PRINT_INPUT_ERROR(error.c_str());
   }
-  std::vector<std::string> tokens = get_tokens(input);
+  std::vector<std::string> tokens = NEP_Model_Input::read_header(input);
   input.close();
   return tokens;
 }
@@ -157,6 +160,117 @@ static void write_line(std::ofstream& output, const std::vector<std::string>& to
     output << tokens[n];
   }
   output << "\n";
+}
+
+static std::string get_compact_filename(const int file_index)
+{
+#ifdef _WIN32
+  const int process_id = _getpid();
+#else
+  const int process_id = getpid();
+#endif
+  std::string compact_filename = ".gpumd_nep_" +
+                                 std::to_string(static_cast<long long>(process_id)) + "_" +
+                                 std::to_string(file_index) + ".tmp";
+  return compact_filename;
+}
+
+static std::string make_compact_model_file(
+  const std::string& filename, const std::vector<std::string>& active_species, const int file_index)
+{
+  std::ifstream input(filename);
+  NEP_File document;
+  NEP_Model_File model;
+  std::string error;
+  if (!document.read(input, error)) {
+    PRINT_INPUT_ERROR(error.c_str());
+  }
+  input.clear();
+  input.seekg(0);
+  if (!model.read(input, error)) {
+    PRINT_INPUT_ERROR(error.c_str());
+  }
+  const int num_types = active_species.size();
+  std::vector<int> active_to_full(num_types);
+  for (int t = 0; t < num_types; ++t) {
+    active_to_full[t] = find_species(model.elements, active_species[t]);
+    if (active_to_full[t] < 0) {
+      PRINT_INPUT_ERROR("The active species is not supported by the potential.");
+    }
+  }
+  for (NEP_File::Field& field : document.fields) {
+    if (field.name == "energy_reference") {
+      std::vector<std::string> values;
+      for (int t : active_to_full) {
+        values.push_back(field.values[t]);
+      }
+      field.values.swap(values);
+    } else if (field.name == "cutoff" && model.has_multiple_cutoffs) {
+      std::vector<std::string> values;
+      for (int t : active_to_full) {
+        values.push_back(field.values[2 * t]);
+        values.push_back(field.values[2 * t + 1]);
+      }
+      values.insert(values.end(), field.values.end() - 2, field.values.end());
+      field.values.swap(values);
+    }
+  }
+  const NEP_Model_File::ModelLayout& layout = model.layout;
+  for (NEP_File::Block& block : document.blocks) {
+    std::vector<double> values;
+    if (block.name == "parameters") {
+      for (int ann = 0; ann < layout.ann_count; ++ann) {
+        const int start = ann * layout.number_of_variables_ann;
+        for (int t : active_to_full) {
+          const int offset = start + t * layout.number_of_variables_ann_1;
+          values.insert(
+            values.end(),
+            block.values.begin() + offset,
+            block.values.begin() + offset + layout.number_of_variables_ann_1);
+        }
+        const int globals = start + model.num_types * layout.number_of_variables_ann_1;
+        values.insert(
+          values.end(),
+          block.values.begin() + globals,
+          block.values.begin() + globals + layout.global_parameters);
+      }
+      const int start = layout.ann_count * layout.number_of_variables_ann;
+      const int pairs = model.num_types * model.num_types;
+      const int basis_count = layout.number_of_variables_descriptor / pairs;
+      for (int basis = 0; basis < basis_count; ++basis) {
+        for (int t1 : active_to_full) {
+          for (int t2 : active_to_full) {
+            values.push_back(block.values[start + basis * pairs + t1 * model.num_types + t2]);
+          }
+        }
+      }
+      block.values.swap(values);
+    } else if (block.name == "zbl_parameters") {
+      for (int t1 = 0; t1 < num_types; ++t1) {
+        for (int t2 = t1; t2 < num_types; ++t2) {
+          const int offset =
+            10 * triangular_pair_index(active_to_full[t1], active_to_full[t2], model.num_types);
+          values.insert(
+            values.end(), block.values.begin() + offset, block.values.begin() + offset + 10);
+        }
+      }
+      block.values.swap(values);
+    }
+  }
+  document.elements = active_species;
+  const std::string compact_filename = get_compact_filename(file_index);
+  std::ofstream output(compact_filename);
+  if (!document.write(output, error)) {
+    output.close();
+    std::remove(compact_filename.c_str());
+    PRINT_INPUT_ERROR(error.c_str());
+  }
+  output.close();
+  if (!output) {
+    std::remove(compact_filename.c_str());
+    PRINT_INPUT_ERROR("Cannot write the compact NEP potential file.");
+  }
+  return compact_filename;
 }
 
 static std::string make_compact_file(
@@ -260,14 +374,7 @@ static std::string make_compact_file(
     PRINT_INPUT_ERROR("Unexpected number of NEP parameters while creating the compact potential.");
   }
 
-#ifdef _WIN32
-  const int process_id = _getpid();
-#else
-  const int process_id = getpid();
-#endif
-  std::string compact_filename =
-    ".gpumd_nep_" + std::to_string(static_cast<long long>(process_id)) + "_" +
-    std::to_string(file_index) + ".tmp";
+  std::string compact_filename = get_compact_filename(file_index);
   std::ofstream output(compact_filename);
   if (!output.is_open()) {
     PRINT_INPUT_ERROR("Cannot create the compact NEP potential file.");
@@ -389,6 +496,21 @@ void prepare_compact_nep_files(
   if (!is_compactable_nep(first)) {
     return;
   }
+  for (const std::string& filename : potential_files) {
+    const std::vector<std::string> header = get_first_line(filename);
+    if (!header.empty() && NEP_Model_Input::is_new_format(header[0])) {
+      std::ifstream input(filename);
+      NEP_Model_File model;
+      std::string error;
+      if (!model.read(input, error)) {
+#ifdef GPUMD_WPE_ENABLED
+        return;
+#else
+        PRINT_INPUT_ERROR(error.c_str());
+#endif
+      }
+    }
+  }
   std::vector<std::string> species_full = get_species(first);
   std::vector<int> required(species_full.size(), 0);
   for (int n = 0; n < static_cast<int>(atom_symbols.size()); ++n) {
@@ -419,7 +541,9 @@ void prepare_compact_nep_files(
     if (!is_compactable_nep(tokens)) {
       continue;
     }
-    std::string compact = make_compact_file(potential_files[n], compact_species, n);
+    std::string compact = NEP_Model_Input::is_new_format(tokens[0])
+                            ? make_compact_model_file(potential_files[n], compact_species, n)
+                            : make_compact_file(potential_files[n], compact_species, n);
     if (compact != potential_files[n]) {
       CompactPotentialFile file;
       file.original = potential_files[n];

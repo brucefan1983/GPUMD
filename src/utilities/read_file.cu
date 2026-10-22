@@ -18,10 +18,12 @@ Some functions for dealing with text files. Written by Mikko Ervasti.
 ------------------------------------------------------------------------------*/
 
 #include "error.cuh"
+#include "nep_file.cuh"
+#include "nep_model_input.cuh"
 #include "read_file.cuh"
+#include <cstring>
 #include <ctype.h>
 #include <errno.h>
-#include <cstring>
 
 int is_valid_int(const char* s, int* result)
 {
@@ -75,9 +77,21 @@ bool is_nep_charge_potential(const std::string& potential_file_name)
   if (!input_potential.is_open()) {
     PRINT_INPUT_ERROR("Cannot open potential file.");
   }
-  std::string line;
-  std::getline(input_potential, line);
-  std::vector<std::string> tokens = get_tokens(line);
+  std::vector<std::string> tokens = NEP_Model_Input::read_header(input_potential);
+  if (tokens.empty()) {
+    PRINT_INPUT_ERROR("Empty potential file.");
+  }
+  if (NEP_Model_Input::is_new_format(tokens[0])) {
+    input_potential.clear();
+    input_potential.seekg(0);
+    NEP_File document;
+    std::string error;
+    if (!document.read(input_potential, error)) {
+      PRINT_INPUT_ERROR(error.c_str());
+    }
+    const std::string& model = document.find_field("model")->values[0];
+    return model == "qnep1" || model == "qnep2" || model == "qnep2_vdw";
+  }
   if (tokens[0].size() >= 12) {
     if (tokens[0].substr(0, 11) == "nep4_charge") {
       is_nep_charge = true;

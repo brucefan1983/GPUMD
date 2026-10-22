@@ -43,6 +43,7 @@ The driver class calculating force and related quantities.
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_model_input.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include <cstring>
@@ -53,7 +54,7 @@ Force::Force(void) {}
 void Force::check_types(const std::string& file_potential)
 {
   std::ifstream input(file_potential);
-  std::vector<std::string> tokens = get_tokens(input);
+  std::vector<std::string> tokens = NEP_Model_Input::read_header(input);
   int num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
   for (int n = 0; n < num_types; ++n) {
     std::string token = tokens[2 + n];
@@ -226,6 +227,11 @@ void Force::parse_potential(
     PRINT_INPUT_ERROR("reading error for potential file.");
   }
   int num_types = get_number_of_types(fid_potential);
+  if (NEP_Model_Input::is_new_format(potential_name)) {
+    NEP_Model_Input input(tokens[1]);
+    const std::vector<std::string> header = input.get_tokens();
+    std::strcpy(potential_name, header[0].c_str());
+  }
   bool is_nep = false;
   std::unique_ptr<Potential> potential = create_potential(
     tokens,
