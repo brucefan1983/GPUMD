@@ -429,7 +429,6 @@ private:
   void close_output();
   long long global_dynamics_step() const;
   std::vector<int> all_replicas() const;
-  Ensemble_BDP& bdp(int replica_id);
   void save_hot(const std::vector<int>& replica_ids);
   void restore_hot(const std::vector<int>& replica_ids);
   void quench(const std::vector<int>& replica_ids);
@@ -497,12 +496,6 @@ std::vector<int> PRD_Driver::all_replicas() const
   for (int replica_id = 0; replica_id < config_.replicas; ++replica_id)
     replica_ids[replica_id] = replica_id;
   return replica_ids;
-}
-
-Ensemble_BDP& PRD_Driver::bdp(const int replica_id)
-{
-  Replica_Slot& slot = *runtime_.slots()[replica_id];
-  return *slot.thermostat;
 }
 
 void PRD_Driver::validate_input()

@@ -160,9 +160,11 @@ class ReplicaRegression(unittest.TestCase):
             directory, "prd", 2, self.prd_options(correlation=5, distance=1e-8),
             coupling=1e20,
         )
+        # The two-step correlation block (interval 4) is checked once, at its end:
+        # one event, counted serially (clock 2, not accelerated by the 3 replicas).
         rows = events(directory)
-        self.assertEqual(len(rows), 2)
-        self.assertEqual([int(row[1]) for row in rows], [1, 2])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual([int(row[1]) for row in rows], [2])
         self.assertTrue(all(row[4] == "1" and row[6] == "0" for row in rows))
         self.assertEqual(metadata(directory, "prd")["correlation_quiet_steps"], "0")
 
