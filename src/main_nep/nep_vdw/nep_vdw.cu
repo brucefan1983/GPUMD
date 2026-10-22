@@ -1006,7 +1006,6 @@ void NEP_VDW::find_force(
 void NEP_VDW::configure(NEP_Energy_Parameters& para)
 {
   para.model_name = "nep_vdw";
-  para.file_tag = std::string(para.enable_zbl ? "nep4_zbl" : "nep4") + "_vdw";
   calculate_nep_model_parameters(para, 0, 1, 1, 1);
 }
 
@@ -1129,8 +1128,6 @@ void NEP_VDW::report_error(const TrainingReport& report)
   Dataset& train_data = training->train_set[report.batch][0];
   NEP_Energy_Error train = energy_loss.get_error(
     para, train_data, energy_difference, true, report.batch);
-  // Correct the last bias parameter in the energy network before evaluating the test set.
-  report.parameters[para.number_of_variables_ann - 1] += train.energy_shift;
   NEP_Energy_Error test;
   if (training->has_test_set) {
     find_force(para, report.parameters, training->test_set, false, 1);

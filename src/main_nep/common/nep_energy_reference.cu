@@ -229,3 +229,18 @@ bool fit_nep_energy_reference(
   rank = fitted_rank;
   return true;
 }
+
+double get_nep_energy_residual(const Structure& structure, const std::vector<double>& reference)
+{
+  std::vector<int> counts(reference.size(), 0);
+  if (!reference.empty()) {
+    for (const int type : structure.type) {
+      ++counts[type];
+    }
+  }
+  double shift = 0.0;
+  for (std::size_t t = 0; t < reference.size(); ++t) {
+    shift += counts[t] * reference[t];
+  }
+  return structure.energy_total - shift;
+}

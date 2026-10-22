@@ -14,12 +14,14 @@
 */
 
 #include "dataset.cuh"
+#include "main_nep/common/nep_energy_reference.cuh"
 #include "mic.cuh"
 #include "main_nep/common/nep_parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <cmath>
 #include <cstring>
 #include <iostream>
 
@@ -128,7 +130,16 @@ void Dataset::initialize_gpu_data(NEP_Parameters& para)
   virial_ref_gpu.resize(Nc * 6);
   force_ref_gpu.resize(N * 3);
   type_weight_gpu.copy_from_host(para.type_weight_cpu.data());
-  energy_ref_gpu.copy_from_host(energy_ref_cpu.data());
+  std::vector<double> residual_energy(Nc);
+  for (int n = 0; n < Nc; ++n) {
+    residual_energy[n] = para.energy_reference.empty()
+      ? energy_ref_cpu[n]
+      : get_nep_energy_residual(structures[n], para.energy_reference) / structures[n].num_atom;
+    if (!std::isfinite(residual_energy[n])) {
+      PRINT_INPUT_ERROR("Shifted reference energy is outside the double range.");
+    }
+  }
+  energy_ref_gpu.copy_from_host(residual_energy.data());
   energy_weight_gpu.copy_from_host(energy_weight_cpu.data());
   virial_ref_gpu.copy_from_host(virial_ref_cpu.data());
   force_ref_gpu.copy_from_host(force_ref_cpu.data());
@@ -569,43 +580,7 @@ std::vector<float> Dataset::get_rmse_force(NEP_Parameters& para, const bool use_
   return rmse_array;
 }
 
-static __global__ void
-gpu_get_energy_shift(
-  const int* g_Na,
-  const int* g_Na_sum,
-  const double* g_pe,
-  const double* g_pe_ref,
-  const float* g_pe_weight,
-  double* g_energy_shift)
-{
-  int tid = threadIdx.x;
-  int bid = blockIdx.x;
-  int Na = g_Na[bid];
-  int N1 = g_Na_sum[bid];
-  int N2 = N1 + Na;
-  extern __shared__ double s_pe[];
-  s_pe[tid] = 0.0;
-
-  for (int n = N1 + tid; n < N2; n += blockDim.x) {
-    s_pe[tid] += g_pe[n];
-  }
-  __syncthreads();
-
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_pe[tid] += s_pe[tid + offset];
-    }
-    __syncthreads();
-  }
-
-  if (tid == 0) {
-    double diff = s_pe[0] / Na - g_pe_ref[bid];
-    g_energy_shift[bid] = diff * g_pe_weight[bid];
-  }
-}
-
 static __global__ void gpu_sum_pe_error(
-  double energy_shift,
   const int* g_Na,
   const int* g_Na_sum,
   const double* g_pe,
@@ -634,45 +609,20 @@ static __global__ void gpu_sum_pe_error(
   }
 
   if (tid == 0) {
-    double diff = s_pe[0] / Na - g_pe_ref[bid] - energy_shift;
+    double diff = s_pe[0] / Na - g_pe_ref[bid];
     error_gpu[bid] = diff * diff * g_pe_weight[bid];
   }
 }
 
 std::vector<double> Dataset::get_rmse_energy(
-  NEP_Parameters& para,
-  double& energy_shift_per_structure,
-  const bool use_weight,
-  const bool do_shift,
-  int device_id)
+  NEP_Parameters& para, const bool use_weight, int device_id)
 {
   CHECK(gpuSetDevice(device_id));
-  energy_shift_per_structure = 0.0;
 
   const int block_size = 256;
   int mem = sizeof(double) * Nc;
 
-  if (do_shift) {
-    gpu_get_energy_shift<<<Nc, block_size, sizeof(double) * block_size>>>(
-      Na.data(),
-      Na_sum.data(),
-      energy.data(),
-      energy_ref_gpu.data(),
-      energy_weight_gpu.data(),
-      energy_error_gpu.data());
-    CHECK(gpuMemcpy(energy_error_cpu.data(), energy_error_gpu.data(), mem, gpuMemcpyDeviceToHost));
-    double Nc_with_weight = 0.0;
-    for (int n = 0; n < Nc; ++n) {
-      Nc_with_weight += energy_weight_cpu[n];
-      energy_shift_per_structure += energy_error_cpu[n];
-    }
-    if (Nc_with_weight > 0.0) {
-      energy_shift_per_structure /= Nc_with_weight;
-    }
-  }
-
   gpu_sum_pe_error<<<Nc, block_size, sizeof(double) * block_size>>>(
-    energy_shift_per_structure,
     Na.data(),
     Na_sum.data(),
     energy.data(),

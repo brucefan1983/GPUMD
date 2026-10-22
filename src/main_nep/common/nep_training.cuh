@@ -30,7 +30,6 @@ struct NEP_Energy_Error
   float force = 0.0f;
   float virial = 0.0f;
   double ediff = 0.0;
-  double energy_shift = 0.0;
 };
 
 // Common data preparation used by the NEP models. The owning model performs

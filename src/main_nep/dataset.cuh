@@ -81,11 +81,7 @@ public:
     int n1, int n2, int device_id, int batch_index);
   std::vector<float> get_rmse_force(NEP_Parameters& para, const bool use_weight, int device_id);
   std::vector<double> get_rmse_energy(
-    NEP_Parameters& para,
-    double& energy_shift_per_structure,
-    const bool use_weight,
-    const bool do_shift,
-    int device_id);
+    NEP_Parameters& para, const bool use_weight, int device_id);
   std::vector<float> get_rmse_virial(
     NEP_Parameters& para, const bool use_weight, int device_id, int num_components = 6);
 

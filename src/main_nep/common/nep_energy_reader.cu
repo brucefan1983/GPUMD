@@ -14,9 +14,11 @@
 */
 
 #include "nep_energy_reader.cuh"
+#include "nep_energy_reference.cuh"
 #include "energy_difference.cuh"
 #include "nep_parameters.cuh"
 #include "main_nep/xyz_reader.cuh"
+#include "utilities/error.cuh"
 #include <cmath>
 
 void NEP_Energy_Reader::read_structure(const XYZ_Record& record, Structure& structure)
@@ -36,6 +38,24 @@ bool NEP_Energy_Reader::uses_grouped_batches() const
 void NEP_Energy_Reader::prepare_train(std::vector<Structure>& structures, int batch_size,
   int& num_batches, std::vector<int>& batch_sizes)
 {
+  if (para.prediction == 0) {
+    if (para.energy_reference.empty()) {
+      int rank;
+      std::string error;
+      if (!fit_nep_energy_reference(
+        structures, para.num_types, para.energy_reference, rank, error)) {
+        PRINT_INPUT_ERROR(error.c_str());
+      }
+      printf("Energy reference fit rank = %d of %d.\n", rank, para.num_types);
+    } else {
+      printf("Inherited fixed energy references from nep.restart.\n");
+    }
+    for (int t = 0; t < para.num_types; ++t) {
+      printf(
+        "Energy reference for %s = %.17g eV.\n",
+        para.elements[t].c_str(), para.energy_reference[t]);
+    }
+  }
   energy_difference.read_train(energy_parameters, structures, batch_size, num_batches, batch_sizes, *this);
 }
 

@@ -1486,7 +1486,6 @@ void NEP_Charge::find_force(
 void NEP_Charge::configure(NEP_Charge_Parameters& para)
 {
   para.model_name = para.charge_mode == 1 ? "qnep1" : "qnep2";
-  para.file_tag = std::string(para.enable_zbl ? "nep4_zbl" : "nep4") + ("_charge" + std::to_string(para.charge_mode));
   calculate_nep_model_parameters(para, 0, 1, 2, 1);
 }
 
@@ -1632,8 +1631,6 @@ void NEP_Charge::report_error(const TrainingReport& report)
   float bec_train = charge_data.get(train_data).get_rmse_bec(para, train_data, 0).back();
   float charge_test = 0.0f;
   float bec_test = 0.0f;
-  // Correct the last bias parameter in the energy network before evaluating the test set.
-  report.parameters[para.number_of_variables_ann - 1] += train.energy_shift;
   NEP_Energy_Error test;
   if (training->has_test_set) {
     find_force(para, report.parameters, training->test_set, false, 1);

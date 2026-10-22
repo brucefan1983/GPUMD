@@ -232,9 +232,7 @@ void NEP_Energy_Loss::evaluate(
   NEP_Energy_Parameters& para, Dataset& data, EnergyDifference& energy_difference,
   int batch, int candidate, int device_id)
 {
-  double energy_shift_per_structure_not_used;
-  auto rmse_energy_array =
-    data.get_rmse_energy(para, energy_shift_per_structure_not_used, true, true, device_id);
+  auto rmse_energy_array = data.get_rmse_energy(para, true, device_id);
   auto rmse_force_array = data.get_rmse_force(para, true, device_id);
   auto rmse_virial_array = data.get_rmse_virial(para, true, device_id);
   for (int t = 0; t <= para.num_types; ++t) {
@@ -272,7 +270,7 @@ NEP_Energy_Error NEP_Energy_Loss::get_error(
   NEP_Energy_Parameters& para, Dataset& data, EnergyDifference& energy_difference, bool is_train, int batch)
 {
   NEP_Energy_Error error;
-  error.energy = data.get_rmse_energy(para, error.energy_shift, false, is_train, 0).back();
+  error.energy = data.get_rmse_energy(para, false, 0).back();
   error.force = data.get_rmse_force(para, false, 0).back();
   error.virial = data.get_rmse_virial(para, false, 0).back();
   if (para.has_ediff_combinations) {

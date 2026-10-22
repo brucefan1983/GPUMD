@@ -355,6 +355,18 @@ static bool read_vdw_options(
 
 bool NEP_Model_File::read(std::istream& input, std::string& error)
 {
+  return read(input, error, nullptr);
+}
+
+bool NEP_Model_File::read_restart(
+  std::istream& input, std::vector<float>& sigma, std::string& error)
+{
+  sigma.clear();
+  return read(input, error, &sigma);
+}
+
+bool NEP_Model_File::read(std::istream& input, std::string& error, std::vector<float>* sigma)
+{
   *this = NEP_Model_File();
   NEP_File document;
   if (!document.read(input, error)) {
@@ -399,10 +411,28 @@ bool NEP_Model_File::read(std::istream& input, std::string& error)
       parsed.layout.number_of_variables,
       parsed.parameters,
       blocks,
-      error) ||
-    !read_block(document, "q_scaler", parsed.layout.dim, parsed.q_scaler, blocks, error) ||
-    !document.check_unhandled(fields, blocks, error)) {
+      error)) {
     return false;
+  }
+  std::vector<float> parsed_sigma;
+  if (sigma != nullptr) {
+    if (!read_block(
+      document, "sigma", parsed.layout.number_of_variables, parsed_sigma, blocks, error)) {
+      return false;
+    }
+    for (const float value : parsed_sigma) {
+      if (value < 0.0f) {
+        return fail(error, "sigma must be nonnegative.", document.find_block("sigma")->line);
+      }
+    }
+  } else if (!read_block(document, "q_scaler", parsed.layout.dim, parsed.q_scaler, blocks, error)) {
+    return false;
+  }
+  if (!document.check_unhandled(fields, blocks, error)) {
+    return false;
+  }
+  if (sigma != nullptr) {
+    *sigma = std::move(parsed_sigma);
   }
   *this = std::move(parsed);
   return true;

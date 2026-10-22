@@ -945,7 +945,6 @@ void TNEP::find_force(
 void TNEP::configure(TNEP_Parameters& para)
 {
   para.model_name = para.model_type == 1 ? "nep_dipole" : "nep_polarizability";
-  para.file_tag = std::string(para.enable_zbl ? "nep4_zbl" : "nep4") + (para.model_type == 1 ? "_dipole" : "_polarizability");
   calculate_nep_model_parameters(para, 0, 0, 1, para.model_type == 2 ? 2 : 1);
 }
 

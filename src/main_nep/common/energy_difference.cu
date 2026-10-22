@@ -19,6 +19,7 @@ The energy-difference loss over the linear combinations of named structures in e
 
 #include "main_nep/dataset.cuh"
 #include "energy_difference.cuh"
+#include "nep_energy_reference.cuh"
 #include "nep_parameters.cuh"
 #include "main_nep/structure.cuh"
 #include "nep_energy_reader.cuh"
@@ -422,7 +423,8 @@ std::vector<EnergyDifference::Combination> EnergyDifference::resolve(
       members.push_back(&structures[index]);
       combination.local.push_back(index_to_local[index]);
       combination.coefficient.push_back(term.coefficient);
-      combination.ref_total_eV += term.coefficient * structures[index].energy_total;
+      combination.ref_total_eV +=
+        term.coefficient * get_nep_energy_residual(structures[index], para.energy_reference);
     }
     check_distinct_structures(names, members, reader, entry.line_number, xyz_filename);
     check_balance(combination.coefficient, members, para.elements, entry.line_number, xyz_filename);

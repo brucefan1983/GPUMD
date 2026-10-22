@@ -25,3 +25,5 @@ bool fit_nep_energy_reference(
   std::vector<double>& reference,
   int& rank,
   std::string& error);
+
+double get_nep_energy_residual(const Structure& structure, const std::vector<double>& reference);

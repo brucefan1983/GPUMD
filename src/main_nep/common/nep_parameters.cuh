@@ -87,7 +87,6 @@ public:
   int dim;                            // dimension of the descriptor vector
   int dim_radial;                     // number of radial descriptor components
   int dim_angular;                    // number of angular descriptor components
-  std::string file_tag;
   std::string model_name;
   std::vector<double> energy_reference;
   int ann_count;
@@ -95,7 +94,6 @@ public:
   int number_of_variables_ann;        // number of parameters in the ANN only
   int number_of_variables_ann_1;      // number of parameters in the ANN for one element
   int number_of_variables_descriptor; // number of parameters in the descriptor only
-  int number_of_nep_txt_header_lines = 0; // header length of the nep.txt file that has been checked
 
   // some arrays
 
