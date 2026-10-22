@@ -180,84 +180,10 @@ static std::string make_compact_model_file(
 {
   std::ifstream input(filename);
   NEP_File document;
-  NEP_Model_File model;
   std::string error;
-  if (!document.read(input, error)) {
+  if (!NEP_Model_File::read_compact(input, active_species, document, error)) {
     PRINT_INPUT_ERROR(error.c_str());
   }
-  input.clear();
-  input.seekg(0);
-  if (!model.read(input, error)) {
-    PRINT_INPUT_ERROR(error.c_str());
-  }
-  const int num_types = active_species.size();
-  std::vector<int> active_to_full(num_types);
-  for (int t = 0; t < num_types; ++t) {
-    active_to_full[t] = find_species(model.elements, active_species[t]);
-    if (active_to_full[t] < 0) {
-      PRINT_INPUT_ERROR("The active species is not supported by the potential.");
-    }
-  }
-  for (NEP_File::Field& field : document.fields) {
-    if (field.name == "energy_reference") {
-      std::vector<std::string> values;
-      for (int t : active_to_full) {
-        values.push_back(field.values[t]);
-      }
-      field.values.swap(values);
-    } else if (field.name == "cutoff" && model.has_multiple_cutoffs) {
-      std::vector<std::string> values;
-      for (int t : active_to_full) {
-        values.push_back(field.values[2 * t]);
-        values.push_back(field.values[2 * t + 1]);
-      }
-      values.insert(values.end(), field.values.end() - 2, field.values.end());
-      field.values.swap(values);
-    }
-  }
-  const NEP_Model_File::ModelLayout& layout = model.layout;
-  for (NEP_File::Block& block : document.blocks) {
-    std::vector<double> values;
-    if (block.name == "parameters") {
-      for (int ann = 0; ann < layout.ann_count; ++ann) {
-        const int start = ann * layout.number_of_variables_ann;
-        for (int t : active_to_full) {
-          const int offset = start + t * layout.number_of_variables_ann_1;
-          values.insert(
-            values.end(),
-            block.values.begin() + offset,
-            block.values.begin() + offset + layout.number_of_variables_ann_1);
-        }
-        const int globals = start + model.num_types * layout.number_of_variables_ann_1;
-        values.insert(
-          values.end(),
-          block.values.begin() + globals,
-          block.values.begin() + globals + layout.global_parameters);
-      }
-      const int start = layout.ann_count * layout.number_of_variables_ann;
-      const int pairs = model.num_types * model.num_types;
-      const int basis_count = layout.number_of_variables_descriptor / pairs;
-      for (int basis = 0; basis < basis_count; ++basis) {
-        for (int t1 : active_to_full) {
-          for (int t2 : active_to_full) {
-            values.push_back(block.values[start + basis * pairs + t1 * model.num_types + t2]);
-          }
-        }
-      }
-      block.values.swap(values);
-    } else if (block.name == "zbl_parameters") {
-      for (int t1 = 0; t1 < num_types; ++t1) {
-        for (int t2 = t1; t2 < num_types; ++t2) {
-          const int offset =
-            10 * triangular_pair_index(active_to_full[t1], active_to_full[t2], model.num_types);
-          values.insert(
-            values.end(), block.values.begin() + offset, block.values.begin() + offset + 10);
-        }
-      }
-      block.values.swap(values);
-    }
-  }
-  document.elements = active_species;
   const std::string compact_filename = get_compact_filename(file_index);
   std::ofstream output(compact_filename);
   if (!document.write(output, error)) {
