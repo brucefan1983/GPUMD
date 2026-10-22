@@ -1020,7 +1020,7 @@ void NEP::compute_small_box(
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
   const int big_neighbor_size = 2000;
-  const int size_x12 = N * big_neighbor_size;
+  const int size_x12 = type.size() * big_neighbor_size;
 
   find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1226,15 +1226,15 @@ void NEP::compute(
   if (is_small_box) {
     // update small_box_data
     const int current_num_atoms = type.size();
-    if (small_box_data.NN_radial.size() != static_cast<size_t>(current_num_atoms)) {
+    if (small_box_data.NN_radial.size() != current_num_atoms) {
         const int big_neighbor_size = 2000;
-        const size_t size_x12 = static_cast<size_t>(current_num_atoms) * big_neighbor_size;
+        const int size_x12 = current_num_atoms * big_neighbor_size;
 
-      small_box_data.NN_radial.resize(current_num_atoms);
-      small_box_data.NL_radial.resize(size_x12);
-      small_box_data.NN_angular.resize(current_num_atoms);
-      small_box_data.NL_angular.resize(size_x12);
-      small_box_data.r12.resize(size_x12 * 6);
+        small_box_data.NN_radial.resize(current_num_atoms);
+        small_box_data.NL_radial.resize(size_x12);
+        small_box_data.NN_angular.resize(current_num_atoms);
+        small_box_data.NL_angular.resize(size_x12);
+        small_box_data.r12.resize(size_x12 * 6);
     }
 
     compute_small_box(
@@ -1531,7 +1531,7 @@ void NEP::compute_small_box(
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
   const int big_neighbor_size = 2000;
-  const int size_x12 = N * big_neighbor_size;
+  const int size_x12 = type.size() * big_neighbor_size;
 
   find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1679,15 +1679,15 @@ void NEP::compute(
   if (is_small_box) {
     // update small_box_data
     const int current_num_atoms = type.size();
-    if (small_box_data.NN_radial.size() != static_cast<size_t>(current_num_atoms)) {
+    if (small_box_data.NN_radial.size() != current_num_atoms) {
         const int big_neighbor_size = 2000;
-        const size_t size_x12 = static_cast<size_t>(current_num_atoms) * big_neighbor_size;
+        const int size_x12 = current_num_atoms * big_neighbor_size;
 
-      small_box_data.NN_radial.resize(current_num_atoms);
-      small_box_data.NL_radial.resize(size_x12);
-      small_box_data.NN_angular.resize(current_num_atoms);
-      small_box_data.NL_angular.resize(size_x12);
-      small_box_data.r12.resize(size_x12 * 6);
+        small_box_data.NN_radial.resize(current_num_atoms);
+        small_box_data.NL_radial.resize(size_x12);
+        small_box_data.NN_angular.resize(current_num_atoms);
+        small_box_data.NL_angular.resize(size_x12);
+        small_box_data.r12.resize(size_x12 * 6);
     }
 
     compute_small_box(

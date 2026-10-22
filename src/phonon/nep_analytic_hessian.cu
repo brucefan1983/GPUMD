@@ -2118,38 +2118,38 @@ bool compute_nep_analytic_hessian(
   }
 
   const bool use_expanded_box = nep_hessian::nep_requires_expanded_box(*nep, box);
-  if (nep->paramb.L_max < 0 || nep->paramb.L_max > 8 ||
-      (nep->paramb.L_max + 1) * (nep->paramb.L_max + 1) - 1 >
+  if (nep_hessian::Access::paramb(*nep).L_max < 0 || nep_hessian::Access::paramb(*nep).L_max > 8 ||
+      (nep_hessian::Access::paramb(*nep).L_max + 1) * (nep_hessian::Access::paramb(*nep).L_max + 1) - 1 >
         MAX_S_TERMS) {
     printf(
       "NEP analytic Hessian: unsupported L_max=%d (supported range is 0..8).\n",
-      nep->paramb.L_max);
+      nep_hessian::Access::paramb(*nep).L_max);
     return false;
   }
-  if (nep->paramb.n_max_radial < 0 ||
-      nep->paramb.n_max_radial + 1 > MAX_NUM_N ||
-      nep->paramb.n_max_angular < 0 ||
-      nep->paramb.n_max_angular + 1 > MAX_NUM_N ||
-      nep->paramb.num_L < 0 ||
-      nep->paramb.num_L > MAX_ANGULAR_DESCRIPTORS) {
+  if (nep_hessian::Access::paramb(*nep).n_max_radial < 0 ||
+      nep_hessian::Access::paramb(*nep).n_max_radial + 1 > MAX_NUM_N ||
+      nep_hessian::Access::paramb(*nep).n_max_angular < 0 ||
+      nep_hessian::Access::paramb(*nep).n_max_angular + 1 > MAX_NUM_N ||
+      nep_hessian::Access::paramb(*nep).num_L < 0 ||
+      nep_hessian::Access::paramb(*nep).num_L > MAX_ANGULAR_DESCRIPTORS) {
     return false;
   }
-  const int radial_descriptor_count = nep->paramb.n_max_radial + 1;
-  const int angular_descriptor_stride = nep->paramb.n_max_angular + 1;
+  const int radial_descriptor_count = nep_hessian::Access::paramb(*nep).n_max_radial + 1;
+  const int angular_descriptor_stride = nep_hessian::Access::paramb(*nep).n_max_angular + 1;
   if (angular_descriptor_stride >
-      std::numeric_limits<int>::max() / nep->paramb.num_L) {
+      std::numeric_limits<int>::max() / nep_hessian::Access::paramb(*nep).num_L) {
     return false;
   }
   const int angular_descriptor_count =
-    nep->paramb.num_L * angular_descriptor_stride;
+    nep_hessian::Access::paramb(*nep).num_L * angular_descriptor_stride;
   if (radial_descriptor_count >
       std::numeric_limits<int>::max() - angular_descriptor_count) {
     return false;
   }
   const int expected_descriptor_count = radial_descriptor_count +
     angular_descriptor_count + (nep->nep_model_type == 3 ? 1 : 0);
-  if (nep->annmb.dim <= 0 || nep->annmb.dim > MAX_DIM ||
-      nep->annmb.dim != expected_descriptor_count ||
+  if (nep_hessian::Access::annmb(*nep).dim <= 0 || nep_hessian::Access::annmb(*nep).dim > MAX_DIM ||
+      nep_hessian::Access::annmb(*nep).dim != expected_descriptor_count ||
       expected_descriptor_count > std::numeric_limits<int>::max() / N ||
       N > std::numeric_limits<int>::max() / expected_descriptor_count ||
       N * expected_descriptor_count >
@@ -2158,7 +2158,7 @@ bool compute_nep_analytic_hessian(
     printf(
       "NEP analytic Hessian: descriptor dimension mismatch "
       "(annmb.dim=%d, expected=%d).\n",
-      nep->annmb.dim, expected_descriptor_count);
+      nep_hessian::Access::annmb(*nep).dim, expected_descriptor_count);
     return false;
   }
   const size_t expected_position_size = static_cast<size_t>(N3);
@@ -2193,7 +2193,7 @@ bool compute_nep_analytic_hessian(
   std::vector<bool> zero_angular_groups;
   if (const char* groups = std::getenv("GPUMD_ZERO_ANGULAR_GROUPS")) {
     if (!parse_zero_angular_groups(
-          groups, nep->paramb.num_L, angular_descriptor_stride,
+          groups, nep_hessian::Access::paramb(*nep).num_L, angular_descriptor_stride,
           zero_angular_groups)) {
       printf(
         "NEP analytic Hessian: invalid GPUMD_ZERO_ANGULAR_GROUPS=%s.\n",
@@ -2204,7 +2204,7 @@ bool compute_nep_analytic_hessian(
   const bool scaler_override_used =
     zero_radial_descriptors || zero_angular_descriptors ||
     !zero_angular_groups.empty();
-  QScalerOverride scaler_override(nep->annmb.q_scaler, nep->annmb.dim);
+  QScalerOverride scaler_override(nep_hessian::Access::annmb(*nep).q_scaler, nep_hessian::Access::annmb(*nep).dim);
   std::vector<float> scaler_for_test;
   if (scaler_override_used &&
       !scaler_override.save_original(scaler_for_test)) {
@@ -2294,7 +2294,7 @@ bool compute_nep_analytic_hessian(
   //    src/force/nep.cu's descriptor kernel because the hessian-only
   //    branch is purely additive and does not modify nep.cu.
   static nep_hessian::DescriptorCache q_cache;
-  const int q_dim = nep->annmb.dim;
+  const int q_dim = nep_hessian::Access::annmb(*nep).dim;
   if (q_cache.last_num_atoms != N || q_cache.last_dim != q_dim ||
       static_cast<int>(q_cache.q.size()) != q_dim * N) {
     q_cache.q.resize(static_cast<size_t>(q_dim) * N);
@@ -2305,7 +2305,7 @@ bool compute_nep_analytic_hessian(
   if (use_expanded_box) {
     const size_t r12_plane_size = nep->small_box_data.r12.size() / 6;
     nep_hessian::find_descriptor_only_small_box<<<descriptor_grid, 64>>>(
-      nep->paramb, nep->annmb, N, 0, N,
+      nep_hessian::Access::paramb(*nep), nep_hessian::Access::annmb(*nep), N, 0, N,
       radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
       angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
       atom.type.data(),
@@ -2318,7 +2318,7 @@ bool compute_nep_analytic_hessian(
       q_cache.q.data());
   } else {
     nep_hessian::find_descriptor_only<<<descriptor_grid, 64>>>(
-      nep->paramb, nep->annmb, N, 0, N, box,
+      nep_hessian::Access::paramb(*nep), nep_hessian::Access::annmb(*nep), N, 0, N, box,
       radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
       angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
       atom.type.data(),
@@ -2399,7 +2399,7 @@ bool compute_nep_analytic_hessian(
 
   force_out = std::move(force_soa);
 
-  const int dim = nep->annmb.dim;
+  const int dim = nep_hessian::Access::annmb(*nep).dim;
   const int N_total = N;
 
   GPU_Vector<int> sparse_row_offsets_gpu;
@@ -2441,7 +2441,7 @@ bool compute_nep_analytic_hessian(
   // 4. Compute per-atom ANN Hessian from the current descriptor cache
   GPU_Vector<float> hqq_gpu(N_total * dim * dim, 0.0f);
   compute_ann_hessian_kernel<<<(N_total - 1) / 64 + 1, 64>>>(
-    nep->paramb, nep->annmb, N_total, atom.type.data(),
+    nep_hessian::Access::paramb(*nep), nep_hessian::Access::annmb(*nep), N_total, atom.type.data(),
     q_cache.q.data(), hqq_gpu.data());
   GPU_CHECK_KERNEL
   if (std::getenv("GPUMD_ZERO_ANN_CROSS") != nullptr) {
@@ -2496,7 +2496,7 @@ bool compute_nep_analytic_hessian(
     {
       std::vector<float> q_scaler_host(dim);
       CHECK(gpuMemcpy(
-        q_scaler_host.data(), nep->annmb.q_scaler, sizeof(float) * dim,
+        q_scaler_host.data(), nep_hessian::Access::annmb(*nep).q_scaler, sizeof(float) * dim,
         gpuMemcpyDeviceToHost));
       printf("  q_scaler:");
       for (int d = 0; d < dim; ++d)
@@ -2546,7 +2546,7 @@ bool compute_nep_analytic_hessian(
     g_dump_s_derivatives, &dump_s_derivatives, sizeof(bool)));
   if (!disable_radial) {
     find_radial_hessian_kernel<<<grid, BLOCK_SIZE>>>(
-      nep->paramb, nep->annmb, N_total, 0, N_total, box,
+      nep_hessian::Access::paramb(*nep), nep_hessian::Access::annmb(*nep), N_total, 0, N_total, box,
       radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
       atom.type.data(),
       atom.position_per_atom.data(), atom.position_per_atom.data() + N_total,
@@ -2609,12 +2609,12 @@ bool compute_nep_analytic_hessian(
     }
     if (max_angular_neighbors > 0) {
       const int num_s_terms =
-        (nep->paramb.L_max + 1) * (nep->paramb.L_max + 1) - 1;
+        (nep_hessian::Access::paramb(*nep).L_max + 1) * (nep_hessian::Access::paramb(*nep).L_max + 1) - 1;
       const int cached_angular_descriptors =
-        nep->paramb.num_L * (nep->paramb.n_max_angular + 1);
+        nep_hessian::Access::paramb(*nep).num_L * (nep_hessian::Access::paramb(*nep).n_max_angular + 1);
       const size_t floats_per_edge =
         static_cast<size_t>(cached_angular_descriptors) * (3 + 9) +
-        static_cast<size_t>(nep->paramb.n_max_angular + 1) *
+        static_cast<size_t>(nep_hessian::Access::paramb(*nep).n_max_angular + 1) *
           num_s_terms * 3;
       const size_t bytes_per_edge =
         floats_per_edge * sizeof(float) + sizeof(int);
@@ -2632,7 +2632,7 @@ bool compute_nep_analytic_hessian(
       GPU_Vector<float> neighbor_gradient_cache(
         edge_capacity * cached_angular_descriptors * 3);
       GPU_Vector<float> neighbor_s_gradient_cache(
-        edge_capacity * (nep->paramb.n_max_angular + 1) * num_s_terms * 3);
+        edge_capacity * (nep_hessian::Access::paramb(*nep).n_max_angular + 1) * num_s_terms * 3);
       GPU_Vector<float> local_hessian_cache(
         edge_capacity * cached_angular_descriptors * 9);
       GPU_Vector<int> valid_cache(edge_capacity);
@@ -2655,12 +2655,12 @@ bool compute_nep_analytic_hessian(
           std::min(tile_centers, N_total - center_begin);
         const int edge_count = center_count * max_angular_neighbors;
         const int prepare_work_count =
-          edge_count * (nep->paramb.n_max_angular + 1);
+          edge_count * (nep_hessian::Access::paramb(*nep).n_max_angular + 1);
         if (num_s_terms <= LOW_L_MAX_S_TERMS) {
           prepare_angular_neighbor_derivatives_kernel<LOW_L_MAX_S_TERMS><<<
             (prepare_work_count - 1) / ANGULAR_PREPARE_BLOCK_SIZE + 1,
             ANGULAR_PREPARE_BLOCK_SIZE>>>(
-            nep->paramb, nep->annmb, N_total, center_begin, center_count,
+            nep_hessian::Access::paramb(*nep), nep_hessian::Access::annmb(*nep), N_total, center_begin, center_count,
             max_angular_neighbors, box,
             angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
             atom.type.data(),
@@ -2675,7 +2675,7 @@ bool compute_nep_analytic_hessian(
           prepare_angular_neighbor_derivatives_kernel<MAX_S_TERMS><<<
             (prepare_work_count - 1) / ANGULAR_PREPARE_BLOCK_SIZE + 1,
             ANGULAR_PREPARE_BLOCK_SIZE>>>(
-            nep->paramb, nep->annmb, N_total, center_begin, center_count,
+            nep_hessian::Access::paramb(*nep), nep_hessian::Access::annmb(*nep), N_total, center_begin, center_count,
             max_angular_neighbors, box,
             angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
             atom.type.data(),
@@ -2694,7 +2694,7 @@ bool compute_nep_analytic_hessian(
         assemble_angular_neighbor_pairs_kernel<<<
           (pair_work_count - 1) / ANGULAR_PAIR_BLOCK_SIZE + 1,
           ANGULAR_PAIR_BLOCK_SIZE>>>(
-          nep->paramb, nep->annmb, N_total, center_begin, center_count,
+          nep_hessian::Access::paramb(*nep), nep_hessian::Access::annmb(*nep), N_total, center_begin, center_count,
           max_angular_neighbors,
           angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
           nep->nep_data.Fp.data(), nep->nep_data.sum_fxyz.data(),
@@ -2708,7 +2708,7 @@ bool compute_nep_analytic_hessian(
         assemble_angular_radial_cross_kernel<<<
           (center_count - 1) / ANGULAR_RADIAL_BLOCK_SIZE + 1,
           ANGULAR_RADIAL_BLOCK_SIZE>>>(
-          nep->paramb, nep->annmb, N_total, center_begin, center_count,
+          nep_hessian::Access::paramb(*nep), nep_hessian::Access::annmb(*nep), N_total, center_begin, center_count,
           max_angular_neighbors, box,
           angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
           radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
@@ -2729,7 +2729,7 @@ bool compute_nep_analytic_hessian(
   // Reconstruct NEP::ZBL from the model file.  The hessian-only branch
   // is purely additive, so we cannot access the private NEP::ZBL
   // instance directly; instead we mirror the NEP constructor's parser.
-  NEP::ParaMB zbl_paramb = nep->paramb;
+  NEP::ParaMB zbl_paramb = nep_hessian::Access::paramb(*nep);
   const std::string potential_filename =
     nep_hessian::find_first_potential_filename();
   const NEP::ZBL zbl_state =
@@ -2739,12 +2739,12 @@ bool compute_nep_analytic_hessian(
     // the kernel (the kernel reads paramb.use_typewise_cutoff_zbl and
     // paramb.typewise_cutoff_zbl_factor at runtime).
     if (zbl_paramb.use_typewise_cutoff_zbl) {
-      nep->paramb.typewise_cutoff_zbl_factor =
+      nep_hessian::Access::paramb(*nep).typewise_cutoff_zbl_factor =
         zbl_paramb.typewise_cutoff_zbl_factor;
-      nep->paramb.use_typewise_cutoff_zbl = true;
+      nep_hessian::Access::paramb(*nep).use_typewise_cutoff_zbl = true;
     }
     find_zbl_hessian_kernel<<<grid, BLOCK_SIZE>>>(
-      nep->paramb, zbl_state, N_total, box,
+      nep_hessian::Access::paramb(*nep), zbl_state, N_total, box,
       angular_neighbor_counts_gpu.data(),
       angular_neighbor_list_gpu.data(),
       atom.type.data(),
@@ -3043,8 +3043,8 @@ bool compute_nep_analytic_hessian(
       }
       std::vector<float> descriptor_zero(descriptor_count);
       const int num_s_terms =
-        (nep->paramb.L_max + 1) * (nep->paramb.L_max + 1) - 1;
-      const int sum_count = N_total * (nep->paramb.n_max_angular + 1) *
+        (nep_hessian::Access::paramb(*nep).L_max + 1) * (nep_hessian::Access::paramb(*nep).L_max + 1) - 1;
+      const int sum_count = N_total * (nep_hessian::Access::paramb(*nep).n_max_angular + 1) *
         num_s_terms;
       std::vector<float> sum_zero(sum_count);
       std::vector<float> corner_sums(4 * sum_count);
@@ -3146,7 +3146,7 @@ bool compute_nep_analytic_hessian(
         }
 
         if (dump_atom == 0) {
-          const int angular_descriptor = nep->paramb.n_max_radial + 1;
+          const int angular_descriptor = nep_hessian::Access::paramb(*nep).n_max_radial + 1;
           const int index = angular_descriptor * N_total + dump_atom;
           printf(
             "QCORNER row=%d col=%d base=%.9g pp=%.9g mp=%.9g pm=%.9g mm=%.9g\n",
@@ -3182,7 +3182,7 @@ bool compute_nep_analytic_hessian(
                 second_difference;
             }
             if (std::getenv("GPUMD_DUMP_ANALYTIC_Q_DERIVATIVES") != nullptr) {
-              for (int n = 0; n <= nep->paramb.n_max_angular; ++n) {
+              for (int n = 0; n <= nep_hessian::Access::paramb(*nep).n_max_angular; ++n) {
                 for (int component = 0; component < num_s_terms; ++component) {
                   const int index =
                     (n * num_s_terms + component) * N_total + dump_atom;

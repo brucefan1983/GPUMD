@@ -37,10 +37,40 @@ reconstructed NEP::ZBL struct and passes it by value to
 
 namespace nep_hessian {
 
+// ============================================================================
+// nep_hessian::Access -- declared as a friend of class NEP in src/force/nep.cuh.
+//
+// Each accessor returns a (possibly const) reference to one of NEP's private
+// members so the analytic-hessian translation units can read them without
+// altering the access specifier on the original declaration.
+//
+// The hessian-only branch keeps `paramb`, `annmb`, `zbl`, `dftd3`, `ebox`,
+// and `neighbor_manager` private in class NEP and accesses them only
+// through this struct.
+// ============================================================================
+
+struct Access {
+  static NEP::ParaMB& paramb(NEP& n)             { return n.paramb; }
+  static const NEP::ParaMB& paramb(const NEP& n) { return n.paramb; }
+  static NEP::ANN&    annmb(NEP& n)              { return n.annmb;  }
+  static const NEP::ANN&    annmb(const NEP& n)  { return n.annmb;  }
+  static NEP::ZBL&    zbl(NEP& n)                { return n.zbl;    }
+  static const NEP::ZBL&    zbl(const NEP& n)    { return n.zbl;    }
+  static NEP::ExpandedBox& ebox(NEP& n)          { return n.ebox;   }
+  static const NEP::ExpandedBox& ebox(const NEP& n) { return n.ebox; }
+  static DFTD3&   dftd3(NEP& n)             { return n.dftd3;  }
+  static const DFTD3&   dftd3(const NEP& n) { return n.dftd3;  }
+  static NeighborManager& neighbor_manager(NEP& n)
+                                              { return n.neighbor_manager; }
+  static const NeighborManager& neighbor_manager(const NEP& n)
+                                              { return n.neighbor_manager; }
+};
+
+
 inline bool nep_requires_expanded_box(const NEP& nep, const Box& box)
 {
   const double volume = box.get_volume();
-  const double cutoff = nep.paramb.rc_radial_max;
+  const double cutoff = nep_hessian::Access::paramb(nep).rc_radial_max;
   return
     (box.pbc_x && volume / box.get_area(0) <= 2.5 * (cutoff + 1.0)) ||
     (box.pbc_y && volume / box.get_area(1) <= 2.5 * (cutoff + 1.0)) ||
@@ -219,6 +249,8 @@ inline bool nep_uses_zbl(const NEP& /*nep*/, const char* potential_filename)
   if (!(input >> token)) return false;
   return token == "nep4_zbl" || token == "nep4_zbl_temperature";
 }
+
+
 
 
 } // namespace nep_hessian
