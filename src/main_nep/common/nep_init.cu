@@ -34,16 +34,13 @@ static void initialize_nep_mu_and_sigma_fine_tune(
   const int num_ann = ann_stride * para.ann_count;
 #ifdef USE_CJ
   const int num_cnk_radial = NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
-  const int num_cnk_angular = NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
 #else
   const int num_cnk_radial = NUM89 * NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
-  const int num_cnk_angular = NUM89 * NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
 #endif
-  const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
-  std::vector<float> restart_mu(num_tot);
-  std::vector<float> restart_sigma(num_tot);
+  std::vector<float> restart_mu;
+  std::vector<float> restart_sigma;
 
-  read_nep_foundation_restart(para.fine_tune_nep_restart, restart_mu, restart_sigma);
+  read_nep_foundation_restart(para, restart_mu, restart_sigma);
 
   int count = 0;
   for (int ann = 0; ann < para.ann_count; ++ann) {

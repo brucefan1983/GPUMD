@@ -30,7 +30,7 @@ bool read_nep_restart(
   std::vector<float>& sigma);
 
 void read_nep_foundation_restart(
-  const std::string& filename, std::vector<float>& mu, std::vector<float>& sigma);
+  const NEP_Parameters& para, std::vector<float>& mu, std::vector<float>& sigma);
 
 void write_nep_restart(
   const char* filename,

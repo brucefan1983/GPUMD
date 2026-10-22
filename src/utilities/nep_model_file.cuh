@@ -67,8 +67,4 @@ public:
   std::vector<float> zbl_parameters;
 
   bool read(std::istream& input, std::string& error);
-  bool read_restart(std::istream& input, std::vector<float>& sigma, std::string& error);
-
-private:
-  bool read(std::istream& input, std::string& error, std::vector<float>* sigma);
 };

@@ -24,13 +24,13 @@
 #include <cctype>
 #include <cerrno>
 #include <cmath>
+#include <cstdlib>
 #include <fstream>
 
 static bool read_nep_file(
   const std::string& filename,
   NEP_Model_File& model,
-  std::string& error,
-  std::vector<float>* sigma = nullptr)
+  std::string& error)
 {
   std::ifstream input(filename);
   if (!input.is_open()) {
@@ -49,8 +49,7 @@ static bool read_nep_file(
   }
   input.clear();
   input.seekg(0);
-  const bool ok =
-    sigma == nullptr ? model.read(input, error) : model.read_restart(input, *sigma, error);
+  const bool ok = model.read(input, error);
   if (!ok) {
     error = filename + ": " + error;
   }
@@ -94,12 +93,9 @@ static void nep_parameters_to_basis_major(const NEP_Parameters& para, float* par
 }
 
 static std::vector<float> get_nep_parameters(
-  const NEP_Model_File& model, const std::vector<float>& values)
+  int num_types, int ann_size, int num_basis, const std::vector<float>& values)
 {
 #ifdef USE_CJ
-  const int ann_size = model.layout.number_of_variables_ann * model.layout.ann_count;
-  const int num_types = model.num_types;
-  const int num_basis = model.layout.number_of_variables_descriptor / (num_types * num_types);
   std::vector<float> parameters(ann_size + num_basis * num_types);
   std::copy(values.begin(), values.begin() + ann_size, parameters.begin());
   for (int nk = 0; nk < num_basis; ++nk) {
@@ -123,7 +119,9 @@ static void read_nep_parameters(
   const NEP_Model_File& model, const NEP_Parameters& para,
   const std::vector<float>& values, float* parameters)
 {
-  const std::vector<float> parsed = get_nep_parameters(model, values);
+  const std::vector<float> parsed = get_nep_parameters(
+    model.num_types, model.layout.number_of_variables_ann * model.layout.ann_count,
+    model.layout.number_of_variables_descriptor / (model.num_types * model.num_types), values);
   if (
     model.name != para.model_name || model.elements != para.elements ||
     model.layout.dim != para.dim || model.layout.ann_count != para.ann_count ||
@@ -165,6 +163,76 @@ static bool does_file_exist(const char* filename)
   return false;
 }
 
+static float read_nep_restart_value(std::istream& input, const std::string& filename)
+{
+  std::string token;
+  if (!(input >> token)) {
+    PRINT_INPUT_ERROR((filename + ": incomplete mu/sigma data.").c_str());
+  }
+  char* end;
+  errno = 0;
+  const float value = std::strtof(token.c_str(), &end);
+  if (end == token.c_str() || *end != '\0' || !std::isfinite(value) ||
+      (errno == ERANGE && value == 0.0f)) {
+    PRINT_INPUT_ERROR((filename + ": invalid mu/sigma value.").c_str());
+  }
+  return value;
+}
+
+static void read_nep_restart_file(
+  const std::string& filename, const NEP_Parameters& para, int num_types,
+  std::vector<double>& reference, std::vector<float>* mu = nullptr,
+  std::vector<float>* sigma = nullptr)
+{
+  std::ifstream input(filename);
+  if (!input.is_open()) {
+    PRINT_INPUT_ERROR(("Failed to open " + filename + ".").c_str());
+  }
+  std::string token;
+  if (!(input >> token) || token != "nep_restart") {
+    PRINT_INPUT_ERROR((filename + ": expected 'nep_restart'.").c_str());
+  }
+  int count;
+  const int num_references =
+    para.model_name == "nep_dipole" || para.model_name == "nep_polarizability" ? 0 : num_types;
+  if (!(input >> token >> count) || token != "energy_reference" || count != num_references) {
+    PRINT_INPUT_ERROR((filename + ": invalid energy_reference count.").c_str());
+  }
+  std::vector<double> parsed_reference(count);
+  for (double& value : parsed_reference) {
+    if (!(input >> value) || !std::isfinite(value)) {
+      PRINT_INPUT_ERROR((filename + ": invalid energy_reference value.").c_str());
+    }
+  }
+  const int ann_size =
+    (num_types * para.number_of_variables_ann_1 + para.global_parameters) * para.ann_count;
+  const int num_basis = (para.n_max_radial + 1) * (para.basis_size_radial + 1) +
+    (para.n_max_angular + 1) * (para.basis_size_angular + 1);
+  const int num_parameters = ann_size + num_basis * num_types * num_types;
+  if (!(input >> token >> count) || token != "parameters" || count != num_parameters) {
+    PRINT_INPUT_ERROR((filename + ": invalid parameter count.").c_str());
+  }
+  if (mu != nullptr) {
+    std::vector<float> parsed_mu(count), parsed_sigma(count);
+    for (int n = 0; n < count; ++n) {
+      parsed_mu[n] = read_nep_restart_value(input, filename);
+      parsed_sigma[n] = read_nep_restart_value(input, filename);
+      if (parsed_sigma[n] < 0.0f) {
+        PRINT_INPUT_ERROR((filename + ": sigma must be nonnegative.").c_str());
+      }
+    }
+    if (input >> token) {
+      PRINT_INPUT_ERROR((filename + ": unexpected data after mu/sigma pairs.").c_str());
+    }
+    if (input.bad() || !input.eof()) {
+      PRINT_INPUT_ERROR((filename + ": input stream failure.").c_str());
+    }
+    *mu = get_nep_parameters(num_types, ann_size, num_basis, parsed_mu);
+    *sigma = get_nep_parameters(num_types, ann_size, num_basis, parsed_sigma);
+  }
+  reference.swap(parsed_reference);
+}
+
 bool read_nep_restart(
   const char* filename,
   const NEP_Parameters& para,
@@ -174,36 +242,18 @@ bool read_nep_restart(
   if (!does_file_exist(filename)) {
     return false;
   }
-  NEP_Model_File model;
-  std::vector<float> sigma_file;
-  std::string error;
-  if (!read_nep_file(filename, model, error, &sigma_file)) {
-    PRINT_INPUT_ERROR(error.c_str());
-  }
-  if (model.energy_reference != para.energy_reference) {
-    PRINT_INPUT_ERROR("The energy references in nep.restart have changed since initialization.");
-  }
-  read_nep_parameters(model, para, model.parameters, mu.data());
-  read_nep_parameters(model, para, sigma_file, sigma.data());
+  std::vector<double> reference;
+  read_nep_restart_file(filename, para, para.num_types, reference, &mu, &sigma);
+  nep_parameters_to_channel_major(para, mu.data());
+  nep_parameters_to_channel_major(para, sigma.data());
   return true;
 }
 
 void read_nep_foundation_restart(
-  const std::string& filename, std::vector<float>& mu, std::vector<float>& sigma)
+  const NEP_Parameters& para, std::vector<float>& mu, std::vector<float>& sigma)
 {
-  NEP_Model_File model;
-  std::vector<float> sigma_file;
-  std::string error;
-  if (!read_nep_file(filename, model, error, &sigma_file)) {
-    PRINT_INPUT_ERROR(error.c_str());
-  }
-  const std::vector<float> parsed_mu = get_nep_parameters(model, model.parameters);
-  const std::vector<float> parsed_sigma = get_nep_parameters(model, sigma_file);
-  if (parsed_mu.size() != mu.size() || parsed_sigma.size() != sigma.size()) {
-    PRINT_INPUT_ERROR("The foundation restart parameter count does not match nep.in.");
-  }
-  mu = parsed_mu;
-  sigma = parsed_sigma;
+  std::vector<double> reference;
+  read_nep_restart_file(para.fine_tune_nep_restart, para, 89, reference, &mu, &sigma);
 }
 
 static std::string source_of_value(const bool is_set) { return is_set ? " (input)" : " (default)"; }
@@ -296,8 +346,8 @@ static void write_nep_block(FILE* file, const char* name, const float* values, i
   }
 }
 
-static void write_nep_parameters(
-  FILE* file, const char* name, const NEP_Parameters& para, const float* parameters)
+static std::vector<float> get_nep_file_parameters(
+  const NEP_Parameters& para, const float* parameters)
 {
   std::vector<float> values(parameters, parameters + para.number_of_variables);
   nep_parameters_to_basis_major(para, values.data());
@@ -316,7 +366,7 @@ static void write_nep_parameters(
   }
   values.swap(expanded);
 #endif
-  write_nep_block(file, name, values.data(), values.size());
+  return values;
 }
 
 static void write_nep_zbl(FILE* file, const NEP_Parameters& para)
@@ -334,10 +384,16 @@ void write_nep_restart(
   const std::vector<float>& sigma)
 {
   FILE* file = my_fopen(filename, "w");
-  write_nep_header(file, para, 0, 0);
-  write_nep_parameters(file, "parameters", para, mu.data());
-  write_nep_parameters(file, "sigma", para, sigma.data());
-  write_nep_zbl(file, para);
+  const std::vector<float> mu_file = get_nep_file_parameters(para, mu.data());
+  const std::vector<float> sigma_file = get_nep_file_parameters(para, sigma.data());
+  fprintf(file, "nep_restart\nenergy_reference %d", int(para.energy_reference.size()));
+  for (double value : para.energy_reference) {
+    fprintf(file, " %.17g", value);
+  }
+  fprintf(file, "\nparameters %d\n", int(mu_file.size()));
+  for (int n = 0; n < mu_file.size(); ++n) {
+    fprintf(file, "%.9g %.9g\n", mu_file[n], sigma_file[n]);
+  }
   const bool failed = ferror(file) != 0;
   if (fclose(file) != 0 || failed) {
     PRINT_INPUT_ERROR(("Failed to write " + std::string(filename) + ".").c_str());
@@ -350,7 +406,8 @@ void write_nep_model(
   CHECK(gpuSetDevice(0));
   para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
   write_nep_header(file, para, max_radial, max_angular);
-  write_nep_parameters(file, "parameters", para, parameters);
+  const std::vector<float> values = get_nep_file_parameters(para, parameters);
+  write_nep_block(file, "parameters", values.data(), values.size());
   write_nep_block(file, "q_scaler", para.q_scaler_cpu.data(), para.dim);
   write_nep_zbl(file, para);
   if (ferror(file)) {
@@ -687,13 +744,12 @@ static void compare_with_nep_txt(
     mismatches);
 }
 
-static NEP_Model_File check_nep_file(
-  const NEP_Parameters& para, const std::string& filename, bool restart, bool fine_tune)
+static void check_nep_file(
+  const NEP_Parameters& para, const std::string& filename, bool fine_tune)
 {
   NEP_Model_File model;
-  std::vector<float> sigma;
   std::string error;
-  if (!read_nep_file(filename, model, error, restart ? &sigma : nullptr)) {
+  if (!read_nep_file(filename, model, error)) {
     PRINT_INPUT_ERROR(error.c_str());
   }
   std::vector<std::string> mismatches;
@@ -709,25 +765,22 @@ static NEP_Model_File check_nep_file(
     }
     PRINT_INPUT_ERROR(("nep.in is inconsistent with " + filename + ".").c_str());
   }
-  return model;
 }
 
 void check_existing_nep_model(NEP_Parameters& para)
 {
   if (para.prediction == 1) {
-    check_nep_file(para, "nep.txt", false, false);
+    check_nep_file(para, "nep.txt", false);
     return;
   }
   if (para.fine_tune) {
-    check_nep_file(para, para.fine_tune_nep_txt, false, true);
-    check_nep_file(para, para.fine_tune_nep_restart, true, true);
+    check_nep_file(para, para.fine_tune_nep_txt, true);
     return;
   }
   if (para.import_q_scaler) {
-    check_nep_file(para, "nep.txt", false, false);
+    check_nep_file(para, "nep.txt", false);
   }
   if (does_file_exist("nep.restart")) {
-    const NEP_Model_File model = check_nep_file(para, "nep.restart", true, false);
-    para.energy_reference = model.energy_reference;
+    read_nep_restart_file("nep.restart", para, para.num_types, para.energy_reference);
   }
 }
