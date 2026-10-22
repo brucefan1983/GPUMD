@@ -800,6 +800,9 @@ def parse_arguments(manifest: Mapping[str, Any]) -> argparse.Namespace:
     )
     parser.add_argument("--suite", default="quick", help="Manifest suite to run")
     parser.add_argument(
+        "--program", choices=("gpumd", "nep"), help="Run only cases for this executable"
+    )
+    parser.add_argument(
         "--case",
         action="append",
         default=[],
@@ -1726,9 +1729,14 @@ def cleanup_case_workdirs(
 
 
 def select_cases(
-    manifest: Mapping[str, Any], suite: str, patterns: Sequence[str]
+    manifest: Mapping[str, Any],
+    suite: str,
+    patterns: Sequence[str],
+    program: Optional[str] = None,
 ) -> List[Mapping[str, Any]]:
     selected = [case for case in manifest["cases"] if suite in case["suites"]]
+    if program is not None:
+        selected = [case for case in selected if case.get("program", "gpumd") == program]
     if patterns:
         selected = [
             case
@@ -1782,7 +1790,7 @@ def main() -> int:
         if not repo_root.is_dir():
             raise ConfigurationError(f"Repository root does not exist: {repo_root}")
         validate_manifest(manifest, repo_root)
-        selected = select_cases(manifest, args.suite, args.case)
+        selected = select_cases(manifest, args.suite, args.case, args.program)
 
         if args.check_manifest:
             print(
