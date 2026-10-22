@@ -144,15 +144,8 @@ void read_nep_model(
 
 static bool does_file_exist(const char* filename)
 {
-  errno = 0;
   std::ifstream input(filename);
-  if (input.is_open()) {
-    return true;
-  }
-  if (errno != ENOENT) {
-    PRINT_INPUT_ERROR(("Failed to open " + std::string(filename) + ".").c_str());
-  }
-  return false;
+  return input.is_open();
 }
 
 static float read_nep_restart_value(std::istream& input, const std::string& filename)
