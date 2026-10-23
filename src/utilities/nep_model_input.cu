@@ -14,7 +14,6 @@
 */
 
 #include "error.cuh"
-#include "nep_file.cuh"
 #include "nep_model_file.cuh"
 #include "nep_model_input.cuh"
 
@@ -24,31 +23,13 @@ bool NEP_Model_Input::is_new_format(const std::string& token)
          (token[1] == 'e' || token[1] == 'E') && (token[2] == 'p' || token[2] == 'P');
 }
 
-std::vector<std::string> NEP_Model_Input::read_header(std::ifstream& input)
-{
-  const std::streampos start = input.tellg();
-  std::vector<std::string> tokens = ::get_tokens(input);
-  if (!tokens.empty() && is_new_format(tokens[0])) {
-    input.clear();
-    input.seekg(start);
-    std::vector<std::string> elements;
-    std::string error;
-    if (!NEP_File::read_header(input, elements, error)) {
-      PRINT_INPUT_ERROR(error.c_str());
-    }
-    tokens = {"nep", std::to_string(elements.size())};
-    tokens.insert(tokens.end(), elements.begin(), elements.end());
-  }
-  return tokens;
-}
-
 NEP_Model_Input::NEP_Model_Input(const std::string& filename) : file(filename)
 {
   if (!file.is_open()) {
     const std::string error = "Cannot open potential file " + filename + ".";
     PRINT_INPUT_ERROR(error.c_str());
   }
-  const std::vector<std::string> header = read_header(file);
+  const std::vector<std::string> header = ::get_tokens(file);
   file.clear();
   file.seekg(0);
   new_format = !header.empty() && is_new_format(header[0]);

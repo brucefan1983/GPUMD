@@ -35,7 +35,6 @@ public:
     const int basis_size_angular) const;
 
   static bool is_new_format(const std::string& token);
-  static std::vector<std::string> read_header(std::ifstream& input);
 
 private:
   std::ifstream file;

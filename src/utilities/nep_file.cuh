@@ -44,8 +44,6 @@ public:
   static bool parse_size(const std::string& token, std::size_t& value);
   static bool parse_double(const std::string& token, double& value);
 
-  static bool
-  read_header(std::istream& input, std::vector<std::string>& elements, std::string& error);
   bool read(std::istream& input, std::string& error);
   bool write(std::ostream& output, std::string& error) const;
 

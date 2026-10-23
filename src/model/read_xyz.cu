@@ -25,7 +25,6 @@ The class defining the simulation model.
 #include "utilities/compact_nep.cuh"
 #include "utilities/error.cuh"
 #include "utilities/run_input.cuh"
-#include "utilities/nep_model_input.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
@@ -456,7 +455,7 @@ std::vector<std::string> get_atom_symbols(std::string& filename_potential)
     exit(1);
   }
 
-  std::vector<std::string> tokens = NEP_Model_Input::read_header(input_potential);
+  std::vector<std::string> tokens = get_tokens(input_potential);
   if (tokens.size() < 3) {
     std::cout << "The first line of the potential file should have at least 3 items." << std::endl;
     exit(1);

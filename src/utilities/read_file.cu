@@ -77,7 +77,9 @@ bool is_nep_charge_potential(const std::string& potential_file_name)
   if (!input_potential.is_open()) {
     PRINT_INPUT_ERROR("Cannot open potential file.");
   }
-  std::vector<std::string> tokens = NEP_Model_Input::read_header(input_potential);
+  std::string line;
+  std::getline(input_potential, line);
+  std::vector<std::string> tokens = get_tokens(line);
   if (tokens.empty()) {
     PRINT_INPUT_ERROR("Empty potential file.");
   }

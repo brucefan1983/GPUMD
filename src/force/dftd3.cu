@@ -32,7 +32,6 @@ J. Comput. Chem., 32, 1456 (2011).
 #include "model/box.cuh"
 #include "neighbor.cuh"
 #include "utilities/common.cuh"
-#include "utilities/nep_model_input.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
@@ -417,8 +416,10 @@ void find_atomic_number(const std::string& potential_file_name, int* atomic_numb
   if (!input_potential.is_open()) {
     PRINT_INPUT_ERROR("Cannot open potential file.");
   }
-  std::vector<std::string> tokens = NEP_Model_Input::read_header(input_potential);
-  if (tokens.empty() || tokens[0].substr(0, 3) != "nep") {
+  std::string line;
+  std::getline(input_potential, line);
+  std::vector<std::string> tokens = get_tokens(line);
+  if (tokens[0].substr(0, 3) != "nep") {
     PRINT_INPUT_ERROR("DFTD3 only supports NEP models.");
   }
 

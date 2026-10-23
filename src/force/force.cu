@@ -54,7 +54,7 @@ Force::Force(void) {}
 void Force::check_types(const std::string& file_potential)
 {
   std::ifstream input(file_potential);
-  std::vector<std::string> tokens = NEP_Model_Input::read_header(input);
+  std::vector<std::string> tokens = get_tokens(input);
   int num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
   for (int n = 0; n < num_types; ++n) {
     std::string token = tokens[2 + n];

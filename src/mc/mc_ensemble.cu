@@ -19,7 +19,6 @@ The abstract base class (ABC) for the MC_Ensemble classes.
 
 #include "mc_ensemble.cuh"
 #include "utilities/common.cuh"
-#include "utilities/nep_model_input.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <chrono>
 #include <fstream>
@@ -34,8 +33,10 @@ static void check_is_nep(const std::string& potential_file_name)
   if (!input_potential.is_open()) {
     PRINT_INPUT_ERROR("Cannot open potential file.");
   }
-  std::vector<std::string> tokens = NEP_Model_Input::read_header(input_potential);
-  if (tokens.empty() || tokens[0].substr(0, 3) != "nep") {
+  std::string line;
+  std::getline(input_potential, line);
+  std::vector<std::string> tokens = get_tokens(line);
+  if (tokens[0].substr(0, 3) != "nep") {
     PRINT_INPUT_ERROR("MCMD only supports NEP models.");
   }
   input_potential.close();

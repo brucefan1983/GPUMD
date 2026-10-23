@@ -23,7 +23,6 @@ The driver class for the various MC ensembles.
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/nep_model_input.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 
@@ -154,8 +153,10 @@ static std::vector<std::string> get_atom_symbols_in_nep(const std::string& poten
   if (!input_potential.is_open()) {
     PRINT_INPUT_ERROR("Cannot open potential file.");
   }
-  std::vector<std::string> tokens = NEP_Model_Input::read_header(input_potential);
-  if (tokens.empty() || tokens[0].substr(0, 3) != "nep") {
+  std::string line;
+  std::getline(input_potential, line);
+  std::vector<std::string> tokens = get_tokens(line);
+  if (tokens[0].substr(0, 3) != "nep") {
     PRINT_INPUT_ERROR("MCMD only supports NEP models.");
   }
 

@@ -83,7 +83,7 @@ static std::vector<std::string> get_first_line(const std::string& filename)
     std::string error = "Cannot open potential file " + filename + ".";
     PRINT_INPUT_ERROR(error.c_str());
   }
-  std::vector<std::string> tokens = NEP_Model_Input::read_header(input);
+  std::vector<std::string> tokens = get_tokens(input);
   input.close();
   return tokens;
 }
