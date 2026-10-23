@@ -330,7 +330,8 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
       parambs[i].n_max_radial,
       parambs[i].n_max_angular,
       parambs[i].basis_size_radial,
-      parambs[i].basis_size_angular);
+      parambs[i].basis_size_angular,
+      input.channel_major());
     for (int n = 0; n < num_para_descriptor; ++n) {
       parameters[annmbs[i].num_para_ann + n] = descriptor_parameters[n];
     }

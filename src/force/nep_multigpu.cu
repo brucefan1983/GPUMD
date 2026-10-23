@@ -303,7 +303,8 @@ NEP_MULTIGPU::NEP_MULTIGPU(
     paramb.n_max_radial,
     paramb.n_max_angular,
     paramb.basis_size_radial,
-    paramb.basis_size_angular);
+    paramb.basis_size_angular,
+    input.channel_major());
 
   // flexible zbl potential parameters
   if (zbl.flexible) {

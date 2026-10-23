@@ -510,7 +510,8 @@ NEP_Extrapolation::NEP_Extrapolation(const char* file_potential, const Atom& ato
     paramb_.n_max_radial,
     paramb_.n_max_angular,
     paramb_.basis_size_radial,
-    paramb_.basis_size_angular);
+    paramb_.basis_size_angular,
+    input.channel_major());
   data_.parameters.resize(annmb_.num_para + annmb_.dim);
   data_.parameters.copy_from_host(parameters.data());
   data_.descriptor_parameters_type_pair.resize(num_para_descriptor);

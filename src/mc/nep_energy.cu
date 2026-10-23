@@ -276,7 +276,8 @@ void NEP_Energy::initialize(const char* file_potential)
     paramb.n_max_radial,
     paramb.n_max_angular,
     paramb.basis_size_radial,
-    paramb.basis_size_angular);
+    paramb.basis_size_angular,
+    input.channel_major());
   for (int n = 0; n < num_para_descriptor; ++n) {
     parameters[num_para_ann + n] = descriptor_parameters[n];
   }

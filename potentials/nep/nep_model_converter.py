@@ -212,12 +212,29 @@ def read_model(filename):
     }
 
 
+def channel_major(values, model):
+    fields = dict(model["fields"])
+    nr, na = map(int, fields["n_max"])
+    br, ba = map(int, fields["basis_size"])
+    sizes = ((nr + 1) * (br + 1), (na + 1) * (ba + 1))
+    pairs = len(model["elements"])**2
+    offset = model["parameters"] - pairs * sum(sizes)
+    reordered = list(values[:offset])
+    for size in sizes:
+        for pair in range(pairs):
+            reordered.extend(values[offset + pair:offset + pairs * size:pairs])
+        offset += pairs * size
+    reordered.extend(values[offset:])
+    return reordered
+
+
 def model_text(model):
     elements = model["elements"]
     lines = [f"nep {len(elements)} " + " ".join(elements), "format_version 1", "model " + model["name"]]
     lines.extend(name + " " + " ".join(values) for name, values in model["fields"])
     if model["references"]:
         lines.append("energy_reference " + " ".join(["0"] * model["references"]))
+    data = channel_major(model["data"], model)
     offset = 0
     for name, count in (
         ("parameters", model["parameters"]),
@@ -226,7 +243,7 @@ def model_text(model):
     ):
         if count:
             lines.append(f"@ {name} {count}")
-            lines.extend(model["data"][offset:offset + count])
+            lines.extend(data[offset:offset + count])
             offset += count
     return "\n".join(lines) + "\n"
 
@@ -249,6 +266,7 @@ def restart_text(filename, model):
             count += 1
     if count != model["parameters"]:
         raise ValueError(f"{filename}: expected {model['parameters']} mu/sigma pairs, found {count}")
+    lines[3:] = channel_major(lines[3:], model)
     return "\n".join(lines) + "\n"
 
 
@@ -298,7 +316,7 @@ def main():
         epilog=(
             "Supports standard NEP4, temperature, charge1/2, dipole, polarizability, "
             "vdW and charge-vdW models. Energy references are set to zero. "
-            "Uses the standard type-pair descriptor layout; NEP3 and NEP5 are not supported. "
+            "Writes type-pair descriptors in channel-major order; NEP3 and NEP5 are not supported. "
             "Conversion does not extend native MD support or preserve an old training trajectory."
         ),
     )

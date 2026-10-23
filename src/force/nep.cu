@@ -308,7 +308,8 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
     paramb.n_max_radial,
     paramb.n_max_angular,
     paramb.basis_size_radial,
-    paramb.basis_size_angular);
+    paramb.basis_size_angular,
+    input.channel_major());
   nep_data.parameters.resize(annmb.num_para + annmb.dim);
   nep_data.parameters.copy_from_host(parameters.data());
   nep_data.descriptor_parameters_type_pair.resize(num_para_descriptor);
