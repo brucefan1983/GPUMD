@@ -1,6 +1,6 @@
 # NEP training
 
-This example trains a standard NEP potential for PbTe from `train.xyz` for 20,000 generations.
+This example trains a standard NEP potential for PbTe from `train.xyz` for 10,000 generations followed by another 10,000 generations of continued training.
 
 Run:
 
