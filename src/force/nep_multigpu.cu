@@ -28,7 +28,6 @@ when there is NVlink, but is also not very bad when there is only PCI-E.
 #include "utilities/error.cuh"
 #include "utilities/nep_model_input.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
 #include "utilities/run_input.cuh"
 #include <cstddef>
@@ -296,15 +295,14 @@ NEP_MULTIGPU::NEP_MULTIGPU(
     tokens = input.get_tokens();
     parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
-  std::vector<float> descriptor_parameters = get_descriptor_parameters_type_pair(
+  std::vector<float> descriptor_parameters = input.get_descriptor_parameters_type_pair(
     parameters,
     annmb[0].num_para_ann,
     paramb.num_types,
     paramb.n_max_radial,
     paramb.n_max_angular,
     paramb.basis_size_radial,
-    paramb.basis_size_angular,
-    input.channel_major());
+    paramb.basis_size_angular);
 
   // flexible zbl potential parameters
   if (zbl.flexible) {

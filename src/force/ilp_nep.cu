@@ -31,7 +31,6 @@ Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
 #include "utilities/common.cuh"
 #include "utilities/nep_model_input.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <iostream>
 #include <fstream>
@@ -323,15 +322,14 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
       tokens = input.get_tokens();
       parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
-    std::vector<float> descriptor_parameters = get_descriptor_parameters_type_pair(
+    std::vector<float> descriptor_parameters = input.get_descriptor_parameters_type_pair(
       parameters,
       annmbs[i].num_para_ann,
       parambs[i].num_types,
       parambs[i].n_max_radial,
       parambs[i].n_max_angular,
       parambs[i].basis_size_radial,
-      parambs[i].basis_size_angular,
-      input.channel_major());
+      parambs[i].basis_size_angular);
     for (int n = 0; n < num_para_descriptor; ++n) {
       parameters[annmbs[i].num_para_ann + n] = descriptor_parameters[n];
     }

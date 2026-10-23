@@ -25,7 +25,14 @@ public:
   explicit NEP_Model_Input(const std::string& filename);
   std::vector<std::string> get_tokens();
   const std::vector<double>& energy_reference() const;
-  bool channel_major() const;
+  std::vector<float> get_descriptor_parameters_type_pair(
+    const std::vector<float>& parameters,
+    const int num_para_ann,
+    const int num_types,
+    const int n_max_radial,
+    const int n_max_angular,
+    const int basis_size_radial,
+    const int basis_size_angular) const;
 
   static bool is_new_format(const std::string& token);
   static std::vector<std::string> read_header(std::ifstream& input);

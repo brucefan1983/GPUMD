@@ -28,7 +28,6 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/error.cuh"
 #include "utilities/nep_model_input.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
 #include "utilities/run_input.cuh"
 #include <cstring>
@@ -301,15 +300,14 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
     parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
   // refactor descriptor parameters memory
-  std::vector<float> descriptor_parameters = get_descriptor_parameters_type_pair(
+  std::vector<float> descriptor_parameters = input.get_descriptor_parameters_type_pair(
     parameters,
     annmb.num_para_ann,
     paramb.num_types,
     paramb.n_max_radial,
     paramb.n_max_angular,
     paramb.basis_size_radial,
-    paramb.basis_size_angular,
-    input.channel_major());
+    paramb.basis_size_angular);
   nep_data.parameters.resize(annmb.num_para + annmb.dim);
   nep_data.parameters.copy_from_host(parameters.data());
   nep_data.descriptor_parameters_type_pair.resize(num_para_descriptor);

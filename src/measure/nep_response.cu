@@ -21,7 +21,6 @@ NEP4 response models used by dipole and polarizability measurements.
 #include "model/atom.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
 #include "utilities/nep_model_input.cuh"
 #include "utilities/read_file.cuh"
@@ -204,15 +203,14 @@ NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
     tokens = input.get_tokens();
     parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
-  std::vector<float> descriptor_parameters = get_descriptor_parameters_type_pair(
+  std::vector<float> descriptor_parameters = input.get_descriptor_parameters_type_pair(
     parameters,
     annmb_.num_para_ann,
     paramb_.num_types,
     paramb_.n_max_radial,
     paramb_.n_max_angular,
     paramb_.basis_size_radial,
-    paramb_.basis_size_angular,
-    input.channel_major());
+    paramb_.basis_size_angular);
   data_.parameters.resize(annmb_.num_para + annmb_.dim);
   data_.parameters.copy_from_host(parameters.data());
   data_.descriptor_parameters_type_pair.resize(num_para_descriptor);
