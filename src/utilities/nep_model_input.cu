@@ -77,3 +77,5 @@ std::vector<std::string> NEP_Model_Input::get_tokens()
 }
 
 const std::vector<double>& NEP_Model_Input::energy_reference() const { return reference; }
+
+bool NEP_Model_Input::channel_major() const { return new_format; }

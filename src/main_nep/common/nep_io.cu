@@ -19,7 +19,6 @@
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_model_file.cuh"
-#include "utilities/nep_parameters.cuh"
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
@@ -51,58 +50,29 @@ static void read_nep_file(const std::string& filename, NEP_Model_File& model)
   }
 }
 
-static void nep_parameters_to_channel_major(const NEP_Parameters& para, float* parameters)
-{
-  const int descriptor_offset = para.number_of_variables_ann * para.ann_count;
-#ifdef USE_CJ
-  const int num_channels = para.num_types;
-#else
-  const int num_channels = para.num_types * para.num_types;
-#endif
-  descriptor_parameters_to_channel_major(
-    parameters,
-    descriptor_offset,
-    num_channels,
-    para.n_max_radial,
-    para.n_max_angular,
-    para.basis_size_radial,
-    para.basis_size_angular);
-}
-
-static void nep_parameters_to_basis_major(const NEP_Parameters& para, float* parameters)
-{
-  const int descriptor_offset = para.number_of_variables_ann * para.ann_count;
-#ifdef USE_CJ
-  const int num_channels = para.num_types;
-#else
-  const int num_channels = para.num_types * para.num_types;
-#endif
-  descriptor_parameters_to_basis_major(
-    parameters,
-    descriptor_offset,
-    num_channels,
-    para.n_max_radial,
-    para.n_max_angular,
-    para.basis_size_radial,
-    para.basis_size_angular);
-}
-
 static std::vector<float> get_nep_parameters(
-  int num_types, int ann_size, int num_basis, const std::vector<float>& values)
+  int num_types, int ann_size, int num_radial_basis, int num_angular_basis,
+  const std::vector<float>& values)
 {
 #ifdef USE_CJ
-  std::vector<float> parameters(ann_size + num_basis * num_types);
+  std::vector<float> parameters(ann_size + (num_radial_basis + num_angular_basis) * num_types);
   std::copy(values.begin(), values.begin() + ann_size, parameters.begin());
-  for (int nk = 0; nk < num_basis; ++nk) {
+  int input_offset = ann_size;
+  int output_offset = ann_size;
+  for (const int num_basis : {num_radial_basis, num_angular_basis}) {
     for (int t2 = 0; t2 < num_types; ++t2) {
-      const float value = values[ann_size + nk * num_types * num_types + t2];
-      for (int t1 = 1; t1 < num_types; ++t1) {
-        if (values[ann_size + (nk * num_types + t1) * num_types + t2] != value) {
-          PRINT_INPUT_ERROR("This model requires type-pair descriptors. Rebuild without USE_CJ.");
+      for (int nk = 0; nk < num_basis; ++nk) {
+        const float value = values[input_offset + t2 * num_basis + nk];
+        for (int t1 = 1; t1 < num_types; ++t1) {
+          if (values[input_offset + (t1 * num_types + t2) * num_basis + nk] != value) {
+            PRINT_INPUT_ERROR("This model requires type-pair descriptors. Rebuild without USE_CJ.");
+          }
         }
+        parameters[output_offset + t2 * num_basis + nk] = value;
       }
-      parameters[ann_size + nk * num_types + t2] = value;
     }
+    input_offset += num_types * num_types * num_basis;
+    output_offset += num_types * num_basis;
   }
   return parameters;
 #else
@@ -115,7 +85,8 @@ static void read_nep_parameters(
 {
   const std::vector<float> parsed = get_nep_parameters(
     model.num_types, model.layout.number_of_variables_ann * model.layout.ann_count,
-    model.layout.number_of_variables_descriptor / (model.num_types * model.num_types),
+    (model.n_max_radial + 1) * (model.basis_size_radial + 1),
+    (model.n_max_angular + 1) * (model.basis_size_angular + 1),
     model.parameters);
   if (
     model.name != para.model_name || model.elements != para.elements ||
@@ -127,7 +98,6 @@ static void read_nep_parameters(
     PRINT_INPUT_ERROR("The NEP model parameter layout does not match nep.in.");
   }
   std::copy(parsed.begin(), parsed.end(), parameters);
-  nep_parameters_to_channel_major(para, parameters);
 }
 
 void read_nep_model(
@@ -191,9 +161,9 @@ static void read_nep_restart_file(
   }
   const int ann_size =
     (num_types * para.number_of_variables_ann_1 + para.global_parameters) * para.ann_count;
-  const int num_basis = (para.n_max_radial + 1) * (para.basis_size_radial + 1) +
-    (para.n_max_angular + 1) * (para.basis_size_angular + 1);
-  const int num_parameters = ann_size + num_basis * num_types * num_types;
+  const int num_radial_basis = (para.n_max_radial + 1) * (para.basis_size_radial + 1);
+  const int num_angular_basis = (para.n_max_angular + 1) * (para.basis_size_angular + 1);
+  const int num_parameters = ann_size + (num_radial_basis + num_angular_basis) * num_types * num_types;
   if (!(input >> token >> count) || token != "parameters" || count != num_parameters) {
     PRINT_INPUT_ERROR((filename + ": invalid parameter count.").c_str());
   }
@@ -212,8 +182,10 @@ static void read_nep_restart_file(
     if (input.bad() || !input.eof()) {
       PRINT_INPUT_ERROR((filename + ": input stream failure.").c_str());
     }
-    *mu = get_nep_parameters(num_types, ann_size, num_basis, parsed_mu);
-    *sigma = get_nep_parameters(num_types, ann_size, num_basis, parsed_sigma);
+    *mu = get_nep_parameters(
+      num_types, ann_size, num_radial_basis, num_angular_basis, parsed_mu);
+    *sigma = get_nep_parameters(
+      num_types, ann_size, num_radial_basis, num_angular_basis, parsed_sigma);
   }
   reference.swap(parsed_reference);
 }
@@ -229,8 +201,6 @@ bool read_nep_restart(
   }
   std::vector<double> reference;
   read_nep_restart_file(filename, para, para.num_types, reference, &mu, &sigma);
-  nep_parameters_to_channel_major(para, mu.data());
-  nep_parameters_to_channel_major(para, sigma.data());
   return true;
 }
 
@@ -329,19 +299,26 @@ static std::vector<float> get_nep_file_parameters(
   const NEP_Parameters& para, const float* parameters)
 {
   std::vector<float> values(parameters, parameters + para.number_of_variables);
-  nep_parameters_to_basis_major(para, values.data());
 #ifdef USE_CJ
   const int ann_size = para.number_of_variables_ann * para.ann_count;
-  const int num_basis = para.number_of_variables_descriptor / para.num_types;
-  std::vector<float> expanded(ann_size + num_basis * para.num_types * para.num_types);
+  const int num_radial_basis = (para.n_max_radial + 1) * (para.basis_size_radial + 1);
+  const int num_angular_basis = (para.n_max_angular + 1) * (para.basis_size_angular + 1);
+  std::vector<float> expanded(
+    ann_size + (num_radial_basis + num_angular_basis) * para.num_types * para.num_types);
   std::copy(values.begin(), values.begin() + ann_size, expanded.begin());
-  for (int nk = 0; nk < num_basis; ++nk) {
+  int input_offset = ann_size;
+  int output_offset = ann_size;
+  for (const int num_basis : {num_radial_basis, num_angular_basis}) {
     for (int t1 = 0; t1 < para.num_types; ++t1) {
       for (int t2 = 0; t2 < para.num_types; ++t2) {
-        expanded[ann_size + (nk * para.num_types + t1) * para.num_types + t2] =
-          values[ann_size + nk * para.num_types + t2];
+        const int offset = input_offset + t2 * num_basis;
+        std::copy(
+          values.begin() + offset, values.begin() + offset + num_basis,
+          expanded.begin() + output_offset + (t1 * para.num_types + t2) * num_basis);
       }
     }
+    input_offset += para.num_types * num_basis;
+    output_offset += para.num_types * para.num_types * num_basis;
   }
   values.swap(expanded);
 #endif

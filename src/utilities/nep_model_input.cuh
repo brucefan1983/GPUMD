@@ -25,6 +25,7 @@ public:
   explicit NEP_Model_Input(const std::string& filename);
   std::vector<std::string> get_tokens();
   const std::vector<double>& energy_reference() const;
+  bool channel_major() const;
 
   static bool is_new_format(const std::string& token);
   static std::vector<std::string> read_header(std::ifstream& input);

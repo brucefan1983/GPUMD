@@ -111,15 +111,21 @@ void NEP_Model_File::compact_parameters(
           block.values.begin() + globals,
           block.values.begin() + globals + layout.global_parameters);
       }
-      const int start = layout.ann_count * layout.number_of_variables_ann;
+      int start = layout.ann_count * layout.number_of_variables_ann;
       const int pairs = num_types * num_types;
-      const int basis_count = layout.number_of_variables_descriptor / pairs;
-      for (int basis = 0; basis < basis_count; ++basis) {
+      const int basis_counts[] = {
+        (n_max_radial + 1) * (basis_size_radial + 1),
+        (n_max_angular + 1) * (basis_size_angular + 1)};
+      for (const int basis_count : basis_counts) {
         for (int t1 : active_to_full) {
           for (int t2 : active_to_full) {
-            values.push_back(block.values[start + basis * pairs + t1 * num_types + t2]);
+            const int offset = start + (t1 * num_types + t2) * basis_count;
+            values.insert(
+              values.end(), block.values.begin() + offset,
+              block.values.begin() + offset + basis_count);
           }
         }
+        start += pairs * basis_count;
       }
       block.values.swap(values);
     } else if (block.name == "zbl_parameters") {
