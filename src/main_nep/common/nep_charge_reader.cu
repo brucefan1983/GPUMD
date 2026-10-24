@@ -53,7 +53,6 @@ void NEP_Charge_Reader::read_structure(const XYZ_Record& record, Structure& stru
 void NEP_Charge_Reader::print_summary(const std::vector<Structure>& structures) const
 {
   print_nep_boundaries(structures);
-  NEP_Energy_Reader::print_summary(structures);
 }
 
 const char* NEP_Charge_Reader::energy_difference_conflict(

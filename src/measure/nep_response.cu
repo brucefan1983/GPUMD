@@ -21,8 +21,8 @@ NEP4 response models used by dipole and polarizability measurements.
 #include "model/atom.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
+#include "utilities/nep_model_input.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
 #include <fstream>
@@ -35,13 +35,9 @@ NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
   : num_atoms_(atom.number_of_atoms)
 {
 
-  std::ifstream input(file_potential);
-  if (!input.is_open()) {
-    std::cout << "Failed to open " << file_potential << std::endl;
-    exit(1);
-  }
+  NEP_Model_Input input(file_potential);
 
-  std::vector<std::string> tokens = get_tokens(input);
+  std::vector<std::string> tokens = input.get_tokens();
   if (tokens.size() < 3) {
     std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
     exit(1);
@@ -81,7 +77,7 @@ NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
   type_.copy_from_host(mapped_type.data());
 
   // cutoff
-  tokens = get_tokens(input);
+  tokens = input.get_tokens();
   if (tokens.size() != 5 && tokens.size() != paramb_.num_types * 2 + 3) {
     std::cout << "cutoff should have 4 or num_types * 2 + 2 parameters.\n";
     exit(1);
@@ -116,7 +112,7 @@ NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
   paramb_.MN_angular = int(ceil(MN_angular * 1.25));
 
   // n_max
-  tokens = get_tokens(input);
+  tokens = input.get_tokens();
   if (tokens.size() != 3) {
     std::cout << "This line should be n_max n_max_radial n_max_angular." << std::endl;
     exit(1);
@@ -125,7 +121,7 @@ NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
   paramb_.n_max_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
 
   // basis_size
-  tokens = get_tokens(input);
+  tokens = input.get_tokens();
   if (tokens.size() != 3) {
     std::cout << "This line should be basis_size basis_size_radial basis_size_angular."
               << std::endl;
@@ -135,7 +131,7 @@ NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
   paramb_.basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
 
   // l_max
-  tokens = get_tokens(input);
+  tokens = input.get_tokens();
   if (tokens.size() < 4) {
     std::cout << "This line should be l_max l_max_3body has_q_222 has_q_1111 [has_q_112] [has_q_123] [has_q_233] [has_q_134]." << std::endl;
     exit(1);
@@ -180,7 +176,7 @@ NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
   paramb_.dim_angular = (paramb_.n_max_angular + 1) * paramb_.num_L;
 
   // ANN
-  tokens = get_tokens(input);
+  tokens = input.get_tokens();
   if (tokens.size() != 3) {
     std::cout << "This line should be ANN num_neurons 0." << std::endl;
     exit(1);
@@ -204,10 +200,10 @@ NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
   // NN and descriptor parameters
   std::vector<float> parameters(annmb_.num_para + annmb_.dim);
   for (int n = 0; n < annmb_.num_para + annmb_.dim; ++n) {
-    tokens = get_tokens(input);
+    tokens = input.get_tokens();
     parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
-  std::vector<float> descriptor_parameters = get_descriptor_parameters_type_pair(
+  std::vector<float> descriptor_parameters = input.get_descriptor_parameters_type_pair(
     parameters,
     annmb_.num_para_ann,
     paramb_.num_types,

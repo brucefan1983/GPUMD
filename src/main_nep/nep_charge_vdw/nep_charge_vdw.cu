@@ -1478,7 +1478,7 @@ void NEP_Charge_VDW::find_force(
 
 void NEP_Charge_VDW::configure(NEP_Charge_Parameters& para)
 {
-  para.file_tag = std::string(para.enable_zbl ? "nep4_zbl" : "nep4") + "_charge_vdw";
+  para.model_name = "qnep2_vdw";
   calculate_nep_model_parameters(para, 0, 2, 2, 1);
 }
 
@@ -1508,6 +1508,12 @@ void NEP_Charge_VDW::initialize_parameters(
         mu[n] = -mu[n];
       }
     }
+  }
+  if (para.fine_tune) {
+    for (int batch = 0; batch < training->num_batches; ++batch) {
+      find_force(para, mu.data(), training->train_set[batch], false, 1);
+    }
+    training->align_energy_reference(para, energy_difference);
   }
 }
 
@@ -1636,7 +1642,7 @@ void NEP_Charge_VDW::report_error(const TrainingReport& report)
     charge_train, bec_train, charge_test, bec_test, para.has_ediff_combinations);
   if (training->has_test_set) {
     Dataset& data = training->test_set[0];
-    copy_nep_energy_predictions(data);
+    copy_nep_energy_predictions(data, para.energy_reference);
     copy_nep_charge_predictions(charge_data.get(data), para.has_bec);
     std::vector<std::pair<Dataset*, int>> structures;
     for (int nc = 0; nc < data.Nc; ++nc) {
@@ -1653,7 +1659,7 @@ void NEP_Charge_VDW::predict(float* parameters)
   for (int batch = 0; batch < training->num_batches; ++batch) {
     find_force(para, parameters, training->train_set[batch], false, 1);
     Dataset& data = training->train_set[batch][0];
-    copy_nep_energy_predictions(data);
+    copy_nep_energy_predictions(data, para.energy_reference);
     copy_nep_charge_predictions(charge_data.get(data), para.has_bec);
   }
   std::vector<std::pair<Dataset*, int>> structures;

@@ -30,31 +30,38 @@ static void initialize_nep_mu_and_sigma_fine_tune(
   };
   // read in the whole foundation file first
   const int NUM89 = 89;
-  const int num_ann = NUM89 * para.number_of_variables_ann_1 + global_parameters;
+  const int ann_stride = NUM89 * para.number_of_variables_ann_1 + global_parameters;
+  const int num_ann = ann_stride * para.ann_count;
+  const int num_radial_basis = (para.n_max_radial + 1) * (para.basis_size_radial + 1);
+  const int num_angular_basis = (para.n_max_angular + 1) * (para.basis_size_angular + 1);
 #ifdef USE_CJ
-  const int num_cnk_radial = NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
-  const int num_cnk_angular = NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
+  const int num_cnk_radial = NUM89 * num_radial_basis;
 #else
-  const int num_cnk_radial = NUM89 * NUM89 * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
-  const int num_cnk_angular = NUM89 * NUM89 * (para.n_max_angular + 1) * (para.basis_size_angular + 1);
+  const int num_cnk_radial = NUM89 * NUM89 * num_radial_basis;
 #endif
-  const int num_tot = num_ann + num_cnk_radial + num_cnk_angular;
-  std::vector<float> restart_mu(num_tot);
-  std::vector<float> restart_sigma(num_tot);
+  std::vector<float> restart_mu;
+  std::vector<float> restart_sigma;
 
-  read_nep_foundation_restart(para.fine_tune_nep_restart, restart_mu, restart_sigma);
+  read_nep_foundation_restart(para, restart_mu, restart_sigma);
 
-  // get the required part
   int count = 0;
-  for (int i = 0; i < para.num_types; ++ i) {
-    int element_index = element_map[para.atomic_numbers[i] - 1];
-    for (int j = 0; j < para.number_of_variables_ann_1; ++j) {
-      mu[count] = restart_mu[element_index * para.number_of_variables_ann_1 + j];
-      sigma[count] = restart_sigma[element_index * para.number_of_variables_ann_1 + j];
+  for (int ann = 0; ann < para.ann_count; ++ann) {
+    for (int t = 0; t < para.num_types; ++t) {
+      int element_index = element_map[para.atomic_numbers[t] - 1];
+      int offset = ann * ann_stride + element_index * para.number_of_variables_ann_1;
+      for (int n = 0; n < para.number_of_variables_ann_1; ++n) {
+        mu[count] = restart_mu[offset + n];
+        sigma[count] = restart_sigma[offset + n];
+        ++count;
+      }
+    }
+    int offset = ann * ann_stride + NUM89 * para.number_of_variables_ann_1;
+    for (int n = 0; n < global_parameters; ++n) {
+      mu[count] = restart_mu[offset + n];
+      sigma[count] = restart_sigma[offset + n];
       ++count;
     }
   }
-  count += global_parameters; // the global parameters
 
 #ifdef USE_CJ
 
@@ -64,9 +71,9 @@ static void initialize_nep_mu_and_sigma_fine_tune(
     for (int n = 0; n <= para.n_max_radial; ++n) {
       for (int k = 0; k <= para.basis_size_radial; ++k) {
         int nk = n * (para.basis_size_radial + 1) + k;
-        mu[count] = restart_mu[nk * NUM89 + element_index_2 + num_ann];
+        mu[count] = restart_mu[element_index_2 * num_radial_basis + nk + num_ann];
         if (para.fine_tune_descriptor) {
-          sigma[count] = restart_sigma[nk * NUM89 + element_index_2 + num_ann];
+          sigma[count] = restart_sigma[element_index_2 * num_radial_basis + nk + num_ann];
         } else {
           sigma[count] = 0.0f;
         }
@@ -81,9 +88,9 @@ static void initialize_nep_mu_and_sigma_fine_tune(
     for (int n = 0; n <= para.n_max_angular; ++n) {
       for (int k = 0; k <= para.basis_size_angular; ++k) {
         int nk = n * (para.basis_size_angular + 1) + k;
-        mu[count] = restart_mu[nk * NUM89 + element_index_2 + num_ann + num_cnk_radial];
+        mu[count] = restart_mu[element_index_2 * num_angular_basis + nk + num_ann + num_cnk_radial];
         if (para.fine_tune_descriptor) {
-          sigma[count] = restart_sigma[nk * NUM89 + element_index_2 + num_ann + num_cnk_radial];
+          sigma[count] = restart_sigma[element_index_2 * num_angular_basis + nk + num_ann + num_cnk_radial];
         } else {
           sigma[count] = 0.0f;
         }
@@ -103,9 +110,9 @@ static void initialize_nep_mu_and_sigma_fine_tune(
       for (int n = 0; n <= para.n_max_radial; ++n) {
         for (int k = 0; k <= para.basis_size_radial; ++k) {
           int nk = n * (para.basis_size_radial + 1) + k;
-          mu[count] = restart_mu[nk * NUM89 * NUM89 + t12 + num_ann];
+          mu[count] = restart_mu[t12 * num_radial_basis + nk + num_ann];
           if (para.fine_tune_descriptor) {
-            sigma[count] = restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann];
+            sigma[count] = restart_sigma[t12 * num_radial_basis + nk + num_ann];
           } else {
             sigma[count] = 0.0f;
           }
@@ -124,9 +131,9 @@ static void initialize_nep_mu_and_sigma_fine_tune(
       for (int n = 0; n <= para.n_max_angular; ++n) {
         for (int k = 0; k <= para.basis_size_angular; ++k) {
           int nk = n * (para.basis_size_angular + 1) + k;
-          mu[count] = restart_mu[nk * NUM89 * NUM89 + t12 + num_ann + num_cnk_radial];
+          mu[count] = restart_mu[t12 * num_angular_basis + nk + num_ann + num_cnk_radial];
           if (para.fine_tune_descriptor) {
-            sigma[count] = restart_sigma[nk * NUM89 * NUM89 + t12 + num_ann + num_cnk_radial];
+            sigma[count] = restart_sigma[t12 * num_angular_basis + nk + num_ann + num_cnk_radial];
           } else {
             sigma[count] = 0.0f;
           }

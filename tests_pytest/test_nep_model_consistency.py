@@ -1,21 +1,9 @@
-"""Consistency checks between nep.in and a nep.txt/nep.restart pair already in the working
-directory.
+"""Consistency checks for nep.in and existing nep.txt/nep.restart files.
 
-A normal training run writes nep.txt, so a second invocation of `nep` in the same directory always
-finds one, and a resume additionally finds the nep.restart written every output_interval
-generations. If the model hyperparameters implied by nep.in differ from the ones recorded in those
-files, the run used to continue on a differently shaped model without saying anything: reading fewer
-nep.restart rows than the file holds and reporting plausible-looking losses. Any keyword with a
-default can cause this, which is what these tests cover.
-
-nep.txt counts as an input when there is a nep.restart to resume from, when predicting, or when
-importing scalers, and a mismatch is then an error. In fresh training it is a stale output about
-to be overwritten and is not checked, so editing nep.in and retraining in place keeps working.
-
-Every mismatch is reported while nep.in is being read, before the training set is touched, so these
-runs are short. The base models cover a header with a zbl line and one without (six header lines
-instead of seven, the case that used to abort the header parse outright) as well as both qNEP charge
-modes.
+Prediction and import_q_scaler validate the metadata in nep.txt. Ordinary training, including
+resume, ignores nep.txt. The new restart format validates energy-reference and parameter counts;
+it does not store model hyperparameters. Tests cover NEP with and without ZBL, both qNEP charge
+modes, and tensor models.
 """
 import re
 import shutil
@@ -98,7 +86,8 @@ def train_once(directory, nep_command, base_model):
 
 
 def write_nep_restart(directory, number_of_rows):
-    text = ''.join('%15.7e %15.7e\n' % (0.1, 0.1) for _ in range(number_of_rows))
+    text = f'nep_restart\nenergy_reference 3 0 0 0\nparameters {number_of_rows}\n'
+    text += ''.join('%15.7e %15.7e\n' % (0.1, 0.1) for _ in range(number_of_rows))
     (directory / 'nep.restart').write_text(text)
 
 
@@ -127,26 +116,25 @@ def test_stale_nep_txt_without_restart_is_ignored(tmp_path, nep_command, base_mo
 @pytest.mark.parametrize(
     'overrides, expected_text', list(MISMATCHES.values()), ids=list(MISMATCHES)
 )
-def test_resume_with_mismatch_is_fatal(tmp_path, nep_command, overrides, expected_text):
-    """With a nep.restart present the run is a genuine resume, where continuing on a differently
-    shaped model corrupts the training, so every mismatch is an error naming the keyword."""
+def test_import_q_scaler_with_mismatch_is_fatal(tmp_path, nep_command, overrides, expected_text):
+    """Importing scalers makes nep.txt an input, so metadata mismatches must be reported."""
     number_of_variables = train_once(tmp_path, nep_command, 'nep')
     write_nep_restart(tmp_path, number_of_variables)
 
-    result = run_nep(tmp_path, nep_command, keywords_for('nep', **overrides))
+    result = run_nep(tmp_path, nep_command, keywords_for('nep', import_q_scaler='1', **overrides))
     assert result.returncode != 0
     assert expected_text in result.stdout
-    assert 'remove nep.restart' in result.stdout
     assert 'nep.in is inconsistent with nep.txt.' in result.stderr
 
 
 def test_zbl_added_to_a_model_without_it_is_fatal(tmp_path, nep_command):
-    """The mirror image of the 'zbl removed' case above: a six-line header where nep.in asks for a
-    seven-line one."""
+    """Importing scalers also rejects adding ZBL to a model that does not have it."""
     number_of_variables = train_once(tmp_path, nep_command, 'nep_without_zbl')
     write_nep_restart(tmp_path, number_of_variables)
 
-    result = run_nep(tmp_path, nep_command, keywords_for('nep_without_zbl', zbl='1.5'))
+    result = run_nep(
+        tmp_path, nep_command, keywords_for('nep_without_zbl', zbl='1.5', import_q_scaler='1')
+    )
     assert result.returncode != 0
     assert 'nep.in has ZBL enabled, nep.txt has it disabled' in result.stdout
 
@@ -154,21 +142,23 @@ def test_zbl_added_to_a_model_without_it_is_fatal(tmp_path, nep_command):
 @pytest.mark.parametrize(
     'base_model, charge_mode, expected_text',
     [
-        ('qnep_mode2', '1', 'model: nep.in implies nep4_zbl_charge1, nep.txt holds nep4_zbl_charge2.'),
-        ('qnep_mode1', None, 'model: nep.in implies nep4_zbl, nep.txt holds nep4_zbl_charge1.'),
-        ('nep', '2', 'model: nep.in implies nep4_zbl_charge2, nep.txt holds nep4_zbl.'),
+        ('qnep_mode2', '1', 'model: nep.in implies qnep1, nep.txt holds qnep2.'),
+        ('qnep_mode1', None, 'model: nep.in implies nep, nep.txt holds qnep1.'),
+        ('nep', '2', 'model: nep.in implies qnep2, nep.txt holds nep.'),
     ],
     ids=['mode 2 model read as mode 1', 'charge model read as plain', 'plain model read as qNEP'],
 )
 def test_charge_mode_mismatch_is_fatal(
     tmp_path, nep_command, base_model, charge_mode, expected_text
 ):
-    """Swapping charge_mode 1 for 2, or a charge model for a plain one, changes the number of
-    parameters and must not be silently accepted."""
+    """Importing scalers requires the same model type, including the charge mode."""
     number_of_variables = train_once(tmp_path, nep_command, base_model)
     write_nep_restart(tmp_path, number_of_variables)
 
-    result = run_nep(tmp_path, nep_command, keywords_for(base_model, charge_mode=charge_mode))
+    result = run_nep(
+        tmp_path, nep_command,
+        keywords_for(base_model, charge_mode=charge_mode, import_q_scaler='1')
+    )
     assert result.returncode != 0
     assert expected_text in result.stdout
 
@@ -199,29 +189,24 @@ def test_prediction_ignores_a_stale_restart(tmp_path, nep_command):
 
 @pytest.mark.parametrize('row_offset', [-96, -1, 96], ids=['96 short', '1 short', '96 long'])
 def test_restart_row_count_mismatch_is_fatal(tmp_path, nep_command, row_offset):
-    """nep.restart carries no header, so its row count is the only thing that can be checked. Both
-    counts are reported because their difference is what identifies the keyword at fault."""
+    """The parameter count declared in nep.restart must match the model implied by nep.in."""
     number_of_variables = train_once(tmp_path, nep_command, 'nep')
     write_nep_restart(tmp_path, number_of_variables + row_offset)
 
     result = run_nep(tmp_path, nep_command, keywords_for('nep'))
     assert result.returncode != 0
-    assert f'nep.restart holds {number_of_variables + row_offset} rows' in result.stdout
-    assert f'nep.in implies {number_of_variables} parameters' in result.stdout
-    assert f'difference of {abs(row_offset)} rows' in result.stdout
-    assert 'nep.restart does not match the model implied by nep.in.' in result.stderr
+    assert 'nep.restart: invalid parameter count.' in result.stderr
 
 
 def test_restart_row_count_is_checked_without_a_nep_txt(tmp_path, nep_command):
-    """The row count is checked on its own merits, so a nep.restart left behind after nep.txt was
-    deleted is still rejected."""
+    """The restart parameter count is checked even when nep.txt has been deleted."""
     number_of_variables = train_once(tmp_path, nep_command, 'nep')
     write_nep_restart(tmp_path, number_of_variables + 96)
     (tmp_path / 'nep.txt').unlink()
 
     result = run_nep(tmp_path, nep_command, keywords_for('nep'))
     assert result.returncode != 0
-    assert 'nep.restart does not match the model implied by nep.in.' in result.stderr
+    assert 'nep.restart: invalid parameter count.' in result.stderr
 
 
 # the tensor models, each with the nep.in keywords of its header, a structure, and the target
@@ -248,7 +233,7 @@ DIPOLE_KEYWORDS = TENSOR_MODELS['dipole'][1]
 def write_tensor_prediction_inputs(directory, name):
     """The tensor model as nep.txt and one structure with its target as train.xyz."""
     model, _, structure, target = TENSOR_MODELS[name]
-    shutil.copy(MODELS_DIR / model, directory / 'nep.txt')
+    shutil.copy(MODELS_DIR / 'new_format' / model, directory / 'nep.txt')
     lines = (STRUCTURES_DIR / structure).read_text().splitlines()
     lines[1] = lines[1] + ' ' + target
     (directory / 'train.xyz').write_text('\n'.join(lines) + '\n')
@@ -298,10 +283,10 @@ def test_resume_of_a_tensor_model_with_matching_nep_restart_runs(tmp_path, nep_c
 def test_resume_of_a_tensor_model_with_mismatched_nep_restart_is_fatal(
     tmp_path, nep_command, name
 ):
-    """The row count of nep.restart is checked for every model type, so a tensor model resumed
+    """The parameter count of nep.restart is checked for every model type, so a tensor model resumed
     with another basis size stops instead of reading the leading rows of a larger model."""
     keywords = train_tensor_model(tmp_path, nep_command, name)
 
     result = run_nep(tmp_path, nep_command, dict(keywords, basis_size='10 8'))
     assert result.returncode != 0
-    assert 'nep.restart does not match the model implied by nep.in.' in result.stderr
+    assert 'nep.restart: invalid parameter count.' in result.stderr

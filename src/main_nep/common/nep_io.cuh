@@ -30,7 +30,7 @@ bool read_nep_restart(
   std::vector<float>& sigma);
 
 void read_nep_foundation_restart(
-  const std::string& filename, std::vector<float>& mu, std::vector<float>& sigma);
+  const NEP_Parameters& para, std::vector<float>& mu, std::vector<float>& sigma);
 
 void write_nep_restart(
   const char* filename,
@@ -39,6 +39,8 @@ void write_nep_restart(
   const std::vector<float>& sigma);
 
 void read_nep_q_scaler(NEP_Parameters& para);
+
+void read_nep_prediction_zbl(NEP_Parameters& para);
 
 void write_nep_model(
   FILE* file, NEP_Parameters& para, const float* parameters, int max_radial, int max_angular);

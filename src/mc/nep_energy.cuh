@@ -21,6 +21,7 @@
 class NEP_Energy
 {
 public:
+  std::vector<double> energy_reference;
   struct ParaMB {
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_zbl_factor = 0.0f;

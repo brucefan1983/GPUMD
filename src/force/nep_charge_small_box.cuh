@@ -240,7 +240,7 @@ static __global__ void find_descriptor_small_box(
         charge,
         charge_derivative);
 
-      g_pe[n1] += F;
+      g_pe[n1] += double(F) + (annmb.energy_reference ? annmb.energy_reference[t1] : 0.0);
       g_charge[n1] = charge;
 
       for (int d = 0; d < annmb.dim; ++d) {

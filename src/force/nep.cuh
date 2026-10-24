@@ -29,6 +29,7 @@ struct NEP_Data {
   GPU_Vector<float> Fp;
   GPU_Vector<float> sum_fxyz;
   GPU_Vector<float> descriptor_parameters_type_pair;
+  GPU_Vector<double> energy_reference;
   GPU_Vector<int> NN_radial;    // radial neighbor list
   GPU_Vector<int> NL_radial;    // radial neighbor list
   GPU_Vector<int> NN_angular;   // angular neighbor list
@@ -82,6 +83,7 @@ public:
     const float* c;
     const float* c_type_pair;
     const float* q_scaler;
+    const double* energy_reference = nullptr;
   };
 
   struct ZBL {

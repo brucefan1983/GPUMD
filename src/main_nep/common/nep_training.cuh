@@ -56,6 +56,7 @@ public:
 
   void open_loss_file(const NEP_Parameters& para, const char* columns, bool include_ediff);
   void write_model(NEP_Parameters& para, const TrainingReport& report);
+  void align_energy_reference(NEP_Parameters& para, EnergyDifference& energy_difference);
   void get_prediction_order(std::vector<std::pair<Dataset*, int>>& structures);
 
 private:

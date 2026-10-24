@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "nep_file.cuh"
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -67,4 +68,88 @@ public:
   std::vector<float> zbl_parameters;
 
   bool read(std::istream& input, std::string& error);
+  bool get_md_input(std::string& input, std::string& error) const;
+  static bool read_and_compact(
+    std::istream& input,
+    const std::vector<std::string>& active_species,
+    NEP_File& document,
+    std::string& error);
+
+private:
+  bool parse(const NEP_File& document, std::string& error);
+  bool get_md_input(const std::string& tag, std::string& input, std::string& error) const;
+  void compact_parameters(NEP_File& document, const std::vector<int>& active_to_full) const;
+  static bool fail(std::string& error, const std::string& message, std::size_t line = 0);
+  static bool read_integer(
+    const NEP_File::Field& field,
+    std::size_t index,
+    int minimum,
+    int maximum,
+    int& value,
+    std::string& error);
+  static bool read_float(
+    const NEP_File::Field& field, std::size_t index, float& value, std::string& error);
+  static const NEP_File::Field* require_field(
+    const NEP_File& document,
+    const char* name,
+    std::size_t minimum,
+    std::size_t maximum,
+    std::vector<std::string>& handled,
+    std::string& error);
+  static bool read_block(
+    const NEP_File& document,
+    const char* name,
+    int count,
+    std::vector<float>& values,
+    std::vector<std::string>& handled,
+    std::string& error);
+
+  bool read_descriptor(
+    const NEP_File& document, std::vector<std::string>& handled, std::string& error);
+  bool read_ann(
+    const NEP_File& document, std::vector<std::string>& handled, std::string& error);
+  bool read_reference(
+    const NEP_File& document, std::vector<std::string>& handled, std::string& error);
+  bool read_zbl(
+    const NEP_File& document,
+    std::vector<std::string>& fields,
+    std::vector<std::string>& blocks,
+    std::string& error);
+  void calculate_layout(int extra_inputs, int extra_outputs, int globals, int ann_count);
+  bool read_parameters(
+    const NEP_File& document, std::vector<std::string>& blocks, std::string& error);
+
+  bool get_nep_md_input(std::string& input, std::string& error) const;
+  void compact_nep(NEP_File& document, const std::vector<int>& active_to_full) const;
+  bool read_nep(
+    const NEP_File& document,
+    std::vector<std::string>& fields,
+    std::vector<std::string>& blocks,
+    std::string& error);
+  bool get_charge_md_input(std::string& input, std::string& error) const;
+  void compact_charge(NEP_File& document, const std::vector<int>& active_to_full) const;
+  bool read_charge(
+    const NEP_File& document,
+    std::vector<std::string>& fields,
+    std::vector<std::string>& blocks,
+    std::string& error);
+  bool get_tnep_md_input(std::string& input, std::string& error) const;
+  void compact_tnep(NEP_File& document, const std::vector<int>& active_to_full) const;
+  bool read_tnep(
+    const NEP_File& document,
+    std::vector<std::string>& fields,
+    std::vector<std::string>& blocks,
+    std::string& error);
+  void compact_vdw(NEP_File& document, const std::vector<int>& active_to_full) const;
+  bool read_vdw(
+    const NEP_File& document,
+    std::vector<std::string>& fields,
+    std::vector<std::string>& blocks,
+    std::string& error);
+  void compact_charge_vdw(NEP_File& document, const std::vector<int>& active_to_full) const;
+  bool read_charge_vdw(
+    const NEP_File& document,
+    std::vector<std::string>& fields,
+    std::vector<std::string>& blocks,
+    std::string& error);
 };

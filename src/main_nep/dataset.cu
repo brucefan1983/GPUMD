@@ -14,12 +14,14 @@
 */
 
 #include "dataset.cuh"
+#include "main_nep/common/nep_energy_reference.cuh"
 #include "mic.cuh"
 #include "main_nep/common/nep_parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <cmath>
 #include <cstring>
 #include <iostream>
 
@@ -128,7 +130,7 @@ void Dataset::initialize_gpu_data(NEP_Parameters& para)
   virial_ref_gpu.resize(Nc * 6);
   force_ref_gpu.resize(N * 3);
   type_weight_gpu.copy_from_host(para.type_weight_cpu.data());
-  energy_ref_gpu.copy_from_host(energy_ref_cpu.data());
+  set_energy_reference(para.energy_reference);
   energy_weight_gpu.copy_from_host(energy_weight_cpu.data());
   virial_ref_gpu.copy_from_host(virial_ref_cpu.data());
   force_ref_gpu.copy_from_host(force_ref_cpu.data());
@@ -145,6 +147,20 @@ void Dataset::initialize_gpu_data(NEP_Parameters& para)
   pbc.copy_from_host(pbc_cpu.data());
   r.copy_from_host(r_cpu.data());
   type.copy_from_host(type_cpu.data());
+}
+
+void Dataset::set_energy_reference(const std::vector<double>& reference)
+{
+  std::vector<double> residual_energy(Nc);
+  for (int n = 0; n < Nc; ++n) {
+    residual_energy[n] = reference.empty()
+      ? energy_ref_cpu[n]
+      : get_nep_energy_residual(structures[n], reference) / structures[n].num_atom;
+    if (!std::isfinite(residual_energy[n])) {
+      PRINT_INPUT_ERROR("Shifted reference energy is outside the double range.");
+    }
+  }
+  energy_ref_gpu.copy_from_host(residual_energy.data());
 }
 
 static __global__ void gpu_find_neighbor_number(
