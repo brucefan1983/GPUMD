@@ -62,6 +62,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    compute_elastic
    compute_gkma
    compute_hac
+   compute_hessian
    compute_hnema
    compute_hnemd
    compute_hnemdec
