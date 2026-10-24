@@ -17,7 +17,6 @@
 #include "nep_io.cuh"
 #include "energy_difference.cuh"
 #include "nep_parameters.cuh"
-#include "nep_energy_reference.cuh"
 #include "main_nep/structure.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -208,36 +207,36 @@ void NEP_Training::align_energy_reference(
   NEP_Parameters& para, EnergyDifference& energy_difference)
 {
   CHECK(gpuSetDevice(0));
-  double weighted_error = 0.0;
-  double weight_sum = 0.0;
+  std::vector<double> weighted_energy(para.num_types, 0.0);
+  std::vector<double> weight_sum(para.num_types, 0.0);
   for (int batch = 0; batch < num_batches; ++batch) {
     Dataset& data = train_set[batch][0];
     data.energy.copy_to_host(data.energy_cpu.data());
     for (int nc = 0; nc < data.Nc; ++nc) {
       const Structure& structure = data.structures[nc];
-      double weight = double(structure.weight) * structure.weight * structure.energy_weight;
+      const double weight = double(structure.weight) * structure.weight *
+                            structure.energy_weight / structure.num_atom;
       if (weight == 0.0) {
         continue;
       }
-      double predicted_energy = 0.0;
       for (int n = 0; n < structure.num_atom; ++n) {
-        predicted_energy += data.energy_cpu[data.Na_sum_cpu[nc] + n];
+        const int type = structure.type[n];
+        weighted_energy[type] += weight * data.energy_cpu[data.Na_sum_cpu[nc] + n];
+        weight_sum[type] += weight;
       }
-      double residual_energy = get_nep_energy_residual(structure, para.energy_reference);
-      weighted_error += weight * ((residual_energy - predicted_energy) / structure.num_atom);
-      weight_sum += weight;
     }
   }
-  double shift = weight_sum == 0.0 ? 0.0 : weighted_error / weight_sum;
-  if (!std::isfinite(shift)) {
-    PRINT_INPUT_ERROR("Fine-tune energy alignment is outside the double range.");
-  }
-  printf("Fine-tune energy reference shift = %.17g eV/atom.\n", shift);
   for (int t = 0; t < para.num_types; ++t) {
+    const double shift = weight_sum[t] == 0.0 ? 0.0 : -weighted_energy[t] / weight_sum[t];
+    if (!std::isfinite(shift)) {
+      PRINT_INPUT_ERROR("Fine-tune energy alignment is outside the double range.");
+    }
     para.energy_reference[t] += shift;
     if (!std::isfinite(para.energy_reference[t])) {
       PRINT_INPUT_ERROR("Aligned energy reference is outside the double range.");
     }
+    printf("Fine-tune energy reference shift for %s = %.17g eV/atom.\n",
+      para.elements[t].c_str(), shift);
     printf("Aligned energy reference for %s = %.17g eV.\n",
       para.elements[t].c_str(), para.energy_reference[t]);
   }
