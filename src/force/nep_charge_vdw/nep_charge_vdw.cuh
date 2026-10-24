@@ -29,7 +29,6 @@ struct NEP_Charge_VDW_Data {
   GPU_Vector<float> f12z; // 3-body or manybody partial forces
   GPU_Vector<float> Fp;
   GPU_Vector<float> sum_fxyz;
-  GPU_Vector<float> descriptor_parameters_type_pair;
   GPU_Vector<double> energy_reference;
   GPU_Vector<int> NN_radial;    // radial neighbor list
   GPU_Vector<int> NL_radial;    // radial neighbor list
@@ -63,6 +62,8 @@ public:
     float typewise_cutoff_zbl_factor = 0.0f;
     float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff
+    float rc_radial_type[NUM_ELEMENTS];
+    float rc_angular_type[NUM_ELEMENTS];
     float rcinv_radial = 0.0f;  // inverse of the radial cutoff
     float rcinv_angular = 0.0f; // inverse of the angular cutoff
     int MN_radial = 200;

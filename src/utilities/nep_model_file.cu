@@ -331,7 +331,7 @@ bool NEP_Model_File::parse(const NEP_File& document, std::string& error)
     success = parsed.read_tnep(document, fields, blocks, error);
   } else if (parsed.name == "nep_vdw") {
     success = parsed.read_vdw(document, fields, blocks, error);
-  } else if (parsed.name == "qnep2_vdw") {
+  } else if (parsed.name == "qnep1_vdw" || parsed.name == "qnep2_vdw") {
     success = parsed.read_charge_vdw(document, fields, blocks, error);
   } else {
     return fail(

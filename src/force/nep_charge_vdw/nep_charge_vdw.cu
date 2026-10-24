@@ -27,9 +27,10 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
-#include "utilities/nep_model_input.cuh"
+#include "utilities/nep_model_file.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
+#include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <cstring>
@@ -147,253 +148,145 @@ NEP_Charge_VDW::NEP_Charge_VDW(
 {
   for (const auto& line : run_input.lines()) {
     if (!line.tokens.empty() && line.tokens[0] == "dftd3") {
-      PRINT_INPUT_ERROR("The dftd3 command is not supported for qnep2_vdw.");
+      PRINT_INPUT_ERROR("The dftd3 command is not supported for charge-vdW models.");
     }
   }
 
-  NEP_Model_Input input(file_potential);
-
-  std::vector<std::string> tokens = input.get_tokens();
-  if (tokens.size() < 3) {
-    std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
-    exit(1);
+  std::ifstream input(file_potential);
+  if (!input.is_open()) {
+    const std::string error = "Cannot open potential file " + std::string(file_potential) + ".";
+    PRINT_INPUT_ERROR(error.c_str());
   }
-  if (tokens[0] == "nep4_charge1") {
-    zbl.enabled = false;
+  NEP_Model_File model;
+  std::string error;
+  if (!model.read(input, error)) {
+    PRINT_INPUT_ERROR(error.c_str());
+  }
+  if (model.name == "qnep1_vdw") {
     paramb.charge_mode = 1;
-  } else if (tokens[0] == "nep4_zbl_charge1") {
-    zbl.enabled = true;
-    paramb.charge_mode = 1;
-  } else if (tokens[0] == "nep4_charge2") {
-    zbl.enabled = false;
-    paramb.charge_mode = 2;
-  } else if (tokens[0] == "nep4_zbl_charge2") {
-    zbl.enabled = true;
+  } else if (model.name == "qnep2_vdw") {
     paramb.charge_mode = 2;
   } else {
-    std::cout << tokens[0]
-              << " is an unsupported NEP model. We only support NEP4 charge models now."
-              << std::endl;
-    exit(1);
+    PRINT_INPUT_ERROR("NEP_Charge_VDW requires a qnep1_vdw or qnep2_vdw model.");
   }
-  paramb.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  if (tokens.size() != 2 + paramb.num_types) {
-    std::cout << "The first line of nep.txt should have " << paramb.num_types << " atom symbols."
-              << std::endl;
-    exit(1);
+  paramb.num_types = model.num_types;
+  if (paramb.num_types > NUM_ELEMENTS) {
+    PRINT_INPUT_ERROR("Too many atom types in the charge-vdW model.");
   }
-
-  if (paramb.num_types == 1) {
-    printf("Use the NEP4-Charge%d potential with %d atom type.\n", 
-      paramb.charge_mode, paramb.num_types);
-  } else {
-    printf("Use the NEP4-Charge%d potential with %d atom types.\n", 
-      paramb.charge_mode, paramb.num_types);
-  }
+  printf("Use the %s potential with %d atom type%s.\n",
+    model.name.c_str(), paramb.num_types, paramb.num_types == 1 ? "" : "s");
 
   for (int n = 0; n < paramb.num_types; ++n) {
     int atomic_number = 0;
     for (int m = 0; m < NUM_ELEMENTS; ++m) {
-      if (tokens[2 + n] == ELEMENTS[m]) {
+      if (model.elements[n] == ELEMENTS[m]) {
         atomic_number = m + 1;
         break;
       }
     }
+    if (atomic_number == 0) {
+      PRINT_INPUT_ERROR("NEP-charge-vdW currently supports elements from H to Pu.");
+    }
     zbl.atomic_numbers[n] = atomic_number;
-    printf("    type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
+    printf("    type %d (%s with Z = %d).\n", n, model.elements[n].c_str(), atomic_number);
   }
 
-  // zbl
+  // ZBL settings and parameters are validated by the model reader.
+  zbl.enabled = model.enable_zbl;
+  zbl.flexible = model.flexible_zbl;
+  zbl.rc_inner = model.zbl_rc_inner;
+  zbl.rc_outer = model.zbl_rc_outer;
+  zbl.num_types = paramb.num_types;
+  paramb.use_typewise_cutoff_zbl = model.use_typewise_cutoff_zbl;
+  paramb.typewise_cutoff_zbl_factor = model.typewise_cutoff_zbl_factor;
   if (zbl.enabled) {
-    tokens = input.get_tokens();
-    if (tokens.size() != 3 && tokens.size() != 4) {
-      std::cout << "This line should be zbl rc_inner rc_outer [zbl_factor]." << std::endl;
-      exit(1);
-    }
-    zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
-    zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
-    if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
-      zbl.flexible = true;
-      printf("    has the flexible ZBL potential\n");
-    } else {
-      if (tokens.size() == 4) {
-        paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
-        paramb.use_typewise_cutoff_zbl = true;
-        printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
-          paramb.typewise_cutoff_zbl_factor);
-      } else {
-        printf(
-          "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
-          zbl.rc_inner,
-          zbl.rc_outer);
+    if (zbl.flexible) {
+      if (model.zbl_parameters.size() > sizeof(zbl.para) / sizeof(zbl.para[0])) {
+        PRINT_INPUT_ERROR("Too many flexible ZBL parameters for NEP_Charge_VDW.");
       }
+      std::copy(model.zbl_parameters.begin(), model.zbl_parameters.end(), zbl.para);
+      printf("    has the flexible ZBL potential\n");
+    } else if (paramb.use_typewise_cutoff_zbl) {
+      printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
+        paramb.typewise_cutoff_zbl_factor);
+    } else {
+      printf("    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
+        zbl.rc_inner, zbl.rc_outer);
     }
   }
 
-  // cutoff
-  tokens = input.get_tokens();
-  if (tokens.size() != 5) {
-    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular.\n";
-    exit(1);
+  // Keep each element's cutoffs and use the maxima for neighbor-list allocation.
+  for (int t = 0; t < paramb.num_types; ++t) {
+    paramb.rc_radial_type[t] = model.rc_radial[t];
+    paramb.rc_angular_type[t] = model.rc_angular[t];
+    paramb.rc_radial = std::max(paramb.rc_radial, model.rc_radial[t]);
+    paramb.rc_angular = std::max(paramb.rc_angular, model.rc_angular[t]);
+    printf("    type %d: radial cutoff = %g A, angular cutoff = %g A.\n",
+      t, model.rc_radial[t], model.rc_angular[t]);
   }
-  paramb.rc_radial = get_double_from_token(tokens[1], __FILE__, __LINE__);
-  paramb.rc_angular = get_double_from_token(tokens[2], __FILE__, __LINE__);
-  printf("    radial cutoff = %g A.\n", paramb.rc_radial);
-  printf("    angular cutoff = %g A.\n", paramb.rc_angular);
-
-  int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
-  int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
-  printf("    MN_radial = %d.\n", MN_radial);
-  if (MN_radial > 819) {
-    std::cout << "The maximum number of neighbors exceeds 819. Please reduce this value."
-              << std::endl;
-    exit(1);
+  if (model.max_radial < 1 || model.max_angular < 1 ||
+      model.max_radial > 819 || model.max_angular > 819) {
+    PRINT_INPUT_ERROR("MD neighbor counts must be between 1 and 819.");
   }
-  paramb.MN_radial = int(ceil(MN_radial * 1.25));
-  paramb.MN_angular = int(ceil(MN_angular * 1.25));
+  printf("    MN_radial = %d.\n", model.max_radial);
+  printf("    MN_angular = %d.\n", model.max_angular);
+  paramb.MN_radial = int(ceil(model.max_radial * 1.25));
+  paramb.MN_angular = int(ceil(model.max_angular * 1.25));
   printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
   printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
-  // n_max 10 8
-  tokens = input.get_tokens();
-  if (tokens.size() != 3) {
-    std::cout << "This line should be n_max n_max_radial n_max_angular." << std::endl;
-    exit(1);
-  }
-  paramb.n_max_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  paramb.n_max_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
+  paramb.n_max_radial = model.n_max_radial;
+  paramb.n_max_angular = model.n_max_angular;
+  paramb.basis_size_radial = model.basis_size_radial;
+  paramb.basis_size_angular = model.basis_size_angular;
+  paramb.L_max = model.L_max;
+  paramb.has_q_222 = model.has_q_222;
+  paramb.has_q_1111 = model.has_q_1111;
+  paramb.has_q_112 = model.has_q_112;
+  paramb.has_q_123 = model.has_q_123;
+  paramb.has_q_233 = model.has_q_233;
+  paramb.has_q_134 = model.has_q_134;
+  paramb.dim_angular = model.layout.dim_angular;
+  paramb.num_L = paramb.dim_angular / (paramb.n_max_angular + 1);
   printf("    n_max_radial = %d.\n", paramb.n_max_radial);
   printf("    n_max_angular = %d.\n", paramb.n_max_angular);
-
-  // basis_size 10 8
-  tokens = input.get_tokens();
-  if (tokens.size() != 3) {
-    std::cout << "This line should be basis_size basis_size_radial basis_size_angular."
-              << std::endl;
-    exit(1);
-  }
-  paramb.basis_size_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  paramb.basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
   printf("    basis_size_radial = %d.\n", paramb.basis_size_radial);
   printf("    basis_size_angular = %d.\n", paramb.basis_size_angular);
-
-  // l_max
-  tokens = input.get_tokens();
-  if (tokens.size() < 4) {
-    std::cout << "This line should be l_max l_max_3body has_q_222 has_q_1111 [has_q_112] [has_q_123] [has_q_233] [has_q_134]." << std::endl;
-    exit(1);
-  }
-
-  paramb.L_max = get_int_from_token(tokens[1], __FILE__, __LINE__);
   printf("    l_max_3body = %d.\n", paramb.L_max);
-  paramb.num_L = paramb.L_max;
-
-  paramb.has_q_222 = get_int_from_token(tokens[2], __FILE__, __LINE__);
-  paramb.has_q_1111 = get_int_from_token(tokens[3], __FILE__, __LINE__);
-  if (tokens.size() >= 5) {
-    paramb.has_q_112 = get_int_from_token(tokens[4], __FILE__, __LINE__);
-  }
-  if (tokens.size() >= 6) {
-    paramb.has_q_123 = get_int_from_token(tokens[5], __FILE__, __LINE__);
-  }
-  if (tokens.size() >= 7) {
-    paramb.has_q_233 = get_int_from_token(tokens[6], __FILE__, __LINE__);
-  }
-  if (tokens.size() >= 8) {
-    paramb.has_q_134 = get_int_from_token(tokens[7], __FILE__, __LINE__);
-  }
   printf("    has_q_222 = %d.\n", paramb.has_q_222);
   printf("    has_q_1111 = %d.\n", paramb.has_q_1111);
   printf("    has_q_112 = %d.\n", paramb.has_q_112);
   printf("    has_q_123 = %d.\n", paramb.has_q_123);
   printf("    has_q_233 = %d.\n", paramb.has_q_233);
   printf("    has_q_134 = %d.\n", paramb.has_q_134);
-  if (paramb.has_q_222) {
-    paramb.num_L += 1;
-  }
-  if (paramb.has_q_1111) {
-    paramb.num_L += 1;
-  }
-  if (paramb.has_q_112) {
-    paramb.num_L += 1;
-  }
-  if (paramb.has_q_123) {
-    paramb.num_L += 1;
-  }
-  if (paramb.has_q_233) {
-    paramb.num_L += 1;
-  }
-  if (paramb.has_q_134) {
-    paramb.num_L += 1;
-  }
 
-  paramb.dim_angular = (paramb.n_max_angular + 1) * paramb.num_L;
+  annmb.num_neurons1 = model.num_neurons1;
+  annmb.dim = model.layout.dim;
+  annmb.num_para_ann = model.layout.number_of_variables_ann;
+  annmb.num_para = model.layout.number_of_variables;
+  printf("    ANN = %d-%d-3.\n", annmb.dim, annmb.num_neurons1);
+  printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
+  printf("    number of descriptor parameters = %d.\n", model.layout.number_of_variables_descriptor);
+  printf("    total number of parameters = %d.\n", annmb.num_para);
 
-  // ANN
-  tokens = input.get_tokens();
-  if (tokens.size() != 3) {
-    std::cout << "This line should be ANN num_neurons 0." << std::endl;
-    exit(1);
-  }
-  annmb.num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  annmb.dim = (paramb.n_max_radial + 1) + paramb.dim_angular;
-  printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
-
-  // calculated parameters:
-  rc = paramb.rc_radial; // largest cutoff
+  rc = paramb.rc_radial;
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
-
-  annmb.num_para_ann = (annmb.dim + 3) * annmb.num_neurons1 * paramb.num_types + 2;
-
-  printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
-  int num_para_descriptor =
-    paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
-                           (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-  printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
-  annmb.num_para = annmb.num_para_ann + num_para_descriptor;
-  printf("    total number of parameters = %d.\n", annmb.num_para);
-
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
 
-  // NN and descriptor parameters
-  std::vector<float> parameters(annmb.num_para + annmb.dim);
-  for (int n = 0; n < annmb.num_para + annmb.dim; ++n) {
-    tokens = input.get_tokens();
-    parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-  }
-  std::vector<float> descriptor_parameters = input.get_descriptor_parameters_type_pair(
-    parameters,
-    annmb.num_para_ann,
-    paramb.num_types,
-    paramb.n_max_radial,
-    paramb.n_max_angular,
-    paramb.basis_size_radial,
-    paramb.basis_size_angular);
-  nep_data.parameters.resize(annmb.num_para + annmb.dim);
+  // Native model files already store descriptor parameters in type-pair-major order.
+  std::vector<float> parameters = model.parameters;
+  parameters.insert(parameters.end(), model.q_scaler.begin(), model.q_scaler.end());
+  nep_data.parameters.resize(parameters.size());
   nep_data.parameters.copy_from_host(parameters.data());
-  nep_data.descriptor_parameters_type_pair.resize(num_para_descriptor);
-  nep_data.descriptor_parameters_type_pair.copy_from_host(descriptor_parameters.data());
   update_potential(nep_data.parameters.data(), annmb);
-  annmb.c_type_pair = nep_data.descriptor_parameters_type_pair.data();
+  annmb.c_type_pair = annmb.c;
   annmb.q_scaler = nep_data.parameters.data() + annmb.num_para;
-  if (!input.energy_reference().empty()) {
-    nep_data.energy_reference.resize(input.energy_reference().size());
-    nep_data.energy_reference.copy_from_host(input.energy_reference().data());
-    annmb.energy_reference = nep_data.energy_reference.data();
-  }
-
-  // flexible zbl potential parameters
-  if (zbl.flexible) {
-    int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
-    for (int d = 0; d < 10 * num_type_zbl; ++d) {
-      tokens = input.get_tokens();
-      zbl.para[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-    }
-    zbl.num_types = paramb.num_types;
-  }
+  nep_data.energy_reference.resize(model.energy_reference.size());
+  nep_data.energy_reference.copy_from_host(model.energy_reference.data());
+  annmb.energy_reference = nep_data.energy_reference.data();
 
   // charge related parameters and data
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
@@ -437,7 +330,7 @@ NEP_Charge_VDW::~NEP_Charge_VDW(void)
 
 void NEP_Charge_VDW::update_potential(float* parameters, ANN& ann)
 {
-  const int num_outputs = 2;
+  const int num_outputs = 3; // energy, charge, and dispersion
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
     ann.w0[t] = pointer;
