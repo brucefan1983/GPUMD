@@ -47,6 +47,7 @@ Caveats
 
 * Choose the basin threshold, dephasing, and correlation times for the system of interest.
   The displacement test does not align translations, rotations, or atom permutations.
-* A detected escape triggers step-by-step block replay; simultaneous escapes select the lowest replica index.
-  An escape followed by a return before a block-end check can be missed. Use ``event 1`` to check every step.
+* Escapes are detected only at block ends, for every replica alike: an escape followed by a return within a block is not an event.
+  Simultaneous escapes select the lowest replica index, and the physical clock has a resolution of ``event`` steps.
+  Use ``event 1`` to check every step; a larger interval saves quenches and should be much shorter than the mean escape time.
 * ``run`` counts correlation and parallel MD steps, not accelerated physical time; see :ref:`replica_kw_run`.
