@@ -162,12 +162,8 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   if (!model.read(input, error)) {
     PRINT_INPUT_ERROR(error.c_str());
   }
-  if (model.name == "qnep1_vdw") {
-    paramb.charge_mode = 1;
-  } else if (model.name == "qnep2_vdw") {
-    paramb.charge_mode = 2;
-  } else {
-    PRINT_INPUT_ERROR("NEP_Charge_VDW requires a qnep1_vdw or qnep2_vdw model.");
+  if (model.name != "qnep2_vdw") {
+    PRINT_INPUT_ERROR("NEP_Charge_VDW requires a qnep2_vdw model.");
   }
   paramb.num_types = model.num_types;
   if (paramb.num_types > NUM_ELEMENTS) {
@@ -316,9 +312,6 @@ NEP_Charge_VDW::NEP_Charge_VDW(
     ewald.initialize(charge_para.alpha);
   }
   charge_para.two_alpha_over_sqrt_pi = 2.0f * charge_para.alpha / sqrt(float(PI));
-  charge_para.A = erfc(float(PI)) / (full_rc_radial * full_rc_radial);
-  charge_para.A += charge_para.two_alpha_over_sqrt_pi * exp(-float(PI * PI)) / full_rc_radial;
-  charge_para.B = - erfc(float(PI)) / full_rc_radial - charge_para.A * full_rc_radial;
   nep_data.D_real.resize(num_atoms);
   nep_data.charge.resize(num_atoms);
   nep_data.charge_derivative.resize(num_atoms * annmb.dim);
@@ -1171,96 +1164,6 @@ static __global__ void find_force_ZBL(
   }
 }
 
-static __global__ void find_force_charge_real_space(
-  const int N,
-  const NEP_Charge_VDW::Charge_Para charge_para,
-  const int N1,
-  const int N2,
-  const Box box,
-  const int* g_NN,
-  const int* g_NL,
-  const float* g_charge,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
-  double* g_fx,
-  double* g_fy,
-  double* g_fz,
-  double* g_virial,
-  double* g_pe,
-  float* g_D_real)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 < N2) {
-    float s_fx = 0.0f;
-    float s_fy = 0.0f;
-    float s_fz = 0.0f;
-    float s_sxx = 0.0f;
-    float s_sxy = 0.0f;
-    float s_sxz = 0.0f;
-    float s_syx = 0.0f;
-    float s_syy = 0.0f;
-    float s_syz = 0.0f;
-    float s_szx = 0.0f;
-    float s_szy = 0.0f;
-    float s_szz = 0.0f;
-    double x1 = g_x[n1];
-    double y1 = g_y[n1];
-    double z1 = g_z[n1];
-    float q1 = g_charge[n1];
-    float s_pe = -charge_para.two_alpha_over_sqrt_pi * 0.5f * q1 * q1; // self energy part
-    float D_real = -q1 * charge_para.two_alpha_over_sqrt_pi; // self energy part
-
-    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int n2 = g_NL[n1 + N * i1];
-      float q2 = g_charge[n2];
-      float qq = q1 * q2;
-      float x12 = g_x[n2] - x1;
-      float y12 = g_y[n2] - y1;
-      float z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      float r12[3] = {x12, y12, z12};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12inv = 1.0f / d12;
-
-      float erfc_r = erfc(charge_para.alpha * d12) * d12inv;
-      D_real += q2 * erfc_r;
-      s_pe += 0.5f * qq * erfc_r;
-      float f2 = erfc_r + charge_para.two_alpha_over_sqrt_pi * exp(-charge_para.alpha * charge_para.alpha * d12 * d12);
-      f2 *= -0.5f * K_C_SP * qq * d12inv * d12inv;
-      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
-      float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};
-
-      s_fx += f12[0] - f21[0];
-      s_fy += f12[1] - f21[1];
-      s_fz += f12[2] - f21[2];
-      s_sxx -= r12[0] * f12[0];
-      s_sxy -= r12[0] * f12[1];
-      s_sxz -= r12[0] * f12[2];
-      s_syx -= r12[1] * f12[0];
-      s_syy -= r12[1] * f12[1];
-      s_syz -= r12[1] * f12[2];
-      s_szx -= r12[2] * f12[0];
-      s_szy -= r12[2] * f12[1];
-      s_szz -= r12[2] * f12[2];
-    }
-    g_fx[n1] += s_fx;
-    g_fy[n1] += s_fy;
-    g_fz[n1] += s_fz;
-    g_virial[n1 + 0 * N] += s_sxx;
-    g_virial[n1 + 1 * N] += s_syy;
-    g_virial[n1 + 2 * N] += s_szz;
-    g_virial[n1 + 3 * N] += s_sxy;
-    g_virial[n1 + 4 * N] += s_sxz;
-    g_virial[n1 + 5 * N] += s_syz;
-    g_virial[n1 + 6 * N] += s_syx;
-    g_virial[n1 + 7 * N] += s_szx;
-    g_virial[n1 + 8 * N] += s_szy;
-    g_D_real[n1] += K_C_SP * D_real;
-    g_pe[n1] += K_C_SP * s_pe;
-  }
-}
-
 // large box fo MD applications
 void NEP_Charge_VDW::compute_large_box(
   Box& box,
@@ -1425,28 +1328,6 @@ void NEP_Charge_VDW::compute_large_box(
       force_per_atom,
       virial_per_atom,
       potential_per_atom);
-  }
-
-  if (paramb.charge_mode == 1) {
-    find_force_charge_real_space<<<grid_size, BLOCK_SIZE>>>(
-      N,
-      charge_para,
-      N1,
-      N2,
-      box,
-      nep_data.NN_radial.data(),
-      nep_data.NL_radial.data(),
-      nep_data.charge.data(),
-      position_per_atom.data(),
-      position_per_atom.data() + N,
-      position_per_atom.data() + N * 2,
-      force_per_atom.data(),
-      force_per_atom.data() + N,
-      force_per_atom.data() + N * 2,
-      virial_per_atom.data(),
-      potential_per_atom.data(),
-      nep_data.D_real.data());
-    GPU_CHECK_KERNEL
   }
 
   // Chain rule correction: D_real -= mean(D_real)
@@ -1701,28 +1582,6 @@ void NEP_Charge_VDW::compute_small_box(
       force_per_atom,
       virial_per_atom,
       potential_per_atom);
-  }
-
-  if (paramb.charge_mode == 1) {
-    find_force_charge_real_space_small_box<<<grid_size, BLOCK_SIZE>>>(
-      N,
-      charge_para,
-      N1,
-      N2,
-      box,
-      small_box_data.NN_radial.data(),
-      small_box_data.NL_radial.data(),
-      nep_data.charge.data(),
-      small_box_data.r12.data(),
-      small_box_data.r12.data() + size_x12,
-      small_box_data.r12.data() + size_x12 * 2,
-      force_per_atom.data(),
-      force_per_atom.data() + N,
-      force_per_atom.data() + N * 2,
-      virial_per_atom.data(),
-      potential_per_atom.data(),
-      nep_data.D_real.data());
-    GPU_CHECK_KERNEL
   }
 
   // Chain rule correction: D_real -= mean(D_real)

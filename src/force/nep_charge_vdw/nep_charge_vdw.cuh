@@ -59,7 +59,6 @@ public:
   NEP_Charge_VDW_Data nep_data;
 
   struct ParaMB {
-    int charge_mode = 0;
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_zbl_factor = 0.0f;
     float rc_radial = 0.0f;     // maximum radial cutoff
@@ -130,8 +129,6 @@ public:
     int num_kpoints_max = 1;
     float alpha = 0.5f; // 1 / (2 Angstrom)
     float two_alpha_over_sqrt_pi = 0.564189583547756f;
-    float A;
-    float B;
   };
 
   NEP_Charge_VDW(const char* file_potential, const int num_atoms, const RunInput& run_input);
