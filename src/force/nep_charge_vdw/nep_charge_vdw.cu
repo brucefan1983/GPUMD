@@ -29,6 +29,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
 #include "utilities/nep_model_file.cuh"
+#include "utilities/nep_vdw_parameters.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include <algorithm>
@@ -187,6 +188,7 @@ NEP_Charge_VDW::NEP_Charge_VDW(
       PRINT_INPUT_ERROR("NEP-charge-vdW currently supports elements from H to Pu.");
     }
     zbl.atomic_numbers[n] = atomic_number;
+    paramb.c6_ref_sqrt[n] = c6_ref_sqrt[atomic_number - 1];
     printf("    type %d (%s with Z = %d).\n", n, model.elements[n].c_str(), atomic_number);
   }
 
@@ -320,6 +322,8 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   nep_data.D_real.resize(num_atoms);
   nep_data.charge.resize(num_atoms);
   nep_data.charge_derivative.resize(num_atoms * annmb.dim);
+  nep_data.C6.resize(num_atoms);
+  nep_data.C6_derivative.resize(num_atoms * annmb.dim);
   if (need_bec) {
     nep_data.bec.resize(num_atoms * 9);
   }
@@ -435,6 +439,8 @@ static __global__ void find_descriptor(
   float* g_Fp,
   float* g_charge,
   float* g_charge_derivative,
+  float* g_C6,
+  float* g_C6_derivative,
   double* g_virial,
   float* g_sum_fxyz)
 {
@@ -516,30 +522,39 @@ static __global__ void find_descriptor(
       q[d] = q[d] * annmb.q_scaler[d];
     }
 
-      float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-      float charge = 0.0f;
-      float charge_derivative[MAX_DIM] = {0.0f};
+    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+    float charge = 0.0f;
+    float charge_derivative[MAX_DIM] = {0.0f};
+    float C6 = 0.0f;
+    float C6_derivative[MAX_DIM] = {0.0f};
 
-      apply_ann_one_layer_charge(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[t1],
-        annmb.b0[t1],
-        annmb.w1[t1],
-        annmb.b1,
-        q,
-        F,
-        Fp,
-        charge,
-        charge_derivative);
+    apply_ann_one_layer_charge_vdw(
+      annmb.dim,
+      annmb.num_neurons1,
+      annmb.w0[t1],
+      annmb.b0[t1],
+      annmb.w1[t1],
+      annmb.b1,
+      q,
+      F,
+      Fp,
+      charge,
+      charge_derivative,
+      C6,
+      C6_derivative);
 
-      g_pe[n1] += double(F) + (annmb.energy_reference ? annmb.energy_reference[t1] : 0.0);
-      g_charge[n1] = charge;
+    g_pe[n1] += double(F) + (annmb.energy_reference ? annmb.energy_reference[t1] : 0.0);
+    g_charge[n1] = charge;
+    const float SCALING_FACTOR = 0.1f;
+    float C6_exp = paramb.c6_ref_sqrt[t1] * expf(C6 * SCALING_FACTOR);
+    g_C6[n1] = C6_exp;
 
-      for (int d = 0; d < annmb.dim; ++d) {
-        g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
-        g_charge_derivative[d * N + n1] = charge_derivative[d] * annmb.q_scaler[d];
-      }
+    for (int d = 0; d < annmb.dim; ++d) {
+      g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
+      g_charge_derivative[d * N + n1] = charge_derivative[d] * annmb.q_scaler[d];
+      g_C6_derivative[d * N + n1] =
+        C6_exp * SCALING_FACTOR * C6_derivative[d] * annmb.q_scaler[d];
+    }
   }
 }
 
@@ -1323,6 +1338,8 @@ void NEP_Charge_VDW::compute_large_box(
     nep_data.Fp.data(),
     nep_data.charge.data(),
     nep_data.charge_derivative.data(),
+    nep_data.C6.data(),
+    nep_data.C6_derivative.data(),
     virial_per_atom.data(),
     nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
@@ -1599,6 +1616,8 @@ void NEP_Charge_VDW::compute_small_box(
     nep_data.Fp.data(),
     nep_data.charge.data(),
     nep_data.charge_derivative.data(),
+    nep_data.C6.data(),
+    nep_data.C6_derivative.data(),
     virial_per_atom.data(),
     nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL

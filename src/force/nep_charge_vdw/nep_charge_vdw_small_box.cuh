@@ -151,6 +151,8 @@ static __global__ void find_descriptor_small_box(
   float* g_Fp,
   float* g_charge,
   float* g_charge_derivative,
+  float* g_C6,
+  float* g_C6_derivative,
   double* g_virial,
   float* g_sum_fxyz)
 {
@@ -224,30 +226,39 @@ static __global__ void find_descriptor_small_box(
       q[d] = q[d] * annmb.q_scaler[d];
     }
 
-      float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-      float charge = 0.0f;
-      float charge_derivative[MAX_DIM] = {0.0f};
+    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+    float charge = 0.0f;
+    float charge_derivative[MAX_DIM] = {0.0f};
+    float C6 = 0.0f;
+    float C6_derivative[MAX_DIM] = {0.0f};
 
-      apply_ann_one_layer_charge(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[t1],
-        annmb.b0[t1],
-        annmb.w1[t1],
-        annmb.b1,
-        q,
-        F,
-        Fp,
-        charge,
-        charge_derivative);
+    apply_ann_one_layer_charge_vdw(
+      annmb.dim,
+      annmb.num_neurons1,
+      annmb.w0[t1],
+      annmb.b0[t1],
+      annmb.w1[t1],
+      annmb.b1,
+      q,
+      F,
+      Fp,
+      charge,
+      charge_derivative,
+      C6,
+      C6_derivative);
 
-      g_pe[n1] += double(F) + (annmb.energy_reference ? annmb.energy_reference[t1] : 0.0);
-      g_charge[n1] = charge;
+    g_pe[n1] += double(F) + (annmb.energy_reference ? annmb.energy_reference[t1] : 0.0);
+    g_charge[n1] = charge;
+    const float SCALING_FACTOR = 0.1f;
+    float C6_exp = paramb.c6_ref_sqrt[t1] * expf(C6 * SCALING_FACTOR);
+    g_C6[n1] = C6_exp;
 
-      for (int d = 0; d < annmb.dim; ++d) {
-        g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
-        g_charge_derivative[d * N + n1] = charge_derivative[d] * annmb.q_scaler[d];
-      }
+    for (int d = 0; d < annmb.dim; ++d) {
+      g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
+      g_charge_derivative[d * N + n1] = charge_derivative[d] * annmb.q_scaler[d];
+      g_C6_derivative[d * N + n1] =
+        C6_exp * SCALING_FACTOR * C6_derivative[d] * annmb.q_scaler[d];
+    }
   }
 }
 

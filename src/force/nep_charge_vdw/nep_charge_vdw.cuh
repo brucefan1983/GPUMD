@@ -46,6 +46,8 @@ struct NEP_Charge_VDW_Data {
   GPU_Vector<float> D_real;
   GPU_Vector<float> charge;
   GPU_Vector<float> charge_derivative;
+  GPU_Vector<float> C6;            // positive vdW amplitude sqrt(C6), as in training
+  GPU_Vector<float> C6_derivative; // derivative of the amplitude with respect to descriptor
   GPU_Vector<float> bec;               // BEC
 };
 
@@ -64,6 +66,7 @@ public:
     float rc_angular = 0.0f;    // maximum angular cutoff
     float rc_radial_type[NUM_ELEMENTS];
     float rc_angular_type[NUM_ELEMENTS];
+    float c6_ref_sqrt[NUM_ELEMENTS];
     int MN_radial = 200;
     int MN_angular = 100;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
