@@ -40,7 +40,8 @@ struct NEP_Charge_VDW_Data {
   GPU_Vector<float> kx;
   GPU_Vector<float> ky;
   GPU_Vector<float> kz;
-  GPU_Vector<float> G;
+  GPU_Vector<float> G_vdw;
+  GPU_Vector<float> G_vdw_virial;
   GPU_Vector<float> S_real;
   GPU_Vector<float> S_imag;
   GPU_Vector<float> D_real;
@@ -126,7 +127,6 @@ public:
   } small_box_data;
 
   struct Charge_Para {
-    int num_kpoints_max = 1;
     float alpha = 0.5f; // 1 / (2 Angstrom)
     float two_alpha_over_sqrt_pi = 0.564189583547756f;
   };
@@ -177,6 +177,8 @@ private:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
 
+  int num_kpoints = 0;
+  double kpoint_box[9] = {0.0};
   void find_k_and_G(const double* box);
 
   bool need_bec = false;

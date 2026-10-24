@@ -361,6 +361,118 @@ void NEP_Charge_VDW::update_potential(float* parameters, ANN& ann)
   ann.c = pointer;
 }
 
+static void cross_product(const float a[3], const float b[3], float c[3])
+{
+  c[0] = a[1] * b[2] - a[2] * b[1];
+  c[1] = a[2] * b[0] - a[0] * b[2];
+  c[2] = a[0] * b[1] - a[1] * b[0];
+}
+
+static float get_area(const float* a, const float* b)
+{
+  const float s1 = a[1] * b[2] - a[2] * b[1];
+  const float s2 = a[2] * b[0] - a[0] * b[2];
+  const float s3 = a[0] * b[1] - a[1] * b[0];
+  return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
+}
+
+void NEP_Charge_VDW::find_k_and_G(const double* box)
+{
+  // Alpha is fixed by the model; only a change in the physical box requires an update.
+  if (num_kpoints > 0 && std::equal(box, box + 9, kpoint_box)) {
+    return;
+  }
+
+  float h[9];
+  std::copy(box, box + 9, h);
+  const float det = h[0] * (h[4] * h[8] - h[5] * h[7]) +
+                    h[1] * (h[5] * h[6] - h[3] * h[8]) +
+                    h[2] * (h[3] * h[7] - h[4] * h[6]);
+  const float a1[3] = {h[0], h[3], h[6]};
+  const float a2[3] = {h[1], h[4], h[7]};
+  const float a3[3] = {h[2], h[5], h[8]};
+  float b1[3] = {0.0f};
+  float b2[3] = {0.0f};
+  float b3[3] = {0.0f};
+  cross_product(a2, a3, b1);
+  cross_product(a3, a1, b2);
+  cross_product(a1, a2, b3);
+
+  const float two_pi = 6.2831853f;
+  const float two_pi_over_det = two_pi / det;
+  for (int d = 0; d < 3; ++d) {
+    b1[d] *= two_pi_over_det;
+    b2[d] *= two_pi_over_det;
+    b3[d] *= two_pi_over_det;
+  }
+  const float alpha = charge_para.alpha;
+  const float alpha_factor = 0.25f / (alpha * alpha);
+  const float volume_k = two_pi * two_pi * two_pi / std::abs(det);
+  const int n1_max = alpha * two_pi * get_area(b2, b3) / volume_k;
+  const int n2_max = alpha * two_pi * get_area(b3, b1) / volume_k;
+  const int n3_max = alpha * two_pi * get_area(b1, b2) / volume_k;
+  const float ksq_max = two_pi * two_pi * alpha * alpha;
+
+  std::vector<float> cpu_kx;
+  std::vector<float> cpu_ky;
+  std::vector<float> cpu_kz;
+  std::vector<float> cpu_G_vdw;
+  std::vector<float> cpu_G_vdw_virial;
+
+  for (int n1 = 0; n1 <= n1_max; ++n1) {
+    for (int n2 = -n2_max; n2 <= n2_max; ++n2) {
+      for (int n3 = -n3_max; n3 <= n3_max; ++n3) {
+        if (n1 == 0 && (n2 < 0 || (n2 == 0 && n3 < 0))) continue;
+        const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
+        const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
+        const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
+        const float ksq = kx * kx + ky * ky + kz * kz;
+        if (ksq < ksq_max) {
+          cpu_kx.emplace_back(kx);
+          cpu_ky.emplace_back(ky);
+          cpu_kz.emplace_back(kz);
+          const float sqrt_pi = 1.77245385f;
+          if (ksq == 0.0f) {
+            // k=0 occurs once, unlike each nonzero +/-k pair.
+            cpu_G_vdw.emplace_back(
+              -std::abs(two_pi_over_det) * sqrt_pi * alpha * alpha * alpha / 12.0f);
+            cpu_G_vdw_virial.emplace_back(0.0f);
+          } else {
+            const float b2 = ksq * alpha_factor;
+            const float b = sqrt(b2);
+            const float exp_b2 = exp(-b2);
+            const float k = sqrt(ksq);
+            const float erfc_b = erfc(b);
+            const float prefactor = std::abs(two_pi_over_det) * sqrt_pi / 24.0f;
+            const float c1 = -k * ksq *
+              (sqrt_pi * erfc_b + (0.5f / b2 - 1.0f) * exp_b2 / b);
+            const float c2 = 3.0f * k * (sqrt_pi * erfc_b - exp_b2 / b);
+            cpu_G_vdw.emplace_back(prefactor * c1);
+            cpu_G_vdw_virial.emplace_back(prefactor * c2);
+          }
+        }
+      }
+    }
+  }
+
+  num_kpoints = static_cast<int>(cpu_kx.size());
+  if (num_kpoints > static_cast<int>(nep_data.kx.size())) {
+    nep_data.kx.resize(num_kpoints);
+    nep_data.ky.resize(num_kpoints);
+    nep_data.kz.resize(num_kpoints);
+    nep_data.G_vdw.resize(num_kpoints);
+    nep_data.G_vdw_virial.resize(num_kpoints);
+    nep_data.S_real.resize(num_kpoints);
+    nep_data.S_imag.resize(num_kpoints);
+  }
+  nep_data.kx.copy_from_host(cpu_kx.data(), num_kpoints);
+  nep_data.ky.copy_from_host(cpu_ky.data(), num_kpoints);
+  nep_data.kz.copy_from_host(cpu_kz.data(), num_kpoints);
+  nep_data.G_vdw.copy_from_host(cpu_G_vdw.data(), num_kpoints);
+  nep_data.G_vdw_virial.copy_from_host(cpu_G_vdw_virial.data(), num_kpoints);
+  std::copy(box, box + 9, kpoint_box);
+}
+
 static __global__ void find_neighbor_list_large_box(
   NEP_Charge_VDW::ParaMB paramb,
   const int N,
@@ -1763,6 +1875,8 @@ void NEP_Charge_VDW::compute(
   if (!box.pbc_x || !box.pbc_y || !box.pbc_z) {
     PRINT_INPUT_ERROR("Cannot use non-periodic boundaries for qNEP models.");
   }
+
+  find_k_and_G(box.cpu_h);
 
   const bool is_small_box = get_expanded_box(paramb.rc_radial, box, ebox);
   if (is_small_box) {
