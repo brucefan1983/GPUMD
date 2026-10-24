@@ -16,7 +16,7 @@
 #include "nep_long_range.cuh"
 #include "main_nep/dataset.cuh"
 #include "nep_charge_dataset.cuh"
-#include "nep_vdw_parameters.cuh"
+#include "utilities/nep_vdw_parameters.cuh"
 #include "utilities/error.cuh"
 #include <climits>
 #include <stdexcept>

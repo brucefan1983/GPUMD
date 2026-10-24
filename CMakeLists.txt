@@ -24,6 +24,7 @@ file(GLOB GPUMD_SOURCES
     src/integrate/*.cu
     src/mc/*.cu
     src/force/*.cu
+    src/force/*/*.cu
     src/measure/*.cu
     src/model/*.cu
     src/utilities/*.cu)

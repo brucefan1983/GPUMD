@@ -63,7 +63,7 @@ bool NEP_Model_File::read_and_compact(
     model.compact_tnep(parsed, active_to_full);
   } else if (model.name == "nep_vdw") {
     model.compact_vdw(parsed, active_to_full);
-  } else if (model.name == "qnep2_vdw") {
+  } else if (model.name == "qnep1_vdw" || model.name == "qnep2_vdw") {
     model.compact_charge_vdw(parsed, active_to_full);
   } else {
     return fail(error, "this model does not support element compaction.");

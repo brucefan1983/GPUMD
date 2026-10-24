@@ -28,7 +28,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "main_nep/common/nep_init.cuh"
 #include "main_nep/common/nep_io.cuh"
 #include "main_nep/common/nep_long_range.cuh"
-#include "main_nep/common/nep_vdw_parameters.cuh"
+#include "utilities/nep_vdw_parameters.cuh"
 #include "main_nep/common/nep_charge_parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
