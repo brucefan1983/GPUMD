@@ -49,6 +49,7 @@ struct NEP_Charge_VDW_Data {
   GPU_Vector<float> charge_derivative;
   GPU_Vector<float> C6;            // positive vdW amplitude sqrt(C6), as in training
   GPU_Vector<float> C6_derivative; // derivative of the amplitude with respect to descriptor
+  GPU_Vector<float> D_C6;
   GPU_Vector<float> bec;               // BEC
 };
 
@@ -180,6 +181,13 @@ private:
   int num_kpoints = 0;
   double kpoint_box[9] = {0.0};
   void find_k_and_G(const double* box);
+
+  void find_force_vdw(
+    const int N,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
 
   bool need_bec = false;
   void check_need_bec(const RunInput& run_input);

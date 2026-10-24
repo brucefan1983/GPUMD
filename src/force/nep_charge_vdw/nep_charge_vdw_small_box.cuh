@@ -262,92 +262,6 @@ static __global__ void find_descriptor_small_box(
   }
 }
 
-static __global__ void find_force_vdw_static_small_box(
-  const int N,
-  const NEP_Charge_VDW::Charge_Para charge_para,
-  const int N1,
-  const int N2,
-  const Box box,
-  const int* g_NN,
-  const int* g_NL,
-  const float* g_charge,
-  const float* __restrict__ g_x12,
-  const float* __restrict__ g_y12,
-  const float* __restrict__ g_z12,
-  double* g_fx,
-  double* g_fy,
-  double* g_fz,
-  double* g_virial,
-  double* g_pe,
-  float* g_D_C6)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 < N2) {
-    float s_fx = 0.0f;
-    float s_fy = 0.0f;
-    float s_fz = 0.0f;
-    float s_sxx = 0.0f;
-    float s_sxy = 0.0f;
-    float s_sxz = 0.0f;
-    float s_syx = 0.0f;
-    float s_syy = 0.0f;
-    float s_syz = 0.0f;
-    float s_szx = 0.0f;
-    float s_szy = 0.0f;
-    float s_szz = 0.0f;
-    float q1 = g_charge[n1];
-    float s_pe = 0.0f;
-    float D_C6 = 0.0f;
-
-    const float R6 = 729.0f; // 3^6
-
-    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int index = i1 * N + n1;
-      int n2 = g_NL[index];
-      float q2 = g_charge[n2];
-      float qq = q1 * q1 * q2 * q2;
-      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12_2 = d12 * d12;
-      float d12_4 = d12_2 * d12_2;
-      float d12_6 = d12_4 * d12_2;
-      float one_over_r6 = 1.0f / (d12_6 + R6);
-      s_pe += -0.5f * qq * one_over_r6;
-      D_C6 -= (2.0f * q1) * (q2 * q2) * one_over_r6;
-      float f2 = 3.0f * qq * d12_4 * one_over_r6 * one_over_r6;
-      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
-      float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};
-
-      s_fx += f12[0] - f21[0];
-      s_fy += f12[1] - f21[1];
-      s_fz += f12[2] - f21[2];
-      s_sxx -= r12[0] * f12[0];
-      s_sxy -= r12[0] * f12[1];
-      s_sxz -= r12[0] * f12[2];
-      s_syx -= r12[1] * f12[0];
-      s_syy -= r12[1] * f12[1];
-      s_syz -= r12[1] * f12[2];
-      s_szx -= r12[2] * f12[0];
-      s_szy -= r12[2] * f12[1];
-      s_szz -= r12[2] * f12[2];
-    }
-    g_fx[n1] += s_fx;
-    g_fy[n1] += s_fy;
-    g_fz[n1] += s_fz;
-    g_virial[n1 + 0 * N] += s_sxx;
-    g_virial[n1 + 1 * N] += s_syy;
-    g_virial[n1 + 2 * N] += s_szz;
-    g_virial[n1 + 3 * N] += s_sxy;
-    g_virial[n1 + 4 * N] += s_sxz;
-    g_virial[n1 + 5 * N] += s_syz;
-    g_virial[n1 + 6 * N] += s_syx;
-    g_virial[n1 + 7 * N] += s_szx;
-    g_virial[n1 + 8 * N] += s_szy;
-    g_D_C6[n1] = D_C6;
-    g_pe[n1] += s_pe;
-  }
-}
-
 static __global__ void find_force_radial_small_box(
   NEP_Charge_VDW::ParaMB paramb,
   NEP_Charge_VDW::ANN annmb,
@@ -363,6 +277,8 @@ static __global__ void find_force_radial_small_box(
   const float* __restrict__ g_Fp,
   const float* g_charge_derivative,
   const float* g_D_real,
+  const float* g_C6_derivative,
+  const float* g_D_C6,
   double* g_fx,
   double* g_fy,
   double* g_fz,
@@ -394,6 +310,7 @@ static __global__ void find_force_radial_small_box(
           gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
         }
         float tmp12 = g_Fp[n1 + n * N] + g_charge_derivative[n1 + n * N] * g_D_real[n1];
+        tmp12 += g_C6_derivative[n1 + n * N] * g_D_C6[n1];
         tmp12 *= gnp12 * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp12 * r12[d];
@@ -456,6 +373,8 @@ static __global__ void find_force_angular_small_box(
   const float* __restrict__ g_Fp,
   const float* g_charge_derivative,
   const float* g_D_real,
+  const float* g_C6_derivative,
+  const float* g_D_C6,
   const float* __restrict__ g_sum_fxyz,
   double* g_fx,
   double* g_fy,
@@ -468,8 +387,9 @@ static __global__ void find_force_angular_small_box(
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < paramb.dim_angular; ++d) {
-      float tmp = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] 
+      float tmp = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1]
         + g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_real[n1];
+      tmp += g_C6_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_C6[n1];
       Fp[d] = tmp;
     }
     for (int n = 0; n < paramb.n_max_angular + 1; ++n) {

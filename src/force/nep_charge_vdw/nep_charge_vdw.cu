@@ -317,6 +317,7 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   nep_data.charge_derivative.resize(num_atoms * annmb.dim);
   nep_data.C6.resize(num_atoms);
   nep_data.C6_derivative.resize(num_atoms * annmb.dim);
+  nep_data.D_C6.resize(num_atoms);
   if (need_bec) {
     nep_data.bec.resize(num_atoms * 9);
   }
@@ -972,6 +973,8 @@ static __global__ void find_force_radial(
   const float* __restrict__ g_Fp,
   const float* g_charge_derivative,
   const float* g_D_real,
+  const float* g_C6_derivative,
+  const float* g_D_C6,
   double* g_fx,
   double* g_fy,
   double* g_fz,
@@ -1026,7 +1029,9 @@ static __global__ void find_force_radial(
           gnp21 += fnp12[k] * annmb.c_type_pair[c_index_21];
         }
         float tmp12 = g_Fp[n1 + n * N] + g_charge_derivative[n1 + n * N] * g_D_real[n1];
+        tmp12 += g_C6_derivative[n1 + n * N] * g_D_C6[n1];
         float tmp21 = g_Fp[n2 + n * N] + g_charge_derivative[n2 + n * N] * g_D_real[n2];
+        tmp21 += g_C6_derivative[n2 + n * N] * g_D_C6[n2];
         tmp12 *= gnp12 * d12inv;
         tmp21 *= gnp21 * d12inv;
         for (int d = 0; d < 3; ++d) {
@@ -1082,6 +1087,8 @@ static __global__ void find_partial_force_angular(
   const float* __restrict__ g_Fp,
   const float* g_charge_derivative,
   const float* g_D_real,
+  const float* g_C6_derivative,
+  const float* g_D_C6,
   const float* __restrict__ g_sum_fxyz,
   float* g_f12x,
   float* g_f12y,
@@ -1093,8 +1100,9 @@ static __global__ void find_partial_force_angular(
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < paramb.dim_angular; ++d) {
-      float tmp = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] 
+      float tmp = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1]
         + g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_real[n1];
+      tmp += g_C6_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_C6[n1];
       Fp[d] = tmp;
     }
     for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
@@ -1296,6 +1304,166 @@ static __global__ void find_charge_self_energy(
   }
 }
 
+static __global__ void find_structure_factor(
+  const int num_kpoints,
+  const int N1,
+  const int N2,
+  const float* g_C6,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  const float* g_kx,
+  const float* g_ky,
+  const float* g_kz,
+  float* g_S_real,
+  float* g_S_imag)
+{
+  int nk = blockIdx.x * blockDim.x + threadIdx.x;
+  if (nk < num_kpoints) {
+    float S_real = 0.0f;
+    float S_imag = 0.0f;
+    for (int n = N1; n < N2; ++n) {
+      float kr = g_kx[nk] * float(g_x[n]) + g_ky[nk] * float(g_y[n]) + g_kz[nk] * float(g_z[n]);
+      const float C6 = g_C6[n];
+      float sin_kr = sin(kr);
+      float cos_kr = cos(kr);
+      S_real += C6 * cos_kr;
+      S_imag -= C6 * sin_kr;
+    }
+    g_S_real[nk] = S_real;
+    g_S_imag[nk] = S_imag;
+  }
+}
+
+static __global__ void find_force_vdw_reciprocal_space(
+  const int N,
+  const int N1,
+  const int N2,
+  const int num_kpoints,
+  const float alpha,
+  const float* g_C6,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  const float* g_kx,
+  const float* g_ky,
+  const float* g_kz,
+  const float* g_G_vdw,
+  const float* g_G_vdw_virial,
+  const float* g_S_real,
+  const float* g_S_imag,
+  float* g_D_C6,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_virial,
+  double* g_pe)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n < N2) {
+    const float C6_1 = g_C6[n];
+    const float alpha_squared = alpha * alpha;
+    const float alpha_sixth = alpha_squared * alpha_squared * alpha_squared;
+    double temp_energy_sum = 0.0;
+    float temp_virial_sum[6] = {0.0f};
+    float temp_force_sum[3] = {0.0f};
+    float temp_D_C6_sum = 0.0f;
+    for (int nk = 0; nk < num_kpoints; ++nk) {
+      const float kx = g_kx[nk];
+      const float ky = g_ky[nk];
+      const float kz = g_kz[nk];
+      const float kr = kx * float(g_x[n]) + ky * float(g_y[n]) + kz * float(g_z[n]);
+      const float G = g_G_vdw[nk];
+      const float H = g_G_vdw_virial[nk];
+      const float S_real = g_S_real[nk];
+      const float S_imag = g_S_imag[nk];
+      float sin_kr = sin(kr);
+      float cos_kr = cos(kr);
+      const float imag_term = G * (S_real * sin_kr + S_imag * cos_kr);
+      const float SE = S_real * cos_kr - S_imag * sin_kr;
+      const float GSE = G * SE;
+      // Use the per-atom partition of MD Ewald; summing C6_1 * SE gives |S|^2.
+      const float C6_GSE = C6_1 * GSE;
+      const float C6_HSE = C6_1 * H * SE;
+      temp_energy_sum += C6_GSE;
+      temp_virial_sum[0] += C6_GSE - C6_HSE * kx * kx; // xx
+      temp_virial_sum[1] += C6_GSE - C6_HSE * ky * ky; // yy
+      temp_virial_sum[2] += C6_GSE - C6_HSE * kz * kz; // zz
+      temp_virial_sum[3] -= C6_HSE * kx * ky; // xy
+      temp_virial_sum[4] -= C6_HSE * ky * kz; // yz
+      temp_virial_sum[5] -= C6_HSE * kz * kx; // zx
+      temp_D_C6_sum += GSE;
+      temp_force_sum[0] += kx * imag_term;
+      temp_force_sum[1] += ky * imag_term;
+      temp_force_sum[2] += kz * imag_term;
+    }
+    // Remove the r=0 self interaction contained in the structure factor.
+    g_pe[n] += temp_energy_sum + double(alpha_sixth) * C6_1 * C6_1 / 12.0;
+    g_virial[n + 0 * N] += temp_virial_sum[0];
+    g_virial[n + 1 * N] += temp_virial_sum[1];
+    g_virial[n + 2 * N] += temp_virial_sum[2];
+    g_virial[n + 3 * N] += temp_virial_sum[3];
+    g_virial[n + 4 * N] += temp_virial_sum[5];
+    g_virial[n + 5 * N] += temp_virial_sum[4];
+    g_virial[n + 6 * N] += temp_virial_sum[3];
+    g_virial[n + 7 * N] += temp_virial_sum[5];
+    g_virial[n + 8 * N] += temp_virial_sum[4];
+    g_D_C6[n] = 2.0f * temp_D_C6_sum + alpha_sixth * C6_1 / 6.0f;
+    const float C6_factor = 2.0f * C6_1;
+    g_fx[n] += C6_factor * temp_force_sum[0];
+    g_fy[n] += C6_factor * temp_force_sum[1];
+    g_fz[n] += C6_factor * temp_force_sum[2];
+  }
+}
+
+void NEP_Charge_VDW::find_force_vdw(
+  const int N,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom)
+{
+  find_structure_factor<<<(num_kpoints - 1) / 64 + 1, 64>>>(
+    num_kpoints,
+    N1,
+    N2,
+    nep_data.C6.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    nep_data.kx.data(),
+    nep_data.ky.data(),
+    nep_data.kz.data(),
+    nep_data.S_real.data(),
+    nep_data.S_imag.data());
+  GPU_CHECK_KERNEL
+
+  find_force_vdw_reciprocal_space<<<(N2 - N1 - 1) / 64 + 1, 64>>>(
+    N,
+    N1,
+    N2,
+    num_kpoints,
+    charge_para.alpha,
+    nep_data.C6.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    nep_data.kx.data(),
+    nep_data.ky.data(),
+    nep_data.kz.data(),
+    nep_data.G_vdw.data(),
+    nep_data.G_vdw_virial.data(),
+    nep_data.S_real.data(),
+    nep_data.S_imag.data(),
+    nep_data.D_C6.data(),
+    force_per_atom.data(),
+    force_per_atom.data() + N,
+    force_per_atom.data() + N * 2,
+    virial_per_atom.data(),
+    potential_per_atom.data());
+  GPU_CHECK_KERNEL
+}
+
 // large box fo MD applications
 void NEP_Charge_VDW::compute_large_box(
   Box& box,
@@ -1475,6 +1643,9 @@ void NEP_Charge_VDW::compute_large_box(
   zero_mean_D_real<<<1, 1024>>>(N, nep_data.D_real.data());
   GPU_CHECK_KERNEL
 
+  find_force_vdw(
+    N, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1491,6 +1662,8 @@ void NEP_Charge_VDW::compute_large_box(
     nep_data.Fp.data(),
     nep_data.charge_derivative.data(),
     nep_data.D_real.data(),
+    nep_data.C6_derivative.data(),
+    nep_data.D_C6.data(),
     force_per_atom.data(),
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2,
@@ -1513,6 +1686,8 @@ void NEP_Charge_VDW::compute_large_box(
     nep_data.Fp.data(),
     nep_data.charge_derivative.data(),
     nep_data.D_real.data(),
+    nep_data.C6_derivative.data(),
+    nep_data.D_C6.data(),
     nep_data.sum_fxyz.data(),
     nep_data.f12x.data(),
     nep_data.f12y.data(),
@@ -1738,6 +1913,9 @@ void NEP_Charge_VDW::compute_small_box(
   zero_mean_D_real<<<1, 1024>>>(N, nep_data.D_real.data());
   GPU_CHECK_KERNEL
 
+  find_force_vdw(
+    N, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1753,6 +1931,8 @@ void NEP_Charge_VDW::compute_small_box(
     nep_data.Fp.data(),
     nep_data.charge_derivative.data(),
     nep_data.D_real.data(),
+    nep_data.C6_derivative.data(),
+    nep_data.D_C6.data(),
     force_per_atom.data(),
     force_per_atom.data() + N,
     force_per_atom.data() + N * 2,
@@ -1774,6 +1954,8 @@ void NEP_Charge_VDW::compute_small_box(
     nep_data.Fp.data(),
     nep_data.charge_derivative.data(),
     nep_data.D_real.data(),
+    nep_data.C6_derivative.data(),
+    nep_data.D_C6.data(),
     nep_data.sum_fxyz.data(),
     force_per_atom.data(),
     force_per_atom.data() + N,
