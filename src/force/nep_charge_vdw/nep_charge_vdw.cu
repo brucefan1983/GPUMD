@@ -188,7 +188,7 @@ NEP_Charge_VDW::NEP_Charge_VDW(
       PRINT_INPUT_ERROR("NEP-charge-vdW currently supports elements from H to Pu.");
     }
     zbl.atomic_numbers[n] = atomic_number;
-    paramb.c6_ref_sqrt[n] = c6_ref_sqrt[atomic_number - 1];
+    annmb.c6_ref_sqrt[n] = c6_ref_sqrt[atomic_number - 1];
     printf("    type %d (%s with Z = %d).\n", n, model.elements[n].c_str(), atomic_number);
   }
 
@@ -546,7 +546,7 @@ static __global__ void find_descriptor(
     g_pe[n1] += double(F) + (annmb.energy_reference ? annmb.energy_reference[t1] : 0.0);
     g_charge[n1] = charge;
     const float SCALING_FACTOR = 0.1f;
-    float C6_exp = paramb.c6_ref_sqrt[t1] * expf(C6 * SCALING_FACTOR);
+    float C6_exp = annmb.c6_ref_sqrt[t1] * expf(C6 * SCALING_FACTOR);
     g_C6[n1] = C6_exp;
 
     for (int d = 0; d < annmb.dim; ++d) {

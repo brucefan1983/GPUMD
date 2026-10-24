@@ -66,7 +66,6 @@ public:
     float rc_angular = 0.0f;    // maximum angular cutoff
     float rc_radial_type[NUM_ELEMENTS];
     float rc_angular_type[NUM_ELEMENTS];
-    float c6_ref_sqrt[NUM_ELEMENTS];
     int MN_radial = 200;
     int MN_angular = 100;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
@@ -101,6 +100,7 @@ public:
     const float* c_type_pair;
     const float* q_scaler;
     const double* energy_reference = nullptr;
+    float c6_ref_sqrt[NUM_ELEMENTS]; // reference amplitudes for the vdW ANN output
   };
 
   struct ZBL {

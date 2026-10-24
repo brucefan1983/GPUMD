@@ -250,7 +250,7 @@ static __global__ void find_descriptor_small_box(
     g_pe[n1] += double(F) + (annmb.energy_reference ? annmb.energy_reference[t1] : 0.0);
     g_charge[n1] = charge;
     const float SCALING_FACTOR = 0.1f;
-    float C6_exp = paramb.c6_ref_sqrt[t1] * expf(C6 * SCALING_FACTOR);
+    float C6_exp = annmb.c6_ref_sqrt[t1] * expf(C6 * SCALING_FACTOR);
     g_C6[n1] = C6_exp;
 
     for (int d = 0; d < annmb.dim; ++d) {
