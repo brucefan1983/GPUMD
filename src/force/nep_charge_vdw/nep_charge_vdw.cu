@@ -1164,6 +1164,26 @@ static __global__ void find_force_ZBL(
   }
 }
 
+// Remove the r=0 self interaction from the reciprocal-space charge energy.
+// Its force and virial enter through D_real and the descriptor derivatives.
+static __global__ void find_charge_self_energy(
+  const NEP_Charge_VDW::Charge_Para charge_para,
+  const int N1,
+  const int N2,
+  const float* g_charge,
+  double* g_pe,
+  float* g_D_real)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    const float q1 = g_charge[n1];
+    const float s_pe = -charge_para.two_alpha_over_sqrt_pi * 0.5f * q1 * q1;
+    const float D_real = -q1 * charge_para.two_alpha_over_sqrt_pi;
+    g_D_real[n1] += K_C_SP * D_real;
+    g_pe[n1] += K_C_SP * s_pe;
+  }
+}
+
 // large box fo MD applications
 void NEP_Charge_VDW::compute_large_box(
   Box& box,
@@ -1329,6 +1349,15 @@ void NEP_Charge_VDW::compute_large_box(
       virial_per_atom,
       potential_per_atom);
   }
+
+  find_charge_self_energy<<<grid_size, BLOCK_SIZE>>>(
+    charge_para,
+    N1,
+    N2,
+    nep_data.charge.data(),
+    potential_per_atom.data(),
+    nep_data.D_real.data());
+  GPU_CHECK_KERNEL
 
   // Chain rule correction: D_real -= mean(D_real)
   zero_mean_D_real<<<1, 1024>>>(N, nep_data.D_real.data());
@@ -1583,6 +1612,15 @@ void NEP_Charge_VDW::compute_small_box(
       virial_per_atom,
       potential_per_atom);
   }
+
+  find_charge_self_energy<<<grid_size, BLOCK_SIZE>>>(
+    charge_para,
+    N1,
+    N2,
+    nep_data.charge.data(),
+    potential_per_atom.data(),
+    nep_data.D_real.data());
+  GPU_CHECK_KERNEL
 
   // Chain rule correction: D_real -= mean(D_real)
   zero_mean_D_real<<<1, 1024>>>(N, nep_data.D_real.data());
