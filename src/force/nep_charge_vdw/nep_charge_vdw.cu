@@ -24,6 +24,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep_charge_vdw.cuh"
 #include "nep_charge_vdw_small_box.cuh"
 #include "utilities/common.cuh"
+#include "utilities/compact_nep.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
@@ -49,8 +50,6 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
 
 void NEP_Charge_VDW::check_ewald_pppm(const RunInput& run_input)
 {
-  // With alpha = pi / rc_radial, the default spacing keeps alpha * spacing at or below pi / 6.
-  pppm_spacing = std::fmin(1.0, paramb.rc_radial / 6.0);
   for (const auto& line : run_input.lines()) {
     const std::vector<std::string>& tokens = line.tokens;
     if (!tokens.empty() && tokens[0] == "kspace") {
@@ -286,8 +285,27 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   nep_data.energy_reference.copy_from_host(model.energy_reference.data());
   annmb.energy_reference = nep_data.energy_reference.data();
 
+  // Training fixes alpha using the largest radial cutoff in the full model.
+  // Removing inactive elements must not change this long-range model parameter.
+  float full_rc_radial = paramb.rc_radial;
+  const std::string original = get_original_nep_filename(file_potential);
+  if (original != file_potential) {
+    std::ifstream full_input(original);
+    if (!full_input.is_open()) {
+      const std::string error = "Cannot open original potential file " + original + ".";
+      PRINT_INPUT_ERROR(error.c_str());
+    }
+    NEP_Model_File full_model;
+    if (!full_model.read(full_input, error)) {
+      PRINT_INPUT_ERROR(error.c_str());
+    }
+    full_rc_radial = *std::max_element(full_model.rc_radial.begin(), full_model.rc_radial.end());
+  }
+
   // charge related parameters and data
-  charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
+  charge_para.alpha = float(PI) / full_rc_radial;
+  // Keep alpha * spacing at or below pi / 6, independently of element compaction.
+  pppm_spacing = std::fmin(1.0, full_rc_radial / 6.0);
   check_ewald_pppm(run_input);
   check_need_bec(run_input);
   if (use_pppm) {
@@ -296,9 +314,9 @@ NEP_Charge_VDW::NEP_Charge_VDW(
     ewald.initialize(charge_para.alpha);
   }
   charge_para.two_alpha_over_sqrt_pi = 2.0f * charge_para.alpha / sqrt(float(PI));
-  charge_para.A = erfc(float(PI)) / (paramb.rc_radial * paramb.rc_radial);
-  charge_para.A += charge_para.two_alpha_over_sqrt_pi * exp(-float(PI * PI)) / paramb.rc_radial;
-  charge_para.B = - erfc(float(PI)) / paramb.rc_radial - charge_para.A * paramb.rc_radial;
+  charge_para.A = erfc(float(PI)) / (full_rc_radial * full_rc_radial);
+  charge_para.A += charge_para.two_alpha_over_sqrt_pi * exp(-float(PI * PI)) / full_rc_radial;
+  charge_para.B = - erfc(float(PI)) / full_rc_radial - charge_para.A * full_rc_radial;
   nep_data.D_real.resize(num_atoms);
   nep_data.charge.resize(num_atoms);
   nep_data.charge_derivative.resize(num_atoms * annmb.dim);
