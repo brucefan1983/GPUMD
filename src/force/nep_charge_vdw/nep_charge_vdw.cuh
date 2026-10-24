@@ -60,12 +60,10 @@ public:
     int charge_mode = 0;
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_zbl_factor = 0.0f;
-    float rc_radial = 0.0f;     // radial cutoff
-    float rc_angular = 0.0f;    // angular cutoff
+    float rc_radial = 0.0f;     // maximum radial cutoff
+    float rc_angular = 0.0f;    // maximum angular cutoff
     float rc_radial_type[NUM_ELEMENTS];
     float rc_angular_type[NUM_ELEMENTS];
-    float rcinv_radial = 0.0f;  // inverse of the radial cutoff
-    float rcinv_angular = 0.0f; // inverse of the angular cutoff
     int MN_radial = 200;
     int MN_angular = 100;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial

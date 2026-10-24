@@ -270,8 +270,6 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   printf("    total number of parameters = %d.\n", annmb.num_para);
 
   rc = paramb.rc_radial;
-  paramb.rcinv_radial = 1.0f / paramb.rc_radial;
-  paramb.rcinv_angular = 1.0f / paramb.rc_angular;
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
@@ -370,6 +368,7 @@ static __global__ void find_neighbor_list_large_box(
     return;
   }
 
+  int t1 = g_type[n1];
   double x1 = g_x[n1];
   double y1 = g_y[n1];
   double z1 = g_z[n1];
@@ -378,13 +377,14 @@ static __global__ void find_neighbor_list_large_box(
 
   for (int i1 = 0; i1 < g_NN_global[n1]; ++i1) {
     int n2 = g_NL_global[n1 + N * i1];
+    int t2 = g_type[n2];
     float x12 = g_x[n2] - x1;
     float y12 = g_y[n2] - y1;
     float z12 = g_z[n2] - z1;
     apply_mic(box, x12, y12, z12);
     float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
-    float rc_radial = paramb.rc_radial;
-    float rc_angular = paramb.rc_angular;
+    float rc_radial = (paramb.rc_radial_type[t1] + paramb.rc_radial_type[t2]) * 0.5f;
+    float rc_angular = (paramb.rc_angular_type[t1] + paramb.rc_angular_type[t2]) * 0.5f;
     if (d12_square >= rc_radial * rc_radial) {
       continue;
     }
@@ -438,7 +438,7 @@ static __global__ void find_descriptor(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_radial;
+      float rc = (paramb.rc_radial_type[t1] + paramb.rc_radial_type[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
       float fn12[MAX_NUM_N];
@@ -467,7 +467,7 @@ static __global__ void find_descriptor(
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         int t2 = g_type[n2];
-        float rc = paramb.rc_angular;
+        float rc = (paramb.rc_angular_type[t1] + paramb.rc_angular_type[t2]) * 0.5f;
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];
@@ -639,7 +639,7 @@ static __global__ void find_bec_radial(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      float rc = paramb.rc_radial;
+      float rc = (paramb.rc_radial_type[t1] + paramb.rc_radial_type[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -739,7 +739,7 @@ static __global__ void find_bec_angular(
       float f12[3] = {0.0f};
       float fc12, fcp12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_angular;
+      float rc = (paramb.rc_angular_type[t1] + paramb.rc_angular_type[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
 
@@ -870,7 +870,7 @@ static __global__ void find_force_radial(
       float f12[3] = {0.0f};
       float f21[3] = {0.0f};
       float fc12, fcp12;
-      float rc = paramb.rc_radial;
+      float rc = (paramb.rc_radial_type[t1] + paramb.rc_radial_type[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -982,7 +982,7 @@ static __global__ void find_partial_force_angular(
       float f12[3] = {0.0f};
       float fc12, fcp12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_angular;
+      float rc = (paramb.rc_angular_type[t1] + paramb.rc_angular_type[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
 

@@ -77,12 +77,16 @@ static __global__ void find_neighbor_list_small_box(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
+    int t1 = g_type[n1];
     float x1 = g_x[n1];
     float y1 = g_y[n1];
     float z1 = g_z[n1];
     int count_radial = 0;
     int count_angular = 0;
     for (int n2 = N1; n2 < N2; ++n2) {
+      int t2 = g_type[n2];
+      float rc_radial = (paramb.rc_radial_type[t1] + paramb.rc_radial_type[t2]) * 0.5f;
+      float rc_angular = (paramb.rc_angular_type[t1] + paramb.rc_angular_type[t2]) * 0.5f;
       for (int ia = 0; ia < ebox.num_cells[0]; ++ia) {
         for (int ib = 0; ib < ebox.num_cells[1]; ++ib) {
           for (int ic = 0; ic < ebox.num_cells[2]; ++ic) {
@@ -102,9 +106,6 @@ static __global__ void find_neighbor_list_small_box(
             apply_mic_small_box(box, ebox, x12, y12, z12);
 
             float distance_square = float(x12 * x12 + y12 * y12 + z12 * z12);
-
-            float rc_radial = paramb.rc_radial;
-            float rc_angular = paramb.rc_angular;
 
             if (distance_square < rc_radial * rc_radial) {
               g_NL_radial[count_radial * N + n1] = n2;
@@ -166,7 +167,7 @@ static __global__ void find_descriptor_small_box(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_radial;
+      float rc = (paramb.rc_radial_type[t1] + paramb.rc_radial_type[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
       float fn12[MAX_NUM_N];
@@ -192,7 +193,7 @@ static __global__ void find_descriptor_small_box(
         float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
         float fc12;
         int t2 = g_type[n2];
-        float rc = paramb.rc_angular;
+        float rc = (paramb.rc_angular_type[t1] + paramb.rc_angular_type[t2]) * 0.5f;
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];
@@ -452,7 +453,7 @@ static __global__ void find_force_radial_small_box(
       float d12inv = 1.0f / d12;
       float f12[3] = {0.0f};
       float fc12, fcp12;
-      float rc = paramb.rc_radial;
+      float rc = (paramb.rc_radial_type[t1] + paramb.rc_radial_type[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -561,7 +562,7 @@ static __global__ void find_force_angular_small_box(
       float f12[3] = {0.0f};
       float fc12, fcp12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_angular;
+      float rc = (paramb.rc_angular_type[t1] + paramb.rc_angular_type[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -663,7 +664,7 @@ static __global__ void find_bec_radial_small_box(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      float rc = paramb.rc_radial;
+      float rc = (paramb.rc_radial_type[t1] + paramb.rc_radial_type[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -756,7 +757,7 @@ static __global__ void find_bec_angular_small_box(
       float f12[3] = {0.0f};
       float fc12, fcp12;
       int t2 = g_type[n2];
-      float rc = paramb.rc_angular;
+      float rc = (paramb.rc_angular_type[t1] + paramb.rc_angular_type[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
 
