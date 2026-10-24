@@ -14,7 +14,6 @@
 */
 
 #pragma once
-#include "force/dftd3.cuh"
 #include "force/neighbor.cuh"
 #include "force/potential.cuh"
 #include "utilities/common.cuh"
@@ -156,7 +155,6 @@ private:
   ANN annmb;
   ZBL zbl;
   ExpandedBox ebox;
-  DFTD3 dftd3;
   Charge_Para charge_para;
   Ewald ewald;
   PPPM pppm;
@@ -187,6 +185,4 @@ private:
   bool use_pppm = true; // use PPPM by default
   double pppm_spacing;
   void check_ewald_pppm(const RunInput& run_input);
-  bool has_dftd3 = false;
-  void initialize_dftd3(const RunInput& run_input);
 };

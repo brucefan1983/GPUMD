@@ -24,7 +24,6 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep_charge_vdw.cuh"
 #include "nep_charge_vdw_small_box.cuh"
 #include "utilities/common.cuh"
-#include "utilities/compact_nep.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
@@ -143,33 +142,15 @@ static bool check_need_peratom_virial(const RunInput& run_input)
   return false;
 }
 
-void NEP_Charge_VDW::initialize_dftd3(const RunInput& run_input)
-{
-  has_dftd3 = false;
-  for (const auto& line : run_input.lines()) {
-    const std::vector<std::string>& tokens = line.tokens;
-    if (!tokens.empty() && tokens[0] == "dftd3") {
-      has_dftd3 = true;
-      if (tokens.size() != 4) {
-        std::cout << "dftd3 must have 3 parameters\n";
-        exit(1);
-      }
-      std::string xc_functional = tokens[1];
-      float rc_potential = get_double_from_token(tokens[2], __FILE__, __LINE__);
-      float rc_coordination_number = get_double_from_token(tokens[3], __FILE__, __LINE__);
-      dftd3.initialize(
-        xc_functional,
-        rc_potential,
-        rc_coordination_number,
-        get_first_potential_filename(run_input));
-      break;
-    }
-  }
-}
-
 NEP_Charge_VDW::NEP_Charge_VDW(
   const char* file_potential, const int num_atoms, const RunInput& run_input)
 {
+  for (const auto& line : run_input.lines()) {
+    if (!line.tokens.empty() && line.tokens[0] == "dftd3") {
+      PRINT_INPUT_ERROR("The dftd3 command is not supported for qnep2_vdw.");
+    }
+  }
+
   NEP_Model_Input input(file_potential);
 
   std::vector<std::string> tokens = input.get_tokens();
@@ -447,8 +428,6 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
   neighbor_manager.initialize(rc, num_atoms, paramb.MN_radial);
-
-  initialize_dftd3(run_input);
 }
 
 NEP_Charge_VDW::~NEP_Charge_VDW(void)
@@ -1976,10 +1955,6 @@ void NEP_Charge_VDW::compute(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   } else {
     compute_large_box(
-      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
-  }
-  if (has_dftd3) {
-    dftd3.compute(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   }
 }
