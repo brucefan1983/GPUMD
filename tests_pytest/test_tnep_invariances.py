@@ -16,9 +16,7 @@ confirmed against doc/gpumd/output_files/polarizability_out.rst) reconstruct to 
 matrix M = [[xx, xy, zx], [xy, yy, yz], [zx, yz, zz]]; the correct rotation for a rank-2 Cartesian
 tensor under an orthogonal rotation is the congruence transform M_after = rot @ M_before @ rot.T
 (re-derived from p_i = alpha_ij E_j transforming consistently under p' = R p, E' = R E, which
-forces alpha' = R alpha R^T; cross-validated against tests/gpumd/dump_polarizability/
-test_dump_polarizability.py's existing, calorine-confirmed column<->matrix mapping -- both
-agree). Checked that GPUMD's dipole/polarizability response calculation
+forces alpha' = R alpha R^T). Checked that GPUMD's dipole/polarizability response calculation
 (src/measure/nep_response.cu and nep_response_small_box.cuh) is built from
 minimum-image-convention pairwise displacement vectors, not a raw absolute-position sum, so it is
 not vulnerable to the periodic "polarization quantum" discontinuity -- rotating+wrapping a
