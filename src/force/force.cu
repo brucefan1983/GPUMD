@@ -36,6 +36,7 @@ The driver class calculating force and related quantities.
 #include "nep.cuh"
 #include "nep_multigpu.cuh"
 #include "nep_charge.cuh"
+#include "nep_charge_vdw/nep_charge_vdw.cuh"
 #include "potential.cuh"
 #include "tersoff1988.cuh"
 #include "tersoff1989.cuh"
@@ -43,10 +44,12 @@ The driver class calculating force and related quantities.
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_model_file.cuh"
 #include "utilities/nep_model_input.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include <cstring>
+#include <sstream>
 #include <vector>
 
 Force::Force(void) {}
@@ -107,6 +110,9 @@ std::unique_ptr<Potential> Force::create_potential(
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
+  } else if (strcmp(potential_name, "qnep2_vdw") == 0) {
+    potential.reset(new NEP_Charge_VDW(tokens[1].c_str(), number_of_atoms, run_input));
+    is_nep = true;
   } else if (
     strcmp(potential_name, "nep4_charge1") == 0 ||
     strcmp(potential_name, "nep4_charge2") == 0 ||
@@ -228,9 +234,23 @@ void Force::parse_potential(
   }
   int num_types = get_number_of_types(fid_potential);
   if (NEP_Model_Input::is_new_format(potential_name)) {
-    NEP_Model_Input input(tokens[1]);
-    const std::vector<std::string> header = input.get_tokens();
-    std::strcpy(potential_name, header[0].c_str());
+    NEP_Model_File model;
+    std::ifstream input(tokens[1]);
+    std::string error;
+    if (!model.read(input, error)) {
+      PRINT_INPUT_ERROR(error.c_str());
+    }
+    // New MD models can read the native format; retain the adapter for existing models.
+    std::string tag = model.name;
+    if (tag != "qnep2_vdw") {
+      std::string md_input;
+      if (!model.get_md_input(md_input, error)) {
+        PRINT_INPUT_ERROR(error.c_str());
+      }
+      std::istringstream header(md_input);
+      header >> tag;
+    }
+    std::strcpy(potential_name, tag.c_str());
   }
   bool is_nep = false;
   std::unique_ptr<Potential> potential = create_potential(
