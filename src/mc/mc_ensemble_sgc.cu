@@ -460,7 +460,7 @@ void MC_Ensemble_SGC::compute(
     }
     // printf("        per-atom energy before swapping = %g eV.\n", pe_before_total / NN_ij_cpu);
     // printf("        per-atom energy after swapping = %g eV.\n", pe_after_total / NN_ij_cpu);
-    float energy_difference = pe_after_total - pe_before_total;
+    double energy_difference = pe_after_total - pe_before_total;
 
     if (!is_vcsgc) {
       energy_difference += mu_or_phi[index_new_species] - mu_or_phi[index_old_species];
