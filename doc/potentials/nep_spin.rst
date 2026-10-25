@@ -412,6 +412,10 @@ coordinates use
 :math:`1/\max(\operatorname{RMS}(q),\operatorname{range}(q),1)`, without
 centering. Their gain is therefore never larger than one, including for a
 constant or initially unresolved magnetic channel.
+For fresh training, :ref:`initial_para <kw_initial_para>` scales the radial
+coefficients of the fixed reference model used to compute these scalers.
+Its default of 1 retains the reference unchanged. Prediction, restart, and
+explicit scaler import reuse the stored normalization instead.
 
 Energy derivatives
 ==================

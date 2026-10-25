@@ -59,6 +59,13 @@ int main()
   snes_spin::initialize_search(para, rng, mu, sigma);
   snes_spin::initialize_search(para, same_rng, same_mu, same_sigma);
   assert(mu == same_mu && sigma == same_sigma && rng == same_rng);
+  // initial_para controls the scaler reference, never the SNES distribution.
+  const float saved_initial_para = para.initial_para;
+  para.initial_para = 0.5f;
+  same_rng.seed(12345678);
+  snes_spin::initialize_search(para, same_rng, same_mu, same_sigma);
+  assert(mu == same_mu && sigma == same_sigma && rng == same_rng);
+  para.initial_para = saved_initial_para;
   for (std::size_t i = 0; i < mu.size(); ++i) {
     assert(std::isfinite(mu[i]) && std::isfinite(sigma[i]) && sigma[i] > 0);
   }

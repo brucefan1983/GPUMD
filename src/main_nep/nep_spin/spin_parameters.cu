@@ -127,105 +127,97 @@ void Spin_Parameters::validate_spin_parameters()
   if (split_mforce_loss && !(is_lambda_m_parallel_set && is_lambda_m_perp_set)) {
     PRINT_INPUT_ERROR("Specify both lambda_m_parallel and lambda_m_perp; use 0 to disable a component.\n");
   }
-  if (spin_mode) {
-    if (version != 4) {
-      PRINT_INPUT_ERROR("Spin NEP only supports a NEP4 potential model.\n");
-    }
-    if (has_multiple_cutoffs) {
-      PRINT_INPUT_ERROR(
-        "Spin3 does not support charge/vdW or type-dependent structural cutoffs.\n");
-    }
-    if (num_hidden_layers == 2) {
-      PRINT_INPUT_ERROR("Spin NEP only supports one hidden layer.\n");
-    }
-    if (fine_tune) {
-      PRINT_INPUT_ERROR(
-        "Spin NEP fine_tune is not supported until the "
-        "species-transfer checkpoint reader is implemented.\n");
-    }
-    if (
-      spin_compress < 1 || spin_compress > 9 ||
-      spin_basis_size[0] != 8 || spin_basis_size[1] != 0 ||
-      spin_l_max[0] < 0 || spin_l_max[0] > 2 ||
-      spin_l_max[1] != 0 || spin_l_max[2] != 0 ||
-      spin_order < 1 || spin_order > 3 ||
-      (spin_soc != 0 && spin_soc != 1) ||
-      spin_cutoff <= 0.0f) {
-      PRINT_INPUT_ERROR("Unsupported unified Spin NEP O/C shape in nep.in.\n");
-    }
+  if (version != 4) {
+    PRINT_INPUT_ERROR("Spin NEP only supports a NEP4 potential model.\n");
+  }
+  if (has_multiple_cutoffs) {
+    PRINT_INPUT_ERROR(
+      "Spin3 does not support charge/vdW or type-dependent structural cutoffs.\n");
+  }
+  if (num_hidden_layers == 2) {
+    PRINT_INPUT_ERROR("Spin NEP only supports one hidden layer.\n");
+  }
+  if (fine_tune) {
+    PRINT_INPUT_ERROR(
+      "Spin NEP fine_tune is not supported until the "
+      "species-transfer checkpoint reader is implemented.\n");
+  }
+  if (
+    spin_compress < 1 || spin_compress > 9 ||
+    spin_basis_size[0] != 8 || spin_basis_size[1] != 0 ||
+    spin_l_max[0] < 0 || spin_l_max[0] > 2 ||
+    spin_l_max[1] != 0 || spin_l_max[2] != 0 ||
+    spin_order < 1 || spin_order > 3 ||
+    (spin_soc != 0 && spin_soc != 1) ||
+    spin_cutoff <= 0.0f) {
+    PRINT_INPUT_ERROR("Unsupported unified Spin NEP O/C shape in nep.in.\n");
+  }
 #ifdef USE_CJ
-    PRINT_INPUT_ERROR("Spin3 requires pair-dependent descriptor coefficients (no USE_CJ).\n");
+  PRINT_INPUT_ERROR("Spin3 requires pair-dependent descriptor coefficients (no USE_CJ).\n");
 #endif
 
-    auto resolve_active_types = [&](const std::vector<std::string>& names,
-                                    bool is_set,
-                                    std::vector<int>& active) {
-      active.assign(num_types, is_set ? 0 : 1);
-      if (!is_set) {
-        return;
-      }
-      for (const auto& name : names) {
-        auto found = std::find(elements.begin(), elements.end(), name);
-        if (found == elements.end()) {
-          PRINT_INPUT_ERROR("spin_dof_type or spin_env_type contains an unknown atom type.\n");
-        }
-        active[found - elements.begin()] = 1;
-      }
-    };
-    resolve_active_types(
-      spin_dof_type_names,
-      is_spin_dof_type_set,
-      spin_dof_type_active);
-    if (is_spin_env_type_set) {
-      resolve_active_types(
-        spin_env_type_names,
-        true,
-        spin_env_type_active);
-    } else {
-      spin_env_type_active = spin_dof_type_active;
+  auto resolve_active_types = [&](const std::vector<std::string>& names,
+                                  bool is_set,
+                                  std::vector<int>& active) {
+    active.assign(num_types, is_set ? 0 : 1);
+    if (!is_set) {
+      return;
     }
+    for (const auto& name : names) {
+      auto found = std::find(elements.begin(), elements.end(), name);
+      if (found == elements.end()) {
+        PRINT_INPUT_ERROR("spin_dof_type or spin_env_type contains an unknown atom type.\n");
+      }
+      active[found - elements.begin()] = 1;
+    }
+  };
+  resolve_active_types(
+    spin_dof_type_names,
+    is_spin_dof_type_set,
+    spin_dof_type_active);
+  if (is_spin_env_type_set) {
+    resolve_active_types(
+      spin_env_type_names,
+      true,
+      spin_env_type_active);
   } else {
-    spin_dof_type_active.assign(num_types, 0);
-    spin_env_type_active.assign(num_types, 0);
+    spin_env_type_active = spin_dof_type_active;
   }
 }
 
 void Spin_Parameters::calculate_spin_dimensions()
 {
-  dim_spin = 0;
-  if (spin_mode) {
-    const int C = spin_compress;
-    const int L = spin_l_max[0];
-    const int pairs = C * (C + 1) / 2;
-    dim_spin = 1 + 2 * C;
-    if (spin_soc && L >= 2) dim_spin += 2 * C;
-    if (spin_order >= 2) {
-      dim_spin += 2 * C;
-      if (L >= 1) dim_spin += (spin_soc ? 3 : 1) * C;
-      if (L >= 2) dim_spin += C;
-      dim_spin += C + 2 * pairs;
-      if (L >= 1) dim_spin += pairs;
-      if (L >= 2) dim_spin += pairs;
-      if (spin_soc && L >= 1) {
-        dim_spin += (C >= 2 ? 2 : 1) * C;
-      }
-      if (spin_soc && L >= 2) {
-        dim_spin += (C >= 2 ? 2 : 1) * C;
-      }
+  const int C = spin_compress;
+  const int L = spin_l_max[0];
+  const int pairs = C * (C + 1) / 2;
+  dim_spin = 1 + 2 * C;
+  if (spin_soc && L >= 2) dim_spin += 2 * C;
+  if (spin_order >= 2) {
+    dim_spin += 2 * C;
+    if (L >= 1) dim_spin += (spin_soc ? 3 : 1) * C;
+    if (L >= 2) dim_spin += C;
+    dim_spin += C + 2 * pairs;
+    if (L >= 1) dim_spin += pairs;
+    if (L >= 2) dim_spin += pairs;
+    if (spin_soc && L >= 1) {
+      dim_spin += (C >= 2 ? 2 : 1) * C;
     }
-    if (spin_order >= 3) {
-      dim_spin += C;
-      if (spin_soc && L >= 1) {
-        dim_spin += (C >= 2 ? 2 : 1) * C;
-      }
-      if (spin_soc && L >= 2) {
-        dim_spin += (C >= 2 ? 3 : 1) * C;
-      }
-      if (spin_soc && L >= 1 && C >= 3) dim_spin += C;
+    if (spin_soc && L >= 2) {
+      dim_spin += (C >= 2 ? 2 : 1) * C;
     }
-    if (dim_spin > 96) {
-      PRINT_INPUT_ERROR("Number of spin descriptors should not exceed 96.\n");
+  }
+  if (spin_order >= 3) {
+    dim_spin += C;
+    if (spin_soc && L >= 1) {
+      dim_spin += (C >= 2 ? 2 : 1) * C;
     }
+    if (spin_soc && L >= 2) {
+      dim_spin += (C >= 2 ? 3 : 1) * C;
+    }
+    if (spin_soc && L >= 1 && C >= 3) dim_spin += C;
+  }
+  if (dim_spin > 96) {
+    PRINT_INPUT_ERROR("Number of spin descriptors should not exceed 96.\n");
   }
   dim = dim_struct + dim_spin;
   if (dim > MAX_DIM_SPIN) {

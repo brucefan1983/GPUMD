@@ -9,7 +9,7 @@
    single: generalized Langevin spin dynamics
 
 :attr:`ensemble` (GLSD)
-======================
+=======================
 
 GLSD evolves both direction and magnitude of ``spin:R:3`` magnetic moments.
 It implements the generalized Langevin equation of Ma and Dudarev,
@@ -358,7 +358,7 @@ Use timestep convergence and SIB when exact fixed-length preservation
 is required.
 
 Noise, equilibrium measure and limits
-------------------------------------
+-------------------------------------
 
 Independent Cartesian Wiener increments obey
 :math:`\langle dW_{ia}dW_{jb}\rangle=\delta_{ij}\delta_{ab}dt`.
@@ -392,7 +392,7 @@ or extrapolation validity. Different spin measures or material-specific
 kinetics require separate specification and validation.
 
 Output, restart and multiple GPUs
---------------------------------
+---------------------------------
 
 Use ``dump_xyz ... precision double spin mforce``. GLSD has no independent
 ``spin_vel`` state; noisy paths have no instantaneous differentiable velocity.

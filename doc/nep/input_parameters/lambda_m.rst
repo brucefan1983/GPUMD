@@ -35,7 +35,7 @@ training output.
    single: lambda_m_perp (keyword in nep.in)
 
 Independent parallel and perpendicular losses
---------------------------------------------
+---------------------------------------------
 
 To fit the magnetic-moment magnitude and direction with separate coefficients,
 replace ``lambda_m`` with **both** of the following keywords::

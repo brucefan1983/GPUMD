@@ -28,6 +28,8 @@ fixed, non-degenerate reference parameter vector, independent of the SNES
 search mean and search RNG. Constant spin projection matrices would collapse
 distinct descriptor channels, so the structural NEP constant-vector reference
 is not used for Spin3. Response-only structures never enter this calculation.
+The :ref:`initial_para <kw_initial_para>` keyword scales the radial coefficients
+of this reference model while leaving its channel mixing matrices unchanged.
 
 When ``nep.restart`` is present, Spin3 automatically restores the scaler from
 the matching ``nep.txt`` instead of recomputing it. This also preserves models

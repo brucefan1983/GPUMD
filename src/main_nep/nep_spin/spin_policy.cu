@@ -16,10 +16,6 @@
 namespace fitness_spin {
 void finalize_q_scaler(Spin_Parameters& para, int deviceCount)
 {
-  if (!para.spin_mode) {
-    return;
-  }
-
   std::vector<float> global_max(para.dim, -1.0e10f);
   std::vector<float> global_min(para.dim, 1.0e10f);
   std::vector<float> device_max(para.dim);

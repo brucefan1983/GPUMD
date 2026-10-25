@@ -25,7 +25,7 @@ before the :ref:`run keyword <kw_run>`.
 
 
 Continuing an NHC NVT run
-------------------------
+-------------------------
 
 For ``nvt_glsd`` with lattice motion enabled (the default), copy the new
 ``restart.xyz`` to ``model.xyz`` in a new directory and keep the original
@@ -64,7 +64,7 @@ continuation is not provided by saving its atomic thermostat alone.
 
 
 Continuing an MTTK NPT run
--------------------------
+--------------------------
 
 Copy ``restart.xyz`` to ``model.xyz`` in a new run directory. Specify the
 same potential, atom order, timestep and ensemble settings. Do not regenerate

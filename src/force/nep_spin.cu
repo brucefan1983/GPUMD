@@ -109,91 +109,6 @@ __global__ void mask_inactive_spin_mforce(
 
 using SpinPolynomialLayout = NEP_Spin::Spin_Polynomial_Layout;
 
-SpinPolynomialLayout make_spin_polynomial_layout(
-  const int channels, const int l_max, const int order, const int soc)
-{
-  SpinPolynomialLayout layout;
-  layout.channels = channels;
-  layout.pair_count = channels * (channels + 1) / 2;
-  layout.moment_count = layout.density_stride * channels + layout.pair_count;
-  if (order >= 2 && l_max >= 1) {
-    layout.angular_l1_moment_offset = layout.moment_count;
-    layout.moment_count += 3 * channels;
-  }
-  if (order >= 2 && l_max >= 2) {
-    layout.angular_l2_moment_offset = layout.moment_count;
-    layout.moment_count += 5 * channels;
-  }
-  int offset = 0;
-  layout.local_s2 = offset++;
-  layout.edge_l0_dot = offset; offset += channels;
-  layout.edge_l0_neighbor_s2 = offset; offset += channels;
-  if (soc != 0 && l_max >= 2) {
-    layout.edge_l2_pair = offset; offset += channels;
-    layout.center_l2_environment = offset; offset += channels;
-  }
-  if (order >= 2) {
-    layout.edge_l0_dot2 = offset; offset += channels;
-    layout.density_l0_self = offset; offset += channels;
-    if (l_max >= 1) {
-      if (soc != 0) {
-        layout.density_l1_longitudinal_self = offset; offset += channels;
-        layout.density_l1_axial_self = offset; offset += channels;
-        layout.density_l1_stf_self = offset; offset += channels;
-      } else {
-        layout.density_l1_product_self = offset; offset += channels;
-      }
-    }
-    if (l_max >= 2) {
-      layout.density_l2_product_self = offset; offset += channels;
-    }
-    layout.density_l0_dot_response = offset; offset += channels;
-    layout.correlation_same_edge = offset; offset += layout.pair_count;
-    layout.correlation_distinct_neighbor = offset; offset += layout.pair_count;
-    if (l_max >= 1) {
-      layout.correlation_distinct_l1 = offset; offset += layout.pair_count;
-    }
-    if (l_max >= 2) {
-      layout.correlation_distinct_l2 = offset; offset += layout.pair_count;
-    }
-    if (soc != 0 && l_max >= 1) {
-      if (channels >= 2) {
-        layout.coupling_l11_axial = offset; offset += channels;
-      }
-      layout.edge_l11_axial = offset; offset += channels;
-    }
-    if (soc != 0 && l_max >= 2) {
-      if (channels >= 2) {
-        layout.coupling_l22_axial = offset; offset += channels;
-      }
-      layout.edge_l22_axial = offset; offset += channels;
-    }
-  }
-  if (order >= 3) {
-    layout.edge_l0_moment_gate = offset; offset += channels;
-    if (soc != 0 && l_max >= 1) {
-      if (channels >= 2) {
-        layout.coupling_l11_dot_response = offset; offset += channels;
-      }
-      layout.coupling_l111_p_m_x = offset; offset += channels;
-    }
-    if (soc != 0 && l_max >= 2) {
-      if (channels >= 2) {
-        layout.coupling_l22_dot_response = offset; offset += channels;
-      }
-      layout.coupling_l111_p_qs_x = offset; offset += channels;
-      if (channels >= 2) {
-        layout.coupling_l112_edge_response = offset; offset += channels;
-      }
-    }
-    if (soc != 0 && l_max >= 1 && channels >= 3) {
-      layout.coupling_l111_bulk = offset; offset += channels;
-    }
-  }
-  layout.descriptor_dim = offset;
-  return layout;
-}
-
 template <int C, bool NeedDerivatives>
 __device__ __forceinline__ void evaluate_spin3_edge_weights_b9_f32(
   const float spin_cutoff,
@@ -1713,7 +1628,7 @@ void NEP_Spin::read_model(const char* file_potential)
   if ((model_.n_max_angular + 1) * model_.body.count() > 90) {
     throw std::runtime_error("structural angular descriptor dimension exceeds 90");
   }
-  model_.spin_polynomial_layout = make_spin_polynomial_layout(
+  model_.spin_polynomial_layout = make_spin_polynomial_layout<Spin_Polynomial_Layout>(
     model_.spin_compress, model_.spin_l_max[0], model_.spin_order, model_.spin_soc);
   model_.spin_descriptor_dim = model_.spin_polynomial_layout.descriptor_dim;
   model_.descriptor_dim = model_.struct_descriptor_dim + model_.spin_descriptor_dim;

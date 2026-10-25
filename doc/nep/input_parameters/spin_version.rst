@@ -3,7 +3,7 @@
    single: spin_version (keyword in nep.in)
 
 :attr:`spin_version`
-===================
+====================
 
 This keyword selects the spin-dependent energy model and its magnetic
 model contract::

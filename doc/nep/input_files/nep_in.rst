@@ -63,10 +63,9 @@ Keywords
    * - :ref:`spin_soc <kw_spin_soc>`
      - enable joint spin--space rotation-invariant Spin3 channels
    * - :ref:`spin_dof_type <kw_spin_dof_type>`
-     - atom types whose spins are active degrees of freedom
+     - atom types selected for magnetic-force output and magnetic supervision
    * - :ref:`spin_env_type <kw_spin_env_type>`
      - atom types allowed to contribute to magnetic environments
-     - progressively activate order-3 Spin3 neural-network connections
    * - :ref:`use_typewise_cutoff_zbl <kw_use_typewise_cutoff_zbl>`
      - enable typewise cutoff radii for the ZBL part of the model
    * - :ref:`cutoff <kw_cutoff>`
@@ -127,6 +126,8 @@ Keywords
      - fine tune a model starting from a foundation model
    * - :ref:`import_q_scaler <kw_import_q_scaler>`
      - import descriptor normalization factors from an existing ``nep.txt``
+   * - :ref:`initial_para <kw_initial_para>`
+     - set reference parameters used to compute descriptor normalization
 
 Consistency with model files already present
 --------------------------------------------
