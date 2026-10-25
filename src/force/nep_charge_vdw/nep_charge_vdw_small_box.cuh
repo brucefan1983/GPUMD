@@ -227,35 +227,52 @@ static __global__ void find_descriptor_small_box(
     }
 
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-    float charge = 0.0f;
-    float charge_derivative[MAX_DIM] = {0.0f};
     float C6 = 0.0f;
     float C6_derivative[MAX_DIM] = {0.0f};
 
-    apply_ann_one_layer_charge_vdw(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.w0[t1],
-      annmb.b0[t1],
-      annmb.w1[t1],
-      annmb.b1,
-      q,
-      F,
-      Fp,
-      charge,
-      charge_derivative,
-      C6,
-      C6_derivative);
+    if (paramb.has_charge) {
+      float charge = 0.0f;
+      float charge_derivative[MAX_DIM] = {0.0f};
+      apply_ann_one_layer_charge_vdw(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[t1],
+        annmb.b0[t1],
+        annmb.w1[t1],
+        annmb.b1,
+        q,
+        F,
+        Fp,
+        charge,
+        charge_derivative,
+        C6,
+        C6_derivative);
+      g_charge[n1] = charge;
+      for (int d = 0; d < annmb.dim; ++d) {
+        g_charge_derivative[d * N + n1] = charge_derivative[d] * annmb.q_scaler[d];
+      }
+    } else {
+      apply_ann_one_layer_vdw(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[t1],
+        annmb.b0[t1],
+        annmb.w1[t1],
+        annmb.b1,
+        q,
+        F,
+        Fp,
+        C6,
+        C6_derivative);
+    }
 
     g_pe[n1] += double(F) + (annmb.energy_reference ? annmb.energy_reference[t1] : 0.0);
-    g_charge[n1] = charge;
     const float SCALING_FACTOR = 0.1f;
     float C6_exp = annmb.c6_ref_sqrt[t1] * expf(C6 * SCALING_FACTOR);
     g_C6[n1] = C6_exp;
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
-      g_charge_derivative[d * N + n1] = charge_derivative[d] * annmb.q_scaler[d];
       g_C6_derivative[d * N + n1] =
         C6_exp * SCALING_FACTOR * C6_derivative[d] * annmb.q_scaler[d];
     }
@@ -309,7 +326,10 @@ static __global__ void find_force_radial_small_box(
             t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
         }
-        float tmp12 = g_Fp[n1 + n * N] + g_charge_derivative[n1 + n * N] * g_D_real[n1];
+        float tmp12 = g_Fp[n1 + n * N];
+        if (paramb.has_charge) {
+          tmp12 += g_charge_derivative[n1 + n * N] * g_D_real[n1];
+        }
         tmp12 += g_C6_derivative[n1 + n * N] * g_D_C6[n1];
         tmp12 *= gnp12 * d12inv;
         for (int d = 0; d < 3; ++d) {
@@ -387,8 +407,10 @@ static __global__ void find_force_angular_small_box(
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < paramb.dim_angular; ++d) {
-      float tmp = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1]
-        + g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_real[n1];
+      float tmp = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
+      if (paramb.has_charge) {
+        tmp += g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_real[n1];
+      }
       tmp += g_C6_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_C6[n1];
       Fp[d] = tmp;
     }

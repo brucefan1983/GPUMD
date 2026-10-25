@@ -62,6 +62,7 @@ public:
 
   struct ParaMB {
     bool use_typewise_cutoff_zbl = false;
+    bool has_charge = false;
     float typewise_cutoff_zbl_factor = 0.0f;
     float rc_radial = 0.0f;     // maximum radial cutoff
     float rc_angular = 0.0f;    // maximum angular cutoff
