@@ -33,6 +33,7 @@ SOURCES_GPUMD =                   \
 	$(wildcard integrate/*.cu)    \
 	$(wildcard mc/*.cu)           \
 	$(wildcard force/*.cu)        \
+	$(wildcard force/*/*.cu)      \
 	$(wildcard measure/*.cu)      \
 	$(wildcard model/*.cu)        \
 	$(wildcard utilities/*.cu)
@@ -59,6 +60,7 @@ HEADERS =                         \
 	$(wildcard mc/*.cuh)          \
 	$(wildcard minimize/*.cuh)    \
 	$(wildcard force/*.cuh)       \
+	$(wildcard force/*/*.cuh)     \
 	$(wildcard measure/*.cuh)     \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
@@ -111,5 +113,5 @@ main_nep/%.o: main_nep/%.cu $(HEADERS)
 # clean up
 ###########################################################
 clean:
-	rm -f */*.o main_nep/*/*.o gpumd nep
+	rm -f */*.o */*/*.o gpumd nep
 
