@@ -303,16 +303,19 @@ NEP_Charge_VDW::NEP_Charge_VDW(
 
   // Both models use the same fixed alpha for dispersion.
   charge_para.alpha = float(PI) / full_rc_radial;
+  // Keep alpha * spacing at or below pi / 6, independently of element compaction.
+  pppm_spacing = std::fmin(1.0, full_rc_radial / 6.0);
+  check_ewald_pppm(run_input);
+  printf("    use %s for %s.\n", use_pppm ? "PPPM" : "Ewald",
+    paramb.has_charge ? "charge and dispersion" : "dispersion");
+  if (use_pppm) {
+    pppm.initialize(
+      charge_para.alpha, paramb.has_charge, check_need_peratom_virial(run_input), pppm_spacing);
+  } else if (paramb.has_charge) {
+    ewald.initialize(charge_para.alpha);
+  }
   if (paramb.has_charge) {
-    // Keep alpha * spacing at or below pi / 6, independently of element compaction.
-    pppm_spacing = std::fmin(1.0, full_rc_radial / 6.0);
-    check_ewald_pppm(run_input);
     check_need_bec(run_input);
-    if (use_pppm) {
-      pppm.initialize(charge_para.alpha, check_need_peratom_virial(run_input), pppm_spacing);
-    } else {
-      ewald.initialize(charge_para.alpha);
-    }
     charge_para.two_alpha_over_sqrt_pi = 2.0f * charge_para.alpha / sqrt(float(PI));
     nep_data.D_real.resize(num_atoms);
     nep_data.charge.resize(num_atoms);
@@ -1495,6 +1498,66 @@ void NEP_Charge_VDW::find_force_vdw(
   GPU_CHECK_KERNEL
 }
 
+void NEP_Charge_VDW::find_force_kspace(
+  const int N,
+  const Box& box,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom)
+{
+  if (use_pppm) {
+    // The local solver includes dispersion self energy and its amplitude derivative.
+    pppm.find_force(
+      N,
+      N1,
+      N2,
+      box,
+      nep_data.charge,
+      nep_data.C6,
+      position_per_atom,
+      nep_data.D_real,
+      nep_data.D_C6,
+      force_per_atom,
+      virial_per_atom,
+      potential_per_atom);
+  } else {
+    if (paramb.has_charge) {
+      ewald.find_force(
+        N,
+        N1,
+        N2,
+        box.cpu_h,
+        nep_data.charge,
+        position_per_atom,
+        nep_data.D_real,
+        force_per_atom,
+        virial_per_atom,
+        potential_per_atom);
+    }
+    find_k_and_G(box.cpu_h);
+    find_force_vdw(
+      N, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+  }
+
+  if (paramb.has_charge) {
+    const int BLOCK_SIZE = 64;
+    const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
+    find_charge_self_energy<<<grid_size, BLOCK_SIZE>>>(
+      charge_para,
+      N1,
+      N2,
+      nep_data.charge.data(),
+      potential_per_atom.data(),
+      nep_data.D_real.data());
+    GPU_CHECK_KERNEL
+
+    // Chain rule correction: D_real -= mean(D_real)
+    zero_mean_D_real<<<1, 1024>>>(N, nep_data.D_real.data());
+    GPU_CHECK_KERNEL
+  }
+}
+
 // large box fo MD applications
 void NEP_Charge_VDW::compute_large_box(
   Box& box,
@@ -1635,49 +1698,10 @@ void NEP_Charge_VDW::compute_large_box(
         nep_data.bec.data());
       GPU_CHECK_KERNEL
     }
-
-    if (use_pppm) {
-      pppm.find_force(
-        N,
-        N1,
-        N2,
-        box,
-        nep_data.charge,
-        position_per_atom,
-        nep_data.D_real,
-        force_per_atom,
-        virial_per_atom,
-        potential_per_atom);
-    } else {
-      ewald.find_force(
-        N,
-        N1,
-        N2,
-        box.cpu_h,
-        nep_data.charge,
-        position_per_atom,
-        nep_data.D_real,
-        force_per_atom,
-        virial_per_atom,
-        potential_per_atom);
-    }
-
-    find_charge_self_energy<<<grid_size, BLOCK_SIZE>>>(
-      charge_para,
-      N1,
-      N2,
-      nep_data.charge.data(),
-      potential_per_atom.data(),
-      nep_data.D_real.data());
-    GPU_CHECK_KERNEL
-
-    // Chain rule correction: D_real -= mean(D_real)
-    zero_mean_D_real<<<1, 1024>>>(N, nep_data.D_real.data());
-    GPU_CHECK_KERNEL
   }
 
-  find_force_vdw(
-    N, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+  find_force_kspace(
+    N, box, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
 
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1907,49 +1931,10 @@ void NEP_Charge_VDW::compute_small_box(
         nep_data.bec.data());
       GPU_CHECK_KERNEL
     }
-
-    if (use_pppm) {
-      pppm.find_force(
-        N,
-        N1,
-        N2,
-        box,
-        nep_data.charge,
-        position_per_atom,
-        nep_data.D_real,
-        force_per_atom,
-        virial_per_atom,
-        potential_per_atom);
-    } else {
-      ewald.find_force(
-        N,
-        N1,
-        N2,
-        box.cpu_h,
-        nep_data.charge,
-        position_per_atom,
-        nep_data.D_real,
-        force_per_atom,
-        virial_per_atom,
-        potential_per_atom);
-    }
-
-    find_charge_self_energy<<<grid_size, BLOCK_SIZE>>>(
-      charge_para,
-      N1,
-      N2,
-      nep_data.charge.data(),
-      potential_per_atom.data(),
-      nep_data.D_real.data());
-    GPU_CHECK_KERNEL
-
-    // Chain rule correction: D_real -= mean(D_real)
-    zero_mean_D_real<<<1, 1024>>>(N, nep_data.D_real.data());
-    GPU_CHECK_KERNEL
   }
 
-  find_force_vdw(
-    N, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+  find_force_kspace(
+    N, box, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
 
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -2092,8 +2077,6 @@ void NEP_Charge_VDW::compute(
   if (!box.pbc_x || !box.pbc_y || !box.pbc_z) {
     PRINT_INPUT_ERROR("Cannot use non-periodic boundaries for vdW NEP models.");
   }
-
-  find_k_and_G(box.cpu_h);
 
   const bool is_small_box = get_expanded_box(paramb.rc_radial, box, ebox);
   if (is_small_box) {

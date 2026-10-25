@@ -19,7 +19,7 @@
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "force/ewald.cuh"
-#include "force/pppm.cuh"
+#include "pppm.cuh"
 
 class RunInput;
 
@@ -158,7 +158,7 @@ private:
   ExpandedBox ebox;
   Charge_Para charge_para;
   Ewald ewald;
-  PPPM pppm;
+  PPPM_VDW pppm;
   NeighborManager neighbor_manager;
 
   void update_potential(float* parameters, ANN& ann);
@@ -185,6 +185,14 @@ private:
 
   void find_force_vdw(
     const int N,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
+
+  void find_force_kspace(
+    const int N,
+    const Box& box,
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& potential_per_atom,
     GPU_Vector<double>& force_per_atom,
