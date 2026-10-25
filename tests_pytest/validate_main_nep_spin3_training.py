@@ -242,10 +242,10 @@ def validate_training_and_runtime(
         if line not in checkpoint:
             raise AssertionError(f"missing checkpoint line: {line.strip()}")
     expected_spin_cutoff = (
-        "spin_cutoff 5.0000000000000000e+00 7.0000000000000000e+00\n"
+        "spin_cutoff 5 7\n"
         if typewise_spin_cutoff else
-        ("spin_cutoff 7.0000000000000000e+00\n" if wide_spin_cutoff else
-         "spin_cutoff 6.0000000000000000e+00\n"))
+        ("spin_cutoff 7\n" if wide_spin_cutoff else
+         "spin_cutoff 6\n"))
     if expected_spin_cutoff not in checkpoint:
         raise AssertionError("Spin3 checkpoint did not preserve spin_cutoff arity")
 

@@ -426,7 +426,7 @@ void write_checkpoint_metadata(FILE* fid_nep, const Spin_Parameters& para)
     });
   const int cutoff_count = uniform_spin_cutoff ? 1 : para.num_types;
   for (int type = 0; type < cutoff_count; ++type) {
-    fprintf(fid_nep, " %.16e", static_cast<double>(para.spin_cutoff_by_type[type]));
+    fprintf(fid_nep, " %.9g", para.spin_cutoff_by_type[type]);
   }
   fprintf(fid_nep, "\n");
   fprintf(fid_nep, "spin_order %d\n", para.spin_order);
