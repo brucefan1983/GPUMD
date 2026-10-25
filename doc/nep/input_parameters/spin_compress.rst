@@ -9,7 +9,7 @@ This keyword sets the shared latent radial rank of the spin descriptor::
 
   spin_compress <count>
 
-The default is 4 and the input range is 1--9. The symbol :math:`C` denotes
+The default is 2 and the input range is 1--9. The symbol :math:`C` denotes
 this value in :ref:`nep_spin`. Each channel is a learned combination of the
 radial basis, and every Spin3 contraction family reuses the same :math:`C`
 channels. It therefore controls descriptor rank and cost; it does not select
@@ -25,6 +25,6 @@ shape has 55 magnetic coordinates with::
 
   spin_compress 2
 
-The default value 4 is therefore not valid for every combination of the other
-Spin3 shape keywords. Use the formulas in :ref:`nep_spin_dimensions` before
-increasing this value.
+Together with the default structural descriptors, this default Spin shape has
+97 total coordinates and satisfies both dimension limits. Use the formulas in
+:ref:`nep_spin_dimensions` before increasing this value.

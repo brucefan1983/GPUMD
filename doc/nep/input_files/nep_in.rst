@@ -162,9 +162,9 @@ Here is an example :attr:`nep.in` file using all the default parameters::
 Spin3 example
 -------------
 
-The following is a compact, valid Spin setup. Set ``spin_compress`` explicitly:
-its default of 4 exceeds the training dimension limit for the default O3/L2/SOC1
-shape. The complete descriptor must satisfy :ref:`nep_spin_dimensions`::
+The following Spin setup uses the default descriptor shape. ``spin_compress``
+defaults to 2 and may be omitted. Together with the structural defaults, this
+gives 55 magnetic and 97 total coordinates, within :ref:`nep_spin_dimensions`::
 
   version          4
   type             2 Fe Ge

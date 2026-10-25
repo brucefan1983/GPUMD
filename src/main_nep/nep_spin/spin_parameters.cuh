@@ -13,7 +13,7 @@ public:
   explicit Spin_Parameters(const ParameterInput& input);
   bool parse_keyword(const char**, int) override;
   static constexpr int spin_mode = 3;
-  int spin_compress = 4, spin_order = 3, spin_soc = 1;
+  int spin_compress = 2, spin_order = 3, spin_soc = 1;
   int spin_basis_size[2] = {8, 0};
   int spin_l_max[3] = {2, 0, 0};
   float spin_cutoff = 8.0f;

@@ -399,7 +399,7 @@ Therefore :math:`D_2=D_1+\Delta D_2` and
 O2-C2 has 43 magnetic coordinates and O3-C2 has 55. The implementation limits
 the magnetic part to 96 coordinates and requires the combined structural and
 magnetic dimension to satisfy :math:`D_\mathrm{str}+D_\mathrm{spin}\leq199`.
-With the ordinary structural defaults, :math:`D_\mathrm{str}=42`; the common
+With the ordinary structural defaults, :math:`D_\mathrm{str}=42`; the default
 O3-C2-L2-SOC1 shape therefore gives :math:`42+55=97` total coordinates.
 
 The trainable magnetic descriptor parameters comprise

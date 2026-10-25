@@ -134,6 +134,7 @@ def validate_parser(root):
         "invalid_second_basis": NEP_IN.replace("spin_basis_size 8 0", "spin_basis_size 8 1"),
         "invalid_order": NEP_IN.replace("spin_order 3", "spin_order 4"),
         "invalid_soc": NEP_IN.replace("spin_soc 1", "spin_soc 2"),
+        "oversized_spin_shape": NEP_IN.replace("spin_compress 2", "spin_compress 4"),
         "removed_spin_mode_1": NEP_IN.replace("spin_version 1", "spin_mode 1"),
         "removed_spin_mode_2": NEP_IN.replace("spin_version 1", "spin_mode 2"),
         "invalid_spin_cutoff_arity": NEP_IN.replace(
@@ -496,6 +497,66 @@ def validate_native_compiled_checkpoint(root):
     return report
 
 
+def validate_default_shape(root):
+    """Exercise model defaults and compare omitted vs explicit C2 end to end."""
+    root.mkdir()
+    # Only select the elements/model and bound the training budget and output.
+    # Leave all structural, Spin descriptor, network and loss settings implicit.
+    config = (
+        "type 2 Fe Ge\nspin_version 1\nseed 20261025\n"
+        "population 12\nbatch 3\ngeneration 3\noutput_interval 1\n"
+        "save_potential 100000 1 0\n")
+    cases = [root / "implicit", root / "explicit"]
+    configs = [config, config + "spin_compress 2\n"]
+    for case, text in zip(cases, configs):
+        write_case(case, text)
+    report = {}
+    for stage in ("training", "prediction", "restart"):
+        for case, text in zip(cases, configs):
+            if stage == "prediction":
+                text += "prediction 1\n"
+            elif stage == "restart":
+                text = text.replace("generation 3\n", "generation 4\n")
+            (case / "nep.in").write_text(text)
+            result = run(NEP, case)
+            (case / f"{stage}.log").write_text(result.stdout + result.stderr)
+            if result.returncode:
+                raise RuntimeError(result.stdout + result.stderr)
+            checkpoint = (case / "nep.txt").read_text()
+            for line in ("spin_compress 2", "spin_order 3", "spin_soc 1",
+                         "spin_l_max 2", "spin_basis_size 8",
+                         "spin_cutoff 8", "spin_projection_size 16"):
+                if f"\n{line}\n" not in checkpoint:
+                    raise AssertionError(f"default checkpoint missing {line}")
+            if "@ q_scaler 97\n" not in checkpoint:
+                raise AssertionError("default descriptor must have 42 + 55 coordinates")
+            loss = [float(value) for value in
+                    (case / "loss.out").read_text().splitlines()[-1].split()]
+            if not all(math.isfinite(value) for value in loss):
+                raise AssertionError(f"{stage}: non-finite default-shape loss")
+        files = ["nep.txt", "nep.restart"]
+        if stage == "prediction":
+            for name, width, rows in (("energy", 2, 3), ("force", 6, 12),
+                                      ("mforce", 6, 12), ("virial", 12, 3)):
+                filename = f"{name}_train.out"
+                files.append(filename)
+                values = columns(cases[0] / filename, width)
+                if len(values) != rows or any(len(row) != width for row in values):
+                    raise AssertionError(f"unexpected default prediction shape: {filename}")
+                if not all(math.isfinite(value) for value in flatten(values)):
+                    raise AssertionError(f"non-finite default prediction: {filename}")
+            energies = columns(cases[0] / "energy_train.out", 2)
+            report["energy_rmse_per_atom"] = math.sqrt(
+                sum((predicted - reference) ** 2 for predicted, reference in energies)
+                / len(energies))
+        for filename in files:
+            if (cases[0] / filename).read_bytes() != (cases[1] / filename).read_bytes():
+                raise AssertionError(f"{stage}: implicit/explicit C2 differ in {filename}")
+        report[stage] = "implicit/explicit C2 byte-identical"
+    report["descriptor_dim"] = 97
+    return report
+
+
 def validate_shared_nep_io(root):
     """Guard the ordinary NEP callers of the shared writer and restart reader."""
     config = "\n".join(line for line in NEP_IN.splitlines()
@@ -536,6 +597,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="gpumd-main-nep-spin3-") as tmp:
         root = Path(tmp)
         report = {
+            "default_shape": validate_default_shape(root / "defaults"),
             "ordinary_nep_io": validate_shared_nep_io(root / "ordinary-nep"),
             "parser_negative_exit_codes": validate_parser(root / "parser"),
             "response_training": validate_response_training(root / "response"),
