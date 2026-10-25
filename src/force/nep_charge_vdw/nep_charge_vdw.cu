@@ -218,7 +218,6 @@ NEP_Charge_VDW::NEP_Charge_VDW(
     paramb.rc_radial_type[t] = model.rc_radial[t];
     paramb.rc_angular_type[t] = model.rc_angular[t];
     paramb.rc_radial = std::max(paramb.rc_radial, model.rc_radial[t]);
-    paramb.rc_angular = std::max(paramb.rc_angular, model.rc_angular[t]);
     printf("    type %d: radial cutoff = %g A, angular cutoff = %g A.\n",
       t, model.rc_radial[t], model.rc_angular[t]);
   }

@@ -65,7 +65,6 @@ public:
     bool has_charge = false;
     float typewise_cutoff_zbl_factor = 0.0f;
     float rc_radial = 0.0f;     // maximum radial cutoff
-    float rc_angular = 0.0f;    // maximum angular cutoff
     float rc_radial_type[NUM_ELEMENTS];
     float rc_angular_type[NUM_ELEMENTS];
     int MN_radial = 200;
