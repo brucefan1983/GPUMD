@@ -34,7 +34,7 @@ struct NEP_Charge_VDW_Data {
   GPU_Vector<int> NL_radial;    // radial neighbor list
   GPU_Vector<int> NN_angular;   // angular neighbor list
   GPU_Vector<int> NL_angular;   // angular neighbor list
-  GPU_Vector<float> parameters; // parameters to be optimized
+  GPU_Vector<float> parameters; // parameters in the model
   std::vector<int> cpu_NN_radial;
   std::vector<int> cpu_NN_angular;
   GPU_Vector<float> kx;

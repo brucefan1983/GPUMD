@@ -1553,7 +1553,6 @@ void NEP_Charge_VDW::find_force_kspace(
   }
 }
 
-// large box fo MD applications
 void NEP_Charge_VDW::compute_large_box(
   Box& box,
   const GPU_Vector<int>& type,
@@ -1685,7 +1684,6 @@ void NEP_Charge_VDW::compute_large_box(
         nep_data.bec.data());
       GPU_CHECK_KERNEL
 
-      // scale q to q * sqrt(epsilon_inf)
       scale_bec<<<grid_size, BLOCK_SIZE>>>(
         N,
         annmb.sqrt_epsilon_inf,
@@ -1780,7 +1778,6 @@ void NEP_Charge_VDW::compute_large_box(
   }
 }
 
-// small box possibly used for active learning:
 void NEP_Charge_VDW::compute_small_box(
   Box& box,
   const GPU_Vector<int>& type,
@@ -1917,7 +1914,6 @@ void NEP_Charge_VDW::compute_small_box(
         nep_data.bec.data());
       GPU_CHECK_KERNEL
 
-      // scale q to q * sqrt(epsilon_inf)
       scale_bec<<<grid_size, BLOCK_SIZE>>>(
         N,
         annmb.sqrt_epsilon_inf,
