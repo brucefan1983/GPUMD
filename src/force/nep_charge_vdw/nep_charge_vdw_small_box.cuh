@@ -179,7 +179,7 @@ static __global__ void find_descriptor_small_box(
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
           int c_index = get_c_index(
             t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
-          gn12 += fn12[k] * annmb.c_type_pair[c_index];
+          gn12 += fn12[k] * annmb.c[c_index];
         }
         q[n] += gn12;
       }
@@ -209,7 +209,7 @@ static __global__ void find_descriptor_small_box(
             paramb.n_max_angular,
             paramb.basis_size_angular,
             paramb.num_c_radial);
-          gn12 += fn12[k] * annmb.c_type_pair[c_index];
+          gn12 += fn12[k] * annmb.c[c_index];
         }
         accumulate_s(paramb.L_max, d12, r12[0], r12[1], r12[2], gn12, s);
       }
@@ -324,7 +324,7 @@ static __global__ void find_force_radial_small_box(
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
           int c_index = get_c_index(
             t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
-          gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
+          gnp12 += fnp12[k] * annmb.c[c_index];
         }
         float tmp12 = g_Fp[n1 + n * N];
         if (paramb.has_charge) {
@@ -448,8 +448,8 @@ static __global__ void find_force_angular_small_box(
             paramb.n_max_angular,
             paramb.basis_size_angular,
             paramb.num_c_radial);
-          gn12 += fn12[k] * annmb.c_type_pair[c_index];
-          gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
+          gn12 += fn12[k] * annmb.c[c_index];
+          gnp12 += fnp12[k] * annmb.c[c_index];
         }
         accumulate_f12(
           paramb.L_max,
@@ -546,7 +546,7 @@ static __global__ void find_bec_radial_small_box(
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
           int c_index = get_c_index(
             t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
-          gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
+          gnp12 += fnp12[k] * annmb.c[c_index];
         }
         const float tmp12 = g_charge_derivative[n1 + n * N] * gnp12 * d12inv;
         for (int d = 0; d < 3; ++d) {
@@ -644,8 +644,8 @@ static __global__ void find_bec_angular_small_box(
             paramb.n_max_angular,
             paramb.basis_size_angular,
             paramb.num_c_radial);
-          gn12 += fn12[k] * annmb.c_type_pair[c_index];
-          gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
+          gn12 += fn12[k] * annmb.c[c_index];
+          gnp12 += fnp12[k] * annmb.c[c_index];
         }
         accumulate_f12(
           paramb.L_max,

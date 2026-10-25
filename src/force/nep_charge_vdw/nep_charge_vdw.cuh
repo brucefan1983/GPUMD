@@ -99,7 +99,6 @@ public:
     const float* sqrt_epsilon_inf; // sqrt(epsilon_inf) related to BEC
     const float* b1;               // bias for the output layer
     const float* c;
-    const float* c_type_pair;
     const float* q_scaler;
     const double* energy_reference = nullptr;
     float c6_ref_sqrt[NUM_ELEMENTS]; // reference amplitudes for the vdW ANN output
