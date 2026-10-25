@@ -14,12 +14,12 @@
 */
 
 #pragma once
-#include "utilities/gpu_vector.cuh"
 #include "model/box.cuh"
+#include "utilities/gpu_vector.cuh"
 #ifdef USE_HIP
-  #include <hipfft/hipfft.h>
+#include <hipfft/hipfft.h>
 #else
-  #include <cufft.h>
+#include <cufft.h>
 #endif
 
 class PPPM_VDW
@@ -61,6 +61,7 @@ public:
     float b[3][3];          // b-vectors in reciprocal space
     float two_pi_over_K[3]; // 2 * pi ./ K
   };
+
 private:
   Para para = {};
   double mesh_spacing = 1.0;

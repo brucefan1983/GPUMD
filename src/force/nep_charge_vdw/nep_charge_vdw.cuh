@@ -14,12 +14,12 @@
 */
 
 #pragma once
+#include "force/ewald.cuh"
 #include "force/neighbor.cuh"
 #include "force/potential.cuh"
+#include "pppm.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "force/ewald.cuh"
-#include "pppm.cuh"
 
 class RunInput;
 
@@ -50,7 +50,7 @@ struct NEP_Charge_VDW_Data {
   GPU_Vector<float> C6;            // positive vdW amplitude sqrt(C6), as in training
   GPU_Vector<float> C6_derivative; // derivative of the amplitude with respect to descriptor
   GPU_Vector<float> D_C6;
-  GPU_Vector<float> bec;               // BEC
+  GPU_Vector<float> bec; // BEC
 };
 
 class NEP_Charge_VDW : public Potential
@@ -64,7 +64,7 @@ public:
     bool use_typewise_cutoff_zbl = false;
     bool has_charge = false;
     float typewise_cutoff_zbl_factor = 0.0f;
-    float rc_radial = 0.0f;     // maximum radial cutoff
+    float rc_radial = 0.0f; // maximum radial cutoff
     float rc_radial_type[NUM_ELEMENTS];
     float rc_angular_type[NUM_ELEMENTS];
     int MN_radial = 200;

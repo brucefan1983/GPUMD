@@ -27,8 +27,8 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/compact_nep.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/nep_utilities.cuh"
 #include "utilities/nep_model_file.cuh"
+#include "utilities/nep_utilities.cuh"
 #include "utilities/nep_vdw_parameters.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
@@ -62,9 +62,9 @@ void NEP_Charge_VDW::check_ewald_pppm(const RunInput& run_input)
         use_pppm = false;
       } else if (tokens[1] == "pppm") {
         use_pppm = true;
-        if (tokens.size() == 3 &&
-            (!is_valid_real(tokens[2], &pppm_spacing) ||
-             !(pppm_spacing >= 0.2 && pppm_spacing <= 2.0))) {
+        if (
+          tokens.size() == 3 && (!is_valid_real(tokens[2], &pppm_spacing) ||
+                                 !(pppm_spacing >= 0.2 && pppm_spacing <= 2.0))) {
           PRINT_INPUT_ERROR("PPPM spacing must be a finite number between 0.2 and 2.0 A.");
         }
       } else {
@@ -119,8 +119,8 @@ static bool check_need_peratom_virial(const RunInput& run_input)
     }
     if (
       tokens[0] == "compute_hac" || tokens[0] == "compute_hnemd" ||
-      tokens[0] == "compute_hnemdec" || tokens[0] == "compute_shc" ||
-      tokens[0] == "compute_gkma" || tokens[0] == "compute_hnema") {
+      tokens[0] == "compute_hnemdec" || tokens[0] == "compute_shc" || tokens[0] == "compute_gkma" ||
+      tokens[0] == "compute_hnema") {
       return true;
     }
     if (tokens[0] == "compute") {
@@ -168,8 +168,11 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   if (paramb.num_types > NUM_ELEMENTS) {
     PRINT_INPUT_ERROR("Too many atom types in the vdW NEP model.");
   }
-  printf("Use the %s potential with %d atom type%s.\n",
-    model.name.c_str(), paramb.num_types, paramb.num_types == 1 ? "" : "s");
+  printf(
+    "Use the %s potential with %d atom type%s.\n",
+    model.name.c_str(),
+    paramb.num_types,
+    paramb.num_types == 1 ? "" : "s");
 
   for (int n = 0; n < paramb.num_types; ++n) {
     int atomic_number = 0;
@@ -203,11 +206,14 @@ NEP_Charge_VDW::NEP_Charge_VDW(
       std::copy(model.zbl_parameters.begin(), model.zbl_parameters.end(), zbl.para);
       printf("    has the flexible ZBL potential\n");
     } else if (paramb.use_typewise_cutoff_zbl) {
-      printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
+      printf(
+        "    has the universal ZBL with typewise cutoff with a factor of %g.\n",
         paramb.typewise_cutoff_zbl_factor);
     } else {
-      printf("    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
-        zbl.rc_inner, zbl.rc_outer);
+      printf(
+        "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
+        zbl.rc_inner,
+        zbl.rc_outer);
     }
   }
 
@@ -216,11 +222,15 @@ NEP_Charge_VDW::NEP_Charge_VDW(
     paramb.rc_radial_type[t] = model.rc_radial[t];
     paramb.rc_angular_type[t] = model.rc_angular[t];
     paramb.rc_radial = std::max(paramb.rc_radial, model.rc_radial[t]);
-    printf("    type %d: radial cutoff = %g A, angular cutoff = %g A.\n",
-      t, model.rc_radial[t], model.rc_angular[t]);
+    printf(
+      "    type %d: radial cutoff = %g A, angular cutoff = %g A.\n",
+      t,
+      model.rc_radial[t],
+      model.rc_angular[t]);
   }
-  if (model.max_radial < 1 || model.max_angular < 1 ||
-      model.max_radial > 819 || model.max_angular > 819) {
+  if (
+    model.max_radial < 1 || model.max_angular < 1 || model.max_radial > 819 ||
+    model.max_angular > 819) {
     PRINT_INPUT_ERROR("MD neighbor counts must be between 1 and 819.");
   }
   printf("    MN_radial = %d.\n", model.max_radial);
@@ -261,7 +271,8 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   annmb.num_para = model.layout.number_of_variables;
   printf("    ANN = %d-%d-%d.\n", annmb.dim, annmb.num_neurons1, paramb.has_charge ? 3 : 2);
   printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
-  printf("    number of descriptor parameters = %d.\n", model.layout.number_of_variables_descriptor);
+  printf(
+    "    number of descriptor parameters = %d.\n", model.layout.number_of_variables_descriptor);
   printf("    total number of parameters = %d.\n", annmb.num_para);
 
   rc = paramb.rc_radial;
@@ -302,7 +313,9 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   // Keep alpha * spacing at or below pi / 6, independently of element compaction.
   pppm_spacing = std::fmin(1.0, full_rc_radial / 6.0);
   check_ewald_pppm(run_input);
-  printf("    use %s for %s.\n", use_pppm ? "PPPM" : "Ewald",
+  printf(
+    "    use %s for %s.\n",
+    use_pppm ? "PPPM" : "Ewald",
     paramb.has_charge ? "charge and dispersion" : "dispersion");
   if (use_pppm) {
     pppm.initialize(
@@ -391,8 +404,7 @@ void NEP_Charge_VDW::find_k_and_G(const double* box)
 
   float h[9];
   std::copy(box, box + 9, h);
-  const float det = h[0] * (h[4] * h[8] - h[5] * h[7]) +
-                    h[1] * (h[5] * h[6] - h[3] * h[8]) +
+  const float det = h[0] * (h[4] * h[8] - h[5] * h[7]) + h[1] * (h[5] * h[6] - h[3] * h[8]) +
                     h[2] * (h[3] * h[7] - h[4] * h[6]);
   const float a1[3] = {h[0], h[3], h[6]};
   const float a2[3] = {h[1], h[4], h[7]};
@@ -428,7 +440,8 @@ void NEP_Charge_VDW::find_k_and_G(const double* box)
   for (int n1 = 0; n1 <= n1_max; ++n1) {
     for (int n2 = -n2_max; n2 <= n2_max; ++n2) {
       for (int n3 = -n3_max; n3 <= n3_max; ++n3) {
-        if (n1 == 0 && (n2 < 0 || (n2 == 0 && n3 < 0))) continue;
+        if (n1 == 0 && (n2 < 0 || (n2 == 0 && n3 < 0)))
+          continue;
         const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
         const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
         const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
@@ -450,8 +463,7 @@ void NEP_Charge_VDW::find_k_and_G(const double* box)
             const float k = sqrt(ksq);
             const float erfc_b = erfc(b);
             const float prefactor = std::abs(two_pi_over_det) * sqrt_pi / 24.0f;
-            const float c1 = -k * ksq *
-              (sqrt_pi * erfc_b + (0.5f / b2 - 1.0f) * exp_b2 / b);
+            const float c1 = -k * ksq * (sqrt_pi * erfc_b + (0.5f / b2 - 1.0f) * exp_b2 / b);
             const float c2 = 3.0f * k * (sqrt_pi * erfc_b - exp_b2 / b);
             cpu_G_vdw.emplace_back(prefactor * c1);
             cpu_G_vdw_virial.emplace_back(prefactor * c2);
@@ -620,8 +632,17 @@ static __global__ void find_descriptor(
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
       find_q(
-        paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
-        paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+        paramb.L_max,
+        paramb.has_q_222,
+        paramb.has_q_1111,
+        paramb.has_q_112,
+        paramb.has_q_123,
+        paramb.has_q_233,
+        paramb.has_q_134,
+        paramb.n_max_angular + 1,
+        n,
+        s,
+        q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
         g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1] = s[abc];
       }
@@ -679,8 +700,7 @@ static __global__ void find_descriptor(
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
-      g_C6_derivative[d * N + n1] =
-        C6_exp * SCALING_FACTOR * C6_derivative[d] * annmb.q_scaler[d];
+      g_C6_derivative[d * N + n1] = C6_exp * SCALING_FACTOR * C6_derivative[d] * annmb.q_scaler[d];
     }
   }
 }
@@ -714,7 +734,6 @@ static __global__ void zero_total_charge(const int N, float* g_charge)
     }
   }
 }
-
 
 // Chain rule correction: zero_total_charge shifted q by -mean(q),
 // so D_real must be shifted by -mean(D_real) for consistent forces.
@@ -820,15 +839,15 @@ static __global__ void find_bec_radial(
         }
       }
 
-      float bec_xx = 0.5f* (r12[0] * f12[0]);
-      float bec_xy = 0.5f* (r12[0] * f12[1]);
-      float bec_xz = 0.5f* (r12[0] * f12[2]);
-      float bec_yx = 0.5f* (r12[1] * f12[0]);
-      float bec_yy = 0.5f* (r12[1] * f12[1]);
-      float bec_yz = 0.5f* (r12[1] * f12[2]);
-      float bec_zx = 0.5f* (r12[2] * f12[0]);
-      float bec_zy = 0.5f* (r12[2] * f12[1]);
-      float bec_zz = 0.5f* (r12[2] * f12[2]);
+      float bec_xx = 0.5f * (r12[0] * f12[0]);
+      float bec_xy = 0.5f * (r12[0] * f12[1]);
+      float bec_xz = 0.5f * (r12[0] * f12[2]);
+      float bec_yx = 0.5f * (r12[1] * f12[0]);
+      float bec_yy = 0.5f * (r12[1] * f12[1]);
+      float bec_yz = 0.5f * (r12[1] * f12[2]);
+      float bec_zx = 0.5f * (r12[2] * f12[0]);
+      float bec_zy = 0.5f * (r12[2] * f12[1]);
+      float bec_zz = 0.5f * (r12[2] * f12[2]);
 
       atomicAdd(&g_bec[n1], bec_xx);
       atomicAdd(&g_bec[n1 + N], bec_xy);
@@ -922,7 +941,12 @@ static __global__ void find_bec_angular(
         }
         accumulate_f12(
           paramb.L_max,
-          paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
+          paramb.has_q_222,
+          paramb.has_q_1111,
+          paramb.has_q_112,
+          paramb.has_q_123,
+          paramb.has_q_233,
+          paramb.has_q_134,
           paramb.num_L,
           n,
           paramb.n_max_angular + 1,
@@ -935,15 +959,15 @@ static __global__ void find_bec_angular(
           f12);
       }
 
-      float bec_xx = 0.5f* (r12[0] * f12[0]);
-      float bec_xy = 0.5f* (r12[0] * f12[1]);
-      float bec_xz = 0.5f* (r12[0] * f12[2]);
-      float bec_yx = 0.5f* (r12[1] * f12[0]);
-      float bec_yy = 0.5f* (r12[1] * f12[1]);
-      float bec_yz = 0.5f* (r12[1] * f12[2]);
-      float bec_zx = 0.5f* (r12[2] * f12[0]);
-      float bec_zy = 0.5f* (r12[2] * f12[1]);
-      float bec_zz = 0.5f* (r12[2] * f12[2]);
+      float bec_xx = 0.5f * (r12[0] * f12[0]);
+      float bec_xy = 0.5f * (r12[0] * f12[1]);
+      float bec_xz = 0.5f * (r12[0] * f12[2]);
+      float bec_yx = 0.5f * (r12[1] * f12[0]);
+      float bec_yy = 0.5f * (r12[1] * f12[1]);
+      float bec_yz = 0.5f * (r12[1] * f12[2]);
+      float bec_zx = 0.5f * (r12[2] * f12[0]);
+      float bec_zy = 0.5f * (r12[2] * f12[1]);
+      float bec_zz = 0.5f * (r12[2] * f12[2]);
 
       atomicAdd(&g_bec[n1], bec_xx);
       atomicAdd(&g_bec[n1 + N], bec_xy);
@@ -1180,7 +1204,12 @@ static __global__ void find_partial_force_angular(
         }
         accumulate_f12(
           paramb.L_max,
-          paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
+          paramb.has_q_222,
+          paramb.has_q_1111,
+          paramb.has_q_112,
+          paramb.has_q_123,
+          paramb.has_q_233,
+          paramb.has_q_134,
           paramb.num_L,
           n,
           paramb.n_max_angular + 1,
@@ -1418,9 +1447,9 @@ static __global__ void find_force_vdw_reciprocal_space(
       temp_virial_sum[0] += C6_GSE - C6_HSE * kx * kx; // xx
       temp_virial_sum[1] += C6_GSE - C6_HSE * ky * ky; // yy
       temp_virial_sum[2] += C6_GSE - C6_HSE * kz * kz; // zz
-      temp_virial_sum[3] -= C6_HSE * kx * ky; // xy
-      temp_virial_sum[4] -= C6_HSE * ky * kz; // yz
-      temp_virial_sum[5] -= C6_HSE * kz * kx; // zx
+      temp_virial_sum[3] -= C6_HSE * kx * ky;          // xy
+      temp_virial_sum[4] -= C6_HSE * ky * kz;          // yz
+      temp_virial_sum[5] -= C6_HSE * kz * kx;          // zx
       temp_D_C6_sum += GSE;
       temp_force_sum[0] += kx * imag_term;
       temp_force_sum[1] += ky * imag_term;
@@ -1531,8 +1560,7 @@ void NEP_Charge_VDW::find_force_kspace(
         potential_per_atom);
     }
     find_k_and_G(box.cpu_h);
-    find_force_vdw(
-      N, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+    find_force_vdw(N, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   }
 
   if (paramb.has_charge) {
@@ -1565,10 +1593,7 @@ void NEP_Charge_VDW::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor_manager.update(
-    box, 
-    type, 
-    position_per_atom);
+  neighbor_manager.update(box, type, position_per_atom);
 
   find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1641,10 +1666,7 @@ void NEP_Charge_VDW::compute_large_box(
 
     if (need_bec) {
       // get BEC (the diagonal part)
-      find_bec_diagonal<<<grid_size, BLOCK_SIZE>>>(
-        N,
-        nep_data.charge.data(),
-        nep_data.bec.data());
+      find_bec_diagonal<<<grid_size, BLOCK_SIZE>>>(N, nep_data.charge.data(), nep_data.bec.data());
       GPU_CHECK_KERNEL
 
       // get BEC (radial descriptor part)
@@ -1684,16 +1706,12 @@ void NEP_Charge_VDW::compute_large_box(
         nep_data.bec.data());
       GPU_CHECK_KERNEL
 
-      scale_bec<<<grid_size, BLOCK_SIZE>>>(
-        N,
-        annmb.sqrt_epsilon_inf,
-        nep_data.bec.data());
+      scale_bec<<<grid_size, BLOCK_SIZE>>>(N, annmb.sqrt_epsilon_inf, nep_data.bec.data());
       GPU_CHECK_KERNEL
     }
   }
 
-  find_force_kspace(
-    N, box, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+  find_force_kspace(N, box, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
 
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1873,10 +1891,7 @@ void NEP_Charge_VDW::compute_small_box(
 
     if (need_bec) {
       // get BEC (the diagonal part)
-      find_bec_diagonal<<<grid_size, BLOCK_SIZE>>>(
-        N,
-        nep_data.charge.data(),
-        nep_data.bec.data());
+      find_bec_diagonal<<<grid_size, BLOCK_SIZE>>>(N, nep_data.charge.data(), nep_data.bec.data());
       GPU_CHECK_KERNEL
 
       // get BEC (radial descriptor part)
@@ -1914,16 +1929,12 @@ void NEP_Charge_VDW::compute_small_box(
         nep_data.bec.data());
       GPU_CHECK_KERNEL
 
-      scale_bec<<<grid_size, BLOCK_SIZE>>>(
-        N,
-        annmb.sqrt_epsilon_inf,
-        nep_data.bec.data());
+      scale_bec<<<grid_size, BLOCK_SIZE>>>(N, annmb.sqrt_epsilon_inf, nep_data.bec.data());
       GPU_CHECK_KERNEL
     }
   }
 
-  find_force_kspace(
-    N, box, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+  find_force_kspace(N, box, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
 
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
