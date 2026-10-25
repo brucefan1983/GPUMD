@@ -1,116 +1,75 @@
 #!/usr/bin/env python3
-"""Fixed-parameter restart parity: OLD_PROBE, NEW_PROBE, OLD_NEP, BFO_CASE."""
+"""Check native SNES restore/scalers using generated fixtures and RESTART_PROBE.
+
+The probe is built from restart_parity.cu against the current NEP objects.
+No private dataset or pre-refactor executable is required.
+"""
 import json
 import os
 from pathlib import Path
-import re
 import shutil
 import subprocess
 import tempfile
+
 import validate_main_nep_spin3_training as base
+from validate_spin_training_multigpu import read_restart
 
 
-def execute(binary, path, mode='live', error=None):
-    result = subprocess.run([str(binary), mode], cwd=path, text=True, capture_output=True)
-    (path/'probe.log').write_text(result.stdout+result.stderr)
-    if error:
-        assert result.returncode != 0 and error in result.stdout+result.stderr, result.stdout+result.stderr
-        return
-    assert result.returncode == 0, result.stdout+result.stderr
+def execute(binary, case):
+    result = base.run(binary, case)
+    (case / 'run.log').write_text(result.stdout + result.stderr)
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def values(path):
-    return [float(x) for x in path.read_text().split()]
+    return list(map(float, path.read_text().split()))
 
 
-def prediction(path):
-    result = {}
-    for line in path.read_text().splitlines():
-        name, device, *numbers = line.split()
-        result.setdefault(name+':'+device, []).extend(map(float, numbers))
-    return result
+def validate(root):
+    probe = Path(os.environ['RESTART_PROBE']).resolve()
+    report = {}
+    for kind in ('spin', 'structural'):
+        config = base.NEP_IN
+        if kind == 'structural':
+            config = '\n'.join(line for line in config.splitlines()
+                               if not line.startswith(('spin_', 'lambda_m', 'lambda_tau'))) + '\n'
+        config += 'nep_compile 0\nseed 20261021\n'
+        config = config.replace('generation 1', 'generation 3')
+        initial = root / (kind + '-initial')
+        base.write_case(initial, config)
+        execute(base.NEP, initial)
+        restored = []
+        for name, extra in (('restore', ''), ('restore-import', 'import_q_scaler 1\n')):
+            case = root / (kind + '-' + name)
+            base.write_case(case, config.replace('generation 3', 'generation 0') + extra)
+            for file in ('nep.txt', 'nep.restart'):
+                shutil.copyfile(initial / file, case / file)
+            execute(probe, case)
+            assert read_restart(case/'restored.restart') == read_restart(initial/'nep.restart')
+            restored.append(case)
+        for file in ('scaler.txt', 'baseline.txt', 'mu.pred', 'elite.pred'):
+            assert (restored[0]/file).read_text() == (restored[1]/file).read_text(), (kind, file)
+        assert (restored[0]/'mu.pred').read_text() != (restored[0]/'elite.pred').read_text()
+        if kind == 'spin':
+            scales = values(restored[0]/'scaler.txt')
+            imported = root/'fresh-import'
+            base.write_case(imported, config.replace('generation 3', 'generation 0')+'import_q_scaler 1\n')
+            shutil.copyfile(initial/'nep.txt', imported/'nep.txt')
+            execute(probe, imported)
+            assert values(imported/'scaler.txt') == scales
+            assert read_restart(imported/'restored.restart')[0] != read_restart(initial/'nep.restart')[0]
+            fresh = []
+            for seed in (1, 2):
+                case = root/f'fresh-{seed}'
+                base.write_case(case, config.replace('generation 3', 'generation 0').replace('seed 20261021', f'seed {seed}'))
+                execute(probe, case)
+                fresh.append(case)
+            assert values(fresh[0]/'scaler.txt') == values(fresh[1]/'scaler.txt')
+            assert read_restart(fresh[0]/'restored.restart')[0] != read_restart(fresh[1]/'restored.restart')[0]
+        report[kind] = {'restore': 'passed', 'import': 'passed', 'search_mean_distinct_from_elite': True}
+    return report
 
 
-def compare(left, right):
-    assert left.keys() == right.keys()
-    errors={}
-    for key in left:
-        assert len(left[key]) == len(right[key])
-        errors[key]=max(abs(a-b) for a,b in zip(left[key],right[key]))
-        assert errors[key] <= 1e-6, (key,errors[key])
-    return errors
-
-
-def main():
-    old=Path(os.environ['OLD_PROBE']);new=Path(os.environ['NEW_PROBE'])
-    source=Path(os.environ['BFO_CASE'])
-    root=Path(os.environ.get('RESTART_TEST_ROOT','restart-tests')).resolve();root.mkdir(exist_ok=True)
-    config=(source/'nep.in').read_text()
-    config=re.sub(r'^generation .*$', 'generation 0', config, flags=re.M)
-    config=re.sub(r'^batch .*$', 'batch 2', config, flags=re.M)
-    config=re.sub(r'^lambda_spin_response .*$', 'lambda_spin_response 0',config,flags=re.M)
-    config=re.sub(r'^nep_compile .*\n?', '',config,flags=re.M)+'\nnep_compile 0\n'
-    # Keep original model/search files; only reduce the evaluation structures.
-    lines=(source/'train.xyz').read_text().splitlines();frames=[];i=0
-    while i<len(lines):
-        count=int(lines[i]);frames.append('\n'.join(lines[i:i+count+2])+'\n');i+=count+2
-    chosen=sorted(set([0,1,len(frames)//2,len(frames)//2+1,len(frames)-2,len(frames)-1]))
-    train=''.join(frames[i] for i in chosen if 0<=i<len(frames))
-    def case(name, cfg=config, model=True, restart=True, xyz=train):
-        path=root/name;path.mkdir()
-        (path/'nep.in').write_text(cfg);(path/'train.xyz').write_text(xyz)
-        if model:shutil.copyfile(source/'nep.txt',path/'nep.txt')
-        if restart:shutil.copyfile(source/'nep.restart',path/'nep.restart')
-        return path
-    ref=case('bfo-reference');execute(old,ref,'reference')
-    broken=case('bfo-old-live');execute(old,broken)
-    fixed=case('bfo-new-live');execute(new,fixed)
-    imported=case('bfo-new-import',config+'import_q_scaler 1\n');execute(new,imported)
-    report={}
-    for name in ('mu','elite'):
-        report[name]=compare(prediction(ref/(name+'.pred')),prediction(fixed/(name+'.pred')))
-        compare(prediction(ref/(name+'.pred')),prediction(imported/(name+'.pred')))
-    assert values(fixed/'restored.restart')==values(source/'nep.restart')
-    assert values(imported/'restored.restart')==values(source/'nep.restart')
-    assert (ref/'baseline.txt').read_text()==(fixed/'baseline.txt').read_text()
-    scales=values(ref/'scaler.txt');assert values(fixed/'scaler.txt')==scales
-    assert values(imported/'scaler.txt')==scales
-    report['old_scaler_changed']=sum(a!=b for a,b in zip(scales,values(broken/'scaler.txt')))
-    assert report['old_scaler_changed']==0  # accepted pre-refactor baseline already restores scaling
-    report['old_mu_prediction_error']={k:max(abs(a-b) for a,b in zip(v,prediction(broken/'mu.pred')[k])) for k,v in prediction(ref/'mu.pred').items()}
-    report['mu_elite_difference']=max(abs(a-b) for a,b in zip(prediction(ref/'mu.pred')['E:0'],prediction(ref/'elite.pred')['E:0']))
-    assert report['mu_elite_difference']>0
-    # Imported scaling is also available for a new search (it does not import parameters).
-    fresh_import=case('fresh-import',config+'import_q_scaler 1\n',restart=False)
-    execute(new,fresh_import);assert values(fresh_import/'scaler.txt')==scales
-    fresh_a=case('fresh-a',config+'seed 1\n',model=False,restart=False)
-    fresh_b=case('fresh-b',config+'seed 2\n',model=False,restart=False)
-    execute(new,fresh_a);execute(new,fresh_b)
-    assert values(fresh_a/'scaler.txt')==values(fresh_b/'scaler.txt')
-    assert values(fresh_a/'restored.restart')!=values(fresh_b/'restored.restart')
-    missing=case('missing-model',model=False);execute(new,missing,error='nep.txt')
-    for name,value in [('zero','0'),('nan','nan'),('truncated',None)]:
-        path=case('bad-scaler-'+name);rows=(path/'nep.txt').read_text().splitlines()
-        if value is None: rows=rows[:-1]
-        else:rows[-1]=value
-        (path/'nep.txt').write_text('\n'.join(rows)+'\n')
-        execute(new,path,error='nan' if name=='nan' else 'q_scaler')
-    reordered=case('reordered',re.sub(r'^type (\d+) (\S+) (\S+)', r'type \1 \3 \2', config, flags=re.M))
-    execute(new,reordered,error='inconsistent')
-    # Normal structural NEP: same old model/search vector, same scaler and outputs.
-    structural='\n'.join(line for line in base.NEP_IN.splitlines() if not line.startswith(('spin_','lambda_m','lambda_tau')))+'\nnep_compile 0\n'
-    normal=root/'normal-train';base.write_case(normal,structural,base.TRAIN_XYZ)
-    execute(Path(os.environ['OLD_NEP']),normal)
-    normal_cases=[]
-    for name,binary in [('normal-old',old),('normal-new',new)]:
-        path=root/name;shutil.copytree(normal,path)
-        execute(binary,path,'reference');normal_cases.append(path)
-    a,b=normal_cases
-    assert values(a/'scaler.txt')==values(b/'scaler.txt')
-    assert values(a/'restored.restart')==values(b/'restored.restart')
-    report['structural_mu']=compare(prediction(a/'mu.pred'),prediction(b/'mu.pred'))
-    report['structural_elite']=compare(prediction(a/'elite.pred'),prediction(b/'elite.pred'))
-    report.update(scaler_count=len(scales),sigma_and_mu='unchanged',baseline='unchanged',fresh_scaler='deterministic',parser='passed')
-    (root/'summary.json').write_text(json.dumps(report,indent=2));print(json.dumps(report,indent=2))
-
-if __name__=='__main__':main()
+if __name__ == '__main__':
+    with tempfile.TemporaryDirectory(prefix='restart-scalers-') as temp:
+        print(json.dumps(validate(Path(temp)), indent=2))

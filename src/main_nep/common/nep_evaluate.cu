@@ -724,4 +724,3 @@ NEP_Compiled_Evaluation::NEP_Compiled_Evaluation(const NEP_Compile_Config& confi
   valid &= library.load_symbol("nep_train_launch_ann_nep", ann_nep_);
   valid &= library.load_symbol("nep_train_launch_ann_temperature", ann_temperature_);
 }
-

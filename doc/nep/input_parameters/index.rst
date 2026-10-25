@@ -44,7 +44,7 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
    fine_tune
    import_q_scaler
    charge_mode
-   spin_mode
+   spin_version
    spin_compress
    spin_basis_size
    spin_l_max

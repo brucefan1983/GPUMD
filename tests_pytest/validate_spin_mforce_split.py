@@ -83,6 +83,15 @@ def main():
             for bad in ('-1', 'nan', 'inf', '1e40'):
                 other = 'lambda_m_perp' if key.endswith('parallel') else 'lambda_m_parallel'
                 invalid.append((f'{key} {bad}\n{other} 1', 'finite and non-negative'))
+        for key, message in [('lambda_tau', 'finite and non-negative'),
+                             ('spin_cutoff', 'finite positive')]:
+            for bad in ('nan', 'inf', '1e40'):
+                case = root / f'invalid-{key}-{bad}'
+                config = common.replace(f'{key} ' + ('0.5' if key == 'lambda_tau' else '6.0'), f'{key} {bad}')
+                base.write_case(case, config)
+                run = subprocess.run([str(base.NEP)], cwd=case, env=env, capture_output=True, text=True)
+                assert run.returncode != 0 and message in run.stdout + run.stderr, (key, bad, run.stdout, run.stderr)
+        report['nonfinite_torque_cutoff_rejections'] = 6
         for i, (keywords, message) in enumerate(invalid):
             case = root / f'invalid-{i}'
             base.write_case(case, common.replace('lambda_m 1.0', keywords))

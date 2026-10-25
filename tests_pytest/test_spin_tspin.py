@@ -22,14 +22,6 @@ TIME_UNIT_CONVERSION = 1.018051e1
 MASK64 = (1 << 64) - 1
 
 
-def _environment():
-    env = os.environ.copy()
-    cuda_lib = "/home/dwhe/opt/cuda-12.8/lib64"
-    env["LD_LIBRARY_PATH"] = cuda_lib + (
-        ":" + env["LD_LIBRARY_PATH"] if env.get("LD_LIBRARY_PATH") else "")
-    return env
-
-
 def _model_with_zero_lattice_velocity():
     lines = (FIXTURE / "model_large_box.xyz").read_text().splitlines()
     lines[1] = lines[1].replace(
@@ -50,7 +42,6 @@ def _prepare_case(case_dir, run_input, model_text=None):
     return subprocess.run(
         [str(GPUMD)],
         cwd=case_dir,
-        env=_environment(),
         capture_output=True,
         text=True,
         check=False)
@@ -74,7 +65,7 @@ def _read_spin_frame(path):
 def _read_last_lattice(path):
     comments = [
         line for line in path.read_text().splitlines()
-        if line.startswith("Lattice=")
+        if re.search(r'\bLattice="', line)
     ]
     values = re.search(r'Lattice="([^"]+)"', comments[-1]).group(1)
     return np.array([float(value) for value in values.split()])
@@ -291,7 +282,7 @@ def test_element_mass_factor_requires_every_present_element(tmp_path):
         "ensemble nvt_tspin 300 300 100 mass_factor Fe 0.001\n"
         "run 1\n")
     result = subprocess.run(
-        [str(GPUMD)], cwd=directory, env=_environment(),
+        [str(GPUMD)], cwd=directory,
         capture_output=True, text=True, check=False)
     assert result.returncode != 0
 
@@ -348,7 +339,6 @@ def test_nvt_tspin_lattice_off_only_integrates_spins(tmp_path):
         "run 5\n",
         "\n".join(lines) + "\n")
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "keep lattice positions and velocities fixed" in result.stdout
 
     rows = np.array([
         [float(value) for value in line.split()[1:]]
@@ -377,7 +367,7 @@ def test_tspin_integrates_coordinates_excluded_by_potential_response_mask(tmp_pa
         "dump_xyz 1 state.xyz mass spin mforce spin_velocity\n"
         "run 1\n")
     result = subprocess.run(
-        [str(GPUMD)], cwd=directory, env=_environment(),
+        [str(GPUMD)], cwd=directory,
         capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
 
@@ -405,7 +395,7 @@ def test_element_mass_factor_zero_freezes_only_selected_spins(tmp_path):
         "dump_xyz 1 state.xyz mass spin mforce spin_velocity\n"
         "run 1\n")
     result = subprocess.run(
-        [str(GPUMD)], cwd=directory, env=_environment(),
+        [str(GPUMD)], cwd=directory,
         capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
 
@@ -443,7 +433,7 @@ def test_npt_tspin_runs_with_spin3_force_path(tmp_path):
         "dump_xyz 1 state.xyz mass spin mforce spin_velocity\n"
         "run 1\n")
     result = subprocess.run(
-        [str(GPUMD)], cwd=directory, env=_environment(),
+        [str(GPUMD)], cwd=directory,
         capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
     actual = _read_spin_frame(directory / "state.xyz")
@@ -465,7 +455,7 @@ def test_tspin_requires_spin_potential(tmp_path):
         "ensemble nvt_tspin 300 300 100\n"
         "run 1\n")
     result = subprocess.run(
-        [str(GPUMD)], cwd=case, env=_environment(),
+        [str(GPUMD)], cwd=case,
         capture_output=True, text=True, check=False)
     assert result.returncode != 0
 

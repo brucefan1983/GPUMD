@@ -2,6 +2,7 @@
 // Run in a directory containing a valid Spin3 nep.in (C1/C2/C3/C9).
 #include "main_nep/nep_spin/spin_parameters.cuh"
 #include "main_nep/parameter_input.cuh"
+#include "main_nep/common/nep_energy_reference.cuh"
 #include "main_nep/dataset.cuh"
 #include "main_nep/nep_spin/spin_policy.cuh"
 #include "main_nep/nep_spin/spin_init.cuh"
@@ -79,10 +80,14 @@ int main()
   for (int t = 0; t < 2; ++t) {
     structures[t].num_atom = 1;
     structures[t].type = {t};
-    structures[t].energy = -2.0f - t;
+    structures[t].energy_total = -2.0 - t;
+    structures[t].weight = 1.0f;
   }
-  fitness_spin::fit_spin_energy_baseline(structures, para);
-  assert(para.spin_baseline[0] == -2.0f && para.spin_baseline[1] == -3.0f);
+  int reference_rank = 0;
+  std::string reference_error;
+  assert(fit_nep_energy_reference(structures, 2, para.energy_reference, reference_rank, reference_error));
+  assert(reference_rank == 2);
+  assert(para.energy_reference[0] == -2.0 && para.energy_reference[1] == -3.0);
 
   Dataset dataset;
   Spin_Data magnetic;

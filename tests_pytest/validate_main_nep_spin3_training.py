@@ -18,7 +18,7 @@ GPUMD = Path(os.environ.get("GPUMD_COMMAND", ROOT / "src" / "gpumd"))
 NEP_IN = """\
 type 2 Fe Ge
 version 4
-spin_mode 3
+spin_version 1
 spin_dof_type Fe
 spin_env_type Fe Ge
 cutoff 6.0 5.0
@@ -134,8 +134,8 @@ def validate_parser(root):
         "invalid_second_basis": NEP_IN.replace("spin_basis_size 8 0", "spin_basis_size 8 1"),
         "invalid_order": NEP_IN.replace("spin_order 3", "spin_order 4"),
         "invalid_soc": NEP_IN.replace("spin_soc 1", "spin_soc 2"),
-        "removed_spin_mode_1": NEP_IN.replace("spin_mode 3", "spin_mode 1"),
-        "removed_spin_mode_2": NEP_IN.replace("spin_mode 3", "spin_mode 2"),
+        "removed_spin_mode_1": NEP_IN.replace("spin_version 1", "spin_mode 1"),
+        "removed_spin_mode_2": NEP_IN.replace("spin_version 1", "spin_mode 2"),
         "invalid_spin_cutoff_arity": NEP_IN.replace(
             "spin_cutoff 6.0", "spin_cutoff 4.0 5.0 6.0"),
         "removed_spin_chiral": NEP_IN.replace("spin_soc 1", "spin_soc 1\nspin_chiral 1"),
@@ -144,6 +144,15 @@ def validate_parser(root):
         "response_requires_metadata": NEP_IN.replace(
             "lambda_tau 0.5", "lambda_tau 0.5\nlambda_spin_response 0.3"),
     }
+    for value in ("0", "2", "3", "-1", "1.0", "nan", "1 2", ""):
+        cases[f"invalid_spin_version_{value}"] = NEP_IN.replace("spin_version 1", f"spin_version {value}")
+    cases["duplicate_spin_version"] = NEP_IN + "spin_version 1\n"
+    cases["mixed_spin_selectors"] = NEP_IN + "spin_mode 3\n"
+    cases["mixed_spin_selectors_reverse"] = "spin_mode 3\n" + NEP_IN
+    cases["mixed_disabled_spin_selector"] = NEP_IN + "spin_mode 0\n"
+    cases["duplicate_legacy_spin_selector"] = NEP_IN.replace("spin_version 1", "spin_mode 3\nspin_mode 3")
+    for keyword in ("model_type 1", "charge_mode 1", "vdw 1", "charge_vdw 1"):
+        cases["conflicting_" + keyword] = NEP_IN + keyword + "\n"
     for value in ("0", "1", "full", "transverse"):
         cases[f"removed_mforce_mode_{value}"] = NEP_IN + f"spin_mforce_mode {value}\n"
     results = {}
@@ -215,8 +224,10 @@ def validate_training_and_runtime(
         raise RuntimeError(result.stdout + result.stderr)
 
     checkpoint = (training / "nep.txt").read_text()
-    if not checkpoint.startswith("nep 2 Fe Ge\nformat_version 1\nmodel nep_spin3\n"):
+    if not checkpoint.startswith("nep 2 Fe Ge\nformat_version 1\nmodel nep_spin\n"):
         raise AssertionError("invalid block-format spin3 checkpoint")
+    if "\nspin_version 1\n" not in checkpoint or "\nspin_mode " in checkpoint:
+        raise AssertionError("Spin models must declare spin_version instead of spin_mode")
     if "\nenergy_reference " not in checkpoint or "spin_baseline" in checkpoint:
         raise AssertionError("Spin3 must use the shared energy reference")
     if enable_zbl and "\nzbl 1.25 2.5\n" not in checkpoint:
@@ -503,7 +514,13 @@ def validate_shared_nep_io(root):
     result = run(NEP, root)
     if result.returncode:
         raise RuntimeError(result.stdout + result.stderr)
-    return "training/restart/prediction passed"
+    predictions = [(root / (name + "_train.out")).read_text() for name in ("energy", "force", "virial")]
+    (root / "nep.in").write_text(config + "spin_mode 0\nprediction 1\n")
+    result = run(NEP, root)
+    if result.returncode:
+        raise RuntimeError(result.stdout + result.stderr)
+    assert predictions == [(root / (name + "_train.out")).read_text() for name in ("energy", "force", "virial")]
+    return "training/restart/prediction and legacy disabled selector passed"
 
 
 def main():

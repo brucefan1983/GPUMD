@@ -43,12 +43,14 @@ baseline is fitted to ordinary training data. On restart, both the saved
 baseline and search state are retained. The cross-species ``fine_tune`` mode
 remains unsupported for Spin3.
 
-``nep.restart`` retains its ordinary two-column ``mu sigma`` format and stores
-the search distribution, while ``nep.txt`` stores a selected candidate model.
+``nep.restart`` stores the search distribution and ``energy_reference`` in the
+shared restart format (see :ref:`nep_restart`), while ``nep.txt`` stores a
+selected candidate model. Legacy two-column ``mu sigma`` restarts are still
+accepted with their matching legacy ``nep.txt``.
 The search mean and that candidate need not predict the same values.
 No parameter rescaling or substitution of the selected candidate for the
 search mean is performed during restart.
 
 As in the existing SNES lifecycle, a restart begins a new requested generation
-segment and resets RNG initialization. The legacy file does not store global
+segment and resets RNG initialization. The restart file does not store global
 generation progress; it is not an exact replay of an uninterrupted trajectory.

@@ -11,7 +11,7 @@ to the local spatial environment::
   spin_soc <flag>
 
 The flag can be 0 or 1 and defaults to 1. It is used only with
-``spin_mode 3``.
+``spin_version 1``.
 
 .. list-table::
    :header-rows: 1

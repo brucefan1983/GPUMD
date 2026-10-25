@@ -239,8 +239,10 @@ buffers in `Spin_Data`, indexed by `NEP_Batch_Data`. Labels are matched through
 `Structure::index_in_file` after batch sorting or energy-difference grouping.
 Its reader supplies the largest structural/magnetic cutoff to the shared geometry
 reader. `response.xyz` has separate device data and contributes only response loss;
-it does not fit the baseline or scalers. Spin3 preserves its fixed-reference scaler
-and two-column restart contract while using the common generation-zero lifecycle.
+it does not fit the energy reference or scalers. Spin3 uses the shared
+`energy_reference` and block model/restart formats while preserving its
+fixed-reference scaler and the common generation-zero lifecycle. Legacy Spin3
+model and two-column restart files remain readable.
 
 ### Adding a training model
 
@@ -270,3 +272,9 @@ The basic internal units are:
 - charge: elementary charge
 
 User-facing changes to keywords, file formats, units, or physical definitions should be reflected in the documentation under `doc/`.
+
+See [Spin units and external magnetic field contract](spin_units.md) for the
+muB, tesla, and eV/muB conventions.
+
+See [Spin regression checks](spin_validation.md) for portable format, training,
+and GPU validation commands.

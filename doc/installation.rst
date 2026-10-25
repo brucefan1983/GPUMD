@@ -97,7 +97,7 @@ use ``CUDA_VISIBLE_DEVICES`` to select a subset, for example::
   CUDA_VISIBLE_DEVICES=0,1 ./nep
 
 The ``gpumd`` executable also uses all visible GPUs when running standard NEP
-or temperature-dependent NEP models, and ``nep4_spin3`` spin models.
+or temperature-dependent NEP models, and ``nep_spin`` spin models.
 For example::
 
   CUDA_VISIBLE_DEVICES=0,1 ./gpumd

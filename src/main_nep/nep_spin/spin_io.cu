@@ -413,7 +413,7 @@ void write_checkpoint_metadata(FILE* fid_nep, const Spin_Parameters& para)
     para.spin_dof_type_active.begin(), para.spin_dof_type_active.end(),
     [](int active) { return active != 1; });
   const bool write_env = para.spin_env_type_active != para.spin_dof_type_active;
-  fprintf(fid_nep, "spin_mode %d\n", para.spin_mode);
+  fprintf(fid_nep, "spin_version 1\n");
   fprintf(fid_nep, "spin_basis_size %d\n", para.spin_basis_size[0]);
   fprintf(fid_nep, "spin_l_max %d\n", para.spin_l_max[0]);
   fprintf(fid_nep, "spin_compress %d\n", para.spin_compress);

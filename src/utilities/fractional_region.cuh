@@ -44,4 +44,3 @@ static __device__ bool is_in_region(
 {
   return sa >= amin && sa < amax && sb >= bmin && sb < bmax && sc >= cmin && sc < cmax;
 }
-

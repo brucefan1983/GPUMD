@@ -1408,7 +1408,7 @@ void NEP_Spin::resize_domain(int num_atoms)
   num_atoms_ = num_atoms;
   small_box_initialized_ = false;
   neighbor_.initialize(rc, num_atoms_, input_neighbor_capacity_);
-  model_.neighbor_capacity = neighbor_.capacity();
+  model_.neighbor_capacity = neighbor_.get_capacity();
   const std::size_t slots =
     static_cast<std::size_t>(num_atoms_) * static_cast<std::size_t>(model_.neighbor_capacity);
   data_.NN_radial.resize_with_capacity(num_atoms_);

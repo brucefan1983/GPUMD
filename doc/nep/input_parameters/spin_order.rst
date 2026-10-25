@@ -11,7 +11,7 @@ neural network::
   spin_order <order>
 
 The value can be 1, 2, or 3 and defaults to 3. It is used only with
-``spin_mode 3``.
+``spin_version 1``.
 
 .. list-table::
    :header-rows: 1

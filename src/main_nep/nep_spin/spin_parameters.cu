@@ -32,7 +32,7 @@ Spin_Parameters::Spin_Parameters(const ParameterInput& input) {
   number_of_variables_spin_projection = 4 * spin_compress * spin_compress;
   number_of_variables_descriptor += number_of_variables_descriptor_spin + number_of_variables_spin_projection;
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
-  model_name = "nep_spin3";
+  model_name = "nep_spin";
   file_tag = enable_zbl ? "nep4_spin3_zbl" : "nep4_spin3";
   set_regularization_defaults();
   initialize_spin_checkpoint(*this);
@@ -50,6 +50,7 @@ Spin_Parameters::Spin_Parameters(const ParameterInput& input) {
 void Spin_Parameters::report_model_inputs() const
 {
   NEP_Energy_Parameters::report_model_inputs();
+  printf("    spin_version = 1.\n");
   printf("    spin_order = %d, spin_compress = %d, spin_soc = %d.\n", spin_order, spin_compress, spin_soc);
   printf("    spin_basis_size = %d, spin_l_max = %d.\n", spin_basis_size[0], spin_l_max[0]);
   if (split_mforce_loss) {
@@ -278,8 +279,9 @@ void Spin_Parameters::parse_lambda_tau(const char** param, int num_param)
     PRINT_INPUT_ERROR("lambda_tau should have 1 parameter.\n");
   }
   double value = 0.0;
-  if (!is_valid_real(param[1], &value) || value < 0.0) {
-    PRINT_INPUT_ERROR("Spin-torque loss weight should be a non-negative number.\n");
+  if (!is_valid_real(param[1], &value) || !std::isfinite(value) || value < 0.0 ||
+      value > std::numeric_limits<float>::max()) {
+    PRINT_INPUT_ERROR("Spin-torque loss weight should be finite and non-negative.\n");
   }
   lambda_tau = value;
 }
@@ -381,8 +383,9 @@ void Spin_Parameters::parse_spin_cutoff(const char** param, int num_param)
   for (int type = 0; type < num_types; ++type) {
     double cutoff = 0.0;
     const int value_index = num_param == 2 ? 1 : type + 1;
-    if (!is_valid_real(param[value_index], &cutoff) || cutoff <= 0.0) {
-      PRINT_INPUT_ERROR("spin_cutoff values must be positive numbers.\n");
+    if (!is_valid_real(param[value_index], &cutoff) || !std::isfinite(cutoff) || cutoff <= 0.0 ||
+        cutoff > std::numeric_limits<float>::max()) {
+      PRINT_INPUT_ERROR("spin_cutoff values must be finite positive numbers within float range.\n");
     }
     spin_cutoff_by_type[type] = static_cast<float>(cutoff);
   }

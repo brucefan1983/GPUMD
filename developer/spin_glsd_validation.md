@@ -121,20 +121,20 @@ SHA-256：
 Fe 势        38dabe33fd101432c54a453629c8fbbb8d8d7edbf437477180a09431915fb711
 ```
 
-原 Fe 势 `/Users/superbing/Desktop/Workspace/Calculations/nepspin-paper/Fe/nep.txt` 保持只读，末尾重新核对哈希一致。测试使用其副本，旧验证结果保留。当前可执行文件已在本次 run 目录单独保存。
+原 Fe 势 `$FE_MODEL` 保持只读，末尾重新核对哈希一致。测试使用其副本，旧验证结果保留。当前可执行文件已在本次 run 目录单独保存。
 
 证据位置：
 
 ```text
-远端根目录：/org/caep-xuben/chenchengbing/hpc-work/gpumd-lsf-20261021/gpumd-spin3-spin3-refactor/glsd-independent-v1
+远端根目录：$REMOTE_WORK_ROOT/gpumd-lsf-20261021/gpumd-spin3-spin3-refactor/glsd-independent-v1
   source.sha256 / source-verify.log / build.log / slurm-1892500.out
   gpumd / spin_glsd_analytic / analytic.json / runtime/report.json
 
-本地小证据集：/Users/superbing/hpc-platforms/experiments/gpumd-lsf-20261021/glsd-independent
+本地小证据集：$VALIDATION_ROOT/experiments/gpumd-lsf-20261021/glsd-independent
   analytic.json / runtime.json / source.sha256 / source-verify.log
   slurm-1892500.out / build.log / collection_manifest.json
 
-plan：/Users/superbing/hpc-platforms/plans/sai-gpumd-lsf-20261021-final-v5-glsd-independent-v1.json
+plan：$VALIDATION_ROOT/plans/sai-gpumd-lsf-20261021-final-v5-glsd-independent-v1.json
 ```
 
 ## 验证结果
@@ -253,7 +253,7 @@ Fe 势        38dabe33fd101432c54a453629c8fbbb8d8d7edbf437477180a09431915fb711
 
 SIB 对 6619b10 的最大自旋差：单卡 8.67362e-19 μB，4 卡 2.31539e-9 μB。保留旧物理参数 λ=10 的 Fe 单卡/4 卡测试，最大自旋差分别为：零温 9.09790e-7、300 K 1.12950e-6、NVT 耦合 1.14323e-7、NPT 6.80926e-8 μB，均通过原有验收限。
 
-证据保存在 `/Users/superbing/hpc-platforms/experiments/gpumd-lsf-20261021/glsd-damping/`，包含 `runtime.json`、`analytic.json`、`summary.json`、源码哈希、构建日志、作业结果和精确收集清单。Plan 为 `/Users/superbing/hpc-platforms/plans/sai-gpumd-lsf-20261021-final-v5-glsd-independent-v1-glsd-damping-v1.json`。远端目录位于原 software root 下的 `glsd-damping-v1`，保存独立新版二进制及全部案例输入/输出。未 stage、commit 或 push。
+证据保存在 `$VALIDATION_ROOT/experiments/gpumd-lsf-20261021/glsd-damping/`，包含 `runtime.json`、`analytic.json`、`summary.json`、源码哈希、构建日志、作业结果和精确收集清单。Plan 为 `$VALIDATION_ROOT/plans/sai-gpumd-lsf-20261021-final-v5-glsd-independent-v1-glsd-damping-v1.json`。远端目录位于原 software root 下的 `glsd-damping-v1`，保存独立新版二进制及全部案例输入/输出。未 stage、commit 或 push。
 
 ## 后续 MTTK NPT restart 验收（2026-10-21）
 
@@ -262,3 +262,5 @@ SIB 对 6619b10 的最大自旋差：单卡 8.67362e-19 μB，4 卡 2.31539e-9 �
 ## 后续 NVT NHC restart 验收（2026-10-21）
 
 `nvt_glsd` 在启用原子运动时现已保存独立 NHC 的链质量、位置和共轭动量，以及温度 ramp 进度和全局时间。Sai 作业 1892883 的 12 组连续／续跑、6 组单卡／4 卡对照、13 项非法输入和 2 项 lattice-off 切换检查全部通过；真实 Fe 的 4 卡续跑最大位置差 1.27e-10 Å、自旋差 7.21e-8 μB。原有理论模型、SIB/GLSD 和 MTTK 回归也通过。使用说明、适用边界、构建来源和完整数据见 [NHC restart 验证](nhc_restart_validation.md)。此前 NHC 未保存状态的描述仅适用于历史二进制。
+
+路径中的 `$VALIDATION_ROOT`、`$REMOTE_WORK_ROOT` 和 `$FE_MODEL` 是验证环境占位符；历史数值对应文中指定的源码、模型哈希和任务，不代表当前分支重测结果。可移植回归入口见 [Spin validation](spin_validation.md)。

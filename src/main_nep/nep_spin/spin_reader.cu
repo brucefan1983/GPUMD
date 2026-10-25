@@ -46,7 +46,7 @@ void Spin_Reader::read_structure(const XYZ_Record& record, Structure& structure)
     }
     offset+=count;
   }
-  if (spin_offset<0) PRINT_INPUT_ERROR("spin_mode 3 requires spin/spins/moment/moments with property type R:3.");
+  if (spin_offset<0) PRINT_INPUT_ERROR("spin_version 1 requires spin/spins/moment/moments with property type R:3.");
   label.has_mforce=mforce_offset>=0;
   for (auto* values:{&label.sx,&label.sy,&label.sz,&label.mfx,&label.mfy,&label.mfz}) values->resize(structure.num_atom,0.0f);
   for (int a=0;a<structure.num_atom;++a) {

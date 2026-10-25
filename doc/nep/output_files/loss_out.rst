@@ -82,11 +82,21 @@ where
 
 If a Spin NEP potential is trained, each row contains the following fields::
 
-  gen L_t L_1 L_2 L_e_train L_f_train L_v_train L_m_train L_tau_train L_e_test L_f_test L_v_test L_m_test L_tau_test
+  generation total L1 L2 rmse_energy_train rmse_force_train rmse_virial_train rmse_mforce_train rmse_tau_train rmse_energy_test rmse_force_test rmse_virial_test rmse_mforce_test rmse_tau_test
 
-Here, :attr:`L_m` is the Cartesian magnetic-force RMSE in eV/muB and
-:attr:`L_tau` is the RMSE of
+Here, :attr:`rmse_mforce` is the Cartesian magnetic-force RMSE in eV/muB and
+:attr:`rmse_tau` is the RMSE of
 :math:`\boldsymbol{s}_i\times\boldsymbol{M}_i`, in eV.
 Only structures containing magnetic-force labels contribute to these two
 terms. The grouped magnetic-response loss, when enabled, contributes to
-:attr:`L_t` but currently has no separate output column.
+:attr:`total` but currently has no separate output column.
+
+With :ref:`independent magnetic losses <kw_lambda_m_parallel>`, four additional
+columns precede any energy-difference columns::
+
+  rmse_m_parallel_train rmse_m_perp_train rmse_m_parallel_test rmse_m_perp_test
+
+They report unweighted RMSE in eV/muB, normalized by one parallel or two
+perpendicular degrees of freedom. Training columns describe the current batch;
+test columns are zero if no test set is supplied. Use the ``# columns`` header
+to identify columns for the selected objective.

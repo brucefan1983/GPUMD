@@ -97,13 +97,16 @@ def read_text_oracle(path, model):
 def load_fixture(name):
     fixtures = {
         "o3c2_uniform": ("nep4_spin3_o3c2_uniform.nep", "spin3_o3c2_uniform_oracle.txt"),
-        "o3c2_typewise": ("nep4_spin3_o3c2_typewise.nep", "spin3_o3c2_typewise_oracle.txt"),
+        "o3c2_typewise": ("nep4_spin3_o3c2_uniform.nep", "spin3_o3c2_typewise_oracle.txt"),
         "o3c3_uniform": ("nep4_spin3_o3c3_uniform.nep", "spin3_o3c3_uniform_oracle.txt"),
     }
     if name not in fixtures:
         raise ValueError(f"unknown fixture: {name}")
     model_name, oracle_name = fixtures[name]
     model = (FIXTURE / model_name).read_text()
+    if name == "o3c2_typewise":
+        # Identical parameters; the frozen oracle hash also checks this header edit.
+        model = model.replace("spin_cutoff 6.0\n", "spin_cutoff 4.0 6.0\n", 1)
     oracle = read_text_oracle(FIXTURE / oracle_name, model)
     return model, oracle
 

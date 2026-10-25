@@ -16,14 +16,6 @@ BOLTZMANN = 8.617343e-5
 MASK64 = 0xFFFFFFFFFFFFFFFF
 
 
-def _environment():
-    env = os.environ.copy()
-    cuda_lib = "/home/dwhe/opt/cuda-12.8/lib64"
-    env["LD_LIBRARY_PATH"] = cuda_lib + (
-        ":" + env["LD_LIBRARY_PATH"] if env.get("LD_LIBRARY_PATH") else "")
-    return env
-
-
 def _base_model():
     lines = (FIXTURE / "model_large_box.xyz").read_text().splitlines()
     lines[1] = lines[1].replace(
@@ -50,7 +42,7 @@ def _run(case_dir, run_input, model_text=None):
     (case_dir / "model.xyz").write_text(model_text or _base_model())
     (case_dir / "run.in").write_text(run_input)
     return subprocess.run(
-        [str(GPUMD)], cwd=case_dir, env=_environment(),
+        [str(GPUMD)], cwd=case_dir,
         capture_output=True, text=True, check=False)
 
 
@@ -308,6 +300,6 @@ def test_sib_requires_spin_potential(tmp_path):
         "ensemble nvt_sib 300 300 100 alpha 0.1\n"
         "run 1\n")
     result = subprocess.run(
-        [str(GPUMD)], cwd=case, env=_environment(),
+        [str(GPUMD)], cwd=case,
         capture_output=True, text=True, check=False)
     assert result.returncode != 0

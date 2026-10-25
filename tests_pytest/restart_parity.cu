@@ -14,14 +14,15 @@ void evaluate(Model& model, const std::vector<float>& parameters, const char* fi
   auto& training=*model.training;
   std::vector<float> population;
   for(int d=0;d<training.device_count;++d) population.insert(population.end(),parameters.begin(),parameters.end());
-  std::ofstream out(filename); out<<std::setprecision(9);
+  std::ofstream out(filename); out<<std::setprecision(17);
   for(auto& batch:training.train_set) {
     model.find_force(p,population.data(),batch,false,training.device_count);
     for(int d=0;d<training.device_count;++d) {
       gpuSetDevice(d); auto& data=batch[d];
-      auto dump=[&](const char* name,GPU_Vector<float>& values,int count) {
-        std::vector<float> host(count);values.copy_to_host(host.data());out<<name<<' '<<d;
-        for(float x:host) out<<' '<<x;out<<'\n';
+      auto dump=[&](const char* name,auto& values,int count) {
+        using Value = typename std::remove_pointer<decltype(values.data())>::type;
+        std::vector<Value> host(count);values.copy_to_host(host.data());out<<name<<' '<<d;
+        for(auto x:host) out<<' '<<x;out<<'\n';
       };
       dump("E",data.energy,data.N);dump("F",data.force,3*data.N);dump("V",data.virial,6*data.N);
       if constexpr (std::is_same<Model,NEP_Spin_Model>::value) dump("MF",model.magnetic(data).mforce,3*data.N);
@@ -37,12 +38,12 @@ template<class Model> void probe(Model& model) {
   if(std::ifstream("nep.txt").good()) model.read_model(elite.data());
   gpuSetDevice(0);p.q_scaler_gpu[0].copy_to_host(p.q_scaler_cpu.data());
   std::ofstream scalers("scaler.txt");scalers<<std::setprecision(9);for(float x:p.q_scaler_cpu) scalers<<x<<'\n';
-  std::ofstream baseline("baseline.txt");baseline<<std::setprecision(9);
-  if constexpr(std::is_same<Model,NEP_Spin_Model>::value) for(float x:p.spin_baseline) baseline<<x<<'\n';
+  std::ofstream baseline("baseline.txt");baseline<<std::setprecision(17);
+  for(double x:p.energy_reference) baseline<<x<<'\n';
   evaluate(model,search.center(),"mu.pred");evaluate(model,elite,"elite.pred");
 }
 int main() {
   ParameterInput input;
-  if(input.spin_mode) {NEP_Spin_Model model(input);probe(model);}
+  if(input.spin_version) {NEP_Spin_Model model(input);probe(model);}
   else {NEP model(input);probe(model);}
 }

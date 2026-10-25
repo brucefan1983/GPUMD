@@ -87,6 +87,8 @@ python3 tests_pytest/validate_nhc_restart.py \
 | NHC 改动前 gpumd（已有 MTTK restart） | `ddb861ca001ca05e285382c7e720515238241a95a8d67679427392345bc241fa` |
 | 只读 Fe 势 | `38dabe33fd101432c54a453629c8fbbb8d8d7edbf437477180a09431915fb711` |
 
-远程隔离运行目录：`/org/caep-xuben/chenchengbing/hpc-work/gpumd-lsf-20261021/gpumd-spin3-spin3-refactor/nhc-restart-v1`。该目录保留独立二进制、构建日志、输入、轨迹及所有报告；旧验证目录未覆盖。
+远程隔离运行目录：`$REMOTE_WORK_ROOT/gpumd-lsf-20261021/gpumd-spin3-spin3-refactor/nhc-restart-v1`。该目录保留独立二进制、构建日志、输入、轨迹及所有报告；旧验证目录未覆盖。
 
-本地证据：`/Users/superbing/hpc-platforms/experiments/gpumd-lsf-20261021/nhc-restart-v1`。其中 `nhc-check/report.json` 是本次专项结果，`restart-check/report.json` 是 MTTK 回归；还保存 `plan.json`、`job_result.json`、构建／运行／Slurm 日志、`source.sha256`、`source-snapshot.tar.gz` 和带哈希的 `collection_manifest.json`。源码归档只包含清单中的源码／测试及有意 fixture，不包含真实 Fe 原始数据或运行轨迹。
+本地证据：`$VALIDATION_ROOT/experiments/gpumd-lsf-20261021/nhc-restart-v1`。其中 `nhc-check/report.json` 是本次专项结果，`restart-check/report.json` 是 MTTK 回归；还保存 `plan.json`、`job_result.json`、构建／运行／Slurm 日志、`source.sha256`、`source-snapshot.tar.gz` 和带哈希的 `collection_manifest.json`。源码归档只包含清单中的源码／测试及有意 fixture，不包含真实 Fe 原始数据或运行轨迹。
+
+路径中的 `$VALIDATION_ROOT`、`$REMOTE_WORK_ROOT` 和 `$FE_MODEL` 是验证环境占位符；历史数值对应文中指定的源码、模型哈希和任务，不代表当前分支重测结果。可移植回归入口见 [Spin validation](spin_validation.md)。

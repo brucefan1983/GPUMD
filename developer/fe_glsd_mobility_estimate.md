@@ -54,9 +54,11 @@ gpumd   9f244ff6bf48ac63df64cb24793dcea0e033e2aa7efcb026075db6b0b44169a9
 Fe 势   38dabe33fd101432c54a453629c8fbbb8d8d7edbf437477180a09431915fb711
 ```
 
-- 本地脚本、结果、训练元数据检查和 Slurm 日志：`/Users/superbing/hpc-platforms/experiments/gpumd-lsf-20261021/glsd-fe-mobility/`。
-- Plan：`/Users/superbing/hpc-platforms/plans/sai-gpumd-lsf-20261021-final-v5-glsd-independent-v1-glsd-fe-mobility-v1.json`。
-- 远端原始输入/输出：`/org/caep-xuben/chenchengbing/hpc-work/gpumd-lsf-20261021/gpumd-spin3-spin3-refactor/glsd-fe-mobility-v1/`。
+- 本地脚本、结果、训练元数据检查和 Slurm 日志：`$VALIDATION_ROOT/experiments/gpumd-lsf-20261021/glsd-fe-mobility/`。
+- Plan：`$VALIDATION_ROOT/plans/sai-gpumd-lsf-20261021-final-v5-glsd-independent-v1-glsd-fe-mobility-v1.json`。
+- 远端原始输入/输出：`$REMOTE_WORK_ROOT/gpumd-lsf-20261021/gpumd-spin3-spin3-refactor/glsd-fe-mobility-v1/`。
 - `summary.json` 保留三个体积的全部扫描点、两种差分曲率及哈希；`scan.py` 保留构型、扫描和取值方法。
 
 原有积分器回归见 `spin_glsd_validation.md`；本次只新增静态探测和文档修正，没有 commit 或 push。
+
+路径中的 `$VALIDATION_ROOT`、`$REMOTE_WORK_ROOT` 和 `$FE_MODEL` 是验证环境占位符；历史数值对应文中指定的源码、模型哈希和任务，不代表当前分支重测结果。可移植回归入口见 [Spin validation](spin_validation.md)。

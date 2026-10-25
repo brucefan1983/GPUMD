@@ -10,7 +10,7 @@ This keyword sets the weight of grouped magnetic-response loss::
   lambda_spin_response <weight>
 
 The weight must be finite and non-negative and defaults to 0. A positive value
-requires ``spin_mode 3`` and :ref:`response.xyz <response_xyz>` in the working
+requires ``spin_version 1`` and :ref:`response.xyz <response_xyz>` in the working
 directory. A missing file, an empty file, or an incomplete rotation group is
 an input error. With weight 0, the file is not opened.
 

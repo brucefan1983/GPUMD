@@ -30,8 +30,8 @@ def execute(directory, config, xyz=base.TRAIN_XYZ, model=None, restart=None, err
     return output
 
 
-def predict(directory, model, xyz=base.TRAIN_XYZ):
-    execute(directory, NO_MASKS + "prediction 1\n", xyz, model)
+def predict(directory, model, xyz=base.TRAIN_XYZ, config=NO_MASKS):
+    execute(directory, config + "prediction 1\n", xyz, model)
     return {name: base.columns(directory / f"{name}_train.out", width)
             for name, width in (("energy", 1), ("force", 3), ("virial", 6), ("mforce", 3))}
 
@@ -47,8 +47,9 @@ def compare(left, right):
 
 def metadata(model):
     lines = model.splitlines()
-    count = int(lines[1].split()[2])
-    return dict((line.split()[0], line.split()[1:]) for line in lines[2:2+count])
+    stop = next(i for i, line in enumerate(lines) if line.startswith('@ '))
+    return dict((line.split()[0], line.split()[1:]) for line in lines[:stop]
+                if line.startswith(('spin_', 'energy_reference ')))
 
 
 def runtime_mforce(directory, model, reference):
@@ -83,15 +84,20 @@ def validate(root):
         fresh = root / name
         log = execute(fresh, config)
         for text in ("Input or default parameters:", "lambda_m =", "sigma0 =", "spin_cutoff:",
-                     "spin_dof_type:", "Spin energy baseline", "generation"):
+                     "spin_dof_type:", "Energy reference", "generation"):
             assert text in log, text
         model = (fresh / "nep.txt").read_text()
+        assert "\nmodel nep_spin\n" in model and "\nspin_version 1\n" in model
+        assert "\nspin_mode " not in model
         old = predict(root / (name + "_before"), model)
-        # Freeze a real exported elite in the official two-column restart format.
+        # Freeze the exported elite in the shared reference-aware restart format.
         lines = model.splitlines()
-        start = next(i for i, line in enumerate(lines) if line.startswith("ANN ")) + 1
-        count = len((fresh / "nep.restart").read_text().splitlines())
-        frozen = "".join(f"{x} 0\n" for x in lines[start:start+count])
+        start = next(i for i, line in enumerate(lines) if line.startswith("@ parameters "))
+        count = int(lines[start].split()[2])
+        reference = metadata(model)["energy_reference"]
+        frozen = ("nep_restart\nenergy_reference " + str(len(reference)) + " " + " ".join(reference)
+                  + f"\nparameters {count}\n"
+                  + "".join(f"{x} 0\n" for x in lines[start+1:start+1+count]))
         resumed = root / (name + "_resume")
         execute(resumed, NO_MASKS.replace("generation 1", "generation 2"), model=model, restart=frozen)
         snapshots = list(resumed.glob("nep_gen*.txt"))
@@ -111,6 +117,38 @@ def validate(root):
             execute(root / "invalid_fresh_subset", NO_MASKS + "spin_env_type Fe\n",
                     error="spin_dof_type must be a subset")
         if name == "fe_env_all":
+            alias_config = config.replace("spin_version 1", "spin_mode 3")
+            alias_fresh = root / "legacy_input_fresh"
+            execute(alias_fresh, alias_config)
+            assert (alias_fresh / "nep.txt").read_text() == model
+            assert (alias_fresh / "nep.restart").read_text() == (fresh / "nep.restart").read_text()
+            report["legacy_input_prediction"] = compare(
+                old, predict(root / "legacy_input_prediction", model, config=alias_config))
+            alias_resume = root / "legacy_input_resume"
+            execute(alias_resume, alias_config.replace("generation 1", "generation 2"),
+                    model=model, restart=frozen)
+            assert (alias_resume / "nep.txt").read_text() == saved
+            report["legacy_input_training_and_restart"] = "identical to spin_version 1"
+            # The previous block header has identical numerical payload and restart indexing.
+            legacy_model = model.replace("model nep_spin\n", "model nep_spin3\n").replace(
+                "spin_version 1\n", "spin_mode 3\n")
+            legacy_prediction = predict(root / "old_block_prediction", legacy_model)
+            report["old_block_prediction"] = compare(old, legacy_prediction)
+            report["old_block_md"] = runtime_mforce(
+                root / "old_block_md", legacy_model, legacy_prediction)
+            legacy_resume = root / "old_block_resume"
+            execute(legacy_resume, NO_MASKS.replace("generation 1", "generation 2"),
+                    model=legacy_model, restart=frozen)
+            migrated = (legacy_resume / "nep.txt").read_text()
+            assert "\nmodel nep_spin\n" in migrated and "\nspin_mode " not in migrated
+            assert metadata(migrated) == metadata(model)
+            report["old_block_resume"] = compare(old, predict(root / "migrated_prediction", migrated))
+            for version in ("0", "2"):
+                execute(root / ("unsupported_version_" + version), NO_MASKS + "prediction 1\n",
+                        model=model.replace("spin_version 1\n", f"spin_version {version}\n"),
+                        error="Unsupported spin_version")
+            execute(root / "missing_version", NO_MASKS + "prediction 1\n",
+                    model=model.replace("spin_version 1\n", ""), error="Invalid Spin3 field spin_version")
             for keyword, value in (("spin_dof_type", "Ge"), ("spin_env_type", "Fe")):
                 execute(root / (name + keyword), NO_MASKS + ("spin_dof_type Fe\n" if keyword == "spin_env_type" else "") + f"{keyword} {value}\n",
                         model=model, restart=frozen, error=f"{keyword} in nep.in conflicts")

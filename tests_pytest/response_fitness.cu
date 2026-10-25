@@ -13,7 +13,7 @@ int main() {
   std::vector<float> scaler(p.dim);
   p.q_scaler_gpu[0].copy_to_host(scaler.data());
   printf("SCALER"); for (float x : scaler) printf(" %.9g", x); printf("\n");
-  printf("BASELINE"); for (float x : p.spin_baseline) printf(" %.9g", x); printf("\n");
+  printf("BASELINE"); for (double x : p.energy_reference) printf(" %.17g", x); printf("\n");
   std::vector<float> population;
   for (int i=0;i<p.population_size;++i) population.insert(population.end(),mu.begin(),mu.end());
   for (int iteration=0;iteration<2;++iteration) {

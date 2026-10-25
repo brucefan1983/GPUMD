@@ -55,7 +55,7 @@ Essentially any keyword is allowed, but we only read the following ones:
   * :attr:`bec:R:9` target Born effective charge (:term:`BEC`) tensor (optional)
   * :attr:`spin:R:3`, :attr:`spins:R:3`, :attr:`moment:R:3`, or
     :attr:`moments:R:3` Cartesian magnetic-moment vector in muB (required when
-    :ref:`spin_mode <kw_spin_mode>` is nonzero)
+    :ref:`spin_version <kw_spin_version>` is specified)
   * :attr:`mforce:R:3` target magnetic-force vector (optional). The aliases
     ``mforces``, ``force_mag``, ``forces_mag``, ``magnetic_force``, and
     ``magnetic_forces`` are also accepted.

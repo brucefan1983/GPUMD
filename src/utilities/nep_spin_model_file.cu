@@ -35,7 +35,8 @@ bool is_nep_spin_model_file(const std::string& filename)
   if (token == "nep4_spin3" || token == "nep4_spin3_zbl") return true;
   if (token != "nep") return false;
   const auto document = read_document(filename);
-  return document.find_field("model")->values[0] == "nep_spin3";
+  const auto& model = document.find_field("model")->values[0];
+  return model == "nep_spin" || model == "nep_spin3";
 }
 
 std::string read_nep_spin_model_input(const std::string& filename)
@@ -45,8 +46,9 @@ std::string read_nep_spin_model_input(const std::string& filename)
     return std::string(std::istreambuf_iterator<char>(input), {});
   }
   const auto doc = read_document(filename);
-  if (doc.find_field("model")->values[0] != "nep_spin3")
-    throw std::runtime_error("Expected model nep_spin3 in " + filename);
+  const auto& model = doc.find_field("model")->values[0];
+  if (model != "nep_spin" && model != "nep_spin3")
+    throw std::runtime_error("Expected model nep_spin in " + filename);
   std::vector<std::string> fields = {"format_version", "model"};
   auto field = [&](const char* name, size_t lo, size_t hi) -> const NEP_File::Field& {
     const auto* f = doc.find_field(name);
@@ -68,8 +70,15 @@ std::string read_nep_spin_model_input(const std::string& filename)
   out << (zbl ? "nep4_spin3_zbl" : "nep4_spin3") << ' ' << types;
   for (const auto& element : doc.elements) out << ' ' << element;
   out << '\n';
-  const auto& mode = field("spin_mode", 1, 1);
-  if (integer(mode, 0, 3) != 3) throw std::runtime_error("Expected spin_mode 3");
+  if (model == "nep_spin") {
+    const auto& version = field("spin_version", 1, 1);
+    if (version.values[0] != "1")
+      throw std::runtime_error("Unsupported spin_version (expected 1)");
+  } else {
+    // The previous block format names this same model nep_spin3/spin_mode 3.
+    const auto& mode = field("spin_mode", 1, 1);
+    if (integer(mode, 0, 3) != 3) throw std::runtime_error("Expected spin_mode 3");
+  }
   const bool dof = doc.find_field("spin_dof_type") != nullptr;
   const bool env = doc.find_field("spin_env_type") != nullptr;
   out << "spin_mode 3 " << 9 + dof + env << '\n';

@@ -214,4 +214,3 @@ static void find_cell_list(
     rc_inv);
   GPU_CHECK_KERNEL
 }
-

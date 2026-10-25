@@ -178,7 +178,7 @@ uniform radial time is about 17.4 fs, not a prediction of the laser
 experiment's demagnetization time. That coefficient corresponds to ``damping`` about 0.01281 at default
 ``gamma``. This optional calibration example is not a required preparation
 step for using GLSD. The repository report
-``developers/fe_glsd_mobility_estimate.md`` records the model hash, volume and
+``developer/fe_glsd_mobility_estimate.md`` records the model hash, volume and
 finite-difference checks, provenance, and the paper's numerical ambiguity.
 
 Knowing a Gilbert damping alpha alone does not uniquely calibrate this full
@@ -426,4 +426,3 @@ reductions can still differ; compare deterministic short-time errors and
 stochastic distributions, not long noisy trajectories bitwise.
 ``spin_dof_type`` is a potential-response mask, not a frozen-spin mask:
 Cartesian thermal noise acts on every atom, including zero moments.
-

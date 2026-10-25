@@ -26,7 +26,7 @@ std::unique_ptr<Potential> create_potential()
 {
   ParameterInput input;
   std::unique_ptr<Potential> potential;
-  if (input.spin_mode) {
+  if (input.spin_version) {
     potential.reset(new NEP_Spin_Model(input));
   } else if (input.model_type == 1 || input.model_type == 2) {
     potential.reset(new TNEP(input));

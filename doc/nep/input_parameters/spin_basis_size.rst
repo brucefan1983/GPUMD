@@ -10,14 +10,13 @@ descriptor::
 
   spin_basis_size <radial_size> <angular_size>
 
-The default is ``3 3``. As for the ordinary NEP basis, a maximum index
+The default is ``8 0``. As for the ordinary NEP basis, a maximum index
 :math:`K` represents :math:`K+1` functions because indexing starts from zero.
 
-For ``spin_mode 3``, the current radial construction uses exactly nine basis
+For ``spin_version 1``, the current radial construction uses exactly nine basis
 functions and no separate angular basis. The only supported value is::
 
   spin_basis_size 8 0
 
 The first value controls the radial basis count; the second must be zero and
-is not serialized in ``nep4_spin3``. This keyword must be set explicitly for
-Spin3 because the default is not a valid Spin3 setting.
+is omitted from the model-file field ``spin_basis_size 8``.

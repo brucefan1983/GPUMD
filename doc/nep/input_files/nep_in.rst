@@ -48,7 +48,7 @@ Keywords
      - select between training and prediction (inference)
    * - :ref:`zbl <kw_zbl>`
      - outer cutoff for the universal :term:`ZBL` potential [Ziegler1985]_
-   * - :ref:`spin_mode <kw_spin_mode>`
+   * - :ref:`spin_version <kw_spin_version>`
      - enable the Spin3 descriptor
    * - :ref:`spin_cutoff <kw_spin_cutoff>`
      - radial and angular cutoffs used by the spin descriptor
@@ -162,14 +162,13 @@ Here is an example :attr:`nep.in` file using all the default parameters::
 Spin3 example
 -------------
 
-The following is a compact, valid Spin3 setup. The explicit shape keywords
-are important: the defaults of ``spin_basis_size`` and ``spin_l_max`` do not
-define a valid Spin3 descriptor, and the complete descriptor must fit within
-the Spin3 dimension limit described in :ref:`nep_spin_dimensions`::
+The following is a compact, valid Spin setup. Set ``spin_compress`` explicitly:
+its default of 4 exceeds the training dimension limit for the default O3/L2/SOC1
+shape. The complete descriptor must satisfy :ref:`nep_spin_dimensions`::
 
   version          4
   type             2 Fe Ge
-  spin_mode        3
+  spin_version     1
   spin_basis_size  8 0
   spin_l_max       2 0 0
   spin_compress    2

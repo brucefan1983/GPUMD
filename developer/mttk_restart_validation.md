@@ -94,8 +94,10 @@ SHA-256：
 | 旧版 damping gpumd | `51fa21e0a25e49529e5bb01ceb939170da08ee67525b496cd21310fe2df22e17` |
 | 只读 Fe 势 | `38dabe33fd101432c54a453629c8fbbb8d8d7edbf437477180a09431915fb711` |
 
-远程根目录为 `/org/caep-xuben/chenchengbing/hpc-work/gpumd-lsf-20261021/gpumd-spin3-spin3-refactor`。`mttk-restart-v2` 保存构建日志、543 文件源码校验记录、原有回归和新二进制；`mttk-restart-v4/restart-check/report.json` 是最终专项报告。该次验收结束时本地 468 个 `src/` 文件与构建快照全部匹配，原 Fe 势 SHA-256 未变。
+远程根目录为 `$REMOTE_WORK_ROOT/gpumd-lsf-20261021/gpumd-spin3-spin3-refactor`。`mttk-restart-v2` 保存构建日志、543 文件源码校验记录、原有回归和新二进制；`mttk-restart-v4/restart-check/report.json` 是最终专项报告。该次验收结束时本地 468 个 `src/` 文件与构建快照全部匹配，原 Fe 势 SHA-256 未变。
 
-本地最小证据集在 `/Users/superbing/hpc-platforms/experiments/gpumd-lsf-20261021/mttk-restart-v2` 与 `mttk-restart-v4`，各含 `collection_manifest.json`。后者含最终 plan、job 脚本、测试脚本、Slurm 日志和报告；完整输入与轨迹保留在各远程隔离目录。未 commit 或 push。
+本地最小证据集在 `$VALIDATION_ROOT/experiments/gpumd-lsf-20261021/mttk-restart-v2` 与 `mttk-restart-v4`，各含 `collection_manifest.json`。后者含最终 plan、job 脚本、测试脚本、Slurm 日志和报告；完整输入与轨迹保留在各远程隔离目录。未 commit 或 push。
 
 后续 NVT NHC 的状态续跑已独立实现，见 [NHC restart 验证](nhc_restart_validation.md)。本报告的二进制和数据仍指上述 MTTK 验证快照。
+
+路径中的 `$VALIDATION_ROOT`、`$REMOTE_WORK_ROOT` 和 `$FE_MODEL` 是验证环境占位符；历史数值对应文中指定的源码、模型哈希和任务，不代表当前分支重测结果。可移植回归入口见 [Spin validation](spin_validation.md)。

@@ -12,25 +12,29 @@ Spin3 models use the same block format as other NEP models::
 
   nep 2 Fe Ge
   format_version 1
-  model nep_spin3
+  model nep_spin
   ...
   energy_reference <Fe reference> <Ge reference>
-  spin_mode 3
+  spin_version 1
   ...
   @ parameters <count>
   ...
   @ q_scaler <count>
   ...
 
+``format_version`` versions the shared file syntax; ``spin_version`` versions
+the magnetic descriptor definitions and parameter layout. ``spin_order`` selects
+the descriptor order within that version. Use ``spin_version 1`` in both
+``nep.in`` and ``nep.txt``. Missing or unsupported versions in a
+``model nep_spin`` file are rejected.
+
 The reference energies are constants per element in eV. Training fits residual
 energies after subtracting these references; prediction output and MD restore
 them once. Forces, virials and magnetic forces do not include derivatives of
 these constants. The shared output-bias correction remains active.
 
-The structural descriptor parameters in new files use type-pair-major order.
-Spin3 readers also accept legacy ``nep4_spin3`` and ``nep4_spin3_zbl`` files,
-including their counted metadata, basis-major structural parameters and
-``spin_baseline`` values. Legacy references are retained rather than refitted.
-The next training output uses the new format. Magnetic parameters, masks and
-scalers retain their original meaning. Automatic element compaction is disabled
-for Spin3, so the model's element indices remain unchanged.
+Structural descriptor parameters use type-pair-major order. Magnetic radial
+parameters use channel/basis/type-pair order, followed by radial-leg projection
+parameters. Scalers are stored separately from trainable parameters.
+Automatic element compaction is disabled for Spin, so the model's element
+indices remain unchanged.

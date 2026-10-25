@@ -13,9 +13,11 @@ vectors. The total energy is the only learned scalar output. Atomic forces,
 virials, magnetic forces, and spin torques are derivatives of this same energy
 and are not produced by independent response networks.
 
-The published format is ``nep4_spin3``. It uses the order/compression (O/C)
-descriptor described below. ``nep4_spin3_zbl`` adds a spin-independent ZBL
-term to the same model.
+The current format uses ``nep``, ``format_version 1``, and ``model nep_spin``
+with ``spin_version 1`` and named parameter and scaler blocks. It uses the order/compression (O/C)
+descriptor described below. An optional ``zbl`` field adds a spin-independent
+ZBL term. ``spin_version`` identifies the descriptor and parameter-layout
+contract, independently of the file syntax version and ``spin_order``.
 
 Energy model
 ============
@@ -43,7 +45,8 @@ element-dependent neural network used by ordinary NEP4. The total energy is
 where :math:`\boldsymbol{r}_i` is the position, :math:`\boldsymbol{s}_i` is a
 Cartesian magnetic-moment vector in Bohr magnetons (muB), :math:`Z_i` denotes the atom type, and
 :math:`E^0_{Z_i}` is a fitted per-type energy baseline. The ZBL term is present
-only for ``nep4_spin3_zbl`` and contains no spin dependence.
+when ZBL is enabled and contains no spin dependence. The reference energies
+use the shared ``energy_reference`` convention.
 
 This architecture allows the nonlinear network to combine structural and
 magnetic coordinates. Therefore, ``spin_order`` describes the hierarchy of
@@ -395,7 +398,7 @@ Therefore :math:`D_2=D_1+\Delta D_2` and
 :math:`D_3=D_2+\Delta D_3`. For the common :math:`L=2`, ``spin_soc 1`` shape,
 O2-C2 has 43 magnetic coordinates and O3-C2 has 55. The implementation limits
 the magnetic part to 96 coordinates and requires the combined structural and
-magnetic dimension to satisfy :math:`D_\mathrm{str}+D_\mathrm{spin}\leq103`.
+magnetic dimension to satisfy :math:`D_\mathrm{str}+D_\mathrm{spin}\leq199`.
 With the ordinary structural defaults, :math:`D_\mathrm{str}=42`; the common
 O3-C2-L2-SOC1 shape therefore gives :math:`42+55=97` total coordinates.
 
@@ -597,14 +600,11 @@ Model formats and input
    * - Header in ``nep.txt``
      - Training mode
      - Description
-   * - ``nep4_spin3``
-     - ``spin_mode 3``
-     - Unified O/C descriptor described on this page.
-   * - ``nep4_spin3_zbl``
-     - ``spin_mode 3`` and :ref:`zbl <kw_zbl>`
-     - Spin3 plus a spin-independent short-range ZBL contribution.
+   * - ``nep`` / ``model nep_spin``
+     - ``spin_version 1``
+     - Current block format with ``spin_version 1``; optional :ref:`zbl <kw_zbl>` field.
 
-See :ref:`spin_mode <kw_spin_mode>` and the neighboring ``spin_*`` keyword
+See :ref:`spin_version <kw_spin_version>` and the neighboring ``spin_*`` keyword
 pages for descriptor configuration. The complete extended-XYZ data contract,
 including magnetic-force labels and grouped response metadata, is documented
 under :ref:`train_test_xyz`. Runtime ``model.xyz`` files require one

@@ -124,7 +124,7 @@ def predict_response(binary, model, xyz, metadata, directory):
     shutil.copy(model, directory / "nep.txt")
     (directory / "train.xyz").write_text(xyz)
     (directory / "nep.in").write_text(
-        "type 1 Fe\nversion 4\nspin_mode 3\nspin_dof_type Fe\n"
+        "type 1 Fe\nversion 4\nspin_version 1\nspin_dof_type Fe\n"
         "cutoff 6 5\nn_max 0 0\nbasis_size 0 0\nl_max 2 0 0\nneuron 4\n"
         "spin_compress 1\nspin_basis_size 8 0\nspin_l_max 2 0 0\n"
         "spin_cutoff 6\nspin_order 3\nspin_soc 1\nprediction 1\n")
@@ -157,7 +157,7 @@ def main():
                 if response_weight:
                     (case / "response.xyz").write_text(train_xyz)
                 (case / "nep.in").write_text(
-                    "type 1 Fe\nversion 4\nspin_mode 3\nspin_dof_type Fe\n"
+                    "type 1 Fe\nversion 4\nspin_version 1\nspin_dof_type Fe\n"
                     "cutoff 6 5\nn_max 0 0\nbasis_size 0 0\nl_max 2 0 0\nneuron 4\n"
                     "spin_compress 1\nspin_basis_size 8 0\nspin_l_max 2 0 0\n"
                     "spin_cutoff 6\nspin_order 3\nspin_soc 1\n"
