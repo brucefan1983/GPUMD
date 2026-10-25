@@ -19,6 +19,7 @@ The energy-difference loss over the linear combinations of named structures in e
 
 #include "main_nep/dataset.cuh"
 #include "energy_difference.cuh"
+#include "nep_energy_reference.cuh"
 #include "nep_parameters.cuh"
 #include "main_nep/structure.cuh"
 #include "nep_energy_reader.cuh"
@@ -422,7 +423,8 @@ std::vector<EnergyDifference::Combination> EnergyDifference::resolve(
       members.push_back(&structures[index]);
       combination.local.push_back(index_to_local[index]);
       combination.coefficient.push_back(term.coefficient);
-      combination.ref_total_eV += term.coefficient * structures[index].energy_total;
+      combination.ref_total_eV +=
+        term.coefficient * get_nep_energy_residual(structures[index], para.energy_reference);
     }
     check_distinct_structures(names, members, reader, entry.line_number, xyz_filename);
     check_balance(combination.coefficient, members, para.elements, entry.line_number, xyz_filename);
@@ -432,8 +434,24 @@ std::vector<EnergyDifference::Combination> EnergyDifference::resolve(
   return combinations;
 }
 
+void EnergyDifference::set_energy_reference(
+  const Dataset& dataset, const std::vector<double>& reference)
+{
+  auto& combinations = dataset.batch_index < 0 ? combinations_test : combinations_train;
+  for (auto& combination : combinations) {
+    if (dataset.batch_index >= 0 && combination.batch != dataset.batch_index) {
+      continue;
+    }
+    combination.ref_total_eV = 0.0;
+    for (int k = 0; k < combination.local.size(); ++k) {
+      combination.ref_total_eV += combination.coefficient[k] *
+        get_nep_energy_residual(dataset.structures[combination.local[k]], reference);
+    }
+  }
+}
+
 // Sum in double to retain precision for the total energies of large structures.
-static __global__ void gpu_sum_total_energy(const int* g_Na, const int* g_Na_sum, const float* g_pe, double* g_total_pe)
+static __global__ void gpu_sum_total_energy(const int* g_Na, const int* g_Na_sum, const double* g_pe, double* g_total_pe)
 {
   int tid = threadIdx.x;
   int bid = blockIdx.x;
@@ -462,7 +480,7 @@ Weighted RMSE of the energy combinations whose structures all lie in batch_id of
 The caller must have evaluated the dataset for the parameters of interest. The RMSE is 0 without
 any such combination.
 ------------------------------------------------------------------------------*/
-float EnergyDifference::get_rmse(
+double EnergyDifference::get_rmse(
   const std::vector<Combination>& combinations,
   Dataset& dataset,
   const int batch_id,
@@ -473,7 +491,7 @@ float EnergyDifference::get_rmse(
       return combination.batch == batch_id;
     });
   if (!is_any_in_batch) {
-    return 0.0f;
+    return 0.0;
   }
   CHECK(gpuSetDevice(device_id));
   auto& total = total_energy.get(dataset);
@@ -675,13 +693,13 @@ void EnergyDifference::read_test(
   }
 }
 
-float EnergyDifference::get_rmse_train(
+double EnergyDifference::get_rmse_train(
   Dataset& dataset, const int batch_id, const int device_id)
 {
   return get_rmse(combinations_train, dataset, batch_id, device_id);
 }
 
-float EnergyDifference::get_rmse_test(Dataset& dataset, const int device_id)
+double EnergyDifference::get_rmse_test(Dataset& dataset, const int device_id)
 {
   return get_rmse(combinations_test, dataset, 0, device_id);
 }

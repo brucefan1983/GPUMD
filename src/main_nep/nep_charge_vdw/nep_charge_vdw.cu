@@ -257,7 +257,7 @@ void NEP_Charge_VDW::Compiled_Kernel::launch_ann_charge_vdw(
   const float* descriptors,
   const float* q_scaler,
   const float* parameters,
-  float* pe,
+  double* pe,
   float* Fp,
   float* charge,
   float* charge_derivative,
@@ -345,7 +345,7 @@ static __global__ void apply_ann(
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
-  float* g_pe,
+  double* g_pe,
   float* g_Fp,
   float* g_charge,
   float* g_charge_derivative,
@@ -383,7 +383,7 @@ static __global__ void apply_ann(
       C6,
       C6_derivative);
 
-    g_pe[n1] = F;
+    g_pe[n1] = static_cast<double>(F);
     g_charge[n1] = charge;
     const float SCALING_FACTOR = 0.1f;
     float C6_exp = paramb.c6_ref_sqrt[type] * expf(C6 * SCALING_FACTOR);
@@ -788,7 +788,7 @@ static __global__ void find_force_charge_long_range(
   float* g_fy,
   float* g_fz,
   float* g_virial,
-  float* g_pe)
+  double* g_pe)
 {
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
@@ -804,7 +804,7 @@ static __global__ void find_force_charge_long_range(
         2.0f * alpha / 1.77245385f;
       if (!is_periodic) {
         const float alpha_squared = alpha * alpha;
-        float temp_energy_sum = 0.0f;
+        double temp_energy_sum = 0.0;
         float temp_D_real_sum = 0.0f;
         float temp_virial_sum[6] = {0.0f};
         float temp_force_sum[3] = {0.0f};
@@ -830,7 +830,7 @@ static __global__ void find_force_charge_long_range(
             x12 * force_factor,
             y12 * force_factor,
             z12 * force_factor};
-          temp_energy_sum += 0.5f * qq * erf_r;
+          temp_energy_sum += 0.5 * qq * erf_r;
           temp_D_real_sum += q2 * erf_r;
           temp_force_sum[0] += f12[0];
           temp_force_sum[1] += f12[1];
@@ -853,7 +853,7 @@ static __global__ void find_force_charge_long_range(
         continue;
       }
 
-      float temp_energy_sum = 0.0f;
+      double temp_energy_sum = 0.0;
       float temp_virial_sum[6] = {0.0f};
       float temp_force_sum[3] = {0.0f};
       float temp_D_real_sum = 0.0f;
@@ -890,7 +890,7 @@ static __global__ void find_force_charge_long_range(
       // Remove the r=0 self interaction contained in the structure factor.
       g_pe[n] += K_C_SP *
         (temp_energy_sum / (N2 - N1) -
-         0.5f * q1 * q1 * two_alpha_over_sqrt_pi);
+         0.5 * q1 * q1 * two_alpha_over_sqrt_pi);
       for (int d = 0; d < 6; ++d) {
         g_virial[n + N * d] += K_C_SP * temp_virial_sum[d] / (N2 - N1);
       }
@@ -1478,7 +1478,7 @@ void NEP_Charge_VDW::find_force(
 
 void NEP_Charge_VDW::configure(NEP_Charge_Parameters& para)
 {
-  para.file_tag = std::string(para.enable_zbl ? "nep4_zbl" : "nep4") + "_charge_vdw";
+  para.model_name = "qnep2_vdw";
   calculate_nep_model_parameters(para, 0, 2, 2, 1);
 }
 
@@ -1508,6 +1508,12 @@ void NEP_Charge_VDW::initialize_parameters(
         mu[n] = -mu[n];
       }
     }
+  }
+  if (para.fine_tune) {
+    for (int batch = 0; batch < training->num_batches; ++batch) {
+      find_force(para, mu.data(), training->train_set[batch], false, 1);
+    }
+    training->align_energy_reference(para, energy_difference);
   }
 }
 
@@ -1636,7 +1642,7 @@ void NEP_Charge_VDW::report_error(const TrainingReport& report)
     charge_train, bec_train, charge_test, bec_test, para.has_ediff_combinations);
   if (training->has_test_set) {
     Dataset& data = training->test_set[0];
-    copy_nep_energy_predictions(data);
+    copy_nep_energy_predictions(data, para.energy_reference);
     copy_nep_charge_predictions(charge_data.get(data), para.has_bec);
     std::vector<std::pair<Dataset*, int>> structures;
     for (int nc = 0; nc < data.Nc; ++nc) {
@@ -1653,7 +1659,7 @@ void NEP_Charge_VDW::predict(float* parameters)
   for (int batch = 0; batch < training->num_batches; ++batch) {
     find_force(para, parameters, training->train_set[batch], false, 1);
     Dataset& data = training->train_set[batch][0];
-    copy_nep_energy_predictions(data);
+    copy_nep_energy_predictions(data, para.energy_reference);
     copy_nep_charge_predictions(charge_data.get(data), para.has_bec);
   }
   std::vector<std::pair<Dataset*, int>> structures;

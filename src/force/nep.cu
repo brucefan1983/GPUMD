@@ -27,8 +27,8 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/common.cuh"
 #include "utilities/compact_nep.cuh"
 #include "utilities/error.cuh"
+#include "utilities/nep_model_input.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
 #include "utilities/run_input.cuh"
 #include <cstring>
@@ -72,13 +72,9 @@ void NEP::initialize_dftd3(const RunInput& run_input)
 
 NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_input)
 {
-  std::ifstream input(file_potential);
-  if (!input.is_open()) {
-    std::cout << "Failed to open " << file_potential << std::endl;
-    exit(1);
-  }
+  NEP_Model_Input input(file_potential);
 
-  std::vector<std::string> tokens = get_tokens(input);
+  std::vector<std::string> tokens = input.get_tokens();
   if (tokens.size() < 3) {
     std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
     exit(1);
@@ -125,7 +121,7 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
 
   // zbl
   if (zbl.enabled) {
-    tokens = get_tokens(input);
+    tokens = input.get_tokens();
     if (tokens.size() != 3 && tokens.size() != 4) {
       std::cout << "This line should be zbl rc_inner rc_outer [zbl_factor]." << std::endl;
       exit(1);
@@ -151,7 +147,7 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   }
 
   // cutoff
-  tokens = get_tokens(input);
+  tokens = input.get_tokens();
   if (tokens.size() != 5 && tokens.size() != paramb.num_types * 2 + 3) {
     std::cout << "cutoff should have 4 or num_types * 2 + 2 parameters.\n";
     exit(1);
@@ -194,7 +190,7 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
   // n_max 10 8
-  tokens = get_tokens(input);
+  tokens = input.get_tokens();
   if (tokens.size() != 3) {
     std::cout << "This line should be n_max n_max_radial n_max_angular." << std::endl;
     exit(1);
@@ -205,7 +201,7 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   printf("    n_max_angular = %d.\n", paramb.n_max_angular);
 
   // basis_size 10 8
-  tokens = get_tokens(input);
+  tokens = input.get_tokens();
   if (tokens.size() != 3) {
     std::cout << "This line should be basis_size basis_size_radial basis_size_angular."
               << std::endl;
@@ -217,7 +213,7 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   printf("    basis_size_angular = %d.\n", paramb.basis_size_angular);
 
   // l_max
-  tokens = get_tokens(input);
+  tokens = input.get_tokens();
   if (tokens.size() < 4) {
     std::cout << "This line should be l_max l_max_3body has_q_222 has_q_1111 [has_q_112] [has_q_123] [has_q_233] [has_q_134]." << std::endl;
     exit(1);
@@ -269,7 +265,7 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   paramb.dim_angular = (paramb.n_max_angular + 1) * paramb.num_L;
 
   // ANN
-  tokens = get_tokens(input);
+  tokens = input.get_tokens();
   if (tokens.size() != 3) {
     std::cout << "This line should be ANN num_neurons 0." << std::endl;
     exit(1);
@@ -301,11 +297,11 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   // NN and descriptor parameters
   std::vector<float> parameters(annmb.num_para + annmb.dim);
   for (int n = 0; n < annmb.num_para + annmb.dim; ++n) {
-    tokens = get_tokens(input);
+    tokens = input.get_tokens();
     parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
   }
   // refactor descriptor parameters memory
-  std::vector<float> descriptor_parameters = get_descriptor_parameters_type_pair(
+  std::vector<float> descriptor_parameters = input.get_descriptor_parameters_type_pair(
     parameters,
     annmb.num_para_ann,
     paramb.num_types,
@@ -320,12 +316,17 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   update_potential(nep_data.parameters.data(), annmb);
   annmb.c_type_pair = nep_data.descriptor_parameters_type_pair.data();
   annmb.q_scaler = nep_data.parameters.data() + annmb.num_para;
+  if (!input.energy_reference().empty()) {
+    nep_data.energy_reference.resize(input.energy_reference().size());
+    nep_data.energy_reference.copy_from_host(input.energy_reference().data());
+    annmb.energy_reference = nep_data.energy_reference.data();
+  }
 
   // flexible zbl potential parameters
   if (zbl.flexible) {
     int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
     for (int d = 0; d < 10 * num_type_zbl; ++d) {
-      tokens = get_tokens(input);
+      tokens = input.get_tokens();
       zbl.para[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
     zbl.num_types = paramb.num_types;
@@ -533,7 +534,7 @@ static __global__ void find_descriptor(
       q,
       F,
       Fp);
-    g_pe[n1] += F;
+    g_pe[n1] += double(F) + (annmb.energy_reference ? annmb.energy_reference[t1] : 0.0);
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[static_cast<size_t>(N) * d + n1] = Fp[d] * annmb.q_scaler[d];
@@ -1354,7 +1355,7 @@ static __global__ void find_descriptor(
 
     apply_ann_one_layer(
       annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
-    g_pe[n1] += F;
+    g_pe[n1] += double(F) + (annmb.energy_reference ? annmb.energy_reference[t1] : 0.0);
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[static_cast<size_t>(N) * d + n1] = Fp[d] * annmb.q_scaler[d];

@@ -128,14 +128,20 @@ void Extrapolation::pre_run(
   this->box = &box;
   f = my_fopen("extrapolation_dump.xyz", "a");
 
-  blas_A.resize(N, Memory_Type::managed);
-  blas_x.resize(N, Memory_Type::managed);
-  blas_y.resize(N, Memory_Type::managed);
+  blas_A.resize(N);
+  blas_x.resize(N);
+  blas_y.resize(N);
+  cpu_blas_A.resize(N);
+  cpu_blas_x.resize(N);
+  cpu_blas_y.resize(N);
   load_asi();
   for (int i = 0; i < N; i++) {
-    blas_x[i] = nep_extrapolation->get_B_projection() + i * B_size_per_atom;
-    blas_y[i] = gamma_full.data() + i * B_size_per_atom;
+    cpu_blas_x[i] = nep_extrapolation->get_B_projection() + i * B_size_per_atom;
+    cpu_blas_y[i] = gamma_full.data() + i * B_size_per_atom;
   }
+  blas_A.copy_from_host(cpu_blas_A.data());
+  blas_x.copy_from_host(cpu_blas_x.data());
+  blas_y.copy_from_host(cpu_blas_y.data());
 
   gpublasCreate(&handle);
   printf("gamma_low:      %f\n", gamma_low);
@@ -194,7 +200,7 @@ void Extrapolation::load_asi()
 
       for (int j = 0; j < atom->number_of_atoms; j++) {
         if (atom->cpu_type[j] == type_of_atom) {
-          blas_A[j] = asi->data();
+          cpu_blas_A[j] = asi->data();
         }
       }
     }
@@ -256,12 +262,12 @@ void Extrapolation::calculate_gamma()
       B_size_per_atom,
       B_size_per_atom,
       &alpha,
-      blas_A[i],
+      cpu_blas_A[i],
       B_size_per_atom,
-      blas_x[i],
+      cpu_blas_x[i],
       1,
       &beta,
-      blas_y[i],
+      cpu_blas_y[i],
       1);
   }
 #else
@@ -283,7 +289,7 @@ void Extrapolation::calculate_gamma()
 
   gpu_calculate_max_gamma<<<(N - 1) / 128 + 1, 128>>>(
     gamma_full.data(), gamma.data(), N, B_size_per_atom);
-  gpuDeviceSynchronize();
+  CHECK(gpuDeviceSynchronize());
 }
 
 void Extrapolation::dump()

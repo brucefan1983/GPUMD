@@ -15,7 +15,7 @@
 
 #pragma once
 #include <nep_special_config.cuh>
-#define NEP_SPECIALIZED_SOURCE_INTERFACE_VERSION 3
+#define NEP_SPECIALIZED_SOURCE_INTERFACE_VERSION 4
 #if !defined(NEP_SPECIAL_CONFIG_INTERFACE_VERSION)
 #error "Missing NEP specialization interface version."
 #elif NEP_SPECIAL_CONFIG_INTERFACE_VERSION != NEP_SPECIALIZED_SOURCE_INTERFACE_VERSION

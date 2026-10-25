@@ -27,7 +27,7 @@ static __global__ void ann_charge_vdw_jit(
   const float* descriptors,
   const float* q_scaler,
   const float* parameters,
-  float* pe,
+  double* pe,
   float* Fp_out,
   float* charge_out,
   float* charge_derivative_out,
@@ -72,7 +72,7 @@ static __global__ void ann_charge_vdw_jit(
     C6,
     C6_derivative);
 
-  pe[n1] = F;
+  pe[n1] = static_cast<double>(F);
   charge_out[n1] = charge;
   const float C6_exp =
     C6_REF_SQRT_JIT[t] * expf(C6 * C6_SCALING_FACTOR_JIT);
@@ -94,7 +94,7 @@ extern "C" int nep_train_launch_ann_charge_vdw(
   const float* descriptors,
   const float* q_scaler,
   const float* parameters,
-  float* pe,
+  double* pe,
   float* Fp,
   float* charge,
   float* charge_derivative,

@@ -28,7 +28,7 @@ static __global__ void ann_temperature_jit(
   float* q_scaler,
   const float* temperature,
   const float* parameters,
-  float* pe,
+  double* pe,
   float* Fp_out)
 {
   const int n1 = threadIdx.x + blockIdx.x * blockDim.x;
@@ -58,7 +58,7 @@ static __global__ void ann_temperature_jit(
     F,
     Fp);
 
-  pe[n1] = F;
+  pe[n1] = static_cast<double>(F);
 #pragma unroll
   for (int d = 0; d < ANN_DIM_JIT; ++d) {
     Fp_out[n1 + d * N] = Fp[d] * q_scaler[d];
@@ -72,7 +72,7 @@ extern "C" int nep_train_launch_ann_temperature(
   float* q_scaler,
   const float* temperature,
   const float* parameters,
-  float* pe,
+  double* pe,
   float* Fp)
 {
   const int block_size = 32;

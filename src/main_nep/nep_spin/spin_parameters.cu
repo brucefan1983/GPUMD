@@ -32,6 +32,7 @@ Spin_Parameters::Spin_Parameters(const ParameterInput& input) {
   number_of_variables_spin_projection = 4 * spin_compress * spin_compress;
   number_of_variables_descriptor += number_of_variables_descriptor_spin + number_of_variables_spin_projection;
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
+  model_name = "nep_spin3";
   file_tag = enable_zbl ? "nep4_spin3_zbl" : "nep4_spin3";
   set_regularization_defaults();
   initialize_spin_checkpoint(*this);
@@ -165,11 +166,9 @@ void Spin_Parameters::validate_spin_parameters()
     } else {
       spin_env_type_active = spin_dof_type_active;
     }
-    spin_baseline.assign(num_types, 0.0f);
   } else {
     spin_dof_type_active.assign(num_types, 0);
     spin_env_type_active.assign(num_types, 0);
-    spin_baseline.assign(num_types, 0.0f);
   }
 }
 
@@ -377,4 +376,11 @@ void Spin_Parameters::parse_spin_active_types(
     names.emplace_back(param[n]);
   }
   (void)keyword;
+}
+
+void Spin_Parameters::read_zbl_in()
+{
+  // Prediction metadata and flexible parameters are loaded by the Spin3 reader
+  // after its full descriptor layout has been established.
+  if (!prediction) NEP_Parameters::read_zbl_in();
 }

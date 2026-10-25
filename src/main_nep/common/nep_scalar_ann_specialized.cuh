@@ -61,7 +61,7 @@ static __global__ void ann_nep_jit(
   const float* descriptors,
   const float* q_scaler,
   const float* parameters,
-  float* pe,
+  double* pe,
   float* Fp_out)
 {
   const int n1 = threadIdx.x + blockIdx.x * blockDim.x;
@@ -77,7 +77,7 @@ static __global__ void ann_nep_jit(
   float F = 0.0f;
   float Fp[ANN_DIM_JIT] = {0.0f};
   apply_scalar_ann_jit(parameters, 0, t, q, F, Fp);
-  pe[n1] = F;
+  pe[n1] = static_cast<double>(F);
 
 #pragma unroll
   for (int d = 0; d < ANN_DIM_JIT; ++d) {
@@ -91,7 +91,7 @@ extern "C" int nep_train_launch_ann_nep(
   const float* descriptors,
   const float* q_scaler,
   const float* parameters,
-  float* pe,
+  double* pe,
   float* Fp)
 {
   const int block_size = 32;

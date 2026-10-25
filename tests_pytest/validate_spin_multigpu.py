@@ -7,6 +7,7 @@ The single-GPU executable is an independent pre-decomposition build when --refer
 import argparse, hashlib, json, os, re, shutil, subprocess, time
 from pathlib import Path
 import numpy as np
+from spin_model_format import block_model
 
 # Componentwise gates: |candidate-reference| <= atol + rtol*|reference|.
 # Energy tolerance is per atom and does not scale with the elemental baseline.
@@ -53,14 +54,15 @@ def compare(left, right, keys):
         results[key] = result
     return results
 
-def write_xyz(path, positions, spins, cell, velocity=None):
+def write_xyz(path, positions, spins, cell, velocity=None, species=None):
     if velocity is None: velocity = np.zeros_like(positions)
     n = len(positions)
     with path.open('w') as f:
         f.write(str(n)+'\nLattice="'+' '.join(map(str,cell.ravel()))+'" '
                 'Properties=species:S:1:pos:R:3:vel:R:3:spin:R:3:spin_vel:R:3:group:I:1 pbc="T T T"\n')
         for i,(r,v,s) in enumerate(zip(positions,velocity,spins)):
-            f.write('Fe '+' '.join(f'{x:.15g}' for x in np.r_[r,v,s,[0,0,0]])+f' {i%2}\n')
+            symbol = species[i] if species is not None else 'Fe'
+            f.write(symbol+' '+' '.join(f'{x:.15g}' for x in np.r_[r,v,s,[0,0,0]])+f' {i%2}\n')
 
 def structure(dims=(48,12,12), variant='bcc'):
     rng = np.random.default_rng(813)
@@ -100,14 +102,18 @@ def execute(args, name, xyz, gpus, ensemble='nve', steps=1, dt=0, field='', dire
 def main():
     p=argparse.ArgumentParser();p.add_argument('--binary',type=Path,required=True)
     p.add_argument('--reference',type=Path);p.add_argument('--model',type=Path,required=True)
-    p.add_argument('--output',type=Path,required=True);a=p.parse_args()
+    p.add_argument('--output',type=Path,required=True)
+    p.add_argument('--block-format',action='store_true',
+                   help='Convert the legacy fixture and check format/reference invariance.')
+    a=p.parse_args()
     for key in ['binary','reference','model','output']:
         if getattr(a,key):setattr(a,key,getattr(a,key).resolve())
     a.output.mkdir(parents=True,exist_ok=False)
     a.devices=os.environ.get('CUDA_VISIBLE_DEVICES','0,1,2,3').split(',')
     if len(a.devices)<4:raise RuntimeError('Requires four allocated GPUs')
     report={'gates':GATES,'binary_sha256':sha(a.binary),'model_sha256':sha(a.model),
-            'reference_sha256':sha(a.reference) if a.reference else None,'cases':{}}
+            'reference_sha256':sha(a.reference) if a.reference else None,
+            'block_format':a.block_format,'cases':{}}
     def save():
         (a.output/'report.json').write_text(json.dumps(report,indent=2))
     def record(name,candidate,ref,keys):
@@ -117,6 +123,45 @@ def main():
         print(name,'PASS',flush=True)
     xyz=a.output/'input.xyz'
     outputs=['potential','force','mforce','virial']
+    if a.block_format:
+        legacy_model = a.model
+        model = block_model(legacy_model.read_text())
+        converted = a.output/'block.nep'; converted.write_text(model)
+        report['block_model_sha256'] = sha(converted)
+        # Both elements appear on every slab; use a large cell to exercise the
+        # actual decomposition rather than its small-box fallback.
+        pos,spin,cell,vel=structure((48,8,8))
+        symbols=legacy_model.read_text().splitlines()[0].split()[2:]
+        species=np.array([symbols[i % len(symbols)] for i in range(len(pos))])
+        write_xyz(xyz,pos,spin,cell,vel,species)
+        ref,_=execute(a,'format-legacy-reference',xyz,1)
+        reference_line=next(line for line in model.splitlines() if line.startswith('energy_reference '))
+        original=np.array(list(map(float,reference_line.split()[1:])))
+        shifts=np.array([(-1)**i*(100000.123456789+i*100000.864197532)
+                         for i in range(len(symbols))])
+        shifted=a.output/'shifted.nep'
+        shifted.write_text(model.replace(reference_line,'energy_reference '+
+                           ' '.join(f'{v:.17g}' for v in original+shifts),1))
+        atom_shift=np.array([shifts[i % len(symbols)] for i in range(len(pos))])[:,None]
+        for g in [1,2,4]:
+            a.model=converted
+            out,_=execute(a,f'format-block-g{g}',xyz,g)
+            record(f'format-block-g{g}',out,ref,outputs)
+            if g > 1:
+                repeated,_=execute(a,f'format-repeat-g{g}',xyz,g)
+                record(f'format-repeat-g{g}',repeated,out,outputs)
+            a.model=shifted
+            shifted_out,_=execute(a,f'energy-reference-g{g}',xyz,g)
+            shifted_out['potential']-=atom_shift
+            record(f'energy-reference-g{g}',shifted_out,out,outputs)
+            # Multi-GPU cell-list ordering varies between launches. Keep the
+            # established componentwise gates above and record a repeat control;
+            # the single-GPU path also supports a strict derivative check.
+            if g == 1:
+                for key in ['force','mforce','virial']:
+                    if np.max(np.abs(shifted_out[key]-out[key]))>1e-10:
+                        raise AssertionError(f'Energy reference changed {key} on {g} GPUs')
+        a.model=converted
     for variant in ['bcc','nonuniform','triclinic','small','cutoff']:
         if variant=='cutoff':
             # Isolated pairs just inside/outside the 6 A cutoff, including slab/PBC faces.

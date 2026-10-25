@@ -191,6 +191,7 @@ private:
   int max_dim = 0;            // max of annmbs[i].dim
   std::vector<ParaMB> parambs;
   std::vector<ANN> annmbs;
+  GPU_Vector<double> energy_reference;
   char* h_parambs;                  // pointer to the head of parambs in gpu
   char* h_annmbs;                   // pointer to the head of annmbs in gpu
   std::vector<int> nep_map_cpu;     // map nep group to nep parameters (cpu)

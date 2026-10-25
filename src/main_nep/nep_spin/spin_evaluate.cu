@@ -446,12 +446,9 @@ void launch_spin3_force(
 
 __global__ void add_spin_training_outputs(
   int atom_count,
-  const int* type,
-  const float* baseline,
   const double* spin_force,
   const double* spin_mforce,
   const double* spin_virial,
-  float* energy,
   float* force,
   float* mforce,
   float* virial)
@@ -460,7 +457,6 @@ __global__ void add_spin_training_outputs(
   if (atom >= atom_count) {
     return;
   }
-  energy[atom] += baseline[type[atom]];
   for (int component = 0; component < 3; ++component) {
     const int index = component * atom_count + atom;
     force[index] += static_cast<float>(spin_force[index]);
@@ -499,10 +495,8 @@ void NEP_Spin_Model::initialize_spin(Spin_Parameters& para, int N, int device_co
     auto& data = spin_data_[device_id];
     data.spin_dof_type_active.resize(num_types_);
     data.spin_env_type_active.resize(num_types_);
-    data.spin_baseline.resize(num_types_);
     data.spin_dof_type_active.copy_from_host(para.spin_dof_type_active.data());
     data.spin_env_type_active.copy_from_host(para.spin_env_type_active.data());
-    data.spin_baseline.copy_from_host(para.spin_baseline.data());
     std::vector<float> spin_cutoff_pair(
       static_cast<std::size_t>(num_types_) * num_types_);
     for (int type_i = 0; type_i < num_types_; ++type_i) {
@@ -600,12 +594,9 @@ void NEP_Spin_Model::find_additional_force(
     data.mforce.data());
   add_spin_training_outputs<<<grid_size, block_size>>>(
     dataset.N,
-    dataset.type.data(),
-    data.spin_baseline.data(),
     data.force.data(),
     data.mforce.data(),
     data.virial.data(),
-    dataset.energy.data(),
     dataset.force.data(),
     magnetic_data.mforce.data(),
     dataset.virial.data());

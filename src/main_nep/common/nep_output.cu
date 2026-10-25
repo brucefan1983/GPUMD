@@ -101,8 +101,11 @@ static void update_energy_force_virial(
       dataset.force_ref_cpu[n + dataset.N * 2]);
   }
 
-  write_nep_structure_predictions(
-    false, 1, fid_energy, dataset.energy_cpu.data(), dataset.energy_ref_cpu.data(), dataset, nc);
+  double energy = 0.0;
+  for (int m = 0; m < dataset.Na_cpu[nc]; ++m) {
+    energy += dataset.energy_cpu[offset + m];
+  }
+  fprintf(fid_energy, "%.17g %.17g\n", energy / dataset.Na_cpu[nc], dataset.energy_ref_cpu[nc]);
 
   write_nep_structure_predictions(
     false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset, nc);
@@ -165,9 +168,16 @@ void write_nep_charge_error(FILE* file, const TrainingReport& report,
   fflush(file);
 }
 
-void copy_nep_energy_predictions(Dataset& data)
+void copy_nep_energy_predictions(Dataset& data, const std::vector<double>& energy_reference)
 {
   data.energy.copy_to_host(data.energy_cpu.data());
+  if (!energy_reference.empty()) {
+    for (int nc = 0; nc < data.Nc; ++nc) {
+      for (int n = 0; n < data.Na_cpu[nc]; ++n) {
+        data.energy_cpu[data.Na_sum_cpu[nc] + n] += energy_reference[data.structures[nc].type[n]];
+      }
+    }
+  }
   data.virial.copy_to_host(data.virial_cpu.data());
   data.force.copy_to_host(data.force_cpu.data());
 }

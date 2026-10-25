@@ -151,7 +151,7 @@ static __global__ void apply_ann_one_layer_warp(
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
-  float* g_pe,
+  double* g_pe,
   float* g_Fp)
 {
   constexpr int warp_size = 32;
@@ -332,7 +332,7 @@ void NEP_Spin_Model::prepare_training()
 void NEP_Spin_Model::initialize_parameters(std::mt19937& rng, std::vector<float>& mu, std::vector<float>& sigma)
 {
   auto& para = *model_parameters;
-  if (!read_nep_restart("nep.restart", para, mu, sigma))
+  if (!read_spin_restart(para, mu, sigma))
     snes_spin::initialize_search(para, rng, mu, sigma);
 }
 void NEP_Spin_Model::parameter_groups(std::vector<int>& groups)
@@ -453,7 +453,7 @@ void NEP_Spin_Model::report_error(const TrainingReport& report)
   }
   if (training->has_test_set) {
     Dataset& data = training->test_set[0];
-    copy_nep_energy_predictions(data);
+    copy_nep_energy_predictions(data, para.energy_reference);
     magnetic(data).mforce.copy_to_host(magnetic(data).mforce_cpu.data());
     std::vector<std::pair<Dataset*, int>> structures;
     for (int nc = 0; nc < data.Nc; ++nc) structures.emplace_back(&data, nc);
@@ -467,7 +467,7 @@ void NEP_Spin_Model::predict(float* parameters)
   for (int batch = 0; batch < training->num_batches; ++batch) {
     find_force(para, parameters, training->train_set[batch], false, 1);
     Dataset& data = training->train_set[batch][0];
-    copy_nep_energy_predictions(data);
+    copy_nep_energy_predictions(data, para.energy_reference);
     magnetic(data).mforce.copy_to_host(magnetic(data).mforce_cpu.data());
   }
   std::vector<std::pair<Dataset*, int>> structures;

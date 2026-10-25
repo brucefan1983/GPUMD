@@ -9,7 +9,6 @@
 #pragma once
 #include "spin_data.cuh"
 namespace fitness_spin {
-void fit_spin_energy_baseline(const std::vector<Structure>&, Spin_Parameters&);
 void derive_spin_response_tangents(const Spin_Parameters&, std::vector<Spin_Frame>&);
 void finalize_q_scaler(Spin_Parameters&, int);
 void print_loss_header();

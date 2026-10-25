@@ -109,7 +109,6 @@ private:
   struct Spin_Workspace {
     GPU_Vector<int> spin_dof_type_active;
     GPU_Vector<int> spin_env_type_active;
-    GPU_Vector<float> spin_baseline;
     GPU_Vector<float> spin_cutoff_pair;
     GPU_Vector<float> spin3_moments;
     GPU_Vector<double> force;

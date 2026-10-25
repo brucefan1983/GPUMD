@@ -13,6 +13,10 @@
 
 #include "compact_nep.cuh"
 #include "error.cuh"
+#include "nep_file.cuh"
+#include "nep_model_file.cuh"
+#include "nep_model_input.cuh"
+#include "nep_spin_model_file.cuh"
 #include "read_file.cuh"
 #include "run_input.cuh"
 #include <cstdio>
@@ -59,13 +63,8 @@ static bool is_compactable_nep(const std::vector<std::string>& tokens)
   if (tokens.size() < 3) {
     return false;
   }
-  // Spin models carry counted metadata and magnetic parameter blocks that the
-  // ordinary NEP compactor cannot remap. Keep their original type indices;
-  // model-format validation remains the responsibility of the spin reader.
-  if (tokens[0].rfind("nep4_spin", 0) == 0) {
-    return false;
-  }
-  return tokens[0].substr(0, 4) == "nep4";
+  if (tokens[0].rfind("nep4_spin", 0) == 0) return false;
+  return tokens[0].substr(0, 4) == "nep4" || NEP_Model_Input::is_new_format(tokens[0]);
 }
 
 static std::vector<std::string> get_potential_files(const RunInput& run_input)
@@ -163,6 +162,43 @@ static void write_line(std::ofstream& output, const std::vector<std::string>& to
     output << tokens[n];
   }
   output << "\n";
+}
+
+static std::string get_compact_filename(const int file_index)
+{
+#ifdef _WIN32
+  const int process_id = _getpid();
+#else
+  const int process_id = getpid();
+#endif
+  std::string compact_filename = ".gpumd_nep_" +
+                                 std::to_string(static_cast<long long>(process_id)) + "_" +
+                                 std::to_string(file_index) + ".tmp";
+  return compact_filename;
+}
+
+static std::string make_compact_model_file(
+  const std::string& filename, const std::vector<std::string>& active_species, const int file_index)
+{
+  std::ifstream input(filename);
+  NEP_File document;
+  std::string error;
+  if (!NEP_Model_File::read_and_compact(input, active_species, document, error)) {
+    PRINT_INPUT_ERROR(error.c_str());
+  }
+  const std::string compact_filename = get_compact_filename(file_index);
+  std::ofstream output(compact_filename);
+  if (!document.write(output, error)) {
+    output.close();
+    std::remove(compact_filename.c_str());
+    PRINT_INPUT_ERROR(error.c_str());
+  }
+  output.close();
+  if (!output) {
+    std::remove(compact_filename.c_str());
+    PRINT_INPUT_ERROR("Cannot write the compact NEP potential file.");
+  }
+  return compact_filename;
 }
 
 static std::string make_compact_file(
@@ -266,14 +302,7 @@ static std::string make_compact_file(
     PRINT_INPUT_ERROR("Unexpected number of NEP parameters while creating the compact potential.");
   }
 
-#ifdef _WIN32
-  const int process_id = _getpid();
-#else
-  const int process_id = getpid();
-#endif
-  std::string compact_filename =
-    ".gpumd_nep_" + std::to_string(static_cast<long long>(process_id)) + "_" +
-    std::to_string(file_index) + ".tmp";
+  std::string compact_filename = get_compact_filename(file_index);
   std::ofstream output(compact_filename);
   if (!output.is_open()) {
     PRINT_INPUT_ERROR("Cannot create the compact NEP potential file.");
@@ -392,8 +421,23 @@ void prepare_compact_nep_files(
   }
 
   std::vector<std::string> first = get_first_line(potential_files.back());
-  if (!is_compactable_nep(first)) {
+  if (!is_compactable_nep(first) || is_nep_spin_model_file(potential_files.back())) {
     return;
+  }
+  for (const std::string& filename : potential_files) {
+    const std::vector<std::string> header = get_first_line(filename);
+    if (!header.empty() && NEP_Model_Input::is_new_format(header[0])) {
+      std::ifstream input(filename);
+      NEP_Model_File model;
+      std::string error;
+      if (!model.read(input, error)) {
+#ifdef GPUMD_WPE_ENABLED
+        return;
+#else
+        PRINT_INPUT_ERROR(error.c_str());
+#endif
+      }
+    }
   }
   std::vector<std::string> species_full = get_species(first);
   std::vector<int> required(species_full.size(), 0);
@@ -425,7 +469,9 @@ void prepare_compact_nep_files(
     if (!is_compactable_nep(tokens)) {
       continue;
     }
-    std::string compact = make_compact_file(potential_files[n], compact_species, n);
+    std::string compact = NEP_Model_Input::is_new_format(tokens[0])
+                            ? make_compact_model_file(potential_files[n], compact_species, n)
+                            : make_compact_file(potential_files[n], compact_species, n);
     if (compact != potential_files[n]) {
       CompactPotentialFile file;
       file.original = potential_files[n];

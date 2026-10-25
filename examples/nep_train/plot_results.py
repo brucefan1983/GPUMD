@@ -34,7 +34,7 @@ plt.close(fig)
 
 # Training history
 fig, ax = plt.subplots()
-generation = loss[:, 0]
+generation = np.arange(1, len(loss) + 1) * 100
 for column, label in zip(range(1, 6), ["Total", "L1", "L2", "Energy train", "Force train"]):
     ax.loglog(generation, loss[:, column], label=label)
 ax.set_xlabel("Generation")

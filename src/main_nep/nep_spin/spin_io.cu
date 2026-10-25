@@ -7,15 +7,150 @@
 */
 
 #include "spin_io.cuh"
+#include "utilities/nep_spin_model_file.cuh"
+#include <sstream>
 #include "main_nep/common/nep_io.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
-#include "utilities/nep_parameters.cuh"
+#include "utilities/nep_spin_legacy_parameters.cuh"
 #include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <limits>
 namespace {
+// Shared structural codec; model-specific metadata precedes this section.
+struct NepTxtHeader {
+  std::string model_token;
+  int version;
+  bool enable_zbl;
+  bool flexible_zbl;
+  bool use_typewise_cutoff_zbl;
+  float zbl_rc_inner;
+  float zbl_rc_outer;
+  float typewise_cutoff_zbl_factor;
+  int num_types;
+  std::vector<std::string> elements;
+  bool has_multiple_cutoffs;
+  std::vector<float> rc_radial;
+  std::vector<float> rc_angular;
+  int n_max_radial;
+  int n_max_angular;
+  int basis_size_radial;
+  int basis_size_angular;
+  int L_max;
+  int has_q_222; // as written to nep.txt, that is 2 or 0
+  int has_q_1111;
+  int has_q_112;
+  int has_q_123;
+  int has_q_233;
+  int has_q_134;
+  int num_neurons1;
+  int num_neurons2;
+  int number_of_header_lines; // 6 without a zbl line, 7 with one
+};
+
+static bool check_header_line(
+  const std::vector<std::string>& tokens,
+  const char* keyword,
+  const size_t min_size,
+  const size_t max_size,
+  const std::string& filename,
+  std::string& error)
+{
+  if (tokens.size() < min_size || tokens.size() > max_size || tokens[0] != keyword) {
+    error = "The " + std::string(keyword) + " line of " + filename + " is malformed.";
+    return false;
+  }
+  return true;
+}
+
+bool read_nep_structural_header(
+  std::istream& input, const std::string& filename, NepTxtHeader& header, std::string& error)
+{
+  std::vector<std::string> tokens;
+  // second line: zbl, written only for a model with ZBL
+  header.flexible_zbl = false;
+  header.use_typewise_cutoff_zbl = false;
+  header.zbl_rc_inner = 0.0f;
+  header.zbl_rc_outer = 0.0f;
+  header.typewise_cutoff_zbl_factor = -1.0f;
+  if (header.enable_zbl) {
+    tokens = get_tokens(input);
+    ++header.number_of_header_lines;
+    if (!check_header_line(tokens, "zbl", 3, 4, filename, error)) {
+      return false;
+    }
+    header.zbl_rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
+    header.zbl_rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
+    header.flexible_zbl = (header.zbl_rc_inner == 0.0f && header.zbl_rc_outer == 0.0f);
+    if (tokens.size() == 4) {
+      header.use_typewise_cutoff_zbl = true;
+      header.typewise_cutoff_zbl_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
+    }
+  }
+
+  // cutoff line: the two neighbor counts at the end depend on the training set and are ignored
+  tokens = get_tokens(input);
+  ++header.number_of_header_lines;
+  if (!check_header_line(tokens, "cutoff", 5, size_t(header.num_types) * 2 + 3, filename, error)) {
+    return false;
+  }
+  header.has_multiple_cutoffs =
+    (tokens.size() == size_t(header.num_types) * 2 + 3 && tokens.size() > 5);
+  const int num_cutoffs = header.has_multiple_cutoffs ? header.num_types : 1;
+  if (tokens.size() != size_t(num_cutoffs) * 2 + 3) {
+    error = "The cutoff line of " + filename + " is malformed.";
+    return false;
+  }
+  header.rc_radial.resize(num_cutoffs);
+  header.rc_angular.resize(num_cutoffs);
+  for (int n = 0; n < num_cutoffs; ++n) {
+    header.rc_radial[n] = get_double_from_token(tokens[1 + n * 2], __FILE__, __LINE__);
+    header.rc_angular[n] = get_double_from_token(tokens[2 + n * 2], __FILE__, __LINE__);
+  }
+
+  tokens = get_tokens(input);
+  ++header.number_of_header_lines;
+  if (!check_header_line(tokens, "n_max", 3, 3, filename, error)) {
+    return false;
+  }
+  header.n_max_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  header.n_max_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
+
+  tokens = get_tokens(input);
+  ++header.number_of_header_lines;
+  if (!check_header_line(tokens, "basis_size", 3, 3, filename, error)) {
+    return false;
+  }
+  header.basis_size_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  header.basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
+
+  // l_max line: between 3 and 7 values, the trailing ones defaulting to zero when absent
+  tokens = get_tokens(input);
+  ++header.number_of_header_lines;
+  if (!check_header_line(tokens, "l_max", 4, 8, filename, error)) {
+    return false;
+  }
+  header.L_max = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  header.has_q_222 = get_int_from_token(tokens[2], __FILE__, __LINE__);
+  header.has_q_1111 = get_int_from_token(tokens[3], __FILE__, __LINE__);
+  header.has_q_112 = (tokens.size() > 4) ? get_int_from_token(tokens[4], __FILE__, __LINE__) : 0;
+  header.has_q_123 = (tokens.size() > 5) ? get_int_from_token(tokens[5], __FILE__, __LINE__) : 0;
+  header.has_q_233 = (tokens.size() > 6) ? get_int_from_token(tokens[6], __FILE__, __LINE__) : 0;
+  header.has_q_134 = (tokens.size() > 7) ? get_int_from_token(tokens[7], __FILE__, __LINE__) : 0;
+
+  tokens = get_tokens(input);
+  ++header.number_of_header_lines;
+  if (!check_header_line(tokens, "ANN", 3, 3, filename, error)) {
+    return false;
+  }
+  header.num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  header.num_neurons2 = get_int_from_token(tokens[2], __FILE__, __LINE__);
+
+  return true;
+}
+
+
 // parse the header of a nep.txt file; returns false and sets error if it cannot be parsed
 static bool parse_model_token(const std::string& token, NepTxtHeader& header) {
   if (token != "nep4_spin3" && token != "nep4_spin3_zbl") return false;
@@ -25,8 +160,8 @@ static bool parse_model_token(const std::string& token, NepTxtHeader& header) {
 }
 bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std::string& error)
 {
-  std::ifstream input(filename);
-  if (!input.is_open()) {
+  std::istringstream input(read_nep_spin_model_input(filename));
+  if (!input.good()) {
     error = "Failed to open " + filename + ".";
     return false;
   }
@@ -76,8 +211,8 @@ bool read_nep_txt_header(const std::string& filename, NepTxtHeader& header, std:
 
 void load_spin_checkpoint_metadata(Spin_Parameters& para)
 {
-  std::ifstream input("nep.txt");
-  if (!input.is_open()) {
+  std::istringstream input(read_nep_spin_model_input("nep.txt"));
+  if (!input.good()) {
     PRINT_INPUT_ERROR("Failed to open nep.txt for Spin NEP prediction.");
   }
   auto tokens = get_tokens(input);
@@ -149,9 +284,9 @@ void load_spin_checkpoint_metadata(Spin_Parameters& para)
         PRINT_INPUT_ERROR("Invalid spin_baseline in Spin NEP checkpoint.");
       }
       seen_baseline = true;
-      para.spin_baseline.resize(para.num_types);
+      para.energy_reference.resize(para.num_types);
       for (int type = 0; type < para.num_types; ++type) {
-        para.spin_baseline[type] =
+        para.energy_reference[type] =
           get_double_from_token(tokens[type + 1], __FILE__, __LINE__);
       }
     } else if (keyword == "spin_basis_size") {
@@ -278,13 +413,7 @@ void write_checkpoint_metadata(FILE* fid_nep, const Spin_Parameters& para)
     para.spin_dof_type_active.begin(), para.spin_dof_type_active.end(),
     [](int active) { return active != 1; });
   const bool write_env = para.spin_env_type_active != para.spin_dof_type_active;
-  const int spin_header_lines = 9 + static_cast<int>(write_dof) + static_cast<int>(write_env);
-  fprintf(fid_nep, "spin_mode %d %d\n", para.spin_mode, spin_header_lines);
-  fprintf(fid_nep, "spin_baseline");
-  for (const float value : para.spin_baseline) {
-    fprintf(fid_nep, " %.16e", static_cast<double>(value));
-  }
-  fprintf(fid_nep, "\n");
+  fprintf(fid_nep, "spin_mode %d\n", para.spin_mode);
   fprintf(fid_nep, "spin_basis_size %d\n", para.spin_basis_size[0]);
   fprintf(fid_nep, "spin_l_max %d\n", para.spin_l_max[0]);
   fprintf(fid_nep, "spin_compress %d\n", para.spin_compress);
@@ -346,12 +475,13 @@ static void validate_model_header(Spin_Parameters& para) {
   if (!same(h.rc_radial[0], para.rc_radial[0]) || !same(h.rc_angular[0], para.rc_angular[0])) {
     PRINT_INPUT_ERROR("Structural cutoffs in nep.txt do not match nep.in.");
   }
+  para.flexible_zbl = h.flexible_zbl;
   load_spin_checkpoint_metadata(para);
 }
 
 void read_spin_model(Spin_Parameters& para, float* parameters) {
   validate_model_header(para);
-  std::ifstream input("nep.txt");
+  std::istringstream input(read_nep_spin_model_input("nep.txt"));
   for (int i=0; i<para.number_of_nep_txt_header_lines; ++i) get_tokens(input);
   for (int i=0; i<para.number_of_variables; ++i) {
     auto tokens=get_tokens(input);
@@ -368,6 +498,17 @@ void read_spin_model(Spin_Parameters& para, float* parameters) {
     if (!std::isfinite(para.q_scaler_cpu[d]) || para.q_scaler_cpu[d]<=0)
       PRINT_INPUT_ERROR("Spin3 checkpoint q_scaler must be finite and positive.");
   }
+  if (para.flexible_zbl) {
+    const int count = 5 * para.num_types * (para.num_types + 1);
+    if (count > para.zbl_para.size()) PRINT_INPUT_ERROR("Spin3 flexible ZBL parameter count exceeds capacity.");
+    for (int n = 0; n < count; ++n) {
+      const auto tokens = get_tokens(input);
+      if (tokens.size() != 1) PRINT_INPUT_ERROR("Missing Spin3 flexible ZBL parameter.");
+      para.zbl_para[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+      if (!std::isfinite(para.zbl_para[n])) PRINT_INPUT_ERROR("Invalid Spin3 flexible ZBL parameter.");
+    }
+  }
+  if (!get_tokens(input).empty()) PRINT_INPUT_ERROR("Unexpected data after Spin3 scaler.");
   int devices; CHECK(gpuGetDeviceCount(&devices));
   for (int d=0; d<devices; ++d) {
     CHECK(gpuSetDevice(d));
@@ -396,28 +537,46 @@ void initialize_spin_checkpoint(Spin_Parameters& para) {
     read_spin_model(para, parameters.data());
   }
   if (para.spin_restart) {
-    std::ifstream input("nep.restart");
-    int count=0;
-    while (input.peek()!=EOF) {
-      auto tokens=get_tokens(input);
-      if (tokens.size()!=2) PRINT_INPUT_ERROR("nep.restart must contain two columns: mu sigma.");
-      const double mu=get_double_from_token(tokens[0], __FILE__, __LINE__);
-      const double sigma=get_double_from_token(tokens[1], __FILE__, __LINE__);
-      if (!std::isfinite(mu) || !std::isfinite(sigma) || sigma<0) PRINT_INPUT_ERROR("Invalid Spin3 restart parameter.");
-      ++count;
-    }
-    if (count!=para.number_of_variables) PRINT_INPUT_ERROR("nep.restart parameter count does not match nep.in.");
+    std::vector<float> mu, sigma;
+    read_spin_restart(para, mu, sigma);
+  } else if (!para.prediction) {
+    // import_q_scaler imports only the scaler; new training fits its own reference.
+    para.energy_reference.clear();
   }
 }
 
 void write_spin_model(FILE* fid_nep, Spin_Parameters& para, const float* elite, int max_NN_radial, int max_NN_angular) {
-  fprintf(fid_nep, "%s %d ", para.file_tag.c_str(), para.num_types);
-  for (int n = 0; n < para.num_types; ++n) {
-    fprintf(fid_nep, "%s ", para.elements[n].c_str());
-  }
-  fprintf(fid_nep, "\n");
-  write_checkpoint_metadata(fid_nep, para);
   CHECK(gpuSetDevice(0));
   para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
-  write_nep_model_body(fid_nep, para, elite, max_NN_radial, max_NN_angular);
+  write_nep_header(fid_nep, para, max_NN_radial, max_NN_angular);
+  write_checkpoint_metadata(fid_nep, para);
+  write_nep_model_parameters(fid_nep, para, elite);
+}
+
+bool read_spin_restart(Spin_Parameters& para, std::vector<float>& mu, std::vector<float>& sigma)
+{
+  std::ifstream input("nep.restart");
+  if (!input.good()) return false;
+  std::string first;
+  input >> first;
+  if (first == "nep_restart") return read_nep_restart("nep.restart", para, mu, sigma, &para.energy_reference);
+  // Legacy restart stores basis-major mu/sigma, with references in nep.txt.
+  input.clear(); input.seekg(0);
+  mu.clear(); sigma.clear();
+  std::string line;
+  while (std::getline(input, line)) {
+    const auto tokens = get_tokens(line);
+    if (tokens.size() != 2) PRINT_INPUT_ERROR("Legacy Spin3 restart requires mu sigma pairs.");
+    const double m = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    const double s = get_double_from_token(tokens[1], __FILE__, __LINE__);
+    if (!std::isfinite(m) || !std::isfinite(s) || std::abs(m) > std::numeric_limits<float>::max() ||
+        s < 0 || s > std::numeric_limits<float>::max()) PRINT_INPUT_ERROR("Invalid Spin3 restart value.");
+    mu.push_back(m); sigma.push_back(s);
+  }
+  if (mu.size() != size_t(para.number_of_variables)) PRINT_INPUT_ERROR("Spin3 restart parameter count mismatch.");
+  for (auto* values : {&mu, &sigma})
+    descriptor_parameters_to_channel_major(values->data(), para.number_of_variables_ann,
+      para.num_types * para.num_types, para.n_max_radial, para.n_max_angular,
+      para.basis_size_radial, para.basis_size_angular);
+  return true;
 }

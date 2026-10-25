@@ -17,39 +17,8 @@
 
 #include <vector>
 
-// Potential files store descriptor parameters as [basis][type_pair].
-// GPU force kernels read one type pair at a time, so use [type_pair][basis].
-inline std::vector<float> get_descriptor_parameters_type_pair(
-  const std::vector<float>& parameters,
-  const int num_para_ann,
-  const int num_types,
-  const int n_max_radial,
-  const int n_max_angular,
-  const int basis_size_radial,
-  const int basis_size_angular)
-{
-  const int num_types_sq = num_types * num_types;
-  const int num_radial_basis = (n_max_radial + 1) * (basis_size_radial + 1);
-  const int num_angular_basis = (n_max_angular + 1) * (basis_size_angular + 1);
-  const int num_c_radial = num_types_sq * num_radial_basis;
-  std::vector<float> descriptor_parameters(
-    num_c_radial + num_types_sq * num_angular_basis);
-
-  for (int type_pair = 0; type_pair < num_types_sq; ++type_pair) {
-    for (int basis = 0; basis < num_radial_basis; ++basis) {
-      descriptor_parameters[type_pair * num_radial_basis + basis] =
-        parameters[num_para_ann + basis * num_types_sq + type_pair];
-    }
-    for (int basis = 0; basis < num_angular_basis; ++basis) {
-      descriptor_parameters[num_c_radial + type_pair * num_angular_basis + basis] =
-        parameters[num_para_ann + num_c_radial + basis * num_types_sq + type_pair];
-    }
-  }
-
-  return descriptor_parameters;
-}
-// Training keeps descriptor parameters as [channel][basis] internally while
-// nep.txt and nep.restart keep the historical [basis][channel] order.
+// Convert between legacy Spin3 [basis][channel] file order and the
+// [channel][basis] order used by training and the new block format.
 inline void descriptor_parameters_to_channel_major(
   float* parameters,
   const int descriptor_offset,

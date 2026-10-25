@@ -182,8 +182,7 @@ void NEP_Data_Reader::read_energy(
       has_energy_in_exyz = true;
       structure.energy_total = get_double_from_token(
         token.substr(energy_string.length(), token.length()), xyz_filename.c_str(), line_number);
-      structure.energy = structure.energy_total;
-      structure.energy /= structure.num_atom;
+      structure.energy = structure.energy_total / structure.num_atom;
     }
   }
   if (required && !has_energy_in_exyz) {
@@ -313,23 +312,6 @@ void print_nep_boundaries(const std::vector<Structure>& structures)
   }
   printf("Number of PPP configurations = %d.\n", Nc - num_fff);
   printf("Number of FFF configurations = %d.\n", num_fff);
-}
-
-void NEP_Data_Reader::print_summary(const std::vector<Structure>& structures) const
-{
-  for (const auto& s : structures) {
-    if (s.energy < -100.0f) {
-      std::cout << "Warning: \n";
-      std::cout << "    There is energy < -100 eV/atom in the data set.\n";
-      std::cout << "    Because we use single precision in NEP training\n";
-      std::cout << "    it means that the reference and calculated energies\n";
-      std::cout << "    might only be accurate up to 1 meV/atom\n";
-      std::cout << "    which can effectively introduce noises.\n";
-      std::cout << "    We suggest you preprocess (using double precision)\n";
-      std::cout << "    your data to make the energies closer to 0." << std::endl;
-      break;
-    }
-  }
 }
 
 bool NEP_Data_Reader::read_structures(bool is_train, std::vector<Structure>& structures)

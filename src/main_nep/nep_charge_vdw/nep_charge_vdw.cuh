@@ -141,7 +141,7 @@ private:
     NEP_Compiled_BEC bec;
     using AnnChargeVdwFunction =
       int (*)(int, const int*, const float*, const float*, const float*,
-              float*, float*, float*, float*, float*, float*);
+              double*, float*, float*, float*, float*, float*);
     AnnChargeVdwFunction ann_charge_vdw_ = nullptr;
     bool valid = false;
     explicit Compiled_Kernel(const NEP_Compile_Config& config);
@@ -152,7 +152,7 @@ private:
       const float* descriptors,
       const float* q_scaler,
       const float* parameters,
-      float* pe,
+      double* pe,
       float* Fp,
       float* charge,
       float* charge_derivative,

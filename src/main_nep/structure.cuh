@@ -28,7 +28,7 @@ struct Structure {
   int num_atom;
   int has_virial = 0;
   float weight;
-  float energy = 0.0f;
+  double energy = 0.0;
   double energy_total = 0.0; // the reference total energy, for the combinations of ediff.in
   float energy_weight = 1.0f;
   float virial[6];
@@ -67,7 +67,7 @@ protected:
   virtual void begin_reading() {}
   virtual float geometry_cutoff() const;
   virtual void read_structure(const XYZ_Record& record, Structure& structure);
-  virtual void print_summary(const std::vector<Structure>& structures) const;
+  virtual void print_summary(const std::vector<Structure>& structures) const {}
   void read_geometry(const XYZ_Record& record, Structure& structure) const;
   void read_energy(const XYZ_Record& record, Structure& structure, bool required) const;
 };

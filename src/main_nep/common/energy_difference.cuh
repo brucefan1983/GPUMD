@@ -30,6 +30,7 @@ class EnergyDifference
 {
 public:
   void prepare_dataset(Dataset& dataset);
+  void set_energy_reference(const Dataset& dataset, const std::vector<double>& reference);
 
   // Reads the optional name= field of a comment line of train.xyz or test.xyz and returns the
   // name in lowercase, or an empty string without the field.
@@ -50,9 +51,9 @@ public:
     const NEP_Energy_Parameters& para, const std::vector<Structure>& structures_test, const bool has_test_set,
     const NEP_Energy_Reader& reader);
   // Weighted RMSE of the training combinations in batch batch_id, which the caller has evaluated.
-  float get_rmse_train(Dataset& dataset, const int batch_id, const int device_id);
+  double get_rmse_train(Dataset& dataset, const int batch_id, const int device_id);
   // Weighted RMSE of the test combinations, which the caller has evaluated.
-  float get_rmse_test(Dataset& dataset, const int device_id);
+  double get_rmse_test(Dataset& dataset, const int device_id);
 
 private:
   struct Total_Energy {
@@ -99,7 +100,7 @@ private:
     const char* xyz_filename,
     std::vector<bool>& is_in_set,
     const NEP_Energy_Reader& reader);
-  float get_rmse(
+  double get_rmse(
     const std::vector<Combination>& combinations,
     Dataset& dataset,
     const int batch_id,

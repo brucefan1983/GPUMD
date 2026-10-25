@@ -176,7 +176,7 @@ void NEP::find_force(
 
 void NEP::configure(NEP_Potential_Parameters& para)
 {
-  para.file_tag = std::string(para.enable_zbl ? "nep4_zbl" : "nep4") + (para.model_type == 3 ? "_temperature" : "");
+  para.model_name = para.model_type == 3 ? "nep_temperature" : "nep";
   calculate_nep_model_parameters(para, para.model_type == 3 ? 1 : 0, 0, 1, 1);
 }
 
@@ -186,6 +186,12 @@ void NEP::initialize_parameters(
 {
   NEP_Potential_Parameters& para = *model_parameters;
   initialize_nep_mu_and_sigma(para, rng, mu, sigma, 1);
+  if (para.fine_tune) {
+    for (int batch = 0; batch < training->num_batches; ++batch) {
+      find_force(para, mu.data(), training->train_set[batch], false, 1);
+    }
+    training->align_energy_reference(para, energy_difference);
+  }
 }
 
 void NEP::parameter_groups(std::vector<int>& groups)
@@ -351,7 +357,7 @@ void NEP::report_error(const TrainingReport& report)
   write_nep_energy_error(training->fid_loss_out, report, train, test, para.has_ediff_combinations);
   if (training->has_test_set) {
     Dataset& data = training->test_set[0];
-    copy_nep_energy_predictions(data);
+    copy_nep_energy_predictions(data, para.energy_reference);
     std::vector<std::pair<Dataset*, int>> structures;
     for (int nc = 0; nc < data.Nc; ++nc) {
       structures.emplace_back(&data, nc);
@@ -366,7 +372,7 @@ void NEP::predict(float* parameters)
   for (int batch = 0; batch < training->num_batches; ++batch) {
     find_force(para, parameters, training->train_set[batch], false, 1);
     Dataset& data = training->train_set[batch][0];
-    copy_nep_energy_predictions(data);
+    copy_nep_energy_predictions(data, para.energy_reference);
   }
   std::vector<std::pair<Dataset*, int>> structures;
   training->get_prediction_order(structures);

@@ -160,15 +160,20 @@ class ReplicaRegression(unittest.TestCase):
             directory, "prd", 2, self.prd_options(correlation=5, distance=1e-8),
             coupling=1e20,
         )
+        # The two-step correlation block (interval 4) is checked once, at its end:
+        # one event, counted serially (clock 2, not accelerated by the 3 replicas).
         rows = events(directory)
-        self.assertEqual(len(rows), 2)
-        self.assertEqual([int(row[1]) for row in rows], [1, 2])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual([int(row[1]) for row in rows], [2])
         self.assertTrue(all(row[4] == "1" and row[6] == "0" for row in rows))
         self.assertEqual(metadata(directory, "prd")["correlation_quiet_steps"], "0")
 
     def test_prd_clock_and_coincident_exit_order(self):
         # All tests exit at step 2 or later, so both complete rounds and the
         # winner's position in the final round contribute to the clock.
+        # Increments are for step-resolved checks (interval 1). With interval 4
+        # the two-step run is a single block of s = 2 steps that is checked only
+        # at its end, so an exit adds s * (winner + 1) and no exit adds 3 * s.
         cases = [
             ("middle", [0.06, 0.1, 0.06], 1, 1, 5),
             ("last", [0.06, 0.06, 0.1], 2, 1, 6),
@@ -195,6 +200,8 @@ class ReplicaRegression(unittest.TestCase):
                             for atom, velocity in zip(reference, velocities)
                         ]) + "\n")
                     self.run_md(directory, "prd", 2, options, resume=True, coupling=1e20)
+                    if interval > 1:
+                        increment = 2 * (3 if winner is None else winner + 1)
                     self.assertEqual(int(metadata(directory, "prd")["clock"]),
                                      clock_before + increment)
                     rows = events(directory)

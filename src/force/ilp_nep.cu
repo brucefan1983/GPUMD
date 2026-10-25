@@ -29,8 +29,8 @@ Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
+#include "utilities/nep_model_input.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/nep_parameters.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <iostream>
 #include <fstream>
@@ -134,6 +134,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   parambs.resize(num_nep);
   annmbs.resize(num_nep);
   max_nep_rc = 0.0;
+  std::vector<double> reference(num_nep * num_types, 0.0);
 
   // init type map cpu
   type_map_cpu.resize(num_types * num_nep, -1);
@@ -146,14 +147,10 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     int count = fscanf(fid_nep_map, "%s", nep_file);
     PRINT_SCANF_ERROR(count, 1, "reading error for NEP filename");
 
-    std::ifstream input(nep_file);
-    if (!input.is_open()) {
-      std::cout << "Failed to open " << nep_file << std::endl;
-      exit(1);
-    }
+    NEP_Model_Input input(nep_file);
 
     // nep4 1 C
-    std::vector<std::string> tokens = get_tokens(input);
+    std::vector<std::string> tokens = input.get_tokens();
     if (tokens.size() < 3) {
       std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
       exit(1);
@@ -197,12 +194,15 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
       for (int m = 0; m < num_types; ++m) {
         if (tokens[2 + n] == ilp_elements[m]) {
           type_map_cpu[m + i * num_types] = n;
+          if (!input.energy_reference().empty()) {
+            reference[m + i * num_types] = input.energy_reference()[n];
+          }
         }
       }
     }
 
     // cutoff 4.2 3.7 80 47 1
-    tokens = get_tokens(input);
+    tokens = input.get_tokens();
     if (tokens.size() != 5 && tokens.size() != 8) {
       std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular "
                    "[radial_factor] [angular_factor] [zbl_factor].\n";
@@ -239,7 +239,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     }
 
     // n_max 10 8
-    tokens = get_tokens(input);
+    tokens = input.get_tokens();
     if (tokens.size() != 3) {
       std::cout << "This line should be n_max n_max_radial n_max_angular." << std::endl;
       exit(1);
@@ -251,7 +251,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     printf("    n_max_angular = %d.\n", parambs[i].n_max_angular);
 
     // basis_size 10 8
-    tokens = get_tokens(input);
+    tokens = input.get_tokens();
     if (tokens.size() != 3) {
       std::cout << "This line should be basis_size basis_size_radial basis_size_angular."
                 << std::endl;
@@ -263,7 +263,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     printf("    basis_size_angular = %d.\n", parambs[i].basis_size_angular);
 
     // l_max
-    tokens = get_tokens(input);
+    tokens = input.get_tokens();
     if (tokens.size() != 4) {
       std::cout << "This line should be l_max l_max_3body l_max_4body l_max_5body." << std::endl;
       exit(1);
@@ -287,7 +287,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     parambs[i].dim_angular = (parambs[i].n_max_angular + 1) * parambs[i].num_L;
 
     // ANN
-    tokens = get_tokens(input);
+    tokens = input.get_tokens();
     if (tokens.size() != 3) {
       std::cout << "This line should be ANN num_neurons 0." << std::endl;
       exit(1);
@@ -319,10 +319,10 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     // NN and descriptor parameters
     std::vector<float> parameters(annmbs[i].num_para);
     for (int n = 0; n < annmbs[i].num_para; ++n) {
-      tokens = get_tokens(input);
+      tokens = input.get_tokens();
       parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
-    std::vector<float> descriptor_parameters = get_descriptor_parameters_type_pair(
+    std::vector<float> descriptor_parameters = input.get_descriptor_parameters_type_pair(
       parameters,
       annmbs[i].num_para_ann,
       parambs[i].num_types,
@@ -335,7 +335,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     }
     all_ann_para.push_back(parameters);
     for (int d = 0; d < annmbs[i].dim; ++d) {
-      tokens = get_tokens(input);
+      tokens = input.get_tokens();
       parambs[i].q_scaler[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
 
@@ -417,6 +417,9 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   nep_data.sum_fxyz.resize(num_atoms * (max_n_max_angular + 1) * NUM_OF_ABC);
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
+
+  energy_reference.resize(reference.size());
+  energy_reference.copy_from_host(reference.data());
 
   // updata nep parameters and ann parameters
   // calc buffer size
@@ -2021,6 +2024,7 @@ static __global__ void find_descriptor(
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   double* g_pe,
+  const double* energy_reference,
   float* g_Fp,
   double* g_virial,
   float* g_sum_fxyz)
@@ -2144,7 +2148,7 @@ static __global__ void find_descriptor(
       q,
       F,
       Fp);
-    g_pe[n1] += F;
+    g_pe[n1] += double(F) + energy_reference[g_type[n1] + type_offset];
 
     // for (int d = 0; d < annmb.dim; ++d) {
     for (int d = 0; d < ann_dim; ++d) {
@@ -2800,6 +2804,7 @@ void ILP_NEP::compute_ilp(
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
     potential_per_atom.data(),
+    energy_reference.data(),
     nep_data.Fp.data(),
     virial_per_atom.data(),
     nep_data.sum_fxyz.data());

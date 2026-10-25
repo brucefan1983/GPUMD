@@ -8,6 +8,7 @@
 */
 
 #include "nep_spin.cuh"
+#include "utilities/nep_spin_model_file.cuh"
 #include "nep_kernels.cuh"
 #include "nep_small_box.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -614,7 +615,7 @@ __global__ void find_potential(
   const float* descriptor,
   const float* parameters,
   const float* q_scaler,
-  const float* spin_baseline,
+  const double* energy_reference,
   double* potential,
   float* Fp)
 {
@@ -650,7 +651,7 @@ __global__ void find_potential(
   }
   energy -= b1[0];
   potential[atom] +=
-    static_cast<double>(energy) + static_cast<double>(spin_baseline[atom_type]);
+    static_cast<double>(energy) + static_cast<double>(energy_reference[atom_type]);
   for (int d = 0; d < descriptor_dim; ++d) {
     Fp[static_cast<std::size_t>(N) * d + atom] = fp[d] * q_scaler[d];
   }
@@ -666,7 +667,7 @@ __global__ void find_potential_warp(
   const float* __restrict__ descriptor,
   const float* __restrict__ parameters,
   const float* __restrict__ q_scaler,
-  const float* __restrict__ spin_baseline,
+  const double* __restrict__ energy_reference,
   double* potential,
   float* __restrict__ Fp)
 {
@@ -726,7 +727,7 @@ __global__ void find_potential_warp(
   if (work_lane == 0) {
     energy -= b1[0];
     potential[atom] +=
-      static_cast<double>(energy) + static_cast<double>(spin_baseline[atom_type]);
+      static_cast<double>(energy) + static_cast<double>(energy_reference[atom_type]);
   }
   for (int d = work_lane; d < descriptor_dim; d += lanes_per_atom) {
     float fp = 0.0f;
@@ -944,7 +945,7 @@ std::vector<std::string> split(const std::string& line)
   return tokens;
 }
 
-std::vector<std::string> next_tokens(std::ifstream& input)
+std::vector<std::string> next_tokens(std::istream& input)
 {
   std::string line;
   while (std::getline(input, line)) {
@@ -1444,10 +1445,7 @@ NEP_Spin::~NEP_Spin(void)
 
 void NEP_Spin::read_model(const char* file_potential)
 {
-  std::ifstream input(file_potential);
-  if (!input.is_open()) {
-    throw std::runtime_error(std::string("cannot open spin potential: ") + file_potential);
-  }
+  std::istringstream input(read_nep_spin_model_input(file_potential));
 
   std::vector<std::string> tokens = next_tokens(input);
   const bool has_zbl = !tokens.empty() && tokens[0] == "nep4_spin3_zbl";
@@ -1509,11 +1507,11 @@ void NEP_Spin::read_model(const char* file_potential)
     const std::string& name = tokens[0];
     if (name == "spin_baseline") {
       if (seen_baseline || tokens.size() != static_cast<std::size_t>(model_.num_types + 1)) {
-        throw std::runtime_error("spin_baseline must occur once with one value per type");
+        throw std::runtime_error("energy_reference must occur once with one value per type");
       }
       seen_baseline = true;
       for (int type = 0; type < model_.num_types; ++type) {
-        model_.spin_baseline.push_back(parse_double(tokens[type + 1]));
+        model_.energy_reference.push_back(parse_double(tokens[type + 1]));
       }
     } else if (name == "spin_basis_size") {
       require_line(tokens, "spin_basis_size", 2);
@@ -1802,9 +1800,9 @@ void NEP_Spin::read_model(const char* file_potential)
     data_.spin_projection_parameters.copy_from_host(projection_parameters.data());
   }
 
-  std::vector<float> spin_baseline(model_.spin_baseline.begin(), model_.spin_baseline.end());
-  data_.spin_baseline.resize(spin_baseline.size());
-  data_.spin_baseline.copy_from_host(spin_baseline.data());
+  const auto& energy_reference = model_.energy_reference;
+  data_.energy_reference.resize(energy_reference.size());
+  data_.energy_reference.copy_from_host(energy_reference.data());
   data_.spin_dof_type_active.resize(model_.spin_dof_type_active.size());
   data_.spin_dof_type_active.copy_from_host(model_.spin_dof_type_active.data());
   data_.spin_env_type_active.resize(model_.spin_env_type_active.size());
@@ -2068,7 +2066,7 @@ void NEP_Spin::compute(
       data_.descriptor.data(),
       data_.parameters.data(),
       data_.parameters.data() + model_.model_parameter_count,
-      data_.spin_baseline.data(),
+      data_.energy_reference.data(),
       potential.data(),
       data_.Fp.data());
     GPU_CHECK_KERNEL
@@ -2210,7 +2208,7 @@ void NEP_Spin::compute(
       data_.descriptor.data(),
       data_.parameters.data(),
       data_.parameters.data() + model_.model_parameter_count,
-      data_.spin_baseline.data(),
+      data_.energy_reference.data(),
       potential.data(),
       data_.Fp.data());
   } else {
@@ -2223,7 +2221,7 @@ void NEP_Spin::compute(
       data_.descriptor.data(),
       data_.parameters.data(),
       data_.parameters.data() + model_.model_parameter_count,
-      data_.spin_baseline.data(),
+      data_.energy_reference.data(),
       potential.data(),
       data_.Fp.data());
   }

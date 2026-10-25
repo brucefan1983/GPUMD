@@ -26,11 +26,11 @@ class EnergyDifference;
 
 struct NEP_Energy_Error
 {
-  float energy = 0.0f;
+  double energy = 0.0;
   float force = 0.0f;
   float virial = 0.0f;
-  float ediff = 0.0f;
-  float energy_shift = 0.0f;
+  double ediff = 0.0;
+  double energy_shift = 0.0;
 };
 
 // Common data preparation used by the NEP models. The owning model performs
@@ -56,6 +56,7 @@ public:
 
   void open_loss_file(const NEP_Parameters& para, const char* columns, bool include_ediff);
   void write_model(NEP_Parameters& para, const TrainingReport& report);
+  void align_energy_reference(NEP_Parameters& para, EnergyDifference& energy_difference);
   void get_prediction_order(std::vector<std::pair<Dataset*, int>>& structures);
 
 private:

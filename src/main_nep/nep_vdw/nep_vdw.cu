@@ -266,7 +266,7 @@ void NEP_VDW::Compiled_Kernel::launch_ann_vdw(
   const float* descriptors,
   const float* q_scaler,
   const float* parameters,
-  float* pe,
+  double* pe,
   float* Fp,
   float* C6,
   float* C6_derivative)
@@ -342,7 +342,7 @@ static __global__ void apply_ann_vdw(
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
-  float* g_pe,
+  double* g_pe,
   float* g_Fp,
   float* g_C6,
   float* g_C6_derivative)
@@ -376,7 +376,7 @@ static __global__ void apply_ann_vdw(
       C6,
       C6_derivative);
 
-    g_pe[n1] = F;
+    g_pe[n1] = static_cast<double>(F);
     const float SCALING_FACTOR = 0.1f;
     float C6_exp = paramb.c6_ref_sqrt[type] * expf(C6 * SCALING_FACTOR);
     g_C6[n1] = C6_exp;
@@ -1005,7 +1005,7 @@ void NEP_VDW::find_force(
 
 void NEP_VDW::configure(NEP_Energy_Parameters& para)
 {
-  para.file_tag = std::string(para.enable_zbl ? "nep4_zbl" : "nep4") + "_vdw";
+  para.model_name = "nep_vdw";
   calculate_nep_model_parameters(para, 0, 1, 1, 1);
 }
 
@@ -1015,6 +1015,12 @@ void NEP_VDW::initialize_parameters(
 {
   NEP_Energy_Parameters& para = *model_parameters;
   initialize_nep_mu_and_sigma(para, rng, mu, sigma, 1);
+  if (para.fine_tune) {
+    for (int batch = 0; batch < training->num_batches; ++batch) {
+      find_force(para, mu.data(), training->train_set[batch], false, 1);
+    }
+    training->align_energy_reference(para, energy_difference);
+  }
 }
 
 void NEP_VDW::parameter_groups(std::vector<int>& groups)
@@ -1051,7 +1057,6 @@ private:
   void print_summary(const std::vector<Structure>& structures) const override
   {
     print_nep_boundaries(structures);
-    NEP_Energy_Reader::print_summary(structures);
   }
 };
 } // namespace
@@ -1140,7 +1145,7 @@ void NEP_VDW::report_error(const TrainingReport& report)
   write_nep_energy_error(training->fid_loss_out, report, train, test, para.has_ediff_combinations);
   if (training->has_test_set) {
     Dataset& data = training->test_set[0];
-    copy_nep_energy_predictions(data);
+    copy_nep_energy_predictions(data, para.energy_reference);
     std::vector<std::pair<Dataset*, int>> structures;
     for (int nc = 0; nc < data.Nc; ++nc) {
       structures.emplace_back(&data, nc);
@@ -1155,7 +1160,7 @@ void NEP_VDW::predict(float* parameters)
   for (int batch = 0; batch < training->num_batches; ++batch) {
     find_force(para, parameters, training->train_set[batch], false, 1);
     Dataset& data = training->train_set[batch][0];
-    copy_nep_energy_predictions(data);
+    copy_nep_energy_predictions(data, para.energy_reference);
   }
   std::vector<std::pair<Dataset*, int>> structures;
   training->get_prediction_order(structures);

@@ -215,12 +215,11 @@ def validate_training_and_runtime(
         raise RuntimeError(result.stdout + result.stderr)
 
     checkpoint = (training / "nep.txt").read_text()
-    expected_header = "nep4_spin3_zbl" if enable_zbl else "nep4_spin3"
-    header_count = 9 if all_spin_types else 11
-    if not checkpoint.startswith(
-            f"{expected_header} 2 Fe Ge \nspin_mode 3 {header_count}\n"):
-        raise AssertionError("invalid counted spin3 checkpoint")
-    if enable_zbl and "\nzbl 1.25 2.5\ncutoff " not in checkpoint:
+    if not checkpoint.startswith("nep 2 Fe Ge\nformat_version 1\nmodel nep_spin3\n"):
+        raise AssertionError("invalid block-format spin3 checkpoint")
+    if "\nenergy_reference " not in checkpoint or "spin_baseline" in checkpoint:
+        raise AssertionError("Spin3 must use the shared energy reference")
+    if enable_zbl and "\nzbl 1.25 2.5\n" not in checkpoint:
         raise AssertionError("spin3 ZBL checkpoint is missing its zbl line")
     projection_size = 4 * spin_compress * spin_compress
     required = (
@@ -373,13 +372,13 @@ def validate_training_and_runtime(
         # or refitting the checkpoint's elemental energy baseline.
         checkpoint_lines = checkpoint.splitlines()
         first_parameter = next(
-            i + 1 for i, line in enumerate(checkpoint_lines) if line.startswith("ANN "))
-        parameters = checkpoint_lines[first_parameter:-descriptor_dim]
+            i + 1 for i, line in enumerate(checkpoint_lines) if line.startswith("@ parameters "))
+        parameters = checkpoint_lines[first_parameter:-descriptor_dim - 1]
         resumed = root / "resumed"
         write_case(resumed, nep_in, TRAIN_XYZ.replace("energy=-4.0", "energy=40.0"))
         (resumed / "nep.txt").write_text(checkpoint)
         (resumed / "nep.restart").write_text(
-            "".join(f"{value} 0.0\n" for value in parameters))
+            "nep_restart\nenergy_reference 2 " + next(line.split(" ", 1)[1] for line in checkpoint_lines if line.startswith("energy_reference ")) + "\nparameters " + str(len(parameters)) + "\n" + "".join(f"{value} 0.0\n" for value in parameters))
         result = run(NEP, resumed)
         if result.returncode:
             raise RuntimeError(result.stdout + result.stderr)
@@ -388,13 +387,39 @@ def validate_training_and_runtime(
             raise AssertionError("restart changed the Spin3 header or energy baseline")
         error = maximum_error(
             [float(value) for value in parameters],
-            [row[0] for row in columns(resumed / "nep.restart", 2)])
+            [float(line.split()[0]) for line in (resumed / "nep.restart").read_text().splitlines()[3:]])
         if error > 1.0e-7:
             raise AssertionError(f"zero-variance restart changed parameters: {error}")
         if resumed_lines[-descriptor_dim:] != checkpoint_lines[-descriptor_dim:]:
             raise AssertionError("restart changed saved descriptor scaling")
         report["restart_parameter_error"] = error
         report["restart_scaler"] = "preserved"
+        # The legacy two-column restart uses basis-major structural coefficients.
+        legacy_values = list(parameters)
+        fields = {line.split()[0]: line.split()[1:] for line in checkpoint_lines[:first_parameter - 1]}
+        nr, na = map(int, fields["n_max"])
+        br, ba = map(int, fields["basis_size"])
+        neurons = int(fields["ann"][0])
+        offset = (descriptor_dim + 2) * neurons * 2 + 1
+        for basis_count in ((nr + 1) * (br + 1), (na + 1) * (ba + 1)):
+            values = legacy_values[offset:offset + 4 * basis_count]
+            legacy_values[offset:offset + len(values)] = [values[pair * basis_count + b]
+                for b in range(basis_count) for pair in range(4)]
+            offset += len(values)
+        legacy_resume = root / "legacy-resumed"
+        write_case(legacy_resume, nep_in, TRAIN_XYZ)
+        (legacy_resume / "nep.txt").write_text(checkpoint)
+        (legacy_resume / "nep.restart").write_text("".join(f"{v} 0\n" for v in legacy_values))
+        result = run(NEP, legacy_resume)
+        if result.returncode:
+            raise RuntimeError(result.stdout + result.stderr)
+        restored = [float(line.split()[0]) for line in
+                    (legacy_resume / "nep.restart").read_text().splitlines()[3:]]
+        error = maximum_error([float(v) for v in parameters], restored)
+        if error > 1e-7:
+            raise AssertionError(f"legacy restart layout changed parameters: {error}")
+        report["legacy_restart_parameter_error"] = error
+
     return report
 
 
@@ -426,9 +451,9 @@ def validate_native_compiled_checkpoint(root):
         if result.returncode:
             raise RuntimeError(result.stdout + result.stderr)
         checkpoint = (initial / "nep.txt").read_text()
-        frozen = "".join(
-            f"{line.split()[0]} 0\n"
-            for line in (initial / "nep.restart").read_text().splitlines())
+        restart_lines = (initial / "nep.restart").read_text().splitlines()
+        frozen = "\n".join(restart_lines[:3]) + "\n" + "".join(
+            f"{line.split()[0]} 0\n" for line in restart_lines[3:])
         cases = []
         for compiled in (0, 1):
             case = root / f"c{channels}-compiled-{compiled}"
@@ -460,6 +485,27 @@ def validate_native_compiled_checkpoint(root):
     return report
 
 
+def validate_shared_nep_io(root):
+    """Guard the ordinary NEP callers of the shared writer and restart reader."""
+    config = "\n".join(line for line in NEP_IN.splitlines()
+        if not line.startswith(("spin_", "lambda_m", "lambda_tau"))) + "\n"
+    write_case(root, config)
+    result = run(NEP, root)
+    if result.returncode:
+        raise RuntimeError(result.stdout + result.stderr)
+    first = (root / "nep.restart").read_text().splitlines()[1]
+    result = run(NEP, root)
+    if result.returncode:
+        raise RuntimeError(result.stdout + result.stderr)
+    if (root / "nep.restart").read_text().splitlines()[1] != first:
+        raise AssertionError("ordinary NEP restart changed energy references")
+    (root / "nep.in").write_text(config + "prediction 1\n")
+    result = run(NEP, root)
+    if result.returncode:
+        raise RuntimeError(result.stdout + result.stderr)
+    return "training/restart/prediction passed"
+
+
 def main():
     global NEP, GPUMD
     parser = argparse.ArgumentParser()
@@ -473,6 +519,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="gpumd-main-nep-spin3-") as tmp:
         root = Path(tmp)
         report = {
+            "ordinary_nep_io": validate_shared_nep_io(root / "ordinary-nep"),
             "parser_negative_exit_codes": validate_parser(root / "parser"),
             "response_training": validate_response_training(root / "response"),
             "training_runtime": validate_training_and_runtime(root / "correctness"),

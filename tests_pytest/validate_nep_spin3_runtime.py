@@ -8,6 +8,7 @@ import re
 import subprocess
 import tempfile
 from pathlib import Path
+from spin_model_format import block_model
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -163,7 +164,7 @@ def run_case(root, name, case, model):
         "velocity 1\n"
         "ensemble nve\n"
         "time_step 0\n"
-        "dump_xyz 1 result.xyz force potential spin mforce virial\n"
+        "dump_xyz 1 result.xyz force potential spin mforce virial precision double\n"
         "run 1\n")
     result = subprocess.run(
         [str(GPUMD)], cwd=directory, capture_output=True, text=True, check=False)
@@ -190,6 +191,25 @@ def validate_removed_spin2(root):
         raise AssertionError("removed nep4_spin2 model was accepted")
 
 
+def validate_energy_reference(root):
+    legacy, oracle = load_fixture("o3c2_uniform")
+    model = block_model(legacy)
+    case = oracle["cases"]["noncollinear"]
+    base = run_case(root, "reference-base", case, model)
+    old = next(line for line in model.splitlines() if line.startswith("energy_reference "))
+    references = list(map(float, old.split()[1:]))
+    shifts = [100000.123456789, -200000.987654321]
+    changed = "energy_reference " + " ".join(format(a + b, '.17g') for a, b in zip(references, shifts))
+    shifted = run_case(root, "reference-shift", case, model.replace(old, changed))
+    expected = base["energy"] + sum(shifts[0 if t == "Fe" else 1] for t in case["types"])
+    if abs(shifted["energy"] - expected) > 2e-6:
+        raise AssertionError(f"energy reference mismatch: actual={shifted['energy']:.17g}, expected={expected:.17g}")
+    for field in ("force", "mforce", "virial"):
+        if max_error(base[field], shifted[field]) > 1e-10:
+            raise AssertionError(f"constant energy reference changed {field}")
+    print("Spin3 double energy-reference shift and derivative invariance passed")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -201,14 +221,19 @@ def main():
         default=("o3c2_uniform", "o3c2_typewise", "o3c3_uniform"),
         help="frozen Spin3 fixtures to run")
     parser.add_argument("--tolerance", type=float, default=2.0e-4)
+    parser.add_argument("--block-format", action="store_true", help="Validate converted block-format fixtures against the same frozen oracle")
     args = parser.parse_args()
 
     errors = {}
     with tempfile.TemporaryDirectory(prefix="gpumd-spin3-") as temp:
         root = Path(temp)
         validate_removed_spin2(root)
+        if args.block_format:
+            validate_energy_reference(root)
         for fixture in args.fixtures:
             model, oracle = load_fixture(fixture)
+            if args.block_format:
+                model = block_model(model)
             selected = args.cases or list(oracle["cases"])
             fixture_root = root / fixture
             fixture_root.mkdir()
