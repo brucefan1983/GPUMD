@@ -71,7 +71,11 @@ The cell dimensions and atom coordinates should be given in units of Ångstrom.
 Velocities need to be specified in units of Å/fs.
 Spin is specified in Bohr magnetons (muB). Spin velocity is in muB/fs.
 Magnetic force is the negative energy derivative with respect to spin, in eV/muB.
+The spin torque, spin crossed with magnetic force, is in eV.
 External magnetic induction B is specified in tesla (T).
+Spin vectors store Cartesian magnetic moments, not normalized directions.
+Readers do not normalize them or rescale model parameters; training and
+runtime data must use the same spin convention.
 Property names may not be repeated. NEP_Spin fails if ``spin:R:3`` is absent;
 missing spin values are never filled with zeros.
 

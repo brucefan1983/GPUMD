@@ -45,7 +45,15 @@ persists across run commands. To turn it off::
 Spin is in muB, magnetic force is in eV/muB, and energy is in eV. With
 c_B = 5.7883818060e-5, the added magnetic force is c_B times the field vector;
 the added per-atom Zeeman energy is minus spin dotted with this force.
-Both contributions are recomputed at initial, SIB midpoint, and endpoint
-states. Output energies and magnetic forces include these contributions.
+Both contributions are recomputed at initial, SIB midpoint, GLSD predictor,
+and endpoint states using the actual stored moments, including the
+unnormalized SIB chord midpoint, and do not accumulate across evaluations.
+Output energies and magnetic forces include these contributions.
 No additional g factor is applied. There is no direct mechanical force or
 virial contribution. Time-dependent fields and linear gradients are not supported.
+
+The field is magnetic induction B, not H in A/m. The integrators consume
+magnetic force in eV/muB, so tesla-valued inputs must undergo this conversion
+before integration; the conversion does not change their gamma convention.
+For example, a 2 muB moment aligned with 1 T has Zeeman energy approximately
+-1.1576e-4 eV and magnetic force +5.7884e-5 eV/muB along the field.

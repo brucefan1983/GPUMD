@@ -273,8 +273,10 @@ The basic internal units are:
 
 User-facing changes to keywords, file formats, units, or physical definitions should be reflected in the documentation under `doc/`.
 
-See [Spin units and external magnetic field contract](spin_units.md) for the
-muB, tesla, and eV/muB conventions.
+Spin moments are in muB and magnetic forces in eV/muB. See the
+[model input units](../doc/gpumd/input_files/model_xyz.rst) and
+[external magnetic field](../doc/gpumd/input_parameters/add_mfield.rst)
+documentation for the input and Zeeman conventions.
 
 See [Spin regression checks](spin_validation.md) for portable format, training,
 and GPU validation commands.

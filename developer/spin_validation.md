@@ -88,11 +88,46 @@ mean separately from the exported elite, and checks scaler import. The split
 probe checks parallel/perpendicular magnetic losses against an independent
 projection calculation, including zero spins and parser rejection cases.
 
-## Historical scientific evidence
+## GLSD and lattice-driver restart
 
-The adjacent GLSD, MTTK, NHC, and Fe mobility reports describe their original
-experiments. Their `$VALIDATION_ROOT`, `$REMOTE_WORK_ROOT`, and `$FE_MODEL` paths
-are environment placeholders, not required test inputs or publicly distributed
-datasets. Preserve their source/model hashes and numerical limits when citing
-them. Passing these regressions establishes the covered software contracts; it
-does not establish magnetic phase behavior or extrapolative model accuracy.
+The standalone GLSD probe checks deterministic convergence and additive-noise
+statistics against independent analytic expectations. It needs no trained model:
+
+```sh
+nvcc -std=c++14 -O3 -arch=sm_70 -Isrc tests_pytest/spin_glsd_analytic.cu \
+  src/integrate/spin_glsd.cu -o "$RESULTS/spin_glsd_analytic"
+python tests_pytest/validate_spin_glsd_analytic.py "$RESULTS/spin_glsd_analytic"
+GPUMD_COMMAND=src/gpumd python tests_pytest/validate_spin_sib_runtime.py
+```
+
+Full runtime and restart checks require four allocated GPUs, a compatible Fe
+Spin model, and independently preserved reference executables. Use absolute
+paths and fresh output directories outside the checkout:
+
+```sh
+python tests_pytest/validate_spin_glsd_runtime.py \
+  --binary /path/to/current/gpumd --reference /path/to/pre-glsd/gpumd \
+  --mobility-reference /path/to/pre-damping/gpumd \
+  --model /path/to/Fe/nep.txt --output "$RESULTS/glsd"
+python tests_pytest/validate_mttk_restart.py \
+  --binary /path/to/current/gpumd --reference /path/to/pre-mttk-restart/gpumd \
+  --model /path/to/Fe/nep.txt --output "$RESULTS/mttk"
+python tests_pytest/validate_nhc_restart.py \
+  --binary /path/to/current/gpumd --reference /path/to/pre-nhc-restart/gpumd \
+  --model /path/to/Fe/nep.txt --output "$RESULTS/nhc"
+```
+
+These reference executables and the Fe model are external prerequisites, not
+bundled fixtures. Record their source revisions and hashes; never substitute
+the candidate for an independent reference. The GLSD mobility reference must
+support the former dimensional input. Restart checks compare continuous and
+resumed trajectories step by step, exercise invalid inputs, and use missing-state
+controls to detect incomplete restoration. See the
+[restart documentation](../doc/gpumd/input_parameters/dump_restart.rst) for the
+supported continuation contracts and the
+[GLSD documentation](../doc/gpumd/input_parameters/ensemble_glsd.rst) for the
+physical equation and timestep limits.
+
+Keep run logs, machine details and numerical reports outside the source tree.
+Passing these regressions establishes the covered software contracts; it does
+not establish magnetic phase behavior or extrapolative model accuracy.

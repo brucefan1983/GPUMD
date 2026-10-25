@@ -168,19 +168,6 @@ For an initial local estimate
   illustration, not Fe data. A sampling-only chosen time is a numerical
   choice, not a measured material timescale.
 
-A concrete Fe example illustrates this distinction. A static scan of the
-supplied Fe NEP at fixed bcc lattice constant 2.8665 Angstrom gives a uniform
-reference moment of 2.53083 muB and radial curvature about 0.73711 eV/muB^2.
-Transferring the paper's fitted damping 0.008 under the explicit convention
-below gives mobility about 77.85. This is a literature-informed candidate,
-not an experimental calibration of this potential. The corresponding linear
-uniform radial time is about 17.4 fs, not a prediction of the laser
-experiment's demagnetization time. That coefficient corresponds to ``damping`` about 0.01281 at default
-``gamma``. This optional calibration example is not a required preparation
-step for using GLSD. The repository report
-``developer/fe_glsd_mobility_estimate.md`` records the model hash, volume and
-finite-difference checks, provenance, and the paper's numerical ambiguity.
-
 Knowing a Gilbert damping alpha alone does not uniquely calibrate this full
 variable-magnitude model. One scalar mobility constrains both transverse and
 longitudinal relaxation; if the measured rates cannot be matched together,
