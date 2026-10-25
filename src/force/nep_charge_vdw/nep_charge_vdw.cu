@@ -33,9 +33,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include <algorithm>
-#include <chrono>
 #include <cmath>
-#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string>
