@@ -305,10 +305,13 @@ int NEP_Spin_Model::prepare_data()
     fitness_mforce.assign(size, 0.0f);
     fitness_tau.assign(size, 0.0f);
     fitness_response.assign(size, 0.0f);
-    training->open_loss_file(para,
+    std::string columns =
       " rmse_energy_train rmse_force_train rmse_virial_train rmse_mforce_train rmse_tau_train"
-      " rmse_energy_test rmse_force_test rmse_virial_test rmse_mforce_test rmse_tau_test",
-      para.has_ediff_combinations);
+      " rmse_energy_test rmse_force_test rmse_virial_test rmse_mforce_test rmse_tau_test";
+    if (para.split_mforce_loss) {
+      columns += " rmse_m_parallel_train rmse_m_perp_train rmse_m_parallel_test rmse_m_perp_test";
+    }
+    training->open_loss_file(para, columns.c_str(), para.has_ediff_combinations);
   }
   return training->num_batches;
 }
@@ -366,11 +369,18 @@ void NEP_Spin_Model::evaluate(int batch, const float* population)
     for (int device = 0; device < count; ++device) {
       Dataset& data = training->train_set[batch][device];
       energy_loss.evaluate(para, data, energy_difference, batch, first + device, device);
-      auto m = magnetic(data).get_rmse_mforce(para, data, true, device);
+      auto m = para.split_mforce_loss
+        ? magnetic(data).get_rmse_mforce_parallel(para, data, true, device)
+        : magnetic(data).get_rmse_mforce(para, data, true, device);
+      std::vector<float> perpendicular;
+      if (para.split_mforce_loss)
+        perpendicular = magnetic(data).get_rmse_mforce_perp(para, data, true, device);
       auto t = magnetic(data).get_rmse_tau(para, data, true, device);
       for (int type = 0; type <= para.num_types; ++type) {
         const int index = first + device + type * para.population_size;
-        fitness_mforce[index] = para.lambda_m * m[type];
+        fitness_mforce[index] = para.split_mforce_loss
+          ? para.lambda_m_parallel * m[type] + para.lambda_m_perp * perpendicular[type]
+          : para.lambda_m * m[type];
         fitness_tau[index] = para.lambda_tau * t[type];
       }
     }
@@ -392,7 +402,10 @@ void NEP_Spin_Model::accumulate_fitness(float* total)
     total[i] = total[i] + fitness_mforce[i] + fitness_tau[i] + fitness_response[i];
   energy_loss.accumulate_energy_difference(para, total);
 }
-void NEP_Spin_Model::print_training_header() { fitness_spin::print_loss_header(); }
+void NEP_Spin_Model::print_training_header()
+{
+  fitness_spin::print_loss_header(model_parameters->split_mforce_loss);
+}
 void NEP_Spin_Model::write_magnetic_predictions(
   const char* prefix, const std::vector<std::pair<Dataset*, int>>& structures)
 {
@@ -420,6 +433,11 @@ void NEP_Spin_Model::report_error(const TrainingReport& report)
   auto train = energy_loss.get_error(para, data, energy_difference, true, report.batch);
   const float mt = magnetic(data).get_rmse_mforce(para, data, false, 0).back();
   const float tt = magnetic(data).get_rmse_tau(para, data, false, 0).back();
+  float mp_train = 0, mt_train = 0, mp_test = 0, mt_test = 0;
+  if (para.split_mforce_loss) {
+    mp_train = magnetic(data).get_rmse_mforce_parallel(para, data, false, 0).back();
+    mt_train = magnetic(data).get_rmse_mforce_perp(para, data, false, 0).back();
+  }
   report.parameters[para.number_of_variables_ann - 1] += train.energy_shift;
   NEP_Energy_Error test;
   float mv = 0, tv = 0;
@@ -429,6 +447,10 @@ void NEP_Spin_Model::report_error(const TrainingReport& report)
     test = energy_loss.get_error(para, data, energy_difference, false, 0);
     mv = magnetic(data).get_rmse_mforce(para, data, false, 0).back();
     tv = magnetic(data).get_rmse_tau(para, data, false, 0).back();
+    if (para.split_mforce_loss) {
+      mp_test = magnetic(data).get_rmse_mforce_parallel(para, data, false, 0).back();
+      mt_test = magnetic(data).get_rmse_mforce_perp(para, data, false, 0).back();
+    }
   }
   int max_radial = training->max_NN_radial;
   for (auto& batch : training->train_set) max_radial = std::max(max_radial, magnetic(batch[0]).max_NN_spin);
@@ -448,6 +470,8 @@ void NEP_Spin_Model::report_error(const TrainingReport& report)
     fprintf(file, "%d %.5f %.5f %.5f %.5f %.5f %.5f %.5f %.5f %.5f %.5f %.5f %.5f %.5f",
       report.generation + 1, report.total, report.l1, report.l2, train.energy, train.force,
       train.virial, mt, tt, test.energy, test.force, test.virial, mv, tv);
+    if (para.split_mforce_loss)
+      fprintf(file, " %.8e %.8e %.8e %.8e", mp_train, mt_train, mp_test, mt_test);
     if (para.has_ediff_combinations) fprintf(file, " %.5f %.5f", train.ediff, test.ediff);
     fprintf(file, "\n"); fflush(file);
   }

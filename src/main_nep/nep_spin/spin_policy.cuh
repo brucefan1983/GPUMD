@@ -11,7 +11,7 @@
 namespace fitness_spin {
 void derive_spin_response_tangents(const Spin_Parameters&, std::vector<Spin_Frame>&);
 void finalize_q_scaler(Spin_Parameters&, int);
-void print_loss_header();
+void print_loss_header(bool split_mforce);
 class ResponseLoss {
 public:
   void append(int device_id, Dataset& dataset, Spin_Data& spin_data);

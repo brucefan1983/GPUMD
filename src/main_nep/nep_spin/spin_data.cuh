@@ -34,6 +34,8 @@ struct Spin_Data {
   std::vector<int> has_mforce_cpu;
   void construct(Spin_Parameters&, Dataset&, const std::vector<Spin_Labels>&);
   std::vector<float> get_rmse_mforce(Spin_Parameters&, Dataset&, bool, int);
+  std::vector<float> get_rmse_mforce_parallel(Spin_Parameters&, Dataset&, bool, int);
+  std::vector<float> get_rmse_mforce_perp(Spin_Parameters&, Dataset&, bool, int);
   std::vector<float> get_rmse_tau(Spin_Parameters&, Dataset&, bool, int);
 };
 class Spin_Reader : public NEP_Energy_Reader {

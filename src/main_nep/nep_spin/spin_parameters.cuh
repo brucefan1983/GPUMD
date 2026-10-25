@@ -18,6 +18,8 @@ public:
   int spin_l_max[3] = {2, 0, 0};
   float spin_cutoff = 8.0f;
   float lambda_m = 1.0f, lambda_tau = 0.0f, lambda_spin_response = 0.0f;
+  float lambda_m_parallel = 0.0f, lambda_m_perp = 0.0f;
+  bool split_mforce_loss = false;
   bool is_spin_dof_type_set = false, is_spin_env_type_set = false;
   bool spin_restart = false;
   std::string file_tag;
@@ -36,6 +38,7 @@ private:
   void validate_spin_parameters();
   void calculate_spin_dimensions();
   bool is_lambda_m_set = false;
+  bool is_lambda_m_parallel_set = false, is_lambda_m_perp_set = false;
   bool is_lambda_spin_response_set = false;
   bool is_lambda_tau_set = false;
   bool is_spin_basis_size_set = false;
@@ -45,6 +48,7 @@ private:
   bool is_spin_order_set = false;
   bool is_spin_soc_set = false;
   void parse_lambda_m(const char** param, int num_param);
+  void parse_lambda_m_component(const char** param, int num_param, float&, bool&);
   void parse_lambda_tau(const char** param, int num_param);
   void parse_lambda_spin_response(const char** param, int num_param);
   void parse_spin_compress(const char** param, int num_param);

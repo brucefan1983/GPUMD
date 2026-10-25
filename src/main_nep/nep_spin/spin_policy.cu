@@ -87,10 +87,10 @@ void finalize_q_scaler(Spin_Parameters& para, int deviceCount)
   }
   CHECK(gpuSetDevice(0));
 }
-void print_loss_header()
+void print_loss_header(bool split_mforce)
 {
   printf(
-    "%-8s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s\n",
+    "%-8s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s",
     "Step",
     "Total",
     "L1Reg",
@@ -105,6 +105,8 @@ void print_loss_header()
     "V-Test",
     "M-Test",
     "T-Test");
+  if (split_mforce) printf(" M-parallel-Train M-perp-Train M-parallel-Test M-perp-Test");
+  printf("\n");
 }
 void derive_spin_response_tangents(
   const Spin_Parameters& para,

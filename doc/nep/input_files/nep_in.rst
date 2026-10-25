@@ -91,6 +91,10 @@ Keywords
      - weight of virial loss term
    * - :ref:`lambda_m <kw_lambda_m>`
      - weight of Cartesian magnetic-force loss term
+   * - :ref:`lambda_m_parallel <kw_lambda_m_parallel>`
+     - weight of parallel magnetic-force RMSE (requires ``lambda_m_perp``)
+   * - :ref:`lambda_m_perp <kw_lambda_m_perp>`
+     - weight of perpendicular magnetic-force RMSE (requires ``lambda_m_parallel``)
    * - :ref:`lambda_tau <kw_lambda_tau>`
      - weight of spin-torque loss term
    * - :ref:`lambda_spin_response <kw_lambda_spin_response>`

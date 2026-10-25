@@ -52,7 +52,13 @@ void Spin_Parameters::report_model_inputs() const
   NEP_Energy_Parameters::report_model_inputs();
   printf("    spin_order = %d, spin_compress = %d, spin_soc = %d.\n", spin_order, spin_compress, spin_soc);
   printf("    spin_basis_size = %d, spin_l_max = %d.\n", spin_basis_size[0], spin_l_max[0]);
-  printf("    lambda_m = %g, lambda_tau = %g, lambda_spin_response = %g.\n", lambda_m, lambda_tau, lambda_spin_response);
+  if (split_mforce_loss) {
+    printf("    lambda_m_parallel = %g, lambda_m_perp = %g (independent RMSE terms).\n",
+      lambda_m_parallel, lambda_m_perp);
+  } else {
+    printf("    lambda_m = %g (Cartesian RMSE).\n", lambda_m);
+  }
+  printf("    lambda_tau = %g, lambda_spin_response = %g.\n", lambda_tau, lambda_spin_response);
   printf("    sigma0 = %g.\n", sigma0);
   printf("    spin_cutoff:");
   for (int t = 0; t < num_types; ++t) printf(" %s=%g", elements[t].c_str(), spin_cutoff_by_type[t]);
@@ -70,6 +76,10 @@ bool Spin_Parameters::parse_keyword(const char** param, int num_param)
   if (strcmp(param[0], "lambda_m") == 0 ||
       strcmp(param[0], "lambda_mforce") == 0) {
     parse_lambda_m(param, num_param);
+  } else if (strcmp(param[0], "lambda_m_parallel") == 0) {
+    parse_lambda_m_component(param, num_param, lambda_m_parallel, is_lambda_m_parallel_set);
+  } else if (strcmp(param[0], "lambda_m_perp") == 0) {
+    parse_lambda_m_component(param, num_param, lambda_m_perp, is_lambda_m_perp_set);
   } else if (strcmp(param[0], "lambda_tau") == 0) {
     parse_lambda_tau(param, num_param);
   } else if (strcmp(param[0], "lambda_spin_response") == 0) {
@@ -109,6 +119,13 @@ bool Spin_Parameters::parse_keyword(const char** param, int num_param)
 
 void Spin_Parameters::validate_spin_parameters()
 {
+  split_mforce_loss = is_lambda_m_parallel_set || is_lambda_m_perp_set;
+  if (split_mforce_loss && is_lambda_m_set) {
+    PRINT_INPUT_ERROR("Do not combine lambda_m/lambda_mforce with lambda_m_parallel or lambda_m_perp.\n");
+  }
+  if (split_mforce_loss && !(is_lambda_m_parallel_set && is_lambda_m_perp_set)) {
+    PRINT_INPUT_ERROR("Specify both lambda_m_parallel and lambda_m_perp; use 0 to disable a component.\n");
+  }
   if (spin_mode) {
     if (version != 4) {
       PRINT_INPUT_ERROR("Spin NEP only supports a NEP4 potential model.\n");
@@ -226,10 +243,29 @@ void Spin_Parameters::parse_lambda_m(const char** param, int num_param)
     PRINT_INPUT_ERROR("lambda_m should have 1 parameter.\n");
   }
   double value = 0.0;
-  if (!is_valid_real(param[1], &value) || value < 0.0) {
+  if (!is_valid_real(param[1], &value) || !std::isfinite(value) || value < 0.0 ||
+      value > std::numeric_limits<float>::max()) {
     PRINT_INPUT_ERROR("Magnetic-force loss weight should be a non-negative number.\n");
   }
   lambda_m = value;
+}
+
+void Spin_Parameters::parse_lambda_m_component(
+  const char** param, int num_param, float& weight, bool& is_set)
+{
+  if (is_set) {
+    PRINT_INPUT_ERROR("Duplicate magnetic-force component lambda keyword.\n");
+  }
+  is_set = true;
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("Each magnetic-force component lambda should have 1 parameter.\n");
+  }
+  double value = 0.0;
+  if (!is_valid_real(param[1], &value) || !std::isfinite(value) || value < 0.0 ||
+      value > std::numeric_limits<float>::max()) {
+    PRINT_INPUT_ERROR("Magnetic-force component lambda should be finite and non-negative.\n");
+  }
+  weight = value;
 }
 
 void Spin_Parameters::parse_lambda_tau(const char** param, int num_param)

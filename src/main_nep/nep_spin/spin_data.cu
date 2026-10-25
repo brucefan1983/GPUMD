@@ -98,7 +98,9 @@ void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::ve
     static_cast<int>(slots),NN_spin.data(),NL_spin.data(),r12_spin.data());
   GPU_CHECK_KERNEL
 }
-template <bool Torque>
+enum class MagneticError { Cartesian, Torque, Parallel, Perpendicular };
+
+template <MagneticError Channel>
 static __global__ void gpu_sum_mforce_error(
   const int N,
   const int* Na,
@@ -133,10 +135,10 @@ static __global__ void gpu_sum_mforce_error(
       const double sy = spin[N + atom];
       const double sz = spin[2 * N + atom];
       const double spin2 = sx * sx + sy * sy + sz * sz;
-      if (Torque && spin2 <= 1.0e-20) {
+      if (Channel == MagneticError::Torque && spin2 <= 1.0e-20) {
         continue;
       }
-      if constexpr (Torque) {
+      if constexpr (Channel == MagneticError::Torque) {
         const float predicted_tau[3] = {
           static_cast<float>(sy * predicted[2] - sz * predicted[1]),
           static_cast<float>(sz * predicted[0] - sx * predicted[2]),
@@ -150,11 +152,35 @@ static __global__ void gpu_sum_mforce_error(
             predicted_tau[component] - reference_tau[component];
           sum += difference * difference;
         }
-      } else {
+      } else if constexpr (Channel == MagneticError::Cartesian) {
         for (int component = 0; component < 3; ++component) {
           const float difference = predicted[component] - reference[component];
           sum += difference * difference;
         }
+      } else {
+        const double dx = static_cast<double>(predicted[0]) - reference[0];
+        const double dy = static_cast<double>(predicted[1]) - reference[1];
+        const double dz = static_cast<double>(predicted[2]) - reference[2];
+        // Normalize after scaling: tiny nonzero spins still define an axis.
+        const double scale = fmax(fabs(sx), fmax(fabs(sy), fabs(sz)));
+        double parallel, perpendicular;
+        if (scale == 0.0) {
+          // No preferred axis at zero spin: isotropic directional average.
+          const double norm2 = dx * dx + dy * dy + dz * dz;
+          parallel = norm2 / 3.0;
+          perpendicular = 2.0 * norm2 / 3.0;
+        } else {
+          double ux = sx / scale, uy = sy / scale, uz = sz / scale;
+          const double norm = sqrt(ux * ux + uy * uy + uz * uz);
+          ux /= norm; uy /= norm; uz /= norm;
+          const double projection = dx * ux + dy * uy + dz * uz;
+          parallel = projection * projection;
+          const double tx = dx - projection * ux;
+          const double ty = dy - projection * uy;
+          const double tz = dz - projection * uz;
+          perpendicular = tx * tx + ty * ty + tz * tz;
+        }
+        sum += static_cast<float>(Channel == MagneticError::Parallel ? parallel : perpendicular);
       }
     }
   }
@@ -171,7 +197,7 @@ static __global__ void gpu_sum_mforce_error(
   }
 }
 
-template <bool Torque>
+template <MagneticError Channel>
 static std::vector<float> get_rmse_spin_impl(
   Spin_Data& spin_data, Dataset& dataset,
   Spin_Parameters& para,
@@ -180,7 +206,7 @@ static std::vector<float> get_rmse_spin_impl(
 {
   CHECK(gpuSetDevice(device_id));
   const int block_size = 256;
-  gpu_sum_mforce_error<Torque>
+  gpu_sum_mforce_error<Channel>
     <<<dataset.Nc, block_size, sizeof(float) * block_size>>>(
       dataset.N,
       dataset.Na.data(),
@@ -212,7 +238,7 @@ static std::vector<float> get_rmse_spin_impl(
         label.sx[atom] * label.sx[atom] +
         label.sy[atom] * label.sy[atom] +
         label.sz[atom] * label.sz[atom];
-      if (!Torque || spin2 > 1.0e-20) {
+      if (Channel != MagneticError::Torque || spin2 > 1.0e-20) {
         ++active_count;
       }
     }
@@ -231,7 +257,8 @@ static std::vector<float> get_rmse_spin_impl(
   for (int type = 0; type <= para.num_types; ++type) {
     if (count_array[type] > 0) {
       const int degrees_of_freedom =
-        Torque ? 2 : 3;
+        Channel == MagneticError::Cartesian ? 3 :
+        (Channel == MagneticError::Parallel ? 1 : 2);
       rmse_array[type] = sqrt(
         rmse_array[type] / (degrees_of_freedom * count_array[type]));
     }
@@ -242,11 +269,23 @@ static std::vector<float> get_rmse_spin_impl(
 std::vector<float>
 Spin_Data::get_rmse_mforce(Spin_Parameters& para, Dataset& dataset, const bool use_weight, int device_id)
 {
-  return get_rmse_spin_impl<false>(*this, dataset, para, use_weight, device_id);
+  return get_rmse_spin_impl<MagneticError::Cartesian>(*this, dataset, para, use_weight, device_id);
 }
 
 std::vector<float>
 Spin_Data::get_rmse_tau(Spin_Parameters& para, Dataset& dataset, const bool use_weight, int device_id)
 {
-  return get_rmse_spin_impl<true>(*this, dataset, para, use_weight, device_id);
+  return get_rmse_spin_impl<MagneticError::Torque>(*this, dataset, para, use_weight, device_id);
+}
+
+std::vector<float>
+Spin_Data::get_rmse_mforce_parallel(Spin_Parameters& para, Dataset& dataset, const bool use_weight, int device_id)
+{
+  return get_rmse_spin_impl<MagneticError::Parallel>(*this, dataset, para, use_weight, device_id);
+}
+
+std::vector<float>
+Spin_Data::get_rmse_mforce_perp(Spin_Parameters& para, Dataset& dataset, const bool use_weight, int device_id)
+{
+  return get_rmse_spin_impl<MagneticError::Perpendicular>(*this, dataset, para, use_weight, device_id);
 }
