@@ -14,13 +14,14 @@
 */
 
 /*----------------------------------------------------------------------------80
-The k-space part of the PPPM method.
+The k-space part of the PPPM method for charge and C6 dispersion.
 ------------------------------------------------------------------------------*/
 
 #include "pppm.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <iostream>
@@ -86,7 +87,9 @@ void __global__ find_k_and_G_opt(
   float* g_kx,
   float* g_ky,
   float* g_kz,
-  float* g_G)
+  float* g_G_charge,
+  float* g_G_vdw,
+  float* g_G_vdw_virial)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < para.K0K1K2) {
@@ -122,22 +125,44 @@ void __global__ find_k_and_G_opt(
     numerator *= numerator;
 
     // Eqs. (2.25) in V. Ballenegger, J. J. Cerda, and C. Holm, JCTC 8, 936 (2012)
-    if (ksq == 0.0f) {
-      g_G[n] = 0.0f;
-    } else {
-      float G_opt = numerator * para.two_pi_over_V / ksq * exp(-ksq * para.alpha_factor);
-      G_opt /= denominator[0] * denominator[1] * denominator[2];
-      g_G[n] = G_opt;
+    if (para.has_charge) {
+      if (ksq == 0.0f) {
+        g_G_charge[n] = 0.0f;
+      } else {
+        float G_opt = numerator * para.two_pi_over_V / ksq * exp(-ksq * para.alpha_factor);
+        G_opt /= denominator[0] * denominator[1] * denominator[2];
+        g_G_charge[n] = G_opt;
+      }
     }
+
+    // Isele-Holder et al., JCP 137, 174107 (2012), Eqs. (3) and (7).
+    // Retain only m=0 in the numerator alias sum, as in the charge channel.
+    // G includes the attractive sign and 1/(2V) for a full FFT grid.
+    // H = -2 dG/d(k^2), with the mesh factor held fixed under cell strain.
+    // Use double here to reduce cancellation in the exponentially small tails.
+    const double sqrt_pi = 1.772453850905516;
+    const double alpha = para.alpha;
+    const double mesh_factor = numerator / double(denominator[0] * denominator[1] * denominator[2]);
+    const double prefactor = para.two_pi_over_V * sqrt_pi * mesh_factor;
+    const double b2 = double(ksq) * para.alpha_factor;
+    const double b = sqrt(b2);
+    const double exp_b2 = exp(-b2);
+    const double E = exp_b2 - sqrt_pi * b * erfc(b);
+    const double B = exp_b2 - 2.0 * b2 * E;
+    g_G_vdw[n] = -prefactor * alpha * alpha * alpha * B / 12.0;
+    g_G_vdw_virial[n] = ksq == 0.0f ? 0.0f : -prefactor * alpha * E / 8.0;
   }
 }
 
-void __global__ set_mesh_to_zero(const PPPM_VDW::Para para, gpufftComplex* g_mesh)
+void __global__ set_mesh_to_zero(
+  const PPPM_VDW::Para para, gpufftComplex* g_mesh_charge, gpufftComplex* g_mesh_vdw)
 {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < para.K0K1K2) {
-    g_mesh[n].x = 0.0f;
-    g_mesh[n].y = 0.0f;
+    if (para.has_charge) {
+      g_mesh_charge[n] = {0.0f, 0.0f};
+    }
+    g_mesh_vdw[n] = {0.0f, 0.0f};
   }
 }
 
@@ -158,17 +183,20 @@ __global__ void find_mesh(
   const PPPM_VDW::Para para,
   const Box box,
   const float* g_charge,
+  const float* g_C6,
   const double* g_x,
   const double* g_y,
   const double* g_z,
-  gpufftComplex* g_mesh)
+  gpufftComplex* g_mesh_charge,
+  gpufftComplex* g_mesh_vdw)
 {
   const int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n < N2) {
     const double x = g_x[n];
     const double y = g_y[n];
     const double z = g_z[n];
-    const float q = g_charge[n];
+    const float q = para.has_charge ? g_charge[n] : 0.0f;
+    const float C6 = g_C6[n];
     const float sx = (box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z) * para.K[0];
     const float sy = (box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z) * para.K[1];
     const float sz = (box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z) * para.K[2];
@@ -195,7 +223,10 @@ __global__ void find_mesh(
           const int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
           const int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
           const float W = Wx[n0 + 2] * Wy[n1 + 2] * Wz[n2 + 2];
-          atomicAdd(&g_mesh[neighbor012].x, q * W);
+          if (para.has_charge) {
+            atomicAdd(&g_mesh_charge[neighbor012].x, q * W);
+          }
+          atomicAdd(&g_mesh_vdw[neighbor012].x, C6 * W);
         }
       }
     }
@@ -246,6 +277,8 @@ void __global__ find_mesh_virial(
   const float* g_ky,
   const float* g_kz,
   const float* g_G,
+  const float* g_G_vdw_virial,
+  const bool is_vdw,
   const gpufftComplex* g_S,
   gpufftComplex* g_mesh_virial_xx,
   gpufftComplex* g_mesh_virial_yy,
@@ -260,34 +293,28 @@ void __global__ find_mesh_virial(
     const float ky = g_ky[n];
     const float kz = g_kz[n];
     const float ksq = kx * kx + ky * ky + kz * kz;
-    if (ksq != 0.0f) {
-      const float alpha_k_factor = 2.0f * para.alpha_factor + 2.0f / ksq;
-      const float G = g_G[n];
-      const gpufftComplex S = g_S[n];
-      const float GSx = G * S.x;
-      const float GSy = G * S.y;
-      float B = 1.0f - alpha_k_factor * kx * kx;
-      g_mesh_virial_xx[n] = {B * GSx, B * GSy};
-      B = 1.0f - alpha_k_factor * ky * ky;
-      g_mesh_virial_yy[n] = {B * GSx, B * GSy};
-      B = 1.0f - alpha_k_factor * kz * kz;
-      g_mesh_virial_zz[n] = {B * GSx, B * GSy};
-      B = -alpha_k_factor * kx * ky;
-      g_mesh_virial_xy[n] = {B * GSx, B * GSy};
-      B = -alpha_k_factor * ky * kz;
-      g_mesh_virial_yz[n] = {B * GSx, B * GSy};
-      B = -alpha_k_factor * kz * kx;
-      g_mesh_virial_zx[n] = {B * GSx, B * GSy};
-    } else {
-      // The k = 0 mode must be reset explicitly because mesh_virial is reused in-place
-      // across steps and later overwritten by inverse FFT output.
-      g_mesh_virial_xx[n] = {0.0f, 0.0f};
-      g_mesh_virial_yy[n] = {0.0f, 0.0f};
-      g_mesh_virial_zz[n] = {0.0f, 0.0f};
-      g_mesh_virial_xy[n] = {0.0f, 0.0f};
-      g_mesh_virial_yz[n] = {0.0f, 0.0f};
-      g_mesh_virial_zx[n] = {0.0f, 0.0f};
+    const float G = g_G[n];
+    float H = 0.0f;
+    if (is_vdw) {
+      H = g_G_vdw_virial[n];
+    } else if (ksq != 0.0f) {
+      H = G * (2.0f * para.alpha_factor + 2.0f / ksq);
     }
+    const gpufftComplex S = g_S[n];
+    // Write every mode, including k=0, because the work arrays are reused after IFFT.
+    // Dispersion has a nonzero diagonal virial at k=0; charge has G=H=0 there.
+    float B = G - H * kx * kx;
+    g_mesh_virial_xx[n] = {B * S.x, B * S.y};
+    B = G - H * ky * ky;
+    g_mesh_virial_yy[n] = {B * S.x, B * S.y};
+    B = G - H * kz * kz;
+    g_mesh_virial_zz[n] = {B * S.x, B * S.y};
+    B = -H * kx * ky;
+    g_mesh_virial_xy[n] = {B * S.x, B * S.y};
+    B = -H * ky * kz;
+    g_mesh_virial_yz[n] = {B * S.x, B * S.y};
+    B = -H * kz * kx;
+    g_mesh_virial_zx[n] = {B * S.x, B * S.y};
   }
 }
 
@@ -296,7 +323,8 @@ __global__ void find_force_from_field(
   const int N2,
   const PPPM_VDW::Para para,
   const Box box,
-  const float* g_charge,
+  const float prefactor,
+  const float* g_source,
   const double* g_x,
   const double* g_y,
   const double* g_z,
@@ -304,7 +332,7 @@ __global__ void find_force_from_field(
   const gpufftComplex* g_mesh_fft_x_ifft,
   const gpufftComplex* g_mesh_fft_y_ifft,
   const gpufftComplex* g_mesh_fft_z_ifft,
-  float* g_D_real,
+  float* g_D,
   double* g_fx,
   double* g_fy,
   double* g_fz)
@@ -314,7 +342,7 @@ __global__ void find_force_from_field(
     const double x = g_x[n];
     const double y = g_y[n];
     const double z = g_z[n];
-    const float q = K_C_SP * g_charge[n] * 2.0f;
+    const float source_factor = prefactor * g_source[n] * 2.0f;
     const float sx = (box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z) * para.K[0];
     const float sy = (box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z) * para.K[1];
     const float sz = (box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z) * para.K[2];
@@ -333,7 +361,7 @@ __global__ void find_force_from_field(
       Wy[d] = (((W_coeff[d][4] * dy + W_coeff[d][3]) * dy + W_coeff[d][2]) * dy + W_coeff[d][1]) * dy + W_coeff[d][0];
       Wz[d] = (((W_coeff[d][4] * dz + W_coeff[d][3]) * dz + W_coeff[d][2]) * dz + W_coeff[d][1]) * dz + W_coeff[d][0];
     }
-    float D_real = 0.0f;
+    float D = 0.0f;
     float E[3] = {0.0f, 0.0f, 0.0f};
     for (int n0 = -2; n0 <= 2; ++n0) {
       const int neighbor0 = get_index_within_mesh(para.K[0], ix + n0);  // can be 0, ..., K[0]-1
@@ -343,17 +371,17 @@ __global__ void find_force_from_field(
           const int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
           const int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
           const float W = Wx[n0 + 2] * Wy[n1 + 2] * Wz[n2 + 2];
-          D_real += W * g_mesh_G[neighbor012].x;
+          D += W * g_mesh_G[neighbor012].x;
           E[0] += W * g_mesh_fft_x_ifft[neighbor012].x;
           E[1] += W * g_mesh_fft_y_ifft[neighbor012].x;
           E[2] += W * g_mesh_fft_z_ifft[neighbor012].x;
         }
       }
     }
-    g_D_real[n] = 2.0f * K_C_SP * D_real;
-    g_fx[n] += q * E[0];
-    g_fy[n] += q * E[1];
-    g_fz[n] += q * E[2];
+    g_D[n] = 2.0f * prefactor * D;
+    g_fx[n] += source_factor * E[0];
+    g_fy[n] += source_factor * E[1];
+    g_fz[n] += source_factor * E[2];
   }
 }
 
@@ -363,7 +391,8 @@ __global__ void find_force_virial_potential_from_field(
   const int N2,
   const PPPM_VDW::Para para,
   const Box box,
-  const float* g_charge,
+  const float prefactor,
+  const float* g_source,
   const double* g_x,
   const double* g_y,
   const double* g_z,
@@ -377,7 +406,7 @@ __global__ void find_force_virial_potential_from_field(
   const gpufftComplex* g_mesh_virial_xy,
   const gpufftComplex* g_mesh_virial_yz,
   const gpufftComplex* g_mesh_virial_zx,
-  float* g_D_real,
+  float* g_D,
   double* g_fx,
   double* g_fy,
   double* g_fz,
@@ -389,7 +418,7 @@ __global__ void find_force_virial_potential_from_field(
     const double x = g_x[n];
     const double y = g_y[n];
     const double z = g_z[n];
-    const float q = K_C_SP * g_charge[n];
+    const float source_factor = prefactor * g_source[n];
     const float sx = (box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z) * para.K[0];
     const float sy = (box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z) * para.K[1];
     const float sz = (box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z) * para.K[2];
@@ -408,7 +437,7 @@ __global__ void find_force_virial_potential_from_field(
       Wy[d] = (((W_coeff[d][4] * dy + W_coeff[d][3]) * dy + W_coeff[d][2]) * dy + W_coeff[d][1]) * dy + W_coeff[d][0];
       Wz[d] = (((W_coeff[d][4] * dz + W_coeff[d][3]) * dz + W_coeff[d][2]) * dz + W_coeff[d][1]) * dz + W_coeff[d][0];
     }
-    float D_real = 0.0f;
+    float D = 0.0f;
     float E[3] = {0.0f, 0.0f, 0.0f};
     float V[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
     for (int n0 = -2; n0 <= 2; ++n0) {
@@ -419,7 +448,7 @@ __global__ void find_force_virial_potential_from_field(
           const int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
           const int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
           const float W = Wx[n0 + 2] * Wy[n1 + 2] * Wz[n2 + 2];
-          D_real += W * g_mesh_G[neighbor012].x;
+          D += W * g_mesh_G[neighbor012].x;
           E[0] += W * g_mesh_fft_x_ifft[neighbor012].x;
           E[1] += W * g_mesh_fft_y_ifft[neighbor012].x;
           E[2] += W * g_mesh_fft_z_ifft[neighbor012].x;
@@ -432,24 +461,24 @@ __global__ void find_force_virial_potential_from_field(
         }
       }
     }
-    g_D_real[n] = 2.0f * K_C_SP * D_real;
-    g_fx[n] += 2.0f * q * E[0];
-    g_fy[n] += 2.0f * q * E[1];
-    g_fz[n] += 2.0f * q * E[2];
+    g_D[n] = 2.0f * prefactor * D;
+    g_fx[n] += 2.0f * source_factor * E[0];
+    g_fy[n] += 2.0f * source_factor * E[1];
+    g_fz[n] += 2.0f * source_factor * E[2];
     // virial order
     // xx xy xz    0 3 4
     // yx yy yz    6 1 5
     // zx zy zz    7 8 2
-    g_virial[n + 0 * N] += q * V[0]; // xx
-    g_virial[n + 1 * N] += q * V[1]; // yy
-    g_virial[n + 2 * N] += q * V[2]; // zz
-    g_virial[n + 3 * N] += q * V[3]; // xy
-    g_virial[n + 6 * N] += q * V[3]; // yx
-    g_virial[n + 5 * N] += q * V[4]; // yz
-    g_virial[n + 8 * N] += q * V[4]; // zy
-    g_virial[n + 4 * N] += q * V[5]; // xz
-    g_virial[n + 7 * N] += q * V[5]; // zx
-    g_pe[n] += q * D_real;
+    g_virial[n + 0 * N] += source_factor * V[0]; // xx
+    g_virial[n + 1 * N] += source_factor * V[1]; // yy
+    g_virial[n + 2 * N] += source_factor * V[2]; // zz
+    g_virial[n + 3 * N] += source_factor * V[3]; // xy
+    g_virial[n + 6 * N] += source_factor * V[3]; // yx
+    g_virial[n + 5 * N] += source_factor * V[4]; // yz
+    g_virial[n + 8 * N] += source_factor * V[4]; // zy
+    g_virial[n + 4 * N] += source_factor * V[5]; // xz
+    g_virial[n + 7 * N] += source_factor * V[5]; // zx
+    g_pe[n] += source_factor * D;
   }
 }
 
@@ -461,6 +490,9 @@ void __global__ find_potential_and_virial(
   const float* g_ky,
   const float* g_kz,
   const float* g_G,
+  const float* g_G_vdw_virial,
+  const bool is_vdw,
+  const float potential_factor,
   double* g_virial,
   double* g_pe)
 {
@@ -473,36 +505,41 @@ void __global__ find_potential_and_virial(
     const int n = tid + batch * 1024;
     if (n < para.K0K1K2) {
       gpufftComplex S = g_S[n];
-      const float GSS = g_G[n] * (S.x * S.x + S.y * S.y);
+      const float SS = S.x * S.x + S.y * S.y;
+      const float GSS = g_G[n] * SS;
       const float kx = g_kx[n];
       const float ky = g_ky[n];
       const float kz = g_kz[n];
       const float ksq = kx * kx + ky * ky + kz * kz;
-      if (ksq != 0.0f) {
-        const float alpha_k_factor = 2.0f * para.alpha_factor + 2.0f / ksq;
-        switch (blockIdx.x) {
-          case 0:
-          data += GSS * (1.0f - alpha_k_factor * kx * kx); // xx
+      float H = 0.0f;
+      if (is_vdw) {
+        H = g_G_vdw_virial[n];
+      } else if (ksq != 0.0f) {
+        H = g_G[n] * (2.0f * para.alpha_factor + 2.0f / ksq);
+      }
+      const float HSS = H * SS;
+      switch (blockIdx.x) {
+        case 0:
+          data += GSS - HSS * kx * kx; // xx
           break;
-          case 1:
-          data += GSS * (1.0f - alpha_k_factor * ky * ky); // yy
+        case 1:
+          data += GSS - HSS * ky * ky; // yy
           break;
-          case 2:
-          data += GSS * (1.0f - alpha_k_factor * kz * kz); // zz
+        case 2:
+          data += GSS - HSS * kz * kz; // zz
           break;
-          case 3:
-          data -= GSS * (alpha_k_factor * kx * ky); // xy
+        case 3:
+          data -= HSS * kx * ky; // xy
           break;
-          case 4:
-          data -= GSS * (alpha_k_factor * ky * kz); // yz
+        case 4:
+          data -= HSS * ky * kz; // yz
           break;
-          case 5:
-          data -= GSS * (alpha_k_factor * kz * kx); // zx
+        case 5:
+          data -= HSS * kz * kx; // zx
           break;
-          case 6:
-          data += GSS; // potential
+        case 6:
+          data += GSS; // potential, including the dispersion k=0 mode
           break;
-        }
       }
     }
   }
@@ -526,31 +563,49 @@ void __global__ find_potential_and_virial(
       // zx zy zz    7 8 2
       switch (blockIdx.x) {
         case 0:
-          g_virial[n + 0 * N] += s_data[0] * para.potential_factor; // xx
+          g_virial[n + 0 * N] += s_data[0] * potential_factor; // xx
           break;
         case 1:
-          g_virial[n + 1 * N] += s_data[0] * para.potential_factor; // yy
+          g_virial[n + 1 * N] += s_data[0] * potential_factor; // yy
           break;
         case 2:
-          g_virial[n + 2 * N] += s_data[0] * para.potential_factor; // zz
+          g_virial[n + 2 * N] += s_data[0] * potential_factor; // zz
           break;
         case 3:
-          g_virial[n + 3 * N] += s_data[0] * para.potential_factor; // xy
-          g_virial[n + 6 * N] += s_data[0] * para.potential_factor; // yx
+          g_virial[n + 3 * N] += s_data[0] * potential_factor; // xy
+          g_virial[n + 6 * N] += s_data[0] * potential_factor; // yx
           break;
         case 4:
-          g_virial[n + 5 * N] += s_data[0] * para.potential_factor; // yz
-          g_virial[n + 8 * N] += s_data[0] * para.potential_factor; // zy
+          g_virial[n + 5 * N] += s_data[0] * potential_factor; // yz
+          g_virial[n + 8 * N] += s_data[0] * potential_factor; // zy
           break;
         case 5:
-          g_virial[n + 4 * N] += s_data[0] * para.potential_factor; // xz
-          g_virial[n + 7 * N] += s_data[0] * para.potential_factor; // zx
+          g_virial[n + 4 * N] += s_data[0] * potential_factor; // xz
+          g_virial[n + 7 * N] += s_data[0] * potential_factor; // zx
           break;
         case 6:
-          g_pe[n] += s_data[0] * para.potential_factor;
+          g_pe[n] += s_data[0] * potential_factor;
           break;
       }
     }
+  }
+}
+
+__global__ void find_vdw_self_energy(
+  const int N1,
+  const int N2,
+  const float alpha,
+  const float* g_C6,
+  float* g_D_C6,
+  double* g_pe)
+{
+  const int n = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n < N2) {
+    const float alpha_squared = alpha * alpha;
+    const float alpha_sixth = alpha_squared * alpha_squared * alpha_squared;
+    const float C6 = g_C6[n];
+    g_pe[n] += double(alpha_sixth) * C6 * C6 / 12.0;
+    g_D_C6[n] += alpha_sixth * C6 / 6.0f;
   }
 }
 
@@ -581,11 +636,17 @@ void PPPM_VDW::destroy_plans()
 void PPPM_VDW::allocate_memory()
 {
   destroy_plans();
+  kernels_initialized = false;
   kx.resize(para.K0K1K2);
   ky.resize(para.K0K1K2);
   kz.resize(para.K0K1K2);
-  G.resize(para.K0K1K2);
-  mesh.resize(para.K0K1K2);
+  if (para.has_charge) {
+    G_charge.resize(para.K0K1K2);
+    mesh_charge.resize(para.K0K1K2);
+  }
+  G_vdw.resize(para.K0K1K2);
+  G_vdw_virial.resize(para.K0K1K2);
+  mesh_vdw.resize(para.K0K1K2);
   mesh_G.resize(para.K0K1K2);
   mesh_x.resize(para.K0K1K2);
   mesh_y.resize(para.K0K1K2);
@@ -609,17 +670,22 @@ void PPPM_VDW::allocate_memory()
 }
 
 void PPPM_VDW::initialize(
-  const float alpha_input, const bool need_peratom_virial_input, const double mesh_spacing_input)
+  const float alpha_input,
+  const bool has_charge_input,
+  const bool need_peratom_virial_input,
+  const double mesh_spacing_input)
 {
   destroy_plans();
   para = {};
+  kernels_initialized = false;
+  para.has_charge = has_charge_input;
   mesh_spacing = mesh_spacing_input;
   need_peratom_virial = need_peratom_virial_input;
   para.alpha = alpha_input;
   para.alpha_factor = 0.25f / (para.alpha * para.alpha);
 }
 
-void PPPM_VDW::find_para(const int N, const Box& box)
+void PPPM_VDW::find_para(const Box& box)
 {
   const float two_pi = 6.2831853f;
   const double volume = box.get_volume();
@@ -641,7 +707,6 @@ void PPPM_VDW::find_para(const int N, const Box& box)
     para.K0K1K2 = static_cast<int>(number_of_points);
     allocate_memory();
   }
-  para.potential_factor = K_C_SP / N;
   for (int d = 0; d < 3; ++d) {
     para.b[0][d] = two_pi * (float)box.cpu_h[9 + d];
     para.b[1][d] = two_pi * (float)box.cpu_h[12 + d];
@@ -653,7 +718,8 @@ void PPPM_VDW::print_mesh(const int N1, const int N2, const Box& box, const GPU_
 {
   const double volume = box.get_volume();
   printf(
-    "PPPM mesh: %d x %d x %d (target spacing %.17g A; actual spacing %.17g %.17g %.17g A).\n",
+    "PPPM %s mesh: %d x %d x %d (target spacing %.17g A; actual spacing %.17g %.17g %.17g A).\n",
+    para.has_charge ? "charge-vdW" : "vdW",
     para.K[0],
     para.K[1],
     para.K[2],
@@ -662,6 +728,11 @@ void PPPM_VDW::print_mesh(const int N1, const int N2, const Box& box, const GPU_
     volume / box.get_area(1) / para.K[1],
     volume / box.get_area(2) / para.K[2]);
 
+  if (!para.has_charge) {
+    return;
+  }
+
+  // This estimate applies only to the charge channel.
   // Root-mean-square force error for ik differentiation and five-point charge assignment
   // with the optimal influence function, Eq. (38) of M. Deserno and C. Holm, JCP 109, 7694 (1998).
   // The coefficients are a_m^(5) of Table II therein.
@@ -696,7 +767,7 @@ void PPPM_VDW::print_mesh(const int N1, const int N2, const Box& box, const GPU_
       (thickness * thickness);
     squared_error += error * error;
   }
-  printf("PPPM force error estimate: %.3e eV/A.\n", std::sqrt(squared_error / 3.0));
+  printf("PPPM charge force error estimate: %.3e eV/A.\n", std::sqrt(squared_error / 3.0));
 }
 
 void PPPM_VDW::find_force(
@@ -705,40 +776,87 @@ void PPPM_VDW::find_force(
   const int N2,
   const Box& box,
   const GPU_Vector<float>& charge,
+  const GPU_Vector<float>& C6,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<float>& D_real,
+  GPU_Vector<float>& D_C6,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& potential_per_atom)
 {
   const bool first_mesh = !plan_initialized;
-  find_para(N, box);
+  find_para(box);
   if (first_mesh) {
     print_mesh(N1, N2, box, charge);
   }
 
-  find_k_and_G_opt<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
+  // The influence functions depend on the box, grid and fixed alpha, not on the sources.
+  if (!kernels_initialized || !std::equal(box.cpu_h, box.cpu_h + 9, kernel_box)) {
+    find_k_and_G_opt<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
+      para,
+      kx.data(),
+      ky.data(),
+      kz.data(),
+      para.has_charge ? G_charge.data() : nullptr,
+      G_vdw.data(),
+      G_vdw_virial.data());
+    GPU_CHECK_KERNEL
+    std::copy(box.cpu_h, box.cpu_h + 9, kernel_box);
+    kernels_initialized = true;
+  }
+
+  set_mesh_to_zero<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
     para,
-    kx.data(),
-    ky.data(),
-    kz.data(),
-    G.data());
+    para.has_charge ? mesh_charge.data() : nullptr,
+    mesh_vdw.data());
   GPU_CHECK_KERNEL
 
-  set_mesh_to_zero<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(para, mesh.data());
-  GPU_CHECK_KERNEL
-
-  find_mesh<<<(N - 1) / 64 + 1, 64>>>(
+  // Both sources use the same grid indices and five-point interpolation weights.
+  find_mesh<<<(N2 - N1 - 1) / 64 + 1, 64>>>(
     N1,
     N2,
     para,
     box,
-    charge.data(),
+    para.has_charge ? charge.data() : nullptr,
+    C6.data(),
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    mesh.data());
+    para.has_charge ? mesh_charge.data() : nullptr,
+    mesh_vdw.data());
   GPU_CHECK_KERNEL
+
+  if (para.has_charge) {
+    find_force_channel(
+      false, N, N1, N2, box, charge, position_per_atom, D_real,
+      force_per_atom, virial_per_atom, potential_per_atom);
+  }
+  find_force_channel(
+    true, N, N1, N2, box, C6, position_per_atom, D_C6,
+    force_per_atom, virial_per_atom, potential_per_atom);
+
+  find_vdw_self_energy<<<(N2 - N1 - 1) / 64 + 1, 64>>>(
+    N1, N2, para.alpha, C6.data(), D_C6.data(), potential_per_atom.data());
+  GPU_CHECK_KERNEL
+}
+
+void PPPM_VDW::find_force_channel(
+  const bool is_vdw,
+  const int N,
+  const int N1,
+  const int N2,
+  const Box& box,
+  const GPU_Vector<float>& source,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<float>& D,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom,
+  GPU_Vector<double>& potential_per_atom)
+{
+  GPU_Vector<gpufftComplex>& mesh = is_vdw ? mesh_vdw : mesh_charge;
+  const GPU_Vector<float>& G = is_vdw ? G_vdw : G_charge;
+  const float* G_virial = is_vdw ? G_vdw_virial.data() : nullptr;
+  const float prefactor = is_vdw ? 1.0f : K_C_SP;
 
   if (gpufftExecC2C(plan, mesh.data(), mesh.data(), GPUFFT_FORWARD) != GPUFFT_SUCCESS) {
     std::cout << "GPUFFT error: ExecC2C Forward failed" << std::endl;
@@ -771,6 +889,8 @@ void PPPM_VDW::find_force(
       ky.data(),
       kz.data(),
       G.data(),
+      G_virial,
+      is_vdw,
       mesh.data(),
       mesh_virial.data() + para.K0K1K2 * 0,
       mesh_virial.data() + para.K0K1K2 * 1,
@@ -814,7 +934,8 @@ void PPPM_VDW::find_force(
       N2,
       para,
       box,
-      charge.data(),
+      prefactor,
+      source.data(),
       position_per_atom.data(),
       position_per_atom.data() + N,
       position_per_atom.data() + N * 2,
@@ -828,7 +949,7 @@ void PPPM_VDW::find_force(
       mesh_virial.data() + para.K0K1K2 * 3,
       mesh_virial.data() + para.K0K1K2 * 4,
       mesh_virial.data() + para.K0K1K2 * 5,
-      D_real.data(),
+      D.data(),
       force_per_atom.data(),
       force_per_atom.data() + N,
       force_per_atom.data() + N * 2,
@@ -842,7 +963,8 @@ void PPPM_VDW::find_force(
       N2,
       para,
       box,
-      charge.data(),
+      prefactor,
+      source.data(),
       position_per_atom.data(),
       position_per_atom.data() + N,
       position_per_atom.data() + N * 2,
@@ -850,7 +972,7 @@ void PPPM_VDW::find_force(
       mesh_x.data(),
       mesh_y.data(),
       mesh_z.data(),
-      D_real.data(),
+      D.data(),
       force_per_atom.data(),
       force_per_atom.data() + N,
       force_per_atom.data() + N * 2);
@@ -865,6 +987,9 @@ void PPPM_VDW::find_force(
       ky.data(),
       kz.data(),
       G.data(),
+      G_virial,
+      is_vdw,
+      prefactor / N,
       virial_per_atom.data(),
       potential_per_atom.data());
     GPU_CHECK_KERNEL
