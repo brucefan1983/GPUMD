@@ -153,7 +153,6 @@ static __global__ void find_descriptor_small_box(
   float* g_charge_derivative,
   float* g_C6,
   float* g_C6_derivative,
-  double* g_virial,
   float* g_sum_fxyz)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;

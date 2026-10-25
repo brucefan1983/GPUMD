@@ -554,7 +554,6 @@ static __global__ void find_descriptor(
   float* g_charge_derivative,
   float* g_C6,
   float* g_C6_derivative,
-  double* g_virial,
   float* g_sum_fxyz)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
@@ -1635,7 +1634,6 @@ void NEP_Charge_VDW::compute_large_box(
     paramb.has_charge ? nep_data.charge_derivative.data() : nullptr,
     nep_data.C6.data(),
     nep_data.C6_derivative.data(),
-    virial_per_atom.data(),
     nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
 
@@ -1870,7 +1868,6 @@ void NEP_Charge_VDW::compute_small_box(
     paramb.has_charge ? nep_data.charge_derivative.data() : nullptr,
     nep_data.C6.data(),
     nep_data.C6_derivative.data(),
-    virial_per_atom.data(),
     nep_data.sum_fxyz.data());
   GPU_CHECK_KERNEL
 
