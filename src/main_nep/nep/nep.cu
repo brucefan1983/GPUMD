@@ -107,17 +107,6 @@ NEP_Compile_Config make_compile_config(
 }
 } // namespace
 
-NEP_Compiled_Evaluation::NEP_Compiled_Evaluation(const NEP_Compile_Config& config)
-  : library(config)
-{
-  if (!library.is_valid()) {
-    return;
-  }
-  valid = common.load(library);
-  valid &= library.load_symbol("nep_train_launch_ann_nep", ann_nep_);
-  valid &= library.load_symbol("nep_train_launch_ann_temperature", ann_temperature_);
-}
-
 void NEP::initialize_compiled_kernel(const NEP_Potential_Parameters& para)
 {
   if (para.nep_compile && para.prediction == 0) {
