@@ -23,7 +23,6 @@ struct NepTxtHeader {
   std::string model_token;
   int version;
   bool enable_zbl;
-  bool flexible_zbl;
   bool use_typewise_cutoff_zbl;
   float zbl_rc_inner;
   float zbl_rc_outer;
@@ -69,7 +68,6 @@ bool read_nep_structural_header(
 {
   std::vector<std::string> tokens;
   // second line: zbl, written only for a model with ZBL
-  header.flexible_zbl = false;
   header.use_typewise_cutoff_zbl = false;
   header.zbl_rc_inner = 0.0f;
   header.zbl_rc_outer = 0.0f;
@@ -82,7 +80,10 @@ bool read_nep_structural_header(
     }
     header.zbl_rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
     header.zbl_rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
-    header.flexible_zbl = (header.zbl_rc_inner == 0.0f && header.zbl_rc_outer == 0.0f);
+    if (header.zbl_rc_inner == 0.0f && header.zbl_rc_outer == 0.0f) {
+      error = "NEP-spin does not support flexible ZBL (zbl 0 0).";
+      return false;
+    }
     if (tokens.size() == 4) {
       header.use_typewise_cutoff_zbl = true;
       header.typewise_cutoff_zbl_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
@@ -475,7 +476,6 @@ static void validate_model_header(Spin_Parameters& para) {
   if (!same(h.rc_radial[0], para.rc_radial[0]) || !same(h.rc_angular[0], para.rc_angular[0])) {
     PRINT_INPUT_ERROR("Structural cutoffs in nep.txt do not match nep.in.");
   }
-  para.flexible_zbl = h.flexible_zbl;
   load_spin_checkpoint_metadata(para);
 }
 
@@ -497,16 +497,6 @@ void read_spin_model(Spin_Parameters& para, float* parameters) {
     para.q_scaler_cpu[d]=get_double_from_token(tokens[0], __FILE__, __LINE__);
     if (!std::isfinite(para.q_scaler_cpu[d]) || para.q_scaler_cpu[d]<=0)
       PRINT_INPUT_ERROR("Spin3 checkpoint q_scaler must be finite and positive.");
-  }
-  if (para.flexible_zbl) {
-    const int count = 5 * para.num_types * (para.num_types + 1);
-    if (count > para.zbl_para.size()) PRINT_INPUT_ERROR("Spin3 flexible ZBL parameter count exceeds capacity.");
-    for (int n = 0; n < count; ++n) {
-      const auto tokens = get_tokens(input);
-      if (tokens.size() != 1) PRINT_INPUT_ERROR("Missing Spin3 flexible ZBL parameter.");
-      para.zbl_para[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-      if (!std::isfinite(para.zbl_para[n])) PRINT_INPUT_ERROR("Invalid Spin3 flexible ZBL parameter.");
-    }
   }
   if (!get_tokens(input).empty()) PRINT_INPUT_ERROR("Unexpected data after Spin3 scaler.");
   int devices; CHECK(gpuGetDeviceCount(&devices));

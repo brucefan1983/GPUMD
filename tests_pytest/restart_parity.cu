@@ -2,12 +2,54 @@
 #include "spin_test_access.cuh"
 #include "main_nep/fitness.cuh"
 #include "main_nep/snes.cuh"
+#include <cassert>
+#include <cmath>
+static void check_initialization(Parameters&) {}
+
+static void check_initialization(Spin_Parameters& para) {
+  std::mt19937 rng(12345678), same_rng(12345678);
+  std::vector<float> mu(para.number_of_variables), sigma(mu.size());
+  auto same_mu = mu;
+  auto same_sigma = sigma;
+  snes_spin::initialize_search(para, rng, mu, sigma);
+  snes_spin::initialize_search(para, same_rng, same_mu, same_sigma);
+  assert(mu == same_mu && sigma == same_sigma && rng == same_rng);
+  // initial_para controls the scaler reference, never the SNES distribution.
+  const float saved_initial_para = para.initial_para;
+  para.initial_para = 0.5f;
+  same_rng.seed(12345678);
+  snes_spin::initialize_search(para, same_rng, same_mu, same_sigma);
+  assert(mu == same_mu && sigma == same_sigma && rng == same_rng);
+  para.initial_para = saved_initial_para;
+  for (std::size_t i = 0; i < mu.size(); ++i) {
+    assert(std::isfinite(mu[i]) && std::isfinite(sigma[i]) && sigma[i] > 0);
+  }
+  const int spin_offset = para.number_of_variables_ann +
+    para.number_of_variables_descriptor - para.number_of_variables_descriptor_spin -
+    para.number_of_variables_spin_projection;
+  for (int i = 0; i < para.number_of_variables_descriptor_spin; ++i) {
+    assert(sigma[spin_offset + i] == para.sigma0 * 0.1f);
+  }
+  std::vector<int> types(mu.size(), para.num_types);
+  snes_spin::assign_variable_types(para, spin_offset, types);
+  for (int i = 0; i < para.number_of_variables_descriptor_spin; ++i) {
+    assert(types[spin_offset + i] == (i % (para.num_types * para.num_types)) / para.num_types);
+  }
+  assert(std::all_of(types.begin(), types.begin() + spin_offset,
+    [&](int type) { return type == para.num_types; }));
+
+}
+
 class SearchProbe : public SNES {
 public:
   using SNES::SNES;
   const std::vector<float>& center() const { return mu; }
   void dump(Parameters& p) { output_mu_and_sigma(p, "restored.restart"); }
 };
+template<class Dump> void dump_magnetic(NEP&, Dataset&, Dump&) {}
+template<class Dump> void dump_magnetic(NEP_Spin_Model& model, Dataset& data, Dump& dump) {
+  dump("MF", model.magnetic(data).mforce, 3 * data.N);
+}
 template<class Model>
 void evaluate(Model& model, const std::vector<float>& parameters, const char* filename) {
   auto& p=*model.model_parameters;
@@ -25,12 +67,13 @@ void evaluate(Model& model, const std::vector<float>& parameters, const char* fi
         for(auto x:host) out<<' '<<x;out<<'\n';
       };
       dump("E",data.energy,data.N);dump("F",data.force,3*data.N);dump("V",data.virial,6*data.N);
-      if constexpr (std::is_same<Model,NEP_Spin_Model>::value) dump("MF",model.magnetic(data).mforce,3*data.N);
+      dump_magnetic(model, data, dump);
     }
   }
 }
 template<class Model> void probe(Model& model) {
   auto& p=*model.model_parameters;
+  check_initialization(p);
   Fitness fitness(model);
   SearchProbe search(p,model);search.dump(p);
   model.prepare_training();
