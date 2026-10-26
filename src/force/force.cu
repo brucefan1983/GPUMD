@@ -34,12 +34,11 @@ The driver class calculating force and related quantities.
 #include "ilp_tersoff.cuh"
 #include "lj.cuh"
 #include "nep.cuh"
-#include "nep_spin.cuh"
-#include "nep_spin_multigpu.cuh"
-#include "utilities/fractional_region.cuh"
-#include <cmath>
+#include "nep_spin/nep_spin.cuh"
+#include "nep_spin/nep_spin_multigpu.cuh"
 #include "nep_multigpu.cuh"
 #include "nep_charge.cuh"
+#include "nep_charge_vdw/nep_charge_vdw.cuh"
 #include "potential.cuh"
 #include "tersoff1988.cuh"
 #include "tersoff1989.cuh"
@@ -47,10 +46,13 @@ The driver class calculating force and related quantities.
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_model_file.cuh"
 #include "utilities/nep_model_input.cuh"
+#include "utilities/nep_spin_model_file.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include <cstring>
+#include <sstream>
 #include <vector>
 
 Force::Force(void) {}
@@ -85,7 +87,6 @@ std::unique_ptr<Potential> Force::create_potential(
   bool& is_nep)
 {
   const int num_param = tokens.size();
-  number_of_atoms_ = number_of_atoms;
   std::unique_ptr<Potential> potential;
 
   if (strcmp(potential_name, "tersoff_1989") == 0) {
@@ -112,6 +113,10 @@ std::unique_ptr<Potential> Force::create_potential(
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
+  } else if (strcmp(potential_name, "nep_vdw") == 0 ||
+             strcmp(potential_name, "qnep2_vdw") == 0) {
+    potential.reset(new NEP_Charge_VDW(tokens[1].c_str(), number_of_atoms, run_input));
+    is_nep = true;
   } else if (
     strcmp(potential_name, "nep4_spin3") == 0 ||
     strcmp(potential_name, "nep4_spin3_zbl") == 0) {
@@ -251,10 +256,28 @@ void Force::parse_potential(
     PRINT_INPUT_ERROR("reading error for potential file.");
   }
   int num_types = get_number_of_types(fid_potential);
-  if (NEP_Model_Input::is_new_format(potential_name)) {
+  if (NEP_Model_Input::is_new_format(potential_name) && is_nep_spin_model_file(tokens[1])) {
     NEP_Model_Input input(tokens[1]);
     const std::vector<std::string> header = input.get_tokens();
     std::strcpy(potential_name, header[0].c_str());
+  } else if (NEP_Model_Input::is_new_format(potential_name)) {
+    NEP_Model_File model;
+    std::ifstream input(tokens[1]);
+    std::string error;
+    if (!model.read(input, error)) {
+      PRINT_INPUT_ERROR(error.c_str());
+    }
+    // New MD models can read the native format; retain the adapter for existing models.
+    std::string tag = model.name;
+    if (tag != "nep_vdw" && tag != "qnep2_vdw") {
+      std::string md_input;
+      if (!model.get_md_input(md_input, error)) {
+        PRINT_INPUT_ERROR(error.c_str());
+      }
+      std::istringstream header(md_input);
+      header >> tag;
+    }
+    std::strcpy(potential_name, tag.c_str());
   }
   bool is_nep = false;
   std::unique_ptr<Potential> potential = create_potential(
@@ -620,82 +643,6 @@ void Force::compute(
 
 }
 
-// spin is in muB; this converts a tesla-valued B to magnetic force in eV/muB.
-void Force::parse_mfield(const char** param, int num_param, const std::vector<Group>& group)
-{
-  mfield_use_region_ = num_param > 1 && strcmp(param[1], "region") == 0;
-  if (num_param != (mfield_use_region_ ? 11 : 6)) {
-    PRINT_INPUT_ERROR(
-      "add_mfield requires group_method group_id Bx By Bz or "
-      "region amin amax bmin bmax cmin cmax Bx By Bz.");
-  }
-  if (mfield_use_region_) {
-    for (int k = 0; k < 6; ++k) {
-      if (!is_valid_real(param[k + 2], &mfield_region_[k]) ||
-          !std::isfinite(mfield_region_[k]) || mfield_region_[k] < 0.0 ||
-          mfield_region_[k] > 1.0) {
-        PRINT_INPUT_ERROR("add_mfield region bounds must be finite numbers in [0, 1].");
-      }
-    }
-    for (int k = 0; k < 6; k += 2) {
-      if (mfield_region_[k] >= mfield_region_[k + 1]) {
-        PRINT_INPUT_ERROR("add_mfield region minimum must be smaller than maximum.");
-      }
-    }
-  } else {
-    if (!is_valid_int(param[1], &mfield_group_method_) ||
-        mfield_group_method_ < 0 || mfield_group_method_ >= group.size()) {
-      PRINT_INPUT_ERROR("add_mfield grouping method is invalid.");
-    }
-    if (!is_valid_int(param[2], &mfield_group_id_) || mfield_group_id_ < 0 ||
-        mfield_group_id_ >= group[mfield_group_method_].number) {
-      PRINT_INPUT_ERROR("add_mfield group id is invalid.");
-    }
-  }
-  const int field_start = mfield_use_region_ ? 8 : 3;
-  constexpr double muB_eV_per_T = 5.7883818060e-5;
-  double field[3];
-  mfield_enabled_ = false;
-  for (int k = 0; k < 3; ++k) {
-    if (!is_valid_real(param[k + field_start], &field[k]) || !std::isfinite(field[k])) {
-      PRINT_INPUT_ERROR("add_mfield components must be finite numbers in tesla.");
-    }
-    mfield_[k] = field[k] * muB_eV_per_T;
-    mfield_enabled_ = mfield_enabled_ || field[k] != 0.0;
-  }
-  printf("External magnetic field: (%g, %g, %g) T.\n", field[0], field[1], field[2]);
-  if (mfield_use_region_) {
-    printf("    fractional region [%g, %g) [%g, %g) [%g, %g).\n",
-      mfield_region_[0], mfield_region_[1], mfield_region_[2],
-      mfield_region_[3], mfield_region_[4], mfield_region_[5]);
-  } else {
-    printf("    grouping method %d, group %d.\n", mfield_group_method_, mfield_group_id_);
-  }
-}
-
-template <bool UseRegion>
-static __global__ void add_mfield(
-  const int n, const int count, const int offset, const int* members,
-  const double hx, const double hy, const double hz,
-  const Box box, const double* position,
-  const double amin, const double amax, const double bmin, const double bmax,
-  const double cmin, const double cmax,
-  const double* spin, double* energy, double* mforce)
-{
-  const int tid = blockIdx.x * blockDim.x + threadIdx.x;
-  if (tid >= count) return;
-  const int i = UseRegion ? tid : members[offset + tid];
-  if (UseRegion) {
-    double sa, sb, sc;
-    get_fractional_position(box, position[i], position[n + i], position[2 * n + i], sa, sb, sc);
-    if (!is_in_region(sa, sb, sc, amin, amax, bmin, bmax, cmin, cmax)) return;
-  }
-  energy[i] -= spin[i] * hx + spin[n + i] * hy + spin[2 * n + i] * hz;
-  mforce[i] += hx;
-  mforce[n + i] += hy;
-  mforce[2 * n + i] += hz;
-}
-
 void Force::compute(
   Box& box,
   GPU_Vector<double>& position_per_atom,
@@ -714,27 +661,15 @@ void Force::compute(
     PRINT_INPUT_ERROR("Spin-aware force dispatch requires one NEP_Spin potential.");
   }
 
-  box.set_is_orthogonal();
   const int number_of_atoms = type.size();
   if (
     spin_per_atom.size() != static_cast<std::size_t>(number_of_atoms) * 3 ||
     mforce_per_atom.size() != static_cast<std::size_t>(number_of_atoms) * 3) {
     PRINT_INPUT_ERROR("NEP_Spin requires three spin and mforce components per atom.");
   }
-  gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms,
-    box,
-    position_per_atom.data(),
-    position_per_atom.data() + number_of_atoms,
-    position_per_atom.data() + number_of_atoms * 2,
-    position_image);
-  initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms,
-    force_per_atom.data(),
-    force_per_atom.data() + number_of_atoms,
-    force_per_atom.data() + number_of_atoms * 2,
-    potential_per_atom.data(),
-    virial_per_atom.data());
+  prepare_compute(
+    number_of_atoms, box, position_per_atom, potential_per_atom,
+    force_per_atom, virial_per_atom, position_image);
   mforce_per_atom.fill(0.0);
   GPU_CHECK_KERNEL
 
@@ -747,24 +682,6 @@ void Force::compute(
     force_per_atom,
     virial_per_atom,
     mforce_per_atom);
-  if (mfield_enabled_) {
-    if (mfield_use_region_) {
-      add_mfield<true><<<(number_of_atoms + 127) / 128, 128>>>(
-        number_of_atoms, number_of_atoms, 0, nullptr, mfield_[0], mfield_[1], mfield_[2],
-        box, position_per_atom.data(), mfield_region_[0], mfield_region_[1],
-        mfield_region_[2], mfield_region_[3], mfield_region_[4], mfield_region_[5],
-        spin_per_atom.data(), potential_per_atom.data(), mforce_per_atom.data());
-      GPU_CHECK_KERNEL
-    } else {
-      const Group& selected = group[mfield_group_method_];
-      const int count = selected.cpu_size[mfield_group_id_];
-      if (count > 0) {
-        add_mfield<false><<<(count + 127) / 128, 128>>>(
-          number_of_atoms, count, selected.cpu_size_sum[mfield_group_id_], selected.contents.data(),
-          mfield_[0], mfield_[1], mfield_[2], box, nullptr, 0, 0, 0, 0, 0, 0,
-          spin_per_atom.data(), potential_per_atom.data(), mforce_per_atom.data());
-        GPU_CHECK_KERNEL
-      }
-    }
-  }
+  magnetic_field_.compute(
+    box, position_per_atom, group, spin_per_atom, potential_per_atom, mforce_per_atom);
 }

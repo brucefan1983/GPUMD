@@ -25,6 +25,7 @@ The driver class for the various integrators.
 #include "ensemble_msst.cuh"
 #include "ensemble_mttk.cuh"
 #include "ensemble_nhc.cuh"
+#include "spin/lattice.cuh"
 #include "ensemble_nphug.cuh"
 #include "ensemble_npt_qtb.cuh"
 #include "ensemble_npt_scr.cuh"
@@ -134,21 +135,43 @@ double Integrate::get_temperature() const
   return temperature;
 }
 
-std::string Integrate::mttk_restart_state() const
+bool Integrate::has_spin_mttk_driver() const
 {
-  return type == EnsembleType::MTTK ? static_cast<const Ensemble_MTTK*>(ensemble_.get())->restart_state() : "";
+  return type == EnsembleType::MTTK && (use_spin_tspin || use_spin_sib || use_spin_glsd);
 }
 
-bool Integrate::has_nhc_driver() const
+bool Integrate::has_spin_nhc_driver() const
 {
   // lattice off uses Ensemble_Fixed_Lattice despite the NVT_NHC type tag.
-  return type == EnsembleType::NVT_NHC &&
-    (!(use_spin_tspin || use_spin_sib || use_spin_glsd) || spin_lattice_enabled);
+  return type == EnsembleType::NVT_NHC && spin_lattice_enabled &&
+    (use_spin_tspin || use_spin_sib || use_spin_glsd);
 }
 
-std::string Integrate::nhc_restart_state() const
+std::string Integrate::spin_mttk_restart_state() const
 {
-  return has_nhc_driver() ? static_cast<const Ensemble_NHC*>(ensemble_.get())->restart_state() : "";
+  return has_spin_mttk_driver() ? static_cast<const Spin_Lattice_MTTK*>(ensemble_.get())->restart_state() : "";
+}
+
+std::string Integrate::spin_nhc_restart_state() const
+{
+  return has_spin_nhc_driver() ? static_cast<const Spin_Lattice_NHC*>(ensemble_.get())->restart_state() : "";
+}
+
+double Integrate::spin_protocol_fraction(int step, int number_of_steps) const
+{
+  if (has_spin_mttk_driver())
+    return static_cast<const Spin_Lattice_MTTK*>(ensemble_.get())->protocol_fraction(step, number_of_steps);
+  if (has_spin_nhc_driver())
+    return static_cast<const Spin_Lattice_NHC*>(ensemble_.get())->protocol_fraction(step, number_of_steps);
+  return double(step) / number_of_steps;
+}
+
+void Integrate::restore_spin_time(const Atom& atom, double& global_time) const
+{
+  if (use_spin_tspin || use_spin_sib || use_spin_glsd) {
+    if (!atom.spin_lattice_restart.mttk.empty()) global_time = atom.spin_lattice_restart.mttk_time;
+    if (!atom.spin_lattice_restart.nhc.empty()) global_time = atom.spin_lattice_restart.nhc_time;
+  }
 }
 
 double Integrate::get_target_temperature_of_step() const { return ensemble_->temperature; }
@@ -254,13 +277,13 @@ void Integrate::initialize(
   ensemble.deform_xy = deform_xy;
   ensemble.deform_xz = deform_xz;
   ensemble.deform_yz = deform_yz;
-  if (type != EnsembleType::MTTK && !atom.mttk_restart.empty()) {
+  if (!has_spin_mttk_driver() && !atom.spin_lattice_restart.mttk.empty()) {
     printf("Discarding MTTK restart state for a different ensemble.\n");
-    atom.mttk_restart.clear();
+    atom.spin_lattice_restart.mttk.clear();
   }
-  if (!has_nhc_driver() && !atom.nhc_restart.empty()) {
+  if (!has_spin_nhc_driver() && !atom.spin_lattice_restart.nhc.empty()) {
     printf("Discarding NVT NHC restart state for a different ensemble or lattice off.\n");
-    atom.nhc_restart.clear();
+    atom.spin_lattice_restart.nhc.clear();
   }
   ensemble.initialize_run(time_step, atom, box, group);
   spin_integrator.reset();
@@ -322,14 +345,11 @@ void Integrate::compute1(
   GPU_Vector<double>& thermo)
 {
   Ensemble& ensemble = *ensemble_;
-  if (step == 0 && type == EnsembleType::MTTK) {
+  if (step == 0 && has_spin_mttk_driver()) {
     ensemble.initialize_before_first_step(
       time_step, number_of_steps, group, box, atom, thermo);
   }
-  const double step_over_number_of_steps = type == EnsembleType::MTTK ?
-    static_cast<Ensemble_MTTK&>(ensemble).protocol_fraction(step, number_of_steps) :
-    (has_nhc_driver() ? static_cast<Ensemble_NHC&>(ensemble).protocol_fraction(step, number_of_steps) :
-    double(step) / number_of_steps);
+  const double step_over_number_of_steps = spin_protocol_fraction(step, number_of_steps);
   if (
     type == EnsembleType::NVE || type == EnsembleType::RPMD ||
     type == EnsembleType::TRPMD) {
@@ -340,7 +360,7 @@ void Integrate::compute1(
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
 
-  if (step == 0 && type != EnsembleType::MTTK) {
+  if (step == 0 && !has_spin_mttk_driver()) {
     ensemble.initialize_before_first_step(
       time_step, number_of_steps, group, box, atom, thermo);
   }
@@ -362,10 +382,7 @@ void Integrate::compute2(
   Force& force)
 {
   Ensemble& ensemble = *ensemble_;
-  const double step_over_number_of_steps = type == EnsembleType::MTTK ?
-    static_cast<Ensemble_MTTK&>(ensemble).protocol_fraction(step, number_of_steps) :
-    (has_nhc_driver() ? static_cast<Ensemble_NHC&>(ensemble).protocol_fraction(step, number_of_steps) :
-    double(step) / number_of_steps);
+  const double step_over_number_of_steps = spin_protocol_fraction(step, number_of_steps);
   if (
     type == EnsembleType::NVE || type == EnsembleType::RPMD ||
     type == EnsembleType::TRPMD) {
@@ -897,7 +914,7 @@ void Integrate::parse_spin_ensemble(
   std::vector<std::string> lattice(tokens.begin(), tokens.begin() + spin_option_start);
   if (npt) {
     lattice[1] = "npt_mttk";
-    auto mttk = std::make_unique<Ensemble_MTTK>(lattice);
+    auto mttk = std::make_unique<Spin_Lattice_MTTK>(lattice);
     temperature1 = mttk->t_start;
     temperature2 = mttk->t_stop;
     temperature = temperature1;
@@ -910,7 +927,7 @@ void Integrate::parse_spin_ensemble(
     ensemble_ = std::make_unique<Ensemble_Fixed_Lattice>(type);
   } else {
     lattice[1] = "nvt_nhc";
-    auto nhc = std::make_unique<Ensemble_NHC>(lattice, group);
+    auto nhc = std::make_unique<Spin_Lattice_NHC>(lattice, group);
     temperature1 = nhc->get_temperature1();
     temperature2 = nhc->get_temperature2();
     temperature = temperature1;

@@ -52,7 +52,12 @@ The main source directories are:
 | `src/utilities/` | Shared utilities, GPU wrappers, input helpers, and containers |
 | `src/main_nep/` | `nep` executable |
 
-Files added under an existing source directory are normally collected automatically by the makefiles. For `nep`, the CUDA and HIP makefiles also collect `.cu` files one directory below `src/main_nep/`.
+Files added under an existing source directory are normally collected automatically by the makefiles. The CUDA and HIP makefiles also collect `.cu` files one directory below `src/force/` for `gpumd`, and `src/main_nep/` for `nep`.
+
+Spin inference, multi-GPU evaluation, external magnetic fields, and Spin-specific
+small-box kernels live in `src/force/nep_spin/`. Training in
+`src/main_nep/nep_spin/` includes the same magnetic descriptor and force headers;
+ordinary NEP keeps its own small-box kernels in `src/force/nep_small_box.cuh`.
 
 ## 3. Main `gpumd` architecture
 
@@ -280,3 +285,9 @@ documentation for the input and Zeeman conventions.
 
 See [Spin regression checks](spin_validation.md) for portable format, training,
 and GPU validation commands.
+
+Spin lattice coupling and restart handling live in `src/integrate/spin/`.
+`Spin_Lattice_NHC` and `Spin_Lattice_MTTK` reuse the upstream mechanical
+integrators and add endpoint persistence and resumed temperature/pressure
+protocols only for Spin ensembles. Ordinary NHC/MTTK classes remain unchanged.
+The XYZ reader and restart writer delegate Spin metadata to this directory.

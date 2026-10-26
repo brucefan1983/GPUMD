@@ -497,6 +497,17 @@ std::string get_compact_nep_filename(const std::string& filename)
   return filename;
 }
 
+// Recover the source of a runtime-compacted model, or return the given filename.
+std::string get_original_nep_filename(const std::string& filename)
+{
+  for (const auto& file : compact_files) {
+    if (file.compact == filename) {
+      return file.original;
+    }
+  }
+  return filename;
+}
+
 std::string get_first_potential_filename(const RunInput& run_input)
 {
   for (const auto& line : run_input.lines()) {

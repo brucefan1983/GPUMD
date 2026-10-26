@@ -30,9 +30,10 @@ SOURCES_GPUMD =                   \
 	$(wildcard main_gpumd/*.cu)   \
 	$(wildcard minimize/*.cu)     \
 	$(wildcard phonon/*.cu)       \
-	$(wildcard integrate/*.cu)    \
+	$(wildcard integrate/*.cu) $(wildcard integrate/spin/*.cu)    \
 	$(wildcard mc/*.cu)           \
 	$(wildcard force/*.cu)        \
+	$(wildcard force/*/*.cu)      \
 	$(wildcard measure/*.cu)      \
 	$(wildcard model/*.cu)        \
 	$(wildcard utilities/*.cu)
@@ -55,10 +56,11 @@ OBJ_NEP = $(SOURCES_NEP:.cu=.o)
 HEADERS =                         \
 	$(wildcard utilities/*.cuh)   \
 	$(wildcard main_gpumd/*.cuh)  \
-	$(wildcard integrate/*.cuh)   \
+	$(wildcard integrate/*.cuh) $(wildcard integrate/spin/*.cuh)   \
 	$(wildcard mc/*.cuh)          \
 	$(wildcard minimize/*.cuh)    \
 	$(wildcard force/*.cuh)       \
+	$(wildcard force/*/*.cuh)     \
 	$(wildcard measure/*.cuh)     \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
@@ -111,5 +113,5 @@ main_nep/%.o: main_nep/%.cu $(HEADERS)
 # clean up
 ###########################################################
 clean:
-	rm -f */*.o main_nep/*/*.o gpumd nep
+	rm -f */*.o */*/*.o gpumd nep
 

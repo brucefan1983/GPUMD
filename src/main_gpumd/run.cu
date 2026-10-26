@@ -136,8 +136,6 @@ Run::Run(const RunInput& run_input)
     box,
     group,
     atom);
-  if (!atom.mttk_restart.empty()) global_time = atom.mttk_restart_time;
-  if (!atom.nhc_restart.empty()) global_time = atom.nhc_restart_time;
   first_potential_filename_ = get_first_potential_filename(run_input);
 
   if (has_replicate_) {
@@ -282,6 +280,7 @@ void Run::perform_a_run(const int number_of_steps)
       (!force.has_spin_potential() || !atom.has_spin)) {
     PRINT_INPUT_ERROR("A spin ensemble requires a Spin potential and spin:R:3 in model.xyz.");
   }
+  integrate.restore_spin_time(atom, global_time);
   integrate.initialize(time_step, atom, box, group);
   GPU_Vector<double> spin_predictor_base_force;
   if (integrate.use_spin_sib || integrate.use_spin_glsd) {

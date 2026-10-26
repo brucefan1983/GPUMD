@@ -17,7 +17,7 @@ namespace {
 
 using SimulationBox = Box;
 
-#include "force/nep_spin3_common.cuh"
+#include "force/nep_spin/nep_spin3_common.cuh"
 
 enum class SpinVirialMode : int {
   disabled,
@@ -221,9 +221,9 @@ __device__ __forceinline__ bool load_spin3_edge_f32(
   return true;
 }
 
-#include "force/nep_spin3_layout.cuh"
-#include "force/nep_spin3_descriptor.cuh"
-#include "force/nep_spin3_force.cuh"
+#include "force/nep_spin/nep_spin3_layout.cuh"
+#include "force/nep_spin/nep_spin3_descriptor.cuh"
+#include "force/nep_spin/nep_spin3_force.cuh"
 
 template <int C, typename Layout>
 void launch_spin3_descriptor(

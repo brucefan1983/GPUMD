@@ -110,11 +110,13 @@ python tests_pytest/validate_spin_glsd_runtime.py \
   --mobility-reference /path/to/pre-damping/gpumd \
   --model /path/to/Fe/nep.txt --output "$RESULTS/glsd"
 python tests_pytest/validate_mttk_restart.py \
-  --binary /path/to/current/gpumd --reference /path/to/pre-mttk-restart/gpumd \
+  --binary /path/to/current/gpumd --reference /path/to/pre-isolation/gpumd \
   --model /path/to/Fe/nep.txt --output "$RESULTS/mttk"
 python tests_pytest/validate_nhc_restart.py \
-  --binary /path/to/current/gpumd --reference /path/to/pre-nhc-restart/gpumd \
+  --binary /path/to/current/gpumd --reference /path/to/pre-isolation/gpumd \
   --model /path/to/Fe/nep.txt --output "$RESULTS/nhc"
+GPUMD_COMMAND=/path/to/current/gpumd python -m pytest --noconftest -q \
+  tests_pytest/test_spin_lattice_restart.py
 ```
 
 These reference executables and the Fe model are external prerequisites, not
@@ -122,7 +124,11 @@ bundled fixtures. Record their source revisions and hashes; never substitute
 the candidate for an independent reference. The GLSD mobility reference must
 support the former dimensional input. Restart checks compare continuous and
 resumed trajectories step by step, exercise invalid inputs, and use missing-state
-controls to detect incomplete restoration. See the
+controls to detect incomplete restoration. The lattice restart reference must
+support the existing endpoint format: its checkpoints are resumed by the
+candidate to check compatibility. Ordinary NHC/MTTK cases must emit no Spin
+lattice metadata and must ignore old bath state when starting an ordinary run.
+See the
 [restart documentation](../doc/gpumd/input_parameters/dump_restart.rst) for the
 supported continuation contracts and the
 [GLSD documentation](../doc/gpumd/input_parameters/ensemble_glsd.rst) for the

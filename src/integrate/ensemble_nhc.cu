@@ -20,17 +20,12 @@ Oxford University Press, 2010.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_nhc.cuh"
-#include "nhc.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
 #include <cstring>
-#include <algorithm>
-#include <iomanip>
-#include <sstream>
-#include <stdexcept>
 #define DIM 3
 
 Ensemble_NHC::Ensemble_NHC(
@@ -206,16 +201,6 @@ void Ensemble_NHC::initialize_run(
       mas_nhc1[i] = kT * tau * tau;
     }
     mas_nhc1[0] *= dN;
-    restart_configuration_ = {double(NOSE_HOOVER_CHAIN_LENGTH), double(atom.number_of_atoms),
-      time_step, temperature1_, temperature2_, temperature_coupling,
-      double(fixed_group), double(move_group), double(fixed_grouping_method), double(move_grouping_method)};
-    for (int i = 0; i < 3; ++i) restart_configuration_.push_back(move_group >= 0 ? move_velocity[i] : 0.0);
-    if (!atom.nhc_restart.empty()) {
-      restore_restart(atom.nhc_restart);
-      atom.nhc_restart.clear();
-      printf("Restored NVT NHC endpoint after %llu steps (protocol length %d).\n",
-        static_cast<unsigned long long>(restart_offset_), protocol_steps_);
-    }
     return;
   }
 
@@ -243,6 +228,83 @@ void Ensemble_NHC::initialize_run(
 
   initialize_group_kinetic_energy_workspace(group[0].number);
   initialize_group_com_velocity_workspace(group[0].number);
+}
+
+// The Nose-Hover thermostat integrator
+// Run it on the CPU, which requires copying the kinetic energy
+// from the GPU to the CPU
+static double nhc(
+  int M,
+  double* pos_eta,
+  double* vel_eta,
+  double* mas_eta,
+  double Ek2,
+  double kT,
+  double dN,
+  double dt2_particle)
+{
+  // These constants are taken from Tuckerman's book
+  int n_sy = 7;
+  int n_respa = 4;
+  const double w[7] = {
+    0.784513610477560,
+    0.235573213359357,
+    -1.17767998417887,
+    1.31518632068391,
+    -1.17767998417887,
+    0.235573213359357,
+    0.784513610477560};
+
+  double factor = 1.0; // to be accumulated
+
+  for (int n1 = 0; n1 < n_sy; n1++) {
+    double dt2 = dt2_particle * w[n1] / n_respa;
+    double dt4 = dt2 * 0.5;
+    double dt8 = dt4 * 0.5;
+    for (int n2 = 0; n2 < n_respa; n2++) {
+
+      // update velocity of the last (M - 1) thermostat:
+      double G = vel_eta[M - 2] * vel_eta[M - 2] / mas_eta[M - 2] - kT;
+      vel_eta[M - 1] += dt4 * G;
+
+      // update thermostat velocities from M - 2 to 0:
+      for (int m = M - 2; m >= 0; m--) {
+        double tmp = exp(-dt8 * vel_eta[m + 1] / mas_eta[m + 1]);
+        if (m == 0) {
+          G = Ek2 - dN * kT;
+        } else {
+          G = vel_eta[m - 1] * vel_eta[m - 1] / mas_eta[m - 1] - kT;
+        }
+        vel_eta[m] = tmp * (tmp * vel_eta[m] + dt4 * G);
+      }
+
+      // update thermostat positions from M - 1 to 0:
+      for (int m = M - 1; m >= 0; m--) {
+        pos_eta[m] += dt2 * vel_eta[m] / mas_eta[m];
+      }
+
+      // compute the scale factor
+      double factor_local = exp(-dt2 * vel_eta[0] / mas_eta[0]);
+      Ek2 *= factor_local * factor_local;
+      factor *= factor_local;
+
+      // update thermostat velocities from 0 to M - 2:
+      for (int m = 0; m < M - 1; m++) {
+        double tmp = exp(-dt8 * vel_eta[m + 1] / mas_eta[m + 1]);
+        if (m == 0) {
+          G = Ek2 - dN * kT;
+        } else {
+          G = vel_eta[m - 1] * vel_eta[m - 1] / mas_eta[m - 1] - kT;
+        }
+        vel_eta[m] = tmp * (tmp * vel_eta[m] + dt4 * G);
+      }
+
+      // update velocity of the last (M - 1) thermostat:
+      G = vel_eta[M - 2] * vel_eta[M - 2] / mas_eta[M - 2] - kT;
+      vel_eta[M - 1] += dt4 * G;
+    }
+  }
+  return factor;
 }
 
 void Ensemble_NHC::integrate_nvt_nhc_1(
@@ -482,7 +544,6 @@ void Ensemble_NHC::compute1(
   GPU_Vector<double>& thermo)
 {
   if (type == EnsembleType::NVT_NHC) {
-    if (protocol_steps_ == 0) protocol_steps_ = number_of_steps;
     integrate_nvt_nhc_1(
       time_step,
       box.get_volume(),
@@ -535,7 +596,6 @@ void Ensemble_NHC::compute2(
       atom.position_per_atom,
       atom.velocity_per_atom,
       thermo);
-    completed_steps_ = restart_offset_ + static_cast<std::uint64_t>(step) + 1;
   } else if (type == EnsembleType::HEAT_NHC_POWER) {
     integrate_heat_nhc_power_2(
       time_step,
@@ -552,64 +612,5 @@ void Ensemble_NHC::compute2(
       atom.force_per_atom,
       atom.position_per_atom,
       atom.velocity_per_atom);
-  }
-}
-
-double Ensemble_NHC::protocol_fraction(int step, int number_of_steps) const
-{
-  const int length = protocol_steps_ ? protocol_steps_ : number_of_steps;
-  return std::min(1.0, double(restart_offset_ + step) / length);
-}
-
-std::string Ensemble_NHC::restart_state() const
-{
-  if (type != EnsembleType::NVT_NHC || protocol_steps_ == 0) return "";
-  std::vector<double> values = {1.0, double(completed_steps_), double(protocol_steps_)};
-  values.insert(values.end(), restart_configuration_.begin(), restart_configuration_.end());
-  for (int i = 0; i < NOSE_HOOVER_CHAIN_LENGTH; ++i) {
-    // vel_nhc1 stores conjugate momentum: nhc() advances pos by dt * vel / mass.
-    values.insert(values.end(), {mas_nhc1[i], pos_nhc1[i], vel_nhc1[i]});
-  }
-  std::ostringstream stream;
-  stream << std::setprecision(17);
-  for (size_t i = 0; i < values.size(); ++i) {
-    if (!std::isfinite(values[i])) PRINT_INPUT_ERROR("Cannot write non-finite NHC checkpoint.");
-    if (i) stream << ',';
-    stream << values[i];
-  }
-  return stream.str();
-}
-
-void Ensemble_NHC::restore_restart(const std::string& state)
-{
-  std::vector<double> values;
-  std::istringstream input(state);
-  std::string token;
-  if (state.empty() || state.back() == ',') PRINT_INPUT_ERROR("Invalid NHC checkpoint.");
-  while (std::getline(input, token, ',')) {
-    try {
-      size_t end = 0;
-      const double value = std::stod(token, &end);
-      if (end != token.size() || !std::isfinite(value)) throw std::invalid_argument("value");
-      values.push_back(value);
-    } catch (...) { PRINT_INPUT_ERROR("Invalid number in NHC checkpoint."); }
-  }
-  const size_t expected = 3 + restart_configuration_.size() + 3 * NOSE_HOOVER_CHAIN_LENGTH;
-  if (values.size() != expected || values[0] != 1.0) PRINT_INPUT_ERROR("Unsupported or truncated NHC checkpoint.");
-  if (values[1] < 0 || values[1] > 9007197107257343.0 || std::floor(values[1]) != values[1] ||
-      values[2] < 1 || values[2] > 2147483647.0 || std::floor(values[2]) != values[2]) {
-    PRINT_INPUT_ERROR("Invalid NHC checkpoint step/protocol length.");
-  }
-  for (size_t i = 0; i < restart_configuration_.size(); ++i) {
-    if (values[3 + i] != restart_configuration_[i]) {
-      PRINT_INPUT_ERROR("NHC restart parameters, atom count or timestep do not match.");
-    }
-  }
-  restart_offset_ = completed_steps_ = static_cast<std::uint64_t>(values[1]);
-  protocol_steps_ = static_cast<int>(values[2]);
-  size_t index = 3 + restart_configuration_.size();
-  for (int i = 0; i < NOSE_HOOVER_CHAIN_LENGTH; ++i) {
-    mas_nhc1[i] = values[index++]; pos_nhc1[i] = values[index++]; vel_nhc1[i] = values[index++];
-    if (mas_nhc1[i] <= 0.0) PRINT_INPUT_ERROR("NHC checkpoint masses must be positive.");
   }
 }

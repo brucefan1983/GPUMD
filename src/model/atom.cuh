@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "integrate/spin/restart.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <cstdint>
@@ -49,10 +50,7 @@ public:
   GPU_Vector<double> virial_per_atom;    // per-atom virial (9 components)
   GPU_Vector<double> potential_per_atom; // per-atom potential energy (1 component)
   std::uint64_t spin_glsd_step = 0, spin_glsd_seed = 0; // next GLSD noise counter
-  std::string mttk_restart; // pending endpoint checkpoint, consumed by MTTK initialization
-  double mttk_restart_time = -1.0; // internal time units
-  std::string nhc_restart; // pending NVT NHC endpoint checkpoint
-  double nhc_restart_time = -1.0; // internal time units
+  Spin_Lattice_Restart spin_lattice_restart;
   bool has_spin = false;
   bool spin_velocity_initialized = false;
   // for beads in PIMD

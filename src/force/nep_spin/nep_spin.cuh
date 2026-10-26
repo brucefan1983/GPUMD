@@ -6,9 +6,9 @@
 
 #pragma once
 
-#include "neighbor.cuh"
-#include "nep.cuh"
-#include "potential.cuh"
+#include "force/neighbor.cuh"
+#include "force/nep.cuh"
+#include "force/potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <cstddef>

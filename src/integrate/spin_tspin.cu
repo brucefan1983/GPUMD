@@ -15,7 +15,7 @@
 
 #include "spin_tspin.cuh"
 #include "model/atom.cuh"
-#include "nhc.cuh"
+#include "spin/nhc.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"

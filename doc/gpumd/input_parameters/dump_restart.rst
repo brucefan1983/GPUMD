@@ -24,7 +24,7 @@ To update the restart file every 100000 steps for a run, one can add::
 before the :ref:`run keyword <kw_run>`.
 
 
-Continuing an NHC NVT run
+Continuing a Spin NVT run
 -------------------------
 
 For ``nvt_glsd`` with lattice motion enabled (the default), copy the new
@@ -45,8 +45,8 @@ thermostat and the default spin bath. An explicitly specified positive
 ``stemp`` remains constant. Beyond the original protocol length, targets hold
 their final values. Constant-temperature runs may simply be extended.
 
-The same NHC state support applies to ordinary ``nvt_nhc``. The XYZ header
-contains versioned ``nhc_state`` and ``nhc_time`` metadata, with all four
+Spin NVT ensembles with lattice motion enabled write versioned ``nhc_state``
+and ``nhc_time`` metadata, with all four
 chain masses, positions and conjugate momenta, original protocol length,
 completed steps and global time. Values use 17 significant digits. Chain
 masses retain the existing convention of initialization at the original
@@ -57,14 +57,15 @@ when intentionally starting a new bath protocol.
 
 ``lattice off`` has no atomic NHC and writes no NHC metadata. Selecting it or
 another driver discards pending NHC state with a message. NHC and MTTK state
-must not coexist in one input. ``heat_nhc`` and ``heat_nhc_power`` are outside
-this NVT checkpoint support. The same model, fixed-timestep and stateful-
+must not coexist in one input. Ordinary ``nvt_nhc``, ``heat_nhc`` and
+``heat_nhc_power`` retain the upstream restart behavior and do not write or
+restore this Spin lattice checkpoint. The same model, fixed-timestep and stateful-
 modifier limitations described below apply. Ordinary SIB random-stream
 continuation is not provided by saving its atomic thermostat alone.
 
 
-Continuing an MTTK NPT run
---------------------------
+Continuing a Spin NPT run
+-------------------------
 
 Copy ``restart.xyz`` to ``model.xyz`` in a new run directory. Specify the
 same potential, atom order, timestep and ensemble settings. Do not regenerate
@@ -99,7 +100,11 @@ trajectory. Selecting a different, non-MTTK ensemble discards the MTTK state
 with a message. Removing both MTTK metadata fields intentionally starts a new
 bath protocol; this is not an exact continuation.
 
-The NPT support applies to the MTTK lattice driver, including ``npt_glsd``.
+The NPT support applies to the Spin MTTK lattice driver in ``npt_glsd``,
+``npt_sib`` and ``npt_tspin``. Ordinary ``nvt_mttk``, ``npt_mttk`` and
+``nph_mttk`` retain the upstream behavior and do not write or restore these
+endpoint fields. Loading a Spin checkpoint into an ordinary ensemble discards
+its lattice bath state and starts the execution clock from zero.
 It does not checkpoint every other thermostat or stateful modifier in GPUMD.
 Use fixed timesteps and the same mechanical/spin fields and model. Separate
 random mechanical forces, velocity-reset schedules, temperature-dependent NEP

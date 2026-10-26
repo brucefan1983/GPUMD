@@ -61,12 +61,15 @@ private:
   int spin_dynamics_seed = 12345;
   double spin_glsd_damping = 0.0; // dimensionless hbar * gamma_s_prime
   double spin_glsd_mobility = 0.0; // converted muB^2 / (eV ps), internal only
-  bool has_nhc_driver() const;
+  bool has_spin_nhc_driver() const;
+  bool has_spin_mttk_driver() const;
+  double spin_protocol_fraction(int step, int number_of_steps) const;
 public:
   bool use_spin_tspin = false, use_spin_sib = false, use_spin_glsd = false, spin_lattice_enabled = true;
   bool has_ensemble() const;
-  std::string mttk_restart_state() const;
-  std::string nhc_restart_state() const;
+  void restore_spin_time(const Atom& atom, double& global_time) const;
+  std::string spin_mttk_restart_state() const;
+  std::string spin_nhc_restart_state() const;
   EnsembleType get_type() const;
   int get_fixed_group() const;
   int get_move_group() const;

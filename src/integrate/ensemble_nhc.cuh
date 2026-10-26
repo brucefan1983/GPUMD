@@ -15,7 +15,6 @@
 
 #pragma once
 #include "ensemble.cuh"
-#include <cstdint>
 #include <string>
 
 class Ensemble_NHC : public Ensemble
@@ -26,8 +25,6 @@ public:
 
   double get_temperature1() const;
   double get_temperature2() const;
-  std::string restart_state() const;
-  double protocol_fraction(int step, int number_of_steps) const;
 
   void initialize_run(
     const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
@@ -116,10 +113,6 @@ protected:
     GPU_Vector<double>& velocity_per_atom);
 
 private:
-  void restore_restart(const std::string& state);
-  std::vector<double> restart_configuration_;
-  std::uint64_t restart_offset_ = 0, completed_steps_ = 0;
-  int protocol_steps_ = 0;
   void parse(
     const std::vector<std::string>& tokens, const std::vector<Group>& group);
   void parse_heat_groups(

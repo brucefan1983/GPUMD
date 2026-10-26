@@ -124,12 +124,3 @@ No barostat is used, so the simulation cell is fixed.
     ensemble nvt_mttk temp 300 1000 tperiod 100
 
 This command ramps the temperature from 300 K to 1000 K and explicitly sets the period of the thermostat to 100 timesteps.
-
-Restart continuation
---------------------
-
-:ref:`dump_restart <kw_dump_restart>` saves the MTTK thermostat and barostat
-endpoint state together with the original ramp length and completed step.
-Load the checkpoint as ``model.xyz`` and repeat the same ensemble parameters
-and timestep. The NPT continuation procedure and supported boundaries are
-specified on the ``dump_restart`` page.

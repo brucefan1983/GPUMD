@@ -26,7 +26,7 @@ WARN_FLAGS += -Wformat -Wformat-security -Wformat-overflow -Wformat-truncation
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
 else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)" 
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)"
 endif
 ifeq ($(GNEP_TEST_DIAGNOSTICS),1)
 CFLAGS += -DGNEP_TEST_DIAGNOSTICS
@@ -53,9 +53,10 @@ SOURCES_GPUMD =                   \
 	$(wildcard main_gpumd/*.cu)   \
 	$(wildcard minimize/*.cu)     \
 	$(wildcard phonon/*.cu)       \
-	$(wildcard integrate/*.cu)    \
+	$(wildcard integrate/*.cu) $(wildcard integrate/spin/*.cu)    \
 	$(wildcard mc/*.cu)           \
 	$(wildcard force/*.cu)        \
+	$(wildcard force/*/*.cu)      \
 	$(wildcard measure/*.cu)      \
 	$(wildcard model/*.cu)        \
 	$(wildcard utilities/*.cu)
@@ -88,10 +89,11 @@ endif
 HEADERS =                         \
 	$(wildcard utilities/*.cuh)   \
 	$(wildcard main_gpumd/*.cuh)  \
-	$(wildcard integrate/*.cuh)   \
+	$(wildcard integrate/*.cuh) $(wildcard integrate/spin/*.cuh)   \
 	$(wildcard mc/*.cuh)          \
 	$(wildcard minimize/*.cuh)    \
 	$(wildcard force/*.cuh)       \
+	$(wildcard force/*/*.cuh)     \
 	$(wildcard measure/*.cuh)     \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
@@ -190,5 +192,5 @@ clean: clean_replica
 ifdef OS
 	del /s *.obj *.exp *.lib *.exe
 else
-	rm -f */*.o main_nep/*/*.o gpumd nep gnep
+	rm -f */*.o */*/*.o gpumd nep gnep
 endif

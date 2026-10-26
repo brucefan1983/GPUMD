@@ -355,177 +355,6 @@ static __global__ void find_descriptor_small_box(
   }
 }
 
-template <int L>
-static __device__ __forceinline__ void accumulate_one_angular_channel_in_double(
-  const int n,
-  const int n_max_angular_plus_1,
-  const double d12inv,
-  const double fn,
-  const double fnp,
-  const float* Fp,
-  const float* sum_fxyz,
-  const double* r12unit,
-  double* f12)
-{
-  double s[2 * L + 1];
-  double contribution[3] = {0.0, 0.0, 0.0};
-  calculate_s_one<L>(n, n_max_angular_plus_1, Fp, sum_fxyz, s);
-  accumulate_f12_one<L>(d12inv, fn, fnp, s, r12unit, contribution);
-  for (int d = 0; d < 3; ++d) {
-    f12[d] += static_cast<double>(contribution[d]);
-  }
-}
-
-static __device__ __forceinline__ void find_fn_and_fnp_in_double(
-  const int n_max,
-  const double rc,
-  const double distance,
-  double* fn,
-  double* fnp)
-{
-  const double rcinv = 1.0 / rc;
-  const double scaled = distance * rcinv;
-  const double fc =
-    distance < rc ? 0.5 * cos(3.14159265358979323846 * scaled) + 0.5 : 0.0;
-  const double fcp =
-    distance < rc
-      ? -1.57079632679489661923 * sin(3.14159265358979323846 * scaled) * rcinv
-      : 0.0;
-  const double x = 2.0 * (scaled - 1.0) * (scaled - 1.0) - 1.0;
-  fn[0] = fc;
-  fnp[0] = fcp;
-  fn[1] = (x + 1.0) * 0.5 * fc;
-  fnp[1] =
-    2.0 * (scaled - 1.0) * rcinv * fc + (x + 1.0) * 0.5 * fcp;
-  double u0 = 1.0;
-  double u1 = 2.0 * x;
-  double t0 = 1.0;
-  double t1 = x;
-  for (int m = 2; m <= n_max; ++m) {
-    const double t2 = 2.0 * x * t1 - t0;
-    t0 = t1;
-    t1 = t2;
-    const double derivative_chebyshev = m * u1;
-    const double u2 = 2.0 * x * u1 - u0;
-    u0 = u1;
-    u1 = u2;
-    const double basis = (t2 + 1.0) * 0.5;
-    fnp[m] =
-      derivative_chebyshev * 2.0 * (scaled - 1.0) * rcinv * fc + basis * fcp;
-    fn[m] = basis * fc;
-  }
-}
-
-static __device__ __forceinline__ void accumulate_f12_small_box_in_double(
-  const int L_max,
-  const int has_q_222,
-  const int has_q_1111,
-  const int has_q_112,
-  const int has_q_123,
-  const int has_q_233,
-  const int has_q_134,
-  const int num_L,
-  const int n,
-  const int n_max_angular_plus_1,
-  const double d12,
-  const double* r12,
-  const double fn,
-  const double fnp,
-  const float* Fp,
-  const float* sum_fxyz,
-  double* f12)
-{
-  const bool only_supported_extra =
-    !has_q_1111 && !has_q_112 && !has_q_123 && !has_q_233 && !has_q_134 &&
-    num_L == L_max + static_cast<int>(has_q_222);
-  if (!only_supported_extra) {
-    float fallback[3] = {0.0f};
-    const float d12_float = static_cast<float>(d12);
-    const float r12_float[3] = {
-      static_cast<float>(r12[0]),
-      static_cast<float>(r12[1]),
-      static_cast<float>(r12[2])};
-    accumulate_f12(
-      L_max,
-      has_q_222,
-      has_q_1111,
-      has_q_112,
-      has_q_123,
-      has_q_233,
-      has_q_134,
-      num_L,
-      n,
-      n_max_angular_plus_1,
-      d12_float,
-      r12_float,
-      static_cast<float>(fn),
-      static_cast<float>(fnp),
-      Fp,
-      sum_fxyz,
-      fallback);
-    for (int d = 0; d < 3; ++d) {
-      f12[d] += static_cast<double>(fallback[d]);
-    }
-    return;
-  }
-
-  const double d12inv = 1.0 / d12;
-  const double r12unit[3] = {
-    r12[0] * d12inv, r12[1] * d12inv, r12[2] * d12inv};
-  if (L_max >= 1)
-    accumulate_one_angular_channel_in_double<1>(
-      n, n_max_angular_plus_1, d12inv, fn, fnp, Fp, sum_fxyz, r12unit, f12);
-  if (L_max >= 2)
-    accumulate_one_angular_channel_in_double<2>(
-      n, n_max_angular_plus_1, d12inv, fn, fnp, Fp, sum_fxyz, r12unit, f12);
-  if (L_max >= 3)
-    accumulate_one_angular_channel_in_double<3>(
-      n, n_max_angular_plus_1, d12inv, fn, fnp, Fp, sum_fxyz, r12unit, f12);
-  if (L_max >= 4)
-    accumulate_one_angular_channel_in_double<4>(
-      n, n_max_angular_plus_1, d12inv, fn, fnp, Fp, sum_fxyz, r12unit, f12);
-  if (L_max >= 5)
-    accumulate_one_angular_channel_in_double<5>(
-      n, n_max_angular_plus_1, d12inv, fn, fnp, Fp, sum_fxyz, r12unit, f12);
-  if (L_max >= 6)
-    accumulate_one_angular_channel_in_double<6>(
-      n, n_max_angular_plus_1, d12inv, fn, fnp, Fp, sum_fxyz, r12unit, f12);
-  if (L_max >= 7)
-    accumulate_one_angular_channel_in_double<7>(
-      n, n_max_angular_plus_1, d12inv, fn, fnp, Fp, sum_fxyz, r12unit, f12);
-  if (L_max >= 8)
-    accumulate_one_angular_channel_in_double<8>(
-      n, n_max_angular_plus_1, d12inv, fn, fnp, Fp, sum_fxyz, r12unit, f12);
-
-  if (has_q_222) {
-    double radial_fn = fn * d12inv;
-    double radial_fnp = fnp * d12inv - fn * d12inv * d12inv;
-    const double fn2 = radial_fn * d12inv;
-    const double fnp2 =
-      radial_fnp * d12inv - radial_fn * d12inv * d12inv;
-    const double s2[5] = {
-      sum_fxyz[n * NUM_OF_ABC + 3],
-      sum_fxyz[n * NUM_OF_ABC + 4],
-      sum_fxyz[n * NUM_OF_ABC + 5],
-      sum_fxyz[n * NUM_OF_ABC + 6],
-      sum_fxyz[n * NUM_OF_ABC + 7]};
-    double contribution[3] = {0.0, 0.0, 0.0};
-    get_f12_4body(
-      d12,
-      d12inv,
-      fn2,
-      fnp2,
-      static_cast<double>(Fp[L_max * n_max_angular_plus_1 + n]),
-      s2,
-      r12,
-      contribution);
-    for (int d = 0; d < 3; ++d) {
-      f12[d] += static_cast<double>(contribution[d]);
-    }
-  }
-}
-
-template <bool AccumulateInDouble = false, typename R12 = float>
 static __global__ void find_force_radial_small_box(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
@@ -535,9 +364,9 @@ static __global__ void find_force_radial_small_box(
   const int* g_NN,
   const int* g_NL,
   const int* __restrict__ g_type,
-  const R12* __restrict__ g_x12,
-  const R12* __restrict__ g_y12,
-  const R12* __restrict__ g_z12,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
   const float* __restrict__ g_Fp,
   double* g_fx,
   double* g_fy,
@@ -551,22 +380,10 @@ static __global__ void find_force_radial_small_box(
       int index = i1 * N + n1;
       int n2 = g_NL[index];
       int t2 = g_type[n2];
-      double r12_double[3] = {
-        static_cast<double>(g_x12[index]),
-        static_cast<double>(g_y12[index]),
-        static_cast<double>(g_z12[index])};
-      float r12[3] = {
-        static_cast<float>(r12_double[0]),
-        static_cast<float>(r12_double[1]),
-        static_cast<float>(r12_double[2])};
+      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
-      const double d12_double = sqrt(
-        r12_double[0] * r12_double[0] +
-        r12_double[1] * r12_double[1] +
-        r12_double[2] * r12_double[2]);
       float f12[3] = {0.0f};
-      double f12_double[3] = {0.0, 0.0, 0.0};
       float fc12, fcp12;
       float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
@@ -574,43 +391,16 @@ static __global__ void find_force_radial_small_box(
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
-      double fn12_double[MAX_NUM_N] = {0.0};
-      double fnp12_double[MAX_NUM_N] = {0.0};
-      if (AccumulateInDouble) {
-        find_fn_and_fnp_in_double(
-          paramb.basis_size_radial,
-          static_cast<double>(rc),
-          d12_double,
-          fn12_double,
-          fnp12_double);
-      }
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gnp12 = 0.0f;
-        double gnp12_double = 0.0;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
           int c_index = get_c_index(
             t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
-          if (AccumulateInDouble) {
-            gnp12_double +=
-              fnp12_double[k] * static_cast<double>(annmb.c_type_pair[c_index]);
-          }
         }
         float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
-        const double tmp12_double =
-          static_cast<double>(g_Fp[n1 + n * N]) * gnp12_double / d12_double;
         for (int d = 0; d < 3; ++d) {
-          const float contribution = tmp12 * r12[d];
-          if (AccumulateInDouble) {
-            f12_double[d] += tmp12_double * r12_double[d];
-          } else {
-            f12[d] += contribution;
-          }
-        }
-      }
-      if (!AccumulateInDouble) {
-        for (int d = 0; d < 3; ++d) {
-          f12_double[d] = static_cast<double>(f12[d]);
+          f12[d] += tmp12 * r12[d];
         }
       }
       double s_sxx = 0.0;
@@ -622,34 +412,22 @@ static __global__ void find_force_radial_small_box(
       double s_szx = 0.0;
       double s_szy = 0.0;
       double s_szz = 0.0;
-      if (AccumulateInDouble) {
-        s_sxx -= r12_double[0] * f12_double[0];
-        s_syy -= r12_double[1] * f12_double[1];
-        s_szz -= r12_double[2] * f12_double[2];
-        s_sxy -= r12_double[0] * f12_double[1];
-        s_sxz -= r12_double[0] * f12_double[2];
-        s_syz -= r12_double[1] * f12_double[2];
-        s_syx -= r12_double[1] * f12_double[0];
-        s_szx -= r12_double[2] * f12_double[0];
-        s_szy -= r12_double[2] * f12_double[1];
-      } else {
-        s_sxx -= r12[0] * f12[0];
-        s_syy -= r12[1] * f12[1];
-        s_szz -= r12[2] * f12[2];
-        s_sxy -= r12[0] * f12[1];
-        s_sxz -= r12[0] * f12[2];
-        s_syz -= r12[1] * f12[2];
-        s_syx -= r12[1] * f12[0];
-        s_szx -= r12[2] * f12[0];
-        s_szy -= r12[2] * f12[1];
-      }
+      s_sxx -= r12[0] * f12[0];
+      s_syy -= r12[1] * f12[1];
+      s_szz -= r12[2] * f12[2];
+      s_sxy -= r12[0] * f12[1];
+      s_sxz -= r12[0] * f12[2];
+      s_syz -= r12[1] * f12[2];
+      s_syx -= r12[1] * f12[0];
+      s_szx -= r12[2] * f12[0];
+      s_szy -= r12[2] * f12[1];
 
-      atomicAdd(&g_fx[n1], f12_double[0]);
-      atomicAdd(&g_fy[n1], f12_double[1]);
-      atomicAdd(&g_fz[n1], f12_double[2]);
-      atomicAdd(&g_fx[n2], -f12_double[0]);
-      atomicAdd(&g_fy[n2], -f12_double[1]);
-      atomicAdd(&g_fz[n2], -f12_double[2]);
+      atomicAdd(&g_fx[n1], double(f12[0]));
+      atomicAdd(&g_fy[n1], double(f12[1]));
+      atomicAdd(&g_fz[n1], double(f12[2]));
+      atomicAdd(&g_fx[n2], double(-f12[0]));
+      atomicAdd(&g_fy[n2], double(-f12[1]));
+      atomicAdd(&g_fz[n2], double(-f12[2]));
       // save virial
       // xx xy xz    0 3 4
       // yx yy yz    6 1 5
@@ -667,7 +445,6 @@ static __global__ void find_force_radial_small_box(
   }
 }
 
-template <bool AccumulateInDouble = false, typename R12 = float>
 static __global__ void find_force_angular_small_box(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
@@ -677,9 +454,9 @@ static __global__ void find_force_angular_small_box(
   const int* g_NN_angular,
   const int* g_NL_angular,
   const int* __restrict__ g_type,
-  const R12* __restrict__ g_x12,
-  const R12* __restrict__ g_y12,
-  const R12* __restrict__ g_z12,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
   const float* __restrict__ g_Fp,
   const float* __restrict__ g_sum_fxyz,
   double* g_fx,
@@ -707,17 +484,9 @@ static __global__ void find_force_angular_small_box(
     for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL_angular[n1 + N * i1];
-      double r12_double[3] = {
-        static_cast<double>(g_x12[index]),
-        static_cast<double>(g_y12[index]),
-        static_cast<double>(g_z12[index])};
-      float r12[3] = {
-        static_cast<float>(r12_double[0]),
-        static_cast<float>(r12_double[1]),
-        static_cast<float>(r12_double[2])};
+      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float f12[3] = {0.0f};
-      double f12_double[3] = {0.0, 0.0, 0.0};
       float fc12, fcp12;
       int t2 = g_type[n2];
       float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
@@ -726,25 +495,9 @@ static __global__ void find_force_angular_small_box(
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
-      const double d12_double = sqrt(
-        r12_double[0] * r12_double[0] +
-        r12_double[1] * r12_double[1] +
-        r12_double[2] * r12_double[2]);
-      double fn12_double[MAX_NUM_N] = {0.0};
-      double fnp12_double[MAX_NUM_N] = {0.0};
-      if (AccumulateInDouble) {
-        find_fn_and_fnp_in_double(
-          paramb.basis_size_angular,
-          static_cast<double>(rc),
-          d12_double,
-          fn12_double,
-          fnp12_double);
-      }
       for (int n = 0; n <= paramb.n_max_angular; ++n) {
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
-        double gn12_double = 0.0;
-        double gnp12_double = 0.0;
         for (int k = 0; k <= paramb.basis_size_angular; ++k) {
           int c_index = get_c_index(
             t1 * paramb.num_types + t2,
@@ -755,57 +508,20 @@ static __global__ void find_force_angular_small_box(
             paramb.num_c_radial);
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
           gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
-          if (AccumulateInDouble) {
-            gn12_double +=
-              fn12_double[k] * static_cast<double>(annmb.c_type_pair[c_index]);
-            gnp12_double +=
-              fnp12_double[k] * static_cast<double>(annmb.c_type_pair[c_index]);
-          }
         }
-        if (AccumulateInDouble) {
-          accumulate_f12_small_box_in_double(
-            paramb.L_max,
-            paramb.has_q_222,
-            paramb.has_q_1111,
-            paramb.has_q_112,
-            paramb.has_q_123,
-            paramb.has_q_233,
-            paramb.has_q_134,
-            paramb.num_L,
-            n,
-            paramb.n_max_angular + 1,
-            d12_double,
-            r12_double,
-            gn12_double,
-            gnp12_double,
-            Fp,
-            sum_fxyz,
-            f12_double);
-        } else {
-          accumulate_f12(
-            paramb.L_max,
-            paramb.has_q_222,
-            paramb.has_q_1111,
-            paramb.has_q_112,
-            paramb.has_q_123,
-            paramb.has_q_233,
-            paramb.has_q_134,
-            paramb.num_L,
-            n,
-            paramb.n_max_angular + 1,
-            d12,
-            r12,
-            gn12,
-            gnp12,
-            Fp,
-            sum_fxyz,
-            f12);
-        }
-      }
-      if (!AccumulateInDouble) {
-        for (int d = 0; d < 3; ++d) {
-          f12_double[d] = static_cast<double>(f12[d]);
-        }
+        accumulate_f12(
+          paramb.L_max,
+          paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
+          paramb.num_L,
+          n,
+          paramb.n_max_angular + 1,
+          d12,
+          r12,
+          gn12,
+          gnp12,
+          Fp,
+          sum_fxyz,
+          f12);
       }
       double s_sxx = 0.0;
       double s_sxy = 0.0;
@@ -816,34 +532,22 @@ static __global__ void find_force_angular_small_box(
       double s_szx = 0.0;
       double s_szy = 0.0;
       double s_szz = 0.0;
-      if (AccumulateInDouble) {
-        s_sxx -= r12_double[0] * f12_double[0];
-        s_syy -= r12_double[1] * f12_double[1];
-        s_szz -= r12_double[2] * f12_double[2];
-        s_sxy -= r12_double[0] * f12_double[1];
-        s_sxz -= r12_double[0] * f12_double[2];
-        s_syz -= r12_double[1] * f12_double[2];
-        s_syx -= r12_double[1] * f12_double[0];
-        s_szx -= r12_double[2] * f12_double[0];
-        s_szy -= r12_double[2] * f12_double[1];
-      } else {
-        s_sxx -= r12[0] * f12[0];
-        s_syy -= r12[1] * f12[1];
-        s_szz -= r12[2] * f12[2];
-        s_sxy -= r12[0] * f12[1];
-        s_sxz -= r12[0] * f12[2];
-        s_syz -= r12[1] * f12[2];
-        s_syx -= r12[1] * f12[0];
-        s_szx -= r12[2] * f12[0];
-        s_szy -= r12[2] * f12[1];
-      }
+      s_sxx -= r12[0] * f12[0];
+      s_syy -= r12[1] * f12[1];
+      s_szz -= r12[2] * f12[2];
+      s_sxy -= r12[0] * f12[1];
+      s_sxz -= r12[0] * f12[2];
+      s_syz -= r12[1] * f12[2];
+      s_syx -= r12[1] * f12[0];
+      s_szx -= r12[2] * f12[0];
+      s_szy -= r12[2] * f12[1];
 
-      atomicAdd(&g_fx[n1], f12_double[0]);
-      atomicAdd(&g_fy[n1], f12_double[1]);
-      atomicAdd(&g_fz[n1], f12_double[2]);
-      atomicAdd(&g_fx[n2], -f12_double[0]);
-      atomicAdd(&g_fy[n2], -f12_double[1]);
-      atomicAdd(&g_fz[n2], -f12_double[2]);
+      atomicAdd(&g_fx[n1], double(f12[0]));
+      atomicAdd(&g_fy[n1], double(f12[1]));
+      atomicAdd(&g_fz[n1], double(f12[2]));
+      atomicAdd(&g_fx[n2], double(-f12[0]));
+      atomicAdd(&g_fy[n2], double(-f12[1]));
+      atomicAdd(&g_fz[n2], double(-f12[2]));
       // save virial
       // xx xy xz    0 3 4
       // yx yy yz    6 1 5

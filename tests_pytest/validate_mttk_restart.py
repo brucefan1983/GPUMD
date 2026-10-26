@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""MTTK endpoint checkpoint acceptance: uninterrupted vs separate-process resume.
+"""Spin lattice MTTK checkpoint and ordinary-driver isolation acceptance: uninterrupted vs separate-process resume.
 
 Requires four allocated GPUs. Uses the actual Fe potential, an independent
 zero-force fixture, old-binary forward regression and a missing-state control.
@@ -99,6 +99,17 @@ def main():
         for g in (1,4):
             if name=='reference-reset' and g==4:continue
             whole=run(f'{name}-whole-g{g}',g,ens,total,split,source,model)
+            if 'glsd' not in ens:
+                assert metadata(whole/'restart.xyz')[1:] == (None, None)
+                old=run(f'{name}-old-g{g}',g,ens,total,split,source,model,old=True)
+                data={'forward_old_new':difference(frame(old/'state.xyz'),frame(whole/'state.xyz'))}
+                assert all(data['forward_old_new'][k]<gates[k] for k in data['forward_old_new']),data
+                legacy=run(f'{name}-legacy-g{g}',g,ens,3,3,old/'restart.xyz',model)
+                assert metadata(legacy/'restart.xyz')[1:] == (None, None)
+                assert 'Restored MTTK' not in (legacy/'run.log').read_text()
+                assert abs(frames(legacy/'state.xyz')[0]['time'][0]-.1) < 1e-7
+                record(name+f'-g{g}',data)
+                continue
             # total<2*split: restart.xyz is the actual middle checkpoint.
             hc,hs,ht=metadata(whole/'restart.xyz');assert hs is not None and hs[1]==split and hs[2]==total
             resume=run(f'{name}-resume-g{g}',g,ens,total-split,total-split,whole/'restart.xyz',model)
@@ -117,6 +128,10 @@ def main():
                 old=run(f'{name}-old-g{g}',g,ens,total,split,source,model,old=True)
                 data['forward_old_new']=difference(frame(old/'state.xyz'),frame(whole/'state.xyz'))
                 assert all(data['forward_old_new'][k]<gates[k] for k in data['forward_old_new']),data
+                legacy=run(f'{name}-old-checkpoint-g{g}',g,ens,total-split,total-split,old/'restart.xyz',model)
+                pairs=list(zip(frames(old/'state.xyz')[split:],frames(legacy/'state.xyz')))
+                data['old_checkpoint_resume']={k:max(float(np.max(np.abs(x[k]-y[k]))) for x,y in pairs) for k in gates}
+                assert all(data['old_checkpoint_resume'][k]<gates[k] for k in gates),data
                 if g==4:
                     repeat=run(f'{name}-old-repeat-g{g}',g,ens,total,split,source,model,old=True)
                     data['old_repeat']=difference(frame(old/'state.xyz'),frame(repeat/'state.xyz'))

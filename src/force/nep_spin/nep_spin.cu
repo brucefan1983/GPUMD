@@ -9,8 +9,8 @@
 
 #include "nep_spin.cuh"
 #include "utilities/nep_spin_model_file.cuh"
-#include "nep_kernels.cuh"
-#include "nep_small_box.cuh"
+#include "force/nep_kernels.cuh"
+#include "nep_spin_small_box.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
 #include "utilities/error.cuh"
@@ -1985,7 +1985,7 @@ void NEP_Spin::compute(
       potential.data(),
       data_.Fp.data());
     GPU_CHECK_KERNEL
-    find_force_radial_small_box<true><<<grid_size, block_size>>>(
+    nep_spin_small_box::find_force_radial_small_box<<<grid_size, block_size>>>(
       paramb_,
       ann_,
       N,
@@ -2003,7 +2003,7 @@ void NEP_Spin::compute(
       force.data() + 2 * N,
       virial.data());
     GPU_CHECK_KERNEL
-    find_force_angular_small_box<true><<<grid_size, block_size>>>(
+    nep_spin_small_box::find_force_angular_small_box<<<grid_size, block_size>>>(
       paramb_,
       ann_,
       N,

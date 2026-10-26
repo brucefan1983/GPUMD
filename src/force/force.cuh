@@ -18,6 +18,7 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "potential.cuh"
+#include "nep_spin/mfield.cuh"
 #ifdef GPUMD_WPE_ENABLED
 #include "wpe_stage.cuh"
 #endif
@@ -77,8 +78,11 @@ public:
 
   bool has_spin_potential(void) const { return has_spin_potential_; }
 
-  void parse_mfield(const char** param, int num_param, const std::vector<Group>& group);
-  bool has_mfield() const { return mfield_enabled_; }
+  void parse_mfield(const char** param, int num_param, const std::vector<Group>& group)
+  {
+    magnetic_field_.parse(param, num_param, group);
+  }
+  bool has_mfield() const { return magnetic_field_.enabled(); }
 
   // Zeroes the given arrays and evaluates one potential alone into them. The positions and the
   // float box are read as they are.
@@ -125,13 +129,7 @@ private:
   double temperature = 0;
   double delta_T;
   std::vector<std::unique_ptr<Potential>> potentials;
-  int mfield_group_method_ = 0;
-  int mfield_group_id_ = 0;
-  bool mfield_use_region_ = false;
-  double mfield_region_[6] = {};
-  bool mfield_enabled_ = false;
-  double mfield_[3] = {}; // eV/muB
-  int number_of_atoms_ = -1;
+  Spin_Magnetic_Field magnetic_field_;
   bool has_spin_potential_ = false;
   bool is_fcp = false;
   bool has_non_nep = false;

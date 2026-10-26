@@ -22,8 +22,10 @@ file(GLOB GPUMD_SOURCES
     src/minimize/*.cu
     src/phonon/*.cu
     src/integrate/*.cu
+    src/integrate/spin/*.cu
     src/mc/*.cu
     src/force/*.cu
+    src/force/*/*.cu
     src/measure/*.cu
     src/model/*.cu
     src/utilities/*.cu)

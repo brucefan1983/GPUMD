@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NVT NHC endpoint restart acceptance on one and four allocated GPUs."""
+"""Spin lattice NHC restart and ordinary-driver isolation acceptance on one and four allocated GPUs."""
 import argparse
 import json
 import os
@@ -73,6 +73,17 @@ def main():
     for name,ens,model in cases:
         for g in (1,4):
             whole=run(f'{name}-whole-g{g}',g,ens,model=model)
+            if 'glsd' not in ens:
+                assert metadata(whole/'restart.xyz') == (None, None)
+                old=run(f'{name}-old-g{g}',g,ens,model=model,old=True)
+                data={'forward_old_new':errors(frames(old/'state.xyz'),frames(whole/'state.xyz'))}
+                check(data['forward_old_new'])
+                legacy=run(f'{name}-legacy-g{g}',g,ens,3,3,old/'restart.xyz',model)
+                assert metadata(legacy/'restart.xyz') == (None, None)
+                assert 'Restored NVT NHC' not in (legacy/'run.log').read_text()
+                assert abs(frames(legacy/'state.xyz')[0]['time'][0]-.1) < 1e-7
+                record(name+f'-g{g}',data)
+                continue
             hs,ht=metadata(whole/'restart.xyz');assert hs[1]==43 and hs[2]==80 and len(hs)==28
             assert abs(ht-43*.1/10.18051)<1e-12
             resume=run(f'{name}-resume-g{g}',g,ens,37,37,whole/'restart.xyz',model)
@@ -92,6 +103,9 @@ def main():
             if name in ('FeT','ramp','plain'):
                 old=run(f'{name}-old-g{g}',g,ens,model=model,old=True)
                 data['forward_old_new']=errors(frames(old/'state.xyz'),left);check(data['forward_old_new'])
+                legacy=run(f'{name}-old-checkpoint-g{g}',g,ens,37,37,old/'restart.xyz',model)
+                data['old_checkpoint_resume']=errors(frames(old/'state.xyz')[43:],frames(legacy/'state.xyz'))
+                check(data['old_checkpoint_resume'])
                 if g==4:
                     repeat=run(f'{name}-old-repeat-g{g}',g,ens,model=model,old=True)
                     data['old_repeat']=errors(frames(old/'state.xyz'),frames(repeat/'state.xyz'));check(data['old_repeat'])

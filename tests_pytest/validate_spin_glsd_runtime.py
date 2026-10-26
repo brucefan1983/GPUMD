@@ -232,8 +232,8 @@ def main():
         assert np.max(np.abs(var/target-1)) < 6*np.sqrt(2/len(values)),var
         record(f'diffusion-statistics-g{g}',{'samples':len(values),'target_variance':target,
                'mean':mean.tolist(),'variance':var.tolist()})
-    # Existing lattice thermostat/barostat states are not serialized. Verify
-    # restart usability without claiming exact coupled trajectory continuation.
+    # Smoke-check coupled restart usability here. Stepwise endpoint continuity
+    # is covered by validate_nhc_restart.py and validate_mttk_restart.py.
     for name,ens in (
         ('coupled',f'nvt_glsd 300 300 100 {damping(10)} seed 731'),
         ('npt',f'npt_glsd temp 300 300 iso 0 0 tperiod 100 pperiod 1000 {damping(10)} seed 731')):
