@@ -107,7 +107,6 @@ NEP_Compile_Config make_compile_config(
 }
 } // namespace
 
-
 void NEP::initialize_compiled_kernel(const NEP_Potential_Parameters& para)
 {
   if (para.nep_compile && para.prediction == 0) {
