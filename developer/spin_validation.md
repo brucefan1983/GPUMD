@@ -41,6 +41,22 @@ and conflicting selectors must fail. Training examples use `spin_version 1`.
 Do not regenerate expected values with the candidate implementation when fixing
 a test.
 
+## Integration temperature contract
+
+After building `gpumd`, link this driver probe against its objects, excluding
+`main_gpumd/main.o`. It checks that the initial temperature cache stays fixed,
+while the per-step lattice and Spin targets follow the ramp. It also checks a
+non-temperature-driving ensemble with an unusable base target.
+
+```sh
+objects=$(find src/main_gpumd src/minimize src/phonon src/integrate src/mc \
+  src/force src/measure src/model src/utilities -name '*.cu' \
+  ! -path 'src/main_gpumd/main.cu' | sed 's/\.cu$/.o/')
+nvcc -std=c++14 -O2 -arch=sm_70 -Isrc tests_pytest/integrate_temperature.cu \
+  $objects -lcublas -lcusolver -lcufft -lpthread -o "$RESULTS/integrate_temperature"
+"$RESULTS/integrate_temperature"
+```
+
 ## Training and multiple GPUs
 
 The following self-contained training checks generate their small datasets in

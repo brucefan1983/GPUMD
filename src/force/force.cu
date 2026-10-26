@@ -643,7 +643,7 @@ void Force::compute(
 
 }
 
-void Force::compute(
+void Force::compute_spin(
   Box& box,
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
@@ -651,8 +651,6 @@ void Force::compute(
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>&,
-  GPU_Vector<double>&,
   GPU_Vector<double>& spin_per_atom,
   GPU_Vector<double>& mforce_per_atom,
   int* position_image)

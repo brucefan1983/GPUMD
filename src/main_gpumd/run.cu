@@ -28,6 +28,7 @@ Run simulation according to the inputs in the run.in file.
 #include "phonon/hessian.cuh"
 #include "replicate.cuh"
 #include "run.cuh"
+#include "integrate/spin/step.cuh"
 #include "utilities/error.cuh"
 #include "utilities/compact_nep.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -200,28 +201,6 @@ void Run::execute_run_in(const RunInput& run_input)
 
 }
 
-static __global__ void gpu_form_force_delta(
-  const int size,
-  const double* force_with_modifiers,
-  double* base_force)
-{
-  const int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index < size) {
-    base_force[index] = force_with_modifiers[index] - base_force[index];
-  }
-}
-
-static __global__ void gpu_add_force_delta(
-  const int size,
-  const double* force_delta,
-  double* force)
-{
-  const int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index < size) {
-    force[index] += force_delta[index];
-  }
-}
-
 void Run::compute_force()
 {
   if (is_pimd(integrate.get_type())) { // PIMD
@@ -242,7 +221,7 @@ void Run::compute_force()
       if (!atom.has_spin) {
         PRINT_INPUT_ERROR("NEP_Spin requires spin:R:3 in model.xyz.");
       }
-      force.compute(
+      force.compute_spin(
         box,
         atom.position_per_atom,
         atom.type,
@@ -250,8 +229,6 @@ void Run::compute_force()
         atom.potential_per_atom,
         atom.force_per_atom,
         atom.virial_per_atom,
-        atom.velocity_per_atom,
-        atom.mass,
         atom.spin_per_atom,
         atom.mforce_per_atom,
         atom.position_image.size() > 0 ? atom.position_image.data() : nullptr);
@@ -323,32 +300,9 @@ void Run::perform_a_run(const int number_of_steps)
     integrate.compute2(time_step, step, number_of_steps, group, box, atom, thermo, force);
     atom.update_unwrapped_position(box);
 
-    // The field above is at SIB's chord midpoint (GLSD: Euler predictor). The
-    // endpoint field is the starting field of the next predictor and the
-    // state consumed by measurements, so refresh the complete endpoint state.
-    // Preserve the already-sampled external-force increment instead of
-    // invoking stateful modifiers (random force/electron stopping) twice.
     if (integrate.use_spin_sib || integrate.use_spin_glsd) {
-      const int force_size = 3 * atom.number_of_atoms;
-      gpu_form_force_delta<<<(force_size - 1) / 128 + 1, 128>>>(
-        force_size,
-        atom.force_per_atom.data(),
-        spin_predictor_base_force.data());
-      GPU_CHECK_KERNEL
-      compute_force();
-      gpu_add_force_delta<<<(force_size - 1) / 128 + 1, 128>>>(
-        force_size,
-        spin_predictor_base_force.data(),
-        atom.force_per_atom.data());
-      GPU_CHECK_KERNEL
-      integrate.find_thermo(
-        box.get_volume(),
-        group,
-        atom.mass,
-        atom.potential_per_atom,
-        atom.velocity_per_atom,
-        atom.virial_per_atom,
-        thermo);
+      refresh_spin_endpoint(
+        force, integrate, box, atom, group, thermo, spin_predictor_base_force);
     }
 
     measure.end_of_step(

@@ -202,8 +202,8 @@ void Minimizer_Spin_FIRE::compute(
   GPU_CHECK_KERNEL
   auto evaluate = [&]() {
     if (relax_atoms_) lattice_position.copy_to_device(position_per_atom_temp_.data());
-    force.compute(working_box,position_per_atom_temp_,atom.type,group,atom.potential_per_atom,
-      atom.force_per_atom,atom.virial_per_atom,atom.velocity_per_atom,atom.mass,
+    force.compute_spin(working_box,position_per_atom_temp_,atom.type,group,atom.potential_per_atom,
+      atom.force_per_atom,atom.virial_per_atom,
       atom.spin_per_atom,atom.mforce_per_atom);
     CHECK(gpuSetDevice(0));
     project_force<<<blocks,BLOCK>>>(n,fixed_magnitude_,atom.spin_per_atom.data(),radius.data(),
@@ -367,8 +367,8 @@ void Minimizer_Spin_FIRE::compute(
     // Publish unwrapped optimization coordinates, then rebuild periodic images.
     // Physical atom/spin velocities have never been used as FIRE velocities.
     if (atom.position_image.size()) atom.position_image.fill(0);
-    force.compute(box,position,atom.type,group,atom.potential_per_atom,atom.force_per_atom,
-      atom.virial_per_atom,atom.velocity_per_atom,atom.mass,atom.spin_per_atom,atom.mforce_per_atom,
+    force.compute_spin(box,position,atom.type,group,atom.potential_per_atom,atom.force_per_atom,
+      atom.virial_per_atom,atom.spin_per_atom,atom.mforce_per_atom,
       atom.position_image.size() ? atom.position_image.data() : nullptr);
     CHECK(gpuSetDevice(0));
     atom.update_unwrapped_position(box);
