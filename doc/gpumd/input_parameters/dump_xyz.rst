@@ -29,7 +29,7 @@ If it is omitted, data for the whole system will be output.
 :attr:`single` (the default) writes nine significant digits, which is enough to recover a single-precision value exactly.
 :attr:`double` writes 17 significant digits, which is enough to recover a double-precision value exactly.
 
-* Then one can write the properties to be output, and the allowed properties include: :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, :attr:`charge`, :attr:`bec`, :attr:`group_labels`, and :attr:`unwrapped_position`.
+* Then one can write the properties to be output, and the allowed properties include: :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, :attr:`charge`, :attr:`bec`, :attr:`group_labels`, :attr:`spin`, :attr:`mforce`, :attr:`spin_velocity`, and :attr:`unwrapped_position`.
 
 The :attr:`group_labels` property writes one integer column per grouping method, holding the label of the group each atom belongs to.
 
@@ -63,3 +63,9 @@ Caveats
 * For qNEP models, the charge values dumped out are predicted by the qNEP models.
   For other models, the charge values are those specified in :attr:`model.xyz` via :attr:`charge:R:1`.
 * The Born effective charge (:term:`BEC`) is only meaningful for a qNEP model trained with target :term:`BEC`.
+* ``spin`` and ``mforce`` are three-component vectors available when
+  ``model.xyz`` contains ``spin:R:3``. ``spin_velocity`` additionally requires
+  an initialized ``spin_vel:R:3`` property.
+* The per-atom ``virial`` property contains all nine row-major components
+  ``xx xy xz yx yy yz zx zy zz``. NEP_Spin does not symmetrize this per-atom
+  tensor.

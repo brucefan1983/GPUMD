@@ -23,10 +23,12 @@ The driver class for minimizers.
 #include "minimizer_fire.cuh"
 #include "minimizer_fire_box_change.cuh"
 #include "minimizer_sd.cuh"
+#include "minimizer_spin_fire.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <memory>
+#include <cmath>
 
 void Minimize::parse_minimize(
   const std::vector<std::string>& tokens,
@@ -38,6 +40,43 @@ void Minimize::parse_minimize(
   std::vector<Group>& group)
 {
   const int num_param = tokens.size();
+  if (num_param > 1 && tokens[1] == "spin_fire") {
+    double tolerance;
+    int steps, variable_magnitude, box_change=0, hydrostatic_strain=0;
+    // Omitting optional flags retains the spin-only shorthand.
+    int fixed_atoms = 1;
+    if (num_param < 5 || num_param > 8)
+      PRINT_INPUT_ERROR("minimize spin_fire requires <tolerance> <max_steps> <variable_magnitude: 0|1> [fixed_atoms: 0|1 [box_change: 0|1 [hydrostatic_strain: 0|1]]].");
+    if (!is_valid_real(tokens[2], &tolerance) || !std::isfinite(tolerance) || tolerance <= 0)
+      PRINT_INPUT_ERROR("Spin FIRE tolerance must be finite and positive.");
+    if (!is_valid_int(tokens[3], &steps) || steps <= 0)
+      PRINT_INPUT_ERROR("Spin FIRE max_steps must be a positive integer.");
+    if (!is_valid_int(tokens[4], &variable_magnitude) ||
+        (variable_magnitude != 0 && variable_magnitude != 1))
+      PRINT_INPUT_ERROR("Spin FIRE variable_magnitude must be 0 (fixed) or 1 (variable).");
+    if (!force.has_spin_potential() || !atom.has_spin)
+      PRINT_INPUT_ERROR("Spin FIRE requires a Spin potential and spin:R:3 on every atom.");
+    if (num_param >= 6 && (!is_valid_int(tokens[5], &fixed_atoms) ||
+                          (fixed_atoms != 0 && fixed_atoms != 1)))
+      PRINT_INPUT_ERROR("Spin FIRE fixed_atoms must be 0 or 1.");
+    if (num_param >= 7 && (!is_valid_int(tokens[6], &box_change) || (box_change != 0 && box_change != 1)))
+      PRINT_INPUT_ERROR("Spin FIRE box_change must be 0 or 1.");
+    if (num_param == 8 && (!is_valid_int(tokens[7], &hydrostatic_strain) ||
+                          (hydrostatic_strain != 0 && hydrostatic_strain != 1)))
+      PRINT_INPUT_ERROR("Spin FIRE hydrostatic_strain must be 0 or 1.");
+    if (fixed_atoms && box_change)
+      PRINT_INPUT_ERROR("Spin FIRE fixed_atoms = 1 requires box_change = 0.");
+    if (hydrostatic_strain && !box_change)
+      PRINT_INPUT_ERROR("Spin FIRE hydrostatic_strain requires box_change = 1.");
+    if (box_change && !(box.pbc_x && box.pbc_y && box.pbc_z))
+      PRINT_INPUT_ERROR("Spin FIRE box_change requires periodic boundaries in all directions.");
+    if (!fixed_atoms && fixed_group >= 0)
+      PRINT_INPUT_ERROR("Joint Spin FIRE does not support fix groups.");
+    Minimizer_Spin_FIRE minimizer(atom.number_of_atoms, steps, tolerance,
+      variable_magnitude == 0, !fixed_atoms, box_change, hydrostatic_strain);
+    minimizer.compute(force, box, atom, atom.position_per_atom, group);
+    return;
+  }
   int minimizer_type = 0;
   int number_of_steps = 0;
   double force_tolerance = 0.0;

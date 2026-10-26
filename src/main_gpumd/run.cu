@@ -28,6 +28,7 @@ Run simulation according to the inputs in the run.in file.
 #include "phonon/hessian.cuh"
 #include "replicate.cuh"
 #include "run.cuh"
+#include "integrate/spin/step.cuh"
 #include "utilities/error.cuh"
 #include "utilities/compact_nep.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -202,7 +203,7 @@ void Run::execute_run_in(const RunInput& run_input)
 
 void Run::compute_force()
 {
-  if (is_pimd(integrate.get_type())) {
+  if (is_pimd(integrate.get_type())) { // PIMD
     for (int k = 0; k < integrate.get_number_of_beads(); ++k) {
       force.compute(
         box,
@@ -216,23 +217,52 @@ void Run::compute_force()
         atom.mass);
     }
   } else {
-    force.compute(
-      box,
-      atom.position_per_atom,
-      atom.type,
-      group,
-      atom.potential_per_atom,
-      atom.force_per_atom,
-      atom.virial_per_atom,
-      atom.velocity_per_atom,
-      atom.mass,
-      atom.position_image.size() > 0 ? atom.position_image.data() : nullptr);
+    if (force.has_spin_potential()) {
+      if (!atom.has_spin) {
+        PRINT_INPUT_ERROR("NEP_Spin requires spin:R:3 in model.xyz.");
+      }
+      force.compute_spin(
+        box,
+        atom.position_per_atom,
+        atom.type,
+        group,
+        atom.potential_per_atom,
+        atom.force_per_atom,
+        atom.virial_per_atom,
+        atom.spin_per_atom,
+        atom.mforce_per_atom,
+        atom.position_image.size() > 0 ? atom.position_image.data() : nullptr);
+    } else {
+      force.compute(
+        box,
+        atom.position_per_atom,
+        atom.type,
+        group,
+        atom.potential_per_atom,
+        atom.force_per_atom,
+        atom.virial_per_atom,
+        atom.velocity_per_atom,
+        atom.mass,
+        atom.position_image.size() > 0 ? atom.position_image.data() : nullptr);
+    }
   }
 }
 
 void Run::perform_a_run(const int number_of_steps)
 {
+  if (force.has_mfield() && (!force.has_spin_potential() || !atom.has_spin)) {
+    PRINT_INPUT_ERROR("add_mfield requires a Spin potential and spin:R:3.");
+  }
+  if ((integrate.use_spin_tspin || integrate.use_spin_sib || integrate.use_spin_glsd) &&
+      (!force.has_spin_potential() || !atom.has_spin)) {
+    PRINT_INPUT_ERROR("A spin ensemble requires a Spin potential and spin:R:3 in model.xyz.");
+  }
+  integrate.restore_spin_time(atom, global_time);
   integrate.initialize(time_step, atom, box, group);
+  GPU_Vector<double> spin_predictor_base_force;
+  if (integrate.use_spin_sib || integrate.use_spin_glsd) {
+    spin_predictor_base_force.resize(3 * atom.number_of_atoms);
+  }
   measure.pre_run(number_of_steps, time_step, integrate, group, atom, box, force);
 
   // setup force for the first integrate step
@@ -260,12 +290,20 @@ void Run::perform_a_run(const int number_of_steps)
 
     measure.pre_force(step, time_step, integrate, group, atom, box, force);
     compute_force();
+    if (integrate.use_spin_sib || integrate.use_spin_glsd) {
+      spin_predictor_base_force.copy_from_device(atom.force_per_atom.data());
+    }
 
     atom.update_unwrapped_position(box);
     measure.post_force(step, time_step, integrate, group, atom, box, force);
 
     integrate.compute2(time_step, step, number_of_steps, group, box, atom, thermo, force);
     atom.update_unwrapped_position(box);
+
+    if (integrate.use_spin_sib || integrate.use_spin_glsd) {
+      refresh_spin_endpoint(
+        force, integrate, box, atom, group, thermo, spin_predictor_base_force);
+    }
 
     measure.end_of_step(
       number_of_steps,
@@ -313,6 +351,10 @@ void Run::parse_one_keyword(
     PRINT_INPUT_ERROR("replicate must be the first effective command.");
   }
 
+  for (const char* unsupported : {"dump_observer", "compute_hac", "compute_hnemd", "compute_hnemdec",
+       "compute_shc", "compute_gkma", "compute_hnema", "deform", "compute_lsqt"}) {
+    if (tokens[0] == unsupported) mark_spin_unsupported(unsupported);
+  }
   const int num_param = tokens.size();
   const int max_num_param = 32;
   if (num_param > max_num_param)
@@ -324,7 +366,12 @@ void Run::parse_one_keyword(
 
   if (tokens[0] == "potential") {
     force.parse_potential(tokens, box, atom.type.size(), run_input);
+    if (force.has_spin_potential() && !spin_unsupported_command.empty()) {
+      mark_spin_unsupported(spin_unsupported_command.c_str());
+    }
   } else if (tokens[0] == "minimize") {
+    if (tokens.size() < 2 || tokens[1] != "spin_fire")
+      mark_spin_unsupported(tokens[0].c_str());
     Minimize minimize;
     minimize.parse_minimize(
       tokens,
@@ -335,6 +382,7 @@ void Run::parse_one_keyword(
       atom,
       group);
   } else if (tokens[0] == "compute_phonon") {
+    mark_spin_unsupported(tokens[0].c_str());
     Hessian hessian;
     hessian.parse(tokens);
     if (!has_replicate_) {
@@ -342,10 +390,12 @@ void Run::parse_one_keyword(
     }
     hessian.compute(force, box, atom, group, replicate_size_);
   } else if (tokens[0] == "compute_cohesive") {
+    mark_spin_unsupported(tokens[0].c_str());
     Cohesive cohesive;
     cohesive.parse(tokens, 0);
     cohesive.compute(box, atom, group, force);
   } else if (tokens[0] == "compute_elastic") {
+    mark_spin_unsupported(tokens[0].c_str());
     Cohesive cohesive;
     cohesive.parse(tokens, 1);
     cohesive.compute(box, atom, group, force);
@@ -354,7 +404,17 @@ void Run::parse_one_keyword(
   } else if (tokens[0] == "velocity") {
     parse_velocity(tokens);
   } else if (tokens[0] == "ensemble") {
+    if (tokens.size() < 2 || (tokens[1] != "nve" && tokens[1] != "nvt_nhc" &&
+        tokens[1] != "nve_sib" && tokens[1] != "nvt_sib" && tokens[1] != "npt_sib" &&
+        tokens[1] != "nve_glsd" && tokens[1] != "nvt_glsd" && tokens[1] != "npt_glsd" &&
+        tokens[1] != "nvt_tspin" && tokens[1] != "npt_tspin")) {
+      mark_spin_unsupported("ensemble");
+    }
     integrate.parse_ensemble(tokens, atom, box, group);
+  } else if (tokens[0] == "add_mfield") {
+    std::vector<const char*> fields;
+    for (const auto& token : tokens) fields.push_back(token.c_str());
+    force.parse_mfield(fields.data(), fields.size(), group);
   } else if (tokens[0] == "time_step") {
     parse_time_step(tokens);
   } else if (tokens[0] == "correct_velocity") {
@@ -364,11 +424,13 @@ void Run::parse_one_keyword(
   } else if (tokens[0] == "move") {
     integrate.parse_move(tokens, group);
   } else if (tokens[0] == "kspace") {
+    mark_spin_unsupported(tokens[0].c_str());
     if (has_seen_kspace_command) {
       PRINT_INPUT_ERROR("kspace can only appear once.");
     }
     has_seen_kspace_command = true;
   } else if (tokens[0] == "dftd3") {
+    mark_spin_unsupported(tokens[0].c_str());
     if (has_seen_dftd3_command) {
       PRINT_INPUT_ERROR("dftd3 can only appear once.");
     }
@@ -385,6 +447,16 @@ void Run::parse_one_keyword(
                force,
                first_potential_filename_)) {
     PRINT_KEYWORD_ERROR(tokens[0].c_str());
+  }
+}
+
+void Run::mark_spin_unsupported(const char* command)
+{
+  if (force.has_spin_potential()) {
+    PRINT_INPUT_ERROR((std::string("NEP_Spin does not support command ") + command + ".").c_str());
+  }
+  if (spin_unsupported_command.empty()) {
+    spin_unsupported_command = command;
   }
 }
 

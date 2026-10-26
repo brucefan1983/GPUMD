@@ -32,6 +32,19 @@ Potential::~Potential(void)
   // nothing
 }
 
+void Potential::compute(
+  Box&,
+  const GPU_Vector<int>&,
+  const GPU_Vector<double>&,
+  const GPU_Vector<double>&,
+  GPU_Vector<double>&,
+  GPU_Vector<double>&,
+  GPU_Vector<double>&,
+  GPU_Vector<double>&)
+{
+  PRINT_INPUT_ERROR("This potential does not support spin.");
+}
+
 static __global__ void gpu_find_force_many_body(
   const int number_of_particles,
   const int N1,

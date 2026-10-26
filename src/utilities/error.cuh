@@ -79,7 +79,7 @@ void print_line_1(void);
 void print_line_2(void);
 FILE* my_fopen(const char* filename, const char* mode);
 std::vector<std::string> get_tokens(const std::string& line);
-std::vector<std::string> get_tokens(std::ifstream& input);
+std::vector<std::string> get_tokens(std::istream& input);
 std::vector<std::string> get_tokens_without_comments(const std::string& line);
 std::vector<std::string> get_tokens_without_comments(std::ifstream& input);
 std::vector<std::string> get_tokens_without_unwanted_spaces(std::ifstream& input);
