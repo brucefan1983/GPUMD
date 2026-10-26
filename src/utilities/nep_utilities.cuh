@@ -168,12 +168,14 @@ __constant__ float COVALENT_RADIUS[94] = {
 const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 const int MAX_NUM_N = 17;                // basis_size_radial+1 = 16+1
 const int MAX_DIM = 103;                 // 13 + 9 * 10
+const int MAX_DIM_SPIN = 199;            // max structural 103 + max Spin3 96
 const int MAX_DIM_ANGULAR = 90;          // 9 * 10
 
+template <typename Real>
 static __device__ __forceinline__ void
-complex_product(const float a, const float b, float& real_part, float& imag_part)
+complex_product(const Real a, const Real b, Real& real_part, Real& imag_part)
 {
-  const float real_temp = real_part;
+  const Real real_temp = real_part;
   real_part = a * real_temp - b * imag_part;
   imag_part = a * imag_part + b * real_temp;
 }
@@ -569,25 +571,26 @@ static __device__ __host__ __forceinline__ void find_fn_and_fnp(
   }
 }
 
+template <typename Real>
 static __device__ __forceinline__ void get_f12_4body(
-  const float d12,
-  const float d12inv,
-  const float fn,
-  const float fnp,
-  const float Fp,
-  const float* s,
-  const float* r12,
-  float* f12)
+  const Real d12,
+  const Real d12inv,
+  const Real fn,
+  const Real fnp,
+  const Real Fp,
+  const Real* s,
+  const Real* r12,
+  Real* f12)
 {
-  float fn_factor = Fp * fn;
-  float fnp_factor = Fp * fnp * d12inv;
-  float y20 = (3.0f * r12[2] * r12[2] - d12 * d12);
+  Real fn_factor = Fp * fn;
+  Real fnp_factor = Fp * fnp * d12inv;
+  Real y20 = (3.0f * r12[2] * r12[2] - d12 * d12);
 
   // derivative wrt s[0]
-  float tmp0 = C4B[0] * 3.0f * s[0] * s[0] + C4B[1] * (s[1] * s[1] + s[2] * s[2]) +
+  Real tmp0 = C4B[0] * 3.0f * s[0] * s[0] + C4B[1] * (s[1] * s[1] + s[2] * s[2]) +
                C4B[2] * (s[3] * s[3] + s[4] * s[4]);
-  float tmp1 = tmp0 * y20 * fnp_factor;
-  float tmp2 = tmp0 * fn_factor;
+  Real tmp1 = tmp0 * y20 * fnp_factor;
+  Real tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0] - tmp2 * 2.0f * r12[0];
   f12[1] += tmp1 * r12[1] - tmp2 * 2.0f * r12[1];
   f12[2] += tmp1 * r12[2] + tmp2 * 4.0f * r12[2];
@@ -1271,14 +1274,14 @@ static __device__ __forceinline__ void get_f12_4body_134(
   f12[2] += tmp1 * r12[2];
 }
 
-template <int L, int num_abc = NUM_OF_ABC>
+template <int L, int num_abc = NUM_OF_ABC, typename Real>
 static __device__ __forceinline__ void calculate_s_one(
-  const int n, const int n_max_angular_plus_1, const float* Fp, const float* sum_fxyz, float* s)
+  const int n, const int n_max_angular_plus_1, const float* Fp, const float* sum_fxyz, Real* s)
 {
   const int L_minus_1 = L - 1;
   const int L_twice_plus_1 = 2 * L + 1;
   const int L_square_minus_1 = L * L - 1;
-  float Fp_factor = 2.0f * Fp[L_minus_1 * n_max_angular_plus_1 + n];
+  Real Fp_factor = 2.0f * Fp[L_minus_1 * n_max_angular_plus_1 + n];
   s[0] = sum_fxyz[n * num_abc + L_square_minus_1] * C3B[L_square_minus_1] * Fp_factor;
   Fp_factor *= 2.0f;
   for (int k = 1; k < L_twice_plus_1; ++k) {
@@ -1286,28 +1289,28 @@ static __device__ __forceinline__ void calculate_s_one(
   }
 }
 
-template <int L>
+template <int L, typename Real>
 static __device__ __forceinline__ void accumulate_f12_one(
-  const float d12inv, const float fn, const float fnp, const float* s, const float* r12, float* f12)
+  const Real d12inv, const Real fn, const Real fnp, const Real* s, const Real* r12, Real* f12)
 {
-  const float dx[3] = {
+  const Real dx[3] = {
     (1.0f - r12[0] * r12[0]) * d12inv, -r12[0] * r12[1] * d12inv, -r12[0] * r12[2] * d12inv};
-  const float dy[3] = {
+  const Real dy[3] = {
     -r12[0] * r12[1] * d12inv, (1.0f - r12[1] * r12[1]) * d12inv, -r12[1] * r12[2] * d12inv};
-  const float dz[3] = {
+  const Real dz[3] = {
     -r12[0] * r12[2] * d12inv, -r12[1] * r12[2] * d12inv, (1.0f - r12[2] * r12[2]) * d12inv};
 
-  float z_pow[L + 1] = {1.0f};
+  Real z_pow[L + 1] = {1.0f};
   for (int n = 1; n <= L; ++n) {
     z_pow[n] = r12[2] * z_pow[n - 1];
   }
 
-  float real_part = 1.0f;
-  float imag_part = 0.0f;
+  Real real_part = 1.0f;
+  Real imag_part = 0.0f;
   for (int n1 = 0; n1 <= L; ++n1) {
     int n2_start = (L + n1) % 2 == 0 ? 0 : 1;
-    float z_factor = 0.0f;
-    float dz_factor = 0.0f;
+    Real z_factor = 0.0f;
+    Real dz_factor = 0.0f;
     for (int n2 = n2_start; n2 <= L - n1; n2 += 2) {
       if (L == 1) {
         z_factor += Z_COEFFICIENT_1[n1][n2] * z_pow[n2];
@@ -1363,16 +1366,16 @@ static __device__ __forceinline__ void accumulate_f12_one(
         f12[d] += s[0] * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
       }
     } else {
-      float real_part_n1 = n1 * real_part;
-      float imag_part_n1 = n1 * imag_part;
+      Real real_part_n1 = n1 * real_part;
+      Real imag_part_n1 = n1 * imag_part;
       for (int d = 0; d < 3; ++d) {
-        float real_part_dx = dx[d];
-        float imag_part_dy = dy[d];
+        Real real_part_dx = dx[d];
+        Real imag_part_dy = dy[d];
         complex_product(real_part_n1, imag_part_n1, real_part_dx, imag_part_dy);
         f12[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor * fn;
       }
       complex_product(r12[0], r12[1], real_part, imag_part);
-      const float xy_temp = s[2 * n1 - 1] * real_part + s[2 * n1 - 0] * imag_part;
+      const Real xy_temp = s[2 * n1 - 1] * real_part + s[2 * n1 - 0] * imag_part;
       for (int d = 0; d < 3; ++d) {
         f12[d] += xy_temp * (z_factor * fnp * r12[d] + fn * dz_factor * dz[d]);
       }

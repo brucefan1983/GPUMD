@@ -14,8 +14,10 @@
 */
 
 #pragma once
+#include "integrate/spin/restart.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <string>
+#include <cstdint>
 #include <vector>
 
 class Box;
@@ -30,6 +32,8 @@ public:
   std::vector<float> cpu_charge; // float is sufficient for charge
   std::vector<double> cpu_position_per_atom;
   std::vector<double> cpu_velocity_per_atom;
+  std::vector<double> cpu_spin_per_atom;
+  std::vector<double> cpu_spin_velocity_per_atom;
   std::vector<std::string> cpu_atom_symbol;
   GPU_Vector<int> type;                  // per-atom type (1 component)
   GPU_Vector<double> mass;               // per-atom mass (1 component)
@@ -38,10 +42,17 @@ public:
   GPU_Vector<int> position_image;        // per-atom periodic image (3 components)
   GPU_Vector<double> unwrapped_position; // unwrapped per-atom position (3 components)
   GPU_Vector<double> velocity_per_atom;  // per-atom velocity (3 components)
+  GPU_Vector<double> spin_per_atom;      // Cartesian magnetic moment (3 components)
+  GPU_Vector<double> spin_velocity_per_atom; // spin velocity (3 components)
+  GPU_Vector<double> mforce_per_atom;    // -dE/dS (3 components)
   GPU_Vector<double> force_per_atom;     // per-atom force (3 components)
   GPU_Vector<double> heat_per_atom;      // per-atom heat current (5 components)
   GPU_Vector<double> virial_per_atom;    // per-atom virial (9 components)
   GPU_Vector<double> potential_per_atom; // per-atom potential energy (1 component)
+  std::uint64_t spin_glsd_step = 0, spin_glsd_seed = 0; // next GLSD noise counter
+  Spin_Lattice_Restart spin_lattice_restart;
+  bool has_spin = false;
+  bool spin_velocity_initialized = false;
   // for beads in PIMD
   int number_of_beads = 0;
   std::vector<GPU_Vector<double>> position_beads;
