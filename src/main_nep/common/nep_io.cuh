@@ -27,7 +27,8 @@ bool read_nep_restart(
   const char* filename,
   const NEP_Parameters& para,
   std::vector<float>& mu,
-  std::vector<float>& sigma);
+  std::vector<float>& sigma,
+  std::vector<double>* energy_reference = nullptr);
 
 void read_nep_foundation_restart(
   const NEP_Parameters& para, std::vector<float>& mu, std::vector<float>& sigma);
@@ -44,5 +45,11 @@ void read_nep_prediction_zbl(NEP_Parameters& para);
 
 void write_nep_model(
   FILE* file, NEP_Parameters& para, const float* parameters, int max_radial, int max_angular);
+
+void write_nep_header(
+  FILE* file, const NEP_Parameters& para, int max_radial, int max_angular);
+
+void write_nep_model_parameters(
+  FILE* file, const NEP_Parameters& para, const float* parameters);
 
 void check_existing_nep_model(NEP_Parameters& para);
