@@ -370,7 +370,8 @@ void Run::parse_one_keyword(
       mark_spin_unsupported(spin_unsupported_command.c_str());
     }
   } else if (tokens[0] == "minimize") {
-    mark_spin_unsupported(tokens[0].c_str());
+    if (tokens.size() < 2 || tokens[1] != "spin_fire")
+      mark_spin_unsupported(tokens[0].c_str());
     Minimize minimize;
     minimize.parse_minimize(
       tokens,

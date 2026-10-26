@@ -20,7 +20,8 @@ example targets V100:
 make -C src -j8 CUDA_ARCH=-arch=sm_70 gpumd nep
 python tests_pytest/validate_nep_spin3_runtime.py
 python tests_pytest/validate_nep_spin3_runtime.py --block-format
-python -m pytest --noconftest -q tests_pytest/test_spin_sib.py tests_pytest/test_spin_tspin.py
+python -m pytest --noconftest -q tests_pytest/test_spin_fire.py \
+  tests_pytest/test_spin_sib.py tests_pytest/test_spin_tspin.py
 python tests_pytest/validate_spin_tspin_runtime.py
 ```
 
