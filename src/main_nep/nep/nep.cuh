@@ -21,7 +21,7 @@
 #include "main_nep/common/nep_batch_data.cuh"
 #include "main_nep/common/energy_difference.cuh"
 #include "main_nep/common/nep_compile.cuh"
-#include "nep_evaluate.cuh"
+#include "main_nep/common/nep_evaluate.cuh"
 #include "main_nep/common/nep_common.cuh"
 #include <memory>
 

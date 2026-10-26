@@ -39,6 +39,16 @@ public:
     GPU_Vector<double>& virial) = 0;
 
   virtual void compute(
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    const GPU_Vector<double>& spin,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial,
+    GPU_Vector<double>& mforce);
+
+  virtual void compute(
     const float /* temperature */,
     Box& /* box */,
     const GPU_Vector<int>& /* type */,

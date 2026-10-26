@@ -22,6 +22,7 @@ file(GLOB GPUMD_SOURCES
     src/minimize/*.cu
     src/phonon/*.cu
     src/integrate/*.cu
+    src/integrate/spin/*.cu
     src/mc/*.cu
     src/force/*.cu
     src/force/*/*.cu
@@ -30,7 +31,7 @@ file(GLOB GPUMD_SOURCES
     src/utilities/*.cu)
 add_executable(gpumd ${GPUMD_SOURCES})
 target_include_directories(gpumd PRIVATE src)
-target_link_libraries(gpumd PRIVATE CUDA::cublas CUDA::cusolver CUDA::cufft)
+target_link_libraries(gpumd PRIVATE CUDA::cublas CUDA::cusolver CUDA::cufft Threads::Threads)
 
 # --- nep ---
 file(GLOB NEP_SOURCES

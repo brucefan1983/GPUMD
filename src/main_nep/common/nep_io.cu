@@ -137,7 +137,7 @@ static float read_nep_restart_value(std::istream& input, const std::string& file
 static void read_nep_restart_file(
   const std::string& filename, const NEP_Parameters& para, int num_types,
   std::vector<double>& reference, std::vector<float>* mu = nullptr,
-  std::vector<float>* sigma = nullptr)
+  std::vector<float>* sigma = nullptr, int expected_count = 0)
 {
   std::ifstream input(filename);
   if (!input.is_open()) {
@@ -163,7 +163,8 @@ static void read_nep_restart_file(
     (num_types * para.number_of_variables_ann_1 + para.global_parameters) * para.ann_count;
   const int num_radial_basis = (para.n_max_radial + 1) * (para.basis_size_radial + 1);
   const int num_angular_basis = (para.n_max_angular + 1) * (para.basis_size_angular + 1);
-  const int num_parameters = ann_size + (num_radial_basis + num_angular_basis) * num_types * num_types;
+  const int num_parameters = expected_count ? expected_count :
+    ann_size + (num_radial_basis + num_angular_basis) * num_types * num_types;
   if (!(input >> token >> count) || token != "parameters" || count != num_parameters) {
     PRINT_INPUT_ERROR((filename + ": invalid parameter count.").c_str());
   }
@@ -194,13 +195,19 @@ bool read_nep_restart(
   const char* filename,
   const NEP_Parameters& para,
   std::vector<float>& mu,
-  std::vector<float>& sigma)
+  std::vector<float>& sigma,
+  std::vector<double>* energy_reference)
 {
   if (!does_file_exist(filename)) {
     return false;
   }
   std::vector<double> reference;
+#ifdef USE_CJ
   read_nep_restart_file(filename, para, para.num_types, reference, &mu, &sigma);
+#else
+  read_nep_restart_file(filename, para, para.num_types, reference, &mu, &sigma, para.number_of_variables);
+#endif
+  if (energy_reference) *energy_reference = reference;
   return true;
 }
 
@@ -247,7 +254,7 @@ void read_nep_prediction_zbl(NEP_Parameters& para)
   }
 }
 
-static void write_nep_header(
+void write_nep_header(
   FILE* file, const NEP_Parameters& para, int max_radial, int max_angular)
 {
   fprintf(file, "nep %d", para.num_types);
@@ -354,6 +361,11 @@ void write_nep_model(
   CHECK(gpuSetDevice(0));
   para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
   write_nep_header(file, para, max_radial, max_angular);
+  write_nep_model_parameters(file, para, parameters);
+}
+
+void write_nep_model_parameters(FILE* file, const NEP_Parameters& para, const float* parameters)
+{
   const std::vector<float> values = get_nep_file_parameters(para, parameters);
   write_nep_block(file, "parameters", values.data(), values.size());
   write_nep_block(file, "q_scaler", para.q_scaler_cpu.data(), para.dim);

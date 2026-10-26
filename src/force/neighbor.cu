@@ -100,7 +100,9 @@ static __global__ void gpu_find_neighbor_ON1(
   const int ny,
   const int nz,
   const double rc_inv,
-  const float cutoff_square)
+  const float cutoff_square,
+  const int neighbor_capacity,
+  int* required_capacity)
 {
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   int count = 0;
@@ -153,16 +155,22 @@ static __global__ void gpu_find_neighbor_ON1(
               const float d2 = x12 * x12 + y12 * y12 + z12 * z12;
 
               if (d2 < cutoff_square) {
-                NL[static_cast<size_t>(N) * count++ + n1] = n2;
+                if (count < neighbor_capacity) {
+                  NL[static_cast<size_t>(N) * count + n1] = n2;
+                }
+                ++count;
               }
             }
           }
         }
       }
     }
-    NN[n1] = count;
+    NN[n1] = min(count, neighbor_capacity);
+    atomicMax(required_capacity, count);
   }
 }
+
+static __device__ int static_required_neighbor_capacity[1];
 
 void find_cell_list(
   const double rc,
@@ -325,6 +333,13 @@ void find_neighbor(
   find_cell_list(
     rc_cell_list, num_bins, box, position_per_atom, cell_count, cell_count_sum, cell_contents);
 
+  const int MN = NL.size() / NN.size();
+  int* gpu_required_capacity = nullptr;
+  CHECK(gpuGetSymbolAddress(
+    reinterpret_cast<void**>(&gpu_required_capacity), static_required_neighbor_capacity));
+  const int zero = 0;
+  CHECK(gpuMemcpy(gpu_required_capacity, &zero, sizeof(int), gpuMemcpyHostToDevice));
+
   gpu_find_neighbor_ON1<<<grid_size, block_size>>>(
     box,
     N,
@@ -343,10 +358,22 @@ void find_neighbor(
     num_bins[1],
     num_bins[2],
     rc_inv_cell_list,
-    rc * rc);
+    rc * rc,
+    MN,
+    gpu_required_capacity);
   GPU_CHECK_KERNEL
 
-  const int MN = NL.size() / NN.size();
+  int required_capacity = 0;
+  CHECK(gpuMemcpy(
+    &required_capacity, gpu_required_capacity, sizeof(int), gpuMemcpyDeviceToHost));
+  if (required_capacity > MN) {
+    printf(
+      "Neighbor capacity overflow: required %d slots but capacity is %d.\n",
+      required_capacity,
+      MN);
+    PRINT_INPUT_ERROR(
+      "Neighbor capacity is insufficient; no descriptor or force kernel was launched.");
+  }
   gpu_sort_neighbor_list<<<N, min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
   GPU_CHECK_KERNEL
 }
@@ -776,14 +803,15 @@ void Neighbor::find_neighbor_global(
 
   bool is_first_time = false;
 
-  if (x0.size() == 0) {
+  if (x0.size() != N) {
     is_first_time = true;
-    x0.resize(N);
-    y0.resize(N);
-    z0.resize(N);
+    x0.resize_with_capacity(N);
+    y0.resize_with_capacity(N);
+    z0.resize_with_capacity(N);
   }
 
-  if (is_first_time || check_atom_distance(box, x, y, z)) {
+  if (force_rebuild_ || is_first_time || check_atom_distance(box, x, y, z)) {
+    force_rebuild_ = false;
     find_neighbor(
       0,
       N,
@@ -833,13 +861,14 @@ void Neighbor::find_local_neighbor_from_global(
 
 void Neighbor::initialize(const double rc, const int num_atoms, const int num_neighbors)
 {
+  invalidate();
   const double rc_plus_skin = rc + skin;
-  const int MN = num_neighbors * rc_plus_skin * rc_plus_skin * rc_plus_skin / (rc * rc * rc);
-  NN.resize(num_atoms);
-  NL.resize(static_cast<size_t>(num_atoms) * MN);
-  cell_count.resize(num_atoms);
-  cell_count_sum.resize(num_atoms);
-  cell_contents.resize(num_atoms);
+  MN_global = num_neighbors * rc_plus_skin * rc_plus_skin * rc_plus_skin / (rc * rc * rc);
+  NN.resize_with_capacity(num_atoms);
+  NL.resize_with_capacity(static_cast<size_t>(num_atoms) * MN_global);
+  cell_count.resize_with_capacity(num_atoms);
+  cell_count_sum.resize_with_capacity(num_atoms);
+  cell_contents.resize_with_capacity(num_atoms);
 }
 
 double Neighbor::get_skin() const
@@ -923,4 +952,3 @@ void NeighborManager::check_cutoff(const double requested_cutoff) const
     PRINT_INPUT_ERROR("Requested neighbor cutoff exceeds the supported candidate cutoff.");
   }
 }
-

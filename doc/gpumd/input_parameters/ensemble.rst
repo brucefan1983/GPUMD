@@ -10,6 +10,8 @@ There are different categories of methods accessible via this keyword, which are
 
 * :ref:`"standard" ensembles <kw_ensemble_standard>`
 * :ref:`MTTK integrators <kw_ensemble_mttk>`
+* :ref:`TSPIN integrators for Spin potentials <kw_ensemble_tspin>`
+* :ref:`SIB integrators for Spin potentials <kw_ensemble_sib>`
 * :ref:`integrators for thermal conductivity simulations <kw_ensemble_heat>`
 * :ref:`integrators for path integral molecular dynamics simulations <kw_ensemble_pimd>`
 * :ref:`MSST integrator for simulating compressive shock wave <kw_ensemble_msst>`
@@ -22,7 +24,7 @@ There are different categories of methods accessible via this keyword, which are
 Units and suggested parameters
 ------------------------------
 
-The units of temperature and pressure for this keyword are K and GPa, respectively. 
+The units of temperature and pressure for this keyword are K and GPa, respectively.
 
 The temperature coupling constant :attr:`<T_coup>` means :math:`\tau_T/\Delta t`, where :math:`\tau_T` is the relaxation time of the thermostat and :math:`\Delta t` is the time step for integration.
 We require :math:`\tau_T/\Delta t \geq 1` and a good choice is :math:`\tau_T/\Delta t \approx 100`.

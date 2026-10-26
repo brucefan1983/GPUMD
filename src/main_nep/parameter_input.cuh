@@ -23,6 +23,7 @@ class ParameterInput
 public:
   ParameterInput();
   int model_type = 0;
+  int spin_version = 0; // zero means the Spin model was not selected
   int charge_mode = 0;
   int vdw = 0;
   int charge_vdw = 0;
