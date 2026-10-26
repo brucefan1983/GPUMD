@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
 }
 ''')
     binary = root / 'codec'
-    subprocess.run([compiler, '-std=c++14', '-I' + str(ROOT / 'src'), '-x', 'c++',
+    subprocess.run([compiler, '-std=c++14', '-pedantic-errors', '-I' + str(ROOT / 'src'), '-x', 'c++',
         str(main), str(ROOT / 'src/utilities/nep_spin_model_file.cu'),
         str(ROOT / 'src/utilities/nep_file.cu'), '-o', str(binary)], check=True)
     return binary
@@ -89,3 +89,13 @@ def test_reject_invalid_old_blocks(codec, tmp_path, edit):
     path.write_text(edit(block_model(legacy, legacy_name=True)))
     result = subprocess.run([codec, path], capture_output=True, text=True)
     assert result.returncode != 0
+
+
+def test_reject_flexible_zbl(codec, tmp_path):
+    legacy, _ = load_fixture('o3c2_uniform')
+    model = block_model(legacy).replace('model nep_spin\n', 'model nep_spin\nzbl 0 0\n')
+    path = tmp_path / 'flexible-zbl.nep'
+    path.write_text(model)
+    result = subprocess.run([codec, path], capture_output=True, text=True)
+    assert result.returncode != 0
+    assert 'NEP-spin does not support flexible ZBL' in result.stderr

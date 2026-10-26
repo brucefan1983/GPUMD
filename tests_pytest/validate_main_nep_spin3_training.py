@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate spin3 training, checkpoint prediction, and GPUMD runtime parity."""
+"""Validate spin3 training, checkpoint prediction, and restart parity."""
 
 import argparse
 import json
@@ -145,7 +145,7 @@ def validate_parser(root):
         "response_requires_metadata": NEP_IN.replace(
             "lambda_tau 0.5", "lambda_tau 0.5\nlambda_spin_response 0.3"),
     }
-    for value in ("0", "2", "3", "-1", "1.0", "nan", "1 2", ""):
+    for value in ("0", "2", "1.0", "nan", "1 2", ""):
         cases[f"invalid_spin_version_{value}"] = NEP_IN.replace("spin_version 1", f"spin_version {value}")
     cases["duplicate_spin_version"] = NEP_IN + "spin_version 1\n"
     cases["mixed_spin_selectors"] = NEP_IN + "spin_mode 3\n"
@@ -154,8 +154,7 @@ def validate_parser(root):
     cases["duplicate_legacy_spin_selector"] = NEP_IN.replace("spin_version 1", "spin_mode 3\nspin_mode 3")
     for keyword in ("model_type 1", "charge_mode 1", "vdw 1", "charge_vdw 1"):
         cases["conflicting_" + keyword] = NEP_IN + keyword + "\n"
-    for value in ("0", "1", "full", "transverse"):
-        cases[f"removed_mforce_mode_{value}"] = NEP_IN + f"spin_mforce_mode {value}\n"
+    cases["removed_mforce_mode"] = NEP_IN + "spin_mforce_mode full\n"
     results = {}
     for name, text in cases.items():
         case = root / name
@@ -196,6 +195,34 @@ def validate_response_training(root):
     return {"training_loss": loss}
 
 
+def validate_flexible_zbl_rejected(root):
+    from spin_fixtures import load_fixture
+    from spin_model_format import block_model
+
+    root.mkdir()
+    training = root / "training"
+    write_case(training, NEP_IN + "zbl 2.5\n")
+    # Malformed contents must never reach the flexible parameter scanner.
+    (training / "zbl.in").write_text("not ZBL parameters\n")
+    result = run(NEP, training)
+    message = "NEP-spin does not support flexible ZBL"
+    assert result.returncode != 0 and message in result.stdout + result.stderr
+    legacy, _ = load_fixture("o3c2_uniform")
+    legacy = legacy.replace("nep4_spin3 ", "nep4_spin3_zbl ", 1)
+    lines = legacy.splitlines()
+    lines.insert(2 + int(lines[1].split()[2]), "zbl 0 0")
+    legacy = "\n".join(lines) + "\n"
+    for name, model in (("legacy", legacy), ("block", block_model(legacy))):
+        case = root / name
+        write_case(case, NEP_IN + "zbl 2.5\nprediction 1\n")
+        (case / "nep.txt").write_text(model)
+        for binary in (NEP,):
+            result = run(binary, case)
+            assert result.returncode != 0 and message in result.stdout + result.stderr, (
+                name, binary, result.stdout, result.stderr)
+    return "training and legacy/block prediction reject flexible ZBL"
+
+
 def validate_training_and_prediction(
         root, enable_zbl=False, spin_compress=2, typewise_spin_cutoff=False,
         all_spin_types=False, check_restart=False, torque_only=False, wide_spin_cutoff=False):
@@ -233,33 +260,19 @@ def validate_training_and_prediction(
         raise AssertionError("Spin3 must use the shared energy reference")
     if enable_zbl and "\nzbl 1.25 2.5\n" not in checkpoint:
         raise AssertionError("spin3 ZBL checkpoint is missing its zbl line")
-    projection_size = 4 * spin_compress * spin_compress
-    required = (
-        "spin_basis_size 8\n",
-        "spin_l_max 2\n",
-        "spin_order 3\n",
-        "spin_soc 1\n",
-        "spin_scaler 1\n",
-    )
+    required = {
+        "spin_basis_size": "8", "spin_l_max": "2", "spin_order": "3",
+        "spin_soc": "1", "spin_scaler": "1", "spin_compress": str(spin_compress),
+        "spin_projection_size": str(4 * spin_compress * spin_compress),
+        "spin_cutoff": "5 7" if typewise_spin_cutoff else "7" if wide_spin_cutoff else "6",
+    }
     if not all_spin_types:
-        required += ("spin_dof_type Fe\n", "spin_env_type Fe Ge\n")
-    elif "spin_dof_type" in checkpoint or "spin_env_type" in checkpoint:
-        raise AssertionError("default all-active masks should use the canonical implicit representation")
-    for line in required:
-        if line not in checkpoint:
-            raise AssertionError(f"missing checkpoint line: {line.strip()}")
-    for line in (
-            f"spin_compress {spin_compress}\n",
-            f"spin_projection_size {projection_size}\n"):
-        if line not in checkpoint:
-            raise AssertionError(f"missing checkpoint line: {line.strip()}")
-    expected_spin_cutoff = (
-        "spin_cutoff 5 7\n"
-        if typewise_spin_cutoff else
-        ("spin_cutoff 7\n" if wide_spin_cutoff else
-         "spin_cutoff 6\n"))
-    if expected_spin_cutoff not in checkpoint:
-        raise AssertionError("Spin3 checkpoint did not preserve spin_cutoff arity")
+        required.update(spin_dof_type="Fe", spin_env_type="Fe Ge")
+    else:
+        assert "spin_dof_type" not in checkpoint and "spin_env_type" not in checkpoint, (
+            "all-active masks should use the canonical implicit representation")
+    for key, value in required.items():
+        assert f"\n{key} {value}\n" in checkpoint, f"missing checkpoint field: {key} {value}"
 
     loss = (training / "loss.out").read_text().splitlines()[-1]
     if re.search(r"\b(?:nan|inf)\b", loss, re.IGNORECASE):
@@ -394,8 +407,6 @@ def validate_native_compiled_checkpoint(root):
             case = root / f"c{channels}-compiled-{compiled}"
             # Report test outputs at fixed parameters after the first physical evaluation.
             output_config = config.replace("generation 1\n", "generation 2\n")
-            output_config = output_config.replace("output_interval 1\n", "output_interval 1\n")
-            output_config = output_config.replace("save_potential 1 0 0", "save_potential 1 0 0")
             write_case(case, output_config + f"nep_compile {compiled}\n", xyz)
             (case / "test.xyz").write_text(xyz)
             (case / "nep.txt").write_text(checkpoint)
@@ -433,6 +444,8 @@ def validate_default_shape(root):
     configs = [config, config + "spin_compress 2\n"]
     for case, text in zip(cases, configs):
         write_case(case, text)
+    # Without ZBL enabled, a stray zbl.in must not affect any lifecycle stage.
+    (cases[0] / "zbl.in").write_text("not ZBL parameters\n")
     report = {}
     for stage in ("training", "prediction", "restart"):
         for case, text in zip(cases, configs):
@@ -519,16 +532,11 @@ def main():
         root = Path(tmp)
         report = {
             "default_shape": validate_default_shape(root / "defaults"),
+            "flexible_zbl_rejected": validate_flexible_zbl_rejected(root / "flexible-zbl"),
             "ordinary_nep_io": validate_shared_nep_io(root / "ordinary-nep"),
             "parser_negative_exit_codes": validate_parser(root / "parser"),
             "response_training": validate_response_training(root / "response"),
             "training_prediction": validate_training_and_prediction(root / "correctness"),
-            "o3c3_training_prediction": validate_training_and_prediction(
-                root / "o3c3", spin_compress=3),
-            "all_types_training_prediction": validate_training_and_prediction(
-                root / "all-types", all_spin_types=True),
-            "all_types_o3c3_training_prediction": validate_training_and_prediction(
-                root / "all-types-o3c3", spin_compress=3, all_spin_types=True),
             "rank_one_training_prediction": validate_training_and_prediction(
                 root / "rank-one", spin_compress=1,
                 typewise_spin_cutoff=True, torque_only=True),

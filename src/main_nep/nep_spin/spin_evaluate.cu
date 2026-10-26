@@ -145,12 +145,12 @@ __device__ __forceinline__ void evaluate_spin3_edge_weights_b9_f32(
       const int index = spin_coefficient_offset +
         (channel * basis_count + basis_index) * pair_count + type_pair;
       weight += basis[basis_index] * descriptor_coefficients[index];
-      if constexpr (NeedDerivatives) {
+      if (NeedDerivatives) {
         derivative += basis_derivative[basis_index] * descriptor_coefficients[index];
       }
     }
     weights[channel] = weight;
-    if constexpr (NeedDerivatives) {
+    if (NeedDerivatives) {
       weight_derivatives[channel] = derivative;
     }
   }

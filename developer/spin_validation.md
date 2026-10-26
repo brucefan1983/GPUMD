@@ -17,3 +17,10 @@ python tests_pytest/validate_main_nep_spin3_training.py
 python tests_pytest/validate_spin_training_lifecycle.py
 python tests_pytest/validate_spin_training_multigpu.py --output "$RESULTS/training"
 ```
+
+Training checks cover five representative layouts, actual energy errors,
+magnetic loss components, model IO and restart. Flexible ZBL is rejected;
+universal ZBL remains supported. The CPU model codec is checked with strict
+C++14 compilation. Build the focused probes with `-std=c++14` as well.
+Initialization checks share `restart_parity.cu`; torque and response edge
+cases share `spin_mforce_split.cu` and `response_fitness.cu`.
