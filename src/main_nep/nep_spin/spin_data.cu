@@ -41,7 +41,7 @@ static __global__ void gpu_find_spin_neighbors(
             float z12 = z[n2] + dz - z1;
             dev_apply_mic(box, x12, y12, z12);
             if (x12 * x12 + y12 * y12 + z12 * z12 < rc_spin * rc_spin) {
-              if constexpr (Store) {
+              if (Store) {
                 const int index = n1 + N * count;
                 NL_spin[index] = n2;
                 r12_spin[index] = x12;
@@ -138,7 +138,7 @@ static __global__ void gpu_sum_mforce_error(
       if (Channel == MagneticError::Torque && spin2 <= 1.0e-20) {
         continue;
       }
-      if constexpr (Channel == MagneticError::Torque) {
+      if (Channel == MagneticError::Torque) {
         const float predicted_tau[3] = {
           static_cast<float>(sy * predicted[2] - sz * predicted[1]),
           static_cast<float>(sz * predicted[0] - sx * predicted[2]),
@@ -152,7 +152,7 @@ static __global__ void gpu_sum_mforce_error(
             predicted_tau[component] - reference_tau[component];
           sum += difference * difference;
         }
-      } else if constexpr (Channel == MagneticError::Cartesian) {
+      } else if (Channel == MagneticError::Cartesian) {
         for (int component = 0; component < 3; ++component) {
           const float difference = predicted[component] - reference[component];
           sum += difference * difference;
