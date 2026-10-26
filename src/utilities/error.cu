@@ -145,7 +145,7 @@ std::vector<std::string> get_tokens_without_unwanted_spaces(const std::string& l
   return tokens;
 }
 
-std::vector<std::string> get_tokens(std::ifstream& input)
+std::vector<std::string> get_tokens(std::istream& input)
 {
   std::string line;
   std::getline(input, line);
