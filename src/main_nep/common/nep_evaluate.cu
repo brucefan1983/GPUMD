@@ -713,3 +713,14 @@ void NEP_Compiled_Evaluation::launch_force_angular(
       sum_fxyz, 0, fx, fy, fz, virial),
     "force_angular_jit");
 }
+
+NEP_Compiled_Evaluation::NEP_Compiled_Evaluation(const NEP_Compile_Config& config)
+  : library(config)
+{
+  if (!library.is_valid()) {
+    return;
+  }
+  valid = common.load(library);
+  valid &= library.load_symbol("nep_train_launch_ann_nep", ann_nep_);
+  valid &= library.load_symbol("nep_train_launch_ann_temperature", ann_temperature_);
+}

@@ -17,6 +17,7 @@
 The class defining the simulation model.
 ------------------------------------------------------------------------------*/
 
+#include "integrate/spin/restart.cuh"
 #include "atom.cuh"
 #include "box.cuh"
 #include "group.cuh"
@@ -24,10 +25,12 @@ The class defining the simulation model.
 #include "utilities/common.cuh"
 #include "utilities/compact_nep.cuh"
 #include "utilities/error.cuh"
+#include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -160,15 +163,20 @@ static void read_xyz_line_2(
   int& has_velocity_in_xyz,
   bool& has_mass,
   bool& has_charge,
+  bool& has_spin,
+  bool& has_spin_velocity,
   int& num_columns,
   int* property_offset,
-  std::vector<Group>& group)
+  std::vector<Group>& group,
+  Atom& atom)
 {
   std::vector<std::string> tokens = get_tokens_without_unwanted_spaces(input);
   for (auto& token : tokens) {
     std::transform(
       token.begin(), token.end(), token.begin(), [](unsigned char c) { return std::tolower(c); });
   }
+
+  read_spin_restart(tokens, atom);
 
   box.pbc_x = box.pbc_y = box.pbc_z = 1; // default is periodic
   for (int n = 0; n < tokens.size(); ++n) {
@@ -241,13 +249,19 @@ static void read_xyz_line_2(
   }
 
   // properties
-  const int num_properties = 6;
-  std::string property_name[num_properties] = {"species", "pos", "mass", "charge", "vel", "group"};
+  const int num_properties = 8;
+  std::string property_name[num_properties] = {
+    "species", "pos", "mass", "charge", "vel", "group", "spin", "spin_vel"};
   int property_position[num_properties] = {
-    -1, -1, -1, -1, -1, -1}; // species,pos,mass,charge,vel,group
+    -1, -1, -1, -1, -1, -1, -1, -1};
+  bool found_properties = false;
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string properties_string = "properties=";
     if (tokens[n].substr(0, properties_string.length()) == properties_string) {
+      if (found_properties) {
+        PRINT_INPUT_ERROR("Properties may be specified only once.");
+      }
+      found_properties = true;
       std::string line = tokens[n].substr(properties_string.length(), tokens[n].length());
       for (auto& letter : line) {
         if (letter == ':') {
@@ -258,7 +272,27 @@ static void read_xyz_line_2(
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
         for (int prop = 0; prop < num_properties; ++prop) {
           if (sub_tokens[k * 3] == property_name[prop]) {
+            if (property_position[prop] >= 0) {
+              PRINT_INPUT_ERROR("Duplicate property names are not allowed.");
+            }
             property_position[prop] = k;
+          }
+        }
+      }
+
+      if (sub_tokens.size() % 3 != 0) {
+        PRINT_INPUT_ERROR("Properties must contain name:type:column-count triplets.");
+      }
+      for (int prop : {0, 1, 4, 6, 7}) {
+        if (property_position[prop] >= 0) {
+          const int base = property_position[prop] * 3;
+          const std::string expected_type = (prop == 0) ? "s" : "r";
+          const int expected_columns = (prop == 0) ? 1 : 3;
+          if (
+            sub_tokens[base + 1] != expected_type ||
+            get_int_from_token(sub_tokens[base + 2], __FILE__, __LINE__) != expected_columns) {
+            PRINT_INPUT_ERROR(
+              "species must be S:1 and pos, vel, spin and spin_vel must be R:3.");
           }
         }
       }
@@ -309,6 +343,11 @@ static void read_xyz_line_2(
   } else {
     has_charge = true;
   }
+  has_spin = property_position[6] >= 0;
+  has_spin_velocity = property_position[7] >= 0;
+  if (has_spin_velocity && !has_spin) {
+    PRINT_INPUT_ERROR("spin_vel:R:3 requires spin:R:3.");
+  }
 }
 
 void read_xyz_in_line_3(
@@ -317,6 +356,8 @@ void read_xyz_in_line_3(
   const int has_velocity_in_xyz,
   const bool has_mass,
   const bool has_charge,
+  const bool has_spin,
+  const bool has_spin_velocity,
   const int num_columns,
   const int* property_offset,
   int& number_of_types,
@@ -327,6 +368,8 @@ void read_xyz_in_line_3(
   std::vector<float>& cpu_charge,
   std::vector<double>& cpu_position_per_atom,
   std::vector<double>& cpu_velocity_per_atom,
+  std::vector<double>& cpu_spin_per_atom,
+  std::vector<double>& cpu_spin_velocity_per_atom,
   std::vector<Group>& group)
 {
   cpu_atom_symbol.resize(N);
@@ -335,6 +378,8 @@ void read_xyz_in_line_3(
   cpu_charge.resize(N, 0.0);
   cpu_position_per_atom.resize(N * 3);
   cpu_velocity_per_atom.resize(N * 3);
+  cpu_spin_per_atom.resize(has_spin ? N * 3 : 0);
+  cpu_spin_velocity_per_atom.resize(has_spin ? N * 3 : 0, 0.0);
   number_of_types = atom_symbols.size();
 
   for (int m = 0; m < group.size(); ++m) {
@@ -385,6 +430,21 @@ void read_xyz_in_line_3(
         cpu_velocity_per_atom[n + N * d] =
           get_double_from_token(tokens[property_offset[4] + d], __FILE__, __LINE__) *
           A_per_fs_to_natural;
+      }
+    }
+
+    if (has_spin) {
+      for (int d = 0; d < 3; ++d) {
+        cpu_spin_per_atom[n + N * d] =
+          get_double_from_token(tokens[property_offset[6] + d], __FILE__, __LINE__);
+      }
+    }
+    if (has_spin_velocity) {
+      const double spin_velocity_to_natural = TIME_UNIT_CONVERSION;
+      for (int d = 0; d < 3; ++d) {
+        cpu_spin_velocity_per_atom[n + N * d] =
+          get_double_from_token(tokens[property_offset[7] + d], __FILE__, __LINE__) *
+          spin_velocity_to_natural;
       }
     }
 
@@ -493,12 +553,24 @@ void initialize_position(
   atom_symbols = get_atom_symbols(filename_potential);
 
   read_xyz_line_1(input, atom.number_of_atoms);
-  int property_offset[6] = {0, 0, 0, 0, 0, 0}; // species,pos,mass,vel,group
+  int property_offset[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   int num_columns = 0;
   bool has_mass = true;
   bool has_charge = true;
+  bool has_spin_velocity = false;
   read_xyz_line_2(
-    input, box, has_velocity_in_xyz, has_mass, has_charge, num_columns, property_offset, group);
+    input,
+    box,
+    has_velocity_in_xyz,
+    has_mass,
+    has_charge,
+    atom.has_spin,
+    has_spin_velocity,
+    num_columns,
+    property_offset,
+    group,
+    atom);
+  atom.spin_velocity_initialized = has_spin_velocity;
 
   read_xyz_in_line_3(
     input,
@@ -506,6 +578,8 @@ void initialize_position(
     has_velocity_in_xyz,
     has_mass,
     has_charge,
+    atom.has_spin,
+    has_spin_velocity,
     num_columns,
     property_offset,
     number_of_types,
@@ -516,6 +590,8 @@ void initialize_position(
     atom.cpu_charge,
     atom.cpu_position_per_atom,
     atom.cpu_velocity_per_atom,
+    atom.cpu_spin_per_atom,
+    atom.cpu_spin_velocity_per_atom,
     group);
 
   input.close();
@@ -560,6 +636,13 @@ void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<doubl
   atom.position_per_atom.resize(N * 3);
   atom.position_per_atom.copy_from_host(atom.cpu_position_per_atom.data());
   atom.velocity_per_atom.resize(N * 3);
+  if (atom.has_spin) {
+    atom.spin_per_atom.resize(N * 3);
+    atom.spin_velocity_per_atom.resize(N * 3, 0.0);
+    atom.mforce_per_atom.resize(N * 3, 0.0);
+    atom.spin_per_atom.copy_from_host(atom.cpu_spin_per_atom.data());
+    atom.spin_velocity_per_atom.copy_from_host(atom.cpu_spin_velocity_per_atom.data());
+  }
   atom.velocity_per_atom.copy_from_host(atom.cpu_velocity_per_atom.data());
   atom.force_per_atom.resize(N * 3, 0);
   atom.virial_per_atom.resize(N * 9);

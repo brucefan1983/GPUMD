@@ -280,7 +280,7 @@ void Parameters::parse_initial_para(const char** param, int num_param)
   }
   initial_para = initial_para_tmp;
 
-  if (initial_para < 0.1f || initial_para > 1.0f) {
+  if (!std::isfinite(initial_para_tmp) || initial_para < 0.1f || initial_para > 1.0f) {
     PRINT_INPUT_ERROR("initial_para should be within [0.1, 1].");
   }
 }

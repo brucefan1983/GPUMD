@@ -65,6 +65,7 @@ public:
 protected:
   NEP_Parameters& para;
   virtual void begin_reading() {}
+  virtual float geometry_cutoff() const;
   virtual void read_structure(const XYZ_Record& record, Structure& structure);
   virtual void print_summary(const std::vector<Structure>& structures) const {}
   void read_geometry(const XYZ_Record& record, Structure& structure) const;

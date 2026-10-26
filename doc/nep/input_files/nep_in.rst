@@ -48,6 +48,24 @@ Keywords
      - select between training and prediction (inference)
    * - :ref:`zbl <kw_zbl>`
      - outer cutoff for the universal :term:`ZBL` potential [Ziegler1985]_
+   * - :ref:`spin_version <kw_spin_version>`
+     - enable the Spin3 descriptor
+   * - :ref:`spin_cutoff <kw_spin_cutoff>`
+     - radial and angular cutoffs used by the spin descriptor
+   * - :ref:`spin_basis_size <kw_spin_basis_size>`
+     - radial and angular basis sizes used by the spin descriptor
+   * - :ref:`spin_l_max <kw_spin_l_max>`
+     - maximum spatial tensor rank used by the spin descriptor
+   * - :ref:`spin_compress <kw_spin_compress>`
+     - number of shared compressed radial channels
+   * - :ref:`spin_order <kw_spin_order>`
+     - highest Spin3 contraction level supplied to the neural network
+   * - :ref:`spin_soc <kw_spin_soc>`
+     - enable joint spin--space rotation-invariant Spin3 channels
+   * - :ref:`spin_dof_type <kw_spin_dof_type>`
+     - atom types selected for magnetic-force output and magnetic supervision
+   * - :ref:`spin_env_type <kw_spin_env_type>`
+     - atom types allowed to contribute to magnetic environments
    * - :ref:`use_typewise_cutoff_zbl <kw_use_typewise_cutoff_zbl>`
      - enable typewise cutoff radii for the ZBL part of the model
    * - :ref:`cutoff <kw_cutoff>`
@@ -70,6 +88,16 @@ Keywords
      - weight of force loss term
    * - :ref:`lambda_v <kw_lambda_v>`
      - weight of virial loss term
+   * - :ref:`lambda_m <kw_lambda_m>`
+     - weight of Cartesian magnetic-force loss term
+   * - :ref:`lambda_m_parallel <kw_lambda_m_parallel>`
+     - weight of parallel magnetic-force RMSE (requires ``lambda_m_perp``)
+   * - :ref:`lambda_m_perp <kw_lambda_m_perp>`
+     - weight of perpendicular magnetic-force RMSE (requires ``lambda_m_parallel``)
+   * - :ref:`lambda_tau <kw_lambda_tau>`
+     - weight of spin-torque loss term
+   * - :ref:`lambda_spin_response <kw_lambda_spin_response>`
+     - weight of grouped magnetic-response loss term
    * - :ref:`lambda_q <kw_lambda_q>`
      - weight of total-charge loss term for qNEP models
    * - :ref:`lambda_z <kw_lambda_z>`
@@ -98,6 +126,8 @@ Keywords
      - fine tune a model starting from a foundation model
    * - :ref:`import_q_scaler <kw_import_q_scaler>`
      - import descriptor normalization factors from an existing ``nep.txt``
+   * - :ref:`initial_para <kw_initial_para>`
+     - set reference parameters used to compute descriptor normalization
 
 Consistency with model files already present
 --------------------------------------------
@@ -129,3 +159,28 @@ Here is an example :attr:`nep.in` file using all the default parameters::
   batch         1000      # default
   population	50        # default
   generation	100000    # default
+
+Spin3 example
+-------------
+
+The following Spin setup uses the default descriptor shape. ``spin_compress``
+defaults to 2 and may be omitted. Together with the structural defaults, this
+gives 55 magnetic and 97 total coordinates, within :ref:`nep_spin_dimensions`::
+
+  version          4
+  type             2 Fe Ge
+  spin_version     1
+  spin_basis_size  8 0
+  spin_l_max       2 0 0
+  spin_compress    2
+  spin_order       3
+  spin_soc         1
+  neuron           30
+  lambda_m         1.0
+  batch            1000
+  generation       100000
+
+Each frame in ``train.xyz`` and ``test.xyz`` must then contain a Cartesian
+``spin:R:3`` property. Add ``mforce:R:3`` when training magnetic forces. See
+:ref:`train_test_xyz` for the complete data contract and :ref:`nep_spin` for
+the Spin3 formalism.

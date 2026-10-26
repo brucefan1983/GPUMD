@@ -40,6 +40,7 @@ LIBS = -lcublas -lcusolver -lcufft
 NEP_LIBS =
 GNEP_LIBS =
 ifndef OS
+LIBS += -lpthread
 NEP_LIBS += -ldl
 GNEP_LIBS += -lpthread
 endif
@@ -52,7 +53,7 @@ SOURCES_GPUMD =                   \
 	$(wildcard main_gpumd/*.cu)   \
 	$(wildcard minimize/*.cu)     \
 	$(wildcard phonon/*.cu)       \
-	$(wildcard integrate/*.cu)    \
+	$(wildcard integrate/*.cu) $(wildcard integrate/spin/*.cu)    \
 	$(wildcard mc/*.cu)           \
 	$(wildcard force/*.cu)        \
 	$(wildcard force/*/*.cu)      \
@@ -88,7 +89,7 @@ endif
 HEADERS =                         \
 	$(wildcard utilities/*.cuh)   \
 	$(wildcard main_gpumd/*.cuh)  \
-	$(wildcard integrate/*.cuh)   \
+	$(wildcard integrate/*.cuh) $(wildcard integrate/spin/*.cuh)   \
 	$(wildcard mc/*.cuh)          \
 	$(wildcard minimize/*.cuh)    \
 	$(wildcard force/*.cuh)       \

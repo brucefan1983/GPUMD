@@ -152,6 +152,7 @@ class Neighbor
 public:
   GPU_Vector<int> NN, NL; // global neighbor list
   void initialize(const double rc, const int num_atoms, const int num_neighbors);
+  void invalidate() { force_rebuild_ = true; }
   double get_skin() const;
   int get_capacity() const;
   void find_neighbor_global(
@@ -165,13 +166,19 @@ public:
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& NN_local,
     GPU_Vector<int>& NL_local);
+  double minimum_safe_box_thickness(const double rc) const
+  {
+    return 2.5 * (rc + skin);
+  }
 
 private:
+  bool force_rebuild_ = true;
   double skin = 1.0;              // skin distance
   GPU_Vector<int> cell_count;     // for cell list
   GPU_Vector<int> cell_count_sum; // for cell list
   GPU_Vector<int> cell_contents;  // for cell list
   GPU_Vector<double> x0, y0, z0;  // for checking atom distance
+  int MN_global = 0;
   int check_atom_distance(Box& box, const double* x, const double* y, const double* z);
 };
 
