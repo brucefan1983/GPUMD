@@ -19,6 +19,7 @@ Some CUDA kernels for Langevin thermostats.
 
 #pragma once
 #include "model/box.cuh"
+#include "utilities/fractional_region.cuh"
 #include "utilities/gpu_macro.cuh"
 
 #define CURAND_NORMAL(a) gpurand_normal_double(a)
@@ -147,34 +148,6 @@ static __global__ void gpu_langevin(
     g_vz[n] = c1 * g_vz[n] + c2m * CURAND_NORMAL(&state);
     g_state[m] = state;
   }
-}
-
-static __device__ void get_fractional_position(
-  const Box& box,
-  const double x,
-  const double y,
-  const double z,
-  double& sa,
-  double& sb,
-  double& sc)
-{
-  sa = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
-  sb = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
-  sc = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
-}
-
-static __device__ bool is_in_region(
-  const double sa,
-  const double sb,
-  const double sc,
-  const double amin,
-  const double amax,
-  const double bmin,
-  const double bmax,
-  const double cmin,
-  const double cmax)
-{
-  return sa >= amin && sa < amax && sb >= bmin && sb < bmax && sc >= cmin && sc < cmax;
 }
 
 // local Langevin thermostatting based on fractional-coordinate regions

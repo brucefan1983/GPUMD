@@ -16,4 +16,7 @@ python -m pytest --noconftest -q tests_pytest/test_spin_model_format.py
 python tests_pytest/validate_main_nep_spin3_training.py
 python tests_pytest/validate_spin_training_lifecycle.py
 python tests_pytest/validate_spin_training_multigpu.py --output "$RESULTS/training"
+python tests_pytest/validate_nep_spin3_runtime.py
+python tests_pytest/validate_nep_spin3_runtime.py --block-format
+python tests_pytest/validate_spin_multigpu.py --binary src/gpumd --model tests_pytest/fixtures/nep_spin3/nep4_spin3_o3c2_uniform.nep --block-format --output "$RESULTS/runtime"
 ```

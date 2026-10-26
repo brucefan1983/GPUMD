@@ -30,7 +30,7 @@ file(GLOB GPUMD_SOURCES
     src/utilities/*.cu)
 add_executable(gpumd ${GPUMD_SOURCES})
 target_include_directories(gpumd PRIVATE src)
-target_link_libraries(gpumd PRIVATE CUDA::cublas CUDA::cusolver CUDA::cufft)
+target_link_libraries(gpumd PRIVATE CUDA::cublas CUDA::cusolver CUDA::cufft Threads::Threads)
 
 # --- nep ---
 file(GLOB NEP_SOURCES
@@ -65,7 +65,7 @@ if(PKG_NNAP)
     target_include_directories(gpumd PRIVATE ${JNI_INCLUDE_DIRS})
     target_link_libraries(gpumd PRIVATE ${JNI_LIBRARIES})
     target_compile_definitions(gpumd PRIVATE USE_NNAP)
-    
+
     # delay load jvm.dll on windows
     if(WIN32 AND MSVC)
         target_link_libraries(gpumd PRIVATE delayimp)

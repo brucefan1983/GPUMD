@@ -54,9 +54,10 @@ The main source directories are:
 
 Files added under an existing source directory are normally collected automatically by the makefiles. The CUDA and HIP makefiles also collect `.cu` files one directory below `src/force/` for `gpumd`, and `src/main_nep/` for `nep`.
 
-Training in `src/main_nep/nep_spin/` uses the shared magnetic descriptor and
-force headers in `src/force/nep_spin/`. GPUMD Spin force dispatch is added
-separately; the headers do not enable a runtime potential by themselves.
+Spin inference, multi-GPU evaluation, external magnetic fields, and Spin-specific
+small-box kernels live in `src/force/nep_spin/`. Training in
+`src/main_nep/nep_spin/` includes the same magnetic descriptor and force headers;
+ordinary NEP keeps its own small-box kernels in `src/force/nep_small_box.cuh`.
 
 ## 3. Main `gpumd` architecture
 
@@ -278,7 +279,9 @@ The basic internal units are:
 User-facing changes to keywords, file formats, units, or physical definitions should be reflected in the documentation under `doc/`.
 
 Spin moments are in muB and magnetic forces in eV/muB. See the
-[NEP-spin model](../doc/potentials/nep_spin.rst) for the training convention.
+[model input units](../doc/gpumd/input_files/model_xyz.rst) and
+[external magnetic field](../doc/gpumd/input_parameters/add_mfield.rst)
+documentation for the input and Zeeman conventions.
 
 See [Spin regression checks](spin_validation.md) for portable format, training,
 and GPU validation commands.

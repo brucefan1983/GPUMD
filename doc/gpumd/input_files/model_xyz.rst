@@ -49,8 +49,9 @@ Essentially any keyword is allowed, but we only read the following ones:
   * ``species:S:1`` atom type (*Mandatory*)
   * ``pos:R:3`` position vector (*Mandatory*)
   * ``mass:R:1`` mass (*Optional*: default mass values will be used when this is missing)
-  * ``charge:R:1`` charge (*Optional*: default charge is zero)  
+  * ``charge:R:1`` charge (*Optional*: default charge is zero)
   * ``vel:R:3`` velocity vector (*Optional*)
+  * ``spin:R:3`` magnetic-moment vector in Bohr magnetons (muB) (*Required for NEP_Spin*)
   * ``group:I:number_of_grouping_methods`` grouping methods (*Optional*)
 
 
@@ -63,10 +64,19 @@ The meaning of the grouping methods is illustrated by the example below.
 Units
 -----
 
-The mass should be given in units of the unified atomic mass unit (amu). 
+The mass should be given in units of the unified atomic mass unit (amu).
 The charge is in units of e (proton charge).
-The cell dimensions and atom coordinates should be given in units of Ångstrom. 
+The cell dimensions and atom coordinates should be given in units of Ångstrom.
 Velocities need to be specified in units of Å/fs.
+Spin is specified in Bohr magnetons (muB).
+Magnetic force is the negative energy derivative with respect to spin, in eV/muB.
+The spin torque, spin crossed with magnetic force, is in eV.
+External magnetic induction B is specified in tesla (T).
+Spin vectors store Cartesian magnetic moments, not normalized directions.
+Readers do not normalize them or rescale model parameters; training and
+runtime data must use the same spin convention.
+Property names may not be repeated. NEP_Spin fails if ``spin:R:3`` is absent;
+missing spin values are never filled with zeros.
 
 Example
 -------
@@ -94,7 +104,7 @@ This means
 * Use periodic boundary conditions in the :math:`x` direction and free boundary conditions in the other directions.
 * The box lengths in the three directions are respectively 4 Å, 1 Å, and 1 Å.
 * There are 5 carbon atoms and 5 silicon atoms. The default masses will be used for the atoms (as there are no specific values given in the input file).
-* The 10 atoms are located along a line in the :math:`x` direction with equal spacing, from 0 Å to 9 Å. 
+* The 10 atoms are located along a line in the :math:`x` direction with equal spacing, from 0 Å to 9 Å.
 * There is no velocity data in this file.
 * There are 3 grouping methods
 

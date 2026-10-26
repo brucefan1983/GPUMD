@@ -52,6 +52,18 @@ def metadata(model):
                 if line.startswith(('spin_', 'energy_reference ')))
 
 
+def runtime_mforce(directory, model, reference):
+    directory.mkdir()
+    (directory / "nep.txt").write_text(model)
+    (directory / "model.xyz").write_text("\n".join(base.TRAIN_XYZ.splitlines()[:6]) + "\n")
+    (directory / "run.in").write_text(
+        "potential nep.txt\nvelocity 1\nensemble nve\ntime_step 0\n"
+        "dump_xyz 1 result.xyz force potential spin mforce virial precision double\nrun 1\n")
+    result = base.run(base.GPUMD, directory)
+    assert result.returncode == 0, result.stdout + result.stderr
+    rows = [[float(x) for x in line.split()[1:]]
+            for line in (directory / "result.xyz").read_text().splitlines()[-4:]]
+    return compare({"mforce": reference["mforce"][:4]}, {"mforce": [r[9:12] for r in rows]})
 
 
 def strip_labels(xyz, frames):
@@ -152,6 +164,7 @@ def validate(root):
         assert metadata(saved) == metadata(model), (metadata(saved), metadata(model))
         after = predict(root / (name + "_after"), saved)
         report[name] = compare(old, after)
+        report[name + "_md"] = runtime_mforce(root / (name + "_md"), saved, after)
         imported = root / (name + "_import")
         execute(imported, NO_MASKS + "import_q_scaler 1\n", model=model)
         assert metadata((imported / "nep.txt").read_text()) == metadata(model)
@@ -179,6 +192,8 @@ def validate(root):
                 "spin_version 1\n", "spin_mode 3\n")
             legacy_prediction = predict(root / "old_block_prediction", legacy_model)
             report["old_block_prediction"] = compare(old, legacy_prediction)
+            report["old_block_md"] = runtime_mforce(
+                root / "old_block_md", legacy_model, legacy_prediction)
             legacy_resume = root / "old_block_resume"
             execute(legacy_resume, NO_MASKS.replace("generation 1", "generation 2"),
                     model=legacy_model, restart=frozen)

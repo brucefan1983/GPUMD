@@ -196,7 +196,7 @@ def validate_response_training(root):
     return {"training_loss": loss}
 
 
-def validate_training_and_prediction(
+def validate_training_and_runtime(
         root, enable_zbl=False, spin_compress=2, typewise_spin_cutoff=False,
         all_spin_types=False, check_restart=False, torque_only=False, wide_spin_cutoff=False):
     root.mkdir()
@@ -297,10 +297,87 @@ def validate_training_and_prediction(
     if result.returncode:
         raise RuntimeError(result.stdout + result.stderr)
 
-    report = {"training_loss": loss, "descriptor_dim": descriptor_dim}
-    for name, width in (("energy", 2), ("force", 6), ("mforce", 6), ("virial", 12)):
-        rows = columns(prediction / (name + "_train.out"), width)
-        assert rows and all(math.isfinite(x) for x in flatten(rows)), name
+    runtime = root / "runtime"
+    runtime.mkdir()
+    shutil.copy(training / "nep.txt", runtime / "nep.txt")
+    model_lines = xyz.splitlines()[:6]
+    model_lines[1] = model_lines[1].replace("mforce:R:3", "mforce:R:3:group:I:1")
+    for i in range(2, 6):
+        model_lines[i] += " 0" if i < 4 else " 1"
+    (runtime / "model.xyz").write_text("\n".join(model_lines) + "\n")
+    (runtime / "run.in").write_text(
+        "potential nep.txt\n"
+        "velocity 1\n"
+        "ensemble nve\n"
+        "time_step 0\n"
+        "dump_xyz 1 result.xyz force potential spin mforce virial precision double\n"
+        "dump_xyz 1 ge.xyz force potential spin mforce virial group_labels group 0 1 precision double\n"
+        "run 1\n")
+    result = run(GPUMD, runtime)
+    if result.returncode:
+        raise RuntimeError(result.stdout + result.stderr)
+
+    lines = (runtime / "result.xyz").read_text().splitlines()
+    grouped = (runtime / "ge.xyz").read_text().splitlines()
+    if int(grouped[0]) != 2 or ":group:I:1" not in grouped[1]:
+        raise AssertionError("dump_xyz group selection or group_labels header is incorrect")
+    for selected, full in zip(grouped[2:], lines[4:6]):
+        fields = selected.split()
+        if fields[:-1] != full.split() or fields[-1] != "1":
+            raise AssertionError("grouped spin/mforce dump differs from the all-atom dump")
+    atom_count = int(lines[-6])
+    header = lines[-5]
+    rows = [
+        [float(item) for item in line.split()[1:]]
+        for line in lines[-atom_count:]]
+    runtime_energy = (
+        float(re.search(r"\benergy=([-+0-9.eE]+)", header).group(1)) /
+        atom_count)
+    runtime_force = [row[3:6] for row in rows]
+    runtime_mforce = [row[9:12] for row in rows]
+    atom_virial = [row[13:22] for row in rows]
+    runtime_virial = [
+        sum(row[index] for row in atom_virial) / atom_count
+        for index in (0, 4, 8, 1, 5, 6)]
+
+    main_energy = float(
+        (prediction / "energy_train.out").read_text().split()[0])
+    main_force = columns(prediction / "force_train.out", 3, atom_count)
+    main_mforce = columns(prediction / "mforce_train.out", 3, atom_count)
+    main_virial = columns(prediction / "virial_train.out", 6, 1)[0]
+    report = {
+        "energy_per_atom": abs(main_energy - runtime_energy),
+        "force": maximum_error(main_force, runtime_force),
+        "mforce": maximum_error(main_mforce, runtime_mforce),
+        "virial_per_atom": maximum_error(main_virial, runtime_virial),
+        "ge_mforce_max": max(
+            abs(value) for row in runtime_mforce[2:] for value in row),
+        "all_spin_types": all_spin_types,
+        "training_loss": loss,
+        "q_scaler_max": max(q_scaler),
+        "zbl": enable_zbl,
+        "spin_compress": spin_compress,
+        "typewise_spin_cutoff": typewise_spin_cutoff,
+        "torque_only": torque_only,
+        "descriptor_dim": descriptor_dim,
+        "grouped_dump": "passed",
+    }
+    for name in ("energy_per_atom", "force", "mforce", "virial_per_atom"):
+        reference = {
+            "energy_per_atom": [main_energy, runtime_energy],
+            "force": [main_force, runtime_force],
+            "mforce": [main_mforce, runtime_mforce],
+            "virial_per_atom": [main_virial, runtime_virial],
+        }[name]
+        tolerance = parity_tolerance(*reference)
+        report[f"{name}_tolerance"] = tolerance
+        if report[name] > tolerance:
+            raise AssertionError(
+                f"{name} parity failed: {report[name]} > {tolerance}")
+    if not all_spin_types and report["ge_mforce_max"] > 1.0e-12:
+        raise AssertionError("inactive spin DOF received a public mforce")
+    if all_spin_types and report["ge_mforce_max"] <= 1.0e-12:
+        raise AssertionError("active Ge spin DOF was incorrectly masked")
     if check_restart:
         # Zero search variance freezes the saved parameter vector. A restart must
         # round-trip structural and magnetic coefficients without reordering them
@@ -508,13 +585,15 @@ def validate_shared_nep_io(root):
 
 
 def main():
-    global NEP
+    global NEP, GPUMD
     parser = argparse.ArgumentParser()
     parser.add_argument("--nep", type=Path, default=NEP)
+    parser.add_argument("--gpumd", type=Path, default=GPUMD)
     parser.add_argument("--check-jit", action="store_true",
                         help="Require the CUDA compiler and validate specialized Spin3 training")
     args = parser.parse_args()
     NEP = args.nep.resolve()
+    GPUMD = args.gpumd.resolve()
     with tempfile.TemporaryDirectory(prefix="gpumd-main-nep-spin3-") as tmp:
         root = Path(tmp)
         report = {
@@ -522,21 +601,21 @@ def main():
             "ordinary_nep_io": validate_shared_nep_io(root / "ordinary-nep"),
             "parser_negative_exit_codes": validate_parser(root / "parser"),
             "response_training": validate_response_training(root / "response"),
-            "training_prediction": validate_training_and_prediction(root / "correctness"),
-            "o3c3_training_prediction": validate_training_and_prediction(
+            "training_runtime": validate_training_and_runtime(root / "correctness"),
+            "o3c3_training_runtime": validate_training_and_runtime(
                 root / "o3c3", spin_compress=3),
-            "all_types_training_prediction": validate_training_and_prediction(
+            "all_types_training_runtime": validate_training_and_runtime(
                 root / "all-types", all_spin_types=True),
-            "all_types_o3c3_training_prediction": validate_training_and_prediction(
+            "all_types_o3c3_training_runtime": validate_training_and_runtime(
                 root / "all-types-o3c3", spin_compress=3, all_spin_types=True),
-            "rank_one_training_prediction": validate_training_and_prediction(
+            "rank_one_training_runtime": validate_training_and_runtime(
                 root / "rank-one", spin_compress=1,
                 typewise_spin_cutoff=True, torque_only=True),
-            "zbl_training_prediction": validate_training_and_prediction(
+            "zbl_training_runtime": validate_training_and_runtime(
                 root / "zbl", enable_zbl=True),
-            "magnetic_cutoff_small_cell": validate_training_and_prediction(
+            "magnetic_cutoff_small_cell": validate_training_and_runtime(
                 root / "wide-spin-cutoff", all_spin_types=True, wide_spin_cutoff=True),
-            "channel_layout_restart": validate_training_and_prediction(
+            "channel_layout_restart": validate_training_and_runtime(
                 root / "restart", spin_compress=3,
                 all_spin_types=True, check_restart=True),
         }

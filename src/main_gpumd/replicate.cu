@@ -56,6 +56,10 @@ void Replicate(
   new_atoms.cpu_atom_symbol.resize(N);
   new_atoms.cpu_position_per_atom.resize(N * 3);
   new_atoms.cpu_velocity_per_atom.resize(N * 3);
+  new_atoms.has_spin = atoms.has_spin;
+  if (atoms.has_spin) {
+    new_atoms.cpu_spin_per_atom.resize(N * 3);
+  }
   int cur = 0;
   for (int i = 0; i < r[0]; i++) {
     for (int j = 0; j < r[1]; j++) {
@@ -72,6 +76,9 @@ void Replicate(
             new_atoms.cpu_position_per_atom[cur + d * N] +=
               i * box.cpu_h[d * 3] + j * box.cpu_h[d * 3 + 1] + k * box.cpu_h[d * 3 + 2];
             new_atoms.cpu_velocity_per_atom[cur + d * N] = atoms.cpu_velocity_per_atom[nn + d * n];
+            if (atoms.has_spin) {
+              new_atoms.cpu_spin_per_atom[cur + d * N] = atoms.cpu_spin_per_atom[nn + d * n];
+            }
           }
           cur++;
         }
@@ -101,6 +108,9 @@ void Replicate(
     new_atoms.cpu_position_per_atom.begin(), new_atoms.cpu_position_per_atom.end());
   atoms.cpu_velocity_per_atom.assign(
     new_atoms.cpu_velocity_per_atom.begin(), new_atoms.cpu_velocity_per_atom.end());
+  atoms.has_spin = new_atoms.has_spin;
+  atoms.cpu_spin_per_atom.assign(
+    new_atoms.cpu_spin_per_atom.begin(), new_atoms.cpu_spin_per_atom.end());
   for (int& i : atoms.cpu_type_size)
     i = i * r[0] * r[1] * r[2];
 

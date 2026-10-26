@@ -557,3 +557,4 @@ See :ref:`spin_version <kw_spin_version>` and the neighboring ``spin_*`` keyword
 pages for descriptor configuration. The complete extended-XYZ data contract,
 including magnetic-force labels and grouped response metadata, is documented
 under :ref:`train_test_xyz`.
+Runtime ``model.xyz`` files require one ``spin:R:3`` vector per atom.

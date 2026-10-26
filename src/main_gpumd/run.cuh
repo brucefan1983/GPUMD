@@ -45,6 +45,8 @@ private:
     const std::vector<std::string>& tokens, const RunInput& run_input);
 
   // keyword parsing functions
+  std::string spin_unsupported_command;
+  void mark_spin_unsupported(const char* command);
   void parse_velocity(const std::vector<std::string>& tokens);
   void parse_change_box(const std::vector<std::string>& tokens);
   void parse_correct_velocity(

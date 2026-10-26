@@ -22,6 +22,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 #include "neighbor.cuh"
 #include "nep.cuh"
+#include "nep_kernels.cuh"
 #include "nep_small_box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/compact_nep.cuh"
@@ -541,7 +542,7 @@ static __global__ void find_descriptor(
   }
 }
 
-static __global__ void find_force_radial(
+__global__ void find_force_radial(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
   const int N,
@@ -647,7 +648,7 @@ static __global__ void find_force_radial(
   }
 }
 
-static __global__ void find_partial_force_angular(
+__global__ void find_partial_force_angular(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
   const int N,
