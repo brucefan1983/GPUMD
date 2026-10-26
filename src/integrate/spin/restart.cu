@@ -55,6 +55,28 @@ void read_spin_restart(const std::vector<std::string>& tokens, Atom& atom)
   if (has_nhc_state != has_nhc_time) PRINT_INPUT_ERROR("NHC restart requires state and time together.");
   if (has_nhc_state && has_mttk_state) PRINT_INPUT_ERROR("Conflicting NHC and MTTK restart states.");
 
+  bool has_glsd_step = false, has_glsd_seed = false;
+  for (const auto& token : tokens) {
+    const bool is_step = token.find("spin_glsd_step=") == 0;
+    const bool is_seed = token.find("spin_glsd_seed=") == 0;
+    if (!is_step && !is_seed) continue;
+    bool& seen = is_step ? has_glsd_step : has_glsd_seed;
+    const std::string value = token.substr(token.find('=') + 1);
+    if (seen || value.empty() || value.find_first_not_of("0123456789") != std::string::npos) {
+      PRINT_INPUT_ERROR("Invalid or duplicate GLSD restart counter/seed.");
+    }
+    seen = true;
+    try {
+      const auto parsed = std::stoull(value);
+      if (is_step) atom.spin_glsd_step = parsed;
+      else atom.spin_glsd_seed = parsed;
+    } catch (...) {
+      PRINT_INPUT_ERROR("GLSD restart counter/seed is out of range.");
+    }
+  }
+  if (has_glsd_step != has_glsd_seed || (has_glsd_seed && atom.spin_glsd_seed == 0)) {
+    PRINT_INPUT_ERROR("GLSD restart requires both spin_glsd_step and a positive spin_glsd_seed.");
+  }
 
 }
 
@@ -68,6 +90,11 @@ bool write_spin_restart(FILE* fid, const Atom& atom, const Integrate& integrate,
   if (!nhc_state.empty()) {
     fprintf(fid, "nhc_state=%s nhc_time=%.17g ", nhc_state.c_str(), global_time);
   }
-
-  return !mttk_state.empty() || !nhc_state.empty();
+  if (atom.spin_glsd_seed != 0) {
+    // Spin and thermostat checkpoints refer to the same completed step.
+    fprintf(fid, "spin_glsd_step=%llu spin_glsd_seed=%llu ",
+      static_cast<unsigned long long>(atom.spin_glsd_step),
+      static_cast<unsigned long long>(atom.spin_glsd_seed));
+  }
+  return atom.spin_glsd_seed || !mttk_state.empty() || !nhc_state.empty();
 }

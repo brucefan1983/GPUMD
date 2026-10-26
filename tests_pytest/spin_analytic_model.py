@@ -17,3 +17,12 @@ def analytic_model(onsite):
             values[offset+30*dim+30] = 1.0
     lines[2] = 'spin_baseline 0 0'
     return '\n'.join(lines[:start] + [str(x) for x in values]) + '\n'
+
+def structure(spins=None):
+    lines = (FIXTURE / 'model_large_box.xyz').read_text().splitlines()
+    lines[1] = lines[1].replace(':spin:R:3', ':vel:R:3:spin:R:3:spin_vel:R:3')
+    for i in range(4):
+        f = lines[i+2].split()
+        spin = spins[i] if spins is not None else f[4:7]
+        lines[i+2] = ' '.join(f[:4] + ['0.001', '-0.002', '0.003'] + list(map(str, spin)) + ['0.02','-0.03','0.04'])
+    return '\n'.join(lines)+'\n'

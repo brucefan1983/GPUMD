@@ -39,12 +39,12 @@ def state(path, kind):
     return np.array(payload[1].split(','), float) if payload else None
 
 
-@pytest.mark.parametrize('mode', ['sib', 'tspin'])
+@pytest.mark.parametrize('mode', ['glsd', 'sib', 'tspin'])
 @pytest.mark.parametrize('kind', ['nhc', 'mttk'])
 def test_spin_lattice_checkpoint_consumed_once(tmp_path, mode, kind):
     prefix = 'nvt_' + mode + ' 300 350 100' if kind == 'nhc' else (
         'npt_' + mode + ' temp 300 350 iso 0 .01 tperiod 100 pperiod 1000')
-    options = {'sib': ' alpha .01', 'tspin': ' mass_factor 1'}[mode]
+    options = {'glsd': ' damping .01', 'sib': ' alpha .01', 'tspin': ' mass_factor 1'}[mode]
     ensemble = prefix + options + ' seed 731'
     original = prepare(tmp_path / 'original')
     run(original, f'ensemble {ensemble}\ndump_restart 6\nrun 10\n')
@@ -60,8 +60,28 @@ def test_spin_lattice_checkpoint_consumed_once(tmp_path, mode, kind):
     clock = float(re.search(kind + r'_time=([^\s]+)', header)[1])
     assert abs(clock - 13 * .1 / 10.18051) < 1e-12
     switched = prepare(tmp_path / 'switched', original / 'restart.xyz')
-    other = 'nvt_tspin 300 350 100 mass_factor 1 seed 731' if kind == 'mttk' else (
-        'npt_tspin temp 300 350 iso 0 .01 mass_factor 1 seed 731')
+    other = 'nvt_glsd 300 350 100 damping .01 seed 731' if kind == 'mttk' else (
+        'npt_glsd temp 300 350 iso 0 .01 damping .01 seed 731')
     log = run(switched, f'ensemble {other}\ndump_restart 3\nrun 3\n')
     assert state(switched, kind) is None
     assert 'Discarding ' in log and 'Restored ' not in log
+
+
+def test_spin_nhc_fixed_moving_group_restart(tmp_path):
+    original = prepare(tmp_path / 'original')
+    path = original / 'model.xyz'
+    lines = path.read_text().splitlines()
+    for i in range(2, len(lines)):
+        lines[i] = lines[i].rsplit(' ', 1)[0] + ' ' + str(min(i - 2, 2))
+    path.write_text('\n'.join(lines) + '\n')
+    commands = ('ensemble nvt_glsd 300 350 100 damping .01 seed 731\n'
+                'fix 0\nmove 1 .001 0 0\n'
+                'dump_xyz 1 state.xyz precision double velocity force spin mforce\n')
+    run(original, commands + 'dump_restart 6\nrun 10\n')
+    resumed = prepare(tmp_path / 'resumed', original / 'restart.xyz')
+    run(resumed, commands + 'dump_restart 4\nrun 4\n')
+    left, right = frames(original / 'state.xyz')[6:], frames(resumed / 'state.xyz')
+    assert len(left) == len(right) == 4
+    for x, y in zip(left, right):
+        for key in ('pos', 'vel', 'spin', 'force', 'mforce', 'time'):
+            assert np.max(np.abs(x[key] - y[key])) < 1e-9, key

@@ -59,11 +59,13 @@ private:
   int spin_seed = 12345;
   double spin_sib_alpha = 0.0, spin_dynamics_gamma = 0.0, spin_dynamics_temperature = 0.0;
   int spin_dynamics_seed = 12345;
+  double spin_glsd_damping = 0.0; // dimensionless hbar * gamma_s_prime
+  double spin_glsd_mobility = 0.0; // converted muB^2 / (eV ps), internal only
   bool has_spin_nhc_driver() const;
   bool has_spin_mttk_driver() const;
   double spin_protocol_fraction(int step, int number_of_steps) const;
 public:
-  bool use_spin_tspin = false, use_spin_sib = false, spin_lattice_enabled = true;
+  bool use_spin_tspin = false, use_spin_sib = false, use_spin_glsd = false, spin_lattice_enabled = true;
   bool has_ensemble() const;
   void restore_spin_time(const Atom& atom, double& global_time) const;
   std::string spin_mttk_restart_state() const;

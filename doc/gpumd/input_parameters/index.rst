@@ -25,6 +25,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    ensemble_mttk
    ensemble_tspin
    ensemble_sib
+   ensemble_glsd
    ensemble_qtb
    ensemble_heat
    ensemble_ttm
@@ -82,7 +83,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
 .. toctree::
    :maxdepth: 1
    :caption: Output
-
+   
    active
    dump_xyz
    dump_beads

@@ -19,9 +19,11 @@ public magnetic force and do not enter these RMSE counts. Their current spins
 can nevertheless contribute to a magnetic environment when explicitly included
 by :ref:`spin_env_type <kw_spin_env_type>`.
 
-This keyword selects supervised derivatives; it does not define an integration constraint.
-
-For TSPIN coordinate constraints, see :ref:`kw_ensemble_tspin`.
+This keyword does not freeze spins during MD or remove them from a thermostat.
+Excluded spins can still move because of spin velocities or thermal noise.
+Fixing spin coordinates requires an integration constraint; see the spin
+integration sections of :ref:`TSPIN <kw_ensemble_tspin>` and
+:ref:`GLSD <kw_ensemble_glsd>`.
 
 The grouped-response path derivative is computed from the converged DFT spins.
 When :ref:`lambda_spin_response <kw_lambda_spin_response>` is used, the trainer

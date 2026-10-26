@@ -44,6 +44,7 @@ The driver class for the various integrators.
 #include "ensemble_wall_piston.cuh"
 #include "integrate.cuh"
 #include "spin_sib.cuh"
+#include "spin_glsd.cuh"
 #include "spin_tspin.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
@@ -99,14 +100,14 @@ double Integrate::get_temperature() const
 
 bool Integrate::has_spin_mttk_driver() const
 {
-  return type == EnsembleType::MTTK && (use_spin_tspin || use_spin_sib);
+  return type == EnsembleType::MTTK && (use_spin_tspin || use_spin_sib || use_spin_glsd);
 }
 
 bool Integrate::has_spin_nhc_driver() const
 {
   // lattice off uses Ensemble_Fixed_Lattice despite the NVT_NHC type tag.
   return type == EnsembleType::NVT_NHC && spin_lattice_enabled &&
-    (use_spin_tspin || use_spin_sib);
+    (use_spin_tspin || use_spin_sib || use_spin_glsd);
 }
 
 std::string Integrate::spin_mttk_restart_state() const
@@ -130,7 +131,7 @@ double Integrate::spin_protocol_fraction(int step, int number_of_steps) const
 
 void Integrate::restore_spin_time(const Atom& atom, double& global_time) const
 {
-  if (use_spin_tspin || use_spin_sib) {
+  if (use_spin_tspin || use_spin_sib || use_spin_glsd) {
     if (!atom.spin_lattice_restart.mttk.empty()) global_time = atom.spin_lattice_restart.mttk_time;
     if (!atom.spin_lattice_restart.nhc.empty()) global_time = atom.spin_lattice_restart.nhc_time;
   }
@@ -249,6 +250,7 @@ void Integrate::initialize(
   }
   ensemble.initialize_run(time_step, atom, box, group);
   spin_integrator.reset();
+  if (!use_spin_glsd) atom.spin_glsd_step = atom.spin_glsd_seed = 0;
   if (use_spin_tspin) {
     spin_integrator.reset(new Spin_TSPIN(
       temperature1,
@@ -266,6 +268,11 @@ void Integrate::initialize(
       spin_dynamics_seed,
       atom));
     spin_integrator->temperature = temperature;
+  } else if (use_spin_glsd) {
+    spin_integrator.reset(new Spin_GLSD(
+      spin_dynamics_gamma, spin_glsd_mobility, spin_dynamics_temperature,
+      spin_dynamics_seed, atom));
+    spin_integrator->temperature = temperature;
   }
 
 }
@@ -277,7 +284,7 @@ void Integrate::finalize(const Atom& atom, const Box& box)
   }
   ensemble_.reset();
   spin_integrator.reset();
-  use_spin_tspin = use_spin_sib = false;
+  use_spin_tspin = use_spin_sib = use_spin_glsd = false;
   type = EnsembleType::UNKNOWN;
   fixed_group = -1; // no group has an index of -1
   move_group = -1;
@@ -311,7 +318,7 @@ void Integrate::compute1(
     type == EnsembleType::TRPMD) {
     ensemble.temperature = temperature2;
   } else if (is_standard_nvt(type) || is_standard_npt(type) || type == EnsembleType::PIMD ||
-             (type == EnsembleType::MTTK && (use_spin_tspin || use_spin_sib))) {
+             (type == EnsembleType::MTTK && (use_spin_tspin || use_spin_sib || use_spin_glsd))) {
     ensemble.temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
@@ -343,7 +350,7 @@ void Integrate::compute2(
     type == EnsembleType::TRPMD) {
     ensemble.temperature = temperature2;
   } else if (is_standard_nvt(type) || is_standard_npt(type) || type == EnsembleType::PIMD ||
-             (type == EnsembleType::MTTK && (use_spin_tspin || use_spin_sib))) {
+             (type == EnsembleType::MTTK && (use_spin_tspin || use_spin_sib || use_spin_glsd))) {
     ensemble.temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
@@ -372,7 +379,8 @@ void Integrate::parse_ensemble(
 
   use_spin_tspin = tokens[1] == "nvt_tspin" || tokens[1] == "npt_tspin";
   use_spin_sib = tokens[1] == "nve_sib" || tokens[1] == "nvt_sib" || tokens[1] == "npt_sib";
-  if (use_spin_tspin || use_spin_sib) {
+  use_spin_glsd = tokens[1] == "nve_glsd" || tokens[1] == "nvt_glsd" || tokens[1] == "npt_glsd";
+  if (use_spin_tspin || use_spin_sib || use_spin_glsd) {
     parse_spin_ensemble(tokens, atom, box, group);
     return;
   }

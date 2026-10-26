@@ -45,8 +45,9 @@ persists across run commands. To turn it off::
 Spin is in muB, magnetic force is in eV/muB, and energy is in eV. With
 c_B = 5.7883818060e-5, the added magnetic force is c_B times the field vector;
 the added per-atom Zeeman energy is minus spin dotted with this force.
-Both contributions are recomputed at every force evaluation using the actual
-stored moments and do not accumulate across evaluations.
+Both contributions are recomputed at initial, SIB midpoint, GLSD predictor,
+and endpoint states using the actual stored moments, including the
+unnormalized SIB chord midpoint, and do not accumulate across evaluations.
 Output energies and magnetic forces include these contributions.
 No additional g factor is applied. There is no direct mechanical force or
 virial contribution. Time-dependent fields and linear gradients are not supported.
