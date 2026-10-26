@@ -36,7 +36,7 @@ static float get_det(const float* box)
          box[2] * (box[3] * box[7] - box[4] * box[6]);
 }
 
-static void change_box(const NEP_Parameters& para, Structure& structure)
+static void change_box(float cutoff, Structure& structure)
 {
   float a[3] = {structure.box_original[0], structure.box_original[3], structure.box_original[6]};
   float b[3] = {structure.box_original[1], structure.box_original[4], structure.box_original[7]};
@@ -45,11 +45,11 @@ static void change_box(const NEP_Parameters& para, Structure& structure)
   structure.volume = abs(det);
   if (structure.pbc) {
     structure.num_cell[0] =
-      int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(b, c))));
+      int(ceil(2.0f * cutoff / (structure.volume / get_area(b, c))));
     structure.num_cell[1] =
-      int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(c, a))));
+      int(ceil(2.0f * cutoff / (structure.volume / get_area(c, a))));
     structure.num_cell[2] =
-      int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(a, b))));
+      int(ceil(2.0f * cutoff / (structure.volume / get_area(a, b))));
   } else {
     structure.num_cell[0] = 1;
     structure.num_cell[1] = 1;
@@ -115,7 +115,7 @@ void NEP_Data_Reader::read_geometry(const XYZ_Record& record, Structure& structu
           xyz_filename.c_str(),
           line_number);
       }
-      change_box(para, structure);
+      change_box(geometry_cutoff(), structure);
     }
   }
   if (!has_lattice_in_exyz) {
@@ -344,3 +344,5 @@ bool NEP_Data_Reader::read_structures(bool is_train, std::vector<Structure>& str
 
   return has_test_set;
 }
+
+float NEP_Data_Reader::geometry_cutoff() const { return para.rc_radial_max; }

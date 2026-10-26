@@ -52,7 +52,11 @@ The main source directories are:
 | `src/utilities/` | Shared utilities, GPU wrappers, input helpers, and containers |
 | `src/main_nep/` | `nep` executable |
 
-Files added under an existing source directory are normally collected automatically by the makefiles. For `nep`, the CUDA and HIP makefiles also collect `.cu` files one directory below `src/main_nep/`.
+Files added under an existing source directory are normally collected automatically by the makefiles. The CUDA and HIP makefiles also collect `.cu` files one directory below `src/force/` for `gpumd`, and `src/main_nep/` for `nep`.
+
+Training in `src/main_nep/nep_spin/` uses the shared magnetic descriptor and
+force headers in `src/force/nep_spin/`. GPUMD Spin force dispatch is added
+separately; the headers do not enable a runtime potential by themselves.
 
 ## 3. Main `gpumd` architecture
 
@@ -199,6 +203,7 @@ The `nep` executable is implemented under `src/main_nep/` and shares utilities w
 | Top level | Entry point, model selection, optimizer, scheduling, and shared data structures |
 | `common/` | Reusable NEP parameter, data, loss, I/O, and runtime-compilation helpers |
 | `nep/` | Ordinary and temperature-dependent NEP |
+| `nep_spin/` | Spin3 parameters, magnetic labels/neighbors, response supervision, and model I/O |
 | `nep_charge/` | NEP charge modes 1 and 2 |
 | `nep_vdw/` | NEP with long-range dispersion |
 | `nep_charge_vdw/` | NEP with charge and dispersion |
@@ -233,6 +238,16 @@ Shared structure and dataset code handles common data. Model-specific labels, GP
 
 `evaluate()` receives contiguous candidate parameter vectors on the host. The model owns intermediate losses; `accumulate_fitness()` adds their contributions after common regularization. Keep model-specific reduction and transfer decisions behind these interfaces, so later GPU reduction or population parallelism does not require model branches in `Fitness` or `SNES`.
 
+Spin3 keeps `Structure` and `Dataset` unchanged and stores magnetic labels and device
+buffers in `Spin_Data`, indexed by `NEP_Batch_Data`. Labels are matched through
+`Structure::index_in_file` after batch sorting or energy-difference grouping.
+Its reader supplies the largest structural/magnetic cutoff to the shared geometry
+reader. `response.xyz` has separate device data and contributes only response loss;
+it does not fit the energy reference or scalers. Spin3 uses the shared
+`energy_reference` and block model/restart formats while preserving its
+fixed-reference scaler and the common generation-zero lifecycle. Legacy Spin3
+model and two-column restart files remain readable.
+
 ### Adding a training model
 
 1. Implement the `Potential` interface in the model's subdirectory, with its parameter parsing, labels, workspaces, losses, and output handling.
@@ -261,3 +276,9 @@ The basic internal units are:
 - charge: elementary charge
 
 User-facing changes to keywords, file formats, units, or physical definitions should be reflected in the documentation under `doc/`.
+
+Spin moments are in muB and magnetic forces in eV/muB. See the
+[NEP-spin model](../doc/potentials/nep_spin.rst) for the training convention.
+
+See [Spin regression checks](spin_validation.md) for portable format, training,
+and GPU validation commands.
