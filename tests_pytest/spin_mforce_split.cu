@@ -2,6 +2,7 @@
 // Link against the NEP objects except main_nep/main.o; run with a valid nep.in.
 #include "main_nep/nep_spin/spin_data.cuh"
 #include "main_nep/parameter_input.cuh"
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cmath>
@@ -20,42 +21,67 @@ int main()
   Spin_Parameters para(input);
   assert(para.num_types == 2 && para.spin_dof_type_active[0] && !para.spin_dof_type_active[1]);
   Dataset data;
-  Spin_Data mag;
+  NEP_Batch_Data<Spin_Data> batches;
+  data.batch_index = 0; data.device_id = 0;
+  std::vector<Spin_Labels> labels(4);
   // Unequal active counts, an inactive atom, an unlabeled frame, and an
   // inactive-only frame; all errors are nonzero so masking failures are visible.
-  const std::vector<int> sizes{2, 3, 1, 1}, starts{0, 2, 5, 6};
-  const std::vector<int> types{0, 1, 0, 0, 0, 0, 1};
+  const std::vector<int> sizes{2, 5, 1, 1}, starts{0, 2, 7, 8};
+  const std::vector<int> types{0, 1, 0, 0, 0, 0, 0, 0, 1};
   const std::vector<int> labeled{1, 1, 0, 1};
   const std::vector<std::array<double, 3>> axes{
-    {0, 0, 2}, {1, 0, 0}, {0, 0, 0}, {1e-30, 0, 0}, {1, 2, 2}, {0, 0, 1}, {1, 0, 0}};
+    {0, 0, 2}, {1, 0, 0}, {0, 0, 0}, {1e-30, 0, 0}, {1, 2, 2}, {0.999e-10, 0, 0}, {1.001e-10, 0, 0}, {0, 0, 1}, {1, 0, 0}};
   const std::vector<std::array<float, 3>> errors{
-    {3, 4, 5}, {70, 80, 90}, {0, 0, 6}, {7, 0, 0}, {2, -1, 3}, {60, 70, 80}, {80, 90, 100}};
-  data.N = 7; data.Nc = 4;
-  data.structures.resize(4); mag.labels.resize(4);
+    {3, 4, 5}, {70, 80, 90}, {0, 0, 6}, {7, 0, 0}, {2, -1, 3}, {1, 2, 3}, {2, 3, 4}, {60, 70, 80}, {80, 90, 100}};
+  data.N = 9; data.Nc = 4;
+  data.structures.resize(4);
   data.weight_cpu = {2, .5f, 3, 4};
   data.error_cpu.resize(4); data.error_gpu.resize(4);
   data.has_type.assign(3 * 4, 0);
-  std::vector<double> spins(21);
-  std::vector<float> predicted(21), reference(21, .25f);
+  std::vector<double> spins(3 * data.N);
+  std::vector<float> predicted(3 * data.N), reference(3 * data.N, .25f);
   for (int c = 0; c < 4; ++c) {
     auto& frame = data.structures[c];
-    frame.num_atom = sizes[c];
+    frame.num_atom = sizes[c]; frame.index_in_file = c;
+    frame.x.resize(sizes[c]); frame.y.assign(sizes[c], 0); frame.z.assign(sizes[c], 0);
+    labels[c].has_mforce = labeled[c];
+    for (auto* values : {&labels[c].mfx, &labels[c].mfy, &labels[c].mfz})
+      values->assign(sizes[c], .25f);
     for (int a = starts[c]; a < starts[c] + sizes[c]; ++a) {
       frame.type.push_back(types[a]);
+      frame.x[a - starts[c]] = a - starts[c];
       data.has_type[types[a] * 4 + c] = data.has_type[2 * 4 + c] = 1;
-      mag.labels[c].sx.push_back(axes[a][0]);
-      mag.labels[c].sy.push_back(axes[a][1]);
-      mag.labels[c].sz.push_back(axes[a][2]);
+      labels[c].sx.push_back(axes[a][0]);
+      labels[c].sy.push_back(axes[a][1]);
+      labels[c].sz.push_back(axes[a][2]);
       for (int d = 0; d < 3; ++d) {
-        spins[d * 7 + a] = axes[a][d];
-        predicted[d * 7 + a] = reference[d * 7 + a] + errors[a][d];
+        spins[d * data.N + a] = axes[a][d];
+        predicted[d * data.N + a] = reference[d * data.N + a] + errors[a][d];
       }
     }
   }
+  data.Na_sum_cpu = starts;
   upload(data.Na, sizes); upload(data.Na_sum, starts); upload(data.type, types);
-  upload(mag.spin, spins); upload(mag.mforce, predicted); upload(mag.mforce_ref_gpu, reference);
-  upload(mag.has_mforce_gpu, labeled); mag.has_mforce_cpu = labeled;
-  upload(mag.spin_dof_type_active_gpu, para.spin_dof_type_active);
+  std::vector<float> position(3 * data.N, 0), box(18 * data.Nc, 0), original(9 * data.Nc, 0);
+  for (int c = 0; c < data.Nc; ++c) {
+    for (int a = 0; a < sizes[c]; ++a) position[starts[c] + a] = a;
+    for (int d = 0; d < 3; ++d) {
+      box[c * 18 + d * 4] = original[c * 9 + d * 4] = 20;
+      box[c * 18 + 9 + d * 4] = .05f;
+    }
+  }
+  upload(data.r, position); upload(data.box, box); upload(data.box_original, original);
+  upload(data.num_cell, std::vector<int>(3 * data.Nc, 1));
+  // Use the same owner/construction path as the reader, including slot replacement.
+  auto rebuild = [&]() -> Spin_Data& {
+    auto& result = batches.create(data);
+    result.construct(para, data, labels);
+    upload(result.mforce, predicted);
+    return result;
+  };
+  auto& mag = rebuild();
+  assert((mag.active_count_cpu == std::vector<int>{1, 5, 1, 0}));
+  assert((mag.torque_active_count_cpu == std::vector<int>{1, 2, 1, 0}));
   for (bool weighted : {false, true}) {
     const auto torque = mag.get_rmse_tau(para, data, weighted, 0);
     const auto full = mag.get_rmse_mforce(para, data, weighted, 0);
@@ -98,10 +124,10 @@ int main()
   // Simultaneously rotate spins and errors: the projected losses must be invariant.
   const auto p0 = mag.get_rmse_mforce_parallel(para, data, false, 0);
   const auto t0 = mag.get_rmse_mforce_perp(para, data, false, 0);
-  for (int a = 0; a < 7; ++a) {
-    spins[a] = -axes[a][1]; spins[7+a] = axes[a][0];
+  for (int a = 0; a < data.N; ++a) {
+    spins[a] = -axes[a][1]; spins[data.N+a] = axes[a][0];
     predicted[a] = reference[a] - errors[a][1];
-    predicted[7+a] = reference[7+a] + errors[a][0];
+    predicted[data.N+a] = reference[data.N+a] + errors[a][0];
   }
   upload(mag.spin, spins); upload(mag.mforce, predicted);
   const auto p1 = mag.get_rmse_mforce_parallel(para, data, false, 0);
@@ -110,13 +136,26 @@ int main()
     assert(std::abs(p0[type]-p1[type]) < 1e-6);
     assert(std::abs(t0[type]-t1[type]) < 1e-6);
   }
-  // No labels / no active atoms must yield finite zeros, not 0/0.
-  mag.has_mforce_cpu.assign(4, 0); upload(mag.has_mforce_gpu, mag.has_mforce_cpu);
-  for (auto value : mag.get_rmse_mforce_parallel(para, data, false, 0)) assert(value == 0);
-  for (auto value : mag.get_rmse_tau(para, data, false, 0)) assert(value == 0);
-  mag.has_mforce_cpu = labeled; upload(mag.has_mforce_gpu, labeled);
-  para.spin_dof_type_active.assign(2, 0); upload(mag.spin_dof_type_active_gpu, para.spin_dof_type_active);
-  for (auto value : mag.get_rmse_mforce_perp(para, data, true, 0)) assert(value == 0);
-  for (auto value : mag.get_rmse_tau(para, data, true, 0)) assert(value == 0);
+  // Label/mask changes require reconstruction, as for the uploaded GPU data.
+  for (auto& label : labels) label.has_mforce = 0;
+  auto& unlabeled = rebuild();
+  for (auto value : unlabeled.get_rmse_mforce_parallel(para, data, false, 0)) assert(value == 0);
+  for (auto value : unlabeled.get_rmse_tau(para, data, false, 0)) assert(value == 0);
+  for (int c = 0; c < data.Nc; ++c) labels[c].has_mforce = labeled[c];
+  para.spin_dof_type_active.assign(2, 0);
+  auto& inactive = rebuild();
+  assert((inactive.active_count_cpu == std::vector<int>(4, 0)));
+  assert((inactive.torque_active_count_cpu == std::vector<int>(4, 0)));
+  for (auto value : inactive.get_rmse_mforce_perp(para, data, true, 0)) assert(value == 0);
+  for (auto value : inactive.get_rmse_tau(para, data, true, 0)) assert(value == 0);
+  para.spin_dof_type_active[0] = 1;
+  for (auto& label : labels)
+    for (auto* values : {&label.sx, &label.sy, &label.sz})
+      std::fill(values->begin(), values->end(), 0);
+  auto& zero_spin = rebuild();
+  assert((zero_spin.active_count_cpu == std::vector<int>{1, 5, 1, 0}));
+  assert((zero_spin.torque_active_count_cpu == std::vector<int>(4, 0)));
+  for (auto value : zero_spin.get_rmse_tau(para, data, false, 0)) assert(value == 0);
+  for (auto value : zero_spin.get_rmse_mforce(para, data, false, 0)) assert(value > 0);
   puts("spin magnetic split numerical oracle passed");
 }

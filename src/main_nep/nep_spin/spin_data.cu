@@ -63,12 +63,22 @@ void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::ve
   labels.reserve(Nc);
   std::vector<double> position(3*N), moments(3*N);
   mforce_ref_cpu.resize(3*N); mforce_cpu.resize(3*N); has_mforce_cpu.resize(Nc);
+  active_count_cpu.assign(Nc, 0);
+  torque_active_count_cpu.assign(Nc, 0);
   for (int n=0;n<Nc;++n) {
     const auto& structure=dataset.structures[n];
     labels.push_back(input.at(structure.index_in_file));
     const auto& label=labels.back();
     has_mforce_cpu[n]=label.has_mforce;
     for (int a=0;a<structure.num_atom;++a) {
+      if (para.spin_dof_type_active[structure.type[a]]) {
+        ++active_count_cpu[n];
+        const double spin2 =
+          label.sx[a] * label.sx[a] +
+          label.sy[a] * label.sy[a] +
+          label.sz[a] * label.sz[a];
+        if (spin2 > 1.0e-20) ++torque_active_count_cpu[n];
+      }
       const int i=dataset.Na_sum_cpu[n]+a;
       position[i]=structure.x[a]; position[N+i]=structure.y[a]; position[2*N+i]=structure.z[a];
       moments[i]=label.sx[a]; moments[N+i]=label.sy[a]; moments[2*N+i]=label.sz[a];
@@ -227,21 +237,9 @@ static std::vector<float> get_rmse_spin_impl(
     if (!spin_data.has_mforce_cpu[configuration]) {
       continue;
     }
-    int active_count = 0;
-    const auto& structure = dataset.structures[configuration];
-    const auto& label = spin_data.labels[configuration];
-    for (int atom = 0; atom < structure.num_atom; ++atom) {
-      if (!para.spin_dof_type_active[structure.type[atom]]) {
-        continue;
-      }
-      const double spin2 =
-        label.sx[atom] * label.sx[atom] +
-        label.sy[atom] * label.sy[atom] +
-        label.sz[atom] * label.sz[atom];
-      if (Channel != MagneticError::Torque || spin2 > 1.0e-20) {
-        ++active_count;
-      }
-    }
+    const int active_count = Channel == MagneticError::Torque
+      ? spin_data.torque_active_count_cpu[configuration]
+      : spin_data.active_count_cpu[configuration];
     const float weighted_error =
       use_weight
         ? dataset.weight_cpu[configuration] * dataset.weight_cpu[configuration] *

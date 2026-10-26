@@ -32,6 +32,8 @@ struct Spin_Data {
   GPU_Vector<float> mforce, mforce_ref_gpu;
   std::vector<float> mforce_cpu, mforce_ref_cpu;
   std::vector<int> has_mforce_cpu;
+  // Per-frame loss counts, fixed with labels and the active mask at construction.
+  std::vector<int> active_count_cpu, torque_active_count_cpu;
   void construct(Spin_Parameters&, Dataset&, const std::vector<Spin_Labels>&);
   std::vector<float> get_rmse_mforce(Spin_Parameters&, Dataset&, bool, int);
   std::vector<float> get_rmse_mforce_parallel(Spin_Parameters&, Dataset&, bool, int);
