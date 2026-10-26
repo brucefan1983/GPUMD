@@ -411,7 +411,12 @@ void Spin_Parameters::parse_spin_active_types(
 
 void Spin_Parameters::read_zbl_in()
 {
-  // Prediction metadata and flexible parameters are loaded by the Spin3 reader
-  // after its full descriptor layout has been established.
-  if (!prediction) NEP_Parameters::read_zbl_in();
+  // Prediction ZBL metadata is read from the model, not from zbl.in.
+  if (!prediction) {
+    FILE* input = fopen("zbl.in", "r");
+    if (input != nullptr) {
+      fclose(input);
+      PRINT_INPUT_ERROR("NEP-spin does not support flexible ZBL: remove zbl.in to use universal ZBL.");
+    }
+  }
 }

@@ -8,23 +8,13 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from spin_runtime_helpers import base_model as _base_model
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "nep_spin3"
 GPUMD = Path(os.environ.get("GPUMD_COMMAND", Path(__file__).parents[1] / "src" / "gpumd"))
 BOLTZMANN = 8.617343e-5
 MASK64 = 0xFFFFFFFFFFFFFFFF
-
-
-def _base_model():
-    lines = (FIXTURE / "model_large_box.xyz").read_text().splitlines()
-    lines[1] = lines[1].replace(
-        "Properties=species:S:1:pos:R:3:spin:R:3",
-        "Properties=species:S:1:pos:R:3:vel:R:3:spin:R:3")
-    for index in range(2, len(lines)):
-        fields = lines[index].split()
-        lines[index] = " ".join(fields[:4] + ["0", "0", "0"] + fields[4:])
-    return "\n".join(lines) + "\n"
 
 
 def _replace_spins(model_text, spins):
@@ -110,9 +100,13 @@ def _sib_gaussian(seed, atom_index, step, component):
     return math.sqrt(-2.0 * math.log(u1)) * math.cos(2.0 * math.pi * u2)
 
 
-def test_sib_one_step_matches_two_field_cayley_oracle(tmp_path):
+@pytest.mark.parametrize("field", [False, True], ids=["model", "external-field"])
+def test_sib_one_step_matches_two_field_cayley_oracle(tmp_path, field):
     model = _base_model()
+    applied = np.array([12., -7., 31.]) * 5.7883818060e-5 if field else np.zeros(3)
+    command = "add_mfield region 0 1 0 1 0 1 12 -7 31\n" if field else ""
     initial = _evaluate(tmp_path / "initial", model)
+    initial["mforce"] += applied
     magnitude = np.linalg.norm(initial["spin"], axis=1)[:, None]
     direction = initial["spin"] / magnitude
     alpha = 0.17
@@ -128,6 +122,7 @@ def test_sib_one_step_matches_two_field_cayley_oracle(tmp_path):
     midpoint = _evaluate(
         tmp_path / "midpoint", _replace_spins(model, midpoint_spin))
 
+    midpoint["mforce"] += applied
     corrector_omega = drift * (
         midpoint["mforce"]
         + alpha * _cross(midpoint_direction, midpoint["mforce"]))
@@ -135,7 +130,7 @@ def test_sib_one_step_matches_two_field_cayley_oracle(tmp_path):
 
     result = _run(
         tmp_path / "sib",
-        "potential nep.txt\n"
+        "potential nep.txt\n" + command +
         "ensemble nve_sib "
         f"alpha {alpha} gamma {gamma} stemp -1 seed 2468\n"
         f"time_step {time_step_fs}\n"
@@ -151,7 +146,7 @@ def test_sib_one_step_matches_two_field_cayley_oracle(tmp_path):
     endpoint = _evaluate(
         tmp_path / "endpoint", _replace_spins(model, actual["spin"]))
     np.testing.assert_allclose(
-        actual["mforce"], endpoint["mforce"], rtol=0.0, atol=3.0e-6)
+        actual["mforce"], endpoint["mforce"] + applied, rtol=0.0, atol=3.0e-6)
     np.testing.assert_allclose(
         np.linalg.norm(actual["spin"], axis=1), magnitude[:, 0],
         rtol=0.0, atol=3.0e-7)

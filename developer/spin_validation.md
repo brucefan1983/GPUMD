@@ -1,52 +1,105 @@
 # Spin regression checks
 
-Run these commands from the repository root. Use Python with NumPy and pytest,
-a C++ compiler for the format tests, and CUDA with a supported NVIDIA GPU for
-the runtime tests. Load your site's CUDA environment before building; the tests
-inherit the environment and do not configure library paths.
+Run from the repository root with Python, NumPy, pytest, a C++ compiler and,
+for runtime checks, CUDA and an allocated NVIDIA GPU. Build `src/gpumd` and
+`src/nep` for that GPU; `GPUMD_COMMAND` and `NEP_COMMAND` can select other builds.
+Set `RESULTS` to an existing absolute directory outside the checkout.
 
-## Model format and runtime
-
-The format tests compile the production codec on the CPU:
+## Routine checks
 
 ```sh
-python -m pytest --noconftest -q tests_pytest/test_spin_model_format.py
-```
-
-Build both executables on the target machine. Set `CUDA_ARCH` for its GPU; this
-example targets V100:
-
-```sh
-make -C src -j8 CUDA_ARCH=-arch=sm_70 gpumd nep
-python tests_pytest/validate_nep_spin3_runtime.py
+python -m pytest --noconftest -q -m 'not slow' tests_pytest/test_spin_*.py
 python tests_pytest/validate_nep_spin3_runtime.py --block-format
-python -m pytest --noconftest -q tests_pytest/test_spin_fire.py \
-  tests_pytest/test_spin_sib.py tests_pytest/test_spin_tspin.py
-python tests_pytest/validate_spin_tspin_runtime.py
+python tests_pytest/validate_nep_spin3_runtime.py --fixtures o3c2_uniform --cases chiral_soc
+python tests_pytest/validate_mfield_runtime.py
+python tests_pytest/validate_main_nep_spin3_training.py
+python tests_pytest/validate_spin_training_lifecycle.py
 ```
 
-These tests default to `src/gpumd`; `GPUMD_COMMAND` selects another executable.
-`--noconftest` runs the self-contained Spin tests without importing the ordinary
-NEP suite's ASE/Calorine fixtures. Runtime tests require a working GPU executable.
+`--noconftest` avoids the ordinary NEP suite's ASE/Calorine fixtures. The CPU codec
+checks new and legacy model formats. Runtime checks cover independent energy,
+force, magnetic force and virial oracles, integration formulas, noise scaling,
+FIRE convergence and failure states, and Spin lattice restart continuity. TSPIN
+and SIB each have one pytest implementation; the external-field SIB oracle is
+part of that suite. Training checks cover actual errors, defaults, masks,
+normalization, model export and restart. The main parity matrix has five cases:
+C2 with selective spins, C3 with all spins and nontrivial restart layout, C1 with
+typewise cutoff and torque supervision, ZBL, and a small periodic box with a wider
+magnetic cutoff. Lifecycle checks retain both full and subset spin environments.
+Detailed malformed model headers belong to the CPU codec suite; the CLI keeps a
+representative rejection check. Spin rejects flexible ZBL in training and in
+both legacy and block models; universal ZBL remains in the main parity matrix. The ordinary `tests_regression` suite
+remains a separate regression gate.
 
-`tests_pytest/fixtures/nep_spin3` contains two legacy models (C=2 and C=3), one
-structure, and three frozen oracle files. The C=2 typewise case reuses the C=2
-uniform parameters and changes only `spin_cutoff 6.0` to `spin_cutoff 4.0 6.0`.
-Each oracle records the SHA256 of its complete model input; the loader verifies
-that hash, including the generated typewise header. The versioned `model nep_spin`
-format and legacy files are checked against the same frozen energy, force,
-magnetic force, and virial values. Lifecycle checks cover prediction, MD,
-restart, and compatibility with existing files and inputs. Unsupported versions
-and conflicting selectors must fail. Training examples use `spin_version 1`.
-Do not regenerate expected values with the candidate implementation when fixing
-a test.
+The six files in `fixtures/nep_spin3` are two models, one structure and three
+frozen numerical oracles. The typewise-cutoff case derives its header from the
+C=2 model. SHA256 checks bind each oracle to its model. Never regenerate expected
+values with the candidate implementation to make a failing test pass.
 
-## Integration temperature contract
+## Extended GPU checks
 
-After building `gpumd`, link this driver probe against its objects, excluding
-`main_gpumd/main.o`. It checks that the initial temperature cache stays fixed,
-while the per-step lattice and Spin targets follow the ramp. It also checks a
-non-temperature-driving ensemble with an unusable base target.
+Run these when changing the corresponding numerical kernels, decomposition,
+JIT or checkpoint contracts, and before merging those changes. The multi-GPU
+scripts require four allocated GPUs visible through `CUDA_VISIBLE_DEVICES`.
+
+```sh
+python -m pytest --noconftest -q -m slow tests_pytest/test_spin_*.py
+python tests_pytest/validate_main_nep_spin3_training.py --check-jit
+python tests_pytest/validate_spin_training_multigpu.py --output "$RESULTS/training"
+python tests_pytest/validate_spin_multigpu.py --binary src/gpumd \
+  --model tests_pytest/fixtures/nep_spin3/nep4_spin3_o3c2_uniform.nep \
+  --block-format --output "$RESULTS/runtime"
+python tests_pytest/validate_spin_glsd_runtime.py --binary src/gpumd \
+  --output "$RESULTS/glsd"
+python -m pytest --noconftest -q tests_pytest/test_spin_lattice_restart.py
+```
+
+The slow pytest cases check TSPIN temperature statistics and restart trajectories
+with the bundled NEP model; routine restart checks use a zero-force analytic
+model. Run lattice restart pytest on one and four GPUs to cover both execution
+paths. The GLSD runtime suite uses the bundled model by default and also checks
+analytic trajectories, timestep convergence, diffusion and the restart stream.
+No private Fe model or pre-refactor executable is required. Training multi-GPU
+checks use multiple structures per batch and independently recomputed energy
+errors. Optional historical binary comparisons are development evidence, not
+prerequisites for these regressions.
+
+## Focused compiled probes
+
+Build against current sources and objects. These commands assume V100; change
+`-arch=sm_70` for the allocated GPU. Rebuild the executable objects after source
+changes. The small probes check contracts not exposed by the command-line output.
+
+```sh
+c++ -std=c++14 -Isrc tests_pytest/rotation_response.cpp -o "$RESULTS/rotation_response"
+"$RESULTS/rotation_response"
+objects=$(find src/main_nep src/utilities -name '*.cu' ! -path 'src/main_nep/main.cu' \
+  | sed 's/\.cu$/.o/')
+for probe in spin_mforce_split restart_parity response_fitness; do
+  nvcc -std=c++14 -O2 -arch=sm_70 -Isrc "tests_pytest/$probe.cu" $objects \
+    -lcublas -lcusolver -lcufft -ldl -lpthread -o "$RESULTS/$probe"
+done
+python tests_pytest/validate_spin_mforce_split.py \
+  --oracle "$RESULTS/spin_mforce_split" --output "$RESULTS/split"
+RESTART_PROBE="$RESULTS/restart_parity" python tests_pytest/validate_restart_scaler.py
+RESPONSE_FITNESS_PROBE="$RESULTS/response_fitness" \
+  python tests_pytest/validate_response_file_runtime.py
+nvcc -std=c++14 -O3 -arch=sm_70 -Isrc tests_pytest/spin_glsd_analytic.cu \
+  src/integrate/spin_glsd.cu -o "$RESULTS/spin_glsd_analytic"
+python tests_pytest/validate_spin_glsd_analytic.py "$RESULTS/spin_glsd_analytic"
+```
+
+The magnetic-loss probe checks independent projections, including zero spins.
+The restart probe distinguishes the SNES mean from the exported elite. The
+response probes check rotation geometry, loss normalization and data isolation.
+Initialization and variable-type assignment are checked by the restart probe;
+torque and response-loss edge cases share the magnetic and response probes.
+GLSD's harmonic probe supplies independent statistical expectations
+that a bounded ANN potential cannot supply.
+
+For integration temperature changes, link `integrate_temperature.cu` against the
+GPUMD objects excluding `main_gpumd/main.o`; it checks the fixed initial cache and
+per-step temperature ramps:
 
 ```sh
 objects=$(find src/main_gpumd src/minimize src/phonon src/integrate src/mc \
@@ -57,99 +110,6 @@ nvcc -std=c++14 -O2 -arch=sm_70 -Isrc tests_pytest/integrate_temperature.cu \
 "$RESULTS/integrate_temperature"
 ```
 
-## Training and multiple GPUs
-
-The following self-contained training checks generate their small datasets in
-temporary directories:
-
-```sh
-python tests_pytest/validate_main_nep_spin3_training.py
-python tests_pytest/validate_spin_training_lifecycle.py
-```
-
-For GPU scaling checks, expose four allocated GPUs through `CUDA_VISIBLE_DEVICES`.
-Choose an output directory outside the checkout:
-
-```sh
-python tests_pytest/validate_spin_training_multigpu.py --output "$RESULTS/training"
-python tests_pytest/validate_spin_multigpu.py --binary src/gpumd \
-  --model tests_pytest/fixtures/nep_spin3/nep4_spin3_o3c2_uniform.nep \
-  --block-format --output "$RESULTS/runtime"
-```
-
-The training comparison uses one, two, and four GPUs, multiple structures per
-batch, and independently recomputed energy errors. The runtime comparison covers
-domain partitioning, boundary conditions, energy, forces, and magnetic forces.
-
-Additional probes must be linked against the current NEP objects, excluding its
-`main` object. On Linux/CUDA, after building `nep`, for example:
-
-```sh
-for probe in spin_mforce_split restart_parity response_fitness; do
-  objects=$(find src/main_nep src/utilities -name '*.cu' ! -path 'src/main_nep/main.cu' \
-    | sed 's/\.cu$/.o/')
-  nvcc -std=c++17 -O2 -arch=sm_70 -Isrc "tests_pytest/$probe.cu" $objects \
-    -lcublas -lcusolver -lcufft -ldl -lpthread -o "$RESULTS/$probe"
-done
-python tests_pytest/validate_spin_mforce_split.py \
-  --oracle "$RESULTS/spin_mforce_split" --output "$RESULTS/split"
-RESTART_PROBE="$RESULTS/restart_parity" python tests_pytest/validate_restart_scaler.py
-RESPONSE_FITNESS_PROBE="$RESULTS/response_fitness" \
-  python tests_pytest/validate_response_file_runtime.py
-```
-
-Set `RESULTS` to an existing absolute directory before using these commands.
-The restart check covers both ordinary NEP and Spin, preserves the SNES search
-mean separately from the exported elite, and checks scaler import. The split
-probe checks parallel/perpendicular magnetic losses against an independent
-projection calculation, including zero spins and parser rejection cases.
-
-## GLSD and lattice-driver restart
-
-The standalone GLSD probe checks deterministic convergence and additive-noise
-statistics against independent analytic expectations. It needs no trained model:
-
-```sh
-nvcc -std=c++14 -O3 -arch=sm_70 -Isrc tests_pytest/spin_glsd_analytic.cu \
-  src/integrate/spin_glsd.cu -o "$RESULTS/spin_glsd_analytic"
-python tests_pytest/validate_spin_glsd_analytic.py "$RESULTS/spin_glsd_analytic"
-GPUMD_COMMAND=src/gpumd python tests_pytest/validate_spin_sib_runtime.py
-```
-
-Full runtime and restart checks require four allocated GPUs, a compatible Fe
-Spin model, and independently preserved reference executables. Use absolute
-paths and fresh output directories outside the checkout:
-
-```sh
-python tests_pytest/validate_spin_glsd_runtime.py \
-  --binary /path/to/current/gpumd --reference /path/to/pre-glsd/gpumd \
-  --mobility-reference /path/to/pre-damping/gpumd \
-  --model /path/to/Fe/nep.txt --output "$RESULTS/glsd"
-python tests_pytest/validate_mttk_restart.py \
-  --binary /path/to/current/gpumd --reference /path/to/pre-isolation/gpumd \
-  --model /path/to/Fe/nep.txt --output "$RESULTS/mttk"
-python tests_pytest/validate_nhc_restart.py \
-  --binary /path/to/current/gpumd --reference /path/to/pre-isolation/gpumd \
-  --model /path/to/Fe/nep.txt --output "$RESULTS/nhc"
-GPUMD_COMMAND=/path/to/current/gpumd python -m pytest --noconftest -q \
-  tests_pytest/test_spin_lattice_restart.py
-```
-
-These reference executables and the Fe model are external prerequisites, not
-bundled fixtures. Record their source revisions and hashes; never substitute
-the candidate for an independent reference. The GLSD mobility reference must
-support the former dimensional input. Restart checks compare continuous and
-resumed trajectories step by step, exercise invalid inputs, and use missing-state
-controls to detect incomplete restoration. The lattice restart reference must
-support the existing endpoint format: its checkpoints are resumed by the
-candidate to check compatibility. Ordinary NHC/MTTK cases must emit no Spin
-lattice metadata and must ignore old bath state when starting an ordinary run.
-See the
-[restart documentation](../doc/gpumd/input_parameters/dump_restart.rst) for the
-supported continuation contracts and the
-[GLSD documentation](../doc/gpumd/input_parameters/ensemble_glsd.rst) for the
-physical equation and timestep limits.
-
-Keep run logs, machine details and numerical reports outside the source tree.
-Passing these regressions establishes the covered software contracts; it does
-not establish magnetic phase behavior or extrapolative model accuracy.
+Keep timing, source/binary hashes and run logs outside the source tree. These
+checks establish software contracts, not magnetic phase behavior or predictive
+accuracy on unseen structures.

@@ -157,12 +157,12 @@ __device__ __forceinline__ void evaluate_spin3_edge_weights_b9_f32(
       const int index = spin_coefficient_offset +
         (c * BasisCount + k) * pair_count + type_pair;
       weight += fn[k] * descriptor_coefficients[index];
-      if constexpr (NeedDerivatives) {
+      if (NeedDerivatives) {
         derivative += fnp[k] * descriptor_coefficients[index];
       }
     }
     weights[c] = weight;
-    if constexpr (NeedDerivatives) {
+    if (NeedDerivatives) {
       weight_derivatives[c] = derivative;
     }
   }
@@ -677,13 +677,8 @@ __global__ void find_force_angular_warp(
   const int lane = threadIdx.x & 31;
   const int atom_lane = lane / edge_lanes;
   const int edge_lane = lane - atom_lane * edge_lanes;
-  unsigned int center_mask;
-  if constexpr (edge_lanes == 32) {
-    center_mask = 0xffffffffu;
-  } else {
-    center_mask =
-      ((1u << edge_lanes) - 1u) << (atom_lane * edge_lanes);
-  }
+  const unsigned int center_mask =
+    (0xffffffffu >> (32 - edge_lanes)) << (atom_lane * edge_lanes);
   const int center_local = warp * atoms_per_warp + atom_lane;
   const int n1 = blockIdx.x * centers_per_block + center_local;
 
@@ -1159,7 +1154,7 @@ __global__ void find_spin_zbl_force(
     const int index = atom1 + atom_count * neighbor;
     const int atom2 = neighbor_list[index];
     float displacement[3];
-    if constexpr (SmallBox) {
+    if (SmallBox) {
       displacement[0] = static_cast<float>(r12x[index]);
       displacement[1] = static_cast<float>(r12y[index]);
       displacement[2] = static_cast<float>(r12z[index]);
@@ -1182,52 +1177,32 @@ __global__ void find_spin_zbl_force(
     const float charge_product = K_C_SP * atomic_number1 * atomic_number2;
     float pair_energy = 0.0f;
     float pair_derivative = 0.0f;
-    if (zbl.flexible) {
-      const int lower_type = min(type1, type2);
-      const int upper_type = max(type1, type2);
-      const int pair = lower_type * zbl.num_types -
-        lower_type * (lower_type - 1) / 2 + upper_type - lower_type;
-      float parameters[10];
-#pragma unroll
-      for (int parameter = 0; parameter < 10; ++parameter) {
-        parameters[parameter] = zbl.para[10 * pair + parameter];
-      }
-      find_f_and_fp_zbl(
-        parameters,
-        charge_product,
-        inverse_screening_length,
-        distance,
-        inverse_distance,
-        pair_energy,
-        pair_derivative);
-    } else {
-      float inner_cutoff = zbl.rc_inner;
-      float outer_cutoff = zbl.rc_outer;
-      if (paramb.use_typewise_cutoff_zbl) {
-        outer_cutoff = min(
-          (COVALENT_RADIUS[atomic_number1 - 1] +
-           COVALENT_RADIUS[atomic_number2 - 1]) *
-            paramb.typewise_cutoff_zbl_factor,
-          outer_cutoff);
-        inner_cutoff = 0.0f;
-      }
-      find_f_and_fp_zbl(
-        charge_product,
-        inverse_screening_length,
-        inner_cutoff,
-        outer_cutoff,
-        distance,
-        inverse_distance,
-        pair_energy,
-        pair_derivative);
+    float inner_cutoff = zbl.rc_inner;
+    float outer_cutoff = zbl.rc_outer;
+    if (paramb.use_typewise_cutoff_zbl) {
+      outer_cutoff = min(
+        (COVALENT_RADIUS[atomic_number1 - 1] +
+         COVALENT_RADIUS[atomic_number2 - 1]) *
+          paramb.typewise_cutoff_zbl_factor,
+        outer_cutoff);
+      inner_cutoff = 0.0f;
     }
+    find_f_and_fp_zbl(
+      charge_product,
+      inverse_screening_length,
+      inner_cutoff,
+      outer_cutoff,
+      distance,
+      inverse_distance,
+      pair_energy,
+      pair_derivative);
     const float force_scale = 0.5f * pair_derivative * inverse_distance;
     const float pair_force[3] = {
       displacement[0] * force_scale,
       displacement[1] * force_scale,
       displacement[2] * force_scale};
     energy += 0.5f * pair_energy;
-    if constexpr (SmallBox) {
+    if (SmallBox) {
       atomicAdd(&force_x[atom1], static_cast<double>(pair_force[0]));
       atomicAdd(&force_y[atom1], static_cast<double>(pair_force[1]));
       atomicAdd(&force_z[atom1], static_cast<double>(pair_force[2]));
@@ -1259,7 +1234,7 @@ __global__ void find_spin_zbl_force(
     }
   }
   potential[atom1] += energy;
-  if constexpr (!SmallBox) {
+  if (!SmallBox) {
     force_x[atom1] += force_sum[0];
     force_y[atom1] += force_sum[1];
     force_z[atom1] += force_sum[2];
@@ -1534,17 +1509,16 @@ void NEP_Spin::read_model(const char* file_potential)
     zbl_.rc_inner = parse_float(tokens[1]);
     zbl_.rc_outer = parse_float(tokens[2]);
     if (zbl_.rc_inner == 0.0f && zbl_.rc_outer == 0.0f) {
-      zbl_.flexible = true;
-    } else {
-      if (!(zbl_.rc_inner >= 0.0f && zbl_.rc_inner < zbl_.rc_outer)) {
-        throw std::runtime_error("invalid spin3 ZBL inner/outer cutoffs");
-      }
-      if (tokens.size() == 4) {
-        paramb_.use_typewise_cutoff_zbl = true;
-        paramb_.typewise_cutoff_zbl_factor = parse_float(tokens[3]);
-        if (paramb_.typewise_cutoff_zbl_factor < 0.5f) {
-          throw std::runtime_error("spin3 ZBL typewise cutoff factor must be >= 0.5");
-        }
+      throw std::runtime_error("NEP-spin does not support flexible ZBL (zbl 0 0).");
+    }
+    if (!(zbl_.rc_inner >= 0.0f && zbl_.rc_inner < zbl_.rc_outer)) {
+      throw std::runtime_error("invalid spin3 ZBL inner/outer cutoffs");
+    }
+    if (tokens.size() == 4) {
+      paramb_.use_typewise_cutoff_zbl = true;
+      paramb_.typewise_cutoff_zbl_factor = parse_float(tokens[3]);
+      if (paramb_.typewise_cutoff_zbl_factor < 0.5f) {
+        throw std::runtime_error("spin3 ZBL typewise cutoff factor must be >= 0.5");
       }
     }
   }
@@ -1661,17 +1635,6 @@ void NEP_Spin::read_model(const char* file_potential)
       throw std::runtime_error("truncated or malformed NEP_Spin numeric payload");
     }
     parameters.push_back(parse_float(tokens[0]));
-  }
-  if (zbl_.flexible) {
-    const int zbl_parameter_count =
-      10 * model_.num_types * (model_.num_types + 1) / 2;
-    for (int parameter = 0; parameter < zbl_parameter_count; ++parameter) {
-      tokens = next_tokens(input);
-      if (tokens.size() != 1) {
-        throw std::runtime_error("truncated flexible ZBL payload in NEP_Spin model");
-      }
-      zbl_.para[parameter] = parse_float(tokens[0]);
-    }
   }
   if (!next_tokens(input).empty()) {
     throw std::runtime_error("extra header or numeric payload after NEP_Spin model");

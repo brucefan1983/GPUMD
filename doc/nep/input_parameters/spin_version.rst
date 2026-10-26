@@ -26,8 +26,8 @@ and restart require a compatible model. The shared model-file keyword
 Every training frame must contain a Cartesian ``spin:R:3`` property. Add
 ``mforce:R:3`` to train magnetic forces; see :ref:`train_test_xyz` for aliases
 and units. Charge models and type-dependent structural cutoffs are unsupported.
-Type-dependent :ref:`spin_cutoff <kw_spin_cutoff>` and :ref:`zbl <kw_zbl>` are
-supported. ``fine_tune`` is not supported. ``import_q_scaler`` imports the
+Type-dependent :ref:`spin_cutoff <kw_spin_cutoff>` and universal
+:ref:`zbl <kw_zbl>` are supported; flexible ZBL is not supported. ``fine_tune`` is not supported. ``import_q_scaler`` imports the
 scaler while fitting a new energy reference to the current training set.
 
 A complete magnetic descriptor configuration is::
