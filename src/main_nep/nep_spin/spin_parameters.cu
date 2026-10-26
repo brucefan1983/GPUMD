@@ -133,6 +133,9 @@ void Spin_Parameters::validate_spin_parameters()
     PRINT_INPUT_ERROR(
       "Spin3 does not support charge/vdW or type-dependent structural cutoffs.\n");
   }
+  if (spin_cutoff > rc_radial_max) {
+    PRINT_INPUT_ERROR("spin_cutoff must not exceed the NEP radial cutoff.\n");
+  }
   if (num_hidden_layers == 2) {
     PRINT_INPUT_ERROR("Spin NEP only supports one hidden layer.\n");
   }

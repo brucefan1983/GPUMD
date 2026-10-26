@@ -97,6 +97,8 @@ bool NEP_Spin_Model_File::read(std::istream& input, std::string& error)
   for (int t = 0; t < types; ++t) {
     if (!number(f, f->values.size() == 1 ? 0 : t, spin_cutoff[t])) return false;
     if (spin_cutoff[t] <= 0) return fail(error, "spin_cutoff must be positive.");
+    if (spin_cutoff[t] > rc_radial)
+      return fail(error, "spin_cutoff must not exceed the NEP radial cutoff.");
   }
   auto active_types = [&](const char* name, std::vector<int>& active) {
     const auto* selection = field(name, 1, types);

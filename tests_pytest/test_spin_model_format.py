@@ -124,3 +124,22 @@ def test_reject_flexible_zbl(codec, tmp_path):
     result = subprocess.run([codec, path], capture_output=True, text=True)
     assert result.returncode == 1
     assert 'NEP-spin does not support flexible ZBL' in result.stderr
+
+
+@pytest.mark.parametrize('cutoff', ['6.0', '7.0', '5.0 7.0'])
+@pytest.mark.parametrize('spin_first', [False, True])
+def test_spin_cutoff_bound(codec, tmp_path, cutoff, spin_first):
+    model, _ = load_fixture('o3c2_uniform')
+    model = model.replace('spin_cutoff 6.0', 'spin_cutoff ' + cutoff)
+    if spin_first:
+        line = next(line for line in model.splitlines() if line.startswith('cutoff '))
+        model = model.replace(line + '\n', '').replace(
+            'spin_cutoff ' + cutoff + '\n', 'spin_cutoff ' + cutoff + '\n' + line + '\n')
+    path = tmp_path / 'model.nep'
+    path.write_text(model)
+    result = subprocess.run([codec, path], capture_output=True, text=True)
+    if cutoff == '6.0':
+        assert result.returncode == 0, result.stderr
+    else:
+        assert result.returncode == 1
+        assert 'spin_cutoff must not exceed the NEP radial cutoff' in result.stderr

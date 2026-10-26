@@ -21,6 +21,11 @@ universal ZBL term. Flexible ZBL (``zbl 0 0``) is not supported.
 ``spin_version`` identifies the descriptor and parameter-layout
 contract, independently of the file syntax version and ``spin_order``.
 
+Every :ref:`spin_cutoff <kw_spin_cutoff>` value must be positive and no larger
+than the ordinary NEP radial cutoff. This constraint applies to both training
+input and model files; different spin cutoffs per atom type are supported
+within this bound.
+
 Energy model
 ============
 

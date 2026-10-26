@@ -159,6 +159,24 @@ def validate_parser(root):
         results[name] = result.returncode
         if result.returncode == 0:
             raise AssertionError(f"{name} did not fail closed")
+    # Validate after all keywords: both orders reject oversized uniform/typewise
+    # cutoffs and accept a final radial cutoff larger than its default of 8 A.
+    for spin_cutoff in ("7.0", "5.0 7.0", "9.0"):
+        for spin_first in (False, True):
+            name = f"cutoff_bound_{spin_cutoff}_{spin_first}"
+            radial = "9.0 5.0" if spin_cutoff == "9.0" else "6.0 5.0"
+            text = NEP_IN.replace("cutoff 6.0 5.0\n", "").replace("spin_cutoff 6.0\n", "")
+            cutoffs = [f"cutoff {radial}", f"spin_cutoff {spin_cutoff}"]
+            text += "\n".join(reversed(cutoffs) if spin_first else cutoffs) + "\n"
+            case = root / name
+            write_case(case, text)
+            result = run(NEP, case)
+            results[name] = result.returncode
+            if spin_cutoff == "9.0":
+                assert result.returncode == 0, result.stdout + result.stderr
+            else:
+                assert result.returncode != 0
+                assert "spin_cutoff must not exceed the NEP radial cutoff" in result.stdout + result.stderr
     tangent_case = root / "spin_tangent_is_not_a_label"
     tangent_input = NEP_IN.replace(
         "lambda_tau 0.5", "lambda_tau 0.5\nlambda_spin_response 0.3",
@@ -215,7 +233,7 @@ def validate_flexible_zbl_rejected(root):
 
 def validate_training_and_prediction(
         root, enable_zbl=False, spin_compress=2, typewise_spin_cutoff=False,
-        all_spin_types=False, check_restart=False, torque_only=False, wide_spin_cutoff=False):
+        all_spin_types=False, check_restart=False, torque_only=False, small_cell=False):
     root.mkdir()
     training = root / "training"
     nep_in = NEP_IN.replace("version 4", "version 4\nzbl 2.5") \
@@ -227,14 +245,15 @@ def validate_training_and_prediction(
     if all_spin_types:
         nep_in = nep_in.replace("spin_dof_type Fe\n", "spin_dof_type Fe Ge\n")
     if typewise_spin_cutoff:
-        nep_in = nep_in.replace("spin_cutoff 6.0", "spin_cutoff 5.0 7.0")
+        nep_in = nep_in.replace("spin_cutoff 6.0", "spin_cutoff 5.0 6.0")
     if check_restart:
         # Nontrivial channel/basis axes expose incorrect parameter transposes.
         nep_in = nep_in.replace("n_max 0 0", "n_max 4 4").replace(
             "basis_size 0 0", "basis_size 2 2")
     xyz = TRAIN_XYZ
-    if wide_spin_cutoff:
-        nep_in = nep_in.replace("spin_cutoff 6.0", "spin_cutoff 7.0").replace("batch 3", "batch 1")
+    if small_cell:
+        nep_in = nep_in.replace("cutoff 6.0 5.0", "cutoff 7.0 5.0").replace(
+            "spin_cutoff 6.0", "spin_cutoff 7.0").replace("batch 3", "batch 1")
         xyz = xyz.replace("24 0 0 0 24 0 0 0 24", "13 0 0 0 13 0 0 0 13").replace("Ge 2.8", "Ge 8.0")
     write_case(training, nep_in, xyz)
     result = run(NEP, training)
@@ -254,7 +273,7 @@ def validate_training_and_prediction(
         "spin_basis_size": "8", "spin_l_max": "2", "spin_order": "3",
         "spin_soc": "1", "spin_scaler": "1", "spin_compress": str(spin_compress),
         "spin_projection_size": str(4 * spin_compress * spin_compress),
-        "spin_cutoff": "5 7" if typewise_spin_cutoff else "7" if wide_spin_cutoff else "6",
+        "spin_cutoff": "5 6" if typewise_spin_cutoff else "7" if small_cell else "6",
     }
     if not all_spin_types:
         required.update(spin_dof_type="Fe", spin_env_type="Fe Ge")
@@ -363,7 +382,7 @@ def validate_native_compiled_checkpoint(root):
         config = config.replace("n_max 0 0", "n_max 4 4").replace(
             "basis_size 0 0", "basis_size 2 2")
         if channels == 3:
-            config = config.replace("spin_cutoff 6.0", "spin_cutoff 5.0 7.0")
+            config = config.replace("spin_cutoff 6.0", "spin_cutoff 5.0 6.0")
         initial = root / f"c{channels}-initial"
         write_case(initial, config + "nep_compile 0\n", xyz)
         result = run(NEP, initial)
@@ -575,7 +594,7 @@ def main():
             "zbl_training_prediction": validate_training_and_prediction(
                 root / "zbl", enable_zbl=True),
             "magnetic_cutoff_small_cell": validate_training_and_prediction(
-                root / "wide-spin-cutoff", all_spin_types=True, wide_spin_cutoff=True),
+                root / "small-cell", all_spin_types=True, small_cell=True),
             "channel_layout_restart": validate_training_and_prediction(
                 root / "restart", spin_compress=3,
                 all_spin_types=True, check_restart=True),

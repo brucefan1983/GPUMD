@@ -25,7 +25,6 @@ static std::string frame_key(const Structure& geometry, const Spin_Labels& label
   }
   return key.str();
 }
-float Spin_Reader::geometry_cutoff() const { return std::max(parameters.rc_radial_max,parameters.spin_cutoff); }
 
 void Spin_Reader::read_structure(const XYZ_Record& record, Structure& structure) {
   NEP_Energy_Reader::read_structure(record,structure);

@@ -52,7 +52,6 @@ public:
 protected:
   void begin_reading() override { labels.clear(); }
   void read_structure(const XYZ_Record&, Structure&) override;
-  float geometry_cutoff() const override;
 private:
   Spin_Parameters& parameters;
   NEP_Batch_Data<Spin_Data>& data;
