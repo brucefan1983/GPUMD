@@ -10,7 +10,7 @@ template <bool AtomicPull>
 __device__ __forceinline__ void spin3_oc_accumulate_pull(
     float* target,
     float value) {
-  if constexpr (AtomicPull) {
+  if (AtomicPull) {
     atomicAdd(target, value);
   } else {
     *target += value;
@@ -30,7 +30,7 @@ __device__ __forceinline__ void spin3_oc_add_projected_pull(
     for (int k = 0; k < Width; ++k) {
       float* target =
           pull + spin3_oc_channel_offset(source) + density_offset + k;
-      if constexpr (AtomicPull) {
+      if (AtomicPull) {
         atomicAdd(target, scale * projected_pull[k]);
       } else {
         *target += scale * projected_pull[k];
@@ -609,12 +609,8 @@ __global__ void accumulate_spin3_oc_native_forces(
   const int edge_lane = lane - atom_lane * EdgeLanes;
   const int center_local = warp * AtomsPerWarp + atom_lane;
   const int atom = blockIdx.x * CentersPerBlock + center_local;
-  unsigned int center_mask;
-  if constexpr (EdgeLanes == 32) {
-    center_mask = 0xffffffffu;
-  } else {
-    center_mask = ((1u << EdgeLanes) - 1u) << (atom_lane * EdgeLanes);
-  }
+  const unsigned int center_mask =
+      (0xffffffffu >> (32 - EdgeLanes)) << (atom_lane * EdgeLanes);
   const bool active =
       atom < atom_count && spin_dof_type_active[types[atom]] != 0;
   if (!active) return;
@@ -629,12 +625,8 @@ __global__ void accumulate_spin3_oc_native_forces(
     }
     __syncwarp(center_mask);
     if (edge_lane < C) {
-      unsigned int row_mask;
-      if constexpr (C == 32) {
-        row_mask = 0xffffffffu;
-      } else {
-        row_mask = ((1u << C) - 1u) << (atom_lane * EdgeLanes);
-      }
+      const unsigned int row_mask =
+          (0xffffffffu >> (32 - C)) << (atom_lane * EdgeLanes);
       build_spin3_oc_center_pull_row<C, true>(
           layout,
           atom,
@@ -810,22 +802,22 @@ __global__ void accumulate_spin3_oc_native_forces(
       atomicAdd(mforce_soa3 + d * atom_stride + neighbor,
           -static_cast<double>(grad_sj[d]));
     }
-    if constexpr (AccumulateSpinTransfer) {
+    if (AccumulateSpinTransfer) {
       atomic_add_spin_transfer_float(
           atom_stride, neighbor, r[0] * dist, r[1] * dist, r[2] * dist,
           grad_sj, spin_transfer_soa9);
     }
-    if constexpr (VirialMode == SpinVirialMode::neighbor_owned) {
+    if (VirialMode == SpinVirialMode::neighbor_owned) {
       atomic_add_per_atom_virial_double(
           atom_stride, neighbor, r[0] * dist, r[1] * dist, r[2] * dist,
           grad_rij[0], grad_rij[1], grad_rij[2], virial_soa9);
-    } else if constexpr (
+    } else if (
         VirialMode == SpinVirialMode::center_and_neighbor_float_sink) {
       atomic_add_per_atom_virial_float(
           atom_stride, neighbor, r[0] * dist, r[1] * dist, r[2] * dist,
           grad_rij[0], grad_rij[1], grad_rij[2], virial_float_soa9);
     }
-    if constexpr (AccumulateCenterVirial) {
+    if (AccumulateCenterVirial) {
       for (int a = 0; a < 3; ++a) {
         for (int b = 0; b < 3; ++b) {
           center_virial[virial_internal_component(3 * a + b)] -=
@@ -841,7 +833,7 @@ __global__ void accumulate_spin3_oc_native_forces(
       center_mforce[d] +=
           __shfl_down_sync(center_mask, center_mforce[d], offset, EdgeLanes);
     }
-    if constexpr (AccumulateCenterVirial) {
+    if (AccumulateCenterVirial) {
       for (int component = 0; component < 9; ++component) {
         center_virial[component] += __shfl_down_sync(
             center_mask, center_virial[component], offset, EdgeLanes);
@@ -855,7 +847,7 @@ __global__ void accumulate_spin3_oc_native_forces(
       atomicAdd(mforce_soa3 + d * atom_stride + atom,
           static_cast<double>(center_mforce[d]));
     }
-    if constexpr (AccumulateCenterVirial) {
+    if (AccumulateCenterVirial) {
       for (int component = 0; component < 9; ++component) {
         atomicAdd(virial_soa9 + component * atom_stride + atom,
             static_cast<double>(center_virial[component]));

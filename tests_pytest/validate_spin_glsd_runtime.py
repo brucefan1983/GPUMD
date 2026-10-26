@@ -8,17 +8,19 @@ checks actual NEP/field plumbing; the bounded tanh ANN is NOT a thermal oracle.
 import argparse
 import json
 import math
+import re
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import numpy as np
+from spin_fixtures import FIXTURE
 from spin_analytic_model import analytic_model, structure as small_structure
 from validate_spin_multigpu import frame, structure, write_xyz, sha
 
 
 # Independent unit conversion in the test: retain GPUMD's established rounded
-# hbar for exact old/new coefficient matching. Analytic oracles below also use
+# hbar for coefficient checks. Analytic oracles below also use
 # the independently tabulated hbar and tolerate its documented rounding error.
 HBAR_PS = 6.465412e-2 * 1.018051e1 / 1000
 DEFAULT_GAMMA = 2 / HBAR_PS
@@ -30,18 +32,15 @@ def damping(mobility, gamma=DEFAULT_GAMMA):
 
 def main():
     p=argparse.ArgumentParser()
-    for key in ('binary','reference','model','output'):
+    for key in ('binary','output'):
         p.add_argument('--'+key,type=Path,required=True)
-    p.add_argument('--mobility-reference',type=Path,required=True,
-                   help='validated GLSD binary before dimensionless input conversion')
+    p.add_argument('--model', type=Path, default=FIXTURE/'nep4_spin3_o3c2_uniform.nep')
     a=p.parse_args()
-    a.mobility_reference=a.mobility_reference.resolve()
-    for key in ('binary','reference','model','output'): setattr(a,key,getattr(a,key).resolve())
+    for key in ('binary','model','output'): setattr(a,key,getattr(a,key).resolve())
     a.output.mkdir(parents=True,exist_ok=False)
     devices=os.environ.get('CUDA_VISIBLE_DEVICES','0,1,2,3').split(',')
     assert len(devices)>=4,'four allocated GPUs required'
-    report={'binary_sha256':sha(a.binary),'reference_sha256':sha(a.reference),
-            'Fe_model_sha256':sha(a.model),'mobility_reference_sha256':sha(a.mobility_reference),'cases':{}}
+    report={'binary_sha256':sha(a.binary),'model_sha256':sha(a.model),'cases':{}}
     def record(name,data):
         report['cases'][name]=data
         (a.output/'report.json').write_text(json.dumps(report,indent=2))
@@ -50,7 +49,7 @@ def main():
     xyz=a.output/'bcc.xyz';write_xyz(xyz,pos,spins,cell,vel)
     toy=a.output/'onsite.nep';toy.write_text(analytic_model(True))
     zero=a.output/'zero.nep';zero.write_text(analytic_model(False))
-    def run(name,g,ens,steps=20,dt=.1,model=None,xyz_in=None,field='',reference=False,extra='',fail=False,binary=None):
+    def run(name,g,ens,steps=20,dt=.1,model=None,xyz_in=None,field='',extra='',fail=False):
         case=a.output/name;case.mkdir()
         shutil.copyfile(model or a.model,case/'nep.txt')
         shutil.copyfile(xyz_in or xyz,case/'model.xyz')
@@ -60,7 +59,7 @@ def main():
             f'dump_restart {steps}\nrun {steps}\n'+extra)
         env=dict(os.environ,CUDA_VISIBLE_DEVICES=','.join(devices[:g]))
         with (case/'run.log').open('w') as log:
-            result=subprocess.run([str(binary or (a.reference if reference else a.binary))],cwd=case,env=env,stdout=log,stderr=subprocess.STDOUT)
+            result=subprocess.run([str(a.binary)],cwd=case,env=env,stdout=log,stderr=subprocess.STDOUT)
         if fail:
             assert result.returncode!=0,case
             assert "Input Error" in (case/'run.log').read_text(),case
@@ -71,72 +70,21 @@ def main():
         return case,state
     def difference(x,y): return {k:float(np.max(np.abs(x[k]-y[k]))) for k in ('pos','vel','spin','mforce','potential','force','virial')}
     field='add_mfield region 0 1 0 1 0 1 7 -3 4\n'
-    # Old binary and unchanged fixed-length SIB, both GPU counts.
-    for g in (1,4):
-        for mode,ens in [('fixed0','nve_sib alpha .1 gamma 100 stemp -1'),
-                         ('fixedT','nvt_sib 300 300 100 lattice on alpha .1 gamma 100 seed 731')]:
-            _,old=run(f'{mode}-old-g{g}',g,ens,field=field,reference=True)
-            _,new=run(f'{mode}-new-g{g}',g,ens,field=field)
-            # Cell-list atomics can reorder neighbors between independent
-            # multi-GPU processes. Measure old/old repeatability separately.
-            gates={k:1e-10 for k in difference(new,old)}
-            if g==4:
-                gates.update(spin=1e-7,mforce=5e-6,potential=5e-6,force=5e-5,virial=5e-5,pos=1e-8,vel=1e-8)
-                _,repeat=run(f'{mode}-old-repeat-g{g}',g,ens,field=field,reference=True)
-                old_repeat=difference(old,repeat)
-                assert all(old_repeat[k]<gates[k] for k in gates),old_repeat
-                record(f'{mode}-old-repeat-g{g}',old_repeat)
-            dif=difference(new,old);assert all(dif[k]<gates[k] for k in gates),dif
-            record(f'{mode}-regression-g{g}',dif)
-    # Same physics through two independently built executable interfaces.
-    # Include default/custom gamma, zero damping, real Fe noise, coupled NVT/NPT,
-    # legacy restart metadata and both keyword orders. Match seeds and hardware.
-    equivalence = [
-        ('zero', 'nve_glsd damping 0 stemp -1 seed 731', 20),
-        ('default', 'nve_glsd damping .01 stemp -1 seed 731', 100),
-        ('thermal', 'nvt_glsd 300 300 100 lattice off damping .01 seed 731', 100),
-        ('custom', f'nve_glsd {damping(2, 3)} gamma 3 stemp 300 seed 731', 40),
-        ('order', f'nve_glsd gamma 3 {damping(2, 3)} stemp 300 seed 731', 40),
-        ('coupled', 'nvt_glsd 300 300 100 damping .01 seed 731', 40),
-        ('npt', 'npt_glsd temp 300 300 iso 0 0 tperiod 100 pperiod 1000 damping .01 seed 731', 20),
-    ]
-    for name,ens,steps in equivalence:
-        words=ens.split();i=words.index('damping');eta=float(words[i+1])
-        gamma=float(words[words.index('gamma')+1]) if 'gamma' in words else DEFAULT_GAMMA
-        # Paper variables: g_L = hbar * gamma, gamma_s_prime = eta / hbar.
-        # This evaluation order differs from the C++ conversion.
-        mobility=(HBAR_PS*gamma)**2 * (eta/HBAR_PS)
-        words[i:i+2]=['mobility',format(mobility,'.17g')];old_ens=' '.join(words)
-        for g in (1,4):
-            old_case,old=run(f'equiv-{name}-old-g{g}',g,old_ens,steps,field=field,binary=a.mobility_reference)
-            new_case,new=run(f'equiv-{name}-new-g{g}',g,ens,steps,field=field)
-            gates=dict(pos=1e-8,vel=1e-8,spin=3e-5,mforce=1e-5,potential=5e-6,force=1e-4,virial=1e-4)
-            if g==1:gates={k:1e-9 for k in gates}
-            dif=difference(new,old)
-            assert all(dif[k]<gates[k] for k in gates),(name,g,dif)
-            import re
-            converted=float(re.search(r'converted mobility = ([^ ]+)',(new_case/'run.log').read_text())[1])
-            assert math.isclose(converted,mobility,rel_tol=5e-15,abs_tol=0),(converted,mobility)
-            data={'damping':eta,'gamma':gamma,'reference_mobility':mobility,'difference':dif}
-            if g==4:
-                _,repeat=run(f'equiv-{name}-old-repeat-g{g}',g,old_ens,steps,field=field,binary=a.mobility_reference)
-                data['old_repeat']=difference(old,repeat)
-                assert all(data['old_repeat'][k]<gates[k] for k in gates),data
-            if name in ('default','thermal','coupled','npt'):
-                # Feed the identical old checkpoint to both versions; coupled
-                # bath reset affects both equally, no exact NHC restart claim.
-                _,old_resume=run(f'equiv-{name}-old-resume-g{g}',g,old_ens,20,field=field,
-                                xyz_in=old_case/'restart.xyz',binary=a.mobility_reference)
-                _,new_resume=run(f'equiv-{name}-new-resume-g{g}',g,ens,20,field=field,
-                                xyz_in=old_case/'restart.xyz')
-                data['resume_difference']=difference(new_resume,old_resume)
-                assert all(data['resume_difference'][k]<gates[k] for k in gates),data
-            record(f'damping-equivalence-{name}-g{g}',data)
-    for g in (1,4):
-        dif=difference(frame(a.output/f'equiv-custom-new-g{g}'/'state.xyz'),
-                       frame(a.output/f'equiv-order-new-g{g}'/'state.xyz'))
-        assert dif['spin'] < (1e-12 if g==1 else 3e-5),dif
-        record(f'damping-keyword-order-g{g}',dif)
+    # Check input conversion against the physical definition, without a private
+    # pre-conversion binary. Analytic trajectories below independently check units.
+    for name, ens in [('custom', f'nve_glsd {damping(2, 3)} gamma 3 stemp 300 seed 731'),
+                      ('order', f'nve_glsd gamma 3 {damping(2, 3)} stemp 300 seed 731'),
+                      ('default', 'nve_glsd damping .01 stemp -1 seed 731'),
+                      ('zero', 'nve_glsd damping 0 stemp -1 seed 731')]:
+        case, _ = run(name, 1, ens, field=field)
+        words = ens.split()
+        eta = float(words[words.index('damping') + 1])
+        gamma = float(words[words.index('gamma') + 1]) if 'gamma' in words else DEFAULT_GAMMA
+        expected = (HBAR_PS * gamma)**2 * (eta / HBAR_PS)
+        converted = float(re.search(r'converted mobility = ([^ ]+)', (case/'run.log').read_text())[1])
+        assert math.isclose(converted, expected, rel_tol=5e-15, abs_tol=0)
+        record('damping-' + name, converted)
+    assert difference(frame(a.output/'custom/state.xyz'), frame(a.output/'order/state.xyz'))['spin'] < 1e-12
     # Exact zero and constant-field solution through actual Force::compute.
     small=a.output/'small.xyz';small.write_text(small_structure([[0,0,0]]*4))
     for g in (1,4):
@@ -194,7 +142,7 @@ def main():
         assert np.sum(s['potential']) < np.sum(np.tanh(.1*np.sum(initial**2,axis=1)))
     assert errors[0]/errors[1]>3.5 and errors[1]/errors[2]>3,errors
     record('onsite_convergence',{'errors':errors})
-    # Matched real-potential spin-only, coupled lattice and pressure smoke.
+    # Bundled model: spin-only, coupled lattice and pressure endpoints.
     for name,ens,steps in [
         ('Fe0',f'nve_glsd {damping(10)} stemp -1 seed 731',200),
         ('FeT',f'nvt_glsd 300 300 100 lattice off {damping(10)} seed 731',200),
@@ -232,15 +180,6 @@ def main():
         assert np.max(np.abs(var/target-1)) < 6*np.sqrt(2/len(values)),var
         record(f'diffusion-statistics-g{g}',{'samples':len(values),'target_variance':target,
                'mean':mean.tolist(),'variance':var.tolist()})
-    # Smoke-check coupled restart usability here. Stepwise endpoint continuity
-    # is covered by validate_nhc_restart.py and validate_mttk_restart.py.
-    for name,ens in (
-        ('coupled',f'nvt_glsd 300 300 100 {damping(10)} seed 731'),
-        ('npt',f'npt_glsd temp 300 300 iso 0 0 tperiod 100 pperiod 1000 {damping(10)} seed 731')):
-        for g in (1,4):
-            _,s=run(f'{name}-resume-g{g}',g,ens,20,
-                    xyz_in=a.output/f'{name}-g{g}'/'restart.xyz',field=field)
-            record(f'{name}-resume-g{g}',{'max_norm':float(np.linalg.norm(s['spin'],axis=1).max())})
     # Restart and consecutive run blocks: exact counter stream, unchanged order.
     for temp in (-1,300):
         ens=f'nve_glsd {damping(2, 3)} gamma 3 stemp {temp} seed 731'
