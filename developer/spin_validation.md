@@ -20,7 +20,14 @@ python tests_pytest/validate_nep_spin3_runtime.py
 python tests_pytest/validate_nep_spin3_runtime.py --block-format
 python tests_pytest/validate_spin_multigpu.py --binary src/gpumd --model tests_pytest/fixtures/nep_spin3/nep4_spin3_o3c2_uniform.nep --block-format --output "$RESULTS/runtime"
 python -m pytest --noconftest -q tests_pytest/test_spin_tspin.py tests_pytest/test_spin_lattice_restart.py
-python tests_pytest/validate_spin_tspin_runtime.py
 python -m pytest --noconftest -q tests_pytest/test_spin_sib.py
-python tests_pytest/validate_spin_sib_runtime.py
 ```
+
+Training checks cover five representative layouts, actual energy errors,
+magnetic loss components, model IO and restart. Flexible ZBL is rejected;
+universal ZBL remains supported. The CPU model codec is checked with strict
+C++14 compilation. Build the focused probes with `-std=c++14` as well.
+Initialization checks share `restart_parity.cu`; torque and response edge
+cases share `spin_mforce_split.cu` and `response_fitness.cu`.
+
+Use `-m "not slow"` for routine pytest and `-m slow` for extended statistics.

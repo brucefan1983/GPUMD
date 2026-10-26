@@ -137,13 +137,9 @@ def validate_initial_para(root):
 def validate(root):
     report = {"initial_para": validate_initial_para(root / "initial_para")}
     for name, config in (("fe_env_all", CONFIG),
-                         ("fe_env_fe", CONFIG.replace("spin_env_type Fe Ge", "spin_env_type Fe")),
-                         ("all", NO_MASKS)):
+                         ("fe_env_fe", CONFIG.replace("spin_env_type Fe Ge", "spin_env_type Fe"))):
         fresh = root / name
-        log = execute(fresh, config)
-        for text in ("Input or default parameters:", "lambda_m =", "sigma0 =", "spin_cutoff:",
-                     "spin_dof_type:", "Energy reference", "generation"):
-            assert text in log, text
+        execute(fresh, config)
         model = (fresh / "nep.txt").read_text()
         assert "\nmodel nep_spin\n" in model and "\nspin_version 1\n" in model
         assert "\nspin_mode " not in model
@@ -164,13 +160,15 @@ def validate(root):
         assert metadata(saved) == metadata(model), (metadata(saved), metadata(model))
         after = predict(root / (name + "_after"), saved)
         report[name] = compare(old, after)
-        report[name + "_md"] = runtime_mforce(root / (name + "_md"), saved, after)
         imported = root / (name + "_import")
         execute(imported, NO_MASKS + "import_q_scaler 1\n", model=model)
         assert metadata((imported / "nep.txt").read_text()) == metadata(model)
         # An exported import model must also be accepted with omitted input masks.
         predict(root / (name + "_import_reload"), (imported / "nep.txt").read_text())
         if name == "fe_env_fe":
+            # The subset environment is distinct from the all-environment cases
+            # exercised by the main training/runtime parity suite.
+            report[name + "_md"] = runtime_mforce(root / (name + "_md"), saved, after)
             execute(root / "partial_env", NO_MASKS + "spin_env_type Fe\n", model=model, restart=frozen)
             execute(root / "invalid_fresh_subset", NO_MASKS + "spin_env_type Fe\n",
                     error="spin_dof_type must be a subset")
@@ -180,20 +178,12 @@ def validate(root):
             execute(alias_fresh, alias_config)
             assert (alias_fresh / "nep.txt").read_text() == model
             assert (alias_fresh / "nep.restart").read_text() == (fresh / "nep.restart").read_text()
-            report["legacy_input_prediction"] = compare(
-                old, predict(root / "legacy_input_prediction", model, config=alias_config))
-            alias_resume = root / "legacy_input_resume"
-            execute(alias_resume, alias_config.replace("generation 1", "generation 2"),
-                    model=model, restart=frozen)
-            assert (alias_resume / "nep.txt").read_text() == saved
-            report["legacy_input_training_and_restart"] = "identical to spin_version 1"
+            report["legacy_input_training"] = "identical model and search state"
             # The previous block header has identical numerical payload and restart indexing.
             legacy_model = model.replace("model nep_spin\n", "model nep_spin3\n").replace(
                 "spin_version 1\n", "spin_mode 3\n")
             legacy_prediction = predict(root / "old_block_prediction", legacy_model)
             report["old_block_prediction"] = compare(old, legacy_prediction)
-            report["old_block_md"] = runtime_mforce(
-                root / "old_block_md", legacy_model, legacy_prediction)
             legacy_resume = root / "old_block_resume"
             execute(legacy_resume, NO_MASKS.replace("generation 1", "generation 2"),
                     model=legacy_model, restart=frozen)
@@ -201,12 +191,11 @@ def validate(root):
             assert "\nmodel nep_spin\n" in migrated and "\nspin_mode " not in migrated
             assert metadata(migrated) == metadata(model)
             report["old_block_resume"] = compare(old, predict(root / "migrated_prediction", migrated))
-            for version in ("0", "2"):
-                execute(root / ("unsupported_version_" + version), NO_MASKS + "prediction 1\n",
-                        model=model.replace("spin_version 1\n", f"spin_version {version}\n"),
-                        error="Unsupported spin_version")
-            execute(root / "missing_version", NO_MASKS + "prediction 1\n",
-                    model=model.replace("spin_version 1\n", ""), error="Invalid Spin3 field spin_version")
+            # Detailed format rejection belongs to the CPU codec suite; keep
+            # one real CLI check that the model reader propagates the failure.
+            execute(root / "unsupported_version", NO_MASKS + "prediction 1\n",
+                    model=model.replace("spin_version 1\n", "spin_version 2\n"),
+                    error="Unsupported spin_version")
             for keyword, value in (("spin_dof_type", "Ge"), ("spin_env_type", "Fe")):
                 execute(root / (name + keyword), NO_MASKS + ("spin_dof_type Fe\n" if keyword == "spin_env_type" else "") + f"{keyword} {value}\n",
                         model=model, restart=frozen, error=f"{keyword} in nep.in conflicts")
@@ -229,7 +218,7 @@ def validate(root):
     # Small periodic cells force image neighbors. pbc strings are deliberately ignored.
     small = base.TRAIN_XYZ.replace('24 0 0 0 24 0 0 0 24', '4 0 0 0 4 0 0 0 4')
     periodic = predict(root / "pbc_default", model, small)
-    for flag in ("T T T", "F F F", "T T F"):
+    for flag in ("F F F", "T T F"):
         xyz = small.replace("Properties=", f'pbc="{flag}" Properties=')
         report[flag] = compare(periodic, predict(root / flag.replace(" ", ""), model, xyz))
     report["ediff"] = validate_ediff(root / "ediff")

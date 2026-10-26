@@ -57,12 +57,13 @@ int main()
   upload(mag.has_mforce_gpu, labeled); mag.has_mforce_cpu = labeled;
   upload(mag.spin_dof_type_active_gpu, para.spin_dof_type_active);
   for (bool weighted : {false, true}) {
+    const auto torque = mag.get_rmse_tau(para, data, weighted, 0);
     const auto full = mag.get_rmse_mforce(para, data, weighted, 0);
     const auto parallel = mag.get_rmse_mforce_parallel(para, data, weighted, 0);
     const auto perp = mag.get_rmse_mforce_perp(para, data, weighted, 0);
     for (int type = 0; type <= 2; ++type) {
-      double p = 0, t = 0, raw = 0;
-      int count = 0;
+      double p = 0, t = 0, raw = 0, cross2 = 0;
+      int count = 0, torque_count = 0;
       for (int c = 0; c < 4; ++c) {
         if (!labeled[c] || !data.has_type[type * 4 + c]) continue;
         const double w = weighted ? data.weight_cpu[c] * data.weight_cpu[c] : 1;
@@ -73,11 +74,21 @@ int main()
           const double length = std::hypot(std::hypot(s[0], s[1]), s[2]);
           const double dot = length == 0 ? 0 : (e[0]*s[0] + e[1]*s[1] + e[2]*s[2]) / length;
           const double projected = length == 0 ? norm2 / 3 : dot * dot;
+          // Torque uses two transverse degrees of freedom per nonzero spin.
+          if (length * length > 1e-20) {
+            for (int d = 0; d < 3; ++d) {
+              double cross = s[(d+1)%3]*e[(d+2)%3] - s[(d+2)%3]*e[(d+1)%3];
+              cross2 += w * cross * cross;
+            }
+            ++torque_count;
+          }
           p += w * projected; t += w * (norm2 - projected); raw += w * norm2;
           ++count;
         }
       }
       assert(count > 0);
+      const double expected_torque = torque_count ? std::sqrt(cross2 / (2 * torque_count)) : 0;
+      assert(std::abs(torque[type] - expected_torque) < 2e-6);
       assert(std::abs(parallel[type] - std::sqrt(p / count)) < 2e-6);
       assert(std::abs(perp[type] - std::sqrt(t / (2 * count))) < 2e-6);
       assert(std::abs(full[type] - std::sqrt(raw / (3 * count))) < 2e-6);
@@ -102,8 +113,10 @@ int main()
   // No labels / no active atoms must yield finite zeros, not 0/0.
   mag.has_mforce_cpu.assign(4, 0); upload(mag.has_mforce_gpu, mag.has_mforce_cpu);
   for (auto value : mag.get_rmse_mforce_parallel(para, data, false, 0)) assert(value == 0);
+  for (auto value : mag.get_rmse_tau(para, data, false, 0)) assert(value == 0);
   mag.has_mforce_cpu = labeled; upload(mag.has_mforce_gpu, labeled);
   para.spin_dof_type_active.assign(2, 0); upload(mag.spin_dof_type_active_gpu, para.spin_dof_type_active);
   for (auto value : mag.get_rmse_mforce_perp(para, data, true, 0)) assert(value == 0);
+  for (auto value : mag.get_rmse_tau(para, data, true, 0)) assert(value == 0);
   puts("spin magnetic split numerical oracle passed");
 }

@@ -93,7 +93,16 @@ std::string read_nep_spin_model_input(const std::string& filename)
   line(field("spin_cutoff", 1, types), "spin_cutoff");
   if (dof) line(field("spin_dof_type", 1, types), "spin_dof_type");
   if (env) line(field("spin_env_type", 1, types), "spin_env_type");
-  if (zbl) line(field("zbl", 2, 3), "zbl");
+  if (zbl) {
+    const auto& zbl_field = field("zbl", 2, 3);
+    double inner, outer;
+    if (!NEP_File::parse_double(zbl_field.values[0], inner) ||
+        !NEP_File::parse_double(zbl_field.values[1], outer))
+      throw std::runtime_error("Invalid Spin3 ZBL cutoffs");
+    if (inner == 0 && outer == 0)
+      throw std::runtime_error("NEP-spin does not support flexible ZBL (zbl 0 0).");
+    line(zbl_field, "zbl");
+  }
   line(field("cutoff", 4, 4), "cutoff");
   const auto& nmax = field("n_max", 2, 2);
   const auto& basis = field("basis_size", 2, 2);
@@ -128,19 +137,6 @@ std::string read_nep_spin_model_input(const std::string& filename)
     out << value << '\n';
   }
   std::vector<std::string> blocks = {"parameters", "q_scaler"};
-  if (zbl) {
-    const auto& values = doc.find_field("zbl")->values;
-    double inner, outer;
-    if (!NEP_File::parse_double(values[0], inner) || !NEP_File::parse_double(values[1], outer))
-      throw std::runtime_error("Invalid Spin3 ZBL cutoffs");
-    if (inner == 0 && outer == 0) {
-      const auto* block = doc.find_block("zbl_parameters");
-      if (!block || block->values.size() != size_t(5 * types * (types + 1)))
-        throw std::runtime_error("Invalid Spin3 ZBL parameter count");
-      blocks.push_back("zbl_parameters");
-      for (double value : block->values) out << value << '\n';
-    }
-  }
   std::string error;
   if (!doc.check_unhandled(fields, blocks, error)) throw std::runtime_error(error);
   return out.str();

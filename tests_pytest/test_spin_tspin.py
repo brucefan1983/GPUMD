@@ -10,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+from spin_runtime_helpers import base_model as _model_with_zero_lattice_velocity
 
 from spin_fixtures import load_fixture, selective_type_model
 
@@ -20,17 +21,6 @@ K_B = 8.617343e-5
 PI = 3.14159265358979
 TIME_UNIT_CONVERSION = 1.018051e1
 MASK64 = (1 << 64) - 1
-
-
-def _model_with_zero_lattice_velocity():
-    lines = (FIXTURE / "model_large_box.xyz").read_text().splitlines()
-    lines[1] = lines[1].replace(
-        "Properties=species:S:1:pos:R:3:spin:R:3",
-        "Properties=species:S:1:pos:R:3:vel:R:3:spin:R:3")
-    for index in range(2, len(lines)):
-        fields = lines[index].split()
-        lines[index] = " ".join(fields[:4] + ["0", "0", "0"] + fields[4:])
-    return "\n".join(lines) + "\n"
 
 
 def _prepare_case(case_dir, run_input, model_text=None):
@@ -485,3 +475,30 @@ def test_tspin_reuses_velocity_across_runs_and_restart(tmp_path):
     assert restarted.returncode == 0, restarted.stdout + restarted.stderr
     assert "Reuse initialized spin velocities; TSPIN seed is not used." in restarted.stdout
     assert "Initialized TSPIN velocities with seed" not in restarted.stdout
+
+
+@pytest.mark.slow
+def test_tspin_short_temperature_statistics(tmp_path):
+    result = _prepare_case(tmp_path / "thermal", "replicate 5 5 5\npotential nep.txt\n"
+        "ensemble nvt_tspin 300 300 100 mass_factor 1.5 seed 314159\n"
+        "time_step .1\ndump_xyz 10 trajectory.xyz mass spin spin_velocity\nrun 500\n")
+    assert result.returncode == 0, result.stdout + result.stderr
+    lines = (tmp_path / "thermal/trajectory.xyz").read_text().splitlines()
+    n = int(lines[0])
+    temperatures = []
+    for start in range(0, len(lines), n + 2):
+        rows = np.array([[float(x) for x in line.split()[1:]] for line in lines[start+2:start+n+2]])
+        kinetic = np.sum(rows[:, 3] * 1.5 * np.sum((rows[:, 7:10] * TIME_UNIT_CONVERSION)**2, axis=1))
+        temperatures.append(kinetic / (3 * n * K_B))
+    assert temperatures and np.isfinite(temperatures).all()
+    assert 240 <= np.mean(temperatures) <= 360
+
+
+def test_ordinary_nhc_keeps_spins_fixed(tmp_path):
+    model = _model_with_zero_lattice_velocity()
+    initial = np.array([[float(x) for x in row.split()[7:10]] for row in model.splitlines()[2:]])
+    result = _prepare_case(tmp_path / "fixed", "potential nep.txt\n"
+        "ensemble nvt_nhc 300 300 100\ntime_step .1\n"
+        "dump_xyz 10 state.xyz mass spin mforce\nrun 10\n", model)
+    assert result.returncode == 0, result.stdout + result.stderr
+    np.testing.assert_array_equal(_read_spin_frame(tmp_path / "fixed/state.xyz")["spin"], initial)
