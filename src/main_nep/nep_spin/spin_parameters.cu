@@ -33,7 +33,6 @@ Spin_Parameters::Spin_Parameters(const ParameterInput& input) {
   number_of_variables_descriptor += number_of_variables_descriptor_spin + number_of_variables_spin_projection;
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
   model_name = "nep_spin";
-  file_tag = enable_zbl ? "nep4_spin3_zbl" : "nep4_spin3";
   set_regularization_defaults();
   initialize_spin_checkpoint(*this);
   // Check the effective masks after any omitted input fields were restored.
@@ -187,35 +186,8 @@ void Spin_Parameters::validate_spin_parameters()
 
 void Spin_Parameters::calculate_spin_dimensions()
 {
-  const int C = spin_compress;
-  const int L = spin_l_max[0];
-  const int pairs = C * (C + 1) / 2;
-  dim_spin = 1 + 2 * C;
-  if (spin_soc && L >= 2) dim_spin += 2 * C;
-  if (spin_order >= 2) {
-    dim_spin += 2 * C;
-    if (L >= 1) dim_spin += (spin_soc ? 3 : 1) * C;
-    if (L >= 2) dim_spin += C;
-    dim_spin += C + 2 * pairs;
-    if (L >= 1) dim_spin += pairs;
-    if (L >= 2) dim_spin += pairs;
-    if (spin_soc && L >= 1) {
-      dim_spin += (C >= 2 ? 2 : 1) * C;
-    }
-    if (spin_soc && L >= 2) {
-      dim_spin += (C >= 2 ? 2 : 1) * C;
-    }
-  }
-  if (spin_order >= 3) {
-    dim_spin += C;
-    if (spin_soc && L >= 1) {
-      dim_spin += (C >= 2 ? 2 : 1) * C;
-    }
-    if (spin_soc && L >= 2) {
-      dim_spin += (C >= 2 ? 3 : 1) * C;
-    }
-    if (spin_soc && L >= 1 && C >= 3) dim_spin += C;
-  }
+  dim_spin = NEP_Spin_Model_File::spin_dimension(
+    spin_compress, spin_l_max[0], spin_order, spin_soc);
   if (dim_spin > 96) {
     PRINT_INPUT_ERROR("Number of spin descriptors should not exceed 96.\n");
   }

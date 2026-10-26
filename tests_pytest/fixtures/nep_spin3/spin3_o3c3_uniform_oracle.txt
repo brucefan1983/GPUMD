@@ -1,5 +1,5 @@
 spin3_oc_oracle_v1
-model_sha256 e5df123b708ee57af52d0a442c433dbc2418ff37f552a9e1b987f869d077c974
+model_sha256 b4f0c720f5ef20b72d9101d8f130d40379d5907c86cf41c9db5488fbdd4eabe8
 descriptor_dim 121
 spin_descriptor_dim 91
 case zero 5

@@ -135,8 +135,7 @@ def validate_parser(root):
         "invalid_order": NEP_IN.replace("spin_order 3", "spin_order 4"),
         "invalid_soc": NEP_IN.replace("spin_soc 1", "spin_soc 2"),
         "oversized_spin_shape": NEP_IN.replace("spin_compress 2", "spin_compress 4"),
-        "removed_spin_mode_1": NEP_IN.replace("spin_version 1", "spin_mode 1"),
-        "removed_spin_mode_2": NEP_IN.replace("spin_version 1", "spin_mode 2"),
+        "removed_spin_mode": NEP_IN.replace("spin_version 1", "spin_mode 3"),
         "invalid_spin_cutoff_arity": NEP_IN.replace(
             "spin_cutoff 6.0", "spin_cutoff 4.0 5.0 6.0"),
         "removed_spin_chiral": NEP_IN.replace("spin_soc 1", "spin_soc 1\nspin_chiral 1"),
@@ -149,9 +148,6 @@ def validate_parser(root):
         cases[f"invalid_spin_version_{value}"] = NEP_IN.replace("spin_version 1", f"spin_version {value}")
     cases["duplicate_spin_version"] = NEP_IN + "spin_version 1\n"
     cases["mixed_spin_selectors"] = NEP_IN + "spin_mode 3\n"
-    cases["mixed_spin_selectors_reverse"] = "spin_mode 3\n" + NEP_IN
-    cases["mixed_disabled_spin_selector"] = NEP_IN + "spin_mode 0\n"
-    cases["duplicate_legacy_spin_selector"] = NEP_IN.replace("spin_version 1", "spin_mode 3\nspin_mode 3")
     for keyword in ("model_type 1", "charge_mode 1", "vdw 1", "charge_vdw 1"):
         cases["conflicting_" + keyword] = NEP_IN + keyword + "\n"
     cases["removed_mforce_mode"] = NEP_IN + "spin_mforce_mode full\n"
@@ -197,7 +193,6 @@ def validate_response_training(root):
 
 def validate_flexible_zbl_rejected(root):
     from spin_fixtures import load_fixture
-    from spin_model_format import block_model
 
     root.mkdir()
     training = root / "training"
@@ -207,20 +202,15 @@ def validate_flexible_zbl_rejected(root):
     result = run(NEP, training)
     message = "NEP-spin does not support flexible ZBL"
     assert result.returncode != 0 and message in result.stdout + result.stderr
-    legacy, _ = load_fixture("o3c2_uniform")
-    legacy = legacy.replace("nep4_spin3 ", "nep4_spin3_zbl ", 1)
-    lines = legacy.splitlines()
-    lines.insert(2 + int(lines[1].split()[2]), "zbl 0 0")
-    legacy = "\n".join(lines) + "\n"
-    for name, model in (("legacy", legacy), ("block", block_model(legacy))):
-        case = root / name
-        write_case(case, NEP_IN + "zbl 2.5\nprediction 1\n")
-        (case / "nep.txt").write_text(model)
-        for binary in (NEP,):
-            result = run(binary, case)
-            assert result.returncode != 0 and message in result.stdout + result.stderr, (
-                name, binary, result.stdout, result.stderr)
-    return "training and legacy/block prediction reject flexible ZBL"
+    model, _ = load_fixture("o3c2_uniform")
+    model = model.replace("model nep_spin\n", "model nep_spin\nzbl 0 0\n")
+    case = root / "prediction"
+    write_case(case, NEP_IN + "zbl 2.5\nprediction 1\n")
+    (case / "nep.txt").write_text(model)
+    result = run(NEP, case)
+    assert result.returncode != 0 and message in result.stdout + result.stderr
+    return "training and prediction reject flexible ZBL"
+
 
 
 def validate_training_and_prediction(
@@ -342,31 +332,12 @@ def validate_training_and_prediction(
             raise AssertionError("restart changed saved descriptor scaling")
         report["restart_parameter_error"] = error
         report["restart_scaler"] = "preserved"
-        # The legacy two-column restart uses basis-major structural coefficients.
-        legacy_values = list(parameters)
-        fields = {line.split()[0]: line.split()[1:] for line in checkpoint_lines[:first_parameter - 1]}
-        nr, na = map(int, fields["n_max"])
-        br, ba = map(int, fields["basis_size"])
-        neurons = int(fields["ann"][0])
-        offset = (descriptor_dim + 2) * neurons * 2 + 1
-        for basis_count in ((nr + 1) * (br + 1), (na + 1) * (ba + 1)):
-            values = legacy_values[offset:offset + 4 * basis_count]
-            legacy_values[offset:offset + len(values)] = [values[pair * basis_count + b]
-                for b in range(basis_count) for pair in range(4)]
-            offset += len(values)
-        legacy_resume = root / "legacy-resumed"
-        write_case(legacy_resume, nep_in, TRAIN_XYZ)
-        (legacy_resume / "nep.txt").write_text(checkpoint)
-        (legacy_resume / "nep.restart").write_text("".join(f"{v} 0\n" for v in legacy_values))
-        result = run(NEP, legacy_resume)
-        if result.returncode:
-            raise RuntimeError(result.stdout + result.stderr)
-        restored = [float(line.split()[0]) for line in
-                    (legacy_resume / "nep.restart").read_text().splitlines()[3:]]
-        error = maximum_error([float(v) for v in parameters], restored)
-        if error > 1e-7:
-            raise AssertionError(f"legacy restart layout changed parameters: {error}")
-        report["legacy_restart_parameter_error"] = error
+        obsolete = root / "obsolete-restart"
+        write_case(obsolete, nep_in)
+        (obsolete / "nep.txt").write_text(checkpoint)
+        (obsolete / "nep.restart").write_text("".join(f"{v} 0\n" for v in parameters))
+        result = run(NEP, obsolete)
+        assert result.returncode != 0, "Old headerless restarts must be rejected"
 
     return report
 
@@ -512,12 +483,72 @@ def validate_shared_nep_io(root):
     if result.returncode:
         raise RuntimeError(result.stdout + result.stderr)
     predictions = [(root / (name + "_train.out")).read_text() for name in ("energy", "force", "virial")]
-    (root / "nep.in").write_text(config + "spin_mode 0\nprediction 1\n")
+    (root / "nep.in").write_text(config + "prediction 1\n")
     result = run(NEP, root)
     if result.returncode:
         raise RuntimeError(result.stdout + result.stderr)
     assert predictions == [(root / (name + "_train.out")).read_text() for name in ("energy", "force", "virial")]
-    return "training/restart/prediction and legacy disabled selector passed"
+    return "training/restart/prediction passed"
+
+
+def validate_fixed_models(root):
+    """Use the frozen FP64 oracle, independent of the model reader and writer."""
+    from spin_fixtures import load_fixture
+
+    root.mkdir()
+    report = {}
+    for fixture in ("o3c2_uniform", "o3c2_typewise", "o3c3_uniform"):
+        model, oracle = load_fixture(fixture)
+        fields = {line.split()[0]: line.split()[1:] for line in model.splitlines()
+                  if line and not line.startswith('@')}
+        config = ("type 2 Fe Ge\nversion 4\nspin_version 1\nprediction 1\n"
+                  "n_max 4 4\nbasis_size 8 8\nl_max 4 2 0\nneuron 30\n"
+                  "cutoff 6 5\nspin_basis_size 8 0\nspin_l_max 2 0 0\n"
+                  "spin_order 3\nspin_soc 1\nspin_compress " + fields['spin_compress'][0] +
+                  "\nspin_cutoff " + ' '.join(fields['spin_cutoff']) + "\n")
+        cases = list(oracle['cases'].items())
+        xyz = []
+        for _, case in cases:
+            xyz += [str(len(case['types'])), 'Lattice="' + ' '.join(map(str, case['cell'])) +
+                    '" Properties=species:S:1:pos:R:3:force:R:3:spin:R:3:mforce:R:3 '
+                    'energy=0 virial="0 0 0 0 0 0 0 0 0"']
+            for symbol, position, spin in zip(case['types'], case['positions'], case['spins']):
+                xyz.append(symbol + ' ' + ' '.join(map(str, position + [0]*3 + spin + [0]*3)))
+        directory = root / fixture
+        write_case(directory, config, '\n'.join(xyz) + '\n')
+        (directory / 'nep.txt').write_text(model)
+        result = run(NEP, directory)
+        if result.returncode:
+            raise RuntimeError(result.stdout + result.stderr)
+        energy = columns(directory / 'energy_train.out', 1)
+        force = columns(directory / 'force_train.out', 3)
+        mforce = columns(directory / 'mforce_train.out', 3)
+        virial = columns(directory / 'virial_train.out', 6)
+        assert len(energy) == len(virial) == len(cases)
+        assert len(force) == len(mforce) == sum(len(c['types']) for _, c in cases)
+        atom = 0
+        for index, (name, case) in enumerate(cases):
+            count = len(case['types'])
+            errors = {
+                'energy': abs(energy[index][0] * count - sum(case['potential'])),
+                'force': maximum_error(force[atom:atom+count], case['force']),
+                'mforce': maximum_error(mforce[atom:atom+count], case['mforce']),
+                'virial': maximum_error([v * count for v in virial[index]],
+                    [sum(row[j] for row in case['atom_virial']) for j in (0, 4, 8, 1, 5, 6)]),
+            }
+            assert all(math.isfinite(v) for v in errors.values()), (fixture, name, errors)
+            assert all(errors[k] <= 2e-4 for k in ('energy', 'mforce', 'virial')), (fixture, name, errors)
+            # NEP stores positions in float32. The cutoff-boundary fixture also
+            # contains a 0.002 A pair: its stored separation differs by 7.25e-5
+            # relatively from the FP64 oracle. Allow that coordinate precision
+            # in forces; the other frozen cases retain the absolute-only bound.
+            force_rtol = 1e-4 if name == 'cutoff_boundary' else 0
+            for actual, expected in zip(flatten(force[atom:atom+count]), flatten(case['force'])):
+                assert abs(actual - expected) <= max(2e-4, force_rtol * abs(expected)), (
+                    fixture, name, actual, expected)
+            report[fixture + '/' + name] = errors
+            atom += count
+    return report
 
 
 def main():
@@ -531,6 +562,7 @@ def main():
     with tempfile.TemporaryDirectory(prefix="gpumd-main-nep-spin3-") as tmp:
         root = Path(tmp)
         report = {
+            "fixed_models": validate_fixed_models(root / "fixed-models"),
             "default_shape": validate_default_shape(root / "defaults"),
             "flexible_zbl_rejected": validate_flexible_zbl_rejected(root / "flexible-zbl"),
             "ordinary_nep_io": validate_shared_nep_io(root / "ordinary-nep"),

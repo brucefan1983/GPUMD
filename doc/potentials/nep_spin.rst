@@ -14,7 +14,8 @@ virials, magnetic forces, and spin torques are derivatives of this same energy
 and are not produced by independent response networks.
 
 The current format uses ``nep``, ``format_version 1``, and ``model nep_spin``
-with ``spin_version 1`` and named parameter and scaler blocks. It uses the order/compression (O/C)
+with ``spin_version 1`` and named parameter and scaler blocks. Development-stage
+model names, counted headers, and headerless restarts are not supported. It uses the order/compression (O/C)
 descriptor described below. An optional ``zbl`` field adds a spin-independent
 universal ZBL term. Flexible ZBL (``zbl 0 0``) is not supported.
 ``spin_version`` identifies the descriptor and parameter-layout

@@ -47,8 +47,8 @@ remains unsupported for Spin3.
 
 ``nep.restart`` stores the search distribution and ``energy_reference`` in the
 shared restart format (see :ref:`nep_restart`), while ``nep.txt`` stores a
-selected candidate model. Legacy two-column ``mu sigma`` restarts are still
-accepted with their matching legacy ``nep.txt``.
+selected candidate model. Spin requires ``model nep_spin``, ``spin_version 1``
+and the current shared restart format.
 The search mean and that candidate need not predict the same values.
 No parameter rescaling or substitution of the selected candidate for the
 search mean is performed during restart.

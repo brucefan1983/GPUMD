@@ -6,7 +6,7 @@ FIXTURE = Path(__file__).parent / "fixtures" / "nep_spin3"
 
 def selective_type_model():
     """Return the production C=2 fixture with Fe DOFs and Fe/Ge environments."""
-    return (FIXTURE / "nep4_spin3_o3c2_uniform.nep").read_text()
+    return (FIXTURE / "nep_spin_o3c2_uniform.nep").read_text()
 
 def write_xyz(path, case):
     lattice = " ".join(f"{value:.17g}" for value in case["cell"])
@@ -80,9 +80,9 @@ def read_text_oracle(path, model):
 
 def load_fixture(name):
     fixtures = {
-        "o3c2_uniform": ("nep4_spin3_o3c2_uniform.nep", "spin3_o3c2_uniform_oracle.txt"),
-        "o3c2_typewise": ("nep4_spin3_o3c2_uniform.nep", "spin3_o3c2_typewise_oracle.txt"),
-        "o3c3_uniform": ("nep4_spin3_o3c3_uniform.nep", "spin3_o3c3_uniform_oracle.txt"),
+        "o3c2_uniform": ("nep_spin_o3c2_uniform.nep", "spin3_o3c2_uniform_oracle.txt"),
+        "o3c2_typewise": ("nep_spin_o3c2_uniform.nep", "spin3_o3c2_typewise_oracle.txt"),
+        "o3c3_uniform": ("nep_spin_o3c3_uniform.nep", "spin3_o3c3_uniform_oracle.txt"),
     }
     if name not in fixtures:
         raise ValueError(f"unknown fixture: {name}")

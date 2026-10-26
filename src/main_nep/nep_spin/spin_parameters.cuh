@@ -8,11 +8,11 @@
 
 #pragma once
 #include "main_nep/common/nep_parameters.cuh"
+#include "utilities/nep_spin_model_file.cuh"
 class Spin_Parameters : public NEP_Energy_Parameters {
 public:
   explicit Spin_Parameters(const ParameterInput& input);
   bool parse_keyword(const char**, int) override;
-  static constexpr int spin_mode = 3;
   int spin_compress = 2, spin_order = 3, spin_soc = 1;
   int spin_basis_size[2] = {8, 0};
   int spin_l_max[3] = {2, 0, 0};
@@ -22,8 +22,6 @@ public:
   bool split_mforce_loss = false;
   bool is_spin_dof_type_set = false, is_spin_env_type_set = false;
   bool spin_restart = false;
-  std::string file_tag;
-  int number_of_nep_txt_header_lines = 0;
   int dim_struct = 0, dim_spin = 0;
   int number_of_variables_descriptor_spin = 0, number_of_variables_spin_projection = 0;
   std::vector<std::string> spin_dof_type_names, spin_env_type_names;

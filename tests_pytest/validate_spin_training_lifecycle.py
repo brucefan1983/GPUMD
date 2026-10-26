@@ -158,24 +158,6 @@ def validate(root):
             execute(root / "invalid_fresh_subset", NO_MASKS + "spin_env_type Fe\n",
                     error="spin_dof_type must be a subset")
         if name == "fe_env_all":
-            alias_config = config.replace("spin_version 1", "spin_mode 3")
-            alias_fresh = root / "legacy_input_fresh"
-            execute(alias_fresh, alias_config)
-            assert (alias_fresh / "nep.txt").read_text() == model
-            assert (alias_fresh / "nep.restart").read_text() == (fresh / "nep.restart").read_text()
-            report["legacy_input_training"] = "identical model and search state"
-            # The previous block header has identical numerical payload and restart indexing.
-            legacy_model = model.replace("model nep_spin\n", "model nep_spin3\n").replace(
-                "spin_version 1\n", "spin_mode 3\n")
-            legacy_prediction = predict(root / "old_block_prediction", legacy_model)
-            report["old_block_prediction"] = compare(old, legacy_prediction)
-            legacy_resume = root / "old_block_resume"
-            execute(legacy_resume, NO_MASKS.replace("generation 1", "generation 2"),
-                    model=legacy_model, restart=frozen)
-            migrated = (legacy_resume / "nep.txt").read_text()
-            assert "\nmodel nep_spin\n" in migrated and "\nspin_mode " not in migrated
-            assert metadata(migrated) == metadata(model)
-            report["old_block_resume"] = compare(old, predict(root / "migrated_prediction", migrated))
             # Detailed format rejection belongs to the CPU codec suite; keep
             # one real CLI check that the model reader propagates the failure.
             execute(root / "unsupported_version", NO_MASKS + "prediction 1\n",
