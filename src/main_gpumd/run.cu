@@ -28,6 +28,7 @@ Run simulation according to the inputs in the run.in file.
 #include "phonon/hessian.cuh"
 #include "replicate.cuh"
 #include "run.cuh"
+#include "integrate/spin/step.cuh"
 #include "utilities/error.cuh"
 #include "utilities/compact_nep.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -252,13 +253,16 @@ void Run::perform_a_run(const int number_of_steps)
   if (force.has_mfield() && (!force.has_spin_potential() || !atom.has_spin)) {
     PRINT_INPUT_ERROR("add_mfield requires a Spin potential and spin:R:3.");
   }
-  if ((integrate.use_spin_tspin) &&
+  if ((integrate.use_spin_tspin || integrate.use_spin_sib) &&
       (!force.has_spin_potential() || !atom.has_spin)) {
     PRINT_INPUT_ERROR("A spin ensemble requires a Spin potential and spin:R:3 in model.xyz.");
   }
   integrate.restore_spin_time(atom, global_time);
   integrate.initialize(time_step, atom, box, group);
-
+  GPU_Vector<double> spin_predictor_base_force;
+  if (integrate.use_spin_sib) {
+    spin_predictor_base_force.resize(3 * atom.number_of_atoms);
+  }
   measure.pre_run(number_of_steps, time_step, integrate, group, atom, box, force);
 
   // setup force for the first integrate step
@@ -286,7 +290,9 @@ void Run::perform_a_run(const int number_of_steps)
 
     measure.pre_force(step, time_step, integrate, group, atom, box, force);
     compute_force();
-
+    if (integrate.use_spin_sib) {
+      spin_predictor_base_force.copy_from_device(atom.force_per_atom.data());
+    }
 
     atom.update_unwrapped_position(box);
     measure.post_force(step, time_step, integrate, group, atom, box, force);
@@ -294,7 +300,10 @@ void Run::perform_a_run(const int number_of_steps)
     integrate.compute2(time_step, step, number_of_steps, group, box, atom, thermo, force);
     atom.update_unwrapped_position(box);
 
-
+    if (integrate.use_spin_sib) {
+      refresh_spin_endpoint(
+        force, integrate, box, atom, group, thermo, spin_predictor_base_force);
+    }
 
     measure.end_of_step(
       number_of_steps,
@@ -395,6 +404,7 @@ void Run::parse_one_keyword(
     parse_velocity(tokens);
   } else if (tokens[0] == "ensemble") {
     if (tokens.size() < 2 || (tokens[1] != "nve" && tokens[1] != "nvt_nhc" &&
+        tokens[1] != "nve_sib" && tokens[1] != "nvt_sib" && tokens[1] != "npt_sib" &&
         tokens[1] != "nvt_tspin" && tokens[1] != "npt_tspin")) {
       mark_spin_unsupported("ensemble");
     }

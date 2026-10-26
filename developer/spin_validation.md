@@ -21,4 +21,6 @@ python tests_pytest/validate_nep_spin3_runtime.py --block-format
 python tests_pytest/validate_spin_multigpu.py --binary src/gpumd --model tests_pytest/fixtures/nep_spin3/nep4_spin3_o3c2_uniform.nep --block-format --output "$RESULTS/runtime"
 python -m pytest --noconftest -q tests_pytest/test_spin_tspin.py tests_pytest/test_spin_lattice_restart.py
 python tests_pytest/validate_spin_tspin_runtime.py
+python -m pytest --noconftest -q tests_pytest/test_spin_sib.py
+python tests_pytest/validate_spin_sib_runtime.py
 ```

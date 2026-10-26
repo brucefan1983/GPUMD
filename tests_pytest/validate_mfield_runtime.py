@@ -3,7 +3,7 @@
 import json
 import tempfile
 from pathlib import Path
-import spin_runtime_helpers as runtime
+import validate_spin_sib_runtime as sib
 
 CB = 5.7883818060e-5
 FIELD = [12.0, -7.0, 31.0]
@@ -21,10 +21,10 @@ def frame(path):
     return [[float(x) for x in line.split()[1:]] for line in lines[-n:]]
 
 def main():
-    original_run = runtime.run_case
+    original_run = sib.run_case
     with tempfile.TemporaryDirectory(prefix='gpumd-mfield-') as tmp:
         root = Path(tmp)
-        model = grouped(runtime.base_model())
+        model = grouped(sib.base_model())
         def static(name, command, model_text=None):
             case, result = original_run(root, name,
                 'potential nep.txt\n'+command+'\nensemble nve\ntime_step 0\n'
@@ -49,7 +49,7 @@ def main():
             assert result.returncode != 0, command
         region_command = 'add_mfield region 0.25 0.75 0 1 0 1 12 -7 31'
         for scale, skew, wrap in [(20, 0, False), (20, 4, False), (40, 8, False), (20, 0, True)]:
-            lines = runtime.base_model().splitlines()  # region mode needs no groups
+            lines = sib.base_model().splitlines()  # region mode needs no groups
             import re
             lines[1] = re.sub(r'Lattice="[^"]+"',
                              f'Lattice="{scale} 0 0 {skew} {scale} 0 0 0 {scale}"', lines[1])
@@ -69,7 +69,7 @@ def main():
                 assert abs(right[10]-left[10]+sum(left[4+k]*h[k] for k in range(3))) < 2e-12, tag
         # A moving atom enters and then leaves the region; the field must be
         # recomputed from current positions, not cached as a fixed group.
-        lines = runtime.base_model().splitlines()
+        lines = sib.base_model().splitlines()
         fields = lines[2].split()
         fields[4] = '2'  # vx = 2 Angstrom/fs
         lines[2] = ' '.join(fields)
@@ -90,11 +90,25 @@ def main():
         for i, bounds in enumerate(['-0.1 1 0 1 0 1', '0 1.1 0 1 0 1',
                                      '0.5 0.5 0 1 0 1', '0 1 nan 1 0 1']):
             _, result = original_run(root, f'region-negative{i}',
-                'potential nep.txt\nadd_mfield region '+bounds+' 0 0 10\n', runtime.base_model())
+                'potential nep.txt\nadd_mfield region '+bounds+' 0 0 10\n', sib.base_model())
             assert result.returncode != 0
+        # Independent Cayley oracle samples the zero-field model, then adds the
+        # analytic external derivative. Only the trajectory gets the command.
+        original_evaluate = sib.evaluate
+        def evaluate(root, name, model_text):
+            result = original_evaluate(root, name, model_text)
+            result['mforce'] = [[f[k]+CB*FIELD[k] for k in range(3)] for f in result['mforce']]
+            return result
+        def run_case(root, name, run_input, model_text=None):
+            if name == 'sib':
+                run_input = run_input.replace('potential nep.txt\n', 'potential nep.txt\nadd_mfield region 0 1 0 1 0 1 12 -7 31\n')
+            return original_run(root, name, run_input, grouped(model_text or sib.base_model()))
+        sib.evaluate = evaluate
+        sib.run_case = run_case
+        errors = sib.one_step_oracle(root)
         print(json.dumps({'group_energy_force': 'passed', 'zero_field': 'passed',
                           'parser_negatives': len(negative)+4, 'region_boundary_skew_wrap': 'passed',
-                          'region_enter_exit': 'passed'}))
+                          'region_enter_exit': 'passed', 'sib_errors': errors}))
 
 if __name__ == '__main__':
     main()

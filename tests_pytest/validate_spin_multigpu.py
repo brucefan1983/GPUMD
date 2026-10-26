@@ -182,7 +182,10 @@ def main():
                 out,_=execute(a,f'{variant}-{d}',xyz,4,direction=d)
                 record(f'{variant}-{d}',out,ref,outputs)
     pos,spin,cell,vel=structure((36,8,8));write_xyz(xyz,pos,spin,cell,vel)
-    ensembles={'tspin': 'nvt_tspin 100 100 100 mass_factor Fe 0.01 seed 731', 'npt_tspin': 'npt_tspin temp 100 100 iso 0 0 tperiod 100 pperiod 1000 mass_factor Fe 0.01 seed 731'}
+    ensembles={'tspin':'nvt_tspin 100 100 100 mass_factor Fe 0.01 seed 731',
+               'sib':'nvt_sib 100 100 100 alpha 0.01 stemp 100 seed 731',
+               'npt_tspin':'npt_tspin temp 100 100 iso 0 0 tperiod 100 pperiod 1000 mass_factor Fe 0.01 seed 731',
+               'npt_sib':'npt_sib temp 100 100 iso 0 0 tperiod 100 pperiod 1000 alpha 0.01 stemp 100 seed 731'}
     for label,ens in ensembles.items():
         field=('add_mfield region 0.3 0.7 0 1 0 1 7 -3 4\n'
                if label.startswith('npt') else 'add_mfield 0 1 7 -3 4\n')

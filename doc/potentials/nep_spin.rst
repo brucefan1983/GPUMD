@@ -614,3 +614,4 @@ including magnetic-force labels and grouped response metadata, is documented
 under :ref:`train_test_xyz`.
 Runtime ``model.xyz`` files require one ``spin:R:3`` vector per atom.
 TSPIN dynamics is documented in :ref:`kw_ensemble_tspin`.
+Fixed-magnitude stochastic dynamics is documented in :ref:`kw_ensemble_sib`.

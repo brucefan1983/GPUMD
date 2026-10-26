@@ -32,7 +32,12 @@ bool is_tspin_option(const char* value)
     strcmp(value, "mass_factor") == 0 || strcmp(value, "seed") == 0;
 }
 
-
+bool is_langevin_spin_option(const char* value)
+{
+  return strcmp(value, "lattice") == 0 || strcmp(value, "alpha") == 0 ||
+    strcmp(value, "gamma") == 0 || strcmp(value, "stemp") == 0 ||
+    strcmp(value, "seed") == 0;
+}
 
 void print_spin_mass_factors(
   const Atom& atom,
@@ -60,15 +65,20 @@ void Integrate::parse_spin_ensemble(
   std::vector<const char*> args;
   for (const auto& token : tokens) args.push_back(token.c_str());
   const char** param = args.data();
-  spin_lattice_enabled = true;
+  const bool spin_only = tokens[1] == "nve_sib";
+  spin_lattice_enabled = !spin_only;
   spin_mass_factor_by_type.assign(atom.cpu_type_size.size(), 1.0);
   spin_seed = 12345;
-  const bool npt = tokens[1] == "npt_tspin";
-  int spin_option_start = 5;
+  spin_sib_alpha = 0.0;
+  spin_dynamics_gamma = 2.0 * 1000.0 / (HBAR * TIME_UNIT_CONVERSION);
+  spin_dynamics_temperature = spin_only ? -1.0 : 0.0;
+  spin_dynamics_seed = 12345;
+  const bool npt = tokens[1] == "npt_tspin" || tokens[1] == "npt_sib";
+  int spin_option_start = spin_only ? 2 : 5;
   if (npt) {
     spin_option_start = num_param;
     for (int i = 2; i < num_param; ++i) {
-      if (is_tspin_option(param[i])) {
+      if (use_spin_tspin ? is_tspin_option(param[i]) : is_langevin_spin_option(param[i])) {
         spin_option_start = i;
         break;
       }
@@ -174,7 +184,80 @@ void Integrate::parse_spin_ensemble(
     }
   }
 
+  if (use_spin_sib) {
+    bool has_lattice = false;
+    bool has_alpha = false;
+    bool has_gamma = false;
+    bool has_spin_temperature = false;
+    bool has_seed = false;
+    int index = spin_option_start;
+    while (index < num_param) {
+      if (index + 1 >= num_param) {
+        PRINT_INPUT_ERROR("SIB optional keywords require a value.");
+      }
+      if (strcmp(param[index], "lattice") == 0) {
+        if (strcmp(param[1], "nvt_sib") != 0) {
+          PRINT_INPUT_ERROR("lattice is only valid for nvt_sib.");
+        }
+        if (has_lattice) {
+          PRINT_INPUT_ERROR("SIB lattice cannot be repeated.");
+        }
+        has_lattice = true;
+        if (strcmp(param[index + 1], "on") == 0) {
+          spin_lattice_enabled = true;
+        } else if (strcmp(param[index + 1], "off") == 0) {
+          spin_lattice_enabled = false;
+        } else {
+          PRINT_INPUT_ERROR("SIB lattice should be on or off.");
+        }
+      } else if (strcmp(param[index], "alpha") == 0) {
+        if (has_alpha) {
+          PRINT_INPUT_ERROR("alpha belongs only to SIB and cannot be repeated.");
+        }
+        has_alpha = true;
+        if (!is_valid_real(param[index + 1], &spin_sib_alpha) ||
+            !std::isfinite(spin_sib_alpha) || spin_sib_alpha < 0.0) {
+          PRINT_INPUT_ERROR("SIB alpha should be finite and >= 0.");
+        }
+      } else if (strcmp(param[index], "gamma") == 0) {
+        if (has_gamma) {
+          PRINT_INPUT_ERROR("SIB gamma cannot be repeated.");
+        }
+        has_gamma = true;
+        if (!is_valid_real(param[index + 1], &spin_dynamics_gamma) ||
+            !std::isfinite(spin_dynamics_gamma) || spin_dynamics_gamma <= 0.0) {
+          PRINT_INPUT_ERROR("SIB gamma should be finite and > 0.");
+        }
+      } else if (strcmp(param[index], "stemp") == 0) {
+        if (has_spin_temperature) {
+          PRINT_INPUT_ERROR("SIB stemp cannot be repeated.");
+        }
+        has_spin_temperature = true;
+        if (!is_valid_real(param[index + 1], &spin_dynamics_temperature) ||
+            !std::isfinite(spin_dynamics_temperature) ||
+            (spin_dynamics_temperature < 0.0 && spin_dynamics_temperature != -1.0)) {
+          PRINT_INPUT_ERROR("SIB stemp should be -1, 0, or a positive temperature.");
+        }
+      } else if (strcmp(param[index], "seed") == 0) {
+        if (has_seed) {
+          PRINT_INPUT_ERROR("SIB seed cannot be repeated.");
+        }
+        has_seed = true;
+        if (!is_valid_int(param[index + 1], &spin_dynamics_seed) || spin_dynamics_seed <= 0) {
+          PRINT_INPUT_ERROR("SIB seed should be a positive integer.");
+        }
+      } else {
+        PRINT_INPUT_ERROR("Unknown SIB optional keyword.");
+      }
+      index += 2;
+    }
 
+    if (spin_only && spin_dynamics_temperature == 0.0) {
+      PRINT_INPUT_ERROR(
+        "SIB stemp 0 requires a temperature-controlled ensemble; use stemp -1 "
+        "or a positive temperature with nve_sib.");
+    }
+  }
 
 
   std::vector<std::string> lattice(tokens.begin(), tokens.begin() + spin_option_start);
@@ -187,6 +270,10 @@ void Integrate::parse_spin_ensemble(
     temperature_coupling = mttk->get_temperature_period();
     type = EnsembleType::MTTK;
     ensemble_ = std::move(mttk);
+  } else if (spin_only) {
+    temperature = temperature1 = temperature2 = 0.0;
+    type = EnsembleType::NVE;
+    ensemble_ = std::make_unique<Ensemble_Fixed_Lattice>(type);
   } else {
     lattice[1] = "nvt_nhc";
     auto nhc = std::make_unique<Spin_Lattice_NHC>(lattice, group);
@@ -198,6 +285,13 @@ void Integrate::parse_spin_ensemble(
     if (spin_lattice_enabled) ensemble_ = std::move(nhc);
     else ensemble_ = std::make_unique<Ensemble_Fixed_Lattice>(type);
   }
-  printf("Integrate spins with TSPIN.\n");
-  print_spin_mass_factors(atom, spin_mass_factor_by_type);
+  if (use_spin_tspin) {
+    printf("Integrate spins with TSPIN.\n");
+    print_spin_mass_factors(atom, spin_mass_factor_by_type);
+  } else {
+    printf("Integrate spins with the semi-implicit B (SIB) method.\n");
+    printf("    alpha = %g.\n", spin_sib_alpha);
+    printf("    gamma = %g (eV ps)^-1, stemp = %g K, seed = %d.\n",
+      spin_dynamics_gamma, spin_dynamics_temperature, spin_dynamics_seed);
+  }
 }

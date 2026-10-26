@@ -39,12 +39,12 @@ def state(path, kind):
     return np.array(payload[1].split(','), float) if payload else None
 
 
-@pytest.mark.parametrize('mode', ['tspin'])
+@pytest.mark.parametrize('mode', ['sib', 'tspin'])
 @pytest.mark.parametrize('kind', ['nhc', 'mttk'])
 def test_spin_lattice_checkpoint_consumed_once(tmp_path, mode, kind):
     prefix = 'nvt_' + mode + ' 300 350 100' if kind == 'nhc' else (
         'npt_' + mode + ' temp 300 350 iso 0 .01 tperiod 100 pperiod 1000')
-    options = {'tspin': ' mass_factor 1'}[mode]
+    options = {'sib': ' alpha .01', 'tspin': ' mass_factor 1'}[mode]
     ensemble = prefix + options + ' seed 731'
     original = prepare(tmp_path / 'original')
     run(original, f'ensemble {ensemble}\ndump_restart 6\nrun 10\n')
