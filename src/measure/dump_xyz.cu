@@ -124,7 +124,10 @@ void Dump_XYZ::parse(
       has_mforce_ = true;
       continue;
     }
-
+    if (tokens[m] == "spin_velocity") {
+      has_spin_velocity_ = true;
+      continue;
+    }
     if (tokens[m] == "group") {
       if (group_seen) {
         PRINT_INPUT_ERROR("Option 'group' is specified more than once in dump_xyz.\n");
@@ -183,18 +186,22 @@ void Dump_XYZ::pre_run(
   if (quantities.has_force_) {
     cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
   }
-  if ((has_spin_ || has_mforce_) &&
+  if ((has_spin_ || has_mforce_ || has_spin_velocity_) &&
       !atom.has_spin) {
     PRINT_INPUT_ERROR("dump_xyz spin quantities require spin:R:3 in model.xyz.");
   }
-
+  if (has_spin_velocity_ && !atom.spin_velocity_initialized) {
+    PRINT_INPUT_ERROR("dump_xyz spin_velocity requires initialized spin_vel:R:3.");
+  }
   if (has_spin_) {
     cpu_spin_per_atom_.resize(atom.number_of_atoms * 3);
   }
   if (has_mforce_) {
     cpu_mforce_per_atom_.resize(atom.number_of_atoms * 3);
   }
-
+  if (has_spin_velocity_) {
+    cpu_spin_velocity_per_atom_.resize(atom.number_of_atoms * 3);
+  }
   if (quantities.has_potential_) {
     cpu_potential_per_atom_.resize(atom.number_of_atoms);
   }
@@ -307,7 +314,9 @@ void Dump_XYZ::output_line2(
   if (has_mforce_) {
     fprintf(fid_, ":mforce:R:3");
   }
-
+  if (has_spin_velocity_) {
+    fprintf(fid_, ":spin_vel:R:3");
+  }
   if (quantities.has_potential_) {
     fprintf(fid_, ":energy_atom:R:1");
   }
@@ -376,7 +385,9 @@ void Dump_XYZ::end_of_step(
   if (has_mforce_) {
     atom.mforce_per_atom.copy_to_host(cpu_mforce_per_atom_.data());
   }
-
+  if (has_spin_velocity_) {
+    atom.spin_velocity_per_atom.copy_to_host(cpu_spin_velocity_per_atom_.data());
+  }
   if (quantities.has_potential_) {
     atom.potential_per_atom.copy_to_host(cpu_potential_per_atom_.data());
   }
@@ -446,7 +457,15 @@ void Dump_XYZ::end_of_step(
         fprintf(fid_, fmt_.c_str(), cpu_mforce_per_atom_[m + atom.number_of_atoms * d]);
       }
     }
-
+    if (has_spin_velocity_) {
+      const double natural_to_per_fs = 1.0 / TIME_UNIT_CONVERSION;
+      for (int d = 0; d < 3; ++d) {
+        fprintf(
+          fid_,
+          fmt_.c_str(),
+          cpu_spin_velocity_per_atom_[m + atom.number_of_atoms * d] * natural_to_per_fs);
+      }
+    }
     if (quantities.has_potential_) {
       fprintf(fid_, fmt_.c_str(), cpu_potential_per_atom_[m]);
     }

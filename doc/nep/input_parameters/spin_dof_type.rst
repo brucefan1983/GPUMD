@@ -21,6 +21,8 @@ by :ref:`spin_env_type <kw_spin_env_type>`.
 
 This keyword selects supervised derivatives; it does not define an integration constraint.
 
+For TSPIN coordinate constraints, see :ref:`kw_ensemble_tspin`.
+
 The grouped-response path derivative is computed from the converged DFT spins.
 When :ref:`lambda_spin_response <kw_lambda_spin_response>` is used, the trainer
 automatically sets that derived tangent to zero on excluded atom types.

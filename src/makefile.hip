@@ -19,7 +19,7 @@ HIP_ARCH ?= gfx90a
 # hipcc defaults to it, so do not pin -std lower.
 CFLAGS = -O3 --offload-arch=$(HIP_ARCH) -DUSE_HIP
 INC = -I./
-LDFLAGS =
+LDFLAGS = 
 LIBS = -lhipblas -lhipsolver -lhipfft
 
 
@@ -30,7 +30,7 @@ SOURCES_GPUMD =                   \
 	$(wildcard main_gpumd/*.cu)   \
 	$(wildcard minimize/*.cu)     \
 	$(wildcard phonon/*.cu)       \
-	$(wildcard integrate/*.cu)    \
+	$(wildcard integrate/*.cu) $(wildcard integrate/spin/*.cu)    \
 	$(wildcard mc/*.cu)           \
 	$(wildcard force/*.cu)        \
 	$(wildcard force/*/*.cu)      \
@@ -56,7 +56,7 @@ OBJ_NEP = $(SOURCES_NEP:.cu=.o)
 HEADERS =                         \
 	$(wildcard utilities/*.cuh)   \
 	$(wildcard main_gpumd/*.cuh)  \
-	$(wildcard integrate/*.cuh)   \
+	$(wildcard integrate/*.cuh) $(wildcard integrate/spin/*.cuh)   \
 	$(wildcard mc/*.cuh)          \
 	$(wildcard minimize/*.cuh)    \
 	$(wildcard force/*.cuh)       \
@@ -114,3 +114,4 @@ main_nep/%.o: main_nep/%.cu $(HEADERS)
 ###########################################################
 clean:
 	rm -f */*.o */*/*.o gpumd nep
+

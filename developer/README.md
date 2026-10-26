@@ -285,3 +285,9 @@ documentation for the input and Zeeman conventions.
 
 See [Spin regression checks](spin_validation.md) for portable format, training,
 and GPU validation commands.
+
+Spin lattice coupling and restart handling live in `src/integrate/spin/`.
+`Spin_Lattice_NHC` and `Spin_Lattice_MTTK` reuse the upstream mechanical
+integrators and add endpoint persistence and resumed temperature/pressure
+protocols only for Spin ensembles. Ordinary NHC/MTTK classes remain unchanged.
+The XYZ reader and restart writer delegate Spin metadata to this directory.
