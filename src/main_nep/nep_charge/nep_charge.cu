@@ -931,6 +931,23 @@ static __global__ void find_force_charge_real_space(
   }
 }
 
+static __global__ void find_charge_self_energy(
+  const int N,
+  const float two_alpha_over_sqrt_pi,
+  const float* g_charge,
+  double* g_pe,
+  float* g_D_real)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    const float q1 = g_charge[n1];
+    const float s_pe = -two_alpha_over_sqrt_pi * 0.5f * q1 * q1;
+    const float D_real = -q1 * two_alpha_over_sqrt_pi;
+    g_D_real[n1] += K_C_SP * D_real;
+    g_pe[n1] += K_C_SP * s_pe;
+  }
+}
+
 static __device__ void cross_product(const float a[3], const float b[3], float c[3])
 {
   c[0] =  a[1] * b [2] - a[2] * b [1];
@@ -1467,9 +1484,17 @@ void NEP_Charge::find_force(
 
     compute_charge_long_range(data, storage);
 
-    // mode 1 has real space
+    // mode 1 has real space; mode 2 only needs the self-energy correction
     if (paramb.charge_mode == 1) {
       compute_charge_real_space(data, neighbors, storage);
+    } else if (paramb.charge_mode == 2) {
+      find_charge_self_energy<<<(data.N - 1) / 32 + 1, 32>>>(
+        data.N,
+        charge_para.two_alpha_over_sqrt_pi,
+        charge_dataset.charge_shifted.data(),
+        data.energy.data(),
+        storage.D_real.data());
+      GPU_CHECK_KERNEL
     }
 
     // Chain rule correction: D_real -= mean(D_real) per structure
