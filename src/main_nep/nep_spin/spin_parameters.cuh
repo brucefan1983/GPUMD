@@ -9,7 +9,8 @@
 #pragma once
 #include "main_nep/common/nep_parameters.cuh"
 #include "utilities/nep_spin_model_file.cuh"
-class Spin_Parameters : public NEP_Energy_Parameters {
+class Spin_Parameters : public NEP_Energy_Parameters
+{
 public:
   explicit Spin_Parameters(const ParameterInput& input);
   int spin_compress = 2, spin_order = 3, spin_soc = 1;
@@ -27,6 +28,7 @@ public:
   std::vector<float> spin_cutoff_by_type;
   GPU_Vector<float> q_scaler_square_sum[16];
   GPU_Vector<unsigned long long> q_scaler_count[16];
+
 private:
   bool parse_keyword(const char**, int) override;
   void report_model_inputs() const override;
@@ -56,9 +58,9 @@ private:
   void parse_spin_l_max(const char** param, int num_param);
   void parse_spin_cutoff(const char** param, int num_param);
   void parse_spin_active_types(
-  const char** param,
-  int num_param,
-  const char* keyword,
-  std::vector<std::string>& names,
-  bool& is_set);
+    const char** param,
+    int num_param,
+    const char* keyword,
+    std::vector<std::string>& names,
+    bool& is_set);
 };

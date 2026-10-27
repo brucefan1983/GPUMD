@@ -41,20 +41,18 @@ void NEP_Spin_Model::finalize_q_scaler()
   int unresolved_channels = 0;
   for (int d = 0; d < para.dim; ++d) {
     const float range = global_max[d] - global_min[d];
-    const float magnitude = std::max(
-      1.0f, std::max(std::abs(global_max[d]), std::abs(global_min[d])));
-    const float resolution =
-      64.0f * std::numeric_limits<float>::epsilon() * magnitude;
+    const float magnitude =
+      std::max(1.0f, std::max(std::abs(global_max[d]), std::abs(global_min[d])));
+    const float resolution = 64.0f * std::numeric_limits<float>::epsilon() * magnitude;
     if (!std::isfinite(range)) {
-      PRINT_INPUT_ERROR(
-        "Cannot initialize Spin NEP q_scaler from a non-finite "
-        "descriptor channel.\n");
+      PRINT_INPUT_ERROR("Cannot initialize Spin NEP q_scaler from a non-finite "
+                        "descriptor channel.\n");
     }
     if (d >= para.dim_struct) {
       const float rms = global_count[d] == 0
-        ? 0.0f
-        : static_cast<float>(std::sqrt(
-            global_square_sum[d] / static_cast<double>(global_count[d])));
+                          ? 0.0f
+                          : static_cast<float>(std::sqrt(
+                              global_square_sum[d] / static_cast<double>(global_count[d])));
       if (!std::isfinite(rms)) {
         PRINT_INPUT_ERROR("Cannot initialize Spin3 q_scaler from non-finite RMS.\n");
       }
@@ -64,9 +62,8 @@ void NEP_Spin_Model::finalize_q_scaler()
       }
     } else {
       if (range <= 1.0e-10f) {
-        PRINT_INPUT_ERROR(
-          "Cannot initialize Spin NEP q_scaler from a constant "
-          "descriptor channel.\n");
+        PRINT_INPUT_ERROR("Cannot initialize Spin NEP q_scaler from a constant "
+                          "descriptor channel.\n");
       }
       para.q_scaler_cpu[d] = 1.0f / range;
     }
@@ -84,8 +81,7 @@ void NEP_Spin_Model::finalize_q_scaler()
   CHECK(gpuSetDevice(0));
 }
 void NEP_Spin_Model::ResponseLoss::append(
-  const int device_id,
-  Dataset& dataset, Spin_Data& spin_data)
+  const int device_id, Dataset& dataset, Spin_Data& spin_data)
 {
   CHECK(gpuSetDevice(device_id));
   spin_data.mforce.copy_to_host(spin_data.mforce_cpu.data());
@@ -99,20 +95,15 @@ void NEP_Spin_Model::ResponseLoss::append(
     const int atom_offset = dataset.Na_sum_cpu[nc];
     for (int na = 0; na < dataset.structures[nc].num_atom; ++na) {
       const int atom = atom_offset + na;
-      prediction +=
-        spin_data.mforce_cpu[atom] * structure.spin_tangent_x[na] +
-        spin_data.mforce_cpu[dataset.N + atom] * structure.spin_tangent_y[na] +
-        spin_data.mforce_cpu[2 * dataset.N + atom] * structure.spin_tangent_z[na];
-      target +=
-        structure.mfx[na] * structure.spin_tangent_x[na] +
-        structure.mfy[na] * structure.spin_tangent_y[na] +
-        structure.mfz[na] * structure.spin_tangent_z[na];
+      prediction += spin_data.mforce_cpu[atom] * structure.spin_tangent_x[na] +
+                    spin_data.mforce_cpu[dataset.N + atom] * structure.spin_tangent_y[na] +
+                    spin_data.mforce_cpu[2 * dataset.N + atom] * structure.spin_tangent_z[na];
+      target += structure.mfx[na] * structure.spin_tangent_x[na] +
+                structure.mfy[na] * structure.spin_tangent_y[na] +
+                structure.mfz[na] * structure.spin_tangent_z[na];
     }
-    points_.push_back({
-      structure.spin_response_group,
-      structure.spin_response_coordinate,
-      prediction,
-      target});
+    points_.push_back(
+      {structure.spin_response_group, structure.spin_response_coordinate, prediction, target});
   }
 }
 static double huber_loss(const double residual)
@@ -138,7 +129,8 @@ float NEP_Spin_Model::ResponseLoss::value() const
     // exchange scan must not suppress a weak anisotropy scan. Retain the
     // absolute floor for zero/near-zero reference responses.
     double target_power = 0.0;
-    for (const auto* point : members) target_power += point->target * point->target;
+    for (const auto* point : members)
+      target_power += point->target * point->target;
     const double scale = std::max(std::sqrt(target_power / members.size()), 1.0e-6);
     double mean_prediction = 0.0;
     double mean_target = 0.0;
@@ -151,8 +143,7 @@ float NEP_Spin_Model::ResponseLoss::value() const
     double group_shape_loss = 0.0;
     for (const auto* point : members) {
       const double residual =
-        ((point->prediction - mean_prediction) -
-         (point->target - mean_target)) / scale;
+        ((point->prediction - mean_prediction) - (point->target - mean_target)) / scale;
       group_shape_loss += huber_loss(residual);
     }
     shape_loss += group_shape_loss / members.size();

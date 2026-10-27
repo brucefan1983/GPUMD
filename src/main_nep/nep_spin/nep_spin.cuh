@@ -14,21 +14,22 @@
 */
 
 #pragma once
-#include "main_nep/dataset.cuh"
-#include "main_nep/potential.cuh"
+#include "main_nep/common/energy_difference.cuh"
+#include "main_nep/common/nep_batch_data.cuh"
+#include "main_nep/common/nep_common.cuh"
+#include "main_nep/common/nep_compile.cuh"
+#include "main_nep/common/nep_energy_reader.cuh"
+#include "main_nep/common/nep_evaluate.cuh"
 #include "main_nep/common/nep_parameters.cuh"
 #include "main_nep/common/nep_training.cuh"
-#include "main_nep/common/nep_batch_data.cuh"
-#include "main_nep/common/energy_difference.cuh"
-#include "main_nep/common/nep_compile.cuh"
-#include "main_nep/common/nep_evaluate.cuh"
-#include "main_nep/common/nep_common.cuh"
-#include "main_nep/common/nep_energy_reader.cuh"
+#include "main_nep/dataset.cuh"
+#include "main_nep/potential.cuh"
 #include <memory>
 #include <set>
 
 #include "spin_data.cuh"
-class NEP_Spin_Model : public Potential {
+class NEP_Spin_Model : public Potential
+{
 public:
   explicit NEP_Spin_Model(const ParameterInput&);
   int prepare_data() override;
@@ -82,7 +83,8 @@ public:
   };
 
 private:
-  class ResponseLoss {
+  class ResponseLoss
+  {
   public:
     void append(int device_id, Dataset& dataset, Spin_Data& spin_data);
     float value() const;
@@ -97,10 +99,13 @@ private:
     std::vector<Point> points_;
   };
 
-  class Spin_Reader : public NEP_Energy_Reader {
+  class Spin_Reader : public NEP_Energy_Reader
+  {
   public:
     Spin_Reader(Spin_Parameters& p, EnergyDifference& e, NEP_Batch_Data<Spin_Data>& d)
-      : NEP_Energy_Reader(p,e), parameters(p), data(d) {}
+      : NEP_Energy_Reader(p, e), parameters(p), data(d)
+    {
+    }
     void read_response(std::vector<Structure>&, std::vector<Spin_Data::Labels>&);
 
   private:

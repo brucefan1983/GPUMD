@@ -7,8 +7,8 @@
 */
 
 #pragma once
-#include "spin_parameters.cuh"
 #include "main_nep/dataset.cuh"
+#include "spin_parameters.cuh"
 struct Spin_Data {
   struct Labels {
     int has_mforce = 0, has_spin_response_metadata = 0, has_spin_response = 0;

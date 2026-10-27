@@ -489,7 +489,8 @@ magnetic-force and torque RMSE terms,
    + \lambda_\mathrm{resp} L_\mathrm{resp},
 
 where :math:`N_\mathrm{m}` counts labeled active spins and
-:math:`N_\mathrm{tau}` counts only their nonzero spins,
+:math:`N_\mathrm{tau}` counts only those with
+:math:`|\boldsymbol{s}_i|^2 > 10^{-20}\,\mu_\mathrm{B}^2`,
 
 .. math::
 
@@ -507,9 +508,10 @@ where :math:`N_\mathrm{m}` counts labeled active spins and
      \right]^{1/2}.
 
 The magnetic-force loss always includes all three Cartesian components and
-includes zero spins. The torque loss excludes zero spins. To supervise only
-spin rotation, set ``lambda_m 0`` and a positive ``lambda_tau``. For nonzero
-spins, the squared torque error equals the squared transverse magnetic-force
+includes zero spins. Both the torque-error sum and its count exclude spins at
+or below the squared-magnitude threshold, evaluated in double precision.
+To supervise only spin rotation, set ``lambda_m 0`` and a positive ``lambda_tau``.
+For nonzero spins, the squared torque error equals the squared transverse magnetic-force
 error multiplied by :math:`|\boldsymbol{s}_i|^2`.
 
 For a grouped rotation path with coordinate :math:`\theta`, the response

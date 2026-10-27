@@ -7,7 +7,8 @@
 */
 
 #pragma once
-namespace {
+namespace
+{
 
 using SimulationBox = Box;
 
@@ -64,8 +65,8 @@ __device__ __forceinline__ void atomic_add_per_atom_virial_float(
   atomicAdd(&virial[8 * atom_stride + atom], -z12 * fy);
 }
 
-__device__ __forceinline__ void atomic_add_spin_transfer_float(
-  int, int, float, float, float, const float*, float*)
+__device__ __forceinline__ void
+atomic_add_spin_transfer_float(int, int, float, float, float, const float*, float*)
 {
 }
 
@@ -128,8 +129,7 @@ __device__ __forceinline__ void evaluate_spin3_edge_weights_b9_f32(
     const float t2 = 2.0f * x * t1 - t0;
     const float raw = 0.5f * (t2 + 1.0f);
     basis[n] = raw * cutoff;
-    basis_derivative[n] =
-      static_cast<float>(n) * u1 * dxdr * cutoff + raw * cutoff_derivative;
+    basis_derivative[n] = static_cast<float>(n) * u1 * dxdr * cutoff + raw * cutoff_derivative;
     const float u2 = 2.0f * x * u1 - u0;
     t0 = t1;
     t1 = t2;
@@ -140,8 +140,8 @@ __device__ __forceinline__ void evaluate_spin3_edge_weights_b9_f32(
     float weight = 0.0f;
     float derivative = 0.0f;
     for (int basis_index = 0; basis_index < basis_count; ++basis_index) {
-      const int index = spin_coefficient_offset +
-        (channel * basis_count + basis_index) * pair_count + type_pair;
+      const int index =
+        spin_coefficient_offset + (channel * basis_count + basis_index) * pair_count + type_pair;
       weight += basis[basis_index] * descriptor_coefficients[index];
       if (NeedDerivatives) {
         derivative += basis_derivative[basis_index] * descriptor_coefficients[index];
@@ -191,8 +191,7 @@ __device__ __forceinline__ bool load_spin3_edge_f32(
       rhat[2] = dz * inverse_distance;
     }
   } else {
-    compute_spin_edge_geometry_f32(
-      atom, neighbor, atom_stride, box, positions, rhat, dist);
+    compute_spin_edge_geometry_f32(atom, neighbor, atom_stride, box, positions, rhat, dist);
   }
   for (int component = 0; component < 3; ++component) {
     si[component] = static_cast<float>(spins[component * atom_stride + atom]);
@@ -219,9 +218,9 @@ __device__ __forceinline__ bool load_spin3_edge_f32(
   return true;
 }
 
-#include "force/nep_spin/nep_spin3_layout.cuh"
 #include "force/nep_spin/nep_spin3_descriptor.cuh"
 #include "force/nep_spin/nep_spin3_force.cuh"
+#include "force/nep_spin/nep_spin3_layout.cuh"
 
 template <int C, typename Layout>
 void launch_spin3_descriptor(
@@ -249,41 +248,39 @@ void launch_spin3_descriptor(
   constexpr int block_size = 128;
   Box box{};
   const int density_work = C * atom_count;
-  build_spin3_oc_density_bank<C>
-    <<<(density_work + block_size - 1) / block_size, block_size>>>(
-      layout,
-      atom_count,
-      atom_count,
-      struct_dim,
-      num_types,
-      spin_basis_size,
-      spin_cutoff,
-      spin_cutoff_pair,
-      spin_coefficient_offset,
-      box,
-      type,
-      spin_type_active,
-      position,
-      r12_spin,
-      r12_plane_size,
-      spin,
-      NN_spin,
-      NL_spin,
-      descriptor_coefficients,
-      descriptors,
-      moments);
-  contract_spin3_oc_descriptors<C>
-    <<<(atom_count + block_size - 1) / block_size, block_size>>>(
-      layout,
-      atom_count,
-      atom_count,
-      struct_dim,
-      type,
-      spin_type_active,
-      spin,
-      projection,
-      moments,
-      descriptors);
+  build_spin3_oc_density_bank<C><<<(density_work + block_size - 1) / block_size, block_size>>>(
+    layout,
+    atom_count,
+    atom_count,
+    struct_dim,
+    num_types,
+    spin_basis_size,
+    spin_cutoff,
+    spin_cutoff_pair,
+    spin_coefficient_offset,
+    box,
+    type,
+    spin_type_active,
+    position,
+    r12_spin,
+    r12_plane_size,
+    spin,
+    NN_spin,
+    NL_spin,
+    descriptor_coefficients,
+    descriptors,
+    moments);
+  contract_spin3_oc_descriptors<C><<<(atom_count + block_size - 1) / block_size, block_size>>>(
+    layout,
+    atom_count,
+    atom_count,
+    struct_dim,
+    type,
+    spin_type_active,
+    spin,
+    projection,
+    moments,
+    descriptors);
   GPU_CHECK_KERNEL
 }
 
@@ -314,41 +311,39 @@ void launch_spin3_force(
   double* virial)
 {
   using Tile = Spin3ForceTile<C>;
-  const int grid_size =
-    (atom_count + Tile::centers_per_block - 1) / Tile::centers_per_block;
+  const int grid_size = (atom_count + Tile::centers_per_block - 1) / Tile::centers_per_block;
   const std::size_t shared_size =
     static_cast<std::size_t>(Tile::centers_per_block) * layout.moment_count * sizeof(float);
   Box box{};
-  accumulate_spin3_oc_native_forces<
-    C, SpinVirialMode::neighbor_owned, false, Tile::atoms_per_warp><<<
-      grid_size, Tile::block_size, shared_size>>>(
-        layout,
-        atom_count,
-        atom_count,
-        struct_dim,
-        num_types,
-        spin_basis_size,
-        spin_cutoff,
-        spin_cutoff_pair,
-        box,
-        type,
-        spin_type_active,
-        position,
-        r12_spin,
-        r12_plane_size,
-        spin,
-        NN_spin,
-        NL_spin,
-        Fp,
-        descriptor_coefficients,
-        projection,
-        moments,
-        spin_coefficient_offset,
-        force,
-        mforce,
-        virial,
-        nullptr,
-        nullptr);
+  accumulate_spin3_oc_native_forces<C, SpinVirialMode::neighbor_owned, false, Tile::atoms_per_warp>
+    <<<grid_size, Tile::block_size, shared_size>>>(
+      layout,
+      atom_count,
+      atom_count,
+      struct_dim,
+      num_types,
+      spin_basis_size,
+      spin_cutoff,
+      spin_cutoff_pair,
+      box,
+      type,
+      spin_type_active,
+      position,
+      r12_spin,
+      r12_plane_size,
+      spin,
+      NN_spin,
+      NL_spin,
+      Fp,
+      descriptor_coefficients,
+      projection,
+      moments,
+      spin_coefficient_offset,
+      force,
+      mforce,
+      virial,
+      nullptr,
+      nullptr);
   GPU_CHECK_KERNEL
 }
 
@@ -372,8 +367,8 @@ __global__ void add_spin_training_outputs(
   }
   constexpr int source_component[6] = {0, 1, 2, 3, 5, 7};
   for (int component = 0; component < 6; ++component) {
-    virial[component * atom_count + atom] += static_cast<float>(
-      spin_virial[source_component[component] * atom_count + atom]);
+    virial[component * atom_count + atom] +=
+      static_cast<float>(spin_virial[source_component[component] * atom_count + atom]);
   }
 }
 

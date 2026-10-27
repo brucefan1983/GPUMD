@@ -24,7 +24,9 @@ enabled by :ref:`spin_type <kw_spin_type>` contribute.
 The Cartesian loss :ref:`lambda_m <kw_lambda_m>` constrains all magnetic-force
 components, whereas torque is insensitive to the parallel component.
 Set ``lambda_m 0`` and a positive ``lambda_tau`` to supervise spin rotation
-without constraining the longitudinal magnetic force. Zero spins are excluded
-from torque RMSE, which is normalized by two degrees of freedom per active
-nonzero spin. Squared torque errors weight squared transverse magnetic-force
-errors by :math:`|\boldsymbol{s}_i|^2`.
+without constraining the longitudinal magnetic force. Torque RMSE includes only
+labeled active spins with :math:`|\boldsymbol{s}_i|^2 > 10^{-20}\,\mu_\mathrm{B}^2`
+and is normalized by two degrees of freedom per included spin. The squared
+magnitude is evaluated in double precision for both the error and its count;
+spins at or below the threshold are excluded from both. Squared torque errors
+weight squared transverse magnetic-force errors by :math:`|\boldsymbol{s}_i|^2`.

@@ -7,11 +7,11 @@
 */
 
 #ifdef NEP_SPECIALIZED_RUNTIME_BUILD
+#include "model/box.cuh"
 #include "nep_special_config.cuh"
 #include "nep_spin.cuh"
-#include "model/box.cuh"
-#include "utilities/gpu_macro.cuh"
 #include "spin_training_kernels.cuh"
+#include "utilities/gpu_macro.cuh"
 
 extern "C" void nep_spin_launch_descriptor(
   NEP_Spin_Model::Spin_Polynomial_Layout,
@@ -36,10 +36,26 @@ extern "C" void nep_spin_launch_descriptor(
   float* descriptors)
 {
   launch_spin3_descriptor<SpinConstantLayout::channels>(
-    SpinConstantLayout{}, atom_count, struct_dim, num_types, spin_basis_size,
-    spin_cutoff, spin_cutoff_pair, type, spin_type_active,
-    position, spin, NN_spin, NL_spin, r12_spin, r12_plane_size,
-    descriptor_coefficients, spin_coefficient_offset, projection, moments, descriptors);
+    SpinConstantLayout{},
+    atom_count,
+    struct_dim,
+    num_types,
+    spin_basis_size,
+    spin_cutoff,
+    spin_cutoff_pair,
+    type,
+    spin_type_active,
+    position,
+    spin,
+    NN_spin,
+    NL_spin,
+    r12_spin,
+    r12_plane_size,
+    descriptor_coefficients,
+    spin_coefficient_offset,
+    projection,
+    moments,
+    descriptors);
 }
 
 extern "C" void nep_spin_launch_force(
@@ -68,12 +84,33 @@ extern "C" void nep_spin_launch_force(
   double* virial)
 {
   launch_spin3_force<SpinConstantLayout::channels>(
-    SpinConstantLayout{}, atom_count, struct_dim, num_types, spin_basis_size,
-    spin_cutoff, spin_cutoff_pair, type, spin_type_active,
-    position, spin, NN_spin, NL_spin, r12_spin, r12_plane_size,
-    Fp, descriptor_coefficients, spin_coefficient_offset, projection, moments,
-    force, mforce, virial);
+    SpinConstantLayout{},
+    atom_count,
+    struct_dim,
+    num_types,
+    spin_basis_size,
+    spin_cutoff,
+    spin_cutoff_pair,
+    type,
+    spin_type_active,
+    position,
+    spin,
+    NN_spin,
+    NL_spin,
+    r12_spin,
+    r12_plane_size,
+    Fp,
+    descriptor_coefficients,
+    spin_coefficient_offset,
+    projection,
+    moments,
+    force,
+    mforce,
+    virial);
 }
 
-extern "C" int nep_train_specialized_interface_version() { return NEP_SPECIAL_CONFIG_INTERFACE_VERSION; }
+extern "C" int nep_train_specialized_interface_version()
+{
+  return NEP_SPECIAL_CONFIG_INTERFACE_VERSION;
+}
 #endif

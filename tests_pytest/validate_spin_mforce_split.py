@@ -10,6 +10,7 @@ import math
 import os
 from pathlib import Path
 import shutil
+import struct
 import subprocess
 import tempfile
 
@@ -45,6 +46,59 @@ def independent_metrics(case):
     return {'rmse_mforce_test': math.sqrt(raw/(3*count)),
             'rmse_m_parallel_test': math.sqrt(parallel/count),
             'rmse_m_perp_test': math.sqrt(perp/(2*count))}
+
+
+def check_torque_threshold(root, config, initial, frozen, env):
+    # These float32 components straddle the cutoff depending on whether they
+    # are squared before or after promotion to double. Use large finite labels
+    # so their torque residual is observable in the printed RMSE.
+    def float32(value):
+        return struct.unpack('f', struct.pack('f', value))[0]
+
+    boundary = [float32(9.053574730188974e-12), float32(9.958932289944045e-11), 0.0]
+    assert float32(sum(float32(v*v) for v in boundary)) <= 1e-20
+    assert sum(v*v for v in boundary) > 1e-20
+    spins = [boundary, boundary, [0.0, 0.0, 0.0],
+             [float32(6e-11), float32(8e-11), 0.0], [5e-11, 0.0, 0.0], [2e-10, 0.0, 0.0]]
+    lines = base.TRAIN_XYZ.splitlines()
+    index = 0
+    for i, line in enumerate(lines):
+        if line.startswith('Fe '):
+            fields = line.split()
+            fields[7:10] = [f'{v:.17g}' for v in spins[index]]
+            fields[10:13] = ['0', '0', '1e10']
+            lines[i] = ' '.join(fields)
+            index += 1
+    assert index == len(spins)
+    xyz = '\n'.join(lines) + '\n'
+    case = root / 'torque-threshold'
+    base.write_case(case, config.replace('lambda_m 1.0', 'lambda_m 0'), xyz)
+    (case / 'test.xyz').write_text(xyz)
+    shutil.copyfile(initial / 'nep.txt', case / 'nep.txt')
+    (case / 'nep.restart').write_text(frozen)
+    run_nep(case, env)
+    predictions = base.columns(case / 'mforce_test.out', 6)
+    atoms = [line.split() for line in lines if line.startswith(('Fe ', 'Ge '))]
+    total = 0.0
+    count = 0
+    for atom, row in zip(atoms, predictions):
+        spin = [float32(float(v)) for v in atom[7:10]]
+        if atom[0] != 'Fe' or sum(v*v for v in spin) <= 1e-20:
+            continue
+        error = [row[i] - row[i+3] for i in range(3)]
+        cross = [spin[1]*error[2] - spin[2]*error[1],
+                 spin[2]*error[0] - spin[0]*error[2],
+                 spin[0]*error[1] - spin[1]*error[0]]
+        total += sum(v*v for v in cross)
+        count += 1
+    assert len(predictions) == len(atoms) and count == 3
+    expected = math.sqrt(total / (2*count))
+    row = loss_rows(case)[-1]
+    for suffix in ('train', 'test'):
+        actual = row['rmse_tau_' + suffix]
+        assert math.isfinite(actual) and abs(actual - expected) < 2e-5, (suffix, actual, expected)
+    return {'active_count': count, 'independent_rmse': expected,
+            'reported_rmse': row['rmse_tau_test']}
 
 
 def main():
@@ -97,6 +151,7 @@ def main():
         # Freeze a common parameter vector, including its q scaler and references.
         restart = (initial / 'nep.restart').read_text().splitlines()
         frozen = '\n'.join(restart[:3]) + '\n' + ''.join(f'{row.split()[0]} 0\n' for row in restart[3:])
+        report['torque_threshold'] = check_torque_threshold(root, common, initial, frozen, env)
         objective = common.replace('lambda_tau 0.5', 'lambda_tau 0') + 'lambda_e 0\nlambda_f 0\nlambda_v 0\n'
         terms = [('parallel', 2, 0), ('perp', 0, .5), ('mixed', 2, .5), ('disabled', 0, 0)]
         fixed = {}; predictions = []
