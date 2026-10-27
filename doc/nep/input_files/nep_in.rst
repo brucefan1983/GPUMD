@@ -51,9 +51,9 @@ Keywords
    * - :ref:`spin_version <kw_spin_version>`
      - enable the Spin3 descriptor
    * - :ref:`spin_cutoff <kw_spin_cutoff>`
-     - radial and angular cutoffs used by the spin descriptor
+     - one spin cutoff or one cutoff per element, bounded by the NEP radial cutoff
    * - :ref:`spin_basis_size <kw_spin_basis_size>`
-     - radial and angular basis sizes used by the spin descriptor
+     - magnetic radial basis index followed by a reserved second value fixed at zero
    * - :ref:`spin_l_max <kw_spin_l_max>`
      - maximum spatial tensor rank used by the spin descriptor
    * - :ref:`spin_compress <kw_spin_compress>`

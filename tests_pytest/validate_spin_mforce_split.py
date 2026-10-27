@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Validate independent Spin3 magnetic RMSE terms, restart, and GPU parity.
 
-Run on four allocated CUDA devices after building src/nep. Optionally supply
+Run on one allocated CUDA device, or pass --devices 1 2 4 for GPU parity. Supply
 --oracle pointing to the linked spin_mforce_split.cu numerical test executable.
 """
 import argparse
@@ -51,9 +51,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path)
     parser.add_argument('--oracle', type=Path)
+    parser.add_argument('--devices', nargs='+', type=int, choices=(1, 2, 4), default=[1])
     args = parser.parse_args()
     visible = os.environ.get('CUDA_VISIBLE_DEVICES', '0,1,2,3').split(',')
-    assert len(visible) >= 4, 'Four allocated GPUs are required'
+    assert args.devices[0] == 1 and len(set(args.devices)) == len(args.devices)
+    assert len(visible) >= max(args.devices), 'Not enough allocated GPUs'
     env = os.environ.copy(); env['CUDA_VISIBLE_DEVICES'] = visible[0]
     common = base.NEP_IN.replace('population 10', 'population 12').replace('generation 1', 'generation 3')
     common += 'seed 20261021\nnep_compile 0\nlambda_1 0\nlambda_2 0\n'
@@ -124,7 +126,7 @@ def main():
         report['frozen_objective_checks'] = fixed
         # Ordinary stochastic training, multi-structure batch, and actual saved-model energy.
         results = []
-        for count in (1, 2, 4):
+        for count in args.devices:
             case = root / f'gpu-{count}'
             base.write_case(case, split)
             (case / 'test.xyz').write_text(base.TRAIN_XYZ)
@@ -150,7 +152,7 @@ def main():
             assert error['restart'] <= 2e-6 and error['references'] <= 1e-12, error
             assert error['loss'] <= 2e-5 and error['energy'] <= 2e-6 and error['mforce'] <= 2e-6, error
             errors.append(error)
-        report['multigpu_max_abs'] = dict(zip(('2', '4'), errors))
+        report['multigpu_max_abs'] = dict(zip(map(str, args.devices[1:]), errors))
         report['passed'] = True
         (root / 'report.json').write_text(json.dumps(report, indent=2))
         print(json.dumps(report))

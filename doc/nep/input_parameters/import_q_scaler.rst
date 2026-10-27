@@ -32,8 +32,7 @@ The :ref:`initial_para <kw_initial_para>` keyword scales the radial coefficients
 of this reference model while leaving its channel mixing matrices unchanged.
 
 When ``nep.restart`` is present, Spin3 automatically restores the scaler from
-the matching ``nep.txt`` instead of recomputing it. This also preserves models
-written before this fix, whose scaler depended on the initial search vector.
+the matching ``nep.txt`` instead of recomputing it.
 The two files must come from the same training run with matching architecture
 and element order. The scaler must be finite and positive. Missing or
 incompatible model data are errors, not requests to initialize a new model.

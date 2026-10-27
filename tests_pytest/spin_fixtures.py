@@ -1,25 +1,9 @@
 """Frozen Spin model/oracle loaders; independent of runtime and integrators."""
 import hashlib
+import math
 from pathlib import Path
 
 FIXTURE = Path(__file__).parent / "fixtures" / "nep_spin3"
-
-def selective_type_model():
-    """Return the production C=2 fixture with Fe spin DOFs and geometric environments from all types."""
-    return (FIXTURE / "nep_spin_o3c2_uniform.nep").read_text()
-
-def write_xyz(path, case):
-    lattice = " ".join(f"{value:.17g}" for value in case["cell"])
-    lines = [
-        str(len(case["types"])),
-        f'Lattice="{lattice}" '
-        'Properties=species:S:1:pos:R:3:spin:R:3 pbc="T T T"',
-    ]
-    for symbol, position, spin in zip(
-            case["types"], case["positions"], case["spins"]):
-        values = position + spin
-        lines.append(symbol + " " + " ".join(f"{value:.17g}" for value in values))
-    path.write_text("\n".join(lines) + "\n")
 
 def reshape(values, width):
     if len(values) % width:
@@ -60,6 +44,8 @@ def read_text_oracle(path, model):
                 raise ValueError(f"{path}: data outside a case: {fields[0]}")
             count = int(fields[1])
             values = [float(value) for value in fields[2:]]
+            if not all(math.isfinite(value) for value in values):
+                raise ValueError(f"{path}: nonfinite {fields[0]} reference")
             if len(values) != count:
                 raise ValueError(
                     f"{path}: {fields[0]} count mismatch: {len(values)} != {count}")

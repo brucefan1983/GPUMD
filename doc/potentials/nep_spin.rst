@@ -356,11 +356,10 @@ transformation of the lattice vectors and axial spin vectors,
 
 The :ref:`spin_type <kw_spin_type>` selection defines independent spin
 coordinates and magnetic descriptor centers. All neighbor types enter geometric
-moment sums within the spin cutoff. Excluded types must have zero input spin,
-so their contributions to moments containing neighbor spins vanish while their
-geometric contributions remain. Nonzero excluded spins are rejected.
-The same selection excludes these atoms from MD spin updates, thermal noise and
-spin temperature degrees of freedom; their atomic motion remains active.
+moment sums within the spin cutoff. The reader sets excluded types' effective
+spins to zero and ignores their magnetic-force labels, so their contributions
+to moments containing neighbor spins vanish while geometric contributions remain.
+Original energy and atomic-force labels are retained; input files are unchanged.
 
 .. _nep_spin_dimensions:
 
@@ -529,7 +528,6 @@ number of scan points. Each group's uncentered target-response RMS, floored
 at :math:`10^{-6}`, normalizes its shape term and a second Huber term comparing
 group means; the mean term is multiplied by 0.25. ``response_coordinate``
 defines the path derivative but does not add a separate reliability weight.
-This GPUMD policy differs from the older shared-scale reduction.
 
 The group coordinate is explicit because Cartesian spin snapshots alone do
 not determine their path ordering or parameterization. The trainer sorts each

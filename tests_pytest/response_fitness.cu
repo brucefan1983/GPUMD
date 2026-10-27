@@ -1,10 +1,11 @@
 // Fixed-parameter model loss probe, independent of the SNES lifecycle.
-#include "spin_test_access.cuh"
 #include "main_nep/nep_spin/spin_policy.cuh"
-#include <cstdio>
+#include "spin_test_access.cuh"
 #include <cassert>
 #include <cmath>
-static void check_response_loss() {
+#include <cstdio>
+static void check_response_loss()
+{
   Dataset dataset;
   Spin_Data magnetic;
   magnetic.labels.resize(3);
@@ -31,7 +32,8 @@ static void check_response_loss() {
   assert(exact.value() == 0);
   exact.append(0, dataset, magnetic);
   assert(exact.value() == 0);
-  for (int i = 0; i < 3; ++i) mf[i] += 1;
+  for (int i = 0; i < 3; ++i)
+    mf[i] += 1;
   magnetic.mforce.copy_from_host(mf.data());
   fitness_spin::ResponseLoss shifted;
   shifted.append(0, dataset, magnetic);
@@ -61,7 +63,8 @@ static void check_response_loss() {
   assert(zero.value() == 0.0f);
 }
 
-int main() {
+int main()
+{
   check_response_loss();
   ParameterInput input;
   NEP_Spin_Model model(input);
@@ -73,29 +76,49 @@ int main() {
   snes_spin::initialize_search(p, rng, mu, sigma);
   std::vector<float> scaler(p.dim);
   p.q_scaler_gpu[0].copy_to_host(scaler.data());
-  printf("SCALER"); for (float x : scaler) printf(" %.9g", x); printf("\n");
-  printf("BASELINE"); for (double x : p.energy_reference) printf(" %.17g", x); printf("\n");
+  printf("SCALER");
+  for (float x : scaler)
+    printf(" %.9g", x);
+  printf("\n");
+  printf("BASELINE");
+  for (double x : p.energy_reference)
+    printf(" %.17g", x);
+  printf("\n");
   std::vector<float> population;
-  for (int i=0;i<p.population_size;++i) population.insert(population.end(),mu.begin(),mu.end());
-  for (int iteration=0;iteration<2;++iteration) {
+  for (int i = 0; i < p.population_size; ++i)
+    population.insert(population.end(), mu.begin(), mu.end());
+  for (int iteration = 0; iteration < 2; ++iteration) {
     model.evaluate(iteration % model.training->num_batches, population.data());
-    for (int i=0;i<p.population_size;++i) {
-      int j=i+p.num_types*p.population_size;
-      printf("FIT %d %d %.9g %.9g %.9g %.9g %.9g %.9g\n",iteration,i,
-        model.energy_loss.fitness_energy[j],model.energy_loss.fitness_force[j],model.energy_loss.fitness_virial[j],
-        model.fitness_mforce[j],model.fitness_tau[j],model.fitness_response[j]);
+    for (int i = 0; i < p.population_size; ++i) {
+      int j = i + p.num_types * p.population_size;
+      printf(
+        "FIT %d %d %.9g %.9g %.9g %.9g %.9g %.9g\n",
+        iteration,
+        i,
+        model.energy_loss.fitness_energy[j],
+        model.energy_loss.fitness_force[j],
+        model.energy_loss.fitness_virial[j],
+        model.fitness_mforce[j],
+        model.fitness_tau[j],
+        model.fitness_response[j]);
     }
   }
-  if (model.response_set.empty()) return 0;
-  auto& d = model.response_set[0]; auto& magnetic = *model.response_data[0];
+  if (model.response_set.empty())
+    return 0;
+  auto& d = model.response_set[0];
+  auto& magnetic = *model.response_data[0];
   magnetic.mforce.copy_to_host(magnetic.mforce_cpu.data());
-  for (int n=0;n<d.Nc;++n) {
-    const auto& s=magnetic.labels[n]; double prediction=0,target=0;
-    for (int i=0;i<d.Na_cpu[n];++i) {
-      int j=d.Na_sum_cpu[n]+i;
-      prediction+=magnetic.mforce_cpu[j]*s.spin_tangent_x[i]+magnetic.mforce_cpu[d.N+j]*s.spin_tangent_y[i]+magnetic.mforce_cpu[2*d.N+j]*s.spin_tangent_z[i];
-      target+=s.mfx[i]*s.spin_tangent_x[i]+s.mfy[i]*s.spin_tangent_y[i]+s.mfz[i]*s.spin_tangent_z[i];
+  for (int n = 0; n < d.Nc; ++n) {
+    const auto& s = magnetic.labels[n];
+    double prediction = 0, target = 0;
+    for (int i = 0; i < d.Na_cpu[n]; ++i) {
+      int j = d.Na_sum_cpu[n] + i;
+      prediction += magnetic.mforce_cpu[j] * s.spin_tangent_x[i] +
+                    magnetic.mforce_cpu[d.N + j] * s.spin_tangent_y[i] +
+                    magnetic.mforce_cpu[2 * d.N + j] * s.spin_tangent_z[i];
+      target += s.mfx[i] * s.spin_tangent_x[i] + s.mfy[i] * s.spin_tangent_y[i] +
+                s.mfz[i] * s.spin_tangent_z[i];
     }
-    printf("POINT %s %.17g %.17g\n",s.spin_response_group.c_str(),prediction,target);
+    printf("POINT %s %.17g %.17g\n", s.spin_response_group.c_str(), prediction, target);
   }
 }

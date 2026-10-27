@@ -60,10 +60,10 @@ Essentially any keyword is allowed, but we only read the following ones:
     ``mforces``, ``force_mag``, ``forces_mag``, ``magnetic_force``, and
     ``magnetic_forces`` are also accepted.
 
-  Atom types excluded by :ref:`spin_type <kw_spin_type>` must have
-  exactly zero spin in training, test and prediction data. Nonzero values are
-  rejected. Their positions remain part of the geometric environment, while
-  their magnetic-force labels are excluded from supervision.
+  For atom types excluded by :ref:`spin_type <kw_spin_type>`, training, test
+  and prediction readers set the effective spin to zero and ignore magnetic-force
+  labels. The original files need no modification. Energy and atomic-force labels
+  are preserved, and their positions remain part of the geometric environment.
 
   ``spin_tangent`` is not an input property. The trainer derives it internally
   from each complete final-DFT spin path.

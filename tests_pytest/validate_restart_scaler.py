@@ -22,7 +22,7 @@ def execute(binary, case):
 
 
 def values(path):
-    return list(map(float, path.read_text().split()))
+    return base.finite_values(list(map(float, path.read_text().split())))
 
 
 def validate(root):
@@ -47,6 +47,14 @@ def validate(root):
             execute(probe, case)
             assert read_restart(case/'restored.restart') == read_restart(initial/'nep.restart')
             restored.append(case)
+        for case in restored:
+            for filename in ('scaler.txt', 'baseline.txt'):
+                values(case / filename)
+            for filename in ('mu.pred', 'elite.pred'):
+                rows = (case / filename).read_text().splitlines()
+                assert rows, filename
+                for row in rows:
+                    base.finite_values(list(map(float, row.split()[2:])))
         for file in ('scaler.txt', 'baseline.txt', 'mu.pred', 'elite.pred'):
             assert (restored[0]/file).read_text() == (restored[1]/file).read_text(), (kind, file)
         assert (restored[0]/'mu.pred').read_text() != (restored[0]/'elite.pred').read_text()

@@ -69,17 +69,14 @@ nonzero spin defines a direction, without a small-moment cutoff. During
 optimization, the existing squared configuration weights multiply each squared
 residual; reported RMSEs are unweighted.
 
-Native SNES minimizes a weighted sum of **RMSEs**. TorchNEP's independent
-coefficients multiply **MSEs**, so its ``(1/3, 2/3)`` vector-loss mapping is not
-an equivalent mapping here. In general no pair of constant coefficients makes
-the sum of these two RMSEs equal to Cartesian RMSE. Use ``lambda_m`` when exact
-legacy behavior is required. The raw metrics obey
-:math:`3 R_M^2=R_\parallel^2+2R_\perp^2`.
+Native SNES minimizes a weighted sum of **RMSEs**. In general no pair of
+constant coefficients makes the sum of the parallel and perpendicular RMSEs
+equal to Cartesian RMSE. Use ``lambda_m`` to supervise Cartesian magnetic force.
+The raw metrics obey :math:`3 R_M^2=R_\parallel^2+2R_\perp^2`.
 
 ``lambda_tau`` remains an independent torque term. Torque weights the
 perpendicular residual by spin magnitude and is not the same as ``R_perp``.
-The magnetic force itself, model format, prediction outputs, and MD dynamics
-are unchanged. Native SNES has no TorchNEP second-stage lambda keywords.
+These loss settings do not change the model format or predicted magnetic force.
 
 In split mode, ``loss.out`` adds four columns after ``rmse_tau_test`` and before
 any energy-difference columns: ``rmse_m_parallel_train``, ``rmse_m_perp_train``,

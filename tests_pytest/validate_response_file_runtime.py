@@ -8,7 +8,6 @@ import re
 import tempfile
 import validate_main_nep_spin3_training as base
 
-PROBE = Path(os.environ['RESPONSE_FITNESS_PROBE'])
 CONFIG = base.NEP_IN.replace('batch 3', 'batch 1') + 'lambda_spin_response 0.3\nnep_compile 0\n'
 
 def parsed(stdout):
@@ -20,9 +19,14 @@ def parsed(stdout):
             result[words[0]] = list(map(float,words[1:]))
         if words[0] == 'FIT': result['fit'].append(list(map(float,words[1:])))
         if words[0] == 'POINT': result['points'].append((words[1],float(words[2]),float(words[3])))
+    for key in ('SCALER', 'BASELINE', 'fit'):
+        base.finite_values(result[key])
+    for _, prediction, target in result['points']:
+        base.finite_values([prediction, target])
     return result
 
 def main():
+    probe = Path(os.environ['RESPONSE_FITNESS_PROBE']).resolve()
     with tempfile.TemporaryDirectory(prefix='gpumd-response-file-') as temp:
         root = Path(temp)
         def case(name, config=CONFIG, response=base.response_xyz(), train=base.TRAIN_XYZ, test=None, error=None):
@@ -30,7 +34,7 @@ def main():
             base.write_case(path,config,train)
             if response is not None: (path/'response.xyz').write_text(response)
             if test is not None: (path/'test.xyz').write_text(test)
-            run=base.run(PROBE,path)
+            run=base.run(probe,path)
             if error is not None:
                 assert run.returncode and error in run.stdout+run.stderr, (name,run.stdout+run.stderr)
                 return

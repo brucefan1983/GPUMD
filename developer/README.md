@@ -241,12 +241,12 @@ Shared structure and dataset code handles common data. Model-specific labels, GP
 Spin3 keeps `Structure` and `Dataset` unchanged and stores magnetic labels and device
 buffers in `Spin_Data`, indexed by `NEP_Batch_Data`. Labels are matched through
 `Structure::index_in_file` after batch sorting or energy-difference grouping.
-Its reader supplies the largest structural/magnetic cutoff to the shared geometry
-reader. `response.xyz` has separate device data and contributes only response loss;
+The spin cutoff is bounded by the NEP radial cutoff, so the shared geometry
+reader needs no Spin-specific extension. `response.xyz` has separate device data and contributes only response loss;
 it does not fit the energy reference or scalers. Spin3 uses the shared
 `energy_reference` and block model/restart formats while preserving its
-fixed-reference scaler and the common generation-zero lifecycle. Legacy Spin3
-model and two-column restart files remain readable.
+fixed-reference scaler and the common generation-zero lifecycle. Models use
+`model nep_spin` with `spin_version 1`; restart uses `nep_restart`.
 
 ### Adding a training model
 

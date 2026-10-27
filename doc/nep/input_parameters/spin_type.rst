@@ -19,14 +19,11 @@ parallel/perpendicular and torque supervision when labels are present. All atom
 types contribute structural and magnetic geometric environments within the
 corresponding cutoffs. Only selected types contribute neighbor spin moments.
 
-Atoms outside this selection must have exactly zero input spin. Nonzero values
-are rejected, not silently cleared. Their public magnetic force is zero and
-magnetic labels are excluded from loss counts. Their positions and atomic
-forces remain active, including forces due to magnetic energy.
-
-MD uses the same selection: excluded atoms do not undergo spin integration,
-spin noise or spin-thermostat updates and do not enter spin temperature counts.
-Their restart spin and spin velocity must remain zero.
+For atoms outside this selection, the reader sets the effective spin to zero
+and ignores magnetic-force labels. Original data files need no modification;
+energy and atomic-force labels are preserved. Their public magnetic force is
+zero and they are excluded from magnetic loss counts. Their positions and
+atomic forces remain active, including forces due to magnetic energy.
 
 The grouped-response path derivative uses the selected DFT spin coordinates.
 With :ref:`lambda_spin_response <kw_lambda_spin_response>`, derived tangents

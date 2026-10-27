@@ -13,7 +13,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 NEP = Path(os.environ.get("NEP_COMMAND", ROOT / "src" / "nep"))
-GPUMD = Path(os.environ.get("GPUMD_COMMAND", ROOT / "src" / "gpumd"))
 
 NEP_IN = """\
 type 2 Fe Ge
@@ -113,16 +112,26 @@ def flatten(values):
     return result
 
 
+def finite_values(values):
+    values = flatten(values)
+    if not values:
+        raise AssertionError("empty numerical result")
+    for index, value in enumerate(values):
+        if not math.isfinite(value):
+            raise AssertionError(f"nonfinite value at index {index}: {value}")
+    return values
+
+
 def maximum_error(left, right):
-    left = flatten(left)
-    right = flatten(right)
+    left = finite_values(left)
+    right = finite_values(right)
     if len(left) != len(right):
         raise AssertionError(f"shape mismatch: {len(left)} != {len(right)}")
     return max(abs(a - b) for a, b in zip(left, right))
 
 
 def parity_tolerance(left, right):
-    scale = max(abs(value) for value in flatten(left) + flatten(right))
+    scale = max(abs(value) for value in finite_values(left) + finite_values(right))
     return 5.0e-5 + 5.0e-6 * scale
 
 
@@ -372,20 +381,27 @@ def validate_native_compiled_checkpoint(root):
     for tile in range(9):
         for atom in atoms:
             fields = atom.split()
+            if fields[0] == "Ge":
+                fields[7:10] = ["0.35", "-0.25", "0.45"]
             fields[1] = str(float(fields[1]) + 4.0 * (tile % 3))
             fields[2] = str(float(fields[2]) + 4.0 * (tile // 3))
             expanded.append(" ".join(fields))
     xyz = "\n".join(expanded) + "\n"
     report = {}
-    for channels, order in ((1, 3), (2, 3), (3, 3), (9, 1)):
+    layouts = ((1, 3, 2, 1), (2, 3, 2, 1), (3, 3, 2, 1), (9, 1, 2, 1),
+               (2, 2, 1, 0), (2, 3, 0, 0), (2, 2, 2, 1))
+    for channels, order, lmax, soc in layouts:
+        layout = f"o{order}c{channels}l{lmax}s{soc}"
         config = NEP_IN.replace("spin_compress 2", f"spin_compress {channels}")
         config = config.replace("spin_order 3", f"spin_order {order}")
+        config = config.replace("spin_l_max 2 0 0", f"spin_l_max {lmax} 0 0")
+        config = config.replace("spin_soc 1", f"spin_soc {soc}")
         config = config.replace("spin_type Fe\n", "spin_type Fe Ge\n")
         config = config.replace("n_max 0 0", "n_max 4 4").replace(
             "basis_size 0 0", "basis_size 2 2")
         if channels == 3:
             config = config.replace("spin_cutoff 6.0", "spin_cutoff 5.0 6.0")
-        initial = root / f"c{channels}-initial"
+        initial = root / f"{layout}-initial"
         write_case(initial, config + "nep_compile 0\n", xyz)
         result = run(NEP, initial)
         if result.returncode:
@@ -396,7 +412,7 @@ def validate_native_compiled_checkpoint(root):
             f"{line.split()[0]} 0\n" for line in restart_lines[3:])
         cases = []
         for compiled in (0, 1):
-            case = root / f"c{channels}-compiled-{compiled}"
+            case = root / f"{layout}-compiled-{compiled}"
             # Report test outputs at fixed parameters after the first physical evaluation.
             output_config = config.replace("generation 1\n", "generation 2\n")
             write_case(case, output_config + f"nep_compile {compiled}\n", xyz)
@@ -418,9 +434,9 @@ def validate_native_compiled_checkpoint(root):
             error = maximum_error(*values)
             tolerance = parity_tolerance(*values)
             if not math.isfinite(error) or error > tolerance:
-                raise AssertionError(f"C{channels} JIT {name}: {error} > {tolerance}")
+                raise AssertionError(f"{layout} JIT {name}: {error} > {tolerance}")
             errors[name] = {"max_abs": error, "tolerance": tolerance}
-        report[f"o{order}c{channels}"] = errors
+        report[layout] = errors
     return report
 
 

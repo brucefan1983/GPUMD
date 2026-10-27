@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise Spin checkpoint/export contracts through the real NEP and GPUMD CLIs."""
+"""Exercise Spin checkpoint/export contracts through the real NEP CLI."""
 import json
 import math
 import re
@@ -122,6 +122,54 @@ def validate_initial_para(root):
     return report
 
 
+def validate_inactive_input(root, config, model, restart):
+    root.mkdir()
+    raw = base.TRAIN_XYZ.splitlines()
+    for i, line in enumerate(raw):
+        fields = line.split()
+        if fields and fields[0] == "Ge":
+            fields[4:7] = ["0.125", "-0.25", "0.375"]
+            fields[7:13] = ["0.3", "-0.2", "1e-100", "123", "-456", "789"]
+            raw[i] = " ".join(fields)
+    raw = "\n".join(raw) + "\n"
+    cleared = []
+    for line in raw.splitlines():
+        fields = line.split()
+        if fields and fields[0] == "Ge":
+            fields[7:13] = ["0"] * 6
+            line = " ".join(fields)
+        cleared.append(line)
+    cleared = "\n".join(cleared) + "\n"
+    for mode, extra, saved, state in (
+            ("train", "", None, None),
+            ("predict", "prediction 1\n", model, None),
+            ("restart", "", model, restart),
+            ("import", "import_q_scaler 1\n", model, None)):
+        dirs = [root / (mode + suffix) for suffix in ("_raw", "_cleared")]
+        for directory, xyz in zip(dirs, (raw, cleared)):
+            execute(directory, config + extra, xyz, model=saved, restart=state, test_xyz=xyz)
+            assert (directory / "train.xyz").read_text() == xyz
+            assert (directory / "test.xyz").read_text() == xyz
+        part = "train" if mode == "predict" else "test"
+        outputs = [f"{kind}_{part}.out" for kind in ("energy", "force", "virial", "mforce")]
+        if mode != "predict":
+            outputs += ["nep.txt", "nep.restart", "loss.out"]
+        for filename in outputs:
+            assert (dirs[0] / filename).read_bytes() == (dirs[1] / filename).read_bytes(), (mode, filename)
+        if mode == "predict":
+            forces = base.columns(dirs[0] / "force_train.out", 6)
+            magnetic = base.columns(dirs[0] / "mforce_train.out", 6)
+            atoms = [line.split() for line in raw.splitlines() if line.startswith(("Fe ", "Ge "))]
+            for i, fields in enumerate(atoms):
+                assert forces[i][3:] == [float(x) for x in fields[4:7]]
+                if fields[0] == "Ge":
+                    assert magnetic[i] == [0.0] * 6
+            energies = base.columns(dirs[0] / "energy_train.out", 2)
+            for row, target in zip(energies, (-1.0, -0.5, -1.5)):
+                assert abs(row[1] - target) < 1e-6, (row, target)
+    return "raw and zeroed inputs agree; energy/atomic-force labels and input files preserved"
+
+
 def validate(root):
     report = {"initial_para": validate_initial_para(root / "initial_para")}
     for name, config in (("fe_only", CONFIG), ("all_types", NO_MASKS)):
@@ -158,19 +206,7 @@ def validate(root):
                     error="Unsupported spin_version")
             execute(root / "conflicting_dof", NO_MASKS + "spin_type Ge\n",
                     model=model, restart=frozen, error="spin_type in nep.in conflicts")
-            # Reject nonmagnetic spin input in fresh training, prediction, test
-            # data, and restart, including a value that underflows float32.
-            for value in ("0.1", "1e-100"):
-                bad = base.TRAIN_XYZ.replace("Ge 1.4 2.3 1.1 0 0 0 0.0", "Ge 1.4 2.3 1.1 0 0 0 " + value)
-                for mode, extra, saved_model, state in (
-                    ("training", "", None, None),
-                    ("prediction", "prediction 1\n", model, None),
-                    ("restart", "", model, frozen)):
-                    execute(root / (mode + value), config + extra, bad,
-                            model=saved_model, restart=state,
-                            error="Atoms outside spin_type must have zero spin")
-                execute(root / ("test" + value), config, test_xyz=bad,
-                        error="Atoms outside spin_type must have zero spin")
+            report["inactive_input"] = validate_inactive_input(root / "inactive_input", config, model, frozen)
             execute(root / "renamed_type", config.replace("spin_type Fe", "spin_dof_type Fe"),
                     error="spin_dof_type")
             execute(root / "removed_env", config + "spin_env_type Fe Ge\n",

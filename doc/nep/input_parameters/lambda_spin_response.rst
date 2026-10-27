@@ -72,6 +72,4 @@ Each group contributes equally and uses its own uncentered target-response
 RMS, with a floor of :math:`10^{-6}`, to normalize its centered-shape and
 group-mean Huber terms. The latter has weight 0.25. A large exchange response
 in one group therefore cannot suppress a small anisotropy response in another.
-Coordinates do not create an additional reliability weight. This GPUMD
-reduction differs from the older shared-scale, Cartesian-tangent policy;
-cross-implementation parity with TorchNEP must be checked explicitly.
+Coordinates do not create an additional reliability weight.
