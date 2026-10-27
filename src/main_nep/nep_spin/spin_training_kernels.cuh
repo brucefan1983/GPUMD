@@ -73,11 +73,11 @@ __global__ void mask_inactive_spin_mforce_training(
   const int atom_count,
   const int atom_stride,
   const int* __restrict__ types,
-  const int* __restrict__ spin_dof_type_active,
+  const int* __restrict__ spin_type_active,
   double* __restrict__ mforce)
 {
   const int atom = blockIdx.x * blockDim.x + threadIdx.x;
-  if (atom < atom_count && spin_dof_type_active[types[atom]] == 0) {
+  if (atom < atom_count && spin_type_active[types[atom]] == 0) {
     mforce[atom] = 0.0;
     mforce[atom_stride + atom] = 0.0;
     mforce[2 * atom_stride + atom] = 0.0;
@@ -233,8 +233,7 @@ void launch_spin3_descriptor(
   float spin_cutoff,
   const float* spin_cutoff_pair,
   const int* type,
-  const int* spin_dof_type_active,
-  const int* spin_env_type_active,
+  const int* spin_type_active,
   const double* position,
   const double* spin,
   const int* NN_spin,
@@ -263,8 +262,7 @@ void launch_spin3_descriptor(
       spin_coefficient_offset,
       box,
       type,
-      spin_dof_type_active,
-      spin_env_type_active,
+      spin_type_active,
       position,
       r12_spin,
       r12_plane_size,
@@ -281,7 +279,7 @@ void launch_spin3_descriptor(
       atom_count,
       struct_dim,
       type,
-      spin_dof_type_active,
+      spin_type_active,
       spin,
       projection,
       moments,
@@ -299,8 +297,7 @@ void launch_spin3_force(
   float spin_cutoff,
   const float* spin_cutoff_pair,
   const int* type,
-  const int* spin_dof_type_active,
-  const int* spin_env_type_active,
+  const int* spin_type_active,
   const double* position,
   const double* spin,
   const int* NN_spin,
@@ -335,8 +332,7 @@ void launch_spin3_force(
         spin_cutoff_pair,
         box,
         type,
-        spin_dof_type_active,
-        spin_env_type_active,
+        spin_type_active,
         position,
         r12_spin,
         r12_plane_size,

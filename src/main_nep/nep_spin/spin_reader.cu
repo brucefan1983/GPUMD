@@ -50,7 +50,12 @@ void Spin_Reader::read_structure(const XYZ_Record& record, Structure& structure)
   for (auto* values:{&label.sx,&label.sy,&label.sz,&label.mfx,&label.mfy,&label.mfz}) values->resize(structure.num_atom,0.0f);
   for (int a=0;a<structure.num_atom;++a) {
     auto value=[&](int i) { return get_double_from_token(record.atoms[a][i],record.filename.c_str(),record.comment_line_number+a+1); };
-    label.sx[a]=value(spin_offset);label.sy[a]=value(spin_offset+1);label.sz[a]=value(spin_offset+2);
+    const double sx = value(spin_offset), sy = value(spin_offset+1), sz = value(spin_offset+2);
+    if (!parameters.spin_type_active[structure.type[a]] &&
+        (sx != 0.0 || sy != 0.0 || sz != 0.0)) {
+      PRINT_INPUT_ERROR("Atoms outside spin_type must have zero spin.");
+    }
+    label.sx[a]=sx; label.sy[a]=sy; label.sz[a]=sz;
     if (label.has_mforce) { label.mfx[a]=value(mforce_offset);label.mfy[a]=value(mforce_offset+1);label.mfz[a]=value(mforce_offset+2); }
   }
   bool has_response_probe = false;

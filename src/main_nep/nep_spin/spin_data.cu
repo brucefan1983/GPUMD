@@ -71,7 +71,7 @@ void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::ve
     const auto& label=labels.back();
     has_mforce_cpu[n]=label.has_mforce;
     for (int a=0;a<structure.num_atom;++a) {
-      if (para.spin_dof_type_active[structure.type[a]]) {
+      if (para.spin_type_active[structure.type[a]]) {
         ++active_count_cpu[n];
         const double spin2 =
           label.sx[a] * label.sx[a] +
@@ -90,8 +90,8 @@ void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::ve
   mforce.resize(3*N); mforce.fill(0.0f);
   mforce_ref_gpu.resize(3*N); mforce_ref_gpu.copy_from_host(mforce_ref_cpu.data());
   has_mforce_gpu.resize(Nc); has_mforce_gpu.copy_from_host(has_mforce_cpu.data());
-  spin_dof_type_active_gpu.resize(para.num_types);
-  spin_dof_type_active_gpu.copy_from_host(para.spin_dof_type_active.data());
+  spin_type_active_gpu.resize(para.num_types);
+  spin_type_active_gpu.copy_from_host(para.spin_type_active.data());
   NN_spin.resize(N);
   gpu_find_spin_neighbors<false><<<Nc,256>>>(N,dataset.Na.data(),dataset.Na_sum.data(),
     para.spin_cutoff,dataset.box.data(),dataset.box_original.data(),dataset.num_cell.data(),
@@ -222,7 +222,7 @@ static std::vector<float> get_rmse_spin_impl(
       dataset.Na.data(),
       dataset.Na_sum.data(),
       dataset.type.data(),
-      spin_data.spin_dof_type_active_gpu.data(),
+      spin_data.spin_type_active_gpu.data(),
       spin_data.has_mforce_gpu.data(),
       spin_data.spin.data(),
       spin_data.mforce.data(),

@@ -354,12 +354,13 @@ transformation of the lattice vectors and axial spin vectors,
    \boldsymbol{s}_i\longrightarrow\det(R)R\boldsymbol{s}_i,
    \qquad R\in O(3).
 
-The :ref:`spin_dof_type <kw_spin_dof_type>` mask selects center atoms that
-receive public magnetic forces. The
-:ref:`spin_env_type <kw_spin_env_type>` mask selects neighbor types that enter
-the moment sums. An environment-only spin can therefore affect the energy and
-other spins while its public magnetic force is zero. This mask belongs to the
-potential response and is not an integration constraint.
+The :ref:`spin_type <kw_spin_type>` selection defines independent spin
+coordinates and magnetic descriptor centers. All neighbor types enter geometric
+moment sums within the spin cutoff. Excluded types must have zero input spin,
+so their contributions to moments containing neighbor spins vanish while their
+geometric contributions remain. Nonzero excluded spins are rejected.
+The same selection excludes these atoms from MD spin updates, thermal noise and
+spin temperature degrees of freedom; their atomic motion remains active.
 
 .. _nep_spin_dimensions:
 
@@ -435,11 +436,11 @@ The atomic force and the unmasked magnetic derivative are defined by
    \widetilde{\boldsymbol{M}}_k
    =-\frac{\partial U}{\partial\boldsymbol{s}_k}.
 
-For an atom type enabled by :ref:`spin_dof_type <kw_spin_dof_type>`, the
-public magnetic force is
-:math:`\boldsymbol{M}_k=\widetilde{\boldsymbol{M}}_k`. For an inactive type it
-is explicitly set to zero, even when that atom is retained as an
-environment-only spin input. This selects reported derivatives, not constrained spin coordinates.
+For an atom type enabled by :ref:`spin_type <kw_spin_type>`, the
+public magnetic force is :math:`\boldsymbol{M}_k=\widetilde{\boldsymbol{M}}_k`.
+Excluded types have no independent spin coordinate; their public magnetic force
+is zero by convention. They still receive atomic forces from the positional
+derivative of the full energy, including magnetic geometric environments.
 
 Writing :math:`q^i_\nu` for either a structural or magnetic descriptor
 component, the chain rule gives
@@ -538,7 +539,7 @@ spins with second-order, three-point nonuniform weights applied to sphere-log
 angular displacements and separate magnitude differences. This preserves
 longitudinal moment relaxation without injecting the radial chord error of
 Cartesian interpolation into constant-length rotations. Stencils must resolve
-angular separations below pi. Atom types excluded by ``spin_dof_type`` are
+angular separations below pi. Atom types excluded by ``spin_type`` are
 masked from the derived tangent. See :ref:`lambda_spin_response
 <kw_lambda_spin_response>` for zero-moment and finite-stencil limitations.
 

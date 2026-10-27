@@ -57,7 +57,7 @@ For a rotation angle :math:`\theta`, ``response_coordinate`` should be
 :math:`\theta` in radians. ``spin`` must contain the moments from the final
 constrained-DFT state, not the initially requested constraint vectors. The
 derived path tangent retains both transverse and longitudinal relaxation.
-Atoms excluded by :ref:`spin_dof_type <kw_spin_dof_type>` are masked from the
+Atoms excluded by :ref:`spin_type <kw_spin_type>` are masked from the
 derived response automatically. ``spin_tangent:R:3`` is not accepted as an
 input label.
 

@@ -38,12 +38,6 @@ Spin_Parameters::Spin_Parameters(const ParameterInput& input) {
   model_name = "nep_spin";
   set_regularization_defaults();
   initialize_spin_checkpoint(*this);
-  // Check the effective masks after any omitted input fields were restored.
-  for (int type = 0; type < num_types; ++type) {
-    if (spin_dof_type_active[type] && !spin_env_type_active[type]) {
-      PRINT_INPUT_ERROR("spin_dof_type must be a subset of spin_env_type.");
-    }
-  }
   report_inputs(input, "Spin3 potential", nullptr);
   printf("Spin3 O%d/C%d: %d structural + %d magnetic descriptors, %d parameters.\n",
     spin_order, spin_compress, dim_struct, dim_spin, number_of_variables);
@@ -65,10 +59,8 @@ void Spin_Parameters::report_model_inputs() const
   printf("    sigma0 = %g.\n", sigma0);
   printf("    spin_cutoff:");
   for (int t = 0; t < num_types; ++t) printf(" %s=%g", elements[t].c_str(), spin_cutoff_by_type[t]);
-  printf("\n    spin_dof_type:");
-  for (int t = 0; t < num_types; ++t) if (spin_dof_type_active[t]) printf(" %s", elements[t].c_str());
-  printf("\n    spin_env_type:");
-  for (int t = 0; t < num_types; ++t) if (spin_env_type_active[t]) printf(" %s", elements[t].c_str());
+  printf("\n    spin_type:");
+  for (int t = 0; t < num_types; ++t) if (spin_type_active[t]) printf(" %s", elements[t].c_str());
   printf("\n    Spin q_scaler = %s; restart = %s.\n",
     (prediction || spin_restart || import_q_scaler) ? "loaded from nep.txt" : "fixed reference initialization",
     spin_restart ? "yes" : "no");
@@ -100,20 +92,13 @@ bool Spin_Parameters::parse_keyword(const char** param, int num_param)
     parse_spin_l_max(param, num_param);
   } else if (strcmp(param[0], "spin_cutoff") == 0) {
     parse_spin_cutoff(param, num_param);
-  } else if (strcmp(param[0], "spin_dof_type") == 0) {
+  } else if (strcmp(param[0], "spin_type") == 0) {
     parse_spin_active_types(
       param,
       num_param,
-      "spin_dof_type",
-      spin_dof_type_names,
-      is_spin_dof_type_set);
-  } else if (strcmp(param[0], "spin_env_type") == 0) {
-    parse_spin_active_types(
-      param,
-      num_param,
-      "spin_env_type",
-      spin_env_type_names,
-      is_spin_env_type_set);
+      "spin_type",
+      spin_type_names,
+      is_spin_type_set);
   } else {
     return NEP_Energy_Parameters::parse_keyword(param, num_param);
   }
@@ -171,23 +156,15 @@ void Spin_Parameters::validate_spin_parameters()
     for (const auto& name : names) {
       auto found = std::find(elements.begin(), elements.end(), name);
       if (found == elements.end()) {
-        PRINT_INPUT_ERROR("spin_dof_type or spin_env_type contains an unknown atom type.\n");
+        PRINT_INPUT_ERROR("spin_type contains an unknown atom type.\n");
       }
       active[found - elements.begin()] = 1;
     }
   };
   resolve_active_types(
-    spin_dof_type_names,
-    is_spin_dof_type_set,
-    spin_dof_type_active);
-  if (is_spin_env_type_set) {
-    resolve_active_types(
-      spin_env_type_names,
-      true,
-      spin_env_type_active);
-  } else {
-    spin_env_type_active = spin_dof_type_active;
-  }
+    spin_type_names,
+    is_spin_type_set,
+    spin_type_active);
 }
 
 void Spin_Parameters::calculate_spin_dimensions()
@@ -371,16 +348,16 @@ void Spin_Parameters::parse_spin_active_types(
   bool& is_set)
 {
   if (is_set) {
-    PRINT_INPUT_ERROR("Duplicate spin_dof_type or spin_env_type keyword.\n");
+    PRINT_INPUT_ERROR("Duplicate spin_type keyword.\n");
   }
   is_set = true;
   if (num_param < 2) {
-    PRINT_INPUT_ERROR("spin_dof_type and spin_env_type must enable at least one type.\n");
+    PRINT_INPUT_ERROR("spin_type must enable at least one type.\n");
   }
   names.clear();
   for (int n = 1; n < num_param; ++n) {
     if (std::find(names.begin(), names.end(), param[n]) != names.end()) {
-      PRINT_INPUT_ERROR("Duplicate atom type in spin_dof_type or spin_env_type.\n");
+      PRINT_INPUT_ERROR("Duplicate atom type in spin_type.\n");
     }
     names.emplace_back(param[n]);
   }

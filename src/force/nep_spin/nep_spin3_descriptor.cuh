@@ -270,8 +270,7 @@ __global__ void build_spin3_oc_density_bank(
     int spin_coefficient_offset,
     SimulationBox box,
     const int* __restrict__ types,
-    const int* __restrict__ spin_dof_type_active,
-    const int* __restrict__ spin_env_type_active,
+    const int* __restrict__ spin_type_active,
     const double* __restrict__ positions_soa3,
     const double* __restrict__ slot_r12,
     int r12_plane_size,
@@ -293,12 +292,12 @@ __global__ void build_spin3_oc_density_bank(
   float edge_gate = 0.0f;
   float angular_l1[3] = {};
   float angular_l2[5] = {};
-  const bool active = spin_dof_type_active[types[atom]] != 0;
+  const bool active = spin_type_active[types[atom]] != 0;
   if (active) {
     const int neighbor_count = nn_radial[atom];
     for (int slot = 0; slot < neighbor_count; ++slot) {
       const int neighbor = nl_radial_slot_major[slot * atom_stride + atom];
-      if (neighbor < 0 || spin_env_type_active[types[neighbor]] == 0) continue;
+      if (neighbor < 0) continue;
       float r[3], dist, si[3], sj[3], weights[C], derivatives[C];
       if (!load_spin3_edge_f32<C, false>(
               atom, neighbor, atom_stride, num_types, spin_basis_size,
@@ -383,14 +382,14 @@ __global__ void contract_spin3_oc_descriptors(
     int atom_stride,
     int struct_dim,
     const int* __restrict__ types,
-    const int* __restrict__ spin_dof_type_active,
+    const int* __restrict__ spin_type_active,
     const double* __restrict__ spins_soa3,
     const float* __restrict__ projection,
     const float* __restrict__ moments,
     float* __restrict__ descriptors) {
   const int atom = blockIdx.x * blockDim.x + threadIdx.x;
   if (atom >= atom_count) return;
-  const bool active = spin_dof_type_active[types[atom]] != 0;
+  const bool active = spin_type_active[types[atom]] != 0;
   const float* center = moments + atom * layout.moment_count;
   float si[3] = {
       static_cast<float>(spins_soa3[atom]),

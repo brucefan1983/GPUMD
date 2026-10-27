@@ -62,10 +62,8 @@ Keywords
      - highest Spin3 contraction level supplied to the neural network
    * - :ref:`spin_soc <kw_spin_soc>`
      - enable joint spin--space rotation-invariant Spin3 channels
-   * - :ref:`spin_dof_type <kw_spin_dof_type>`
-     - atom types selected for magnetic-force output and magnetic supervision
-   * - :ref:`spin_env_type <kw_spin_env_type>`
-     - atom types allowed to contribute to magnetic environments
+   * - :ref:`spin_type <kw_spin_type>`
+     - atom types with independent spin degrees of freedom
    * - :ref:`use_typewise_cutoff_zbl <kw_use_typewise_cutoff_zbl>`
      - enable typewise cutoff radii for the ZBL part of the model
    * - :ref:`cutoff <kw_cutoff>`

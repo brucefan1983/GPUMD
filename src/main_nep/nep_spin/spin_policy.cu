@@ -204,7 +204,7 @@ void derive_spin_response_tangents(
       const double w2 = (2.0 * x - x0 - x1) / ((x2 - x0) * (x2 - x1));
       Spin_Frame& output = *members[k];
       for (int atom = 0; atom < output.geometry.num_atom; ++atom) {
-        const bool active = para.spin_dof_type_active[output.geometry.type[atom]] != 0;
+        const bool active = para.spin_type_active[output.geometry.type[atom]] != 0;
         std::array<double, 3> tangent = {{0.0, 0.0, 0.0}};
         if (active) {
           const std::array<double, 3> center = {{

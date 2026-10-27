@@ -9,8 +9,7 @@ spin_order 3
 spin_soc 1
 spin_projection_size 36
 spin_scaler 1
-spin_dof_type Fe
-spin_env_type Fe Ge
+spin_type Fe
 cutoff 6 5 128 128
 n_max 4 4
 basis_size 8 8

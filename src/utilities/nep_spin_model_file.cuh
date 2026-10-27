@@ -18,7 +18,7 @@ struct NEP_Spin_Model_File {
   int spin_order = 0, spin_soc = 0, spin_projection_size = 0;
   int dim_struct = 0, dim_spin = 0, dim = 0;
   std::vector<float> spin_cutoff;
-  std::vector<int> spin_dof_type, spin_env_type;
+  std::vector<int> spin_type;
   bool enable_zbl = false, use_typewise_cutoff_zbl = false;
   float zbl_rc_inner = 0, zbl_rc_outer = 0, typewise_cutoff_zbl_factor = 0;
   std::vector<double> energy_reference;

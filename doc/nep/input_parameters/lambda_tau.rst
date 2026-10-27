@@ -19,7 +19,7 @@ atom, the predicted and target quantities are converted to
 
 The resulting torque RMSE emphasizes magnetic-force components perpendicular
 to the current spin. Only frames containing ``mforce:R:3`` and atom types
-enabled by :ref:`spin_dof_type <kw_spin_dof_type>` contribute.
+enabled by :ref:`spin_type <kw_spin_type>` contribute.
 
 The Cartesian loss :ref:`lambda_m <kw_lambda_m>` constrains all magnetic-force
 components, whereas torque is insensitive to the parallel component.

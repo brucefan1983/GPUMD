@@ -38,10 +38,8 @@ void NEP_Spin_Model::initialize_spin(Spin_Parameters& para, int N, int device_co
   for (int device_id = 0; device_id < device_count; ++device_id) {
     CHECK(gpuSetDevice(device_id));
     auto& data = spin_data_[device_id];
-    data.spin_dof_type_active.resize(num_types_);
-    data.spin_env_type_active.resize(num_types_);
-    data.spin_dof_type_active.copy_from_host(para.spin_dof_type_active.data());
-    data.spin_env_type_active.copy_from_host(para.spin_env_type_active.data());
+    data.spin_type_active.resize(num_types_);
+    data.spin_type_active.copy_from_host(para.spin_type_active.data());
     std::vector<float> spin_cutoff_pair(
       static_cast<std::size_t>(num_types_) * num_types_);
     for (int type_i = 0; type_i < num_types_; ++type_i) {
@@ -69,16 +67,16 @@ void NEP_Spin_Model::find_additional_descriptors(
 #define LAUNCH_SPIN3_DESCRIPTOR(C) \
     launch_spin3_descriptor<C>( \
       polynomial_layout_, dataset.N, struct_dim_, num_types_, spin_basis_size_, \
-      spin_cutoff_, data.spin_cutoff_pair.data(), dataset.type.data(), data.spin_dof_type_active.data(), \
-      data.spin_env_type_active.data(), magnetic_data.r_spin.data(), magnetic_data.spin.data(), \
+      spin_cutoff_, data.spin_cutoff_pair.data(), dataset.type.data(), data.spin_type_active.data(), \
+      magnetic_data.r_spin.data(), magnetic_data.spin.data(), \
       magnetic_data.NN_spin.data(), magnetic_data.NL_spin.data(), magnetic_data.r12_spin.data(), \
       plane_size, annmb[device_id].c, spin_coefficient_offset_, projection, \
       data.spin3_moments.data(), nep_data[device_id].descriptors.data())
   if (spin_descriptor_jit_) {
     spin_descriptor_jit_(
       polynomial_layout_, dataset.N, struct_dim_, num_types_, spin_basis_size_,
-      spin_cutoff_, data.spin_cutoff_pair.data(), dataset.type.data(), data.spin_dof_type_active.data(),
-      data.spin_env_type_active.data(), magnetic_data.r_spin.data(), magnetic_data.spin.data(),
+      spin_cutoff_, data.spin_cutoff_pair.data(), dataset.type.data(), data.spin_type_active.data(),
+      magnetic_data.r_spin.data(), magnetic_data.spin.data(),
       magnetic_data.NN_spin.data(), magnetic_data.NL_spin.data(), magnetic_data.r12_spin.data(),
       plane_size, annmb[device_id].c, spin_coefficient_offset_, projection,
       data.spin3_moments.data(), nep_data[device_id].descriptors.data());
@@ -121,8 +119,8 @@ void NEP_Spin_Model::find_additional_force(
 #define LAUNCH_SPIN3_FORCE(C) \
     launch_spin3_force<C>( \
       polynomial_layout_, dataset.N, struct_dim_, num_types_, spin_basis_size_, \
-      spin_cutoff_, data.spin_cutoff_pair.data(), dataset.type.data(), data.spin_dof_type_active.data(), \
-      data.spin_env_type_active.data(), magnetic_data.r_spin.data(), magnetic_data.spin.data(), \
+      spin_cutoff_, data.spin_cutoff_pair.data(), dataset.type.data(), data.spin_type_active.data(), \
+      magnetic_data.r_spin.data(), magnetic_data.spin.data(), \
       magnetic_data.NN_spin.data(), magnetic_data.NL_spin.data(), magnetic_data.r12_spin.data(), \
       plane_size, nep_data[device_id].Fp.data(), annmb[device_id].c, \
       spin_coefficient_offset_, projection, data.spin3_moments.data(), \
@@ -131,8 +129,8 @@ void NEP_Spin_Model::find_additional_force(
   if (spin_force_jit_) {
     spin_force_jit_(
       polynomial_layout_, dataset.N, struct_dim_, num_types_, spin_basis_size_,
-      spin_cutoff_, data.spin_cutoff_pair.data(), dataset.type.data(), data.spin_dof_type_active.data(),
-      data.spin_env_type_active.data(), magnetic_data.r_spin.data(), magnetic_data.spin.data(),
+      spin_cutoff_, data.spin_cutoff_pair.data(), dataset.type.data(), data.spin_type_active.data(),
+      magnetic_data.r_spin.data(), magnetic_data.spin.data(),
       magnetic_data.NN_spin.data(), magnetic_data.NL_spin.data(), magnetic_data.r12_spin.data(),
       plane_size, nep_data[device_id].Fp.data(), annmb[device_id].c,
       spin_coefficient_offset_, projection, data.spin3_moments.data(),
@@ -157,7 +155,7 @@ void NEP_Spin_Model::find_additional_force(
     dataset.N,
     dataset.N,
     dataset.type.data(),
-    data.spin_dof_type_active.data(),
+    data.spin_type_active.data(),
     data.mforce.data());
   add_spin_training_outputs<<<grid_size, block_size>>>(
     dataset.N,

@@ -36,8 +36,7 @@ int main(int argc, char** argv) {
   dump("parameters", model.parameters);
   dump("q_scaler", model.q_scaler);
   dump("spin_cutoff", model.spin_cutoff);
-  dump("spin_dof_type", model.spin_dof_type);
-  dump("spin_env_type", model.spin_env_type);
+  dump("spin_type", model.spin_type);
   std::cout << "dimensions " << model.dim_struct << ' ' << model.dim_spin << '\\n';
   std::cout << "zbl " << model.enable_zbl << ' ' << model.zbl_rc_inner << ' '
             << model.zbl_rc_outer << ' ' << model.typewise_cutoff_zbl_factor << '\\n';
@@ -73,16 +72,15 @@ def test_parameter_and_scaler_order(codec, tmp_path, fixture):
     assert parsed['energy_reference'] == list(map(float, reference))
     assert parsed['dimensions'] == [30, 91 if fixture == 'o3c3_uniform' else 55]
     assert parsed['spin_cutoff'] == ([4, 6] if fixture == 'o3c2_typewise' else [6, 6])
-    assert parsed['spin_dof_type'] == [1, 0]
-    assert parsed['spin_env_type'] == [1, 1]
+    assert parsed['spin_type'] == [1, 0]
 
 
 def test_defaults_and_universal_zbl(codec, tmp_path):
     model, _ = load_fixture('o3c2_uniform')
-    model = model.replace('spin_dof_type Fe\n', '').replace('spin_env_type Fe Ge\n', '')
+    model = model.replace('spin_type Fe\n', '')
     model = model.replace('model nep_spin\n', 'model nep_spin\nzbl 1 2 0.75\n')
     parsed = parse(codec, tmp_path / 'model.nep', model)
-    assert parsed['spin_dof_type'] == parsed['spin_env_type'] == [1, 1]
+    assert parsed['spin_type'] == [1, 1]
     assert parsed['zbl'] == [1, 1, 2, 0.75]
 
 
@@ -100,8 +98,9 @@ def test_defaults_and_universal_zbl(codec, tmp_path):
     lambda s: s.replace('spin_scaler 1', 'spin_scaler 0'),
     lambda s: s.replace('spin_compress 2', 'spin_compress 9'),
     lambda s: s.replace('spin_cutoff 6.0', 'spin_cutoff 0'),
-    lambda s: s.replace('spin_dof_type Fe', 'spin_dof_type Fe Fe'),
-    lambda s: s.replace('spin_env_type Fe Ge', 'spin_env_type Ge'),
+    lambda s: s.replace('spin_type Fe', 'spin_type Fe Fe'),
+    lambda s: s.replace('spin_type Fe', 'spin_dof_type Fe'),
+    lambda s: s.replace('spin_type Fe', 'spin_type Fe\nspin_env_type Fe Ge'),
     lambda s: s.replace('ann 30 0', 'ann 30 1'),
     lambda s: s.replace('@ parameters ', '@ q_scaler ', 1),
     lambda s: s[:s.index('@ q_scaler')] + '@ q_scaler 1\n1\n',

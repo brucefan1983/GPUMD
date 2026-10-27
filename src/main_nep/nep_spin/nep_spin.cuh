@@ -104,8 +104,7 @@ private:
     float spin_cutoff,
     const float* spin_cutoff_pair,
     const int* type,
-    const int* spin_dof_type_active,
-    const int* spin_env_type_active,
+    const int* spin_type_active,
     const double* position,
     const double* spin,
     const int* NN_spin,
@@ -127,8 +126,7 @@ private:
     float spin_cutoff,
     const float* spin_cutoff_pair,
     const int* type,
-    const int* spin_dof_type_active,
-    const int* spin_env_type_active,
+    const int* spin_type_active,
     const double* position,
     const double* spin,
     const int* NN_spin,
@@ -158,8 +156,7 @@ private:
   float response_loss(int);
   void write_magnetic_predictions(const char*, const std::vector<std::pair<Dataset*, int>>&);
   struct Spin_Workspace {
-    GPU_Vector<int> spin_dof_type_active;
-    GPU_Vector<int> spin_env_type_active;
+    GPU_Vector<int> spin_type_active;
     GPU_Vector<float> spin_cutoff_pair;
     GPU_Vector<float> spin3_moments;
     GPU_Vector<double> force;

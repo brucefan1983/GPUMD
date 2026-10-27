@@ -19,8 +19,7 @@ NEP_IN = """\
 type 2 Fe Ge
 version 4
 spin_version 1
-spin_dof_type Fe
-spin_env_type Fe Ge
+spin_type Fe
 cutoff 6.0 5.0
 n_max 0 0
 basis_size 0 0
@@ -47,13 +46,13 @@ Lattice="24 0 0 0 24 0 0 0 24" Properties=species:S:1:pos:R:3:force:R:3:spin:R:3
 Fe 1.0 1.0 1.0 0 0 0 1.0 0.1 0.0 0.2 -0.1 0.05
 Fe 2.2 1.1 1.0 0 0 0 0.8 -0.2 0.1 -0.1 0.2 -0.05
 Ge 1.4 2.3 1.1 0 0 0 0.0 0.0 0.0 9.0 9.0 9.0
-Ge 2.8 2.1 1.4 0 0 0 0.1 0.0 0.0 9.0 9.0 9.0
+Ge 2.8 2.1 1.4 0 0 0 0.0 0.0 0.0 9.0 9.0 9.0
 4
 Lattice="24 0 0 0 24 0 0 0 24" Properties=species:S:1:pos:R:3:force:R:3:spin:R:3:mforce:R:3 energy=-2.0 virial="0 0 0 0 0 0 0 0 0"
 Fe 1.2 1.0 1.0 0 0 0 0.9 0.0 0.2 0.1 0.0 -0.2
 Ge 2.1 1.4 1.0 0 0 0 0.0 0.0 0.0 8.0 8.0 8.0
-Ge 1.5 2.4 1.2 0 0 0 0.0 0.1 0.0 8.0 8.0 8.0
-Ge 2.8 2.5 1.5 0 0 0 0.0 0.0 0.1 8.0 8.0 8.0
+Ge 1.5 2.4 1.2 0 0 0 0.0 0.0 0.0 8.0 8.0 8.0
+Ge 2.8 2.5 1.5 0 0 0 0.0 0.0 0.0 8.0 8.0 8.0
 4
 Lattice="24 0 0 0 24 0 0 0 24" Properties=species:S:1:pos:R:3:force:R:3:spin:R:3:mforce:R:3 energy=-6.0 virial="0 0 0 0 0 0 0 0 0"
 Fe 1.0 1.0 1.0 0 0 0 1.0 0.0 0.0 0.0 0.1 0.0
@@ -246,7 +245,7 @@ def validate_training_and_prediction(
     if torque_only:
         nep_in = nep_in.replace("lambda_m 1.0", "lambda_m 0")
     if all_spin_types:
-        nep_in = nep_in.replace("spin_dof_type Fe\n", "spin_dof_type Fe Ge\n")
+        nep_in = nep_in.replace("spin_type Fe\n", "spin_type Fe Ge\n")
     if typewise_spin_cutoff:
         nep_in = nep_in.replace("spin_cutoff 6.0", "spin_cutoff 5.0 6.0")
     if check_restart:
@@ -279,9 +278,9 @@ def validate_training_and_prediction(
         "spin_cutoff": "5 6" if typewise_spin_cutoff else "7" if small_cell else "6",
     }
     if not all_spin_types:
-        required.update(spin_dof_type="Fe", spin_env_type="Fe Ge")
+        required.update(spin_type="Fe")
     else:
-        assert "spin_dof_type" not in checkpoint and "spin_env_type" not in checkpoint, (
+        assert "spin_type" not in checkpoint, (
             "all-active masks should use the canonical implicit representation")
     for key, value in required.items():
         assert f"\n{key} {value}\n" in checkpoint, f"missing checkpoint field: {key} {value}"
@@ -381,7 +380,7 @@ def validate_native_compiled_checkpoint(root):
     for channels, order in ((1, 3), (2, 3), (3, 3), (9, 1)):
         config = NEP_IN.replace("spin_compress 2", f"spin_compress {channels}")
         config = config.replace("spin_order 3", f"spin_order {order}")
-        config = config.replace("spin_dof_type Fe\n", "spin_dof_type Fe Ge\n")
+        config = config.replace("spin_type Fe\n", "spin_type Fe Ge\n")
         config = config.replace("n_max 0 0", "n_max 4 4").replace(
             "basis_size 0 0", "basis_size 2 2")
         if channels == 3:

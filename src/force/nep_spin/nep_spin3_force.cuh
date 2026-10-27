@@ -576,8 +576,7 @@ __global__ void accumulate_spin3_oc_native_forces(
     const float* __restrict__ spin_cutoff_pair,
     SimulationBox box,
     const int* __restrict__ types,
-    const int* __restrict__ spin_dof_type_active,
-    const int* __restrict__ spin_env_type_active,
+    const int* __restrict__ spin_type_active,
     const double* __restrict__ positions_soa3,
     const double* __restrict__ slot_r12,
     int r12_plane_size,
@@ -612,7 +611,7 @@ __global__ void accumulate_spin3_oc_native_forces(
   const unsigned int center_mask =
       (0xffffffffu >> (32 - EdgeLanes)) << (atom_lane * EdgeLanes);
   const bool active =
-      atom < atom_count && spin_dof_type_active[types[atom]] != 0;
+      atom < atom_count && spin_type_active[types[atom]] != 0;
   if (!active) return;
 
   extern __shared__ float inline_pull_state[];
@@ -660,7 +659,7 @@ __global__ void accumulate_spin3_oc_native_forces(
   const int neighbor_count = nn_radial[atom];
   for (int slot = edge_lane; slot < neighbor_count; slot += EdgeLanes) {
     const int neighbor = nl_radial[slot * atom_stride + atom];
-    if (neighbor < 0 || spin_env_type_active[types[neighbor]] == 0) continue;
+    if (neighbor < 0) continue;
     float r[3], dist, si[3], sj[3], weights[C], derivatives[C];
     if (!load_spin3_edge_f32<C>(
             atom, neighbor, atom_stride, num_types, spin_basis_size,

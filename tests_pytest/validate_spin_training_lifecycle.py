@@ -9,7 +9,7 @@ from pathlib import Path
 import validate_main_nep_spin3_training as base
 
 CONFIG = base.NEP_IN + "nep_compile 0\nseed 20261021\n"
-NO_MASKS = re.sub(r"^spin_(dof|env)_type.*\n", "", CONFIG, flags=re.M)
+NO_MASKS = re.sub(r"^spin_type.*\n", "", CONFIG, flags=re.M)
 
 
 def execute(directory, config, xyz=base.TRAIN_XYZ, model=None, restart=None, error=None, test_xyz=None):
@@ -124,8 +124,7 @@ def validate_initial_para(root):
 
 def validate(root):
     report = {"initial_para": validate_initial_para(root / "initial_para")}
-    for name, config in (("fe_env_all", CONFIG),
-                         ("fe_env_fe", CONFIG.replace("spin_env_type Fe Ge", "spin_env_type Fe"))):
+    for name, config in (("fe_only", CONFIG), ("all_types", NO_MASKS)):
         fresh = root / name
         execute(fresh, config)
         model = (fresh / "nep.txt").read_text()
@@ -153,21 +152,31 @@ def validate(root):
         assert metadata((imported / "nep.txt").read_text()) == metadata(model)
         # An exported import model must also be accepted with omitted input masks.
         predict(root / (name + "_import_reload"), (imported / "nep.txt").read_text())
-        if name == "fe_env_fe":
-            execute(root / "partial_env", NO_MASKS + "spin_env_type Fe\n", model=model, restart=frozen)
-            execute(root / "invalid_fresh_subset", NO_MASKS + "spin_env_type Fe\n",
-                    error="spin_dof_type must be a subset")
-        if name == "fe_env_all":
-            # Detailed format rejection belongs to the CPU codec suite; keep
-            # one real CLI check that the model reader propagates the failure.
+        if name == "fe_only":
             execute(root / "unsupported_version", NO_MASKS + "prediction 1\n",
                     model=model.replace("spin_version 1\n", "spin_version 2\n"),
                     error="Unsupported spin_version")
-            for keyword, value in (("spin_dof_type", "Ge"), ("spin_env_type", "Fe")):
-                execute(root / (name + keyword), NO_MASKS + ("spin_dof_type Fe\n" if keyword == "spin_env_type" else "") + f"{keyword} {value}\n",
-                        model=model, restart=frozen, error=f"{keyword} in nep.in conflicts")
+            execute(root / "conflicting_dof", NO_MASKS + "spin_type Ge\n",
+                    model=model, restart=frozen, error="spin_type in nep.in conflicts")
+            # Reject nonmagnetic spin input in fresh training, prediction, test
+            # data, and restart, including a value that underflows float32.
+            for value in ("0.1", "1e-100"):
+                bad = base.TRAIN_XYZ.replace("Ge 1.4 2.3 1.1 0 0 0 0.0", "Ge 1.4 2.3 1.1 0 0 0 " + value)
+                for mode, extra, saved_model, state in (
+                    ("training", "", None, None),
+                    ("prediction", "prediction 1\n", model, None),
+                    ("restart", "", model, frozen)):
+                    execute(root / (mode + value), config + extra, bad,
+                            model=saved_model, restart=state,
+                            error="Atoms outside spin_type must have zero spin")
+                execute(root / ("test" + value), config, test_xyz=bad,
+                        error="Atoms outside spin_type must have zero spin")
+            execute(root / "renamed_type", config.replace("spin_type Fe", "spin_dof_type Fe"),
+                    error="spin_dof_type")
+            execute(root / "removed_env", config + "spin_env_type Fe Ge\n",
+                    error="spin_env_type")
 
-    model = (root / "fe_env_all" / "nep.txt").read_text()
+    model = (root / "fe_only" / "nep.txt").read_text()
     reference = predict(root / "labeled", model)
     for name, frames in (("unlabeled", (0, 1, 2)), ("mixed", (0, 2))):
         xyz = strip_labels(base.TRAIN_XYZ, frames)

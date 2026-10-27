@@ -20,12 +20,12 @@ public:
   float lambda_m = 1.0f, lambda_tau = 0.0f, lambda_spin_response = 0.0f;
   float lambda_m_parallel = 0.0f, lambda_m_perp = 0.0f;
   bool split_mforce_loss = false;
-  bool is_spin_dof_type_set = false, is_spin_env_type_set = false;
+  bool is_spin_type_set = false;
   bool spin_restart = false;
   int dim_struct = 0, dim_spin = 0;
   int number_of_variables_descriptor_spin = 0, number_of_variables_spin_projection = 0;
-  std::vector<std::string> spin_dof_type_names, spin_env_type_names;
-  std::vector<int> spin_dof_type_active, spin_env_type_active;
+  std::vector<std::string> spin_type_names;
+  std::vector<int> spin_type_active;
   std::vector<float> spin_cutoff_by_type;
   GPU_Vector<float> q_scaler_square_sum[16];
   GPU_Vector<unsigned long long> q_scaler_count[16];

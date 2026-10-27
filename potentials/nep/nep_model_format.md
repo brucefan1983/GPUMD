@@ -575,12 +575,15 @@ The model fields below supplement the common energy-model fields:
 | `spin_cutoff ...` | One positive cutoff, or `T` cutoffs in element order, in angstroms; pair cutoff is their arithmetic mean |
 | `spin_projection_size P` | Number of projection coefficients; must equal `4*C*C` |
 | `spin_scaler 1` | Per-component scaling is present in `q_scaler` |
-| `spin_dof_type <elements...>` | Optional nonempty subset receiving public magnetic forces; defaults to all elements |
-| `spin_env_type <elements...>` | Optional nonempty subset entering magnetic environments; defaults to `spin_dof_type` |
+| `spin_type <elements...>` | Optional nonempty subset with independent spin degrees of freedom; defaults to all elements |
 
-`spin_dof_type` must be a subset of `spin_env_type`. An environment-only spin
-can influence the energy while its public magnetic force is masked to zero.
-These masks do not freeze coordinates in a spin integrator. Spins use muB,
+All element types contribute geometric environments within the cutoffs.
+Only `spin_type` elements carry spin degrees of freedom and act as magnetic
+descriptor centers. Other elements must have zero input spin; nonzero input is
+rejected. Their public magnetic force is zero, but atomic forces remain active.
+MD excludes them from spin updates, noise and spin temperature counts; restart
+spin velocities must also be zero. The removed `spin_env_type` field is rejected.
+Spins use muB,
 energy uses eV, and magnetic force uses eV/muB. For descriptor definitions and
 scaling formulas, see [the Spin potential documentation](../../doc/potentials/nep_spin.rst).
 

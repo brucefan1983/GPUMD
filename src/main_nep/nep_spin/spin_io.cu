@@ -50,11 +50,8 @@ void validate_model(Spin_Parameters& para, const NEP_Spin_Model_File& model)
          std::abs(model.typewise_cutoff_zbl_factor - para.typewise_cutoff_zbl_factor) > 1.0e-6f)))) {
     PRINT_INPUT_ERROR("Spin ZBL checkpoint does not match nep.in.");
   }
-  if (para.is_spin_dof_type_set && para.spin_dof_type_active != model.spin_dof_type) {
-    PRINT_INPUT_ERROR("spin_dof_type in nep.in conflicts with the Spin checkpoint.");
-  }
-  if (para.is_spin_env_type_set && para.spin_env_type_active != model.spin_env_type) {
-    PRINT_INPUT_ERROR("spin_env_type in nep.in conflicts with the Spin checkpoint.");
+  if (para.is_spin_type_set && para.spin_type_active != model.spin_type) {
+    PRINT_INPUT_ERROR("spin_type in nep.in conflicts with the Spin checkpoint.");
   }
 }
 
@@ -62,9 +59,8 @@ void write_checkpoint_metadata(FILE* fid_nep, const Spin_Parameters& para)
 {
   // Serialize effective model state, including masks inherited from a checkpoint.
   const bool write_dof = std::any_of(
-    para.spin_dof_type_active.begin(), para.spin_dof_type_active.end(),
+    para.spin_type_active.begin(), para.spin_type_active.end(),
     [](int active) { return active != 1; });
-  const bool write_env = para.spin_env_type_active != para.spin_dof_type_active;
   fprintf(fid_nep, "spin_version 1\n");
   fprintf(fid_nep, "spin_basis_size %d\n", para.spin_basis_size[0]);
   fprintf(fid_nep, "spin_l_max %d\n", para.spin_l_max[0]);
@@ -89,18 +85,9 @@ void write_checkpoint_metadata(FILE* fid_nep, const Spin_Parameters& para)
     para.number_of_variables_spin_projection);
   fprintf(fid_nep, "spin_scaler 1\n");
   if (write_dof) {
-    fprintf(fid_nep, "spin_dof_type");
+    fprintf(fid_nep, "spin_type");
     for (int type = 0; type < para.num_types; ++type) {
-      if (para.spin_dof_type_active[type]) {
-        fprintf(fid_nep, " %s", para.elements[type].c_str());
-      }
-    }
-    fprintf(fid_nep, "\n");
-  }
-  if (write_env) {
-    fprintf(fid_nep, "spin_env_type");
-    for (int type = 0; type < para.num_types; ++type) {
-      if (para.spin_env_type_active[type]) {
+      if (para.spin_type_active[type]) {
         fprintf(fid_nep, " %s", para.elements[type].c_str());
       }
     }
@@ -117,8 +104,7 @@ void read_spin_model(Spin_Parameters& para, float* parameters)
   if (!model.read(input, error)) PRINT_INPUT_ERROR(error.c_str());
   validate_model(para, model);
   para.energy_reference = model.energy_reference;
-  para.spin_dof_type_active = model.spin_dof_type;
-  para.spin_env_type_active = model.spin_env_type;
+  para.spin_type_active = model.spin_type;
   std::copy(model.parameters.begin(), model.parameters.end(), parameters);
   para.q_scaler_cpu = model.q_scaler;
   int devices;

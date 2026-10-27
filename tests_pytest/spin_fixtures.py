@@ -5,7 +5,7 @@ from pathlib import Path
 FIXTURE = Path(__file__).parent / "fixtures" / "nep_spin3"
 
 def selective_type_model():
-    """Return the production C=2 fixture with Fe DOFs and Fe/Ge environments."""
+    """Return the production C=2 fixture with Fe spin DOFs and geometric environments from all types."""
     return (FIXTURE / "nep_spin_o3c2_uniform.nep").read_text()
 
 def write_xyz(path, case):

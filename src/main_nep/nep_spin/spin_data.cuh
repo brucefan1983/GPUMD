@@ -28,7 +28,7 @@ struct Spin_Data {
   int max_NN_spin = 0;
   std::vector<Spin_Labels> labels;
   GPU_Vector<double> r_spin, spin, r12_spin;
-  GPU_Vector<int> NN_spin, NL_spin, has_mforce_gpu, spin_dof_type_active_gpu;
+  GPU_Vector<int> NN_spin, NL_spin, has_mforce_gpu, spin_type_active_gpu;
   GPU_Vector<float> mforce, mforce_ref_gpu;
   std::vector<float> mforce_cpu, mforce_ref_cpu;
   std::vector<int> has_mforce_cpu;

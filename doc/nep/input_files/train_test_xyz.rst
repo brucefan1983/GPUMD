@@ -60,6 +60,11 @@ Essentially any keyword is allowed, but we only read the following ones:
     ``mforces``, ``force_mag``, ``forces_mag``, ``magnetic_force``, and
     ``magnetic_forces`` are also accepted.
 
+  Atom types excluded by :ref:`spin_type <kw_spin_type>` must have
+  exactly zero spin in training, test and prediction data. Nonzero values are
+  rejected. Their positions remain part of the geometric environment, while
+  their magnetic-force labels are excluded from supervision.
+
   ``spin_tangent`` is not an input property. The trainer derives it internally
   from each complete final-DFT spin path.
 
@@ -91,7 +96,7 @@ Each response group needs at least three distinct coordinate values and must
 keep atom count, type/order, positions, and cell fixed. Ordinary spin training
 does not require response metadata. Non-``rotation`` probe metadata in ordinary
 train/test data is accepted for analysis; response.xyz requires rotation groups. Atom types excluded by
-:ref:`spin_dof_type <kw_spin_dof_type>` are masked automatically.
+:ref:`spin_type <kw_spin_type>` are masked automatically.
 
 Starting from line 3
 ^^^^^^^^^^^^^^^^^^^^

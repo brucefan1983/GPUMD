@@ -19,7 +19,7 @@ int main()
 {
   ParameterInput input;
   Spin_Parameters para(input);
-  assert(para.num_types == 2 && para.spin_dof_type_active[0] && !para.spin_dof_type_active[1]);
+  assert(para.num_types == 2 && para.spin_type_active[0] && !para.spin_type_active[1]);
   Dataset data;
   NEP_Batch_Data<Spin_Data> batches;
   data.batch_index = 0; data.device_id = 0;
@@ -142,13 +142,13 @@ int main()
   for (auto value : unlabeled.get_rmse_mforce_parallel(para, data, false, 0)) assert(value == 0);
   for (auto value : unlabeled.get_rmse_tau(para, data, false, 0)) assert(value == 0);
   for (int c = 0; c < data.Nc; ++c) labels[c].has_mforce = labeled[c];
-  para.spin_dof_type_active.assign(2, 0);
+  para.spin_type_active.assign(2, 0);
   auto& inactive = rebuild();
   assert((inactive.active_count_cpu == std::vector<int>(4, 0)));
   assert((inactive.torque_active_count_cpu == std::vector<int>(4, 0)));
   for (auto value : inactive.get_rmse_mforce_perp(para, data, true, 0)) assert(value == 0);
   for (auto value : inactive.get_rmse_tau(para, data, true, 0)) assert(value == 0);
-  para.spin_dof_type_active[0] = 1;
+  para.spin_type_active[0] = 1;
   for (auto& label : labels)
     for (auto* values : {&label.sx, &label.sy, &label.sz})
       std::fill(values->begin(), values->end(), 0);

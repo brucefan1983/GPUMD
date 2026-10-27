@@ -22,8 +22,7 @@ extern "C" void nep_spin_launch_descriptor(
   float spin_cutoff,
   const float* spin_cutoff_pair,
   const int* type,
-  const int* spin_dof_type_active,
-  const int* spin_env_type_active,
+  const int* spin_type_active,
   const double* position,
   const double* spin,
   const int* NN_spin,
@@ -38,7 +37,7 @@ extern "C" void nep_spin_launch_descriptor(
 {
   launch_spin3_descriptor<SpinConstantLayout::channels>(
     SpinConstantLayout{}, atom_count, struct_dim, num_types, spin_basis_size,
-    spin_cutoff, spin_cutoff_pair, type, spin_dof_type_active, spin_env_type_active,
+    spin_cutoff, spin_cutoff_pair, type, spin_type_active,
     position, spin, NN_spin, NL_spin, r12_spin, r12_plane_size,
     descriptor_coefficients, spin_coefficient_offset, projection, moments, descriptors);
 }
@@ -52,8 +51,7 @@ extern "C" void nep_spin_launch_force(
   float spin_cutoff,
   const float* spin_cutoff_pair,
   const int* type,
-  const int* spin_dof_type_active,
-  const int* spin_env_type_active,
+  const int* spin_type_active,
   const double* position,
   const double* spin,
   const int* NN_spin,
@@ -71,7 +69,7 @@ extern "C" void nep_spin_launch_force(
 {
   launch_spin3_force<SpinConstantLayout::channels>(
     SpinConstantLayout{}, atom_count, struct_dim, num_types, spin_basis_size,
-    spin_cutoff, spin_cutoff_pair, type, spin_dof_type_active, spin_env_type_active,
+    spin_cutoff, spin_cutoff_pair, type, spin_type_active,
     position, spin, NN_spin, NL_spin, r12_spin, r12_plane_size,
     Fp, descriptor_coefficients, spin_coefficient_offset, projection, moments,
     force, mforce, virial);
