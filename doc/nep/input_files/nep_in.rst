@@ -124,8 +124,6 @@ Keywords
      - fine tune a model starting from a foundation model
    * - :ref:`import_q_scaler <kw_import_q_scaler>`
      - import descriptor normalization factors from an existing ``nep.txt``
-   * - :ref:`initial_para <kw_initial_para>`
-     - set reference parameters used to compute descriptor normalization
 
 Consistency with model files already present
 --------------------------------------------

@@ -426,11 +426,9 @@ constant or initially unresolved magnetic channel.
 Fresh training computes scaling from ordinary training structures using a
 fixed, non-degenerate reference parameter vector, independent of the SNES
 search mean and RNG. Nonconstant spin projection matrices keep descriptor
-channels distinct. :ref:`initial_para <kw_initial_para>` scales the reference
-radial coefficients without changing these mixing matrices; its default of 1
-leaves the reference unchanged. Response-only frames do not enter this
-calculation. Prediction, restart, and explicit scaler import reuse the stored
-normalization instead.
+channels distinct. Response-only frames do not enter this calculation.
+Prediction, restart, and explicit scaler import reuse the stored normalization
+instead.
 
 .. _nep_spin_restart:
 

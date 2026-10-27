@@ -1147,7 +1147,7 @@ void TNEP::prepare_training()
 {
   TNEP_Parameters& para = *model_parameters;
   int devices = training->device_count;
-  std::vector<float> dummy_solution(para.number_of_variables * devices, para.initial_para);
+  std::vector<float> dummy_solution(para.number_of_variables * devices, 1.0f);
   for (int batch = 0; batch < training->num_batches; ++batch) {
     find_force(para, dummy_solution.data(), training->train_set[batch],
       (para.fine_tune || para.import_q_scaler) ? false : true, devices);
