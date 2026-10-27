@@ -12,7 +12,6 @@
 class Spin_Parameters : public NEP_Energy_Parameters {
 public:
   explicit Spin_Parameters(const ParameterInput& input);
-  bool parse_keyword(const char**, int) override;
   int spin_compress = 2, spin_order = 3, spin_soc = 1;
   int spin_basis_size[2] = {8, 0};
   int spin_l_max[3] = {2, 0, 0};
@@ -28,10 +27,10 @@ public:
   std::vector<float> spin_cutoff_by_type;
   GPU_Vector<float> q_scaler_square_sum[16];
   GPU_Vector<unsigned long long> q_scaler_count[16];
-protected:
+private:
+  bool parse_keyword(const char**, int) override;
   void report_model_inputs() const override;
   void read_zbl_in() override;
-private:
   std::vector<std::string> spin_type_names;
   void initialize_spin_checkpoint();
   void validate_spin_parameters();

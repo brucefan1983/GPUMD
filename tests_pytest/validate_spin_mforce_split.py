@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Validate independent Spin3 magnetic RMSE terms, restart, and GPU parity.
 
-Run on one allocated CUDA device, or pass --devices 1 2 4 for GPU parity. Supply
---oracle pointing to the linked spin_mforce_split.cu numerical test executable.
+Run the real nep executable on one allocated CUDA device, or pass
+--devices 1 2 4 for GPU parity. Recompute magnetic errors from exported predictions.
 """
 import argparse
 import json
@@ -50,7 +50,6 @@ def independent_metrics(case):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path)
-    parser.add_argument('--oracle', type=Path)
     parser.add_argument('--devices', nargs='+', type=int, choices=(1, 2, 4), default=[1])
     args = parser.parse_args()
     visible = os.environ.get('CUDA_VISIBLE_DEVICES', '0,1,2,3').split(',')
@@ -67,11 +66,6 @@ def main():
         initial = root / 'initial'
         base.write_case(initial, common)
         run_nep(initial, env)
-        if args.oracle:
-            run = subprocess.run([str(args.oracle.resolve())], cwd=initial, env=env, capture_output=True, text=True)
-            (root / 'oracle.log').write_text(run.stdout + run.stderr)
-            assert run.returncode == 0, run.stdout + run.stderr
-            report['numerical_oracle'] = 'passed'
         # Require clear parser errors, not an arbitrary runtime failure.
         invalid = [
             ('lambda_m_parallel 1', 'Specify both'),

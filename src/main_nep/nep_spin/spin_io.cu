@@ -7,6 +7,7 @@
 */
 
 #include "spin_io.cuh"
+#include "nep_spin.cuh"
 #include "main_nep/common/nep_io.cuh"
 #include "utilities/error.cuh"
 #include <algorithm>
@@ -145,7 +146,10 @@ void Spin_Parameters::initialize_spin_checkpoint() {
   }
 }
 
-void write_spin_model(FILE* fid_nep, Spin_Parameters& para, const float* elite, int max_NN_radial, int max_NN_angular) {
+void NEP_Spin_Model::write_spin_model(
+  FILE* fid_nep, const float* elite, int max_NN_radial, int max_NN_angular)
+{
+  auto& para = *model_parameters;
   CHECK(gpuSetDevice(0));
   para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
   write_nep_header(fid_nep, para, max_NN_radial, max_NN_angular);

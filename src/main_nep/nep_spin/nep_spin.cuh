@@ -101,12 +101,13 @@ private:
   public:
     Spin_Reader(Spin_Parameters& p, EnergyDifference& e, NEP_Batch_Data<Spin_Data>& d)
       : NEP_Energy_Reader(p,e), parameters(p), data(d) {}
+    void read_response(std::vector<Structure>&, std::vector<Spin_Data::Labels>&);
+
+  private:
     void prepare_train(std::vector<Structure>&, int, int&, std::vector<int>&) override;
     void prepare_test(const std::vector<Structure>&, bool) override;
     void prepare_dataset(Dataset&) override;
     const char* energy_difference_conflict(const Structure&, const Structure&) const override;
-    void read_response(std::vector<Structure>&, std::vector<Spin_Data::Labels>&);
-  private:
     void begin_reading() override { labels.clear(); }
     void read_structure(const XYZ_Record&, Structure&) override;
     struct Frame {
@@ -120,6 +121,7 @@ private:
     std::set<std::string> train_groups, test_groups, test_frames;
   };
 
+  void write_spin_model(FILE*, const float*, int max_radial, int max_angular);
   void finalize_q_scaler();
   void initialize_search(std::mt19937&, std::vector<float>&, std::vector<float>&) const;
   std::unique_ptr<Spin_Parameters> model_parameters;

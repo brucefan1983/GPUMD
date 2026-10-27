@@ -174,7 +174,7 @@ void Spin_Parameters::calculate_spin_dimensions()
     PRINT_INPUT_ERROR("Number of spin descriptors should not exceed 96.\n");
   }
   dim = dim_struct + dim_spin;
-  if (dim > MAX_DIM_SPIN) {
+  if (dim > NEP_Spin_Model_File::MAX_DIM_SPIN) {
     PRINT_INPUT_ERROR(
       "Combined structural and spin descriptor dimension exceeds GPUMD MAX_DIM_SPIN.\n");
   }

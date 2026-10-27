@@ -257,7 +257,7 @@ void NEP_Spin_Model::find_force(
       compiled_kernel_->launch_ann(data.N, data.type.data(), work.descriptors.data(),
         para.q_scaler_gpu[device_id].data(), work.parameters.data(), data.energy.data(), work.Fp.data());
     } else {
-      apply_ann_one_layer_warp<MAX_DIM_SPIN><<<(data.N + 3) / 4, 128>>>(data.N,
+      apply_ann_one_layer_warp<NEP_Spin_Model_File::MAX_DIM_SPIN><<<(data.N + 3) / 4, 128>>>(data.N,
         annmb[device_id], data.type.data(), work.descriptors.data(),
         para.q_scaler_gpu[device_id].data(), data.energy.data(), work.Fp.data());
       GPU_CHECK_KERNEL
@@ -498,7 +498,7 @@ void NEP_Spin_Model::report_error(const TrainingReport& report)
   for (const auto& filename : {std::string("nep.txt"), report.checkpoint}) {
     if (filename.empty()) continue;
     FILE* file = my_fopen(filename.c_str(), "w");
-    write_spin_model(file, para, report.parameters, max_radial, max_angular);
+    write_spin_model(file, report.parameters, max_radial, max_angular);
     fclose(file);
   }
   for (FILE* file : {stdout, training->fid_loss_out}) {
