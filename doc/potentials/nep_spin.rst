@@ -14,9 +14,8 @@ virials, magnetic forces, and spin torques are derivatives of this same energy
 and are not produced by independent response networks.
 
 The current format uses ``nep``, ``format_version 1``, and ``model nep_spin``
-with ``spin_version 1`` and named parameter and scaler blocks. Development-stage
-model names, counted headers, and headerless restarts are not supported. It uses the order/compression (O/C)
-descriptor described below. An optional ``zbl`` field adds a spin-independent
+with ``spin_version 1`` and named parameter and scaler blocks. It uses the
+order/compression (O/C) descriptor described below. An optional ``zbl`` field adds a spin-independent
 universal ZBL term. Flexible ZBL (``zbl 0 0``) is not supported.
 ``spin_version`` identifies the descriptor and parameter-layout
 contract, independently of the file syntax version and ``spin_order``.
@@ -413,15 +412,44 @@ The trainable magnetic descriptor parameters comprise
 :math:`4C^2` radial-leg mixing coefficients. These are optimized together
 with the neural-network parameters by SNES.
 
+.. _nep_spin_scaling:
+
+Descriptor scaling
+------------------
+
 Structural coordinates retain the ordinary inverse-range scaler. Magnetic
 coordinates use
 :math:`1/\max(\operatorname{RMS}(q),\operatorname{range}(q),1)`, without
 centering. Their gain is therefore never larger than one, including for a
 constant or initially unresolved magnetic channel.
-For fresh training, :ref:`initial_para <kw_initial_para>` scales the radial
-coefficients of the fixed reference model used to compute these scalers.
-Its default of 1 retains the reference unchanged. Prediction, restart, and
-explicit scaler import reuse the stored normalization instead.
+
+Fresh training computes scaling from ordinary training structures using a
+fixed, non-degenerate reference parameter vector, independent of the SNES
+search mean and RNG. Nonconstant spin projection matrices keep descriptor
+channels distinct. :ref:`initial_para <kw_initial_para>` scales the reference
+radial coefficients without changing these mixing matrices; its default of 1
+leaves the reference unchanged. Response-only frames do not enter this
+calculation. Prediction, restart, and explicit scaler import reuse the stored
+normalization instead.
+
+.. _nep_spin_restart:
+
+Restart behavior
+----------------
+
+Spin restart restores the scaler from the matching ``nep.txt``. See
+:ref:`import_q_scaler <kw_import_q_scaler>` for automatic restoration and
+fresh scaler-only import. The two files must have compatible architecture and
+element order, and the scaler must be finite and positive.
+
+``nep.restart`` stores the search distribution and ``energy_reference`` in the
+shared restart format, while ``nep.txt`` stores a selected candidate model.
+The search mean and that candidate need not predict the same values. Restart
+does not rescale parameters or substitute the candidate for the search mean.
+
+A restart begins a new requested generation segment and resets RNG
+initialization. The restart file does not store global generation progress;
+it is not an exact replay of an uninterrupted trajectory.
 
 Energy derivatives
 ==================
@@ -514,6 +542,11 @@ To supervise only spin rotation, set ``lambda_m 0`` and a positive ``lambda_tau`
 For nonzero spins, the squared torque error equals the squared transverse magnetic-force
 error multiplied by :math:`|\boldsymbol{s}_i|^2`.
 
+.. _nep_spin_response:
+
+Grouped magnetic response
+-------------------------
+
 For a grouped rotation path with coordinate :math:`\theta`, the response
 generator evaluated for frame :math:`n` is
 
@@ -540,8 +573,12 @@ angular displacements and separate magnitude differences. This preserves
 longitudinal moment relaxation without injecting the radial chord error of
 Cartesian interpolation into constant-length rotations. Stencils must resolve
 angular separations below pi. Atom types excluded by ``spin_type`` are
-masked from the derived tangent. See :ref:`lambda_spin_response
-<kw_lambda_spin_response>` for zero-moment and finite-stencil limitations.
+masked from the derived tangent. At zero moment, the tangent uses Cartesian
+differences. Constant-rate great-circle rotations are differentiated exactly
+apart from floating-point rounding; other paths retain the finite-stencil
+approximation. Antipodal samples require intermediate frames. Input labels
+and group metadata are specified in :ref:`response_xyz`; the loss weight is
+set by :ref:`lambda_spin_response <kw_lambda_spin_response>`.
 
 Spin3 uses the shared SNES lifecycle: generation zero prepares training scalers
 and uses regularization-only fitness. Physical losses are evaluated from the
@@ -562,9 +599,8 @@ Model formats and input
      - Current block format with ``spin_version 1``; optional :ref:`zbl <kw_zbl>` field.
 
 See :ref:`spin_version <kw_spin_version>` and the neighboring ``spin_*`` keyword
-pages for descriptor configuration. The complete extended-XYZ data contract,
-including magnetic-force labels and grouped response metadata, is documented
-under :ref:`train_test_xyz`.
+pages for descriptor configuration. See :ref:`train_test_xyz` for ordinary
+training labels and :ref:`response_xyz` for grouped-response input.
 
 Training specialization
 -----------------------

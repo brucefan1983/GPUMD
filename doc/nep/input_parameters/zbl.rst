@@ -17,13 +17,9 @@ The "inner" cutoff of the :term:`ZBL` potential, below which value the pair inte
 
 When this keyword is absent, the :term:`ZBL` potential will not be enabled and the value of :math:`r_\mathrm{c}^\mathrm{ZBL-outer}` is irrelevant.
 
-ZBL is compatible with :ref:`spin_version 1 <kw_spin_version>` and produces a
-``model nep_spin`` file with an additional ``zbl`` field. NEP-spin supports
-universal ZBL only: training with ZBL enabled rejects an existing ``zbl.in``
-before reading its parameters, and model loading rejects ``zbl 0 0``.
-Since ZBL
-is spin independent, it contributes to energy, force, and virial but not to
-magnetic force or torque.
+NEP-spin supports universal ZBL but not flexible ZBL. With ZBL enabled,
+remove ``zbl.in`` for :ref:`spin_version 1 <kw_spin_version>` training.
+ZBL contributes to energy, force, and virial, but not magnetic force or torque.
 
 Permissible values are 1 Å :math:`\leq r_\mathrm{c}^\mathrm{ZBL-outer} \leq` 4 Å.
 

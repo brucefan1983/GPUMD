@@ -1,9 +1,6 @@
 /*
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD and is distributed under LGPLv3 or later.
-
-    Spin3 training shares its descriptor and derivative implementation with
-    the production NEP_Spin runtime.
 */
 
 #pragma once
@@ -57,10 +54,5 @@ private:
   void parse_spin_basis_size(const char** param, int num_param);
   void parse_spin_l_max(const char** param, int num_param);
   void parse_spin_cutoff(const char** param, int num_param);
-  void parse_spin_active_types(
-    const char** param,
-    int num_param,
-    const char* keyword,
-    std::vector<std::string>& names,
-    bool& is_set);
+  void parse_spin_type(const char** param, int num_param);
 };

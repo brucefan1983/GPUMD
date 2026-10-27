@@ -158,27 +158,5 @@ Here is an example :attr:`nep.in` file using all the default parameters::
   population	50        # default
   generation	100000    # default
 
-Spin3 example
--------------
-
-The following Spin setup uses the default descriptor shape. ``spin_compress``
-defaults to 2 and may be omitted. Together with the structural defaults, this
-gives 55 magnetic and 97 total coordinates, within :ref:`nep_spin_dimensions`::
-
-  version          4
-  type             2 Fe Ge
-  spin_version     1
-  spin_basis_size  8 0
-  spin_l_max       2 0 0
-  spin_compress    2
-  spin_order       3
-  spin_soc         1
-  neuron           30
-  lambda_m         1.0
-  batch            1000
-  generation       100000
-
-Each frame in ``train.xyz`` and ``test.xyz`` must then contain a Cartesian
-``spin:R:3`` property. Add ``mforce:R:3`` when training magnetic forces. See
-:ref:`train_test_xyz` for the complete data contract and :ref:`nep_spin` for
-the Spin3 formalism.
+For Spin training, see the :ref:`spin_version example <spin_training_example>`
+and the :ref:`Spin potential documentation <nep_spin>`.

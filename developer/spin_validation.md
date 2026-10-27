@@ -46,8 +46,9 @@ types without changing energy or force labels. Frozen-parameter restart checks
 compare predictions before and after resuming through the CLI. Response checks
 cover input rejection, group leakage, disabled response, equal group weights and
 isolation from unused labels. Magnetic errors are independently recomputed from
-exported predictions, including parallel/perpendicular components. Tests do not
-inspect private model buffers or optimizer state.
+exported predictions, including parallel/perpendicular components. A separate
+single-GPU torque boundary case checks the squared-spin cutoff and its
+normalization count. Tests do not inspect private model buffers or optimizer state.
 
 ## Four-GPU checks
 

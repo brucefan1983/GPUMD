@@ -238,19 +238,10 @@ Shared structure and dataset code handles common data. Model-specific labels, GP
 
 `evaluate()` receives contiguous candidate parameter vectors on the host. The model owns intermediate losses; `accumulate_fitness()` adds their contributions after common regularization. Keep model-specific reduction and transfer decisions behind these interfaces, so later GPU reduction or population parallelism does not require model branches in `Fitness` or `SNES`.
 
-Spin3 keeps `Structure` and `Dataset` unchanged. `Spin_Data::Labels` stores magnetic
-labels, while `Spin_Data` owns the device buffers and is indexed by `NEP_Batch_Data`.
-The reader and response-loss accumulator are private nested classes of
-`NEP_Spin_Model`; response-frame views and tangent construction belong to its reader.
-Search/scaler initialization stays private to the model, and checkpoint initialization
-is private to `Spin_Parameters`. Labels are matched through
-`Structure::index_in_file` after batch sorting or energy-difference grouping.
-The spin cutoff is bounded by the NEP radial cutoff, so the shared geometry
-reader needs no Spin-specific extension. `response.xyz` has separate device data and contributes only response loss;
-it does not fit the energy reference or scalers. Spin3 uses the shared
-`energy_reference` and block model/restart formats while preserving its
-fixed-reference scaler and the common generation-zero lifecycle. Models use
-`model nep_spin` with `spin_version 1`; restart uses `nep_restart`.
+Spin training lives in `nep_spin/` and reuses the shared reader, batch-data,
+energy-reference, model/restart I/O, and runtime-compilation facilities.
+Magnetic labels, workspaces, and losses remain model-owned; `Structure` and
+`Dataset` need no Spin-specific changes.
 
 ### Adding a training model
 

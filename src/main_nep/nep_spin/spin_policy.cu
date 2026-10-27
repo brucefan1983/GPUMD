@@ -1,9 +1,6 @@
 /*
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD and is distributed under LGPLv3 or later.
-
-    Spin3 training shares its descriptor and derivative implementation with
-    the production NEP_Spin runtime.
 */
 
 #include "nep_spin.cuh"

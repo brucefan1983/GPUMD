@@ -562,6 +562,9 @@ layout that reinterpret existing parameter values require a new supported spin
 version. Training-loss settings, implementation optimizations, and bug fixes
 that restore the specified behavior do not change the version.
 
+Spin output preserves the model element order; automatic element compaction
+is disabled.
+
 The model fields below supplement the common energy-model fields:
 
 | Field | Version-1 meaning |
@@ -582,7 +585,7 @@ Only `spin_type` elements carry spin degrees of freedom and act as magnetic
 descriptor centers. Readers set other elements' effective spin to zero and
 ignore their magnetic-force labels, preserving energy and atomic-force labels
 without changing the input files. Their public magnetic force is zero, but
-atomic forces remain active. The removed `spin_env_type` field is rejected.
+atomic forces remain active.
 Spins use muB,
 energy uses eV, and magnetic force uses eV/muB. For descriptor definitions and
 scaling formulas, see [the Spin potential documentation](../../doc/potentials/nep_spin.rst).
@@ -611,8 +614,7 @@ magnetic projection coefficients [4, C, C]
 All arrays use C order. The magnetic radial indices are
 `[channel, basis, center_type, neighbor_type]`; their type pair is the fastest
 varying index, unlike the structural segments. Projection indices are
-`[leg, output_channel, source_channel]`. This preserves the existing Spin3
-magnetic layout. The total parameter count is
+`[leg, output_channel, source_channel]`. The total parameter count is
 
 ```text
 N = T * N1 * (D + 2) + 1
@@ -626,8 +628,7 @@ The scaler contains `D` values, with structural components first as in Section
 local squared moment; order-1 edge terms; order-2 edge/density/correlation and
 axial terms; then order-3 gated and coupled terms. Disabled families contribute
 no entries. Channels increase within a family; channel-pair families use
-`(0,0), (0,1), ..., (0,C-1), (1,1), ..., (C-1,C-1)`. All enabled components retain
-their original scaler and projection semantics.
+`(0,0), (0,1), ..., (0,C-1), (1,1), ..., (C-1,C-1)`.
 
 `energy_reference`, optional ZBL, numerical precision, and the restart syntax
 remain the shared conventions. `nep.restart` has no separate spin version: it
