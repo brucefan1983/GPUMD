@@ -7,6 +7,7 @@
 #include "model/box.cuh"
 #include "nep_spin.cuh"
 #include "spin_parameters.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 
@@ -131,6 +132,9 @@ void NEP_Spin_Model::find_additional_descriptors(Spin_Parameters&, Dataset& data
       case 9:
         LAUNCH_SPIN3_DESCRIPTOR(9);
         break;
+      default:
+        PRINT_INPUT_ERROR("spin_compress should be an integer from 1 to 9.");
+        break;
     }
   }
 #undef LAUNCH_SPIN3_DESCRIPTOR
@@ -232,6 +236,9 @@ void NEP_Spin_Model::find_additional_force(Spin_Parameters&, Dataset& dataset, i
         break;
       case 9:
         LAUNCH_SPIN3_FORCE(9);
+        break;
+      default:
+        PRINT_INPUT_ERROR("spin_compress should be an integer from 1 to 9.");
         break;
     }
   }

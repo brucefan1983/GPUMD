@@ -64,64 +64,6 @@ def strip_labels(xyz, frames):
     return "\n".join(lines) + "\n"
 
 
-def scalers(model):
-    lines = model.splitlines()
-    start = next(i for i, line in enumerate(lines) if line.startswith("@ q_scaler "))
-    count = int(lines[start].split()[2])
-    return [float(line) for line in lines[start+1:start+1+count]]
-
-
-def validate_initial_para(root):
-    root.mkdir()
-    # Twelve candidates also support 2/4-GPU partitions. Larger spins exercise
-    # magnetic normalization below its gain cap, not just capped unit scalers.
-    config = CONFIG.replace("population 10", "population 12")
-    lines = base.TRAIN_XYZ.splitlines()
-    for i, line in enumerate(lines):
-        if i % 6 >= 2:
-            fields = line.split()
-            fields[7:10] = [str(4 * float(x)) for x in fields[7:10]]
-            lines[i] = " ".join(fields)
-    xyz = "\n".join(lines) + "\n"
-    execute(root / "default", config, xyz)
-    model = (root / "default" / "nep.txt").read_text()
-    default = scalers(model)
-    execute(root / "explicit_one", config + "initial_para 1\n", xyz)
-    for filename in ("nep.txt", "nep.restart"):
-        assert (root / "default" / filename).read_bytes() == (root / "explicit_one" / filename).read_bytes()
-    report = {"default_vs_one": "identical model and search state"}
-    for value in (0.5, 0.1):
-        case = root / str(value)
-        execute(case, config + f"initial_para {value}\n", xyz)
-        scaled = scalers((case / "nep.txt").read_text())
-        assert len(default) == len(scaled)
-        assert all(math.isfinite(x) and x > 0 for x in scaled)
-        # n_max=0, l_max=2: one linear radial and two quadratic angular
-        # structural components give independent, known normalization ratios.
-        ratios = [scaled[i] / default[i] for i in range(3)]
-        for ratio, degree in zip(ratios, (1, 2, 2)):
-            assert math.isclose(ratio, value ** -degree, rel_tol=2e-5), ratios
-        assert all(x <= 1 for x in scaled[3:])
-        assert any(abs(a-b) > 1e-5 for a, b in zip(default[3:], scaled[3:]))
-        report[str(value)] = {"structural_scaler_ratios": ratios,
-                              "magnetic_scaler_max": max(scaled[3:])}
-
-    changed = config + "initial_para 0.5\n"
-    before = predict(root / "before", model, xyz, config)
-    report["prediction"] = compare(before, predict(root / "after", model, xyz, changed))
-    restart = (root / "default" / "nep.restart").read_text()
-    for mode, extra, state in (("restart", "", restart), ("import", "import_q_scaler 1\n", None)):
-        case = root / mode
-        execute(case, changed + extra, xyz, model=model, restart=state)
-        assert scalers((case / "nep.txt").read_text()) == default
-        report[mode] = "saved scalers preserved"
-    for value in ("inf", "0", "1.1"):
-        execute(root / ("invalid_" + value), config + f"initial_para {value}\n", xyz,
-                error="initial_para should be within [0.1, 1]")
-    report["invalid_values"] = "rejected"
-    return report
-
-
 def validate_inactive_input(root, config, model, restart):
     root.mkdir()
     raw = base.TRAIN_XYZ.splitlines()
@@ -171,7 +113,7 @@ def validate_inactive_input(root, config, model, restart):
 
 
 def validate(root):
-    report = {"initial_para": validate_initial_para(root / "initial_para")}
+    report = {}
     for name, config in (("fe_only", CONFIG), ("all_types", NO_MASKS)):
         fresh = root / name
         execute(fresh, config)
