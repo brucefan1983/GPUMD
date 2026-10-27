@@ -11,6 +11,7 @@ Version 1 supports the following model types:
 | `model` | Meaning |
 |---|---|
 | `nep` | Standard energy NEP |
+| `nep_spin` | Spin-dependent energy NEP; requires `spin_version` (Section 5.1) |
 | `nep_temperature` | Temperature-dependent NEP |
 | `qnep1` | qNEP with charge mode 1 |
 | `qnep2` | qNEP with charge mode 2 |
@@ -274,6 +275,7 @@ The model-dependent values are:
 | Model | `O` | `G` | `S` | Extra ANN inputs | Output order |
 |---|---:|---:|---:|---:|---|
 | `nep` | 1 | 1 | 1 | 0 | energy |
+| `nep_spin` | 1 | 1 | 1 | `D_spin` | energy |
 | `nep_temperature` | 1 | 1 | 1 | 1 | energy |
 | `qnep1` | 2 | 2 | 1 | 0 | energy, charge |
 | `qnep2` | 2 | 2 | 1 | 0 | energy, charge |
@@ -294,7 +296,7 @@ The global parameters within one ANN set are ordered as follows:
 
 | Model | Global parameter order |
 |---|---|
-| `nep`, `nep_temperature`, `nep_vdw`, `nep_dipole` | common output bias |
+| `nep`, `nep_spin`, `nep_temperature`, `nep_vdw`, `nep_dipole` | common output bias |
 | `nep_polarizability` | common output bias for each ANN set |
 | `qnep1`, `qnep2`, `qnep2_vdw` | `sqrt_epsilon_inf`, common energy-output bias |
 
@@ -471,6 +473,9 @@ N
   + C_descriptor.
 ```
 
+`nep_spin` appends magnetic radial and projection coefficients to this array;
+its complete count is given in Section 5.1.
+
 This value must exactly match both the count declared in `@ parameters N` and the number of numerical values in that block.
 
 ### 4.2 `q_scaler`
@@ -482,6 +487,9 @@ This value must exactly match both the count declared in `@ parameters N` and th
 There is one float32 factor per ANN input: radial descriptors first, then angular descriptors, followed by the temperature input for `nep_temperature`. Multiply each input component by its corresponding factor before evaluating the ANN.
 
 Radial components follow increasing `n`. Angular components are grouped by invariant: `l = 1, ..., L_max`, then the enabled terms `q_222`, `q_1111`, `q_112`, `q_123`, `q_233`, and `q_134`, in that order. Within each angular group, `n` runs from zero through `n_max_angular`.
+
+For `nep_spin`, magnetic components follow all structural components; see
+Section 5.1 for their order.
 
 The `q_scaler` block is not part of the trainable `parameters` vector and is not included in `N`.
 
@@ -531,6 +539,111 @@ with the rows ordered as above.
 
 The model tables in Section 4.1 determine the number of outputs, global parameters, and ANN sets. Use these together with the descriptor and network dimensions to determine all array lengths.
 
+### 5.1 Spin-dependent models: `model nep_spin`
+
+New Spin models use:
+
+```text
+nep 2 Fe Ge
+format_version 1
+model nep_spin
+spin_version 1
+```
+
+`format_version` describes the shared file syntax. `spin_version` describes the
+magnetic descriptor definitions, units, scaler interpretation, and parameter
+layout. Version `1` is the current order/compression (Spin3) model, including its
+`spin_type` selection of independent spin coordinates.
+`spin_order` selects O1/O2/O3 within this contract and is not a version number.
+
+`spin_version` is required and must contain exactly the integer token `1`.
+Missing or unknown versions are errors. Changes to descriptor meaning or array
+layout that reinterpret existing parameter values require a new supported spin
+version. Training-loss settings, implementation optimizations, and bug fixes
+that restore the specified behavior do not change the version.
+
+Spin output preserves the model element order; automatic element compaction
+is disabled.
+
+The model fields below supplement the common energy-model fields:
+
+| Field | Version-1 meaning |
+|---|---|
+| `spin_version 1` | Magnetic model contract version |
+| `spin_basis_size 8` | Highest magnetic radial basis index; nine basis functions |
+| `spin_l_max L` | Magnetic angular rank, `L` in `0..2` |
+| `spin_compress C` | Number of compressed radial channels, `C` in `1..9` |
+| `spin_order O` | Contraction order, `O` in `1..3` |
+| `spin_soc S` | Joint spin/spatial channels: `0` or `1` |
+| `spin_cutoff ...` | One positive cutoff, or `T` cutoffs in element order, in angstroms; pair cutoff is their arithmetic mean |
+| `spin_projection_size P` | Number of projection coefficients; must equal `4*C*C` |
+| `spin_scaler 1` | Per-component scaling is present in `q_scaler` |
+| `spin_type <elements...>` | Optional nonempty subset with independent spin degrees of freedom; defaults to all elements |
+
+All element types contribute geometric environments within the cutoffs.
+Only `spin_type` elements carry spin degrees of freedom and act as magnetic
+descriptor centers. Readers set other elements' effective spin to zero and
+ignore their magnetic-force labels, preserving energy and atomic-force labels
+without changing the input files. Their public magnetic force is zero, but
+atomic forces remain active.
+Spins use muB,
+energy uses eV, and magnetic force uses eV/muB. For descriptor definitions and
+scaling formulas, see [the Spin potential documentation](../../doc/potentials/nep_spin.rst).
+
+Version 1 supports one hidden layer (`ann N1 0`, `1 <= N1 <= 120`) and uniform
+structural cutoffs. Structural limits are `nr <= 12`, `na <= 8`, `br <= 16`,
+`ba <= 12`, and `L_max <= 8`, with at most 90 structural angular components.
+Training supports at most 96 magnetic components, and the combined descriptor
+must fit 199 components. The structural and magnetic dimensions are determined
+by the enabled contractions, not by free metadata counts.
+
+#### Parameter and scaler layout
+
+Let `D = D_struct + D_spin`. With `O = G = S = 1` in the notation of Section 4.1
+(these symbols there describe ANN outputs, global parameters, and ANN sets),
+the parameter vector is:
+
+```text
+ANN parameters and common energy-output bias
+structural radial coefficients   [T, T, nr + 1, br + 1]
+structural angular coefficients  [T, T, na + 1, ba + 1]
+magnetic radial coefficients    [C, 9, T, T]
+magnetic projection coefficients [4, C, C]
+```
+
+All arrays use C order. The magnetic radial indices are
+`[channel, basis, center_type, neighbor_type]`; their type pair is the fastest
+varying index, unlike the structural segments. Projection indices are
+`[leg, output_channel, source_channel]`. The total parameter count is
+
+```text
+N = T * N1 * (D + 2) + 1
+    + T*T * ((nr + 1)*(br + 1) + (na + 1)*(ba + 1))
+    + 9*C*T*T + 4*C*C.
+```
+
+The scaler contains `D` values, with structural components first as in Section
+4.2. Magnetic components follow the version-1 contraction order defined by
+`make_spin_polynomial_layout` in [nep_spin3_layout.cuh](../../src/force/nep_spin/nep_spin3_layout.cuh):
+local squared moment; order-1 edge terms; order-2 edge/density/correlation and
+axial terms; then order-3 gated and coupled terms. Disabled families contribute
+no entries. Channels increase within a family; channel-pair families use
+`(0,0), (0,1), ..., (0,C-1), (1,1), ..., (C-1,C-1)`.
+
+`energy_reference`, optional ZBL, numerical precision, and the restart syntax
+remain the shared conventions. `nep.restart` has no separate spin version: it
+must be interpreted with the corresponding `nep.txt`, whose version is checked
+before loading the restart. Loss weights such as `lambda_m_parallel` and
+`lambda_m_perp` are training inputs, not model-file fields.
+
+#### Training input
+
+Select this model in `nep.in` with `spin_version 1` and the ordinary NEP
+architecture selector `version 4`. Omit `spin_version` for ordinary NEP.
+Unsupported versions and repeated or conflicting model selectors are errors.
+Prediction, scaler import, and restart require a compatible `nep.txt`.
+Do not put the model-file fields `model` or `format_version` in `nep.in`.
+
 ## 6. `nep.restart`
 
 The restart stores elemental energy references and the SNES mean (`mu`) and standard deviation (`sigma`) for every trainable parameter:
@@ -554,6 +667,10 @@ Read the remaining values as an `[N, 2]` array: column 0 is `mu`, and column 1 i
 Energy references are float64, written with 17 significant digits. `mu` and `sigma` are float32, written with nine significant digits; `sigma` is non-negative.
 
 ## 7. Legacy model conversion
+
+The converter below covers the ordinary NEP model families; it does not convert
+Spin files. Spin models are written directly by the trainer in the format
+described in Section 5.1.
 
 Supported legacy model files can be converted with
 

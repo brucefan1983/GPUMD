@@ -29,6 +29,7 @@ ParameterInput::ParameterInput()
     std::cout << "Failed to open nep.in." << std::endl;
     exit(1);
   }
+  bool has_spin_selector = false;
   while (input.peek() != EOF) {
     std::vector<std::string> tokens = get_tokens_without_comments(input);
     if (tokens.empty()) {
@@ -38,7 +39,16 @@ ParameterInput::ParameterInput()
     for (int n = 0; n < tokens.size(); ++n) {
       param[n] = tokens[n].c_str();
     }
-    if (tokens[0] == "model_type") {
+    if (tokens[0] == "spin_version") {
+      if (has_spin_selector) {
+        PRINT_INPUT_ERROR("Specify spin_version only once.");
+      }
+      has_spin_selector = true;
+      if (tokens.size() != 2 || tokens[1] != "1") {
+        PRINT_INPUT_ERROR("Unsupported spin_version (expected 1).");
+      }
+      spin_version = 1;
+    } else if (tokens[0] == "model_type") {
       parse_model_type(param.data(), param.size());
     } else if (tokens[0] == "charge_mode") {
       parse_charge_mode(param.data(), param.size());
