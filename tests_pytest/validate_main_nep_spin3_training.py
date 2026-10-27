@@ -149,7 +149,10 @@ def validate_parser(root):
     cases["duplicate_spin_version"] = NEP_IN + "spin_version 1\n"
     cases["mixed_spin_selectors"] = NEP_IN + "spin_mode 3\n"
     for keyword in ("model_type 1", "charge_mode 1", "vdw 1", "charge_vdw 1"):
-        cases["conflicting_" + keyword] = NEP_IN + keyword + "\n"
+        for first in (False, True):
+            # The complete selector input is checked before reading Spin keywords.
+            cases[f"conflicting_{keyword}_{first}"] = (
+                keyword + "\n" + NEP_IN if first else NEP_IN + keyword + "\n")
     cases["removed_mforce_mode"] = NEP_IN + "spin_mforce_mode full\n"
     results = {}
     for name, text in cases.items():
@@ -406,6 +409,7 @@ def validate_native_compiled_checkpoint(root):
                 raise RuntimeError(result.stdout + result.stderr)
             if compiled and (
                     "Compile specialized Spin3 training kernels" not in result.stdout or
+                    "Spin layout JIT ready:" not in result.stdout or
                     "specialization disabled" in (result.stdout + result.stderr).lower()):
                 raise AssertionError("Spin3 JIT did not compile successfully")
             cases.append(case)

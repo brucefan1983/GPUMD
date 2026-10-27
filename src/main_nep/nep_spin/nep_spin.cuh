@@ -94,6 +94,57 @@ private:
   NEP_Data nep_data[16];
   NEP_ZBL zbl;
   std::unique_ptr<NEP_Compiled_Evaluation> compiled_kernel_;
+  std::unique_ptr<NEP_Compile> compiled_spin_;
+  using SpinDescriptorFunction = void (*)(
+    Spin_Polynomial_Layout layout,
+    int atom_count,
+    int struct_dim,
+    int num_types,
+    int spin_basis_size,
+    float spin_cutoff,
+    const float* spin_cutoff_pair,
+    const int* type,
+    const int* spin_dof_type_active,
+    const int* spin_env_type_active,
+    const double* position,
+    const double* spin,
+    const int* NN_spin,
+    const int* NL_spin,
+    const double* r12_spin,
+    int r12_plane_size,
+    const float* descriptor_coefficients,
+    int spin_coefficient_offset,
+    const float* projection,
+    float* moments,
+    float* descriptors);
+  SpinDescriptorFunction spin_descriptor_jit_ = nullptr;
+  using SpinForceFunction = void (*)(
+    Spin_Polynomial_Layout layout,
+    int atom_count,
+    int struct_dim,
+    int num_types,
+    int spin_basis_size,
+    float spin_cutoff,
+    const float* spin_cutoff_pair,
+    const int* type,
+    const int* spin_dof_type_active,
+    const int* spin_env_type_active,
+    const double* position,
+    const double* spin,
+    const int* NN_spin,
+    const int* NL_spin,
+    const double* r12_spin,
+    int r12_plane_size,
+    const float* Fp,
+    const float* descriptor_coefficients,
+    int spin_coefficient_offset,
+    const float* projection,
+    const float* moments,
+    double* force,
+    double* mforce,
+    double* virial);
+  SpinForceFunction spin_force_jit_ = nullptr;
+  void initialize_spin_compiled(const Spin_Parameters&);
   void initialize(Spin_Parameters&, int, int);
   void initialize_model(const Spin_Parameters&);
   void initialize_device(const Spin_Parameters&, int, int);

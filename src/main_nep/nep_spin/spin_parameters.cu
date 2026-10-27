@@ -18,6 +18,9 @@
 #include <cstring>
 #include <limits>
 Spin_Parameters::Spin_Parameters(const ParameterInput& input) {
+  if (input.model_type != 0 || input.charge_mode || input.vdw || input.charge_vdw) {
+    PRINT_INPUT_ERROR("Spin NEP only supports a NEP4 potential model without charge/vdW.");
+  }
   read(input);
   if (!is_spin_cutoff_set) {
     spin_cutoff = rc_radial_max;

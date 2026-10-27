@@ -87,6 +87,7 @@ void NEP_Spin_Model::initialize_compiled_kernel(const Spin_Parameters& para) {
     config.source_file = "main_nep/nep/nep_specialized.cu";
     compiled_kernel_.reset(new NEP_Compiled_Evaluation(config));
     if (!compiled_kernel_->is_valid()) compiled_kernel_.reset();
+    initialize_spin_compiled(para);
   }
 }
 static void __global__ find_max_min(

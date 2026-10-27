@@ -60,9 +60,6 @@ ParameterInput::ParameterInput()
       keywords.push_back(tokens);
     }
   }
-  if (spin_version && (model_type != 0 || charge_mode || vdw || charge_vdw)) {
-    PRINT_INPUT_ERROR("Spin NEP only supports a NEP4 potential model without charge/vdW.");
-  }
   if ((charge_mode > 0) + vdw + charge_vdw > 1) {
     PRINT_INPUT_ERROR("charge_mode, vdw, and charge_vdw cannot be enabled simultaneously.");
   }

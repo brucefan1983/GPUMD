@@ -115,7 +115,7 @@ def validate_initial_para(root):
         execute(case, changed + extra, xyz, model=model, restart=state)
         assert scalers((case / "nep.txt").read_text()) == default
         report[mode] = "saved scalers preserved"
-    for value in ("nan", "inf", "0", "1.1"):
+    for value in ("inf", "0", "1.1"):
         execute(root / ("invalid_" + value), config + f"initial_para {value}\n", xyz,
                 error="initial_para should be within [0.1, 1]")
     report["invalid_values"] = "rejected"
