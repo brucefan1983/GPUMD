@@ -2,6 +2,7 @@
 // Link against the NEP objects except main_nep/main.o; run with a valid nep.in.
 #include "main_nep/nep_spin/spin_data.cuh"
 #include "main_nep/parameter_input.cuh"
+#include "main_nep/common/nep_batch_data.cuh"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -25,7 +26,7 @@ int main()
   NEP_Batch_Data<Spin_Data> batches;
   data.batch_index = 0;
   data.device_id = 0;
-  std::vector<Spin_Labels> labels(4);
+  std::vector<Spin_Data::Labels> labels(4);
   // Unequal active counts, an inactive atom, an unlabeled frame, and an
   // inactive-only frame; all errors are nonzero so masking failures are visible.
   const std::vector<int> sizes{2, 5, 1, 1}, starts{0, 2, 7, 8};

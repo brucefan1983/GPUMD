@@ -7,7 +7,6 @@
 */
 
 #include "spin_parameters.cuh"
-#include "spin_io.cuh"
 #include "main_nep/common/nep_model.cuh"
 #include "utilities/common.cuh"
 #include "utilities/nep_utilities.cuh"
@@ -37,7 +36,7 @@ Spin_Parameters::Spin_Parameters(const ParameterInput& input) {
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
   model_name = "nep_spin";
   set_regularization_defaults();
-  initialize_spin_checkpoint(*this);
+  initialize_spin_checkpoint();
   report_inputs(input, "Spin3 potential", nullptr);
   printf("Spin3 O%d/C%d: %d structural + %d magnetic descriptors, %d parameters.\n",
     spin_order, spin_compress, dim_struct, dim_spin, number_of_variables);

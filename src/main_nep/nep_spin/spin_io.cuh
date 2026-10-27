@@ -8,8 +8,5 @@
 
 #pragma once
 #include "spin_parameters.cuh"
-void initialize_spin_checkpoint(Spin_Parameters&);
 void read_spin_model(Spin_Parameters&, float*);
 void write_spin_model(FILE*, Spin_Parameters&, const float*, int max_radial, int max_angular);
-
-bool read_spin_restart(Spin_Parameters&, std::vector<float>&, std::vector<float>&);

@@ -17,4 +17,3 @@
 #include "main_nep/nep/nep.cuh"
 #undef private
 #include "main_nep/parameter_input.cuh"
-#include "main_nep/nep_spin/spin_init.cuh"

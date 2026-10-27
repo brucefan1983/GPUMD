@@ -1,25 +1,27 @@
 // Inspect actual SNES restore before sampling and dump fixed-state predictions.
 #include "main_nep/fitness.cuh"
+#include "main_nep/common/nep_init.cuh"
 #include "main_nep/snes.cuh"
 #include "spin_test_access.cuh"
 #include <cassert>
 #include <cmath>
-static void check_initialization(Parameters&) {}
+static void check_initialization(NEP&) {}
 
-static void check_initialization(Spin_Parameters& para)
+static void check_initialization(NEP_Spin_Model& model)
 {
+  auto& para = *model.model_parameters;
   std::mt19937 rng(12345678), same_rng(12345678);
   std::vector<float> mu(para.number_of_variables), sigma(mu.size());
   auto same_mu = mu;
   auto same_sigma = sigma;
-  snes_spin::initialize_search(para, rng, mu, sigma);
-  snes_spin::initialize_search(para, same_rng, same_mu, same_sigma);
+  model.initialize_search(rng, mu, sigma);
+  model.initialize_search(same_rng, same_mu, same_sigma);
   assert(mu == same_mu && sigma == same_sigma && rng == same_rng);
   // initial_para controls the scaler reference, never the SNES distribution.
   const float saved_initial_para = para.initial_para;
   para.initial_para = 0.5f;
   same_rng.seed(12345678);
-  snes_spin::initialize_search(para, same_rng, same_mu, same_sigma);
+  model.initialize_search(same_rng, same_mu, same_sigma);
   assert(mu == same_mu && sigma == same_sigma && rng == same_rng);
   para.initial_para = saved_initial_para;
   for (std::size_t i = 0; i < mu.size(); ++i) {
@@ -32,13 +34,16 @@ static void check_initialization(Spin_Parameters& para)
     assert(sigma[spin_offset + i] == para.sigma0 * 0.1f);
   }
   std::vector<int> types(mu.size(), para.num_types);
-  snes_spin::assign_variable_types(para, spin_offset, types);
+  std::vector<int> structural_types;
+  find_nep_type_of_variable(para, structural_types, 1, 1);
+  model.parameter_groups(types);
   for (int i = 0; i < para.number_of_variables_descriptor_spin; ++i) {
     assert(types[spin_offset + i] == (i % (para.num_types * para.num_types)) / para.num_types);
   }
-  assert(std::all_of(types.begin(), types.begin() + spin_offset, [&](int type) {
-    return type == para.num_types;
-  }));
+  assert(std::equal(types.begin(), types.begin() + spin_offset, structural_types.begin()));
+  assert(std::all_of(
+    types.begin() + spin_offset + para.number_of_variables_descriptor_spin,
+    types.end(), [&](int type) { return type == para.num_types; }));
 }
 
 class SearchProbe : public SNES
@@ -92,7 +97,7 @@ template <class Model>
 void probe(Model& model)
 {
   auto& p = *model.model_parameters;
-  check_initialization(p);
+  check_initialization(model);
   Fitness fitness(model);
   SearchProbe search(p, model);
   search.dump(p);

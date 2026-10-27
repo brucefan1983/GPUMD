@@ -6,16 +6,16 @@
     the production NEP_Spin runtime.
 */
 
-#include "spin_policy.cuh"
-#include "rotation_response.cuh"
+#include "nep_spin.cuh"
 #include "utilities/error.cuh"
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <map>
-namespace fitness_spin {
-void finalize_q_scaler(Spin_Parameters& para, int deviceCount)
+void NEP_Spin_Model::finalize_q_scaler()
 {
+  auto& para = *model_parameters;
+  const int deviceCount = training->device_count;
   std::vector<float> global_max(para.dim, -1.0e10f);
   std::vector<float> global_min(para.dim, 1.0e10f);
   std::vector<float> device_max(para.dim);
@@ -83,160 +83,7 @@ void finalize_q_scaler(Spin_Parameters& para, int deviceCount)
   }
   CHECK(gpuSetDevice(0));
 }
-void print_loss_header(bool split_mforce)
-{
-  printf(
-    "%-8s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s",
-    "Step",
-    "Total",
-    "L1Reg",
-    "L2Reg",
-    "E-Train",
-    "F-Train",
-    "V-Train",
-    "M-Train",
-    "T-Train",
-    "E-Test",
-    "F-Test",
-    "V-Test",
-    "M-Test",
-    "T-Test");
-  if (split_mforce) printf(" M-parallel-Train M-perp-Train M-parallel-Test M-perp-Test");
-  printf("\n");
-}
-void derive_spin_response_tangents(
-  const Spin_Parameters& para,
-  std::vector<Spin_Frame>& structures)
-{
-  std::map<std::string, std::vector<Spin_Frame*>> groups;
-  for (auto& structure : structures) {
-    structure.label.has_spin_response = 0;
-    structure.label.spin_tangent_x.clear();
-    structure.label.spin_tangent_y.clear();
-    structure.label.spin_tangent_z.clear();
-    if (structure.label.has_spin_response_metadata &&
-        structure.label.spin_response_probe == "rotation") {
-      if (!std::isfinite(structure.label.spin_response_coordinate)) {
-        PRINT_INPUT_ERROR("response_coordinate must be finite.");
-      }
-      groups[structure.label.spin_response_group].push_back(&structure);
-    }
-  }
-  if (groups.empty()) {
-    PRINT_INPUT_ERROR(
-      "lambda_spin_response requires rotation response frames in response.xyz.\n");
-  }
-
-  const auto differs = [](const float left, const float right) {
-    return !std::isfinite(left) || !std::isfinite(right) ||
-      std::abs(static_cast<double>(left) - static_cast<double>(right)) > 1.0e-6;
-  };
-  for (auto& item : groups) {
-    auto& members = item.second;
-    std::sort(members.begin(), members.end(), [](const Spin_Frame* left, const Spin_Frame* right) {
-      return left->label.spin_response_coordinate < right->label.spin_response_coordinate;
-    });
-    if (members.size() < 3) {
-      PRINT_INPUT_ERROR(
-        "Each rotation response_group needs at least three distinct "
-        "response_coordinate values.\n");
-    }
-    const Spin_Frame& reference = *members.front();
-    for (std::size_t k = 0; k < members.size(); ++k) {
-      Spin_Frame& structure = *members[k];
-      if (!std::isfinite(structure.label.spin_response_coordinate)) {
-        PRINT_INPUT_ERROR("response_coordinate must be finite.\n");
-      }
-      if (k > 0 &&
-          structure.label.spin_response_coordinate == members[k - 1]->label.spin_response_coordinate) {
-        PRINT_INPUT_ERROR(
-          "Each rotation response_group needs distinct response_coordinate values.\n");
-      }
-      if (!structure.label.has_mforce) {
-        PRINT_INPUT_ERROR(
-          "Each rotation response frame requires mforce:R:3.\n");
-      }
-      if (structure.geometry.num_atom != reference.geometry.num_atom ||
-          structure.geometry.type != reference.geometry.type) {
-        PRINT_INPUT_ERROR(
-          "A rotation response_group cannot change atom count, type, or order.\n");
-      }
-      for (int d = 0; d < 9; ++d) {
-        if (differs(structure.geometry.box_original[d], reference.geometry.box_original[d])) {
-          PRINT_INPUT_ERROR(
-            "A rotation response_group cannot change its cell.\n");
-        }
-      }
-      for (int atom = 0; atom < structure.geometry.num_atom; ++atom) {
-        if (differs(structure.geometry.x[atom], reference.geometry.x[atom]) ||
-            differs(structure.geometry.y[atom], reference.geometry.y[atom]) ||
-            differs(structure.geometry.z[atom], reference.geometry.z[atom])) {
-          PRINT_INPUT_ERROR(
-            "A rotation response_group cannot change atomic positions.\n");
-        }
-        if (!std::isfinite(structure.label.mfx[atom]) || !std::isfinite(structure.label.mfy[atom]) ||
-            !std::isfinite(structure.label.mfz[atom])) {
-          PRINT_INPUT_ERROR("Magnetic forces in response.xyz must be finite.");
-        }
-        if (!std::isfinite(structure.label.sx[atom]) ||
-            !std::isfinite(structure.label.sy[atom]) ||
-            !std::isfinite(structure.label.sz[atom])) {
-          PRINT_INPUT_ERROR(
-            "Converged DFT spins in a rotation response_group must be finite.\n");
-        }
-      }
-      structure.label.spin_tangent_x.resize(structure.geometry.num_atom);
-      structure.label.spin_tangent_y.resize(structure.geometry.num_atom);
-      structure.label.spin_tangent_z.resize(structure.geometry.num_atom);
-    }
-
-    double tangent_power = 0.0;
-    for (std::size_t k = 0; k < members.size(); ++k) {
-      const std::size_t first = k == 0 ? 0 : (k + 1 == members.size() ? k - 2 : k - 1);
-      const std::size_t second = first + 1;
-      const std::size_t third = first + 2;
-      const double x0 = members[first]->label.spin_response_coordinate;
-      const double x1 = members[second]->label.spin_response_coordinate;
-      const double x2 = members[third]->label.spin_response_coordinate;
-      const double x = members[k]->label.spin_response_coordinate;
-      const double w0 = (2.0 * x - x1 - x2) / ((x0 - x1) * (x0 - x2));
-      const double w1 = (2.0 * x - x0 - x2) / ((x1 - x0) * (x1 - x2));
-      const double w2 = (2.0 * x - x0 - x1) / ((x2 - x0) * (x2 - x1));
-      Spin_Frame& output = *members[k];
-      for (int atom = 0; atom < output.geometry.num_atom; ++atom) {
-        const bool active = para.spin_type_active[output.geometry.type[atom]] != 0;
-        std::array<double, 3> tangent = {{0.0, 0.0, 0.0}};
-        if (active) {
-          const std::array<double, 3> center = {{
-            output.label.sx[atom], output.label.sy[atom], output.label.sz[atom]}};
-          const std::size_t nodes[] = {first, second, third};
-          const double weights[] = {w0, w1, w2};
-          for (int j = 0; j < 3; ++j) {
-            const auto& node = *members[nodes[j]];
-            std::array<double, 3> delta;
-            if (!rotation_displacement(center, {{node.label.sx[atom], node.label.sy[atom], node.label.sz[atom]}}, delta)) {
-              PRINT_INPUT_ERROR(
-                "Antipodal spins in response rotation stencil; add intermediate rotation frames.\n");
-            }
-            for (int d = 0; d < 3; ++d) tangent[d] += weights[j] * delta[d];
-          }
-        }
-        output.label.spin_tangent_x[atom] = static_cast<float>(tangent[0]);
-        output.label.spin_tangent_y[atom] = static_cast<float>(tangent[1]);
-        output.label.spin_tangent_z[atom] = static_cast<float>(tangent[2]);
-        if (active) {
-          for (double value : tangent) tangent_power += value * value;
-        }
-      }
-      output.label.has_spin_response = 1;
-    }
-    if (tangent_power == 0.0) {
-      PRINT_INPUT_ERROR(
-        "A rotation response_group must contain a changing converged DFT spin path.\n");
-    }
-  }
-}
-void ResponseLoss::append(
+void NEP_Spin_Model::ResponseLoss::append(
   const int device_id,
   Dataset& dataset, Spin_Data& spin_data)
 {
@@ -273,7 +120,7 @@ static double huber_loss(const double residual)
   const double absolute = std::abs(residual);
   return absolute <= 1.0 ? 0.5 * residual * residual : absolute - 0.5;
 }
-float ResponseLoss::value() const
+float NEP_Spin_Model::ResponseLoss::value() const
 {
   std::map<std::string, std::vector<const Point*>> groups;
   for (const auto& point : points_) {
@@ -314,5 +161,4 @@ float ResponseLoss::value() const
   shape_loss /= groups.size();
   mean_loss /= groups.size();
   return static_cast<float>(shape_loss + 0.25 * mean_loss);
-}
 }

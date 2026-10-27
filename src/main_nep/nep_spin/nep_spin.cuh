@@ -23,7 +23,9 @@
 #include "main_nep/common/nep_compile.cuh"
 #include "main_nep/common/nep_evaluate.cuh"
 #include "main_nep/common/nep_common.cuh"
+#include "main_nep/common/nep_energy_reader.cuh"
 #include <memory>
+#include <set>
 
 #include "spin_data.cuh"
 class NEP_Spin_Model : public Potential {
@@ -80,6 +82,46 @@ public:
   };
 
 private:
+  class ResponseLoss {
+  public:
+    void append(int device_id, Dataset& dataset, Spin_Data& spin_data);
+    float value() const;
+
+  private:
+    struct Point {
+      std::string group;
+      double coordinate;
+      double prediction;
+      double target;
+    };
+    std::vector<Point> points_;
+  };
+
+  class Spin_Reader : public NEP_Energy_Reader {
+  public:
+    Spin_Reader(Spin_Parameters& p, EnergyDifference& e, NEP_Batch_Data<Spin_Data>& d)
+      : NEP_Energy_Reader(p,e), parameters(p), data(d) {}
+    void prepare_train(std::vector<Structure>&, int, int&, std::vector<int>&) override;
+    void prepare_test(const std::vector<Structure>&, bool) override;
+    void prepare_dataset(Dataset&) override;
+    const char* energy_difference_conflict(const Structure&, const Structure&) const override;
+    void read_response(std::vector<Structure>&, std::vector<Spin_Data::Labels>&);
+  private:
+    void begin_reading() override { labels.clear(); }
+    void read_structure(const XYZ_Record&, Structure&) override;
+    struct Frame {
+      const Structure& geometry;
+      Spin_Data::Labels& label;
+    };
+    void derive_spin_response_tangents(std::vector<Frame>&);
+    Spin_Parameters& parameters;
+    NEP_Batch_Data<Spin_Data>& data;
+    std::vector<Spin_Data::Labels> labels;
+    std::set<std::string> train_groups, test_groups, test_frames;
+  };
+
+  void finalize_q_scaler();
+  void initialize_search(std::mt19937&, std::vector<float>&, std::vector<float>&) const;
   std::unique_ptr<Spin_Parameters> model_parameters;
   std::unique_ptr<NEP_Training> training;
   NEP_Batch_Data<Spin_Data> magnetic_data;

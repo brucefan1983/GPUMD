@@ -1,5 +1,4 @@
 // Fixed-parameter model loss probe, independent of the SNES lifecycle.
-#include "main_nep/nep_spin/spin_policy.cuh"
 #include "spin_test_access.cuh"
 #include <cassert>
 #include <cmath>
@@ -28,14 +27,14 @@ static void check_response_loss()
     mf[i] = i - 1;
   }
   magnetic.mforce.copy_from_host(mf.data());
-  fitness_spin::ResponseLoss exact;
+  NEP_Spin_Model::ResponseLoss exact;
   assert(exact.value() == 0);
   exact.append(0, dataset, magnetic);
   assert(exact.value() == 0);
   for (int i = 0; i < 3; ++i)
     mf[i] += 1;
   magnetic.mforce.copy_from_host(mf.data());
-  fitness_spin::ResponseLoss shifted;
+  NEP_Spin_Model::ResponseLoss shifted;
   shifted.append(0, dataset, magnetic);
   const double expected = 0.25 * (1.0 / std::sqrt(2.0 / 3.0) - 0.5);
   assert(std::abs(shifted.value() - expected) < 1.0e-7);
@@ -53,7 +52,7 @@ static void check_response_loss()
   assert(std::abs(shifted.value() - 0.5 * expected) < 1.0e-7);
 
   // A genuinely zero-response reference uses the documented finite floor.
-  fitness_spin::ResponseLoss zero;
+  NEP_Spin_Model::ResponseLoss zero;
   for (int i = 0; i < 3; ++i) {
     magnetic.labels[i].mfx[0] = 0.0f;
     mf[i] = 0.0f;
@@ -73,7 +72,7 @@ int main()
   model.prepare_training();
   std::mt19937 rng(9876);
   std::vector<float> mu(p.number_of_variables), sigma(mu.size());
-  snes_spin::initialize_search(p, rng, mu, sigma);
+  model.initialize_search(rng, mu, sigma);
   std::vector<float> scaler(p.dim);
   p.q_scaler_gpu[0].copy_to_host(scaler.data());
   printf("SCALER");

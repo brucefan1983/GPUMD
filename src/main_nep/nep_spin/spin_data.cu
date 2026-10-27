@@ -58,7 +58,7 @@ static __global__ void gpu_find_spin_neighbors(
   }
 }
 
-void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::vector<Spin_Labels>& input) {
+void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::vector<Labels>& input) {
   const int N=dataset.N, Nc=dataset.Nc;
   labels.reserve(Nc);
   std::vector<double> position(3*N), moments(3*N);
@@ -108,6 +108,7 @@ void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::ve
     static_cast<int>(slots),NN_spin.data(),NL_spin.data(),r12_spin.data());
   GPU_CHECK_KERNEL
 }
+namespace {
 enum class MagneticError { Cartesian, Torque, Parallel, Perpendicular };
 
 template <MagneticError Channel>
@@ -263,6 +264,8 @@ static std::vector<float> get_rmse_spin_impl(
   }
   return rmse_array;
 }
+
+} // namespace
 
 std::vector<float>
 Spin_Data::get_rmse_mforce(Spin_Parameters& para, Dataset& dataset, const bool use_weight, int device_id)

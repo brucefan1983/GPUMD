@@ -6,8 +6,9 @@
     the production NEP_Spin runtime.
 */
 
-#include "spin_data.cuh"
-#include "spin_policy.cuh"
+#include "nep_spin.cuh"
+#include "rotation_response.cuh"
+#include <map>
 #include "main_nep/xyz_reader.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/error.cuh"
@@ -16,7 +17,7 @@
 #include <fstream>
 #include <sstream>
 
-static std::string frame_key(const Structure& geometry, const Spin_Labels& label) {
+static std::string frame_key(const Structure& geometry, const Spin_Data::Labels& label) {
   std::ostringstream key; key << std::hexfloat;
   for (int t:geometry.type) key << t << ',';
   key << ';'; for (float x:geometry.box_original) key << x << ',';
@@ -26,7 +27,7 @@ static std::string frame_key(const Structure& geometry, const Spin_Labels& label
   return key.str();
 }
 
-void Spin_Reader::read_structure(const XYZ_Record& record, Structure& structure) {
+void NEP_Spin_Model::Spin_Reader::read_structure(const XYZ_Record& record, Structure& structure) {
   NEP_Energy_Reader::read_structure(record,structure);
   labels.emplace_back();
   auto& label=labels.back();
@@ -96,14 +97,14 @@ void Spin_Reader::read_structure(const XYZ_Record& record, Structure& structure)
 
 }
 
-void Spin_Reader::prepare_train(std::vector<Structure>& structures, int batch_size, int& batches, std::vector<int>& sizes) {
+void NEP_Spin_Model::Spin_Reader::prepare_train(std::vector<Structure>& structures, int batch_size, int& batches, std::vector<int>& sizes) {
   for (const auto& structure:structures) {
     const auto& label=labels.at(structure.index_in_file);
     if (label.has_spin_response_metadata) train_groups.insert(label.spin_response_group);
   }
   NEP_Energy_Reader::prepare_train(structures,batch_size,batches,sizes);
 }
-void Spin_Reader::prepare_test(const std::vector<Structure>& structures, bool has_test_set) {
+void NEP_Spin_Model::Spin_Reader::prepare_test(const std::vector<Structure>& structures, bool has_test_set) {
   for (const auto& structure:structures) {
     const auto& label=labels.at(structure.index_in_file);
     if (label.has_spin_response_metadata) {
@@ -115,11 +116,11 @@ void Spin_Reader::prepare_test(const std::vector<Structure>& structures, bool ha
   }
   NEP_Energy_Reader::prepare_test(structures,has_test_set);
 }
-void Spin_Reader::prepare_dataset(Dataset& dataset) {
+void NEP_Spin_Model::Spin_Reader::prepare_dataset(Dataset& dataset) {
   NEP_Energy_Reader::prepare_dataset(dataset);
   data.create(dataset).construct(parameters,dataset,labels);
 }
-const char* Spin_Reader::energy_difference_conflict(const Structure& a, const Structure& b) const {
+const char* NEP_Spin_Model::Spin_Reader::energy_difference_conflict(const Structure& a, const Structure& b) const {
   const char* conflict=NEP_Energy_Reader::energy_difference_conflict(a,b);
   if (!conflict) return nullptr;
   const auto& x=labels.at(a.index_in_file);const auto& y=labels.at(b.index_in_file);
@@ -128,7 +129,7 @@ const char* Spin_Reader::energy_difference_conflict(const Structure& a, const St
   }
   return "have the same geometry and spins, for which the model predicts the same energy.";
 }
-void Spin_Reader::read_response(std::vector<Structure>& structures, std::vector<Spin_Labels>& response_labels) {
+void NEP_Spin_Model::Spin_Reader::read_response(std::vector<Structure>& structures, std::vector<Spin_Data::Labels>& response_labels) {
   std::ifstream input("response.xyz");
   if (!input.is_open()) PRINT_INPUT_ERROR("lambda_spin_response > 0 requires response.xyz.");
   XYZ_Reader reader(input,"response.xyz"); XYZ_Record record;
@@ -141,8 +142,140 @@ void Spin_Reader::read_response(std::vector<Structure>& structures, std::vector<
     if (test_groups.count(label.spin_response_group)) PRINT_INPUT_ERROR("response_group leakage between response.xyz and test.xyz.");
     if (test_frames.count(frame_key(structures.back(),label))) PRINT_INPUT_ERROR("Response frame leakage between response.xyz and test.xyz.");
   }
-  std::vector<Spin_Frame> frames;
+  std::vector<Frame> frames;
   for (int i=0;i<structures.size();++i) frames.push_back({structures[i],labels[i]});
-  fitness_spin::derive_spin_response_tangents(parameters,frames);
+  derive_spin_response_tangents(frames);
   response_labels=std::move(labels);
+}
+
+void NEP_Spin_Model::Spin_Reader::derive_spin_response_tangents(std::vector<Frame>& structures)
+{
+  const auto& para = parameters;
+  std::map<std::string, std::vector<Frame*>> groups;
+  for (auto& structure : structures) {
+    structure.label.has_spin_response = 0;
+    structure.label.spin_tangent_x.clear();
+    structure.label.spin_tangent_y.clear();
+    structure.label.spin_tangent_z.clear();
+    if (structure.label.has_spin_response_metadata &&
+        structure.label.spin_response_probe == "rotation") {
+      if (!std::isfinite(structure.label.spin_response_coordinate)) {
+        PRINT_INPUT_ERROR("response_coordinate must be finite.");
+      }
+      groups[structure.label.spin_response_group].push_back(&structure);
+    }
+  }
+  if (groups.empty()) {
+    PRINT_INPUT_ERROR(
+      "lambda_spin_response requires rotation response frames in response.xyz.\n");
+  }
+
+  const auto differs = [](const float left, const float right) {
+    return !std::isfinite(left) || !std::isfinite(right) ||
+      std::abs(static_cast<double>(left) - static_cast<double>(right)) > 1.0e-6;
+  };
+  for (auto& item : groups) {
+    auto& members = item.second;
+    std::sort(members.begin(), members.end(), [](const Frame* left, const Frame* right) {
+      return left->label.spin_response_coordinate < right->label.spin_response_coordinate;
+    });
+    if (members.size() < 3) {
+      PRINT_INPUT_ERROR(
+        "Each rotation response_group needs at least three distinct "
+        "response_coordinate values.\n");
+    }
+    const Frame& reference = *members.front();
+    for (std::size_t k = 0; k < members.size(); ++k) {
+      Frame& structure = *members[k];
+      if (!std::isfinite(structure.label.spin_response_coordinate)) {
+        PRINT_INPUT_ERROR("response_coordinate must be finite.\n");
+      }
+      if (k > 0 &&
+          structure.label.spin_response_coordinate == members[k - 1]->label.spin_response_coordinate) {
+        PRINT_INPUT_ERROR(
+          "Each rotation response_group needs distinct response_coordinate values.\n");
+      }
+      if (!structure.label.has_mforce) {
+        PRINT_INPUT_ERROR(
+          "Each rotation response frame requires mforce:R:3.\n");
+      }
+      if (structure.geometry.num_atom != reference.geometry.num_atom ||
+          structure.geometry.type != reference.geometry.type) {
+        PRINT_INPUT_ERROR(
+          "A rotation response_group cannot change atom count, type, or order.\n");
+      }
+      for (int d = 0; d < 9; ++d) {
+        if (differs(structure.geometry.box_original[d], reference.geometry.box_original[d])) {
+          PRINT_INPUT_ERROR(
+            "A rotation response_group cannot change its cell.\n");
+        }
+      }
+      for (int atom = 0; atom < structure.geometry.num_atom; ++atom) {
+        if (differs(structure.geometry.x[atom], reference.geometry.x[atom]) ||
+            differs(structure.geometry.y[atom], reference.geometry.y[atom]) ||
+            differs(structure.geometry.z[atom], reference.geometry.z[atom])) {
+          PRINT_INPUT_ERROR(
+            "A rotation response_group cannot change atomic positions.\n");
+        }
+        if (!std::isfinite(structure.label.mfx[atom]) || !std::isfinite(structure.label.mfy[atom]) ||
+            !std::isfinite(structure.label.mfz[atom])) {
+          PRINT_INPUT_ERROR("Magnetic forces in response.xyz must be finite.");
+        }
+        if (!std::isfinite(structure.label.sx[atom]) ||
+            !std::isfinite(structure.label.sy[atom]) ||
+            !std::isfinite(structure.label.sz[atom])) {
+          PRINT_INPUT_ERROR(
+            "Converged DFT spins in a rotation response_group must be finite.\n");
+        }
+      }
+      structure.label.spin_tangent_x.resize(structure.geometry.num_atom);
+      structure.label.spin_tangent_y.resize(structure.geometry.num_atom);
+      structure.label.spin_tangent_z.resize(structure.geometry.num_atom);
+    }
+
+    double tangent_power = 0.0;
+    for (std::size_t k = 0; k < members.size(); ++k) {
+      const std::size_t first = k == 0 ? 0 : (k + 1 == members.size() ? k - 2 : k - 1);
+      const std::size_t second = first + 1;
+      const std::size_t third = first + 2;
+      const double x0 = members[first]->label.spin_response_coordinate;
+      const double x1 = members[second]->label.spin_response_coordinate;
+      const double x2 = members[third]->label.spin_response_coordinate;
+      const double x = members[k]->label.spin_response_coordinate;
+      const double w0 = (2.0 * x - x1 - x2) / ((x0 - x1) * (x0 - x2));
+      const double w1 = (2.0 * x - x0 - x2) / ((x1 - x0) * (x1 - x2));
+      const double w2 = (2.0 * x - x0 - x1) / ((x2 - x0) * (x2 - x1));
+      Frame& output = *members[k];
+      for (int atom = 0; atom < output.geometry.num_atom; ++atom) {
+        const bool active = para.spin_type_active[output.geometry.type[atom]] != 0;
+        std::array<double, 3> tangent = {{0.0, 0.0, 0.0}};
+        if (active) {
+          const std::array<double, 3> center = {{
+            output.label.sx[atom], output.label.sy[atom], output.label.sz[atom]}};
+          const std::size_t nodes[] = {first, second, third};
+          const double weights[] = {w0, w1, w2};
+          for (int j = 0; j < 3; ++j) {
+            const auto& node = *members[nodes[j]];
+            std::array<double, 3> delta;
+            if (!fitness_spin::rotation_displacement(center, {{node.label.sx[atom], node.label.sy[atom], node.label.sz[atom]}}, delta)) {
+              PRINT_INPUT_ERROR(
+                "Antipodal spins in response rotation stencil; add intermediate rotation frames.\n");
+            }
+            for (int d = 0; d < 3; ++d) tangent[d] += weights[j] * delta[d];
+          }
+        }
+        output.label.spin_tangent_x[atom] = static_cast<float>(tangent[0]);
+        output.label.spin_tangent_y[atom] = static_cast<float>(tangent[1]);
+        output.label.spin_tangent_z[atom] = static_cast<float>(tangent[2]);
+        if (active) {
+          for (double value : tangent) tangent_power += value * value;
+        }
+      }
+      output.label.has_spin_response = 1;
+    }
+    if (tangent_power == 0.0) {
+      PRINT_INPUT_ERROR(
+        "A rotation response_group must contain a changing converged DFT spin path.\n");
+    }
+  }
 }

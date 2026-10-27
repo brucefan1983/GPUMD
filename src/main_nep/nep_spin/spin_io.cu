@@ -116,7 +116,8 @@ void read_spin_model(Spin_Parameters& para, float* parameters)
   CHECK(gpuSetDevice(0));
 }
 
-void initialize_spin_checkpoint(Spin_Parameters& para) {
+void Spin_Parameters::initialize_spin_checkpoint() {
+  auto& para = *this;
   para.spin_restart = !para.prediction && std::ifstream("nep.restart").good();
   para.q_scaler_cpu.assign(para.dim, 1.0e10f);
   int devices; CHECK(gpuGetDeviceCount(&devices));
@@ -137,7 +138,7 @@ void initialize_spin_checkpoint(Spin_Parameters& para) {
   }
   if (para.spin_restart) {
     std::vector<float> mu, sigma;
-    read_spin_restart(para, mu, sigma);
+    read_nep_restart("nep.restart", para, mu, sigma, &para.energy_reference);
   } else if (!para.prediction) {
     // import_q_scaler imports only the scaler; new training fits its own reference.
     para.energy_reference.clear();
@@ -150,9 +151,4 @@ void write_spin_model(FILE* fid_nep, Spin_Parameters& para, const float* elite, 
   write_nep_header(fid_nep, para, max_NN_radial, max_NN_angular);
   write_checkpoint_metadata(fid_nep, para);
   write_nep_model_parameters(fid_nep, para, elite);
-}
-
-bool read_spin_restart(Spin_Parameters& para, std::vector<float>& mu, std::vector<float>& sigma)
-{
-  return read_nep_restart("nep.restart", para, mu, sigma, &para.energy_reference);
 }

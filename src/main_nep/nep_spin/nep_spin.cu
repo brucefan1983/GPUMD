@@ -4,9 +4,7 @@
 */
 
 #include "nep_spin.cuh"
-#include "spin_init.cuh"
 #include "spin_io.cuh"
-#include "spin_policy.cuh"
 #include "main_nep/common/nep_output.cuh"
 #include "main_nep/common/nep_init.cuh"
 #include "main_nep/common/nep_io.cuh"
@@ -286,7 +284,7 @@ int NEP_Spin_Model::prepare_data()
   int capacity = training->N;
   if (para.lambda_spin_response > 0 && !para.prediction) {
     std::vector<Structure> frames;
-    std::vector<Spin_Labels> labels;
+    std::vector<Spin_Data::Labels> labels;
     reader.read_response(frames, labels);
     if (frames.empty()) PRINT_INPUT_ERROR("response.xyz must not be empty.");
     response_set.resize(training->device_count);
@@ -324,7 +322,7 @@ void NEP_Spin_Model::prepare_training()
   // A fixed reference descriptor model makes scaling independent of population and seed.
   std::mt19937 reference_rng(12345678);
   std::vector<float> mu(para.number_of_variables), sigma(para.number_of_variables);
-  snes_spin::initialize_search(para, reference_rng, mu, sigma);
+  initialize_search(reference_rng, mu, sigma);
   // Scale radial coefficients only: constant/scaled projection matrices would
   // change the relative scaling of the different magnetic contraction orders.
   const int radial_end = para.number_of_variables - para.number_of_variables_spin_projection;
@@ -336,14 +334,14 @@ void NEP_Spin_Model::prepare_training()
     parameters.insert(parameters.end(), mu.begin(), mu.end());
   for (int batch = 0; batch < training->num_batches; ++batch)
     find_force(para, parameters.data(), training->train_set[batch], true, training->device_count);
-  fitness_spin::finalize_q_scaler(para, training->device_count);
+  finalize_q_scaler();
 }
 
 void NEP_Spin_Model::initialize_parameters(std::mt19937& rng, std::vector<float>& mu, std::vector<float>& sigma)
 {
   auto& para = *model_parameters;
-  if (!read_spin_restart(para, mu, sigma))
-    snes_spin::initialize_search(para, rng, mu, sigma);
+  if (!read_nep_restart("nep.restart", para, mu, sigma, &para.energy_reference))
+    initialize_search(rng, mu, sigma);
 }
 void NEP_Spin_Model::parameter_groups(std::vector<int>& groups)
 {
@@ -351,7 +349,20 @@ void NEP_Spin_Model::parameter_groups(std::vector<int>& groups)
   find_nep_type_of_variable(para, groups, 1, 1);
   const int offset = para.number_of_variables - para.number_of_variables_descriptor_spin -
     para.number_of_variables_spin_projection;
-  snes_spin::assign_variable_types(para, offset, groups);
+  for (int channel = 0; channel < para.spin_compress; ++channel) {
+    for (int basis = 0; basis <= para.spin_basis_size[0]; ++basis) {
+      for (int t1 = 0; t1 < para.num_types; ++t1) {
+        for (int t2 = 0; t2 < para.num_types; ++t2) {
+          const int pair = t1 * para.num_types + t2;
+          const int coefficient =
+            (channel * (para.spin_basis_size[0] + 1) + basis) *
+              para.num_types * para.num_types +
+            pair;
+          groups[offset + coefficient] = t1;
+        }
+      }
+    }
+  }
 }
 void NEP_Spin_Model::read_model(float* parameters) { read_spin_model(*model_parameters, parameters); }
 void NEP_Spin_Model::write_restart(const char* filename, const std::vector<float>& mu, const std::vector<float>& sigma)
@@ -361,7 +372,7 @@ void NEP_Spin_Model::write_restart(const char* filename, const std::vector<float
 float NEP_Spin_Model::response_loss(int device)
 {
   if (response_set.empty()) return 0.0f;
-  fitness_spin::ResponseLoss response;
+  ResponseLoss response;
   response.append(device, response_set[device], *response_data[device]);
   return response.value();
 }
@@ -411,7 +422,24 @@ void NEP_Spin_Model::accumulate_fitness(float* total)
 }
 void NEP_Spin_Model::print_training_header()
 {
-  fitness_spin::print_loss_header(model_parameters->split_mforce_loss);
+  printf(
+    "%-8s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s%-11s",
+    "Step",
+    "Total",
+    "L1Reg",
+    "L2Reg",
+    "E-Train",
+    "F-Train",
+    "V-Train",
+    "M-Train",
+    "T-Train",
+    "E-Test",
+    "F-Test",
+    "V-Test",
+    "M-Test",
+    "T-Test");
+  if (model_parameters->split_mforce_loss) printf(" M-parallel-Train M-perp-Train M-parallel-Test M-perp-Test");
+  printf("\n");
 }
 void NEP_Spin_Model::write_magnetic_predictions(
   const char* prefix, const std::vector<std::pair<Dataset*, int>>& structures)

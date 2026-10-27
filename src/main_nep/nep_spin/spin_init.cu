@@ -6,13 +6,13 @@
     the production NEP_Spin runtime.
 */
 
-#include "spin_init.cuh"
+#include "nep_spin.cuh"
 #include <algorithm>
 #include <cmath>
-namespace snes_spin {
-void initialize_search(const Spin_Parameters& para, std::mt19937& rng,
-  std::vector<float>& mu, std::vector<float>& sigma)
+void NEP_Spin_Model::initialize_search(std::mt19937& rng,
+  std::vector<float>& mu, std::vector<float>& sigma) const
 {
+  const auto& para = *model_parameters;
   std::normal_distribution<float> normal(0.0f, 1.0f);
   const float input_scale =
     1.0f / std::sqrt(float(para.dim + para.num_neurons1));
@@ -124,22 +124,4 @@ void initialize_search(const Spin_Parameters& para, std::mt19937& rng,
       }
     }
   }
-}
-void assign_variable_types(const Spin_Parameters& para, int offset, std::vector<int>& type_of_variable)
-{
-  for (int channel = 0; channel < para.spin_compress; ++channel) {
-    for (int basis = 0; basis <= para.spin_basis_size[0]; ++basis) {
-      for (int t1 = 0; t1 < para.num_types; ++t1) {
-        for (int t2 = 0; t2 < para.num_types; ++t2) {
-          const int pair = t1 * para.num_types + t2;
-          const int coefficient =
-            (channel * (para.spin_basis_size[0] + 1) + basis) *
-              para.num_types * para.num_types +
-            pair;
-          type_of_variable[offset + coefficient] = t1;
-        }
-      }
-    }
-  }
-}
 }
