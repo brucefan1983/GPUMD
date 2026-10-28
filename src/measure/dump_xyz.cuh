@@ -17,7 +17,7 @@
 #include "parse_utilities.cuh"
 #include "action.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "xyz_frame_splitter.h"
+#include "xyz_frame_splitter.cuh"
 #include <string>
 #include <vector>
 class Box;
