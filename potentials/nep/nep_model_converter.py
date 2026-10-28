@@ -20,7 +20,7 @@ MODELS = {
     "_dipole": ("nep_dipole", 0, 0, 1, 1),
     "_polarizability": ("nep_polarizability", 0, 0, 1, 2),
     "_vdw": ("nep_vdw", 0, 1, 1, 1),
-    "_charge_vdw": ("qnep2_vdw", 0, 2, 2, 1),
+    "_charge_vdw": ("qnep3_vdw", 0, 2, 2, 1),
 }
 ELEMENTS = {
     element.lower(): element for element in (
