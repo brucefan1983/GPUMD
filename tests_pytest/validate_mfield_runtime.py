@@ -39,6 +39,15 @@ def main():
                 assert abs((after[7+k]-before[7+k])-h[k]) < 2e-12
             expected = -sum(before[4+k]*h[k] for k in range(3))
             assert abs(after[10]-before[10]-expected) < 2e-12
+        excluded = model.splitlines()
+        fields = excluded[3].split()
+        fields[0] = "Ge"
+        excluded[3] = " ".join(fields)
+        excluded = "\n".join(excluded) + "\n"
+        masked = static("excluded-off", "", excluded)
+        masked_field = static("excluded-on", "add_mfield 1 1 12 -7 31", excluded)
+        assert masked_field[1][4:10] == [0.0] * 6
+        assert abs(masked_field[1][10] - masked[1][10]) < 2e-12
         cleared = static('cleared', 'add_mfield 1 1 12 -7 31\nadd_mfield 0 0 0 0 0')
         assert cleared == baseline
         negative = ['add_mfield 0 0 1 2', 'add_mfield -1 0 1 2 3',

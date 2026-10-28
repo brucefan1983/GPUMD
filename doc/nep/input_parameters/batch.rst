@@ -11,9 +11,7 @@ The syntax is::
   batch <batch_size>
 
 Here, :attr:`<batch_size>` sets the batch size :math:`N_\mathrm{bat}`, which must satisfy :math:`N_\mathrm{bat}\geq 1` and defaults to :math:`N_\mathrm{bat}=1000`.
-For :ref:`lambda_spin_response <kw_lambda_spin_response>`, this setting still
-controls only ordinary training data. Complete groups in ``response.xyz``
-are evaluated separately in every generation. The keyword takes one argument.
+This setting does not control :ref:`response.xyz <response_xyz>` data.
 
 In principle one can train against the entire training set during every iteration of the optimization procedure (equivalent to :math:`N_\mathrm{bat}` being identical to the number of structures in the training set).
 It is, however, often beneficial for computational speed and potentially necessary for memory reasons to consider only a subset of the training data at any given iteration.

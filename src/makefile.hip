@@ -19,7 +19,7 @@ HIP_ARCH ?= gfx90a
 # hipcc defaults to it, so do not pin -std lower.
 CFLAGS = -O3 --offload-arch=$(HIP_ARCH) -DUSE_HIP
 INC = -I./
-LDFLAGS =
+LDFLAGS = 
 LIBS = -lhipblas -lhipsolver -lhipfft
 
 
@@ -114,3 +114,4 @@ main_nep/%.o: main_nep/%.cu $(HEADERS)
 ###########################################################
 clean:
 	rm -f */*.o */*/*.o gpumd nep
+

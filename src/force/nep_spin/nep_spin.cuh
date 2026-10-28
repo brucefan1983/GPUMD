@@ -15,32 +15,6 @@
 #include <string>
 #include <vector>
 
-struct NEP_Spin_Data {
-  GPU_Vector<float> parameters;
-  GPU_Vector<float> descriptor_parameters_type_pair;
-  GPU_Vector<float> descriptor;
-  GPU_Vector<float> Fp;
-  GPU_Vector<float> sum_fxyz;
-  GPU_Vector<float> f12x;
-  GPU_Vector<float> f12y;
-  GPU_Vector<float> f12z;
-  GPU_Vector<double> energy_reference;
-  GPU_Vector<int> spin_dof_type_active;
-  GPU_Vector<int> spin_env_type_active;
-  GPU_Vector<float> spin_cutoff_pair;
-  GPU_Vector<float> spin_projection_parameters;
-  GPU_Vector<float> spin3_moments;
-  GPU_Vector<int> NN_radial;
-  GPU_Vector<int> NL_radial;
-  GPU_Vector<int> NN_angular;
-  GPU_Vector<int> NL_angular;
-  GPU_Vector<int> NN_spin;
-  GPU_Vector<int> NL_spin;
-  GPU_Vector<double> r12_radial;
-  GPU_Vector<double> r12_angular;
-  GPU_Vector<double> r12_spin;
-};
-
 class NEP_Spin : public Potential
 {
 public:
@@ -82,6 +56,32 @@ public:
     int descriptor_dim = 0;
   };
 
+private:
+  struct Data {
+    GPU_Vector<float> parameters;
+    GPU_Vector<float> descriptor_parameters_type_pair;
+    GPU_Vector<float> descriptor;
+    GPU_Vector<float> Fp;
+    GPU_Vector<float> sum_fxyz;
+    GPU_Vector<float> f12x;
+    GPU_Vector<float> f12y;
+    GPU_Vector<float> f12z;
+    GPU_Vector<double> energy_reference;
+    GPU_Vector<int> spin_type_active;
+    GPU_Vector<float> spin_cutoff_pair;
+    GPU_Vector<float> spin_projection_parameters;
+    GPU_Vector<float> spin3_moments;
+    GPU_Vector<int> NN_radial;
+    GPU_Vector<int> NL_radial;
+    GPU_Vector<int> NN_angular;
+    GPU_Vector<int> NL_angular;
+    GPU_Vector<int> NN_spin;
+    GPU_Vector<int> NL_spin;
+    GPU_Vector<double> r12_radial;
+    GPU_Vector<double> r12_angular;
+    GPU_Vector<double> r12_spin;
+  };
+
   struct Body_Channels {
     int l_max_3body = 0;
     bool has_q_222 = false;
@@ -95,7 +95,6 @@ public:
   };
 
   struct Model {
-    int spin_mode = 3;
     int num_types = 0;
     int n_max_radial = 0;
     int n_max_angular = 0;
@@ -125,13 +124,13 @@ public:
     std::size_t model_parameter_count = 0;
     std::vector<std::string> elements;
     std::vector<double> energy_reference;
-    std::vector<int> spin_dof_type_active;
-    std::vector<int> spin_env_type_active;
+    std::vector<int> spin_type_active;
     std::vector<double> spin_cutoff_by_type;
     Body_Channels body;
     Spin_Polynomial_Layout spin_polynomial_layout;
   };
 
+public:
   NEP_Spin(const char* file_potential, const int num_atoms);
   virtual ~NEP_Spin(void);
 
@@ -158,12 +157,31 @@ public:
   void resize_domain(int num_atoms);
   void invalidate_neighbors() { neighbor_.invalidate(); }
 
-  const Model& model(void) const { return model_; }
+  const std::vector<int>& spin_types() const { return model_.spin_type_active; }
 
 private:
   Model model_;
-  NEP_Spin_Data data_;
-  Neighbor neighbor_;
+  Data data_;
+  class Neighbors
+  {
+  public:
+    GPU_Vector<int> NN, NL;
+    void initialize(double rc, int atoms, int capacity);
+    void invalidate() { valid_ = false; }
+    int get_capacity() const { return capacity_; }
+    double minimum_safe_box_thickness(double rc) const { return 2.5 * (rc + skin_); }
+    void find_neighbor_global(
+      double rc, Box& box, const GPU_Vector<int>& type, const GPU_Vector<double>& position);
+
+  private:
+    static constexpr double skin_ = 1.0;
+    int capacity_ = 0;
+    bool valid_ = false;
+    double box_[9] = {};
+    GPU_Vector<int> cell_count_, cell_sum_, cell_contents_, flag_;
+    GPU_Vector<double> reference_;
+  };
+  Neighbors neighbor_;
   NEP::ParaMB paramb_;
   NEP::ANN ann_;
   NEP::ZBL zbl_;
@@ -174,6 +192,70 @@ private:
   bool small_box_initialized_ = false;
   int small_box_capacity_ = 0;
   NEP::ExpandedBox expanded_box_;
+
+  template <int atoms_per_warp, int edge_lanes, bool l4_q222_only>
+  void launch_force_angular_warp(
+    const NEP::ParaMB& paramb,
+    const NEP::ANN& ann,
+    const Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    const Data& data,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial,
+    const int grid_size,
+    const int block_size,
+    const std::size_t shared_size);
+
+  template <int C>
+  void launch_spin3_descriptors_typed(
+    const Model& model,
+    const Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    const GPU_Vector<double>& spin,
+    Data& data,
+    const double* slot_r12 = nullptr,
+    int r12_plane_size = 0,
+    gpuStream_t stream = nullptr);
+
+  void launch_spin3_descriptors(
+    const Model& model,
+    const Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    const GPU_Vector<double>& spin,
+    Data& data,
+    const double* slot_r12 = nullptr,
+    int r12_plane_size = 0,
+    gpuStream_t stream = nullptr);
+
+  template <int C>
+  void launch_spin3_forces_typed(
+    const Model& model,
+    const Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    const GPU_Vector<double>& spin,
+    Data& data,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& mforce,
+    GPU_Vector<double>& virial,
+    const double* slot_r12 = nullptr,
+    int r12_plane_size = 0);
+
+  void launch_spin3_forces(
+    const Model& model,
+    const Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    const GPU_Vector<double>& spin,
+    Data& data,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& mforce,
+    GPU_Vector<double>& virial,
+    const double* slot_r12 = nullptr,
+    int r12_plane_size = 0);
 
   void read_model(const char* file_potential);
   void initialize_small_box(const Box& box);

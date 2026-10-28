@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate spin3 training, checkpoint prediction, and GPUMD runtime parity."""
+"""Validate spin3 training, checkpoint prediction, and restart parity."""
 
 import argparse
 import json
@@ -13,14 +13,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 NEP = Path(os.environ.get("NEP_COMMAND", ROOT / "src" / "nep"))
-GPUMD = Path(os.environ.get("GPUMD_COMMAND", ROOT / "src" / "gpumd"))
 
 NEP_IN = """\
 type 2 Fe Ge
 version 4
 spin_version 1
-spin_dof_type Fe
-spin_env_type Fe Ge
+spin_type Fe
 cutoff 6.0 5.0
 n_max 0 0
 basis_size 0 0
@@ -47,13 +45,13 @@ Lattice="24 0 0 0 24 0 0 0 24" Properties=species:S:1:pos:R:3:force:R:3:spin:R:3
 Fe 1.0 1.0 1.0 0 0 0 1.0 0.1 0.0 0.2 -0.1 0.05
 Fe 2.2 1.1 1.0 0 0 0 0.8 -0.2 0.1 -0.1 0.2 -0.05
 Ge 1.4 2.3 1.1 0 0 0 0.0 0.0 0.0 9.0 9.0 9.0
-Ge 2.8 2.1 1.4 0 0 0 0.1 0.0 0.0 9.0 9.0 9.0
+Ge 2.8 2.1 1.4 0 0 0 0.0 0.0 0.0 9.0 9.0 9.0
 4
 Lattice="24 0 0 0 24 0 0 0 24" Properties=species:S:1:pos:R:3:force:R:3:spin:R:3:mforce:R:3 energy=-2.0 virial="0 0 0 0 0 0 0 0 0"
 Fe 1.2 1.0 1.0 0 0 0 0.9 0.0 0.2 0.1 0.0 -0.2
 Ge 2.1 1.4 1.0 0 0 0 0.0 0.0 0.0 8.0 8.0 8.0
-Ge 1.5 2.4 1.2 0 0 0 0.0 0.1 0.0 8.0 8.0 8.0
-Ge 2.8 2.5 1.5 0 0 0 0.0 0.0 0.1 8.0 8.0 8.0
+Ge 1.5 2.4 1.2 0 0 0 0.0 0.0 0.0 8.0 8.0 8.0
+Ge 2.8 2.5 1.5 0 0 0 0.0 0.0 0.0 8.0 8.0 8.0
 4
 Lattice="24 0 0 0 24 0 0 0 24" Properties=species:S:1:pos:R:3:force:R:3:spin:R:3:mforce:R:3 energy=-6.0 virial="0 0 0 0 0 0 0 0 0"
 Fe 1.0 1.0 1.0 0 0 0 1.0 0.0 0.0 0.0 0.1 0.0
@@ -114,16 +112,26 @@ def flatten(values):
     return result
 
 
+def finite_values(values):
+    values = flatten(values)
+    if not values:
+        raise AssertionError("empty numerical result")
+    for index, value in enumerate(values):
+        if not math.isfinite(value):
+            raise AssertionError(f"nonfinite value at index {index}: {value}")
+    return values
+
+
 def maximum_error(left, right):
-    left = flatten(left)
-    right = flatten(right)
+    left = finite_values(left)
+    right = finite_values(right)
     if len(left) != len(right):
         raise AssertionError(f"shape mismatch: {len(left)} != {len(right)}")
     return max(abs(a - b) for a, b in zip(left, right))
 
 
 def parity_tolerance(left, right):
-    scale = max(abs(value) for value in flatten(left) + flatten(right))
+    scale = max(abs(value) for value in finite_values(left) + finite_values(right))
     return 5.0e-5 + 5.0e-6 * scale
 
 
@@ -135,8 +143,7 @@ def validate_parser(root):
         "invalid_order": NEP_IN.replace("spin_order 3", "spin_order 4"),
         "invalid_soc": NEP_IN.replace("spin_soc 1", "spin_soc 2"),
         "oversized_spin_shape": NEP_IN.replace("spin_compress 2", "spin_compress 4"),
-        "removed_spin_mode_1": NEP_IN.replace("spin_version 1", "spin_mode 1"),
-        "removed_spin_mode_2": NEP_IN.replace("spin_version 1", "spin_mode 2"),
+        "removed_spin_mode": NEP_IN.replace("spin_version 1", "spin_mode 3"),
         "invalid_spin_cutoff_arity": NEP_IN.replace(
             "spin_cutoff 6.0", "spin_cutoff 4.0 5.0 6.0"),
         "removed_spin_chiral": NEP_IN.replace("spin_soc 1", "spin_soc 1\nspin_chiral 1"),
@@ -149,11 +156,11 @@ def validate_parser(root):
         cases[f"invalid_spin_version_{value}"] = NEP_IN.replace("spin_version 1", f"spin_version {value}")
     cases["duplicate_spin_version"] = NEP_IN + "spin_version 1\n"
     cases["mixed_spin_selectors"] = NEP_IN + "spin_mode 3\n"
-    cases["mixed_spin_selectors_reverse"] = "spin_mode 3\n" + NEP_IN
-    cases["mixed_disabled_spin_selector"] = NEP_IN + "spin_mode 0\n"
-    cases["duplicate_legacy_spin_selector"] = NEP_IN.replace("spin_version 1", "spin_mode 3\nspin_mode 3")
     for keyword in ("model_type 1", "charge_mode 1", "vdw 1", "charge_vdw 1"):
-        cases["conflicting_" + keyword] = NEP_IN + keyword + "\n"
+        for first in (False, True):
+            # The complete selector input is checked before reading Spin keywords.
+            cases[f"conflicting_{keyword}_{first}"] = (
+                keyword + "\n" + NEP_IN if first else NEP_IN + keyword + "\n")
     cases["removed_mforce_mode"] = NEP_IN + "spin_mforce_mode full\n"
     results = {}
     for name, text in cases.items():
@@ -163,6 +170,24 @@ def validate_parser(root):
         results[name] = result.returncode
         if result.returncode == 0:
             raise AssertionError(f"{name} did not fail closed")
+    # Validate after all keywords: both orders reject oversized uniform/typewise
+    # cutoffs and accept a final radial cutoff larger than its default of 8 A.
+    for spin_cutoff in ("7.0", "5.0 7.0", "9.0"):
+        for spin_first in (False, True):
+            name = f"cutoff_bound_{spin_cutoff}_{spin_first}"
+            radial = "9.0 5.0" if spin_cutoff == "9.0" else "6.0 5.0"
+            text = NEP_IN.replace("cutoff 6.0 5.0\n", "").replace("spin_cutoff 6.0\n", "")
+            cutoffs = [f"cutoff {radial}", f"spin_cutoff {spin_cutoff}"]
+            text += "\n".join(reversed(cutoffs) if spin_first else cutoffs) + "\n"
+            case = root / name
+            write_case(case, text)
+            result = run(NEP, case)
+            results[name] = result.returncode
+            if spin_cutoff == "9.0":
+                assert result.returncode == 0, result.stdout + result.stderr
+            else:
+                assert result.returncode != 0
+                assert "spin_cutoff must not exceed the NEP radial cutoff" in result.stdout + result.stderr
     tangent_case = root / "spin_tangent_is_not_a_label"
     tangent_input = NEP_IN.replace(
         "lambda_tau 0.5", "lambda_tau 0.5\nlambda_spin_response 0.3",
@@ -197,7 +222,6 @@ def validate_response_training(root):
 
 def validate_flexible_zbl_rejected(root):
     from spin_fixtures import load_fixture
-    from spin_model_format import block_model
 
     root.mkdir()
     training = root / "training"
@@ -207,27 +231,20 @@ def validate_flexible_zbl_rejected(root):
     result = run(NEP, training)
     message = "NEP-spin does not support flexible ZBL"
     assert result.returncode != 0 and message in result.stdout + result.stderr
-    legacy, _ = load_fixture("o3c2_uniform")
-    legacy = legacy.replace("nep4_spin3 ", "nep4_spin3_zbl ", 1)
-    lines = legacy.splitlines()
-    lines.insert(2 + int(lines[1].split()[2]), "zbl 0 0")
-    legacy = "\n".join(lines) + "\n"
-    for name, model in (("legacy", legacy), ("block", block_model(legacy))):
-        case = root / name
-        write_case(case, NEP_IN + "zbl 2.5\nprediction 1\n")
-        (case / "nep.txt").write_text(model)
-        (case / "model.xyz").write_text(TRAIN_XYZ)
-        (case / "run.in").write_text("potential nep.txt\n")
-        for binary in (NEP, GPUMD):
-            result = run(binary, case)
-            assert result.returncode != 0 and message in result.stdout + result.stderr, (
-                name, binary, result.stdout, result.stderr)
-    return "training and legacy/block prediction/runtime reject flexible ZBL"
+    model, _ = load_fixture("o3c2_uniform")
+    model = model.replace("model nep_spin\n", "model nep_spin\nzbl 0 0\n")
+    case = root / "prediction"
+    write_case(case, NEP_IN + "zbl 2.5\nprediction 1\n")
+    (case / "nep.txt").write_text(model)
+    result = run(NEP, case)
+    assert result.returncode != 0 and message in result.stdout + result.stderr
+    return "training and prediction reject flexible ZBL"
 
 
-def validate_training_and_runtime(
+
+def validate_training_and_prediction(
         root, enable_zbl=False, spin_compress=2, typewise_spin_cutoff=False,
-        all_spin_types=False, check_restart=False, torque_only=False, wide_spin_cutoff=False):
+        all_spin_types=False, check_restart=False, torque_only=False, small_cell=False):
     root.mkdir()
     training = root / "training"
     nep_in = NEP_IN.replace("version 4", "version 4\nzbl 2.5") \
@@ -237,16 +254,17 @@ def validate_training_and_runtime(
     if torque_only:
         nep_in = nep_in.replace("lambda_m 1.0", "lambda_m 0")
     if all_spin_types:
-        nep_in = nep_in.replace("spin_dof_type Fe\n", "spin_dof_type Fe Ge\n")
+        nep_in = nep_in.replace("spin_type Fe\n", "spin_type Fe Ge\n")
     if typewise_spin_cutoff:
-        nep_in = nep_in.replace("spin_cutoff 6.0", "spin_cutoff 5.0 7.0")
+        nep_in = nep_in.replace("spin_cutoff 6.0", "spin_cutoff 5.0 6.0")
     if check_restart:
         # Nontrivial channel/basis axes expose incorrect parameter transposes.
         nep_in = nep_in.replace("n_max 0 0", "n_max 4 4").replace(
             "basis_size 0 0", "basis_size 2 2")
     xyz = TRAIN_XYZ
-    if wide_spin_cutoff:
-        nep_in = nep_in.replace("spin_cutoff 6.0", "spin_cutoff 7.0").replace("batch 3", "batch 1")
+    if small_cell:
+        nep_in = nep_in.replace("cutoff 6.0 5.0", "cutoff 7.0 5.0").replace(
+            "spin_cutoff 6.0", "spin_cutoff 7.0").replace("batch 3", "batch 1")
         xyz = xyz.replace("24 0 0 0 24 0 0 0 24", "13 0 0 0 13 0 0 0 13").replace("Ge 2.8", "Ge 8.0")
     write_case(training, nep_in, xyz)
     result = run(NEP, training)
@@ -266,12 +284,12 @@ def validate_training_and_runtime(
         "spin_basis_size": "8", "spin_l_max": "2", "spin_order": "3",
         "spin_soc": "1", "spin_scaler": "1", "spin_compress": str(spin_compress),
         "spin_projection_size": str(4 * spin_compress * spin_compress),
-        "spin_cutoff": "5 7" if typewise_spin_cutoff else "7" if wide_spin_cutoff else "6",
+        "spin_cutoff": "5 6" if typewise_spin_cutoff else "7" if small_cell else "6",
     }
     if not all_spin_types:
-        required.update(spin_dof_type="Fe", spin_env_type="Fe Ge")
+        required.update(spin_type="Fe")
     else:
-        assert "spin_dof_type" not in checkpoint and "spin_env_type" not in checkpoint, (
+        assert "spin_type" not in checkpoint, (
             "all-active masks should use the canonical implicit representation")
     for key, value in required.items():
         assert f"\n{key} {value}\n" in checkpoint, f"missing checkpoint field: {key} {value}"
@@ -312,87 +330,10 @@ def validate_training_and_runtime(
     if result.returncode:
         raise RuntimeError(result.stdout + result.stderr)
 
-    runtime = root / "runtime"
-    runtime.mkdir()
-    shutil.copy(training / "nep.txt", runtime / "nep.txt")
-    model_lines = xyz.splitlines()[:6]
-    model_lines[1] = model_lines[1].replace("mforce:R:3", "mforce:R:3:group:I:1")
-    for i in range(2, 6):
-        model_lines[i] += " 0" if i < 4 else " 1"
-    (runtime / "model.xyz").write_text("\n".join(model_lines) + "\n")
-    (runtime / "run.in").write_text(
-        "potential nep.txt\n"
-        "velocity 1\n"
-        "ensemble nve\n"
-        "time_step 0\n"
-        "dump_xyz 1 result.xyz force potential spin mforce virial precision double\n"
-        "dump_xyz 1 ge.xyz force potential spin mforce virial group_labels group 0 1 precision double\n"
-        "run 1\n")
-    result = run(GPUMD, runtime)
-    if result.returncode:
-        raise RuntimeError(result.stdout + result.stderr)
-
-    lines = (runtime / "result.xyz").read_text().splitlines()
-    grouped = (runtime / "ge.xyz").read_text().splitlines()
-    if int(grouped[0]) != 2 or ":group:I:1" not in grouped[1]:
-        raise AssertionError("dump_xyz group selection or group_labels header is incorrect")
-    for selected, full in zip(grouped[2:], lines[4:6]):
-        fields = selected.split()
-        if fields[:-1] != full.split() or fields[-1] != "1":
-            raise AssertionError("grouped spin/mforce dump differs from the all-atom dump")
-    atom_count = int(lines[-6])
-    header = lines[-5]
-    rows = [
-        [float(item) for item in line.split()[1:]]
-        for line in lines[-atom_count:]]
-    runtime_energy = (
-        float(re.search(r"\benergy=([-+0-9.eE]+)", header).group(1)) /
-        atom_count)
-    runtime_force = [row[3:6] for row in rows]
-    runtime_mforce = [row[9:12] for row in rows]
-    atom_virial = [row[13:22] for row in rows]
-    runtime_virial = [
-        sum(row[index] for row in atom_virial) / atom_count
-        for index in (0, 4, 8, 1, 5, 6)]
-
-    main_energy = float(
-        (prediction / "energy_train.out").read_text().split()[0])
-    main_force = columns(prediction / "force_train.out", 3, atom_count)
-    main_mforce = columns(prediction / "mforce_train.out", 3, atom_count)
-    main_virial = columns(prediction / "virial_train.out", 6, 1)[0]
-    report = {
-        "energy_per_atom": abs(main_energy - runtime_energy),
-        "force": maximum_error(main_force, runtime_force),
-        "mforce": maximum_error(main_mforce, runtime_mforce),
-        "virial_per_atom": maximum_error(main_virial, runtime_virial),
-        "ge_mforce_max": max(
-            abs(value) for row in runtime_mforce[2:] for value in row),
-        "all_spin_types": all_spin_types,
-        "training_loss": loss,
-        "q_scaler_max": max(q_scaler),
-        "zbl": enable_zbl,
-        "spin_compress": spin_compress,
-        "typewise_spin_cutoff": typewise_spin_cutoff,
-        "torque_only": torque_only,
-        "descriptor_dim": descriptor_dim,
-        "grouped_dump": "passed",
-    }
-    for name in ("energy_per_atom", "force", "mforce", "virial_per_atom"):
-        reference = {
-            "energy_per_atom": [main_energy, runtime_energy],
-            "force": [main_force, runtime_force],
-            "mforce": [main_mforce, runtime_mforce],
-            "virial_per_atom": [main_virial, runtime_virial],
-        }[name]
-        tolerance = parity_tolerance(*reference)
-        report[f"{name}_tolerance"] = tolerance
-        if report[name] > tolerance:
-            raise AssertionError(
-                f"{name} parity failed: {report[name]} > {tolerance}")
-    if not all_spin_types and report["ge_mforce_max"] > 1.0e-12:
-        raise AssertionError("inactive spin DOF received a public mforce")
-    if all_spin_types and report["ge_mforce_max"] <= 1.0e-12:
-        raise AssertionError("active Ge spin DOF was incorrectly masked")
+    report = {"training_loss": loss, "descriptor_dim": descriptor_dim}
+    for name, width in (("energy", 2), ("force", 6), ("mforce", 6), ("virial", 12)):
+        rows = columns(prediction / (name + "_train.out"), width)
+        assert rows and all(math.isfinite(x) for x in flatten(rows)), name
     if check_restart:
         # Zero search variance freezes the saved parameter vector. A restart must
         # round-trip structural and magnetic coefficients without reordering them
@@ -421,31 +362,12 @@ def validate_training_and_runtime(
             raise AssertionError("restart changed saved descriptor scaling")
         report["restart_parameter_error"] = error
         report["restart_scaler"] = "preserved"
-        # The legacy two-column restart uses basis-major structural coefficients.
-        legacy_values = list(parameters)
-        fields = {line.split()[0]: line.split()[1:] for line in checkpoint_lines[:first_parameter - 1]}
-        nr, na = map(int, fields["n_max"])
-        br, ba = map(int, fields["basis_size"])
-        neurons = int(fields["ann"][0])
-        offset = (descriptor_dim + 2) * neurons * 2 + 1
-        for basis_count in ((nr + 1) * (br + 1), (na + 1) * (ba + 1)):
-            values = legacy_values[offset:offset + 4 * basis_count]
-            legacy_values[offset:offset + len(values)] = [values[pair * basis_count + b]
-                for b in range(basis_count) for pair in range(4)]
-            offset += len(values)
-        legacy_resume = root / "legacy-resumed"
-        write_case(legacy_resume, nep_in, TRAIN_XYZ)
-        (legacy_resume / "nep.txt").write_text(checkpoint)
-        (legacy_resume / "nep.restart").write_text("".join(f"{v} 0\n" for v in legacy_values))
-        result = run(NEP, legacy_resume)
-        if result.returncode:
-            raise RuntimeError(result.stdout + result.stderr)
-        restored = [float(line.split()[0]) for line in
-                    (legacy_resume / "nep.restart").read_text().splitlines()[3:]]
-        error = maximum_error([float(v) for v in parameters], restored)
-        if error > 1e-7:
-            raise AssertionError(f"legacy restart layout changed parameters: {error}")
-        report["legacy_restart_parameter_error"] = error
+        obsolete = root / "obsolete-restart"
+        write_case(obsolete, nep_in)
+        (obsolete / "nep.txt").write_text(checkpoint)
+        (obsolete / "nep.restart").write_text("".join(f"{v} 0\n" for v in parameters))
+        result = run(NEP, obsolete)
+        assert result.returncode != 0, "Old headerless restarts must be rejected"
 
     return report
 
@@ -459,20 +381,27 @@ def validate_native_compiled_checkpoint(root):
     for tile in range(9):
         for atom in atoms:
             fields = atom.split()
+            if fields[0] == "Ge":
+                fields[7:10] = ["0.35", "-0.25", "0.45"]
             fields[1] = str(float(fields[1]) + 4.0 * (tile % 3))
             fields[2] = str(float(fields[2]) + 4.0 * (tile // 3))
             expanded.append(" ".join(fields))
     xyz = "\n".join(expanded) + "\n"
     report = {}
-    for channels, order in ((1, 3), (2, 3), (3, 3), (9, 1)):
+    layouts = ((1, 3, 2, 1), (2, 3, 2, 1), (3, 3, 2, 1), (9, 1, 2, 1),
+               (2, 2, 1, 0), (2, 3, 0, 0), (2, 2, 2, 1))
+    for channels, order, lmax, soc in layouts:
+        layout = f"o{order}c{channels}l{lmax}s{soc}"
         config = NEP_IN.replace("spin_compress 2", f"spin_compress {channels}")
         config = config.replace("spin_order 3", f"spin_order {order}")
-        config = config.replace("spin_dof_type Fe\n", "spin_dof_type Fe Ge\n")
+        config = config.replace("spin_l_max 2 0 0", f"spin_l_max {lmax} 0 0")
+        config = config.replace("spin_soc 1", f"spin_soc {soc}")
+        config = config.replace("spin_type Fe\n", "spin_type Fe Ge\n")
         config = config.replace("n_max 0 0", "n_max 4 4").replace(
             "basis_size 0 0", "basis_size 2 2")
         if channels == 3:
-            config = config.replace("spin_cutoff 6.0", "spin_cutoff 5.0 7.0")
-        initial = root / f"c{channels}-initial"
+            config = config.replace("spin_cutoff 6.0", "spin_cutoff 5.0 6.0")
+        initial = root / f"{layout}-initial"
         write_case(initial, config + "nep_compile 0\n", xyz)
         result = run(NEP, initial)
         if result.returncode:
@@ -483,7 +412,7 @@ def validate_native_compiled_checkpoint(root):
             f"{line.split()[0]} 0\n" for line in restart_lines[3:])
         cases = []
         for compiled in (0, 1):
-            case = root / f"c{channels}-compiled-{compiled}"
+            case = root / f"{layout}-compiled-{compiled}"
             # Report test outputs at fixed parameters after the first physical evaluation.
             output_config = config.replace("generation 1\n", "generation 2\n")
             write_case(case, output_config + f"nep_compile {compiled}\n", xyz)
@@ -495,6 +424,7 @@ def validate_native_compiled_checkpoint(root):
                 raise RuntimeError(result.stdout + result.stderr)
             if compiled and (
                     "Compile specialized Spin3 training kernels" not in result.stdout or
+                    "Spin layout JIT ready:" not in result.stdout or
                     "specialization disabled" in (result.stdout + result.stderr).lower()):
                 raise AssertionError("Spin3 JIT did not compile successfully")
             cases.append(case)
@@ -504,9 +434,9 @@ def validate_native_compiled_checkpoint(root):
             error = maximum_error(*values)
             tolerance = parity_tolerance(*values)
             if not math.isfinite(error) or error > tolerance:
-                raise AssertionError(f"C{channels} JIT {name}: {error} > {tolerance}")
+                raise AssertionError(f"{layout} JIT {name}: {error} > {tolerance}")
             errors[name] = {"max_abs": error, "tolerance": tolerance}
-        report[f"o{order}c{channels}"] = errors
+        report[layout] = errors
     return report
 
 
@@ -591,41 +521,100 @@ def validate_shared_nep_io(root):
     if result.returncode:
         raise RuntimeError(result.stdout + result.stderr)
     predictions = [(root / (name + "_train.out")).read_text() for name in ("energy", "force", "virial")]
-    (root / "nep.in").write_text(config + "spin_mode 0\nprediction 1\n")
+    (root / "nep.in").write_text(config + "prediction 1\n")
     result = run(NEP, root)
     if result.returncode:
         raise RuntimeError(result.stdout + result.stderr)
     assert predictions == [(root / (name + "_train.out")).read_text() for name in ("energy", "force", "virial")]
-    return "training/restart/prediction and legacy disabled selector passed"
+    return "training/restart/prediction passed"
+
+
+def validate_fixed_models(root):
+    """Use the frozen FP64 oracle, independent of the model reader and writer."""
+    from spin_fixtures import load_fixture
+
+    root.mkdir()
+    report = {}
+    for fixture in ("o3c2_uniform", "o3c2_typewise", "o3c3_uniform"):
+        model, oracle = load_fixture(fixture)
+        fields = {line.split()[0]: line.split()[1:] for line in model.splitlines()
+                  if line and not line.startswith('@')}
+        config = ("type 2 Fe Ge\nversion 4\nspin_version 1\nprediction 1\n"
+                  "n_max 4 4\nbasis_size 8 8\nl_max 4 2 0\nneuron 30\n"
+                  "cutoff 6 5\nspin_basis_size 8 0\nspin_l_max 2 0 0\n"
+                  "spin_order 3\nspin_soc 1\nspin_compress " + fields['spin_compress'][0] +
+                  "\nspin_cutoff " + ' '.join(fields['spin_cutoff']) + "\n")
+        cases = list(oracle['cases'].items())
+        xyz = []
+        for _, case in cases:
+            xyz += [str(len(case['types'])), 'Lattice="' + ' '.join(map(str, case['cell'])) +
+                    '" Properties=species:S:1:pos:R:3:force:R:3:spin:R:3:mforce:R:3 '
+                    'energy=0 virial="0 0 0 0 0 0 0 0 0"']
+            for symbol, position, spin in zip(case['types'], case['positions'], case['spins']):
+                xyz.append(symbol + ' ' + ' '.join(map(str, position + [0]*3 + spin + [0]*3)))
+        directory = root / fixture
+        write_case(directory, config, '\n'.join(xyz) + '\n')
+        (directory / 'nep.txt').write_text(model)
+        result = run(NEP, directory)
+        if result.returncode:
+            raise RuntimeError(result.stdout + result.stderr)
+        energy = columns(directory / 'energy_train.out', 1)
+        force = columns(directory / 'force_train.out', 3)
+        mforce = columns(directory / 'mforce_train.out', 3)
+        virial = columns(directory / 'virial_train.out', 6)
+        assert len(energy) == len(virial) == len(cases)
+        assert len(force) == len(mforce) == sum(len(c['types']) for _, c in cases)
+        atom = 0
+        for index, (name, case) in enumerate(cases):
+            count = len(case['types'])
+            errors = {
+                'energy': abs(energy[index][0] * count - sum(case['potential'])),
+                'force': maximum_error(force[atom:atom+count], case['force']),
+                'mforce': maximum_error(mforce[atom:atom+count], case['mforce']),
+                'virial': maximum_error([v * count for v in virial[index]],
+                    [sum(row[j] for row in case['atom_virial']) for j in (0, 4, 8, 1, 5, 6)]),
+            }
+            assert all(math.isfinite(v) for v in errors.values()), (fixture, name, errors)
+            assert all(errors[k] <= 2e-4 for k in ('energy', 'mforce', 'virial')), (fixture, name, errors)
+            # NEP stores positions in float32. The cutoff-boundary fixture also
+            # contains a 0.002 A pair: its stored separation differs by 7.25e-5
+            # relatively from the FP64 oracle. Allow that coordinate precision
+            # in forces; the other frozen cases retain the absolute-only bound.
+            force_rtol = 1e-4 if name == 'cutoff_boundary' else 0
+            for actual, expected in zip(flatten(force[atom:atom+count]), flatten(case['force'])):
+                assert abs(actual - expected) <= max(2e-4, force_rtol * abs(expected)), (
+                    fixture, name, actual, expected)
+            report[fixture + '/' + name] = errors
+            atom += count
+    return report
 
 
 def main():
-    global NEP, GPUMD
+    global NEP
     parser = argparse.ArgumentParser()
     parser.add_argument("--nep", type=Path, default=NEP)
-    parser.add_argument("--gpumd", type=Path, default=GPUMD)
     parser.add_argument("--check-jit", action="store_true",
                         help="Require the CUDA compiler and validate specialized Spin3 training")
     args = parser.parse_args()
     NEP = args.nep.resolve()
-    GPUMD = args.gpumd.resolve()
     with tempfile.TemporaryDirectory(prefix="gpumd-main-nep-spin3-") as tmp:
         root = Path(tmp)
         report = {
+            "fixed_models": validate_fixed_models(root / "fixed-models"),
             "default_shape": validate_default_shape(root / "defaults"),
             "flexible_zbl_rejected": validate_flexible_zbl_rejected(root / "flexible-zbl"),
             "ordinary_nep_io": validate_shared_nep_io(root / "ordinary-nep"),
             "parser_negative_exit_codes": validate_parser(root / "parser"),
             "response_training": validate_response_training(root / "response"),
-            "training_runtime": validate_training_and_runtime(root / "correctness"),
-            "rank_one_training_runtime": validate_training_and_runtime(
+            "training_prediction": validate_training_and_prediction(root / "correctness"),
+            "rank_one_training_prediction": validate_training_and_prediction(
                 root / "rank-one", spin_compress=1,
                 typewise_spin_cutoff=True, torque_only=True),
-            "zbl_training_runtime": validate_training_and_runtime(
+            "zbl_training_prediction": validate_training_and_prediction(
                 root / "zbl", enable_zbl=True),
-            "magnetic_cutoff_small_cell": validate_training_and_runtime(
-                root / "wide-spin-cutoff", all_spin_types=True, wide_spin_cutoff=True),
-            "channel_layout_restart": validate_training_and_runtime(
+            "magnetic_cutoff_small_cell": validate_training_and_prediction(
+                root / "small-cell", all_spin_types=True, small_cell=True),
+            "channel_layout_restart": validate_training_and_prediction(
                 root / "restart", spin_compress=3,
                 all_spin_types=True, check_restart=True),
         }

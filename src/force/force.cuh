@@ -18,7 +18,7 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "potential.cuh"
-#include "nep_spin/mfield.cuh"
+#include "nep_spin/runtime.cuh"
 #ifdef GPUMD_WPE_ENABLED
 #include "wpe_stage.cuh"
 #endif
@@ -76,11 +76,13 @@ public:
 
   bool has_spin_potential(void) const { return has_spin_potential_; }
 
-  void parse_mfield(const char** param, int num_param, const std::vector<Group>& group)
+  void parse_mfield(const std::vector<std::string>& tokens, const std::vector<Group>& group)
   {
-    magnetic_field_.parse(param, num_param, group);
+    spin_runtime_.parse_field(tokens, group);
   }
-  bool has_mfield() const { return magnetic_field_.enabled(); }
+  void check_spin_command(const std::vector<std::string>& tokens) { spin_runtime_.check_command(tokens); }
+  void initialize_spin(Atom& atom) { spin_runtime_.initialize(atom); }
+  void validate_spin(const Atom& atom) const { spin_runtime_.validate(atom); }
 
   // Zeroes the given arrays and evaluates one potential alone into them. The positions and the
   // float box are read as they are.
@@ -127,7 +129,7 @@ private:
   double temperature = 0;
   double delta_T;
   std::vector<std::unique_ptr<Potential>> potentials;
-  Spin_Magnetic_Field magnetic_field_;
+  Spin_Runtime spin_runtime_;
   bool has_spin_potential_ = false;
   bool is_fcp = false;
   bool has_non_nep = false;

@@ -553,7 +553,7 @@ spin_version 1
 `format_version` describes the shared file syntax. `spin_version` describes the
 magnetic descriptor definitions, units, scaler interpretation, and parameter
 layout. Version `1` is the current order/compression (Spin3) model, including its
-existing response/environment masks.
+`spin_type` selection of independent spin coordinates.
 `spin_order` selects O1/O2/O3 within this contract and is not a version number.
 
 `spin_version` is required and must contain exactly the integer token `1`.
@@ -561,6 +561,9 @@ Missing or unknown versions are errors. Changes to descriptor meaning or array
 layout that reinterpret existing parameter values require a new supported spin
 version. Training-loss settings, implementation optimizations, and bug fixes
 that restore the specified behavior do not change the version.
+
+Spin output preserves the model element order; automatic element compaction
+is disabled.
 
 The model fields below supplement the common energy-model fields:
 
@@ -575,12 +578,15 @@ The model fields below supplement the common energy-model fields:
 | `spin_cutoff ...` | One positive cutoff, or `T` cutoffs in element order, in angstroms; pair cutoff is their arithmetic mean |
 | `spin_projection_size P` | Number of projection coefficients; must equal `4*C*C` |
 | `spin_scaler 1` | Per-component scaling is present in `q_scaler` |
-| `spin_dof_type <elements...>` | Optional nonempty subset receiving public magnetic forces; defaults to all elements |
-| `spin_env_type <elements...>` | Optional nonempty subset entering magnetic environments; defaults to `spin_dof_type` |
+| `spin_type <elements...>` | Optional nonempty subset with independent spin degrees of freedom; defaults to all elements |
 
-`spin_dof_type` must be a subset of `spin_env_type`. An environment-only spin
-can influence the energy while its public magnetic force is masked to zero.
-These masks do not freeze coordinates in a spin integrator. Spins use muB,
+All element types contribute geometric environments within the cutoffs.
+Only `spin_type` elements carry spin degrees of freedom and act as magnetic
+descriptor centers. Readers set other elements' effective spin to zero and
+ignore their magnetic-force labels, preserving energy and atomic-force labels
+without changing the input files. Their public magnetic force is zero, but
+atomic forces remain active.
+Spins use muB,
 energy uses eV, and magnetic force uses eV/muB. For descriptor definitions and
 scaling formulas, see [the Spin potential documentation](../../doc/potentials/nep_spin.rst).
 
@@ -608,8 +614,7 @@ magnetic projection coefficients [4, C, C]
 All arrays use C order. The magnetic radial indices are
 `[channel, basis, center_type, neighbor_type]`; their type pair is the fastest
 varying index, unlike the structural segments. Projection indices are
-`[leg, output_channel, source_channel]`. This preserves the existing Spin3
-magnetic layout. The total parameter count is
+`[leg, output_channel, source_channel]`. The total parameter count is
 
 ```text
 N = T * N1 * (D + 2) + 1
@@ -623,8 +628,7 @@ The scaler contains `D` values, with structural components first as in Section
 local squared moment; order-1 edge terms; order-2 edge/density/correlation and
 axial terms; then order-3 gated and coupled terms. Disabled families contribute
 no entries. Channels increase within a family; channel-pair families use
-`(0,0), (0,1), ..., (0,C-1), (1,1), ..., (C-1,C-1)`. All enabled components retain
-their original scaler and projection semantics.
+`(0,0), (0,1), ..., (0,C-1), (1,1), ..., (C-1,C-1)`.
 
 `energy_reference`, optional ZBL, numerical precision, and the restart syntax
 remain the shared conventions. `nep.restart` has no separate spin version: it

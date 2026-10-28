@@ -34,8 +34,6 @@ The driver class calculating force and related quantities.
 #include "ilp_tersoff.cuh"
 #include "lj.cuh"
 #include "nep.cuh"
-#include "nep_spin/nep_spin.cuh"
-#include "nep_spin/nep_spin_multigpu.cuh"
 #include "nep_multigpu.cuh"
 #include "nep_charge.cuh"
 #include "nep_charge_vdw/nep_charge_vdw.cuh"
@@ -117,23 +115,11 @@ std::unique_ptr<Potential> Force::create_potential(
              strcmp(potential_name, "qnep2_vdw") == 0) {
     potential.reset(new NEP_Charge_VDW(tokens[1].c_str(), number_of_atoms, run_input));
     is_nep = true;
-  } else if (
-    strcmp(potential_name, "nep4_spin3") == 0 ||
-    strcmp(potential_name, "nep4_spin3_zbl") == 0) {
+  } else if (strcmp(potential_name, "nep_spin") == 0) {
     if (!potentials.empty()) {
       PRINT_INPUT_ERROR("NEP_Spin must be the only potential in a run.");
     }
-    int direction = -1;
-    if (num_param == 3) {
-      if (tokens[2] == "x") direction = 0;
-      else if (tokens[2] == "y") direction = 1;
-      else if (tokens[2] == "z") direction = 2;
-      else PRINT_INPUT_ERROR("partition direction for multi-GPU NEP can only be x or y or z.");
-    }
-    int num_gpus = 0;
-    CHECK(gpuGetDeviceCount(&num_gpus));
-    if (num_gpus == 1) potential.reset(new NEP_Spin(tokens[1].c_str(), number_of_atoms));
-    else potential.reset(new NEP_Spin_MultiGPU(num_gpus, tokens[1].c_str(), number_of_atoms, direction));
+    potential = spin_runtime_.create_potential(tokens, number_of_atoms);
     is_nep = true;
     has_spin_potential_ = true;
   } else if (
@@ -256,10 +242,8 @@ void Force::parse_potential(
     PRINT_INPUT_ERROR("reading error for potential file.");
   }
   int num_types = get_number_of_types(fid_potential);
-  if (NEP_Model_Input::is_new_format(potential_name) && is_nep_spin_model_file(tokens[1])) {
-    NEP_Model_Input input(tokens[1]);
-    const std::vector<std::string> header = input.get_tokens();
-    std::strcpy(potential_name, header[0].c_str());
+  if (NEP_Model_Input::is_new_format(potential_name) && NEP_Spin_Model_File::is_spin_model(tokens[1])) {
+    std::strcpy(potential_name, "nep_spin");
   } else if (NEP_Model_Input::is_new_format(potential_name)) {
     NEP_Model_File model;
     std::ifstream input(tokens[1]);
@@ -680,6 +664,6 @@ void Force::compute_spin(
     force_per_atom,
     virial_per_atom,
     mforce_per_atom);
-  magnetic_field_.compute(
-    box, position_per_atom, group, spin_per_atom, potential_per_atom, mforce_per_atom);
+  spin_runtime_.apply_field(
+    box, position_per_atom, group, type, spin_per_atom, potential_per_atom, mforce_per_atom);
 }

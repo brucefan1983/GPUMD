@@ -26,9 +26,12 @@ public:
   void parse(const char** param, int num_param, const std::vector<Group>& group);
   bool enabled() const { return mfield_enabled_; }
   void compute(
-    const Box& box, const GPU_Vector<double>& position_per_atom,
-    const std::vector<Group>& group, const GPU_Vector<double>& spin_per_atom,
-    GPU_Vector<double>& potential_per_atom, GPU_Vector<double>& mforce_per_atom) const;
+    const Box& box,
+    const GPU_Vector<double>& position_per_atom,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& spin_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& mforce_per_atom) const;
 
 private:
   int mfield_group_method_ = 0;

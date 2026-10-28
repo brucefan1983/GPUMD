@@ -9,12 +9,27 @@ public:
   NEP_Spin_MultiGPU(int devices, const char* model, int atoms, int direction);
   ~NEP_Spin_MultiGPU() override;
   using Potential::compute;
-  void compute(Box&, const GPU_Vector<int>&, const GPU_Vector<double>&,
-    GPU_Vector<double>&, GPU_Vector<double>&, GPU_Vector<double>&) override
-  { PRINT_INPUT_ERROR("NEP_Spin requires spin inputs."); }
-  void compute(Box&, const GPU_Vector<int>&, const GPU_Vector<double>&,
-    const GPU_Vector<double>&, GPU_Vector<double>&, GPU_Vector<double>&,
-    GPU_Vector<double>&, GPU_Vector<double>&) override;
+  void compute(
+    Box&,
+    const GPU_Vector<int>&,
+    const GPU_Vector<double>&,
+    GPU_Vector<double>&,
+    GPU_Vector<double>&,
+    GPU_Vector<double>&) override
+  {
+    PRINT_INPUT_ERROR("NEP_Spin requires spin inputs.");
+  }
+  void compute(
+    Box&,
+    const GPU_Vector<int>&,
+    const GPU_Vector<double>&,
+    const GPU_Vector<double>&,
+    GPU_Vector<double>&,
+    GPU_Vector<double>&,
+    GPU_Vector<double>&,
+    GPU_Vector<double>&) override;
+  const std::vector<int>& spin_types() const { return domains_[0]->potential->spin_types(); }
+
 private:
   struct Domain {
     std::unique_ptr<NEP_Spin> potential;

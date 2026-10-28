@@ -39,24 +39,15 @@ ParameterInput::ParameterInput()
     for (int n = 0; n < tokens.size(); ++n) {
       param[n] = tokens[n].c_str();
     }
-    if (tokens[0] == "spin_version" || tokens[0] == "spin_mode") {
+    if (tokens[0] == "spin_version") {
       if (has_spin_selector) {
-        PRINT_INPUT_ERROR("Specify spin_version only once; do not combine it with spin_mode.");
+        PRINT_INPUT_ERROR("Specify spin_version only once.");
       }
       has_spin_selector = true;
-      if (tokens[0] == "spin_version") {
-        if (tokens.size() != 2 || tokens[1] != "1") {
-          PRINT_INPUT_ERROR("Unsupported spin_version (expected 1).");
-        }
-        spin_version = 1;
-      } else {
-        // Read compatibility for inputs predating the versioned Spin model.
-        int mode = 0;
-        if (param.size() != 2 || !is_valid_int(param[1], &mode) || (mode != 0 && mode != 3)) {
-          PRINT_INPUT_ERROR("spin_mode should be 0 or 3.");
-        }
-        spin_version = mode == 3 ? 1 : 0;
+      if (tokens.size() != 2 || tokens[1] != "1") {
+        PRINT_INPUT_ERROR("Unsupported spin_version (expected 1).");
       }
+      spin_version = 1;
     } else if (tokens[0] == "model_type") {
       parse_model_type(param.data(), param.size());
     } else if (tokens[0] == "charge_mode") {
@@ -68,9 +59,6 @@ ParameterInput::ParameterInput()
     } else {
       keywords.push_back(tokens);
     }
-  }
-  if (spin_version && (model_type != 0 || charge_mode || vdw || charge_vdw)) {
-    PRINT_INPUT_ERROR("Spin NEP only supports a NEP4 potential model without charge/vdW.");
   }
   if ((charge_mode > 0) + vdw + charge_vdw > 1) {
     PRINT_INPUT_ERROR("charge_mode, vdw, and charge_vdw cannot be enabled simultaneously.");

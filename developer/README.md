@@ -54,10 +54,9 @@ The main source directories are:
 
 Files added under an existing source directory are normally collected automatically by the makefiles. The CUDA and HIP makefiles also collect `.cu` files one directory below `src/force/` for `gpumd`, and `src/main_nep/` for `nep`.
 
-Spin inference, multi-GPU evaluation, external magnetic fields, and Spin-specific
-small-box kernels live in `src/force/nep_spin/`. Training in
-`src/main_nep/nep_spin/` includes the same magnetic descriptor and force headers;
-ordinary NEP keeps its own small-box kernels in `src/force/nep_small_box.cuh`.
+Training in `src/main_nep/nep_spin/` uses the shared magnetic descriptor and
+force headers in `src/force/nep_spin/`. The GPUMD potential, fixed-spin runtime support and spatial decomposition
+also live in `src/force/nep_spin/`. See [runtime validation](spin_runtime_validation.md).
 
 ## 3. Main `gpumd` architecture
 
@@ -239,15 +238,10 @@ Shared structure and dataset code handles common data. Model-specific labels, GP
 
 `evaluate()` receives contiguous candidate parameter vectors on the host. The model owns intermediate losses; `accumulate_fitness()` adds their contributions after common regularization. Keep model-specific reduction and transfer decisions behind these interfaces, so later GPU reduction or population parallelism does not require model branches in `Fitness` or `SNES`.
 
-Spin3 keeps `Structure` and `Dataset` unchanged and stores magnetic labels and device
-buffers in `Spin_Data`, indexed by `NEP_Batch_Data`. Labels are matched through
-`Structure::index_in_file` after batch sorting or energy-difference grouping.
-Its reader supplies the largest structural/magnetic cutoff to the shared geometry
-reader. `response.xyz` has separate device data and contributes only response loss;
-it does not fit the energy reference or scalers. Spin3 uses the shared
-`energy_reference` and block model/restart formats while preserving its
-fixed-reference scaler and the common generation-zero lifecycle. Legacy Spin3
-model and two-column restart files remain readable.
+Spin training lives in `nep_spin/` and reuses the shared reader, batch-data,
+energy-reference, model/restart I/O, and runtime-compilation facilities.
+Magnetic labels, workspaces, and losses remain model-owned; `Structure` and
+`Dataset` need no Spin-specific changes.
 
 ### Adding a training model
 
@@ -279,9 +273,7 @@ The basic internal units are:
 User-facing changes to keywords, file formats, units, or physical definitions should be reflected in the documentation under `doc/`.
 
 Spin moments are in muB and magnetic forces in eV/muB. See the
-[model input units](../doc/gpumd/input_files/model_xyz.rst) and
-[external magnetic field](../doc/gpumd/input_parameters/add_mfield.rst)
-documentation for the input and Zeeman conventions.
+[NEP-spin model](../doc/potentials/nep_spin.rst) for the training convention.
 
 See [Spin regression checks](spin_validation.md) for portable format, training,
 and GPU validation commands.

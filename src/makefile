@@ -1,9 +1,9 @@
 ###########################################################
-# Note:
-# 1) You can modify -arch=sm_60 according to
+# Note: 
+# 1) You can modify -arch=sm_60 according to 
 #    your GPU architecture. For compute capability < 6.0,
 #    need to add -DUSE_KEPLER to CFLAGS.
-# 2) For Windows systems, if you get errors like
+# 2) For Windows systems, if you get errors like 
 #    c1xx : fatal error C1083: Cannot open source file: ...
 #    You can consider removing -Xcompiler "/wd 4819"
 # 3) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
@@ -35,7 +35,7 @@ ifeq ($(GNEP_TEST_FIXED_SCALER),1)
 CFLAGS += -DUSE_FIXED_SCALER
 endif
 INC = -I./
-LDFLAGS =
+LDFLAGS = 
 LIBS = -lcublas -lcusolver -lcufft
 NEP_LIBS =
 GNEP_LIBS =

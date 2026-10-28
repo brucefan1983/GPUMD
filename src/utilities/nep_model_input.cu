@@ -16,7 +16,6 @@
 #include "error.cuh"
 #include "nep_model_file.cuh"
 #include "nep_model_input.cuh"
-#include "nep_spin_model_file.cuh"
 
 bool NEP_Model_Input::is_new_format(const std::string& token)
 {
@@ -35,11 +34,6 @@ NEP_Model_Input::NEP_Model_Input(const std::string& filename) : file(filename)
   file.seekg(0);
   new_format = !header.empty() && is_new_format(header[0]);
   if (!new_format) {
-    return;
-  }
-
-  if (is_nep_spin_model_file(filename)) {
-    converted.str(read_nep_spin_model_input(filename));
     return;
   }
 

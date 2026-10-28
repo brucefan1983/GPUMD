@@ -1,8 +1,10 @@
+/* Copyright 2017 Zheyong Fan and GPUMD development team
+   This file is part of GPUMD. SPDX-License-Identifier: LGPL-3.0-or-later */
 #pragma once
-
 #include "nep.cuh"
 
-__global__ void find_force_radial(
+// Structural force evaluation shared by NEP and NEP-spin. CUDA kernels remain internal.
+void launch_find_force_radial(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
   int N,
@@ -20,8 +22,7 @@ __global__ void find_force_radial(
   double* fy,
   double* fz,
   double* virial);
-
-__global__ void find_partial_force_angular(
+void launch_find_partial_force_angular(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
   int N,

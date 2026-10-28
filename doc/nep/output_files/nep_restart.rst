@@ -17,6 +17,6 @@ Remove this file to start a new training run rather than resuming.
 
 Spin3 restarts use this shared format and preserve ``energy_reference`` together
 with the search mean and standard deviation. A matching ``nep.txt`` is still
-needed for the Spin3 metadata and descriptor scalers. Legacy two-column Spin3
-restarts are accepted with their matching legacy model; their structural
-parameters are converted from basis-major order before training resumes.
+needed for the Spin3 metadata and descriptor scalers. Spin models must use
+``model nep_spin`` and ``spin_version 1``; only the current shared restart
+format is accepted.

@@ -51,9 +51,9 @@ Keywords
    * - :ref:`spin_version <kw_spin_version>`
      - enable the Spin3 descriptor
    * - :ref:`spin_cutoff <kw_spin_cutoff>`
-     - radial and angular cutoffs used by the spin descriptor
+     - one spin cutoff or one cutoff per element, bounded by the NEP radial cutoff
    * - :ref:`spin_basis_size <kw_spin_basis_size>`
-     - radial and angular basis sizes used by the spin descriptor
+     - magnetic radial basis index followed by a reserved second value fixed at zero
    * - :ref:`spin_l_max <kw_spin_l_max>`
      - maximum spatial tensor rank used by the spin descriptor
    * - :ref:`spin_compress <kw_spin_compress>`
@@ -62,10 +62,8 @@ Keywords
      - highest Spin3 contraction level supplied to the neural network
    * - :ref:`spin_soc <kw_spin_soc>`
      - enable joint spin--space rotation-invariant Spin3 channels
-   * - :ref:`spin_dof_type <kw_spin_dof_type>`
-     - atom types selected for magnetic-force output and magnetic supervision
-   * - :ref:`spin_env_type <kw_spin_env_type>`
-     - atom types allowed to contribute to magnetic environments
+   * - :ref:`spin_type <kw_spin_type>`
+     - atom types with independent spin degrees of freedom
    * - :ref:`use_typewise_cutoff_zbl <kw_use_typewise_cutoff_zbl>`
      - enable typewise cutoff radii for the ZBL part of the model
    * - :ref:`cutoff <kw_cutoff>`
@@ -126,8 +124,6 @@ Keywords
      - fine tune a model starting from a foundation model
    * - :ref:`import_q_scaler <kw_import_q_scaler>`
      - import descriptor normalization factors from an existing ``nep.txt``
-   * - :ref:`initial_para <kw_initial_para>`
-     - set reference parameters used to compute descriptor normalization
 
 Consistency with model files already present
 --------------------------------------------
@@ -160,27 +156,5 @@ Here is an example :attr:`nep.in` file using all the default parameters::
   population	50        # default
   generation	100000    # default
 
-Spin3 example
--------------
-
-The following Spin setup uses the default descriptor shape. ``spin_compress``
-defaults to 2 and may be omitted. Together with the structural defaults, this
-gives 55 magnetic and 97 total coordinates, within :ref:`nep_spin_dimensions`::
-
-  version          4
-  type             2 Fe Ge
-  spin_version     1
-  spin_basis_size  8 0
-  spin_l_max       2 0 0
-  spin_compress    2
-  spin_order       3
-  spin_soc         1
-  neuron           30
-  lambda_m         1.0
-  batch            1000
-  generation       100000
-
-Each frame in ``train.xyz`` and ``test.xyz`` must then contain a Cartesian
-``spin:R:3`` property. Add ``mforce:R:3`` when training magnetic forces. See
-:ref:`train_test_xyz` for the complete data contract and :ref:`nep_spin` for
-the Spin3 formalism.
+For Spin training, see the :ref:`spin_version example <spin_training_example>`
+and the :ref:`Spin potential documentation <nep_spin>`.

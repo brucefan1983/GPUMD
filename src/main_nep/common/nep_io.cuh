@@ -46,7 +46,10 @@ void read_nep_prediction_zbl(NEP_Parameters& para);
 void write_nep_model(
   FILE* file, NEP_Parameters& para, const float* parameters, int max_radial, int max_angular);
 
-void check_existing_nep_model(NEP_Parameters& para);
+void write_nep_header(
+  FILE* file, const NEP_Parameters& para, int max_radial, int max_angular);
 
-void write_nep_header(FILE*, const NEP_Parameters&, int, int);
-void write_nep_model_parameters(FILE*, const NEP_Parameters&, const float*);
+void write_nep_model_parameters(
+  FILE* file, const NEP_Parameters& para, const float* parameters);
+
+void check_existing_nep_model(NEP_Parameters& para);

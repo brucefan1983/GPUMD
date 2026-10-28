@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Validate the GPUMD nep4_spin3 force path against the frozen FP64 oracle."""
+"""Validate the GPUMD NEP-spin force path against the frozen FP64 oracle."""
 
 import argparse
-import hashlib
+import math
 import os
 import re
 import subprocess
 import tempfile
 from pathlib import Path
-from spin_model_format import block_model
-from spin_fixtures import selective_type_model, write_xyz, reshape, read_text_oracle, load_fixture
+from spin_fixtures import write_xyz, load_fixture
+from validate_main_nep_spin3_training import maximum_error, finite_values
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,29 +17,22 @@ FIXTURE = Path(__file__).parent / "fixtures" / "nep_spin3"
 GPUMD = Path(os.environ.get("GPUMD_COMMAND", ROOT / "src" / "gpumd"))
 
 
-
-
-
-
-
-
-
-
-
-
 def read_frame(path):
     lines = path.read_text().splitlines()
     atom_count = int(lines[0])
     rows = [line.split() for line in lines[-atom_count:]]
     values = [[float(value) for value in row[1:]] for row in rows]
+    finite_values(values)
     energy = float(
         re.search(r"\benergy=([-+0-9.eE]+)", lines[-atom_count - 1]).group(1))
+    finite_values([energy])
     virial = []
     for row in values:
         # dump_xyz already serializes the internal 9-plane tensor in row-major
         # order (xx, xy, xz, yx, yy, yz, zx, zy, zz).
         virial.append(row[13:22])
     return {
+        "spin": [row[6:9] for row in values],
         "energy": energy,
         "force": [row[3:6] for row in values],
         "mforce": [row[9:12] for row in values],
@@ -58,18 +51,15 @@ def flatten(values):
     return result
 
 
-def max_error(candidate, reference):
-    left = flatten(candidate)
-    right = flatten(reference)
-    if len(left) != len(right):
-        raise AssertionError(f"shape mismatch: {len(left)} != {len(right)}")
-    return max(abs(a - b) for a, b in zip(left, right))
+max_error = maximum_error
 
 
 def worst_difference(candidate, reference):
     left = flatten(candidate)
     right = flatten(reference)
     index = max(range(len(left)), key=lambda item: abs(left[item] - right[item]))
+    finite_values(left)
+    finite_values(right)
     return index, left[index], right[index]
 
 
@@ -94,25 +84,8 @@ def run_case(root, name, case, model):
     return read_frame(directory / "result.xyz")
 
 
-def validate_removed_spin2(root):
-    model, oracle = load_fixture("o3c2_uniform")
-    case = next(iter(oracle["cases"].values()))
-    directory = root / "removed_spin2"
-    directory.mkdir()
-    write_xyz(directory / "model.xyz", case)
-    (directory / "nep.txt").write_text(
-        model.replace("nep4_spin3", "nep4_spin2", 1))
-    (directory / "run.in").write_text(
-        "potential nep.txt\nensemble nve\ntime_step 0\nrun 1\n")
-    result = subprocess.run(
-        [str(GPUMD)], cwd=directory, capture_output=True, text=True, check=False)
-    if result.returncode == 0:
-        raise AssertionError("removed nep4_spin2 model was accepted")
-
-
 def validate_energy_reference(root):
-    legacy, oracle = load_fixture("o3c2_uniform")
-    model = block_model(legacy)
+    model, oracle = load_fixture("o3c2_uniform")
     case = oracle["cases"]["noncollinear"]
     base = run_case(root, "reference-base", case, model)
     old = next(line for line in model.splitlines() if line.startswith("energy_reference "))
@@ -129,6 +102,55 @@ def validate_energy_reference(root):
     print("Spin3 double energy-reference shift and derivative invariance passed")
 
 
+
+def validate_io(root):
+    import copy
+    import shutil
+    model, oracle = load_fixture("o3c2_uniform")
+    case = copy.deepcopy(oracle["cases"]["noncollinear"])
+    # Include an excluded type with deliberately nonzero input spin.
+    case["types"][-1] = "Ge"
+    case["spins"][-1] = [0.8, -0.2, 0.4]
+    raw = run_case(root, "inactive-raw", case, model)
+    case["spins"][-1] = [0.0, 0.0, 0.0]
+    zero = run_case(root, "inactive-zero", case, model)
+    for field in ("energy", "potential", "force", "mforce", "virial", "spin"):
+        assert max_error(raw[field], zero[field]) < 1e-10, field
+    assert raw["spin"][-1] == [0.0] * 3 and raw["mforce"][-1] == [0.0] * 3
+
+    # Model metadata order is not significant; selection must not require a fixed header order.
+    reordered = model.replace("model nep_spin\n", "").replace("@ parameters", "model nep_spin\n@ parameters", 1)
+    alternate = run_case(root, "reordered-header", case, reordered)
+    for field in ("energy", "force", "mforce", "virial"):
+        assert max_error(alternate[field], zero[field]) < 1e-10, field
+
+    # Restart and replication preserve the fixed-spin model, including type masking.
+    source = root / "io-source"
+    source.mkdir()
+    (source / "nep.txt").write_text(model)
+    write_xyz(source / "model.xyz", case)
+    (source / "run.in").write_text(
+        "replicate 2 1 1\npotential nep.txt\nvelocity 1\nensemble nve\ntime_step 0\n"
+        "dump_restart 1\ndump_xyz 1 result.xyz force potential spin mforce virial precision double\nrun 1\n")
+    result = subprocess.run([str(GPUMD)], cwd=source, capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    before = read_frame(source / "result.xyz")
+    expected_spin = case["spins"] * 2
+    assert max_error(before["spin"], expected_spin) < 1e-10
+    resume = root / "io-resume"
+    resume.mkdir()
+    shutil.copy(source / "nep.txt", resume / "nep.txt")
+    shutil.copy(source / "restart.xyz", resume / "model.xyz")
+    (resume / "run.in").write_text(
+        "potential nep.txt\nensemble nve\ntime_step 0\n"
+        "dump_xyz 1 result.xyz force potential spin mforce virial precision double\nrun 1\n")
+    result = subprocess.run([str(GPUMD)], cwd=resume, capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    after = read_frame(resume / "result.xyz")
+    for field in ("energy", "potential", "force", "mforce", "virial", "spin"):
+        assert max_error(before[field], after[field]) < 2e-4, field
+    print("inactive spin masking, replication and fixed-spin restart passed")
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -140,19 +162,17 @@ def main():
         default=("o3c2_uniform", "o3c2_typewise", "o3c3_uniform"),
         help="frozen Spin3 fixtures to run")
     parser.add_argument("--tolerance", type=float, default=2.0e-4)
-    parser.add_argument("--block-format", action="store_true", help="Validate converted block-format fixtures against the same frozen oracle")
     args = parser.parse_args()
+    if not math.isfinite(args.tolerance) or args.tolerance <= 0:
+        parser.error("tolerance must be finite and positive")
 
     errors = {}
     with tempfile.TemporaryDirectory(prefix="gpumd-spin3-") as temp:
         root = Path(temp)
-        validate_removed_spin2(root)
-        if args.block_format:
-            validate_energy_reference(root)
+        validate_energy_reference(root)
+        validate_io(root)
         for fixture in args.fixtures:
             model, oracle = load_fixture(fixture)
-            if args.block_format:
-                model = block_model(model)
             selected = args.cases or list(oracle["cases"])
             fixture_root = root / fixture
             fixture_root.mkdir()
@@ -162,7 +182,7 @@ def main():
                 reference = oracle["cases"][name]
                 candidate = run_case(fixture_root, name, reference, model)
                 case_errors = {
-                    "energy": abs(candidate["energy"] - sum(reference["potential"])),
+                    "energy": max_error(candidate["energy"], sum(reference["potential"])),
                     "potential": max_error(candidate["potential"], reference["potential"]),
                     "force": max_error(candidate["force"], reference["force"]),
                     "mforce": max_error(candidate["mforce"], reference["mforce"]),
@@ -199,7 +219,7 @@ def main():
     worst = max(error for case in errors.values() for error in case.values())
     print(
         f"spin3 oracle validation passed: cases={len(errors)} "
-        f"max_error={worst:.3e}; nep4_spin2 rejected")
+        f"max_error={worst:.3e}")
 
 
 if __name__ == "__main__":

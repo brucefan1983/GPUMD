@@ -14,11 +14,16 @@ virials, magnetic forces, and spin torques are derivatives of this same energy
 and are not produced by independent response networks.
 
 The current format uses ``nep``, ``format_version 1``, and ``model nep_spin``
-with ``spin_version 1`` and named parameter and scaler blocks. It uses the order/compression (O/C)
-descriptor described below. An optional ``zbl`` field adds a spin-independent
+with ``spin_version 1`` and named parameter and scaler blocks. It uses the
+order/compression (O/C) descriptor described below. An optional ``zbl`` field adds a spin-independent
 universal ZBL term. Flexible ZBL (``zbl 0 0``) is not supported.
 ``spin_version`` identifies the descriptor and parameter-layout
 contract, independently of the file syntax version and ``spin_order``.
+
+Every :ref:`spin_cutoff <kw_spin_cutoff>` value must be positive and no larger
+than the ordinary NEP radial cutoff. This constraint applies to both training
+input and model files; different spin cutoffs per atom type are supported
+within this bound.
 
 Energy model
 ============
@@ -348,12 +353,12 @@ transformation of the lattice vectors and axial spin vectors,
    \boldsymbol{s}_i\longrightarrow\det(R)R\boldsymbol{s}_i,
    \qquad R\in O(3).
 
-The :ref:`spin_dof_type <kw_spin_dof_type>` mask selects center atoms that
-receive public magnetic forces. The
-:ref:`spin_env_type <kw_spin_env_type>` mask selects neighbor types that enter
-the moment sums. An environment-only spin can therefore affect the energy and
-other spins while its public magnetic force is zero. This mask belongs to the
-potential response and is not an integration constraint.
+The :ref:`spin_type <kw_spin_type>` selection defines independent spin
+coordinates and magnetic descriptor centers. All neighbor types enter geometric
+moment sums within the spin cutoff. The reader sets excluded types' effective
+spins to zero and ignores their magnetic-force labels, so their contributions
+to moments containing neighbor spins vanish while geometric contributions remain.
+Original energy and atomic-force labels are retained; input files are unchanged.
 
 .. _nep_spin_dimensions:
 
@@ -407,15 +412,42 @@ The trainable magnetic descriptor parameters comprise
 :math:`4C^2` radial-leg mixing coefficients. These are optimized together
 with the neural-network parameters by SNES.
 
+.. _nep_spin_scaling:
+
+Descriptor scaling
+------------------
+
 Structural coordinates retain the ordinary inverse-range scaler. Magnetic
 coordinates use
 :math:`1/\max(\operatorname{RMS}(q),\operatorname{range}(q),1)`, without
 centering. Their gain is therefore never larger than one, including for a
 constant or initially unresolved magnetic channel.
-For fresh training, :ref:`initial_para <kw_initial_para>` scales the radial
-coefficients of the fixed reference model used to compute these scalers.
-Its default of 1 retains the reference unchanged. Prediction, restart, and
-explicit scaler import reuse the stored normalization instead.
+
+Fresh training computes scaling from ordinary training structures using a
+fixed, non-degenerate reference parameter vector, independent of the SNES
+search mean and RNG. Nonconstant spin projection matrices keep descriptor
+channels distinct. Response-only frames do not enter this calculation.
+Prediction, restart, and explicit scaler import reuse the stored normalization
+instead.
+
+.. _nep_spin_restart:
+
+Restart behavior
+----------------
+
+Spin restart restores the scaler from the matching ``nep.txt``. See
+:ref:`import_q_scaler <kw_import_q_scaler>` for automatic restoration and
+fresh scaler-only import. The two files must have compatible architecture and
+element order, and the scaler must be finite and positive.
+
+``nep.restart`` stores the search distribution and ``energy_reference`` in the
+shared restart format, while ``nep.txt`` stores a selected candidate model.
+The search mean and that candidate need not predict the same values. Restart
+does not rescale parameters or substitute the candidate for the search mean.
+
+A restart begins a new requested generation segment and resets RNG
+initialization. The restart file does not store global generation progress;
+it is not an exact replay of an uninterrupted trajectory.
 
 Energy derivatives
 ==================
@@ -429,11 +461,11 @@ The atomic force and the unmasked magnetic derivative are defined by
    \widetilde{\boldsymbol{M}}_k
    =-\frac{\partial U}{\partial\boldsymbol{s}_k}.
 
-For an atom type enabled by :ref:`spin_dof_type <kw_spin_dof_type>`, the
-public magnetic force is
-:math:`\boldsymbol{M}_k=\widetilde{\boldsymbol{M}}_k`. For an inactive type it
-is explicitly set to zero, even when that atom is retained as an
-environment-only spin input. This selects reported derivatives, not constrained spin coordinates.
+For an atom type enabled by :ref:`spin_type <kw_spin_type>`, the
+public magnetic force is :math:`\boldsymbol{M}_k=\widetilde{\boldsymbol{M}}_k`.
+Excluded types have no independent spin coordinate; their public magnetic force
+is zero by convention. They still receive atomic forces from the positional
+derivative of the full energy, including magnetic geometric environments.
 
 Writing :math:`q^i_\nu` for either a structural or magnetic descriptor
 component, the chain rule gives
@@ -483,7 +515,8 @@ magnetic-force and torque RMSE terms,
    + \lambda_\mathrm{resp} L_\mathrm{resp},
 
 where :math:`N_\mathrm{m}` counts labeled active spins and
-:math:`N_\mathrm{tau}` counts only their nonzero spins,
+:math:`N_\mathrm{tau}` counts only those with
+:math:`|\boldsymbol{s}_i|^2 > 10^{-20}\,\mu_\mathrm{B}^2`,
 
 .. math::
 
@@ -501,10 +534,16 @@ where :math:`N_\mathrm{m}` counts labeled active spins and
      \right]^{1/2}.
 
 The magnetic-force loss always includes all three Cartesian components and
-includes zero spins. The torque loss excludes zero spins. To supervise only
-spin rotation, set ``lambda_m 0`` and a positive ``lambda_tau``. For nonzero
-spins, the squared torque error equals the squared transverse magnetic-force
+includes zero spins. Both the torque-error sum and its count exclude spins at
+or below the squared-magnitude threshold, evaluated in double precision.
+To supervise only spin rotation, set ``lambda_m 0`` and a positive ``lambda_tau``.
+For nonzero spins, the squared torque error equals the squared transverse magnetic-force
 error multiplied by :math:`|\boldsymbol{s}_i|^2`.
+
+.. _nep_spin_response:
+
+Grouped magnetic response
+-------------------------
 
 For a grouped rotation path with coordinate :math:`\theta`, the response
 generator evaluated for frame :math:`n` is
@@ -522,7 +561,6 @@ number of scan points. Each group's uncentered target-response RMS, floored
 at :math:`10^{-6}`, normalizes its shape term and a second Huber term comparing
 group means; the mean term is multiplied by 0.25. ``response_coordinate``
 defines the path derivative but does not add a separate reliability weight.
-This GPUMD policy differs from the older shared-scale reduction.
 
 The group coordinate is explicit because Cartesian spin snapshots alone do
 not determine their path ordering or parameterization. The trainer sorts each
@@ -532,9 +570,13 @@ spins with second-order, three-point nonuniform weights applied to sphere-log
 angular displacements and separate magnitude differences. This preserves
 longitudinal moment relaxation without injecting the radial chord error of
 Cartesian interpolation into constant-length rotations. Stencils must resolve
-angular separations below pi. Atom types excluded by ``spin_dof_type`` are
-masked from the derived tangent. See :ref:`lambda_spin_response
-<kw_lambda_spin_response>` for zero-moment and finite-stencil limitations.
+angular separations below pi. Atom types excluded by ``spin_type`` are
+masked from the derived tangent. At zero moment, the tangent uses Cartesian
+differences. Constant-rate great-circle rotations are differentiated exactly
+apart from floating-point rounding; other paths retain the finite-stencil
+approximation. Antipodal samples require intermediate frames. Input labels
+and group metadata are specified in :ref:`response_xyz`; the loss weight is
+set by :ref:`lambda_spin_response <kw_lambda_spin_response>`.
 
 Spin3 uses the shared SNES lifecycle: generation zero prepares training scalers
 and uses regularization-only fitness. Physical losses are evaluated from the
@@ -555,7 +597,57 @@ Model formats and input
      - Current block format with ``spin_version 1``; optional :ref:`zbl <kw_zbl>` field.
 
 See :ref:`spin_version <kw_spin_version>` and the neighboring ``spin_*`` keyword
-pages for descriptor configuration. The complete extended-XYZ data contract,
-including magnetic-force labels and grouped response metadata, is documented
-under :ref:`train_test_xyz`.
-Runtime ``model.xyz`` files require one ``spin:R:3`` vector per atom.
+pages for descriptor configuration. See :ref:`train_test_xyz` for ordinary
+training labels and :ref:`response_xyz` for grouped-response input.
+
+Training specialization
+-----------------------
+
+With ``nep_compile 1``, training specializes both the structural NEP kernels
+and the magnetic density, descriptor contraction and force kernels for the
+selected Spin layout. The magnetic kernels share their formulas with the
+native path. If runtime compilation is unavailable, native kernels remain
+available. Compilation adds startup time, so very short runs may be slower;
+``nep_compile 0`` disables specialization. Prediction uses the native path.
+
+.. _nep_spin_runtime:
+
+Fixed-spin molecular dynamics
+-----------------------------
+
+Load the exported model with ``potential nep.txt`` and provide Cartesian
+magnetic moments through ``spin:R:3`` in :ref:`model.xyz <model_xyz>`.
+The ``nve`` and ``nvt_nhc`` ensembles evolve positions and velocities while
+keeping the magnetic moments fixed. Only one potential is allowed, and all
+three cell directions must be periodic.
+
+Atoms whose elements are absent from ``spin_type`` have zero effective spin.
+Their input spin values are ignored; they still contribute geometric
+environments. Their magnetic forces remain zero, including in an applied
+external field. The reader does not normalize the active spins.
+
+For example::
+
+   potential nep.txt
+   velocity 300
+   ensemble nve
+   time_step 1
+   dump_xyz 100 trajectory.xyz spin mforce
+   dump_restart 1000
+   run 1000
+
+Use ``dump_xyz`` with ``spin`` and ``mforce`` to write the moments and magnetic
+forces. ``dump_restart`` preserves the fixed spins in ``restart.xyz``;
+copy this file to ``model.xyz`` and use the same potential to resume.
+``replicate`` copies the spin vectors with their atoms.
+
+The :ref:`add_mfield keyword <kw_add_mfield>` applies a magnetic induction in
+tesla to a group or fractional-coordinate region. Magnetic force is
+:math:`-\partial E/\partial \mathbf{s}` in eV/Bohr magneton; it is evaluated
+although spins are fixed. Spin dynamics and spin velocities are not part of
+this runtime interface.
+
+Multi-GPU execution uses every visible GPU in a single process. Use
+``potential nep.txt x`` (or ``y``/``z``) to select the spatial partition
+direction. Small cells may require replicated geometry and offer little
+speedup. GPU 0 retains the global arrays.

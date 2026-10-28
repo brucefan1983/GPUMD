@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exercise Spin checkpoint/export contracts through the real NEP and GPUMD CLIs."""
+"""Exercise Spin checkpoint/export contracts through the real NEP CLI."""
 import json
 import math
 import re
@@ -9,7 +9,7 @@ from pathlib import Path
 import validate_main_nep_spin3_training as base
 
 CONFIG = base.NEP_IN + "nep_compile 0\nseed 20261021\n"
-NO_MASKS = re.sub(r"^spin_(dof|env)_type.*\n", "", CONFIG, flags=re.M)
+NO_MASKS = re.sub(r"^spin_type.*\n", "", CONFIG, flags=re.M)
 
 
 def execute(directory, config, xyz=base.TRAIN_XYZ, model=None, restart=None, error=None, test_xyz=None):
@@ -52,18 +52,6 @@ def metadata(model):
                 if line.startswith(('spin_', 'energy_reference ')))
 
 
-def runtime_mforce(directory, model, reference):
-    directory.mkdir()
-    (directory / "nep.txt").write_text(model)
-    (directory / "model.xyz").write_text("\n".join(base.TRAIN_XYZ.splitlines()[:6]) + "\n")
-    (directory / "run.in").write_text(
-        "potential nep.txt\nvelocity 1\nensemble nve\ntime_step 0\n"
-        "dump_xyz 1 result.xyz force potential spin mforce virial precision double\nrun 1\n")
-    result = base.run(base.GPUMD, directory)
-    assert result.returncode == 0, result.stdout + result.stderr
-    rows = [[float(x) for x in line.split()[1:]]
-            for line in (directory / "result.xyz").read_text().splitlines()[-4:]]
-    return compare({"mforce": reference["mforce"][:4]}, {"mforce": [r[9:12] for r in rows]})
 
 
 def strip_labels(xyz, frames):
@@ -76,68 +64,57 @@ def strip_labels(xyz, frames):
     return "\n".join(lines) + "\n"
 
 
-def scalers(model):
-    lines = model.splitlines()
-    start = next(i for i, line in enumerate(lines) if line.startswith("@ q_scaler "))
-    count = int(lines[start].split()[2])
-    return [float(line) for line in lines[start+1:start+1+count]]
-
-
-def validate_initial_para(root):
+def validate_inactive_input(root, config, model, restart):
     root.mkdir()
-    # Twelve candidates also support 2/4-GPU partitions. Larger spins exercise
-    # magnetic normalization below its gain cap, not just capped unit scalers.
-    config = CONFIG.replace("population 10", "population 12")
-    lines = base.TRAIN_XYZ.splitlines()
-    for i, line in enumerate(lines):
-        if i % 6 >= 2:
-            fields = line.split()
-            fields[7:10] = [str(4 * float(x)) for x in fields[7:10]]
-            lines[i] = " ".join(fields)
-    xyz = "\n".join(lines) + "\n"
-    execute(root / "default", config, xyz)
-    model = (root / "default" / "nep.txt").read_text()
-    default = scalers(model)
-    execute(root / "explicit_one", config + "initial_para 1\n", xyz)
-    for filename in ("nep.txt", "nep.restart"):
-        assert (root / "default" / filename).read_bytes() == (root / "explicit_one" / filename).read_bytes()
-    report = {"default_vs_one": "identical model and search state"}
-    for value in (0.5, 0.1):
-        case = root / str(value)
-        execute(case, config + f"initial_para {value}\n", xyz)
-        scaled = scalers((case / "nep.txt").read_text())
-        assert len(default) == len(scaled)
-        assert all(math.isfinite(x) and x > 0 for x in scaled)
-        # n_max=0, l_max=2: one linear radial and two quadratic angular
-        # structural components give independent, known normalization ratios.
-        ratios = [scaled[i] / default[i] for i in range(3)]
-        for ratio, degree in zip(ratios, (1, 2, 2)):
-            assert math.isclose(ratio, value ** -degree, rel_tol=2e-5), ratios
-        assert all(x <= 1 for x in scaled[3:])
-        assert any(abs(a-b) > 1e-5 for a, b in zip(default[3:], scaled[3:]))
-        report[str(value)] = {"structural_scaler_ratios": ratios,
-                              "magnetic_scaler_max": max(scaled[3:])}
-
-    changed = config + "initial_para 0.5\n"
-    before = predict(root / "before", model, xyz, config)
-    report["prediction"] = compare(before, predict(root / "after", model, xyz, changed))
-    restart = (root / "default" / "nep.restart").read_text()
-    for mode, extra, state in (("restart", "", restart), ("import", "import_q_scaler 1\n", None)):
-        case = root / mode
-        execute(case, changed + extra, xyz, model=model, restart=state)
-        assert scalers((case / "nep.txt").read_text()) == default
-        report[mode] = "saved scalers preserved"
-    for value in ("nan", "inf", "0", "1.1"):
-        execute(root / ("invalid_" + value), config + f"initial_para {value}\n", xyz,
-                error="initial_para should be within [0.1, 1]")
-    report["invalid_values"] = "rejected"
-    return report
+    raw = base.TRAIN_XYZ.splitlines()
+    for i, line in enumerate(raw):
+        fields = line.split()
+        if fields and fields[0] == "Ge":
+            fields[4:7] = ["0.125", "-0.25", "0.375"]
+            fields[7:13] = ["0.3", "-0.2", "1e-100", "123", "-456", "789"]
+            raw[i] = " ".join(fields)
+    raw = "\n".join(raw) + "\n"
+    cleared = []
+    for line in raw.splitlines():
+        fields = line.split()
+        if fields and fields[0] == "Ge":
+            fields[7:13] = ["0"] * 6
+            line = " ".join(fields)
+        cleared.append(line)
+    cleared = "\n".join(cleared) + "\n"
+    for mode, extra, saved, state in (
+            ("train", "", None, None),
+            ("predict", "prediction 1\n", model, None),
+            ("restart", "", model, restart),
+            ("import", "import_q_scaler 1\n", model, None)):
+        dirs = [root / (mode + suffix) for suffix in ("_raw", "_cleared")]
+        for directory, xyz in zip(dirs, (raw, cleared)):
+            execute(directory, config + extra, xyz, model=saved, restart=state, test_xyz=xyz)
+            assert (directory / "train.xyz").read_text() == xyz
+            assert (directory / "test.xyz").read_text() == xyz
+        part = "train" if mode == "predict" else "test"
+        outputs = [f"{kind}_{part}.out" for kind in ("energy", "force", "virial", "mforce")]
+        if mode != "predict":
+            outputs += ["nep.txt", "nep.restart", "loss.out"]
+        for filename in outputs:
+            assert (dirs[0] / filename).read_bytes() == (dirs[1] / filename).read_bytes(), (mode, filename)
+        if mode == "predict":
+            forces = base.columns(dirs[0] / "force_train.out", 6)
+            magnetic = base.columns(dirs[0] / "mforce_train.out", 6)
+            atoms = [line.split() for line in raw.splitlines() if line.startswith(("Fe ", "Ge "))]
+            for i, fields in enumerate(atoms):
+                assert forces[i][3:] == [float(x) for x in fields[4:7]]
+                if fields[0] == "Ge":
+                    assert magnetic[i] == [0.0] * 6
+            energies = base.columns(dirs[0] / "energy_train.out", 2)
+            for row, target in zip(energies, (-1.0, -0.5, -1.5)):
+                assert abs(row[1] - target) < 1e-6, (row, target)
+    return "raw and zeroed inputs agree; energy/atomic-force labels and input files preserved"
 
 
 def validate(root):
-    report = {"initial_para": validate_initial_para(root / "initial_para")}
-    for name, config in (("fe_env_all", CONFIG),
-                         ("fe_env_fe", CONFIG.replace("spin_env_type Fe Ge", "spin_env_type Fe"))):
+    report = {}
+    for name, config in (("fe_only", CONFIG), ("all_types", NO_MASKS)):
         fresh = root / name
         execute(fresh, config)
         model = (fresh / "nep.txt").read_text()
@@ -165,42 +142,19 @@ def validate(root):
         assert metadata((imported / "nep.txt").read_text()) == metadata(model)
         # An exported import model must also be accepted with omitted input masks.
         predict(root / (name + "_import_reload"), (imported / "nep.txt").read_text())
-        if name == "fe_env_fe":
-            # The subset environment is distinct from the all-environment cases
-            # exercised by the main training/runtime parity suite.
-            report[name + "_md"] = runtime_mforce(root / (name + "_md"), saved, after)
-            execute(root / "partial_env", NO_MASKS + "spin_env_type Fe\n", model=model, restart=frozen)
-            execute(root / "invalid_fresh_subset", NO_MASKS + "spin_env_type Fe\n",
-                    error="spin_dof_type must be a subset")
-        if name == "fe_env_all":
-            alias_config = config.replace("spin_version 1", "spin_mode 3")
-            alias_fresh = root / "legacy_input_fresh"
-            execute(alias_fresh, alias_config)
-            assert (alias_fresh / "nep.txt").read_text() == model
-            assert (alias_fresh / "nep.restart").read_text() == (fresh / "nep.restart").read_text()
-            report["legacy_input_training"] = "identical model and search state"
-            # The previous block header has identical numerical payload and restart indexing.
-            legacy_model = model.replace("model nep_spin\n", "model nep_spin3\n").replace(
-                "spin_version 1\n", "spin_mode 3\n")
-            legacy_prediction = predict(root / "old_block_prediction", legacy_model)
-            report["old_block_prediction"] = compare(old, legacy_prediction)
-            legacy_resume = root / "old_block_resume"
-            execute(legacy_resume, NO_MASKS.replace("generation 1", "generation 2"),
-                    model=legacy_model, restart=frozen)
-            migrated = (legacy_resume / "nep.txt").read_text()
-            assert "\nmodel nep_spin\n" in migrated and "\nspin_mode " not in migrated
-            assert metadata(migrated) == metadata(model)
-            report["old_block_resume"] = compare(old, predict(root / "migrated_prediction", migrated))
-            # Detailed format rejection belongs to the CPU codec suite; keep
-            # one real CLI check that the model reader propagates the failure.
+        if name == "fe_only":
             execute(root / "unsupported_version", NO_MASKS + "prediction 1\n",
                     model=model.replace("spin_version 1\n", "spin_version 2\n"),
                     error="Unsupported spin_version")
-            for keyword, value in (("spin_dof_type", "Ge"), ("spin_env_type", "Fe")):
-                execute(root / (name + keyword), NO_MASKS + ("spin_dof_type Fe\n" if keyword == "spin_env_type" else "") + f"{keyword} {value}\n",
-                        model=model, restart=frozen, error=f"{keyword} in nep.in conflicts")
+            execute(root / "conflicting_dof", NO_MASKS + "spin_type Ge\n",
+                    model=model, restart=frozen, error="spin_type in nep.in conflicts")
+            report["inactive_input"] = validate_inactive_input(root / "inactive_input", config, model, frozen)
+            execute(root / "renamed_type", config.replace("spin_type Fe", "spin_dof_type Fe"),
+                    error="spin_dof_type")
+            execute(root / "removed_env", config + "spin_env_type Fe Ge\n",
+                    error="spin_env_type")
 
-    model = (root / "fe_env_all" / "nep.txt").read_text()
+    model = (root / "fe_only" / "nep.txt").read_text()
     reference = predict(root / "labeled", model)
     for name, frames in (("unlabeled", (0, 1, 2)), ("mixed", (0, 2))):
         xyz = strip_labels(base.TRAIN_XYZ, frames)

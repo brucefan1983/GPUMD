@@ -1,143 +1,261 @@
 /* This file is part of GPUMD. SPDX-License-Identifier: LGPL-3.0-or-later */
-#include "nep_spin_model_file.cuh"
 #include "nep_file.cuh"
-#include "nep_spin_legacy_parameters.cuh"
+#include "nep_spin_model_file.cuh"
 #include <fstream>
 #include <sstream>
-#include <iomanip>
-#include <stdexcept>
-#include <limits>
+#include <algorithm>
 #include <cmath>
-#include <cctype>
+#include <limits>
 
-namespace {
-NEP_File read_document(const std::string& filename)
+namespace
 {
-  std::ifstream input(filename);
-  NEP_File document;
-  std::string error;
-  if (!document.read(input, error)) throw std::runtime_error(filename + ": " + error);
-  return document;
-}
-std::string first_token(const std::string& filename)
+bool fail(std::string& error, const std::string& message)
 {
-  std::ifstream input(filename);
-  std::string token;
-  if (!(input >> token)) throw std::runtime_error("Cannot read model " + filename);
-  for (char& c : token) c = std::tolower(static_cast<unsigned char>(c));
-  return token;
-}
+  error = "NEP-spin model: " + message;
+  return false;
 }
 
-bool is_nep_spin_model_file(const std::string& filename)
+bool to_float(double value, float& result)
 {
-  const auto token = first_token(filename);
-  if (token == "nep4_spin3" || token == "nep4_spin3_zbl") return true;
-  if (token != "nep") return false;
-  const auto document = read_document(filename);
-  const auto& model = document.find_field("model")->values[0];
-  return model == "nep_spin" || model == "nep_spin3";
+  if (!std::isfinite(value) || std::abs(value) > std::numeric_limits<float>::max())
+    return false;
+  result = static_cast<float>(value);
+  return value == 0 || result != 0;
 }
+} // namespace
 
-std::string read_nep_spin_model_input(const std::string& filename)
+bool NEP_Spin_Model_File::read(std::istream& input, std::string& error)
 {
-  if (first_token(filename) != "nep") {
-    std::ifstream input(filename);
-    return std::string(std::istreambuf_iterator<char>(input), {});
-  }
-  const auto doc = read_document(filename);
-  const auto& model = doc.find_field("model")->values[0];
-  if (model != "nep_spin" && model != "nep_spin3")
-    throw std::runtime_error("Expected model nep_spin in " + filename);
-  std::vector<std::string> fields = {"format_version", "model"};
-  auto field = [&](const char* name, size_t lo, size_t hi) -> const NEP_File::Field& {
+  *this = NEP_Spin_Model_File{};
+  NEP_File doc;
+  if (!doc.read(input, error))
+    return false;
+  if (doc.find_field("model")->values[0] != "nep_spin")
+    return fail(error, "expected model nep_spin.");
+  elements = doc.elements;
+  const int types = elements.size();
+  std::vector<std::string> handled = {"format_version", "model"};
+  auto field = [&](const char* name, size_t lo, size_t hi) -> const NEP_File::Field* {
     const auto* f = doc.find_field(name);
-    if (!f || f->values.size() < lo || f->values.size() > hi)
-      throw std::runtime_error(std::string("Invalid Spin3 field ") + name);
-    fields.push_back(name);
-    return *f;
+    if (!f || f->values.size() < lo || f->values.size() > hi) {
+      fail(error, std::string("missing or malformed field '") + name + "'.");
+      return nullptr;
+    }
+    handled.push_back(name);
+    return f;
   };
-  auto integer = [&](const NEP_File::Field& f, size_t i, size_t hi) -> int {
+  auto integer = [&](const NEP_File::Field* f, size_t i, int lo, int hi, int& result) {
+    if (!f)
+      return false;
     size_t value;
-    if (!NEP_File::parse_size(f.values.at(i), value) || value > hi)
-      throw std::runtime_error("Invalid integer in Spin3 field " + f.name);
-    return int(value);
+    if (!NEP_File::parse_size(f->values[i], value) || value < size_t(lo) || value > size_t(hi))
+      return fail(error, "invalid integer in '" + f->name + "'.");
+    result = static_cast<int>(value);
+    return true;
   };
-  std::ostringstream out;
-  out << std::setprecision(17);
-  const bool zbl = doc.find_field("zbl") != nullptr;
-  const int types = doc.elements.size();
-  out << (zbl ? "nep4_spin3_zbl" : "nep4_spin3") << ' ' << types;
-  for (const auto& element : doc.elements) out << ' ' << element;
-  out << '\n';
-  if (model == "nep_spin") {
-    const auto& version = field("spin_version", 1, 1);
-    if (version.values[0] != "1")
-      throw std::runtime_error("Unsupported spin_version (expected 1)");
-  } else {
-    // The previous block format names this same model nep_spin3/spin_mode 3.
-    const auto& mode = field("spin_mode", 1, 1);
-    if (integer(mode, 0, 3) != 3) throw std::runtime_error("Expected spin_mode 3");
-  }
-  const bool dof = doc.find_field("spin_dof_type") != nullptr;
-  const bool env = doc.find_field("spin_env_type") != nullptr;
-  out << "spin_mode 3 " << 9 + dof + env << '\n';
-  auto line = [&](const NEP_File::Field& f, const char* name) {
-    out << name;
-    for (const auto& value : f.values) out << ' ' << value;
-    out << '\n';
+  auto number = [&](const NEP_File::Field* f, size_t i, float& result) {
+    if (!f)
+      return false;
+    double value;
+    if (!NEP_File::parse_double(f->values[i], value) || !to_float(value, result))
+      return fail(error, "invalid float in '" + f->name + "'.");
+    return true;
   };
-  line(field("energy_reference", types, types), "spin_baseline");
-  for (const char* name : {"spin_basis_size", "spin_l_max", "spin_compress", "spin_order", "spin_soc", "spin_projection_size", "spin_scaler"})
-    line(field(name, 1, 1), name);
-  line(field("spin_cutoff", 1, types), "spin_cutoff");
-  if (dof) line(field("spin_dof_type", 1, types), "spin_dof_type");
-  if (env) line(field("spin_env_type", 1, types), "spin_env_type");
-  if (zbl) {
-    const auto& zbl_field = field("zbl", 2, 3);
-    double inner, outer;
-    if (!NEP_File::parse_double(zbl_field.values[0], inner) ||
-        !NEP_File::parse_double(zbl_field.values[1], outer))
-      throw std::runtime_error("Invalid Spin3 ZBL cutoffs");
-    if (inner == 0 && outer == 0)
-      throw std::runtime_error("NEP-spin does not support flexible ZBL (zbl 0 0).");
-    line(zbl_field, "zbl");
+  auto scalar = [&](const char* name, int lo, int hi, int& result) {
+    return integer(field(name, 1, 1), 0, lo, hi, result);
+  };
+  const auto* f = field("spin_version", 1, 1);
+  if (!f)
+    return false;
+  if (f->values[0] != "1")
+    return fail(error, "Unsupported spin_version (expected 1).");
+
+  f = field("cutoff", 4, 4);
+  if (
+    !number(f, 0, rc_radial) || !number(f, 1, rc_angular) ||
+    !integer(f, 2, 0, std::numeric_limits<int>::max(), max_radial) ||
+    !integer(f, 3, 0, std::numeric_limits<int>::max(), max_angular))
+    return false;
+  if (rc_angular < 3 || rc_angular > rc_radial || rc_radial > 100)
+    return fail(error, "cutoff requires 3 <= angular <= radial <= 100.");
+  f = field("n_max", 2, 2);
+  if (!integer(f, 0, 0, 12, n_max[0]) || !integer(f, 1, 0, 8, n_max[1]))
+    return false;
+  f = field("basis_size", 2, 2);
+  if (!integer(f, 0, 0, 16, basis_size[0]) || !integer(f, 1, 0, 12, basis_size[1]))
+    return false;
+  f = field("l_max", 3, 7);
+  if (!integer(f, 0, 2, 8, l_max[0]))
+    return false;
+  for (size_t i = 1; i < f->values.size(); ++i)
+    if (!integer(f, i, 0, i == 1 ? 2 : 1, l_max[i]))
+      return false;
+  if (l_max[1] == 1)
+    return fail(error, "l_max q_222 must be 0 or 2.");
+  f = field("ann", 2, 2);
+  int second_layer;
+  if (!integer(f, 0, 1, 120, num_neurons) || !integer(f, 1, 0, 0, second_layer))
+    return false;
+
+  int scaler_flag;
+  if (
+    !scalar("spin_basis_size", 8, 8, spin_basis_size) || !scalar("spin_l_max", 0, 2, spin_l_max) ||
+    !scalar("spin_compress", 1, 9, spin_compress) || !scalar("spin_order", 1, 3, spin_order) ||
+    !scalar("spin_soc", 0, 1, spin_soc) ||
+    !scalar(
+      "spin_projection_size",
+      4 * spin_compress * spin_compress,
+      4 * spin_compress * spin_compress,
+      spin_projection_size) ||
+    !scalar("spin_scaler", 1, 1, scaler_flag))
+    return false;
+  f = field("spin_cutoff", 1, types);
+  if (!f)
+    return false;
+  if (f->values.size() != 1 && f->values.size() != size_t(types))
+    return fail(error, "spin_cutoff requires one value or one per element.");
+  spin_cutoff.resize(types);
+  for (int t = 0; t < types; ++t) {
+    if (!number(f, f->values.size() == 1 ? 0 : t, spin_cutoff[t]))
+      return false;
+    if (spin_cutoff[t] <= 0)
+      return fail(error, "spin_cutoff must be positive.");
+    if (spin_cutoff[t] > rc_radial)
+      return fail(error, "spin_cutoff must not exceed the NEP radial cutoff.");
   }
-  line(field("cutoff", 4, 4), "cutoff");
-  const auto& nmax = field("n_max", 2, 2);
-  const auto& basis = field("basis_size", 2, 2);
-  const auto& lmax = field("l_max", 3, 7);
-  const auto& ann = field("ann", 2, 2);
-  line(nmax, "n_max"); line(basis, "basis_size"); line(lmax, "l_max"); line(ann, "ANN");
-  const int nr = integer(nmax, 0, 19), na = integer(nmax, 1, 19);
-  const int br = integer(basis, 0, 19), ba = integer(basis, 1, 19);
-  const int neurons = integer(ann, 0, 200);
-  if (neurons == 0 || integer(ann, 1, 0) != 0) throw std::runtime_error("Spin3 requires one hidden layer");
-  const auto* parameters = doc.find_block("parameters");
-  const auto* scaler = doc.find_block("q_scaler");
-  if (!parameters || !scaler || scaler->values.empty() || scaler->values.size() > 199)
-    throw std::runtime_error("Invalid Spin3 parameter/scaler blocks");
-  const int dim = scaler->values.size();
-  const int ann_count = (dim + 2) * neurons * types + 1;
-  const int C = integer(*doc.find_field("spin_compress"), 0, 9);
-  const int sb = integer(*doc.find_field("spin_basis_size"), 0, 100);
-  const int projection = integer(*doc.find_field("spin_projection_size"), 0, 324);
-  const int count = ann_count + types * types * ((nr + 1) * (br + 1) + (na + 1) * (ba + 1) + C * (sb + 1)) + projection;
-  if (parameters->values.size() != size_t(count)) throw std::runtime_error("Spin3 parameter count mismatch");
-  std::vector<float> values;
-  for (double value : parameters->values) {
-    if (!std::isfinite(value) || std::abs(value) > std::numeric_limits<float>::max())
-      throw std::runtime_error("Spin3 parameter exceeds float range");
-    values.push_back(static_cast<float>(value));
+  auto active_types = [&](const char* name, std::vector<int>& active) {
+    const auto* selection = field(name, 1, types);
+    if (!selection)
+      return false;
+    active.assign(types, 0);
+    for (const auto& symbol : selection->values) {
+      auto found = std::find(elements.begin(), elements.end(), symbol);
+      if (found == elements.end())
+        return fail(error, std::string("unknown element in ") + name);
+      const int t = found - elements.begin();
+      if (active[t])
+        return fail(error, std::string("duplicate element in ") + name);
+      active[t] = 1;
+    }
+    return true;
+  };
+  spin_type.assign(types, 1);
+  if (doc.find_field("spin_type") && !active_types("spin_type", spin_type))
+    return false;
+
+  f = field("energy_reference", types, types);
+  if (!f)
+    return false;
+  energy_reference.resize(types);
+  for (int t = 0; t < types; ++t)
+    if (!NEP_File::parse_double(f->values[t], energy_reference[t]))
+      return fail(error, "invalid energy_reference.");
+  enable_zbl = doc.find_field("zbl") != nullptr;
+  if (enable_zbl) {
+    f = field("zbl", 2, 3);
+    if (!number(f, 0, zbl_rc_inner) || !number(f, 1, zbl_rc_outer))
+      return false;
+    if (zbl_rc_inner == 0 && zbl_rc_outer == 0)
+      return fail(error, "NEP-spin does not support flexible ZBL (zbl 0 0).");
+    if (zbl_rc_inner < 0 || zbl_rc_outer <= zbl_rc_inner)
+      return fail(error, "zbl requires 0 <= inner < outer.");
+    use_typewise_cutoff_zbl = f->values.size() == 3;
+    if (use_typewise_cutoff_zbl) {
+      if (!number(f, 2, typewise_cutoff_zbl_factor))
+        return false;
+      if (typewise_cutoff_zbl_factor < 0.5f)
+        return fail(error, "typewise ZBL cutoff factor must be at least 0.5.");
+    }
   }
-  descriptor_parameters_to_basis_major(values.data(), ann_count, types * types, nr, na, br, ba);
-  for (float value : values) out << value << '\n';
-  for (double value : scaler->values) {
-    if (!(value > 0) || value > std::numeric_limits<float>::max()) throw std::runtime_error("Invalid Spin3 scaler");
-    out << value << '\n';
+  int angular_channels = l_max[0] + (l_max[1] != 0);
+  for (int i = 2; i < 7; ++i)
+    angular_channels += l_max[i];
+  const int dim_angular = (n_max[1] + 1) * angular_channels;
+  dim_struct = n_max[0] + 1 + dim_angular;
+  dim_spin = spin_dimension(spin_compress, spin_l_max, spin_order, spin_soc);
+  dim = dim_struct + dim_spin;
+  if (dim_angular > 90 || dim_spin > 96 || dim > MAX_DIM_SPIN)
+    return fail(error, "descriptor dimensions exceed the supported Spin shape.");
+  const int parameter_count =
+    (dim + 2) * num_neurons * types + 1 +
+    types * types *
+      ((n_max[0] + 1) * (basis_size[0] + 1) + (n_max[1] + 1) * (basis_size[1] + 1) +
+       spin_compress * (spin_basis_size + 1)) +
+    spin_projection_size;
+  auto block = [&](const char* name, int count, std::vector<float>& values, bool positive) {
+    const auto* b = doc.find_block(name);
+    if (!b || b->values.size() != size_t(count))
+      return fail(error, std::string("incorrect count in block '") + name + "'.");
+    values.resize(count);
+    for (int i = 0; i < count; ++i) {
+      if (!to_float(b->values[i], values[i]) || (positive && values[i] <= 0))
+        return fail(error, std::string("invalid value in block '") + name + "'.");
+    }
+    return true;
+  };
+  return block("parameters", parameter_count, parameters, false) &&
+         block("q_scaler", dim, q_scaler, true) &&
+         doc.check_unhandled(handled, {"parameters", "q_scaler"}, error);
+}
+
+int NEP_Spin_Model_File::spin_dimension(int channels, int l_max, int order, int soc)
+{
+  const int C = channels;
+  const int L = l_max;
+  const int pairs = C * (C + 1) / 2;
+  int dimension = 1 + 2 * C;
+  if (soc && L >= 2)
+    dimension += 2 * C;
+  if (order >= 2) {
+    dimension += 2 * C;
+    if (L >= 1)
+      dimension += (soc ? 3 : 1) * C;
+    if (L >= 2)
+      dimension += C;
+    dimension += C + 2 * pairs;
+    if (L >= 1)
+      dimension += pairs;
+    if (L >= 2)
+      dimension += pairs;
+    if (soc && L >= 1) {
+      dimension += (C >= 2 ? 2 : 1) * C;
+    }
+    if (soc && L >= 2) {
+      dimension += (C >= 2 ? 2 : 1) * C;
+    }
   }
-  std::vector<std::string> blocks = {"parameters", "q_scaler"};
-  std::string error;
-  if (!doc.check_unhandled(fields, blocks, error)) throw std::runtime_error(error);
-  return out.str();
+  if (order >= 3) {
+    dimension += C;
+    if (soc && L >= 1) {
+      dimension += (C >= 2 ? 2 : 1) * C;
+    }
+    if (soc && L >= 2) {
+      dimension += (C >= 2 ? 3 : 1) * C;
+    }
+    if (soc && L >= 1 && C >= 3)
+      dimension += C;
+  }
+  return dimension;
+}
+
+bool NEP_Spin_Model_File::is_spin_model(const std::string& filename)
+{
+  std::ifstream input(filename);
+  std::string line;
+  std::getline(input, line); // The common NEP header contains the element list.
+  std::istringstream header(line);
+  std::string tag;
+  if (!(header >> tag) || tag != "nep")
+    return false;
+  while (std::getline(input, line)) {
+    std::istringstream fields(line);
+    std::string keyword, value;
+    if (!(fields >> keyword) || keyword[0] == '#')
+      continue;
+    if (keyword == "model")
+      return (fields >> value) && value == "nep_spin";
+    if (keyword == "@")
+      break;
+  }
+  return false;
 }
