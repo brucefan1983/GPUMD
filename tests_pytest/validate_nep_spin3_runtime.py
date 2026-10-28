@@ -118,11 +118,24 @@ def validate_io(root):
         assert max_error(raw[field], zero[field]) < 1e-10, field
     assert raw["spin"][-1] == [0.0] * 3 and raw["mforce"][-1] == [0.0] * 3
 
-    # Model metadata order is not significant; selection must not require a fixed header order.
-    reordered = model.replace("model nep_spin\n", "").replace("@ parameters", "model nep_spin\n@ parameters", 1)
-    alternate = run_case(root, "reordered-header", case, reordered)
+    # Selection and validation must share the same lexical and ordering rules.
+    variants = {
+        "uppercase": model.replace("model nep_spin", "MODEL NEP_SPIN"),
+        "inline-comment": model.replace("model nep_spin", "model nep_spin#comment"),
+        "model-after-blocks": model.replace("model nep_spin\n", "") + "\nmodel nep_spin\n",
+    }
+    for name, changed in variants.items():
+        alternate = run_case(root, name, case, changed)
+        for field in ("energy", "force", "mforce", "virial"):
+            assert max_error(alternate[field], zero[field]) < 1e-10, (name, field)
+
+    # Small-cell lists must count and grow rather than truncate a short initial allocation.
+    reference = oracle["cases"]["noncollinear"]
+    grown = run_case(root, "small-capacity-growth", reference,
+                     model.replace("cutoff 6 5 128 128", "cutoff 6 5 1 1"))
+    regular = run_case(root, "small-capacity-reference", reference, model)
     for field in ("energy", "force", "mforce", "virial"):
-        assert max_error(alternate[field], zero[field]) < 1e-10, field
+        assert max_error(grown[field], regular[field]) < 1e-10, field
 
     # Restart and replication preserve the fixed-spin model, including type masking.
     source = root / "io-source"
@@ -149,7 +162,38 @@ def validate_io(root):
     after = read_frame(resume / "result.xyz")
     for field in ("energy", "potential", "force", "mforce", "virial", "spin"):
         assert max_error(before[field], after[field]) < 2e-4, field
-    print("inactive spin masking, replication and fixed-spin restart passed")
+    # Use upstream split output with the same Spin quantities and reader.
+    (resume / "run.in").write_text(
+        "potential nep.txt\nensemble nve\ntime_step 0\n"
+        "dump_xyz 1 split.xyz split 1 force potential spin mforce virial precision double\nrun 2\n")
+    result = subprocess.run([str(GPUMD)], cwd=resume, capture_output=True, text=True)
+    assert result.returncode == 0, result.stdout + result.stderr
+    for path in (resume / "split_0001.xyz", resume / "split_0002.xyz"):
+        split = read_frame(path)
+        for field in ("energy", "force", "mforce", "virial", "spin"):
+            assert max_error(split[field], after[field]) < 2e-4, field
+    print("model selection, neighbor growth, masking, replication, restart and split output passed")
+
+def validate_thin_cell(root):
+    # 10,000 atoms and two periodic images previously reserved ~19.2 GB.
+    model, _ = load_fixture("o3c2_uniform")
+    positions = [[1.5 + 3 * i, 2 + 4 * j, 1 + 2 * k]
+                 for i in range(2) for j in range(50) for k in range(100)]
+    case = {"types": ["Fe"] * len(positions), "positions": positions,
+            "spins": [[0.2, -0.1, 2.0]] * len(positions),
+            "cell": [6., 0., 0., 0., 200., 0., 0., 0., 200.]}
+    small = run_case(root, "thin-cell", case, model)
+    expanded = dict(case)
+    expanded["cell"] = [18., 0., 0., 0., 200., 0., 0., 0., 200.]
+    expanded["positions"] = [[x + 6 * shift, y, z] for shift in range(3) for x, y, z in positions]
+    expanded["types"] = case["types"] * 3
+    expanded["spins"] = case["spins"] * 3
+    large = run_case(root, "thin-cell-expanded", expanded, model)
+    for field in ("potential", "force", "mforce"):
+        assert max_error(small[field], large[field][:len(positions)]) < 2e-4, field
+    assert max_error(small["virial"], [value / 3 for value in large["virial"]]) < 2e-2
+    print("10000-atom thin-cell allocation and equivalent expanded-cell comparison passed")
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -171,6 +215,7 @@ def main():
         root = Path(temp)
         validate_energy_reference(root)
         validate_io(root)
+        validate_thin_cell(root)
         for fixture in args.fixtures:
             model, oracle = load_fixture(fixture)
             selected = args.cases or list(oracle["cases"])

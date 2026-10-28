@@ -175,6 +175,27 @@ def main():
             for d in ['x','y','z']:
                 out,_=execute(a,f'{variant}-{d}',xyz,4,direction=d)
                 record(f'{variant}-{d}',out,ref,outputs)
+    # n_max_angular=8 and ten angular channels need 16*(90+9*80)*4 = 51,840 shared bytes,
+    # exceeding the 48 KiB direct-force limit and selecting the generic fallback.
+    # The large cell also keeps every actual multi-GPU domain out of the small-box path.
+    dim = 5 + 9 * 10 + 55
+    count = (dim + 2) * 30 * 2 + 1 + 4 * (5 * 9 + 9 * 9 + 2 * 9) + 16
+    rng = np.random.default_rng(9127)
+    header = model.split("@ parameters", 1)[0].replace("n_max 4 4", "n_max 4 8").replace("l_max 4 2 0", "l_max 8 2 1")
+    fallback = a.output / "angular-fallback.nep"
+    fallback.write_text(header + f"@ parameters {count}\n" +
+                        "\n".join(f"{v:.9g}" for v in rng.normal(0, .03, count)) +
+                        f"\n@ q_scaler {dim}\n" + "1\n" * dim)
+    a.model = fallback
+    pos, spin, cell, vel = structure((48, 12, 12))
+    write_xyz(xyz, pos, spin, cell, vel)
+    ref, _ = execute(a, 'angular-fallback-reference', xyz, 1)
+    assert np.max(np.abs(ref['force'])) > 1e-8
+    for g in [1, 2, 4]:
+        out, _ = execute(a, f'angular-fallback-g{g}', xyz, g)
+        record(f'angular-fallback-g{g}', out, ref, outputs)
+    a.model = original_model
+
     # Uniform translation across slab/PBC faces exceeds the cached-partition
     # displacement limit twice. Spin and force outputs must follow atom identity.
     pos,spin,cell,vel=structure((48,8,8));vel[:]=[.75,0,0]

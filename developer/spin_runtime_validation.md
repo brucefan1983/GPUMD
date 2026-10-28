@@ -21,13 +21,19 @@ python tests_pytest/validate_spin_multigpu.py --binary "$GPUMD_COMMAND" --model 
 
 The runtime oracle checks cover energy, atomic force, magnetic force and all
 nine virial components, plus energy-reference invariance, excluded-spin
-masking, replication and fixed-spin restart. The frozen reference provenance
+masking, replication and fixed-spin restart. Model-selection checks include
+uppercase fields, attached comments and a model record after numeric blocks.
+Small-cell checks cover capacity growth and a 10,000-atom thin cell compared
+with an equivalent expanded cell. Split XYZ output is checked after restart. The frozen reference provenance
 is documented in [fixtures](../tests_pytest/fixtures/nep_spin3/README.md).
 The external-field script checks analytic Zeeman energy and magnetic force,
 group and region selection, boundary crossing, excluded spins and invalid inputs.
 Multi-GPU comparisons use componentwise tolerances and reject nonfinite values.
 They cover small cells, nonuniform and triclinic systems, cutoff boundaries,
 partition directions, motion across partition boundaries and energy references.
+An additional supported `n_max 4 8`, `l_max 8 2 1` model needs 51,840 bytes
+in the direct angular-force path and therefore exercises its 48 KiB fallback
+on one, two and four GPUs with nonzero forces.
 
 Run the [training validation](spin_validation.md) against the same build to
 check the shared descriptor implementation and native/JIT agreement. Keep its

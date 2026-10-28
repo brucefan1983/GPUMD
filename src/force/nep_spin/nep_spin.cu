@@ -232,8 +232,6 @@ __device__ __forceinline__ bool load_spin3_edge_f32(
 #include "nep_spin3_force.cuh"
 #include "nep_spin3_layout.cuh"
 
-__device__ int required_small_box_capacity[1];
-
 __global__ void find_local_neighbors_spin(
   const int N,
   const Box box,
@@ -1050,6 +1048,8 @@ void NEP_Spin::launch_spin3_descriptors(
       launch_spin3_descriptors_typed<9>(
         model, box, type, position, spin, data, slot_r12, r12_plane_size, stream);
       break;
+    default:
+      PRINT_INPUT_ERROR("Unsupported spin_compress in descriptor dispatch.");
   }
 }
 
@@ -1157,6 +1157,8 @@ void NEP_Spin::launch_spin3_forces(
       launch_spin3_forces_typed<9>(
         model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size);
       break;
+    default:
+      PRINT_INPUT_ERROR("Unsupported spin_compress in force dispatch.");
   }
   const bool has_inactive_dof =
     std::any_of(model.spin_type_active.begin(), model.spin_type_active.end(), [](const int active) {
@@ -1220,6 +1222,8 @@ NEP_Spin::NEP_Spin(const char* file_potential, const int num_atoms) : num_atoms_
 void NEP_Spin::resize_domain(int num_atoms)
 {
   num_atoms_ = num_atoms;
+  N1 = 0;
+  N2 = num_atoms;
   small_box_initialized_ = false;
   neighbor_.initialize(rc, num_atoms_, input_neighbor_capacity_);
   model_.neighbor_capacity = neighbor_.get_capacity();
@@ -1467,19 +1471,11 @@ void NEP_Spin::initialize_small_box(const Box& box)
   if (capacity > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
     PRINT_INPUT_ERROR("NEP_Spin small-box neighbor capacity exceeds int.");
   }
-  const std::size_t plane_size = static_cast<std::size_t>(num_atoms_) * capacity;
-  if (capacity != 0 && plane_size / capacity != static_cast<std::size_t>(num_atoms_)) {
-    PRINT_INPUT_ERROR("NEP_Spin small-box slot count overflows size_t.");
+  if (!small_box_initialized_) {
+    const int estimate = static_cast<int>(
+      std::min(capacity, static_cast<std::size_t>(std::max(1, input_neighbor_capacity_))));
+    resize_small_box_storage(std::max(1, estimate));
   }
-  if (plane_size > std::numeric_limits<std::size_t>::max() / (3 * sizeof(double))) {
-    PRINT_INPUT_ERROR("NEP_Spin small-box displacement storage overflows size_t.");
-  }
-  if (plane_size > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-    PRINT_INPUT_ERROR("NEP_Spin small-box slot plane exceeds int indexing.");
-  }
-  const int new_capacity = static_cast<int>(capacity);
-  const bool resize_storage = !small_box_initialized_ || small_box_capacity_ != new_capacity;
-  small_box_capacity_ = new_capacity;
 
   expanded_box_.h[0] = box.cpu_h[0] * expanded_box_.num_cells[0];
   expanded_box_.h[3] = box.cpu_h[3] * expanded_box_.num_cells[0];
@@ -1519,18 +1515,34 @@ void NEP_Spin::initialize_small_box(const Box& box)
     expanded_box_.h[index] /= determinant;
   }
 
-  if (resize_storage) {
-    data_.NL_radial.resize(plane_size);
-    data_.NL_angular.resize(plane_size);
-    data_.NL_spin.resize(plane_size);
-    data_.r12_radial.resize(3 * plane_size);
-    data_.r12_angular.resize(3 * plane_size);
-    data_.r12_spin.resize(3 * plane_size);
-    data_.f12x.resize(plane_size);
-    data_.f12y.resize(plane_size);
-    data_.f12z.resize(plane_size);
-  }
   small_box_initialized_ = true;
+}
+
+void NEP_Spin::resize_small_box_storage(int capacity)
+{
+  const std::size_t atoms = static_cast<std::size_t>(num_atoms_);
+  if (
+    capacity <= 0 || atoms > static_cast<std::size_t>(std::numeric_limits<int>::max()) /
+                               (3 * static_cast<std::size_t>(capacity))) {
+    PRINT_INPUT_ERROR("NEP_Spin small-box displacement storage exceeds int indexing.");
+  }
+  const std::size_t plane_size = atoms * static_cast<std::size_t>(capacity);
+  if (plane_size > std::numeric_limits<std::size_t>::max() / (3 * sizeof(double))) {
+    PRINT_INPUT_ERROR("NEP_Spin small-box displacement storage overflows size_t.");
+  }
+  small_box_capacity_ = capacity;
+  data_.NL_radial.resize(plane_size);
+  data_.NL_angular.resize(plane_size);
+  data_.NL_spin.resize(plane_size);
+  data_.r12_radial.resize(3 * plane_size);
+  data_.r12_angular.resize(3 * plane_size);
+  data_.r12_spin.resize(3 * plane_size);
+  data_.f12x.resize(plane_size);
+  data_.f12y.resize(plane_size);
+  data_.f12z.resize(plane_size);
+  if (data_.required_small_box_capacity.size() != 1) {
+    data_.required_small_box_capacity.resize(1);
+  }
 }
 
 void NEP_Spin::compute(
@@ -1565,40 +1577,37 @@ void NEP_Spin::compute(
   const int grid_size = (N - 1) / block_size + 1;
   if (is_small_box) {
     initialize_small_box(box);
-    int* gpu_required_capacity = nullptr;
-    CHECK(gpuGetSymbolAddress(
-      reinterpret_cast<void**>(&gpu_required_capacity), required_small_box_capacity));
-    const int zero = 0;
-    CHECK(gpuMemcpy(gpu_required_capacity, &zero, sizeof(int), gpuMemcpyHostToDevice));
-    find_neighbor_list_spin_small_box<<<grid_size, block_size>>>(
-      paramb_,
-      static_cast<float>(model_.spin_cutoff),
-      N,
-      box,
-      expanded_box_,
-      small_box_capacity_,
-      type.data(),
-      position.data(),
-      position.data() + N,
-      position.data() + 2 * N,
-      data_.NN_radial.data(),
-      data_.NL_radial.data(),
-      data_.NN_angular.data(),
-      data_.NL_angular.data(),
-      data_.NN_spin.data(),
-      data_.NL_spin.data(),
-      data_.r12_radial.data(),
-      data_.r12_angular.data(),
-      data_.r12_spin.data(),
-      gpu_required_capacity);
-    GPU_CHECK_KERNEL
-    int required_capacity = 0;
-    CHECK(gpuMemcpy(&required_capacity, gpu_required_capacity, sizeof(int), gpuMemcpyDeviceToHost));
-    if (required_capacity > small_box_capacity_) {
-      PRINT_INPUT_ERROR(("NEP_Spin small-box neighbor capacity overflow: required " +
-                         std::to_string(required_capacity) + " slots but capacity is " +
-                         std::to_string(small_box_capacity_) + ".")
-                          .c_str());
+    while (true) {
+      data_.required_small_box_capacity.fill(0);
+      find_neighbor_list_spin_small_box<<<grid_size, block_size>>>(
+        paramb_,
+        static_cast<float>(model_.spin_cutoff),
+        N,
+        box,
+        expanded_box_,
+        small_box_capacity_,
+        type.data(),
+        position.data(),
+        position.data() + N,
+        position.data() + 2 * N,
+        data_.NN_radial.data(),
+        data_.NL_radial.data(),
+        data_.NN_angular.data(),
+        data_.NL_angular.data(),
+        data_.NN_spin.data(),
+        data_.NL_spin.data(),
+        data_.r12_radial.data(),
+        data_.r12_angular.data(),
+        data_.r12_spin.data(),
+        data_.required_small_box_capacity.data());
+      GPU_CHECK_KERNEL
+      int required_capacity = 0;
+      data_.required_small_box_capacity.copy_to_host(&required_capacity);
+      if (required_capacity <= small_box_capacity_) {
+        break;
+      }
+      // The bounded fill counted all neighbors; no consumer runs until it fits.
+      resize_small_box_storage(required_capacity);
     }
     const int plane_size = N * small_box_capacity_;
     find_structural_descriptor<<<grid_size, block_size>>>(
@@ -1709,6 +1718,9 @@ void NEP_Spin::compute(
     return;
   }
 
+  if (small_box_initialized_) {
+    resize_domain(N);
+  }
   neighbor_.find_neighbor_global(rc, box, type, position);
   constexpr int neighbor_block_size = 128;
   const int neighbor_grid_size = (N - 1) / neighbor_block_size + 1;

@@ -1,10 +1,9 @@
 /* This file is part of GPUMD. SPDX-License-Identifier: LGPL-3.0-or-later */
 #include "nep_file.cuh"
 #include "nep_spin_model_file.cuh"
-#include <fstream>
-#include <sstream>
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <limits>
 
 namespace
@@ -241,21 +240,11 @@ int NEP_Spin_Model_File::spin_dimension(int channels, int l_max, int order, int 
 bool NEP_Spin_Model_File::is_spin_model(const std::string& filename)
 {
   std::ifstream input(filename);
-  std::string line;
-  std::getline(input, line); // The common NEP header contains the element list.
-  std::istringstream header(line);
-  std::string tag;
-  if (!(header >> tag) || tag != "nep")
+  NEP_File file;
+  std::string error;
+  if (!file.read(input, error)) {
     return false;
-  while (std::getline(input, line)) {
-    std::istringstream fields(line);
-    std::string keyword, value;
-    if (!(fields >> keyword) || keyword[0] == '#')
-      continue;
-    if (keyword == "model")
-      return (fields >> value) && value == "nep_spin";
-    if (keyword == "@")
-      break;
   }
-  return false;
+  const NEP_File::Field* model = file.find_field("model");
+  return model && model->values.size() == 1 && model->values[0] == "nep_spin";
 }

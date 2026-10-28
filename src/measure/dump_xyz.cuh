@@ -17,6 +17,7 @@
 #include "parse_utilities.cuh"
 #include "action.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "xyz_frame_splitter.h"
 #include <string>
 #include <vector>
 class Box;
@@ -73,9 +74,11 @@ private:
   bool has_spin_ = false;
   bool has_mforce_ = false;
   int separated_ = 0;
+  int split_frames_ = 0;
+  XYZFrameSplitter splitter_;
   std::string filename_;
   std::string fmt_;
-  FILE* fid_;
+  FILE* fid_ = nullptr;
 
   std::vector<double> cpu_unwrapped_position_;
   std::vector<double> cpu_force_per_atom_;

@@ -80,6 +80,7 @@ private:
     GPU_Vector<double> r12_radial;
     GPU_Vector<double> r12_angular;
     GPU_Vector<double> r12_spin;
+    GPU_Vector<int> required_small_box_capacity;
   };
 
   struct Body_Channels {
@@ -259,4 +260,5 @@ private:
 
   void read_model(const char* file_potential);
   void initialize_small_box(const Box& box);
+  void resize_small_box_storage(int capacity);
 };
