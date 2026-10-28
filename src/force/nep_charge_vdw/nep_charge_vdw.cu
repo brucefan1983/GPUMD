@@ -160,10 +160,10 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   if (!model.read(input, error)) {
     PRINT_INPUT_ERROR(error.c_str());
   }
-  if (model.name != "nep_vdw" && model.name != "qnep2_vdw") {
-    PRINT_INPUT_ERROR("NEP_Charge_VDW requires a nep_vdw or qnep2_vdw model.");
+  if (model.name != "nep_vdw" && model.name != "qnep3_vdw") {
+    PRINT_INPUT_ERROR("NEP_Charge_VDW requires a nep_vdw or qnep3_vdw model.");
   }
-  paramb.has_charge = model.name == "qnep2_vdw";
+  paramb.has_charge = model.name == "qnep3_vdw";
   paramb.num_types = model.num_types;
   if (paramb.num_types > NUM_ELEMENTS) {
     PRINT_INPUT_ERROR("Too many atom types in the vdW NEP model.");

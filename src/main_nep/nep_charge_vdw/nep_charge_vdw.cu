@@ -1478,7 +1478,7 @@ void NEP_Charge_VDW::find_force(
 
 void NEP_Charge_VDW::configure(NEP_Charge_Parameters& para)
 {
-  para.model_name = "qnep2_vdw";
+  para.model_name = "qnep3_vdw";
   calculate_nep_model_parameters(para, 0, 2, 2, 1);
 }
 
