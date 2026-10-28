@@ -142,6 +142,37 @@ def test_command_io(tmp_path, structure, model_path, model_type, gpumd_command, 
     run_and_check(tmp_path, structure, model_path, model_type, gpumd_command, case)
 
 
+def test_dump_xyz_split_matches_unsplit_across_runs(
+        tmp_path, structure, model_path, model_type, gpumd_command):
+    """Splitting changes file boundaries, not frames, including after a second run command."""
+    case = CommandIOCase(
+        name='dump_xyz_split',
+        run_in_lines=[
+            ('velocity', [300, 'seed', 42]),
+            ('time_step', 1),
+            ('ensemble', 'nve'),
+            ('dump_xyz', [1, 'split.xyz', 'split', 2, 'force']),
+            ('dump_xyz', [1, 'unsplit.xyz', 'force']),
+            ('run', 5),
+            ('ensemble', 'nve'),
+            ('dump_xyz', [1, 'split.xyz', 'split', 2, 'force']),
+            ('dump_xyz', [1, 'unsplit.xyz', 'force']),
+            ('run', 3),
+        ],
+        skip_base_block=True,
+    )
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    assert result.returncode == 0, f'{result.stdout}\n{result.stderr}'
+
+    chunks = [tmp_path / f'split_{index:04d}.xyz' for index in range(1, 6)]
+    assert sorted(tmp_path.glob('split_*.xyz')) == chunks
+    frame_counts = [len(read(path, index=':')) for path in chunks]
+    assert frame_counts == [2, 2, 1, 2, 1]
+    assert b''.join(path.read_bytes() for path in chunks) == (
+        tmp_path / 'unsplit.xyz').read_bytes()
+
+
 def test_dump_xyz_comment_line_is_well_formed(
         tmp_path, structure, model_path, model_type, gpumd_command):
     """Lattice, virial, and stress go through Dump_XYZ::print_tensor, which loops over the nine
