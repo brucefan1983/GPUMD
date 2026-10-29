@@ -5,18 +5,23 @@
 :attr:`spin_version`
 ====================
 
-This keyword selects the spin-dependent energy model and its magnetic
-model contract::
+This keyword specifies the magnetic descriptor and parameter-layout contract
+of the spin-dependent energy model::
 
+  model nep_spin
   spin_version 1
 
-The only supported value is ``1``. Omit this keyword for ordinary NEP.
+The only supported value is ``1``, which is also the default for
+``model nep_spin``. Omit this keyword for other models.
+Using ``spin_version 1`` without ``model`` still selects the spin model, but
+prints a deprecation warning asking for an explicit ``model nep_spin``.
 A missing value, an unsupported version, or a repeated model selector is an
 input error. Version 1 uses the order/compression descriptor described in
 :ref:`nep_spin`; :ref:`spin_order <kw_spin_order>` independently selects its
 contraction order.
 
-Spin training requires ``version 4``, ``model_type 0``, and one hidden layer.
+Spin training requires ``version 4`` and one hidden layer. Legacy inputs
+may use ``model_type 0``, but must not combine it with the ``model`` keyword.
 ``version`` identifies the NEP architecture; ``spin_version`` identifies the
 magnetic descriptor and parameter-layout contract. The resulting ``nep.txt``
 contains ``model nep_spin`` and ``spin_version 1``. Prediction, scaler import,
@@ -42,6 +47,7 @@ gives 55 magnetic and 97 total coordinates, within :ref:`nep_spin_dimensions`::
 
   version          4
   type             2 Fe Ge
+  model            nep_spin
   spin_version     1
   spin_basis_size  8 0
   spin_l_max       2 0 0
