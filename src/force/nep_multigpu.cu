@@ -122,6 +122,9 @@ NEP_MULTIGPU::NEP_MULTIGPU(
     zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
     zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
     if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
+      if (paramb.model_type != 0) {
+        PRINT_INPUT_ERROR("Flexible ZBL is only supported for model nep.");
+      }
       zbl.flexible = true;
       printf("    has the flexible ZBL potential\n");
     } else {

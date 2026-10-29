@@ -232,8 +232,7 @@ NEP_Charge::NEP_Charge(
     zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
     zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
     if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
-      zbl.flexible = true;
-      printf("    has the flexible ZBL potential\n");
+      PRINT_INPUT_ERROR("Flexible ZBL is only supported for model nep.");
     } else {
       if (tokens.size() == 4) {
         paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
