@@ -17,9 +17,13 @@ The "inner" cutoff of the :term:`ZBL` potential, below which value the pair inte
 
 When this keyword is absent, the :term:`ZBL` potential will not be enabled and the value of :math:`r_\mathrm{c}^\mathrm{ZBL-outer}` is irrelevant.
 
-Permissible values are 1 Å :math:`\leq r_\mathrm{c}^\mathrm{ZBL-outer} \leq` 3 Å
+NEP-spin supports universal ZBL but not flexible ZBL. With ZBL enabled,
+remove ``zbl.in`` for :ref:`spin_version 1 <kw_spin_version>` training.
+ZBL contributes to energy, force, and virial, but not magnetic force or torque.
 
-One can also use flexible ZBL parameters by providing a `zbl.in` file in the working directory, in which case the :attr:`<cutoff>` parameter is still needed but will not be used.
+Permissible values are 1 Å :math:`\leq r_\mathrm{c}^\mathrm{ZBL-outer} \leq` 4 Å.
+
+For non-spin models, one can also use flexible ZBL parameters by providing a `zbl.in` file in the working directory, in which case the :attr:`<cutoff>` parameter is still needed but will not be used.
 For a :math:`n`-species system, there should be :math:`n(n+1)/2` lines in the `zbl.in` files.
 Each line represents a unique pair of species. 
 Counting from 1, the order of the lines is 1-1, 1-2, ..., 1-:math:`n`, 2-2, 2-3, ..., 2-:math:`n`, :math:`n`-:math:`n`.

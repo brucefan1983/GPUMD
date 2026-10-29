@@ -41,7 +41,6 @@ Parameters::Parameters()
   save_potential_format = 1;   // include time stamp in checkpoint names
   save_potential_restart = 0;  // do not write checkpoint restart files by default
   output_interval = 100;       // write loss.out, nep.txt, nep.restart (and related output) every N generations
-  initial_para = 1.0f;
   sigma0 = 0.1f;
   int deviceCount;  
   CHECK(gpuGetDeviceCount(&deviceCount));  
@@ -73,8 +72,6 @@ bool Parameters::parse_keyword(const char** param, int num_param)
     parse_save_potential(param, num_param);
   } else if (strcmp(param[0], "output_interval") == 0) {
     parse_output_interval(param, num_param);
-  } else if (strcmp(param[0], "initial_para") == 0) {
-    parse_initial_para(param, num_param);
   } else if (strcmp(param[0], "sigma0") == 0) {
     parse_sigma0(param, num_param);
   } else {
@@ -265,23 +262,6 @@ void Parameters::parse_output_interval(const char** param, int num_param)
   }
   if (output_interval <= 0) {
     PRINT_INPUT_ERROR("output_interval should be > 0.");
-  }
-}
-
-void Parameters::parse_initial_para(const char** param, int num_param)
-{
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("initial_para should have 1 parameter.\n");
-  }
-
-  double initial_para_tmp = 0.0;
-  if (!is_valid_real(param[1], &initial_para_tmp)) {
-    PRINT_INPUT_ERROR("initial_para should be a number.\n");
-  }
-  initial_para = initial_para_tmp;
-
-  if (initial_para < 0.1f || initial_para > 1.0f) {
-    PRINT_INPUT_ERROR("initial_para should be within [0.1, 1].");
   }
 }
 

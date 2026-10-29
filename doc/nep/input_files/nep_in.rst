@@ -24,6 +24,10 @@ Keywords can appear in any order with the exception of the :ref:`type_weight key
 The :ref:`type keyword <kw_type>` does not have default parameters and *must* be set.
 All other keywords have default values.
 
+Use :ref:`model <kw_model>` to select the model family, for example
+``model qnep2`` or ``model qnep3_vdw``. Omitting all model selectors selects
+ordinary ``nep``. Legacy selectors remain supported with deprecation warnings.
+
 Keywords
 --------
 
@@ -40,14 +44,34 @@ Keywords
      - number of atom types and list of chemical species
    * - :ref:`type_weight <kw_type_weight>`
      - force weights for different atom types
+   * - :ref:`model <kw_model>`
+     - select the model for training or prediction
    * - :ref:`model_type <kw_model_type>`
-     - select to train potential, dipole, or polarizability
+     - legacy model selection (deprecated)
    * - :ref:`charge_mode <kw_charge_mode>`
-     - select the charge mode for a potential model
+     - legacy charge-model selection (deprecated)
+   * - :ref:`flip_charge <kw_flip_charge>`
+     - reverse charge-output weights when restarting charge-model training
    * - :ref:`prediction <kw_prediction>`
      - select between training and prediction (inference)
    * - :ref:`zbl <kw_zbl>`
      - outer cutoff for the universal :term:`ZBL` potential [Ziegler1985]_
+   * - :ref:`spin_version <kw_spin_version>`
+     - select the spin descriptor version for ``model nep_spin``
+   * - :ref:`spin_cutoff <kw_spin_cutoff>`
+     - one spin cutoff or one cutoff per element, bounded by the NEP radial cutoff
+   * - :ref:`spin_basis_size <kw_spin_basis_size>`
+     - magnetic radial basis index followed by a reserved second value fixed at zero
+   * - :ref:`spin_l_max <kw_spin_l_max>`
+     - maximum spatial tensor rank used by the spin descriptor
+   * - :ref:`spin_compress <kw_spin_compress>`
+     - number of shared compressed radial channels
+   * - :ref:`spin_order <kw_spin_order>`
+     - highest Spin3 contraction level supplied to the neural network
+   * - :ref:`spin_soc <kw_spin_soc>`
+     - enable joint spin--space rotation-invariant Spin3 channels
+   * - :ref:`spin_type <kw_spin_type>`
+     - atom types with independent spin degrees of freedom
    * - :ref:`use_typewise_cutoff_zbl <kw_use_typewise_cutoff_zbl>`
      - enable typewise cutoff radii for the ZBL part of the model
    * - :ref:`cutoff <kw_cutoff>`
@@ -70,6 +94,16 @@ Keywords
      - weight of force loss term
    * - :ref:`lambda_v <kw_lambda_v>`
      - weight of virial loss term
+   * - :ref:`lambda_m <kw_lambda_m>`
+     - weight of Cartesian magnetic-force loss term
+   * - :ref:`lambda_m_parallel <kw_lambda_m_parallel>`
+     - weight of parallel magnetic-force RMSE (requires ``lambda_m_perp``)
+   * - :ref:`lambda_m_perp <kw_lambda_m_perp>`
+     - weight of perpendicular magnetic-force RMSE (requires ``lambda_m_parallel``)
+   * - :ref:`lambda_tau <kw_lambda_tau>`
+     - weight of spin-torque loss term
+   * - :ref:`lambda_spin_response <kw_lambda_spin_response>`
+     - weight of grouped magnetic-response loss term
    * - :ref:`lambda_q <kw_lambda_q>`
      - weight of total-charge loss term for qNEP models
    * - :ref:`lambda_z <kw_lambda_z>`
@@ -129,3 +163,6 @@ Here is an example :attr:`nep.in` file using all the default parameters::
   batch         1000      # default
   population	50        # default
   generation	100000    # default
+
+For Spin training, see the :ref:`spin_version example <spin_training_example>`
+and the :ref:`Spin potential documentation <nep_spin>`.

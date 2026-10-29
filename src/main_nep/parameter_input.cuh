@@ -22,7 +22,9 @@ class ParameterInput
 {
 public:
   ParameterInput();
+  std::string model; // non-empty when the model keyword is used
   int model_type = 0;
+  int spin_version = 0; // zero means the Spin model was not selected
   int charge_mode = 0;
   int vdw = 0;
   int charge_vdw = 0;
@@ -35,6 +37,11 @@ public:
   void report_disabled_models() const;
 
 private:
+  bool is_flip_charge_set = false;
+  bool is_legacy_flip_charge_set = false;
+  void parse_model(const char** param, int num_param);
+  void parse_flip_charge(const char** param, int num_param);
+  void report_deprecated_selectors() const;
   void parse_model_type(const char** param, int num_param);
   void parse_charge_mode(const char** param, int num_param);
   void parse_vdw(const char** param, int num_param);

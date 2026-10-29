@@ -111,7 +111,7 @@ std::unique_ptr<Potential> Force::create_potential(
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
   } else if (strcmp(potential_name, "nep_vdw") == 0 ||
-             strcmp(potential_name, "qnep2_vdw") == 0) {
+             strcmp(potential_name, "qnep3_vdw") == 0) {
     potential.reset(new NEP_Charge_VDW(tokens[1].c_str(), number_of_atoms, run_input));
     is_nep = true;
   } else if (
@@ -243,7 +243,7 @@ void Force::parse_potential(
     }
     // New MD models can read the native format; retain the adapter for existing models.
     std::string tag = model.name;
-    if (tag != "nep_vdw" && tag != "qnep2_vdw") {
+    if (tag != "nep_vdw" && tag != "qnep3_vdw") {
       std::string md_input;
       if (!model.get_md_input(md_input, error)) {
         PRINT_INPUT_ERROR(error.c_str());

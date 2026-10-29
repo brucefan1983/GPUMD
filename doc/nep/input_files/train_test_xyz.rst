@@ -8,6 +8,7 @@
 
 The :attr:`train.xyz` file, which contains the training data for the construction of a :term:`NEP` model, and the :attr:`test.xyz` file, which contains the corresponding test data, both need to be provided in `extended xyz file format <https://github.com/libAtoms/extxyz>`_.
 Each structure (or configuration or frame) occupies :math:`N+2` lines, where :math:`N` is the number of atoms in the structure.
+Grouped magnetic-response data use a separate :ref:`response.xyz <response_xyz>` file.
 
 Format for a single structure
 -----------------------------
@@ -53,6 +54,17 @@ Essentially any keyword is allowed, but we only read the following ones:
   * :attr:`pos:R:3` position vector
   * :attr:`force:R:3` or :attr:`forces:R:3` target force vector
   * :attr:`bec:R:9` target Born effective charge (:term:`BEC`) tensor (optional)
+  * :attr:`spin:R:3`, :attr:`spins:R:3`, :attr:`moment:R:3`, or
+    :attr:`moments:R:3` Cartesian magnetic-moment vector in muB (required when
+    :ref:`spin_version <kw_spin_version>` is specified)
+  * :attr:`mforce:R:3` target magnetic-force vector (optional). The aliases
+    ``mforces``, ``force_mag``, ``forces_mag``, ``magnetic_force``, and
+    ``magnetic_forces`` are also accepted.
+
+  For atom types excluded by :ref:`spin_type <kw_spin_type>`, training, test
+  and prediction readers set the effective spin to zero and ignore magnetic-force
+  labels. The original files need no modification. Energy and atomic-force labels
+  are preserved, and their positions remain part of the geometric environment.
 
 * If a dipole model is to be trained, energy, virial, stress, and force will be ignored and one should additionally provide :attr:`dipole="dx dy dz"`, which is the dipole vector of the structure. 
 
@@ -71,6 +83,8 @@ Units
 * Virials are expected in units of eV (such that the virial divided by the volume yields the stress).
 * Dipole and polarizability can be in arbitrary units (such as the Hartree atomic units) as liked (and remembered) by the user.
 * :term:`BEC` is in units of elementary charge e.
+* Spin is in Bohr magnetons (muB), and magnetic force is in eV/muB.
+  Magnetic force is the negative Cartesian derivative of energy with respect to spin.
 
 Tips
 ----
@@ -83,4 +97,3 @@ Tips
 * The energy and virial data refer to the total energy and virial for the system.
   They are not per-atom but per-cell quantities.
 * The :term:`BEC` is optional. You can also have it only for some structures.
-
