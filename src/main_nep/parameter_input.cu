@@ -157,7 +157,7 @@ void ParameterInput::report_deprecated_selectors() const
   if (flip_charge && (charge_mode || charge_vdw) && !spin_version) {
     printf(" and 'flip_charge 1'");
   }
-  printf(" instead.\n");
+  printf(" instead.\n\n");
 }
 
 void ParameterInput::report_disabled_models() const
