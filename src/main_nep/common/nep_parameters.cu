@@ -696,9 +696,13 @@ void NEP_Parameters::report_inputs(
 {
   printf("Input or default parameters:\n");
 
-  printf("    (%s) %smodel_type = %s.\n",
-    input.is_model_type_set ? "input" : "default", input.is_model_type_set ? "  " : "",
-    model_name);
+  if (!input.model.empty()) {
+    printf("    (input)   model = %s.\n", input.model.c_str());
+  } else {
+    printf("    (%s) %smodel_type = %s.\n",
+      input.is_model_type_set ? "input" : "default", input.is_model_type_set ? "  " : "",
+      model_name);
+  }
 
   std::string calculation_mode_name = "train";
   if (prediction == 1) {
