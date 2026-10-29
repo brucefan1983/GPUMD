@@ -593,7 +593,7 @@ Model formats and input
      - Training mode
      - Description
    * - ``nep`` / ``model nep_spin``
-     - ``spin_version 1``
+     - ``model nep_spin``
      - Current block format with ``spin_version 1``; optional :ref:`zbl <kw_zbl>` field.
 
 See :ref:`spin_version <kw_spin_version>` and the neighboring ``spin_*`` keyword
