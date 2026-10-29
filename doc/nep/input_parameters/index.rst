@@ -13,6 +13,7 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
 
    version
    prediction
+   model
    model_type
    type
    type_weight
@@ -44,6 +45,7 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
    fine_tune
    import_q_scaler
    charge_mode
+   flip_charge
    spin_version
    spin_compress
    spin_basis_size

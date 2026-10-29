@@ -24,6 +24,10 @@ Keywords can appear in any order with the exception of the :ref:`type_weight key
 The :ref:`type keyword <kw_type>` does not have default parameters and *must* be set.
 All other keywords have default values.
 
+Use :ref:`model <kw_model>` to select the model family, for example
+``model qnep2`` or ``model qnep3_vdw``. Omitting all model selectors selects
+ordinary ``nep``. Legacy selectors remain supported with deprecation warnings.
+
 Keywords
 --------
 
@@ -40,16 +44,20 @@ Keywords
      - number of atom types and list of chemical species
    * - :ref:`type_weight <kw_type_weight>`
      - force weights for different atom types
+   * - :ref:`model <kw_model>`
+     - select the model for training or prediction
    * - :ref:`model_type <kw_model_type>`
-     - select to train potential, dipole, or polarizability
+     - legacy model selection (deprecated)
    * - :ref:`charge_mode <kw_charge_mode>`
-     - select the charge mode for a potential model
+     - legacy charge-model selection (deprecated)
+   * - :ref:`flip_charge <kw_flip_charge>`
+     - reverse charge-output weights when restarting charge-model training
    * - :ref:`prediction <kw_prediction>`
      - select between training and prediction (inference)
    * - :ref:`zbl <kw_zbl>`
      - outer cutoff for the universal :term:`ZBL` potential [Ziegler1985]_
    * - :ref:`spin_version <kw_spin_version>`
-     - enable the Spin3 descriptor
+     - select the spin descriptor version for ``model nep_spin``
    * - :ref:`spin_cutoff <kw_spin_cutoff>`
      - one spin cutoff or one cutoff per element, bounded by the NEP radial cutoff
    * - :ref:`spin_basis_size <kw_spin_basis_size>`
