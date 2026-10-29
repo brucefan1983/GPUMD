@@ -104,6 +104,9 @@ void NEP_Parameters::read(const ParameterInput& input)
 void NEP_Parameters::finish_reading(
   const ParameterInput& input, const char* model_name, const char* model_description)
 {
+  if (flexible_zbl && this->model_name != "nep") {
+    PRINT_INPUT_ERROR("Flexible ZBL is only supported for model nep.");
+  }
   set_regularization_defaults();
   check_existing_nep_model(*this);
   initialize_q_scaler();

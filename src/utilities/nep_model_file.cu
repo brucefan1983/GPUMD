@@ -241,6 +241,9 @@ bool NEP_Model_File::read_zbl(
   enable_zbl = true;
   flexible_zbl = zbl_rc_inner == 0.0f && zbl_rc_outer == 0.0f;
   if (flexible_zbl) {
+    if (name != "nep") {
+      return fail(error, "Flexible ZBL is only supported for model nep.", field->line);
+    }
     if (field->values.size() != 2) {
       return fail(error, "flexible ZBL cannot use a typewise cutoff factor.", field->line);
     }

@@ -1120,7 +1120,6 @@ TNEP::TNEP(const ParameterInput& input)
   para.model_type = input.model_type;
   para.read(input);
   para.lambda_e = para.lambda_f = 0.0f;
-  para.enable_zbl = false;
   if (!para.is_lambda_v_set) {
     para.lambda_v = 1.0f;
   }
@@ -1235,7 +1234,9 @@ std::vector<float> TNEP::get_rmse(Dataset& dataset, bool use_weight, int device_
 
 bool TNEP_Parameters::parse_keyword(const char** param, int num_param)
 {
-  if (strcmp(param[0], "atomic_v") == 0) {
+  if (strcmp(param[0], "zbl") == 0 || strcmp(param[0], "use_typewise_cutoff_zbl") == 0) {
+    PRINT_INPUT_ERROR("ZBL is not supported for nep_dipole or nep_polarizability.");
+  } else if (strcmp(param[0], "atomic_v") == 0) {
     parse_atomic_v(param, num_param);
   } else {
     return NEP_Parameters::parse_keyword(param, num_param);
