@@ -279,6 +279,12 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
     annmb.dim += 1;
   }
   printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
+  if (
+    paramb.n_max_radial + 1 > MAX_NUM_N || paramb.n_max_angular + 1 > MAX_NUM_N ||
+    paramb.basis_size_radial + 1 > MAX_NUM_N || paramb.basis_size_angular + 1 > MAX_NUM_N ||
+    paramb.dim_angular > MAX_DIM_ANGULAR || annmb.dim > MAX_DIM) {
+    PRINT_INPUT_ERROR("NEP model exceeds MAX_NUM_N, MAX_DIM_ANGULAR or MAX_DIM.");
+  }
 
   // calculated parameters:
   rc = paramb.rc_radial_max; // largest cutoff

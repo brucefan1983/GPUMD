@@ -25,6 +25,13 @@ Spin_Parameters::Spin_Parameters(const ParameterInput& input)
   }
   validate_spin_parameters();
   calculate_nep_model_parameters(*this, 0, 0, 1, 1);
+  if (
+    n_max_radial > 12 || n_max_angular > 8 || basis_size_angular > 12 || num_neurons1 > 120 ||
+    dim_angular > 90) {
+    PRINT_INPUT_ERROR(
+      "Spin models require n_max <= 12 8, basis_size_angular <= 12, neuron <= 120 and at most 90 "
+      "angular descriptors.\n");
+  }
   dim_struct = dim;
   calculate_spin_dimensions();
   calculate_nep_model_parameters(*this, dim_spin, 0, 1, 1);

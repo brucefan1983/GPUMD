@@ -120,7 +120,7 @@ For example:
 n_max 10 8
 ```
 
-The radial and angular descriptor indices run from zero through their respective `n_max` values. Model-file limits are 15 radially and 12 angularly, subject to the angular descriptor-dimension limit.
+The radial and angular descriptor indices run from zero through their respective `n_max` values. Model-file limits are 15 radially and 14 angularly, subject to the angular descriptor-dimension limit.
 
 ### 3.5 `basis_size`
 
@@ -161,7 +161,7 @@ The angular descriptor dimension is
 (L_max + number_of_enabled_optional_many_body_terms)
 ```
 
-and must not exceed 90.
+and must not exceed 135. The full ANN input dimension must not exceed 150.
 
 ### 3.7 `ann`
 
@@ -181,7 +181,7 @@ For a two-hidden-layer network:
 ann 80 40
 ```
 
-A zero second value means one hidden layer. Model-specific restrictions are listed in Section 5.
+A zero second value means one hidden layer. One hidden layer allows up to 300 neurons, two hidden layers up to 120 each. Model-specific restrictions are listed in Section 5.
 
 ### 3.8 `energy_reference`
 

@@ -418,13 +418,13 @@ void NEP_Parameters::parse_n_max(const char** param, int num_param)
   }
   if (n_max_radial < 0) {
     PRINT_INPUT_ERROR("n_max_radial should >= 0.");
-  } else if (n_max_radial > 12) {
-    PRINT_INPUT_ERROR("n_max_radial should <= 12.");
+  } else if (n_max_radial > 15) {
+    PRINT_INPUT_ERROR("n_max_radial should <= 15.");
   }
   if (n_max_angular < 0) {
     PRINT_INPUT_ERROR("n_max_angular should >= 0.");
-  } else if (n_max_angular > 8) {
-    PRINT_INPUT_ERROR("n_max_angular should <= 8.");
+  } else if (n_max_angular > 14) {
+    PRINT_INPUT_ERROR("n_max_angular should <= 14.");
   }
 }
 
@@ -448,8 +448,8 @@ void NEP_Parameters::parse_basis_size(const char** param, int num_param)
   }
   if (basis_size_angular < 0) {
     PRINT_INPUT_ERROR("basis_size_angular should >= 0.");
-  } else if (basis_size_angular > 12) {
-    PRINT_INPUT_ERROR("basis_size_angular should <= 12.");
+  } else if (basis_size_angular > 16) {
+    PRINT_INPUT_ERROR("basis_size_angular should <= 16.");
   }
 }
 
@@ -522,8 +522,8 @@ void NEP_Parameters::parse_neuron(const char** param, int num_param)
 
   if (num_neurons1 < 1) {
     PRINT_INPUT_ERROR("number of neurons1 should >= 1.");
-  } else if (num_neurons1 > 120) {
-    PRINT_INPUT_ERROR("number of neurons1 should <= 120.");
+  } else if (num_neurons1 > 300) {
+    PRINT_INPUT_ERROR("number of neurons1 should <= 300.");
   }
   num_hidden_layers = 1;
 
@@ -540,6 +540,8 @@ void NEP_Parameters::parse_neuron(const char** param, int num_param)
 
     if (num_neurons2 == 0) {
       num_hidden_layers = 1;
+    } else if (num_neurons1 > 120) {
+      PRINT_INPUT_ERROR("number of neurons1 should <= 120 with two hidden layers.");
     }
   }
 }

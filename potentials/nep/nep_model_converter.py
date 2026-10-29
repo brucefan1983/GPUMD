@@ -142,11 +142,11 @@ def read_model(filename):
 
         where, values = read_field(source, filename, "n_max", 2, 2)
         nr = integer(values[0], 0, 15, where)
-        na = integer(values[1], 0, 12, where)
+        na = integer(values[1], 0, 14, where)
         fields.append(("n_max", values))
         where, values = read_field(source, filename, "basis_size", 2, 2)
         br = integer(values[0], 0, 16, where)
-        ba = integer(values[1], 0, 12, where)
+        ba = integer(values[1], 0, 16, where)
         fields.append(("basis_size", values))
         where, values = read_field(source, filename, "l_max", 3, 7)
         l_max = integer(values[0], 2, 8, where)
@@ -155,12 +155,14 @@ def read_model(filename):
             raise ValueError(f"{where}: q_222 must be 0 or 2")
         angular_dim = (na + 1) * (l_max + sum(v != 0 for v in flags))
         dim = nr + 1 + angular_dim + extra_inputs
-        if angular_dim > 90 or dim > 103:
+        if angular_dim > 135 or dim > 150:
             raise ValueError(f"{where}: descriptor dimension exceeds the supported limit")
         fields.append(("l_max", values))
         where, values = read_field(source, filename, "ann", 2, 2)
-        n1 = integer(values[0], 1, 120, where)
+        n1 = integer(values[0], 1, 300, where)
         n2 = integer(values[1], 0, 120, where)
+        if n2 and n1 > 120:
+            raise ValueError(f"{where}: two hidden layers allow at most 120 neurons each")
         if n2 and name not in ("nep", "nep_temperature", "nep_dipole", "nep_polarizability"):
             raise ValueError(f"{where}: {name} supports only one hidden layer")
         fields.append(("ann", values))

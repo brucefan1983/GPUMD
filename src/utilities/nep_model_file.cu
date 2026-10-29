@@ -15,6 +15,7 @@
 
 #include "nep_file.cuh"
 #include "nep_model_file.cuh"
+#include "nep_utilities.cuh"
 #include <cmath>
 #include <limits>
 #include <utility>
@@ -155,13 +156,13 @@ bool NEP_Model_File::read_descriptor(
   field = require_field(document, "n_max", 2, 2, handled, error);
   if (
     field == nullptr || !read_integer(*field, 0, 0, 15, n_max_radial, error) ||
-    !read_integer(*field, 1, 0, 12, n_max_angular, error)) {
+    !read_integer(*field, 1, 0, 14, n_max_angular, error)) {
     return false;
   }
   field = require_field(document, "basis_size", 2, 2, handled, error);
   if (
     field == nullptr || !read_integer(*field, 0, 0, 16, basis_size_radial, error) ||
-    !read_integer(*field, 1, 0, 12, basis_size_angular, error)) {
+    !read_integer(*field, 1, 0, 16, basis_size_angular, error)) {
     return false;
   }
   field = require_field(document, "l_max", 3, 7, handled, error);
@@ -187,8 +188,8 @@ bool NEP_Model_File::read_descriptor(
   layout.dim_angular = (n_max_angular + 1) *
                        (L_max + has_q_222 + has_q_1111 + has_q_112 + has_q_123 + has_q_233 +
                         has_q_134);
-  if (layout.dim_angular > 90) {
-    return fail(error, "number of angular descriptors exceeds 90.", field->line);
+  if (layout.dim_angular > MAX_DIM_ANGULAR) {
+    return fail(error, "number of angular descriptors exceeds MAX_DIM_ANGULAR.", field->line);
   }
   layout.dim = layout.dim_radial + layout.dim_angular;
   return true;
@@ -199,9 +200,12 @@ bool NEP_Model_File::read_ann(
 {
   const NEP_File::Field* field = require_field(document, "ann", 2, 2, handled, error);
   if (
-    field == nullptr || !read_integer(*field, 0, 1, 120, num_neurons1, error) ||
+    field == nullptr || !read_integer(*field, 0, 1, 300, num_neurons1, error) ||
     !read_integer(*field, 1, 0, 120, num_neurons2, error)) {
     return false;
+  }
+  if (num_neurons2 > 0 && num_neurons1 > 120) {
+    return fail(error, "ann allows at most 120 neurons per layer with two hidden layers.", field->line);
   }
   return true;
 }
@@ -300,8 +304,8 @@ void NEP_Model_File::calculate_layout(
 bool NEP_Model_File::read_parameters(
   const NEP_File& document, std::vector<std::string>& blocks, std::string& error)
 {
-  if (layout.dim > 103) {
-    return fail(error, "descriptor dimension exceeds 103.", document.find_field("l_max")->line);
+  if (layout.dim > MAX_DIM) {
+    return fail(error, "descriptor dimension exceeds MAX_DIM.", document.find_field("l_max")->line);
   }
   return read_block(document, "parameters", layout.number_of_variables, parameters, blocks, error) &&
          read_block(document, "q_scaler", layout.dim, q_scaler, blocks, error);

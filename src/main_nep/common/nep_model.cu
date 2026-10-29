@@ -16,6 +16,7 @@
 #include "nep_model.cuh"
 #include "nep_parameters.cuh"
 #include "utilities/error.cuh"
+#include "utilities/nep_utilities.cuh"
 
 void calculate_nep_model_parameters(
   NEP_Parameters& para, int extra_inputs, int extra_outputs, int global_parameters, int ann_count)
@@ -43,11 +44,14 @@ void calculate_nep_model_parameters(
     para.dim_angular += para.n_max_angular + 1;
   }
 
-  if (para.dim_angular > 90) {
-    PRINT_INPUT_ERROR("Number of angular descriptors should not exceed 90.");
+  if (para.dim_angular > MAX_DIM_ANGULAR) {
+    PRINT_INPUT_ERROR("Number of angular descriptors should not exceed MAX_DIM_ANGULAR.");
   }
 
   para.dim = para.dim_radial + para.dim_angular;
+  if (para.dim > MAX_DIM) {
+    PRINT_INPUT_ERROR("Number of descriptors should not exceed MAX_DIM.");
+  }
   para.dim += extra_inputs;
 
   if (para.num_hidden_layers == 2) {
