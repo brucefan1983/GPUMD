@@ -25,6 +25,7 @@ The class defining the simulation model.
 #include "utilities/compact_nep.cuh"
 #include "utilities/error.cuh"
 #include "utilities/run_input.cuh"
+#include "utilities/nep_spin_model_file.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
@@ -161,6 +162,7 @@ static void read_xyz_line_2(
   bool& has_mass,
   bool& has_charge,
   bool& has_spin,
+  const bool enable_spin,
   int& num_columns,
   int* property_offset,
   std::vector<Group>& group)
@@ -259,7 +261,7 @@ static void read_xyz_line_2(
       std::vector<std::string> sub_tokens = get_tokens(line);
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
         for (int prop = 0; prop < num_properties; ++prop) {
-          if (sub_tokens[k * 3] == property_name[prop]) {
+          if (sub_tokens[k * 3] == property_name[prop] && (prop != 6 || enable_spin)) {
             if (prop == 6 && property_position[prop] >= 0) {
               PRINT_INPUT_ERROR("Duplicate spin property.");
             }
@@ -528,6 +530,7 @@ void initialize_position(
     has_mass,
     has_charge,
     atom.has_spin,
+    NEP_Spin_Model_File::is_spin_model(filename_potential),
     num_columns,
     property_offset,
     group);

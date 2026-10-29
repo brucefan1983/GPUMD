@@ -3,7 +3,9 @@
 #pragma once
 #include "nep.cuh"
 
-// Structural force evaluation shared by NEP and NEP-spin. CUDA kernels remain internal.
+// Internal structural-force launchers. CUDA kernels remain translation-unit local.
+namespace nep_internal
+{
 void launch_find_force_radial(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
@@ -40,3 +42,5 @@ void launch_find_partial_force_angular(
   float* f12x,
   float* f12y,
   float* f12z);
+
+} // namespace nep_internal

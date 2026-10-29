@@ -15,25 +15,42 @@
 
 #pragma once
 
-#include "model/box.cuh"
-#include "model/group.cuh"
-#include "utilities/gpu_vector.cuh"
+#include "measure/action.cuh"
 #include <vector>
 
-class Spin_Magnetic_Field
+class Spin_Magnetic_Field : public Action
 {
 public:
-  void parse(const char** param, int num_param, const std::vector<Group>& group);
-  bool enabled() const { return mfield_enabled_; }
-  void compute(
-    const Box& box,
-    const GPU_Vector<double>& position_per_atom,
-    const std::vector<Group>& group,
-    const GPU_Vector<double>& spin_per_atom,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& mforce_per_atom) const;
+  Spin_Magnetic_Field(const std::vector<std::string>& tokens, const std::vector<Group>& group);
+
+  void pre_run(
+    int number_of_steps,
+    double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force) override;
+  void setup_force(
+    double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force) override;
+  void post_force(
+    int step,
+    double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force) override;
 
 private:
+  void parse(const char** param, int num_param, const std::vector<Group>& group);
+  void compute(Box& box, const std::vector<Group>& group, Atom& atom) const;
+  GPU_Vector<int> active_types_;
   int mfield_group_method_ = 0;
   int mfield_group_id_ = 0;
   bool mfield_use_region_ = false;

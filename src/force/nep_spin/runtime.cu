@@ -4,19 +4,19 @@
 #include "nep_spin_multigpu.cuh"
 #include "runtime.cuh"
 #include "utilities/error.cuh"
+#include "utilities/run_input.cuh"
 #include <cmath>
 
-void Spin_Runtime::set_types(const std::vector<int>& types)
+Spin_Runtime::Spin_Runtime(const RunInput& input)
 {
-  if (!unsupported_.empty()) {
-    PRINT_INPUT_ERROR(("NEP-spin does not support command " + unsupported_ + ".").c_str());
+  for (const auto& line : input.lines()) {
+    if (!line.tokens.empty()) {
+      check_command(line.tokens);
+    }
   }
-  types_ = types;
-  active_.resize(types.size());
-  active_.copy_from_host(types.data());
 }
 
-void Spin_Runtime::check_command(const std::vector<std::string>& tokens)
+void Spin_Runtime::check_command(const std::vector<std::string>& tokens) const
 {
   bool unsupported = false;
   for (const char* name :
@@ -41,11 +41,7 @@ void Spin_Runtime::check_command(const std::vector<std::string>& tokens)
     unsupported = tokens.size() < 2 || (tokens[1] != "nve" && tokens[1] != "nvt_nhc");
   }
   if (unsupported) {
-    if (!types_.empty()) {
-      PRINT_INPUT_ERROR(("NEP-spin does not support command " + tokens[0] + ".").c_str());
-    }
-    if (unsupported_.empty())
-      unsupported_ = tokens[0];
+    PRINT_INPUT_ERROR(("NEP-spin does not support command " + tokens[0] + ".").c_str());
   }
 }
 
@@ -69,35 +65,6 @@ void Spin_Runtime::initialize(Atom& atom) const
   atom.spin_per_atom.copy_from_host(atom.cpu_spin_per_atom.data());
 }
 
-void Spin_Runtime::validate(const Atom& atom) const
-{
-  if (field_.enabled() && (types_.empty() || !atom.has_spin)) {
-    PRINT_INPUT_ERROR("add_mfield requires a Spin potential and spin:R:3.");
-  }
-}
-
-static __global__ void mask_mforce(int n, const int* type, const int* active, double* force)
-{
-  int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < n && !active[type[i]])
-    force[i] = force[n + i] = force[2 * n + i] = 0.0;
-}
-
-void Spin_Runtime::apply_field(
-  Box& box,
-  const GPU_Vector<double>& position,
-  const std::vector<Group>& group,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& spin,
-  GPU_Vector<double>& energy,
-  GPU_Vector<double>& mforce) const
-{
-  field_.compute(box, position, group, spin, energy, mforce);
-  mask_mforce<<<(type.size() + 127) / 128, 128>>>(
-    type.size(), type.data(), active_.data(), mforce.data());
-  GPU_CHECK_KERNEL
-}
-
 std::unique_ptr<Potential>
 Spin_Runtime::create_potential(const std::vector<std::string>& tokens, int atoms)
 {
@@ -116,20 +83,11 @@ Spin_Runtime::create_potential(const std::vector<std::string>& tokens, int atoms
   CHECK(gpuGetDeviceCount(&devices));
   if (devices == 1) {
     std::unique_ptr<NEP_Spin> potential(new NEP_Spin(tokens[1].c_str(), atoms));
-    set_types(potential->spin_types());
+    types_ = potential->spin_types();
     return std::unique_ptr<Potential>(std::move(potential));
   }
   std::unique_ptr<NEP_Spin_MultiGPU> potential(
     new NEP_Spin_MultiGPU(devices, tokens[1].c_str(), atoms, direction));
-  set_types(potential->spin_types());
+  types_ = potential->spin_types();
   return std::unique_ptr<Potential>(std::move(potential));
-}
-
-void Spin_Runtime::parse_field(
-  const std::vector<std::string>& tokens, const std::vector<Group>& group)
-{
-  std::vector<const char*> fields;
-  for (const auto& token : tokens)
-    fields.push_back(token.c_str());
-  field_.parse(fields.data(), fields.size(), group);
 }

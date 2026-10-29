@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """GPU runtime checks for group-selected Zeeman coupling; standard library only."""
 import json
+import math
 import tempfile
 from pathlib import Path
 import spin_runtime_helpers as runtime
@@ -18,7 +19,9 @@ def grouped(model):
 def frame(path):
     lines = path.read_text().splitlines()
     n = int(lines[0])
-    return [[float(x) for x in line.split()[1:]] for line in lines[-n:]]
+    values = [[float(x) for x in line.split()[1:]] for line in lines[-n:]]
+    assert all(math.isfinite(x) for row in values for x in row)
+    return values
 
 def main():
     original_run = runtime.run_case
@@ -48,8 +51,27 @@ def main():
         masked_field = static("excluded-on", "add_mfield 1 1 12 -7 31", excluded)
         assert masked_field[1][4:10] == [0.0] * 6
         assert abs(masked_field[1][10] - masked[1][10]) < 2e-12
-        cleared = static('cleared', 'add_mfield 1 1 12 -7 31\nadd_mfield 0 0 0 0 0')
-        assert cleared == baseline
+        zero = static('zero', 'add_mfield 1 1 0 0 0')
+        assert zero == baseline
+        with_zero = static('with-zero', 'add_mfield 1 1 12 -7 31\nadd_mfield 0 0 0 0 0')
+        assert with_zero == applied
+        summed = static('summed', 'add_mfield 1 1 5 -2 10\nadd_mfield 1 1 7 -5 21')
+        for left, right in zip(summed, applied):
+            assert max(abs(a-b) for a, b in zip(left, right)) < 2e-12
+        cancelled = static('cancelled', 'add_mfield 1 1 12 -7 31\nadd_mfield 1 1 -12 7 -31')
+        for left, right in zip(cancelled, baseline):
+            assert max(abs(a-b) for a, b in zip(left, right)) < 2e-12
+        commands = 'potential nep.txt\n'
+        for name, command in [('first', 'add_mfield 1 1 12 -7 31\n'),
+                              ('second', ''), ('third', 'add_mfield 1 1 12 -7 31\n')]:
+            commands += (command + 'ensemble nve\ntime_step 0\n'
+                         f'dump_xyz 1 {name}.xyz precision double mass spin mforce potential\nrun 1\n')
+        case, result = original_run(root, 'multiple-runs', commands, model)
+        assert result.returncode == 0, result.stdout + result.stderr
+        for name, expected in [('first', applied), ('second', baseline), ('third', applied)]:
+            actual = frame(case / (name + '.xyz'))
+            for left, right in zip(actual, expected):
+                assert max(abs(a-b) for a, b in zip(left, right)) < 2e-12, name
         negative = ['add_mfield 0 0 1 2', 'add_mfield -1 0 1 2 3',
                     'add_mfield 0 99 1 2 3', 'add_mfield 0 0 nan 0 0',
                     'add_mfield 0 0 1 2 3 block 0 1 0 1 0 1']
@@ -103,7 +125,8 @@ def main():
             assert result.returncode != 0
         print(json.dumps({'group_energy_force': 'passed', 'zero_field': 'passed',
                           'parser_negatives': len(negative)+4, 'region_boundary_skew_wrap': 'passed',
-                          'region_enter_exit': 'passed'}))
+                          'region_enter_exit': 'passed', 'additive_fields': 'passed',
+                          'per_run_lifecycle': 'passed'}))
 
 if __name__ == '__main__':
     main()

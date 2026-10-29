@@ -31,14 +31,15 @@ a discontinuous Zeeman energy. No mechanical boundary impulse is implemented;
 energy conservation is not guaranteed for atoms crossing this boundary. This
 is a local magnetic drive, not a smooth conservative gradient-field model.
 
-A Spin potential and spin:R:3 are required for a nonzero field. The field acts
+A Spin potential and spin:R:3 are required. The field acts
 only on selected atoms whose elements belong to the model's ``spin_type``.
 Other elements retain zero effective spin and zero magnetic force.
 
-Each command replaces the previous field and group/region selection. The setting
-persists across run commands. To turn it off::
-
-  add_mfield 0 0 0 0 0
+Declare the field before each ``run`` that uses it. Multiple ``add_mfield``
+commands in the same run add their contributions, including overlapping groups
+or regions. Field actions are cleared after the run. To run without a field,
+omit ``add_mfield`` before the next ``run``; a zero-valued command contributes
+zero and does not cancel other field actions.
 
 Spin is in muB, magnetic force is in eV/muB, and energy is in eV. With
 c_B = 5.7883818060e-5, the added magnetic force is c_B times the field vector;

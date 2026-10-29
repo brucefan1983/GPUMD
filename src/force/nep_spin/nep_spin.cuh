@@ -17,45 +17,6 @@
 
 class NEP_Spin : public Potential
 {
-public:
-  struct Spin_Polynomial_Layout {
-    int channels = 0;
-    int pair_count = 0;
-    int density_stride = 38;
-    int moment_count = 0;
-    int local_s2 = -1;
-    int edge_l0_dot = -1;
-    int edge_l0_neighbor_s2 = -1;
-    int edge_l2_pair = -1;
-    int center_l2_environment = -1;
-    int edge_l0_dot2 = -1;
-    int density_l0_self = -1;
-    int density_l1_longitudinal_self = -1;
-    int density_l1_axial_self = -1;
-    int density_l1_stf_self = -1;
-    int density_l1_product_self = -1;
-    int density_l2_product_self = -1;
-    int density_l0_dot_response = -1;
-    int correlation_same_edge = -1;
-    int correlation_distinct_neighbor = -1;
-    int correlation_distinct_l1 = -1;
-    int correlation_distinct_l2 = -1;
-    int angular_l1_moment_offset = -1;
-    int angular_l2_moment_offset = -1;
-    int coupling_l11_axial = -1;
-    int edge_l11_axial = -1;
-    int coupling_l22_axial = -1;
-    int edge_l22_axial = -1;
-    int edge_l0_moment_gate = -1;
-    int coupling_l11_dot_response = -1;
-    int coupling_l111_p_m_x = -1;
-    int coupling_l22_dot_response = -1;
-    int coupling_l111_p_qs_x = -1;
-    int coupling_l112_edge_response = -1;
-    int coupling_l111_bulk = -1;
-    int descriptor_dim = 0;
-  };
-
 private:
   struct Data {
     GPU_Vector<float> parameters;
@@ -128,7 +89,7 @@ private:
     std::vector<int> spin_type_active;
     std::vector<double> spin_cutoff_by_type;
     Body_Channels body;
-    Spin_Polynomial_Layout spin_polynomial_layout;
+    int spin_moment_count = 0;
   };
 
 public:

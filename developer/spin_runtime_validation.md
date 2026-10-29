@@ -28,9 +28,13 @@ with an equivalent expanded cell. Split XYZ output is checked after restart. The
 is documented in [fixtures](../tests_pytest/fixtures/nep_spin3/README.md).
 The external-field script checks analytic Zeeman energy and magnetic force,
 group and region selection, boundary crossing, excluded spins and invalid inputs.
+It also checks additive fields and clearing/redeclaring them across runs.
+Ordinary-model checks require extra scalar, vector, nonfinite, string and duplicate
+`spin` properties to leave predictions and restart output unchanged.
 Multi-GPU comparisons use componentwise tolerances and reject nonfinite values.
 They cover small cells, nonuniform and triclinic systems, cutoff boundaries,
-partition directions, motion across partition boundaries and energy references.
+partition directions, motion across partition boundaries, additive magnetic fields
+and energy references.
 An additional supported `n_max 4 8`, `l_max 8 2 1` model needs 51,840 bytes
 in the direct angular-force path and therefore exercises its 48 KiB fallback
 on one, two and four GPUs with nonzero forces.

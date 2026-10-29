@@ -23,6 +23,44 @@ namespace
 
 using SimulationBox = Box;
 
+struct Spin_Polynomial_Layout {
+  int channels = 0;
+  int pair_count = 0;
+  int density_stride = 38;
+  int moment_count = 0;
+  int local_s2 = -1;
+  int edge_l0_dot = -1;
+  int edge_l0_neighbor_s2 = -1;
+  int edge_l2_pair = -1;
+  int center_l2_environment = -1;
+  int edge_l0_dot2 = -1;
+  int density_l0_self = -1;
+  int density_l1_longitudinal_self = -1;
+  int density_l1_axial_self = -1;
+  int density_l1_stf_self = -1;
+  int density_l1_product_self = -1;
+  int density_l2_product_self = -1;
+  int density_l0_dot_response = -1;
+  int correlation_same_edge = -1;
+  int correlation_distinct_neighbor = -1;
+  int correlation_distinct_l1 = -1;
+  int correlation_distinct_l2 = -1;
+  int angular_l1_moment_offset = -1;
+  int angular_l2_moment_offset = -1;
+  int coupling_l11_axial = -1;
+  int edge_l11_axial = -1;
+  int coupling_l22_axial = -1;
+  int edge_l22_axial = -1;
+  int edge_l0_moment_gate = -1;
+  int coupling_l11_dot_response = -1;
+  int coupling_l111_p_m_x = -1;
+  int coupling_l22_dot_response = -1;
+  int coupling_l111_p_qs_x = -1;
+  int coupling_l112_edge_response = -1;
+  int coupling_l111_bulk = -1;
+  int descriptor_dim = 0;
+};
+
 #include "nep_spin3_common.cuh"
 
 enum class SpinVirialMode : int {
@@ -103,8 +141,6 @@ __global__ void mask_inactive_spin_mforce(
     mforce[2 * atom_stride + atom] = 0.0;
   }
 }
-
-using SpinPolynomialLayout = NEP_Spin::Spin_Polynomial_Layout;
 
 template <int C, bool NeedDerivatives>
 __device__ __forceinline__ void evaluate_spin3_edge_weights_b9_f32(
@@ -962,10 +998,12 @@ void NEP_Spin::launch_spin3_descriptors_typed(
 {
   constexpr int block_size = 128;
   const int N = type.size();
+  const auto layout = make_spin_polynomial_layout<Spin_Polynomial_Layout>(
+    C, model.spin_l_max[0], model.spin_order, model.spin_soc);
   const int density_work = C * N;
   build_spin3_oc_density_bank<C>
     <<<(density_work + block_size - 1) / block_size, block_size, 0, stream>>>(
-      model.spin_polynomial_layout,
+      layout,
       N,
       N,
       model.struct_descriptor_dim,
@@ -987,7 +1025,7 @@ void NEP_Spin::launch_spin3_descriptors_typed(
       data.descriptor.data(),
       data.spin3_moments.data());
   contract_spin3_oc_descriptors<C><<<(N + block_size - 1) / block_size, block_size, 0, stream>>>(
-    model.spin_polynomial_layout,
+    layout,
     N,
     N,
     model.struct_descriptor_dim,
@@ -1067,17 +1105,19 @@ void NEP_Spin::launch_spin3_forces_typed(
   const double* slot_r12,
   int r12_plane_size)
 {
+  const auto layout = make_spin_polynomial_layout<Spin_Polynomial_Layout>(
+    C, model.spin_l_max[0], model.spin_order, model.spin_soc);
   using Tile = Spin3ForceTile<C>;
   constexpr int block_size = Tile::block_size;
   const int N = type.size();
   constexpr int atoms_per_warp = Tile::atoms_per_warp;
   constexpr int centers_per_block = Tile::centers_per_block;
   const int grid_size = (N - 1) / centers_per_block + 1;
-  const std::size_t shared_size = static_cast<std::size_t>(centers_per_block) *
-                                  model.spin_polynomial_layout.moment_count * sizeof(float);
+  const std::size_t shared_size =
+    static_cast<std::size_t>(centers_per_block) * layout.moment_count * sizeof(float);
   accumulate_spin3_oc_native_forces<C, SpinVirialMode::center_owned, false, atoms_per_warp>
     <<<grid_size, block_size, shared_size>>>(
-      model.spin_polynomial_layout,
+      layout,
       N,
       N,
       model.struct_descriptor_dim,
@@ -1263,8 +1303,7 @@ void NEP_Spin::resize_domain(int num_atoms)
     data_.f12z.resize(slots);
   }
   const std::size_t N = static_cast<std::size_t>(num_atoms_);
-  const std::size_t spin3_state_size =
-    N * static_cast<std::size_t>(model_.spin_polynomial_layout.moment_count);
+  const std::size_t spin3_state_size = N * static_cast<std::size_t>(model_.spin_moment_count);
   if (data_.spin3_moments.size() != (spin3_state_size)) {
     data_.spin3_moments.resize(spin3_state_size);
   }
@@ -1328,8 +1367,10 @@ void NEP_Spin::read_model(const char* file_potential)
   model_.struct_descriptor_dim = file.dim_struct;
   model_.spin_descriptor_dim = file.dim_spin;
   model_.descriptor_dim = file.dim;
-  model_.spin_polynomial_layout = make_spin_polynomial_layout<Spin_Polynomial_Layout>(
-    model_.spin_compress, model_.spin_l_max[0], model_.spin_order, model_.spin_soc);
+  model_.spin_moment_count =
+    make_spin_polynomial_layout<Spin_Polynomial_Layout>(
+      model_.spin_compress, model_.spin_l_max[0], model_.spin_order, model_.spin_soc)
+      .moment_count;
 
   zbl_.enabled = file.enable_zbl;
   zbl_.num_types = model_.num_types;
@@ -1810,7 +1851,7 @@ void NEP_Spin::compute(
   }
   GPU_CHECK_KERNEL
 
-  launch_find_force_radial(
+  nep_internal::launch_find_force_radial(
     paramb_,
     ann_,
     N,
@@ -1874,7 +1915,7 @@ void NEP_Spin::compute(
         angular_shared_size);
     }
   } else {
-    launch_find_partial_force_angular(
+    nep_internal::launch_find_partial_force_angular(
       paramb_,
       ann_,
       N,

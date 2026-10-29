@@ -221,7 +221,6 @@ void Run::compute_force()
         box,
         atom.position_per_atom,
         atom.type,
-        group,
         atom.potential_per_atom,
         atom.force_per_atom,
         atom.virial_per_atom,
@@ -246,8 +245,6 @@ void Run::compute_force()
 
 void Run::perform_a_run(const int number_of_steps)
 {
-  force.validate_spin(atom);
-
   integrate.initialize(time_step, atom, box, group);
   measure.pre_run(number_of_steps, time_step, integrate, group, atom, box, force);
 
@@ -329,7 +326,6 @@ void Run::parse_one_keyword(
     PRINT_INPUT_ERROR("replicate must be the first effective command.");
   }
 
-  force.check_spin_command(tokens);
   const int num_param = tokens.size();
   const int max_num_param = 32;
   if (num_param > max_num_param)
@@ -373,8 +369,6 @@ void Run::parse_one_keyword(
     parse_velocity(tokens);
   } else if (tokens[0] == "ensemble") {
     integrate.parse_ensemble(tokens, atom, box, group);
-  } else if (tokens[0] == "add_mfield") {
-    force.parse_mfield(tokens, group);
   } else if (tokens[0] == "time_step") {
     parse_time_step(tokens);
   } else if (tokens[0] == "correct_velocity") {

@@ -155,7 +155,13 @@ def main():
             for key in ['force','mforce','virial']:
                 if np.max(np.abs(shifted_out[key]-out[key]))>1e-10:
                     raise AssertionError(f'Energy reference changed {key} on {g} GPUs')
-    a.model=converted
+    a.model = converted
+    field = 'add_mfield 0 0 100 -200 300\nadd_mfield 0 0 -20 50 10\n'
+    field_ref, _ = execute(a, 'field-reference', xyz, 1, field=field)
+    assert np.max(np.abs(field_ref['mforce'] - ref['mforce'])) > 1e-3
+    for g in [1, 2, 4]:
+        out, _ = execute(a, f'field-g{g}', xyz, g, field=field)
+        record(f'field-g{g}', out, field_ref, outputs)
     for variant in ['bcc','nonuniform','triclinic','small','cutoff']:
         if variant=='cutoff':
             # Isolated pairs just inside/outside the 6 A cutoff, including slab/PBC faces.

@@ -18,7 +18,6 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "potential.cuh"
-#include "nep_spin/runtime.cuh"
 #ifdef GPUMD_WPE_ENABLED
 #include "wpe_stage.cuh"
 #endif
@@ -29,11 +28,14 @@
 #include <vector>
 
 class RunInput;
+class Spin_Runtime;
+class Atom;
 
 class Force
 {
 public:
   Force(void);
+  ~Force();
 
   void parse_potential(
     const std::vector<std::string>& tokens,
@@ -66,7 +68,6 @@ public:
     Box& box,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& type,
-    std::vector<Group>& group,
     GPU_Vector<double>& potential_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom,
@@ -74,15 +75,9 @@ public:
     GPU_Vector<double>& mforce_per_atom,
     int* position_image = nullptr);
 
-  bool has_spin_potential(void) const { return has_spin_potential_; }
+  bool has_spin_potential(void) const { return spin_runtime_ != nullptr; }
 
-  void parse_mfield(const std::vector<std::string>& tokens, const std::vector<Group>& group)
-  {
-    spin_runtime_.parse_field(tokens, group);
-  }
-  void check_spin_command(const std::vector<std::string>& tokens) { spin_runtime_.check_command(tokens); }
-  void initialize_spin(Atom& atom) { spin_runtime_.initialize(atom); }
-  void validate_spin(const Atom& atom) const { spin_runtime_.validate(atom); }
+  void initialize_spin(Atom& atom);
 
   // Zeroes the given arrays and evaluates one potential alone into them. The positions and the
   // float box are read as they are.
@@ -129,8 +124,7 @@ private:
   double temperature = 0;
   double delta_T;
   std::vector<std::unique_ptr<Potential>> potentials;
-  Spin_Runtime spin_runtime_;
-  bool has_spin_potential_ = false;
+  std::unique_ptr<Spin_Runtime> spin_runtime_;
   bool is_fcp = false;
   bool has_non_nep = false;
   std::string multiple_potentials_mode_ = "observe"; // "observe" or "average"

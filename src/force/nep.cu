@@ -1721,7 +1721,7 @@ const GPU_Vector<int>& NEP::get_NN_radial_ptr() { return nep_data.NN_radial; }
 
 const GPU_Vector<int>& NEP::get_NL_radial_ptr() { return nep_data.NL_radial; }
 
-void launch_find_force_radial(
+void nep_internal::launch_find_force_radial(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
   int N,
@@ -1745,7 +1745,7 @@ void launch_find_force_radial(
   GPU_CHECK_KERNEL
 }
 
-void launch_find_partial_force_angular(
+void nep_internal::launch_find_partial_force_angular(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
   int N,

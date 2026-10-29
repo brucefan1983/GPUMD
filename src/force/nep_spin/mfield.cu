@@ -13,13 +13,58 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "force/force.cuh"
 #include "mfield.cuh"
 #include "model/box.cuh"
+#include "nep_spin.cuh"
+#include "nep_spin_multigpu.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
 #include <cstring>
+
+Spin_Magnetic_Field::Spin_Magnetic_Field(
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+{
+  action_name = "add_mfield";
+  std::vector<const char*> fields;
+  for (const auto& token : tokens) {
+    fields.push_back(token.c_str());
+  }
+  parse(fields.data(), fields.size(), group);
+}
+
+void Spin_Magnetic_Field::pre_run(
+  int, double, Integrate&, std::vector<Group>&, Atom& atom, Box&, Force& force)
+{
+  const std::vector<int>* types = nullptr;
+  if (force.get_number_of_potentials() == 1) {
+    auto& potential = force.get_potential(0);
+    if (const auto* spin = dynamic_cast<const NEP_Spin*>(&potential)) {
+      types = &spin->spin_types();
+    } else if (const auto* spin = dynamic_cast<const NEP_Spin_MultiGPU*>(&potential)) {
+      types = &spin->spin_types();
+    }
+  }
+  if (!types || !atom.has_spin) {
+    PRINT_INPUT_ERROR("add_mfield requires a Spin potential and spin:R:3.");
+  }
+  active_types_.resize(types->size());
+  active_types_.copy_from_host(types->data());
+}
+
+void Spin_Magnetic_Field::setup_force(
+  double, Integrate&, std::vector<Group>& group, Atom& atom, Box& box, Force&)
+{
+  compute(box, group, atom);
+}
+
+void Spin_Magnetic_Field::post_force(
+  int, double, Integrate&, std::vector<Group>& group, Atom& atom, Box& box, Force&)
+{
+  compute(box, group, atom);
+}
 
 static __device__ void get_fractional_position(
   const Box& box,
@@ -126,6 +171,8 @@ static __global__ void add_mfield(
   const double cmin,
   const double cmax,
   const double* spin,
+  const int* type,
+  const int* active,
   double* energy,
   double* mforce)
 {
@@ -133,6 +180,9 @@ static __global__ void add_mfield(
   if (tid >= count)
     return;
   const int i = UseRegion ? tid : members[offset + tid];
+  if (!active[type[i]]) {
+    return;
+  }
   if (UseRegion) {
     double sa, sb, sc;
     get_fractional_position(box, position[i], position[n + i], position[2 * n + i], sa, sb, sc);
@@ -145,15 +195,9 @@ static __global__ void add_mfield(
   mforce[2 * n + i] += hz;
 }
 
-void Spin_Magnetic_Field::compute(
-  const Box& box,
-  const GPU_Vector<double>& position_per_atom,
-  const std::vector<Group>& group,
-  const GPU_Vector<double>& spin_per_atom,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& mforce_per_atom) const
+void Spin_Magnetic_Field::compute(Box& box, const std::vector<Group>& group, Atom& atom) const
 {
-  const int number_of_atoms = spin_per_atom.size() / 3;
+  const int number_of_atoms = atom.number_of_atoms;
   if (mfield_enabled_) {
     if (mfield_use_region_) {
       add_mfield<true><<<(number_of_atoms + 127) / 128, 128>>>(
@@ -165,16 +209,18 @@ void Spin_Magnetic_Field::compute(
         mfield_[1],
         mfield_[2],
         box,
-        position_per_atom.data(),
+        atom.position_per_atom.data(),
         mfield_region_[0],
         mfield_region_[1],
         mfield_region_[2],
         mfield_region_[3],
         mfield_region_[4],
         mfield_region_[5],
-        spin_per_atom.data(),
-        potential_per_atom.data(),
-        mforce_per_atom.data());
+        atom.spin_per_atom.data(),
+        atom.type.data(),
+        active_types_.data(),
+        atom.potential_per_atom.data(),
+        atom.mforce_per_atom.data());
       GPU_CHECK_KERNEL
     } else {
       const Group& selected = group[mfield_group_method_];
@@ -196,9 +242,11 @@ void Spin_Magnetic_Field::compute(
           0,
           0,
           0,
-          spin_per_atom.data(),
-          potential_per_atom.data(),
-          mforce_per_atom.data());
+          atom.spin_per_atom.data(),
+          atom.type.data(),
+          active_types_.data(),
+          atom.potential_per_atom.data(),
+          atom.mforce_per_atom.data());
         GPU_CHECK_KERNEL
       }
     }

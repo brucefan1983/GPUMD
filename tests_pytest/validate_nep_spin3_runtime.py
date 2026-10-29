@@ -129,6 +129,14 @@ def validate_io(root):
         for field in ("energy", "force", "mforce", "virial"):
             assert max_error(alternate[field], zero[field]) < 1e-10, (name, field)
 
+    for prop, message in [("spin:R:1", "spin must be R:3"),
+                          ("spin:R:3:spin:R:3", "Duplicate spin property")]:
+        from spin_runtime_helpers import base_model, run_case as input_case
+        _, result = input_case(root, "invalid-spin-" + str(len(prop)),
+                               "potential nep.txt\nensemble nve\nrun 1\n",
+                               base_model().replace("spin:R:3", prop))
+        assert result.returncode != 0 and message in result.stdout + result.stderr
+
     # Small-cell lists must count and grow rather than truncate a short initial allocation.
     reference = oracle["cases"]["noncollinear"]
     grown = run_case(root, "small-capacity-growth", reference,
@@ -195,6 +203,37 @@ def validate_thin_cell(root):
     print("10000-atom thin-cell allocation and equivalent expanded-cell comparison passed")
 
 
+def validate_ordinary_spin_properties(root):
+    # Unknown properties must remain ignored for an ordinary model, even if named spin.
+    model = (ROOT / "tests_pytest/fixtures/models/nep_C.txt").read_text()
+    variants = [("none", "", ""), ("scalar", ":spin:R:1", " 7"),
+                ("vector", ":spin:R:3", " 1 2 3"),
+                ("nonfinite", ":spin:R:3", " nan inf -inf"),
+                ("string", ":spin:S:1", " ignored"),
+                ("duplicate", ":spin:R:1:spin:R:1", " 1 2")]
+    reference = None
+    for name, prop, values in variants:
+        case = root / ("ordinary-spin-" + name)
+        case.mkdir()
+        (case / "nep.txt").write_text(model)
+        (case / "model.xyz").write_text(
+            '2\nLattice="20 0 0 0 20 0 0 0 20" '
+            'Properties=species:S:1:pos:R:3' + prop + ':vel:R:3 pbc="T T T"\n' +
+            'C 1 1 1' + values + ' 0 0 0\nC 2.5 1 1' + values + ' 0 0 0\n')
+        (case / "run.in").write_text(
+            "potential nep.txt\nensemble nve\ntime_step 0\n"
+            "dump_xyz 1 state.xyz force potential precision double\ndump_restart 1\nrun 1\n")
+        result = subprocess.run([str(GPUMD)], cwd=case, capture_output=True, text=True)
+        assert result.returncode == 0, (name, result.stdout, result.stderr)
+        outputs = [(case / file).read_bytes() for file in ("state.xyz", "restart.xyz")]
+        assert all(b"spin:" not in data and b"mforce:" not in data for data in outputs)
+        if reference is None:
+            reference = outputs
+        else:
+            assert outputs == reference, name
+    print("ordinary potentials ignore scalar/vector/nonfinite/string/duplicate spin properties")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -213,6 +252,7 @@ def main():
     errors = {}
     with tempfile.TemporaryDirectory(prefix="gpumd-spin3-") as temp:
         root = Path(temp)
+        validate_ordinary_spin_properties(root)
         validate_energy_reference(root)
         validate_io(root)
         validate_thin_cell(root)

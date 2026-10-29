@@ -243,9 +243,9 @@ __device__ __forceinline__ float spin3_oc_l22_scalar_from_canonical(
   return value;
 }
 
-template <int C>
+template <int C, typename Layout>
 __global__ void build_spin3_oc_density_bank(
-  SpinPolynomialLayout layout,
+  Layout layout,
   int atom_count,
   int atom_stride,
   int struct_dim,
@@ -385,9 +385,9 @@ __global__ void build_spin3_oc_density_bank(
 #undef NEP_SPIN3_OC_STORE_DYNAMIC
 }
 
-template <int C>
+template <int C, typename Layout>
 __global__ void contract_spin3_oc_descriptors(
-  SpinPolynomialLayout layout,
+  Layout layout,
   int atom_count,
   int atom_stride,
   int struct_dim,
