@@ -1452,7 +1452,7 @@ void NEP_Charge::compute_large_box(
       potential_per_atom.data(),
       nep_data.D_real.data());
     GPU_CHECK_KERNEL
-  } else if (paramb.charge_mode == 2) {
+  } else if (paramb.charge_mode == 3) {
     find_charge_self_energy<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       charge_para,
       N1,
@@ -1737,7 +1737,7 @@ void NEP_Charge::compute_small_box(
       potential_per_atom.data(),
       nep_data.D_real.data());
     GPU_CHECK_KERNEL
-  } else if (paramb.charge_mode == 2) {
+  } else if (paramb.charge_mode == 3) {
     find_charge_self_energy<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       charge_para,
       N1,

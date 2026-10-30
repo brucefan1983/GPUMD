@@ -1484,10 +1484,10 @@ void NEP_Charge::find_force(
 
     compute_charge_long_range(data, storage);
 
-    // mode 1 has real space; mode 2 only needs the self-energy correction
+    // mode 1 has real space; mode 3 only adds the self-energy correction
     if (paramb.charge_mode == 1) {
       compute_charge_real_space(data, neighbors, storage);
-    } else if (paramb.charge_mode == 2) {
+    } else if (paramb.charge_mode == 3) {
       find_charge_self_energy<<<(data.N - 1) / 32 + 1, 32>>>(
         data.N,
         charge_para.two_alpha_over_sqrt_pi,
@@ -1510,7 +1510,13 @@ void NEP_Charge::find_force(
 
 void NEP_Charge::configure(NEP_Charge_Parameters& para)
 {
-  para.model_name = para.charge_mode == 1 ? "qnep1" : "qnep2";
+  if (para.charge_mode == 1) {
+    para.model_name = "qnep1";
+  } else if (para.charge_mode == 2) {
+    para.model_name = "qnep2";
+  } else {
+    para.model_name = "qnep3";
+  }
   calculate_nep_model_parameters(para, 0, 1, 2, 1);
 }
 
@@ -1580,9 +1586,13 @@ NEP_Charge::NEP_Charge(const ParameterInput& input)
     PRINT_INPUT_ERROR("Can only use uniform cutoff for qNEP.");
   }
   configure(para);
-  para.finish_reading(input, "potential", para.charge_mode == 1 ?
-    "use NEP-Charge and include both real-space and k-space." :
-    "use NEP-Charge and include k-space only.");
+  const char* model_description = "use NEP-Charge and include k-space only.";
+  if (para.charge_mode == 1) {
+    model_description = "use NEP-Charge and include both real-space and k-space.";
+  } else if (para.charge_mode == 3) {
+    model_description = "use NEP-Charge and include k-space and the self-energy correction.";
+  }
+  para.finish_reading(input, "potential", model_description);
 }
 
 int NEP_Charge::prepare_data()

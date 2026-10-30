@@ -328,7 +328,7 @@ bool NEP_Model_File::parse(const NEP_File& document, std::string& error)
   bool success = false;
   if (parsed.name == "nep" || parsed.name == "nep_temperature") {
     success = parsed.read_nep(document, fields, blocks, error);
-  } else if (parsed.name == "qnep1" || parsed.name == "qnep2") {
+  } else if (parsed.name == "qnep1" || parsed.name == "qnep2" || parsed.name == "qnep3") {
     success = parsed.read_charge(document, fields, blocks, error);
   } else if (parsed.name == "nep_dipole" || parsed.name == "nep_polarizability") {
     success = parsed.read_tnep(document, fields, blocks, error);

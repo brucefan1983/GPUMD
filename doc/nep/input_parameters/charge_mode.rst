@@ -6,7 +6,7 @@
 ===================
 
 This legacy keyword remains supported but prints a deprecation warning.
-Use ``model qnep1`` or ``model qnep2`` for new inputs; see :ref:`model <kw_model>`.
+Use ``model qnep1`` , ``model qnep2`` or ``model qnep3`` for new inputs; see :ref:`model <kw_model>`.
 Do not combine ``charge_mode`` with ``model``, including ``charge_mode 0``.
 
 This keyword specifies the charge mode of a NEP4 potential model to be trained.

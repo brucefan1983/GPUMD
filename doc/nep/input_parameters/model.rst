@@ -39,6 +39,8 @@ keyword is given, the default is ``nep``.
    * - ``qnep2``
      - qNEP mode 2
      - ``charge_mode 2``
+   * - ``qnep3``
+     - qNEP mode 2 with charge self-energy correction
    * - ``nep_vdw``
      - NEP with learned long-range vdW
      - ``vdw 1``
@@ -48,6 +50,8 @@ keyword is given, the default is ``nep``.
 
 The new keyword selects the same implementations as the legacy inputs;
 in particular, the definitions of ``qnep1`` and ``qnep2`` are unchanged.
+``qnep3`` uses the same parameter layout as ``qnep2``, but adds the
+self-energy correction to the long-range charge energy.
 
 Specify ``model`` at most once. It cannot be combined with ``model_type``,
 ``charge_mode``, ``vdw``, or ``charge_vdw``, even if a legacy value is zero.
