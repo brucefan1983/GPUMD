@@ -41,7 +41,7 @@ keyword is given, the default is ``nep``.
      - ``charge_mode 2``
    * - ``qnep3``
      - qNEP mode 2 with charge self-energy correction
-     - ``model qnep3``
+     - None
    * - ``nep_vdw``
      - NEP with learned long-range vdW
      - ``vdw 1``
