@@ -29,6 +29,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "main_nep/common/nep_io.cuh"
 #include "main_nep/common/nep_parameters.cuh"
 #include "utilities/error.cuh"
+#include "utilities/nep_utilities.cuh"
 #include <algorithm>
 
 void NEP::initialize(NEP_Potential_Parameters& para, int N, int deviceCount)
@@ -177,6 +178,9 @@ void NEP::configure(NEP_Potential_Parameters& para)
 {
   para.model_name = para.model_type == 3 ? "nep_temperature" : "nep";
   calculate_nep_model_parameters(para, para.model_type == 3 ? 1 : 0, 0, 1, 1);
+  if (para.dim > MAX_DIM) {
+    PRINT_INPUT_ERROR("Number of descriptors including temperature should not exceed MAX_DIM.");
+  }
 }
 
 void NEP::initialize_parameters(
