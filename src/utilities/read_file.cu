@@ -92,7 +92,7 @@ bool is_nep_charge_potential(const std::string& potential_file_name)
       PRINT_INPUT_ERROR(error.c_str());
     }
     const std::string& model = document.find_field("model")->values[0];
-    return model == "qnep1" || model == "qnep2" || model == "qnep3_vdw";
+    return model == "qnep1" || model == "qnep2" || model == "qnep3" || model == "qnep3_vdw";
   }
   if (tokens[0].size() >= 12) {
     if (tokens[0].substr(0, 11) == "nep4_charge") {

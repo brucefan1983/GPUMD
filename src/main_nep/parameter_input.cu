@@ -107,6 +107,8 @@ void ParameterInput::parse_model(const char** param, int num_param)
     charge_mode = 1;
   } else if (model == "qnep2") {
     charge_mode = 2;
+  } else if (model == "qnep3") {
+    charge_mode = 3;
   } else if (model == "nep_vdw") {
     vdw = 1;
   } else if (model == "qnep3_vdw") {
@@ -114,7 +116,7 @@ void ParameterInput::parse_model(const char** param, int num_param)
   } else {
     PRINT_INPUT_ERROR(
       "model should be nep, nep_dipole, nep_polarizability, nep_temperature, "
-      "nep_spin, qnep1, qnep2, nep_vdw, or qnep3_vdw.");
+      "nep_spin, qnep1, qnep2, qnep3, nep_vdw, or qnep3_vdw.");
   }
 }
 

@@ -24,7 +24,7 @@ bool NEP_Model_File::get_md_input(std::string& input, std::string& error) const
   if (name == "nep" || name == "nep_temperature") {
     return get_nep_md_input(input, error);
   }
-  if (name == "qnep1" || name == "qnep2") {
+  if (name == "qnep1" || name == "qnep2" || name == "qnep3") {
     return get_charge_md_input(input, error);
   }
   if (name == "nep_dipole" || name == "nep_polarizability") {

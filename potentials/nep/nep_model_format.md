@@ -15,6 +15,7 @@ Version 1 supports the following model types:
 | `nep_temperature` | Temperature-dependent NEP |
 | `qnep1` | qNEP with charge mode 1 |
 | `qnep2` | qNEP with charge mode 2 |
+| `qnep3` | qNEP mode 3 with charge self-energy correction |
 | `nep_dipole` | TNEP dipole model |
 | `nep_polarizability` | TNEP polarizability model |
 | `nep_vdw` | NEP with learned long-range vdW |
@@ -280,6 +281,7 @@ The model-dependent values are:
 | `nep_temperature` | 1 | 1 | 1 | 1 | energy |
 | `qnep1` | 2 | 2 | 1 | 0 | energy, charge |
 | `qnep2` | 2 | 2 | 1 | 0 | energy, charge |
+| `qnep3` | 2 | 2 | 1 | 0 | energy, charge |
 | `nep_vdw` | 2 | 1 | 1 | 0 | energy, C6 |
 | `qnep3_vdw` | 3 | 2 | 1 | 0 | energy, charge, C6 |
 | `nep_dipole` | 1 | 1 | 1 | 0 | one TNEP scalar ANN output |
@@ -299,7 +301,7 @@ The global parameters within one ANN set are ordered as follows:
 |---|---|
 | `nep`, `nep_spin`, `nep_temperature`, `nep_vdw`, `nep_dipole` | common output bias |
 | `nep_polarizability` | common output bias for each ANN set |
-| `qnep1`, `qnep2`, `qnep3_vdw` | `sqrt_epsilon_inf`, common energy-output bias |
+| `qnep1`, `qnep2`, `qnep3`, `qnep3_vdw` | `sqrt_epsilon_inf`, common energy-output bias |
 
 #### 4.1.1 ANN-set ordering
 
@@ -537,7 +539,7 @@ with the rows ordered as above.
 
 ## 5. Model-specific requirements
 
-`qnep1`, `qnep2`, `nep_vdw`, and `qnep3_vdw` require one hidden layer. `qnep1` and `qnep2` also require uniform cutoffs.
+`qnep1`, `qnep2`, `qnep3`, `nep_vdw`, and `qnep3_vdw` require one hidden layer. `qnep1`, `qnep2`, and `qnep3` also require uniform cutoffs.
 
 The model tables in Section 4.1 determine the number of outputs, global parameters, and ANN sets. Use these together with the descriptor and network dimensions to determine all array lengths.
 

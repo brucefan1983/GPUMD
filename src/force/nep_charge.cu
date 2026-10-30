@@ -189,6 +189,12 @@ NEP_Charge::NEP_Charge(
   } else if (tokens[0] == "nep4_zbl_charge2") {
     zbl.enabled = true;
     paramb.charge_mode = 2;
+  } else if (tokens[0] == "nep4_charge3") {
+    zbl.enabled = false;
+    paramb.charge_mode = 3;
+  } else if (tokens[0] == "nep4_zbl_charge3") {
+    zbl.enabled = true;
+    paramb.charge_mode = 3;
   } else {
     std::cout << tokens[0]
               << " is an unsupported NEP model. We only support NEP4 charge models now."
@@ -1328,6 +1334,24 @@ static __global__ void find_force_charge_real_space(
   }
 }
 
+static __global__ void find_charge_self_energy(
+  const NEP_Charge::Charge_Para charge_para,
+  const int N1,
+  const int N2,
+  const float* g_charge,
+  double* g_pe,
+  float* g_D_real)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    const float q1 = g_charge[n1];
+    const float s_pe = -charge_para.two_alpha_over_sqrt_pi * 0.5f * q1 * q1;
+    const float D_real = -q1 * charge_para.two_alpha_over_sqrt_pi;
+    g_D_real[n1] += K_C_SP * D_real;
+    g_pe[n1] += K_C_SP * s_pe;
+  }
+}
+
 // large box fo MD applications
 void NEP_Charge::compute_large_box(
   Box& box,
@@ -1509,6 +1533,15 @@ void NEP_Charge::compute_large_box(
       force_per_atom.data() + N,
       force_per_atom.data() + N * 2,
       virial_per_atom.data(),
+      potential_per_atom.data(),
+      nep_data.D_real.data());
+    GPU_CHECK_KERNEL
+  } else if (paramb.charge_mode == 3) {
+    find_charge_self_energy<<<grid_size, BLOCK_SIZE>>>(
+      charge_para,
+      N1,
+      N2,
+      nep_data.charge.data(),
       potential_per_atom.data(),
       nep_data.D_real.data());
     GPU_CHECK_KERNEL
@@ -1783,6 +1816,15 @@ void NEP_Charge::compute_small_box(
       force_per_atom.data() + N,
       force_per_atom.data() + N * 2,
       virial_per_atom.data(),
+      potential_per_atom.data(),
+      nep_data.D_real.data());
+    GPU_CHECK_KERNEL
+  } else if (paramb.charge_mode == 3) {
+    find_charge_self_energy<<<grid_size, BLOCK_SIZE>>>(
+      charge_para,
+      N1,
+      N2,
+      nep_data.charge.data(),
       potential_per_atom.data(),
       nep_data.D_real.data());
     GPU_CHECK_KERNEL

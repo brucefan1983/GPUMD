@@ -931,6 +931,23 @@ static __global__ void find_force_charge_real_space(
   }
 }
 
+static __global__ void find_charge_self_energy(
+  const int N,
+  const float two_alpha_over_sqrt_pi,
+  const float* g_charge,
+  double* g_pe,
+  float* g_D_real)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    const float q1 = g_charge[n1];
+    const float s_pe = -two_alpha_over_sqrt_pi * 0.5f * q1 * q1;
+    const float D_real = -q1 * two_alpha_over_sqrt_pi;
+    g_D_real[n1] += K_C_SP * D_real;
+    g_pe[n1] += K_C_SP * s_pe;
+  }
+}
+
 static __device__ void cross_product(const float a[3], const float b[3], float c[3])
 {
   c[0] =  a[1] * b [2] - a[2] * b [1];
@@ -1467,9 +1484,17 @@ void NEP_Charge::find_force(
 
     compute_charge_long_range(data, storage);
 
-    // mode 1 has real space
+    // mode 1 has real space; mode 3 only adds the self-energy correction
     if (paramb.charge_mode == 1) {
       compute_charge_real_space(data, neighbors, storage);
+    } else if (paramb.charge_mode == 3) {
+      find_charge_self_energy<<<(data.N - 1) / 32 + 1, 32>>>(
+        data.N,
+        charge_para.two_alpha_over_sqrt_pi,
+        charge_dataset.charge_shifted.data(),
+        data.energy.data(),
+        storage.D_real.data());
+      GPU_CHECK_KERNEL
     }
 
     // Chain rule correction: D_real -= mean(D_real) per structure
@@ -1485,7 +1510,13 @@ void NEP_Charge::find_force(
 
 void NEP_Charge::configure(NEP_Charge_Parameters& para)
 {
-  para.model_name = para.charge_mode == 1 ? "qnep1" : "qnep2";
+  if (para.charge_mode == 1) {
+    para.model_name = "qnep1";
+  } else if (para.charge_mode == 2) {
+    para.model_name = "qnep2";
+  } else {
+    para.model_name = "qnep3";
+  }
   calculate_nep_model_parameters(para, 0, 1, 2, 1);
 }
 
@@ -1555,9 +1586,13 @@ NEP_Charge::NEP_Charge(const ParameterInput& input)
     PRINT_INPUT_ERROR("Can only use uniform cutoff for qNEP.");
   }
   configure(para);
-  para.finish_reading(input, "potential", para.charge_mode == 1 ?
-    "use NEP-Charge and include both real-space and k-space." :
-    "use NEP-Charge and include k-space only.");
+  const char* model_description = "use NEP-Charge and include k-space only.";
+  if (para.charge_mode == 1) {
+    model_description = "use NEP-Charge and include both real-space and k-space.";
+  } else if (para.charge_mode == 3) {
+    model_description = "use NEP-Charge and include k-space and the self-energy correction.";
+  }
+  para.finish_reading(input, "potential", model_description);
 }
 
 int NEP_Charge::prepare_data()
