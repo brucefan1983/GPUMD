@@ -30,7 +30,7 @@ relative or absolute path) of the potential file to be used. Some potential
 types require additional parameters, as described in their corresponding
 sections.
 
-For standard NEP and temperature-dependent NEP models, a multi-GPU run can
+For standard NEP, temperature-dependent NEP, and ``nep_spin`` models, a multi-GPU run can
 optionally specify the spatial partition direction::
 
   potential <potential_filename> [partition_direction]
@@ -41,7 +41,7 @@ triclinic box. If the direction is omitted, GPUMD selects it automatically,
 normally along the thickest direction of the box.
 
 The optional partition direction applies only to the multi-GPU implementation
-of standard NEP and temperature-dependent NEP models. Charge NEP models
+of standard NEP, temperature-dependent NEP, and ``nep_spin`` models. Charge NEP models
 currently use the single-GPU implementation in ``gpumd``.
 
 Example
@@ -55,3 +55,17 @@ For a multi-GPU NEP run, one can force the decomposition along a specific
 direction, for example::
 
    potential Si_NEP.txt x
+
+NEP-spin
+--------
+
+A :ref:`NEP-spin model <nep_spin>` uses all GPUs visible to the process to
+compute the same atomic system. The optional partition direction also applies
+to NEP-spin. Small systems may not benefit from multiple GPUs; global atom
+arrays remain on GPU 0.
+
+Provide ``spin:R:3`` in :ref:`model.xyz <model_xyz>`. Fully periodic orthogonal
+and triclinic cells are supported. Spins remain fixed under ``nve`` and
+``nvt_nhc``; other ensembles and multiple-potential runs are not supported.
+See :ref:`the Spin runtime instructions <nep_spin_runtime>` for output,
+restart and external-field usage.

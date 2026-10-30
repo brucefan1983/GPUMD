@@ -46,6 +46,8 @@ The driver class calculating force and related quantities.
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_model_file.cuh"
 #include "utilities/nep_model_input.cuh"
+#include "utilities/nep_spin_model_file.cuh"
+#include "nep_spin/runtime.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include <cstring>
@@ -53,6 +55,15 @@ The driver class calculating force and related quantities.
 #include <vector>
 
 Force::Force(void) {}
+
+Force::~Force() = default;
+
+void Force::initialize_spin(Atom& atom)
+{
+  if (spin_runtime_) {
+    spin_runtime_->initialize(atom);
+  }
+}
 
 void Force::check_types(const std::string& file_potential)
 {
@@ -113,6 +124,13 @@ std::unique_ptr<Potential> Force::create_potential(
   } else if (strcmp(potential_name, "nep_vdw") == 0 ||
              strcmp(potential_name, "qnep3_vdw") == 0) {
     potential.reset(new NEP_Charge_VDW(tokens[1].c_str(), number_of_atoms, run_input));
+    is_nep = true;
+  } else if (strcmp(potential_name, "nep_spin") == 0) {
+    if (!potentials.empty()) {
+      PRINT_INPUT_ERROR("NEP_Spin must be the only potential in a run.");
+    }
+    spin_runtime_.reset(new Spin_Runtime(run_input));
+    potential = spin_runtime_->create_potential(tokens, number_of_atoms);
     is_nep = true;
   } else if (
     strcmp(potential_name, "nep4_charge1") == 0 ||
@@ -234,7 +252,9 @@ void Force::parse_potential(
     PRINT_INPUT_ERROR("reading error for potential file.");
   }
   int num_types = get_number_of_types(fid_potential);
-  if (NEP_Model_Input::is_new_format(potential_name)) {
+  if (NEP_Model_Input::is_new_format(potential_name) && NEP_Spin_Model_File::is_spin_model(tokens[1])) {
+    std::strcpy(potential_name, "nep_spin");
+  } else if (NEP_Model_Input::is_new_format(potential_name)) {
     NEP_Model_File model;
     std::ifstream input(tokens[1]);
     std::string error;
@@ -276,6 +296,9 @@ void Force::parse_potential(
   // Move the pointer into the list of potentials
   potentials.push_back(std::move(potential));
   // Check if a non-NEP potential has previously been defined
+  if (spin_runtime_ && potentials.size() != 1) {
+    PRINT_INPUT_ERROR("NEP_Spin must be the only potential in a run.");
+  }
   has_non_nep = has_non_nep || !is_nep;
   if (potentials.size() > 1 && has_non_nep) {
     PRINT_INPUT_ERROR("Multiple potentials may only be used with NEP potentials.\n");
@@ -612,4 +635,42 @@ void Force::compute(
     force_per_atom,
     virial_per_atom);
 
+}
+
+void Force::compute_spin(
+  Box& box,
+  GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& type,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom,
+  GPU_Vector<double>& spin_per_atom,
+  GPU_Vector<double>& mforce_per_atom,
+  int* position_image)
+{
+  if (!spin_runtime_ || potentials.size() != 1) {
+    PRINT_INPUT_ERROR("Spin-aware force dispatch requires one NEP_Spin potential.");
+  }
+
+  const int number_of_atoms = type.size();
+  if (
+    spin_per_atom.size() != static_cast<std::size_t>(number_of_atoms) * 3 ||
+    mforce_per_atom.size() != static_cast<std::size_t>(number_of_atoms) * 3) {
+    PRINT_INPUT_ERROR("NEP_Spin requires three spin and mforce components per atom.");
+  }
+  prepare_compute(
+    number_of_atoms, box, position_per_atom, potential_per_atom,
+    force_per_atom, virial_per_atom, position_image);
+  mforce_per_atom.fill(0.0);
+  GPU_CHECK_KERNEL
+
+  potentials[0]->compute(
+    box,
+    type,
+    position_per_atom,
+    spin_per_atom,
+    potential_per_atom,
+    force_per_atom,
+    virial_per_atom,
+    mforce_per_atom);
 }

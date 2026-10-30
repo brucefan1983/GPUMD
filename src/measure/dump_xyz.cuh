@@ -71,6 +71,8 @@ private:
   int dump_interval_ = 1;
   int precision_ = 1; // 1 = single precision, 2 = double
   DumpQuantities quantities;
+  bool has_spin_ = false;
+  bool has_mforce_ = false;
   int separated_ = 0;
   int split_frames_ = 0;
   XYZFrameSplitter splitter_;
@@ -80,6 +82,8 @@ private:
 
   std::vector<double> cpu_unwrapped_position_;
   std::vector<double> cpu_force_per_atom_;
+  std::vector<double> cpu_spin_per_atom_;
+  std::vector<double> cpu_mforce_per_atom_;
   std::vector<double> cpu_potential_per_atom_;
   std::vector<double> cpu_virial_per_atom_;
   GPU_Vector<double> gpu_total_virial_;

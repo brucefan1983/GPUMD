@@ -51,6 +51,7 @@ Essentially any keyword is allowed, but we only read the following ones:
   * ``mass:R:1`` mass (*Optional*: default mass values will be used when this is missing)
   * ``charge:R:1`` charge (*Optional*: default charge is zero)  
   * ``vel:R:3`` velocity vector (*Optional*)
+  * ``spin:R:3`` magnetic-moment vector in Bohr magnetons (muB) (*Required for NEP_Spin*)
   * ``group:I:number_of_grouping_methods`` grouping methods (*Optional*)
 
 
@@ -67,6 +68,16 @@ The mass should be given in units of the unified atomic mass unit (amu).
 The charge is in units of e (proton charge).
 The cell dimensions and atom coordinates should be given in units of Ångstrom. 
 Velocities need to be specified in units of Å/fs.
+Spin is specified in Bohr magnetons (muB).
+Magnetic force is the negative energy derivative with respect to spin, in eV/muB.
+The spin torque, spin crossed with magnetic force, is in eV.
+External magnetic induction B is specified in tesla (T).
+Spin vectors store Cartesian magnetic moments, not normalized directions.
+Active spins are not normalized; training and runtime data must use the same
+spin convention. Elements excluded by the model's ``spin_type`` have zero
+effective spin and zero magnetic force, while their geometry is retained.
+The ``spin`` property may not be repeated. NEP_Spin fails if ``spin:R:3`` is absent;
+missing spin values are never filled with zeros.
 
 Example
 -------

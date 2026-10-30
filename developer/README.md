@@ -55,8 +55,8 @@ The main source directories are:
 Files added under an existing source directory are normally collected automatically by the makefiles. The CUDA and HIP makefiles also collect `.cu` files one directory below `src/force/` for `gpumd`, and `src/main_nep/` for `nep`.
 
 Training in `src/main_nep/nep_spin/` uses the shared magnetic descriptor and
-force headers in `src/force/nep_spin/`. GPUMD Spin force dispatch is added
-separately; the headers do not enable a runtime potential by themselves.
+force headers in `src/force/nep_spin/`. The GPUMD potential, fixed-spin runtime support and spatial decomposition
+also live in `src/force/nep_spin/`. See [runtime validation](spin_runtime_validation.md).
 
 ## 3. Main `gpumd` architecture
 

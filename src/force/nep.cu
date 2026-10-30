@@ -22,6 +22,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 #include "neighbor.cuh"
 #include "nep.cuh"
+#include "nep_kernels.cuh"
 #include "nep_small_box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/compact_nep.cuh"
@@ -1722,3 +1723,67 @@ void NEP::compute(
 const GPU_Vector<int>& NEP::get_NN_radial_ptr() { return nep_data.NN_radial; }
 
 const GPU_Vector<int>& NEP::get_NL_radial_ptr() { return nep_data.NL_radial; }
+
+void nep_internal::launch_find_force_radial(
+  NEP::ParaMB paramb,
+  NEP::ANN annmb,
+  int N,
+  int N1,
+  int N2,
+  Box box,
+  const int* NN,
+  const int* NL,
+  const int* type,
+  const double* x,
+  const double* y,
+  const double* z,
+  const float* Fp,
+  double* fx,
+  double* fy,
+  double* fz,
+  double* virial)
+{
+  find_force_radial<<<(N2 - N1 + 63) / 64, 64>>>(
+    paramb, annmb, N, N1, N2, box, NN, NL, type, x, y, z, Fp, fx, fy, fz, virial);
+  GPU_CHECK_KERNEL
+}
+
+void nep_internal::launch_find_partial_force_angular(
+  NEP::ParaMB paramb,
+  NEP::ANN annmb,
+  int N,
+  int N1,
+  int N2,
+  Box box,
+  const int* NN_angular,
+  const int* NL_angular,
+  const int* type,
+  const double* x,
+  const double* y,
+  const double* z,
+  const float* Fp,
+  const float* sum_fxyz,
+  float* f12x,
+  float* f12y,
+  float* f12z)
+{
+  find_partial_force_angular<<<(N2 - N1 + 63) / 64, 64>>>(
+    paramb,
+    annmb,
+    N,
+    N1,
+    N2,
+    box,
+    NN_angular,
+    NL_angular,
+    type,
+    x,
+    y,
+    z,
+    Fp,
+    sum_fxyz,
+    f12x,
+    f12y,
+    f12z);
+  GPU_CHECK_KERNEL
+}

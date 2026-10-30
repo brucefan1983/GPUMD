@@ -16,6 +16,7 @@
 #include "nep_file.cuh"
 #include "nep_model_file.cuh"
 #include "nep_model_input.cuh"
+#include "nep_spin_model_file.cuh"
 #include "read_file.cuh"
 #include "run_input.cuh"
 #include <cstdio>
@@ -419,7 +420,7 @@ void prepare_compact_nep_files(
   }
 
   std::vector<std::string> first = get_first_line(potential_files.back());
-  if (!is_compactable_nep(first)) {
+  if (!is_compactable_nep(first) || NEP_Spin_Model_File::is_spin_model(potential_files.back())) {
     return;
   }
   for (const std::string& filename : potential_files) {
