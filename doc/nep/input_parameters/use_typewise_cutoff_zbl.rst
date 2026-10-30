@@ -6,6 +6,8 @@
 ===============================
 
 This keyword enables one to use typewise cutoff radii for the ZBL part of the :term:`NEP` model.
+The ``nep_dipole`` and ``nep_polarizability`` models do not support ZBL and
+reject this keyword.
 The syntax is::
 
   use_typewise_cutoff_zbl [<factor>]

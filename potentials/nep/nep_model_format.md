@@ -203,7 +203,8 @@ There are exactly `T` float64 values in element order, with no count preceding t
 
 ### 3.9 `zbl`
 
-The `zbl` field is optional for energy models and omitted for dipole and polarizability models.
+The `zbl` field is optional for energy models. Dipole and polarizability models
+reject this field and the `zbl_parameters` block.
 
 For a universal ZBL potential:
 
@@ -223,7 +224,7 @@ For a typewise cutoff:
 zbl <rc_inner> <rc_outer> <typewise_cutoff_factor>
 ```
 
-A flexible ZBL model is indicated by
+Flexible ZBL is supported only for `model nep`. It is indicated by
 
 ```text
 zbl 0 0
@@ -495,7 +496,8 @@ The `q_scaler` block is not part of the trainable `parameters` vector and is not
 
 ### 4.3 `zbl_parameters`
 
-Flexible ZBL models additionally contain
+Ordinary NEP models with `zbl 0 0` additionally contain the following block.
+It is not allowed for other models or without flexible ZBL.
 
 ```text
 @ zbl_parameters <N>
