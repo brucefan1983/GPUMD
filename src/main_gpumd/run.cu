@@ -26,6 +26,7 @@ Run simulation according to the inputs in the run.in file.
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
 #include "phonon/hessian.cuh"
+#include "keyword_dispatcher.cuh"
 #include "replicate.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
@@ -384,6 +385,12 @@ void Run::parse_one_keyword(
                box,
                force,
                first_potential_filename_)) {
+    keyword_dispatcher::Context dispatcher_ctx{
+      force, box, atom, group, has_replicate_,
+      {replicate_size_[0], replicate_size_[1], replicate_size_[2]}};
+    if (keyword_dispatcher::dispatch(tokens, dispatcher_ctx)) {
+      return;
+    }
     PRINT_KEYWORD_ERROR(tokens[0].c_str());
   }
 }

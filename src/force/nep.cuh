@@ -22,6 +22,13 @@
 
 class RunInput;
 
+// hessian-only branch: forward declaration of the friend accessor struct that
+// is fully defined in src/phonon/nep_hessian_accessors.cuh.  The single
+// `friend struct ::nep_hessian::Access;` declaration inside class NEP lets the
+// hessian module read `paramb`, `annmb`, `zbl`, `dftd3`, `ebox`, and
+// `neighbor_manager` without changing access specifiers.
+namespace nep_hessian { struct Access; }
+
 struct NEP_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
   GPU_Vector<float> f12y; // 3-body or manybody partial forces
@@ -177,5 +184,9 @@ private:
     GPU_Vector<double>& virial);
 
   bool has_dftd3 = false;
+  // hessian-only branch: allow the nep_hessian module to access NEP internals
+  // so the hessian-only branch can be applied purely additively without
+  // making these members public or restructuring the class layout.
+  friend struct ::nep_hessian::Access;
   void initialize_dftd3(const RunInput& run_input);
 };
