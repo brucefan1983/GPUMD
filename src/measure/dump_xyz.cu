@@ -206,7 +206,7 @@ void Dump_XYZ::pre_run(
   }
   if ((has_spin_ || has_mforce_) &&
       !atom.has_spin) {
-    PRINT_INPUT_ERROR("dump_xyz spin quantities require spin:R:3 in model.xyz.");
+    PRINT_INPUT_ERROR("dump_xyz spin/mforce require a NEP-spin model and spin:R:3 in model.xyz.");
   }
 
   if (has_spin_) {

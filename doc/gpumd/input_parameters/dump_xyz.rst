@@ -72,8 +72,9 @@ Caveats
 * For qNEP models, the charge values dumped out are predicted by the qNEP models.
   For other models, the charge values are those specified in :attr:`model.xyz` via :attr:`charge:R:1`.
 * The Born effective charge (:term:`BEC`) is only meaningful for a qNEP model trained with target :term:`BEC`.
-* ``spin`` and ``mforce`` are three-component vectors available when
-  ``model.xyz`` contains ``spin:R:3``.
+* ``spin`` and ``mforce`` are three-component vectors that require both a
+  NEP-spin model and ``spin:R:3`` in ``model.xyz``. The XYZ property alone
+  does not enable these outputs for other potential models.
 * The per-atom ``virial`` property contains all nine row-major components
   ``xx xy xz yx yy yz zx zy zz``. NEP_Spin does not symmetrize this per-atom
   tensor.

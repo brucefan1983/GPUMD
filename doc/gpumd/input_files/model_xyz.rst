@@ -76,8 +76,9 @@ Spin vectors store Cartesian magnetic moments, not normalized directions.
 Active spins are not normalized; training and runtime data must use the same
 spin convention. Elements excluded by the model's ``spin_type`` have zero
 effective spin and zero magnetic force, while their geometry is retained.
-The ``spin`` property may not be repeated. NEP_Spin fails if ``spin:R:3`` is absent;
-missing spin values are never filled with zeros.
+For NEP-spin models, the ``spin`` property may not be repeated, and
+``spin:R:3`` is required; missing spin values are never filled with zeros.
+Other potential models ignore the ``spin`` property.
 
 Example
 -------
