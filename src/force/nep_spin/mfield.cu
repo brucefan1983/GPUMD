@@ -24,6 +24,8 @@
 #include <cmath>
 #include <cstring>
 
+// Contributed by Chengbing Chen.
+
 Spin_Magnetic_Field::Spin_Magnetic_Field(
   const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {

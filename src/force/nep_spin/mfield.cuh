@@ -18,6 +18,8 @@
 #include "measure/action.cuh"
 #include <vector>
 
+// Contributed by Chengbing Chen.
+
 class Spin_Magnetic_Field : public Action
 {
 public:

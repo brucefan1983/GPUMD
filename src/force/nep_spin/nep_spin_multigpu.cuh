@@ -1,7 +1,24 @@
-/* Single-process spatial decomposition for NEP-Spin. LGPL-3.0-or-later. */
+/*
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
 #pragma once
 #include "nep_spin.cuh"
 #include <memory>
+
+// Single-process spatial decomposition for NEP-Spin.
+// Contributed by Chengbing Chen.
 
 class NEP_Spin_MultiGPU : public Potential
 {

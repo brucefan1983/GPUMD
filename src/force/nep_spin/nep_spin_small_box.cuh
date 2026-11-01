@@ -19,6 +19,8 @@
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
 
+// Contributed by Chengbing Chen.
+
 #ifdef USE_KEPLER
 #if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
 static __device__ __inline__ double atomicAdd(double* address, double val)
