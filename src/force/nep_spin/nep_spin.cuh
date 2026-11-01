@@ -114,7 +114,7 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial,
-    GPU_Vector<double>& mforce) override;
+    GPU_Vector<double>& mforce);
 
   void resize_domain(int num_atoms);
   void invalidate_neighbors() { neighbor_.invalidate(); }

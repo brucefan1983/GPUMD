@@ -26,6 +26,7 @@ The driver class calculating force and related quantities.
 #include "eam_alloy.cuh"
 #include "fcp.cuh"
 #include "force.cuh"
+#include "model/atom.cuh"
 #ifdef GPUMD_WPE_ENABLED
 #include "wpe_adapter.cuh"
 #endif
@@ -57,13 +58,6 @@ The driver class calculating force and related quantities.
 Force::Force(void) {}
 
 Force::~Force() = default;
-
-void Force::initialize_spin(Atom& atom)
-{
-  if (spin_runtime_) {
-    spin_runtime_->initialize(atom);
-  }
-}
 
 void Force::check_types(const std::string& file_potential)
 {
@@ -219,9 +213,10 @@ std::unique_ptr<Potential> Force::create_potential(
 void Force::parse_potential(
   const std::vector<std::string>& tokens,
   const Box& box,
-  const int number_of_atoms,
+  Atom& atom,
   const RunInput& run_input)
 {
+  const int number_of_atoms = atom.type.size();
 #ifdef GPUMD_WPE_ENABLED
   if (tokens.size() != 2u) {
     PRINT_INPUT_ERROR(
@@ -298,6 +293,9 @@ void Force::parse_potential(
   // Check if a non-NEP potential has previously been defined
   if (spin_runtime_ && potentials.size() != 1) {
     PRINT_INPUT_ERROR("NEP_Spin must be the only potential in a run.");
+  }
+  if (spin_runtime_) {
+    spin_runtime_->initialize(atom);
   }
   has_non_nep = has_non_nep || !is_nep;
   if (potentials.size() > 1 && has_non_nep) {
@@ -637,40 +635,42 @@ void Force::compute(
 
 }
 
-void Force::compute_spin(
-  Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<int>& type,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& spin_per_atom,
-  GPU_Vector<double>& mforce_per_atom,
-  int* position_image)
+void Force::compute(Box& box, Atom& atom, const std::vector<Group>& group)
 {
-  if (!spin_runtime_ || potentials.size() != 1) {
-    PRINT_INPUT_ERROR("Spin-aware force dispatch requires one NEP_Spin potential.");
+  int* position_image = atom.position_image.size() > 0 ? atom.position_image.data() : nullptr;
+  if (!spin_runtime_) {
+    compute(
+      box,
+      atom.position_per_atom,
+      atom.type,
+      group,
+      atom.potential_per_atom,
+      atom.force_per_atom,
+      atom.virial_per_atom,
+      atom.velocity_per_atom,
+      atom.mass,
+      position_image);
+    return;
   }
 
-  const int number_of_atoms = type.size();
+  if (potentials.size() != 1) {
+    PRINT_INPUT_ERROR("Spin-aware force dispatch requires one NEP_Spin potential.");
+  }
+  const int number_of_atoms = atom.type.size();
   if (
-    spin_per_atom.size() != static_cast<std::size_t>(number_of_atoms) * 3 ||
-    mforce_per_atom.size() != static_cast<std::size_t>(number_of_atoms) * 3) {
+    atom.spin_per_atom.size() != static_cast<std::size_t>(number_of_atoms) * 3 ||
+    atom.mforce_per_atom.size() != static_cast<std::size_t>(number_of_atoms) * 3) {
     PRINT_INPUT_ERROR("NEP_Spin requires three spin and mforce components per atom.");
   }
   prepare_compute(
-    number_of_atoms, box, position_per_atom, potential_per_atom,
-    force_per_atom, virial_per_atom, position_image);
-  mforce_per_atom.fill(0.0);
-  GPU_CHECK_KERNEL
-
-  potentials[0]->compute(
+    number_of_atoms,
     box,
-    type,
-    position_per_atom,
-    spin_per_atom,
-    potential_per_atom,
-    force_per_atom,
-    virial_per_atom,
-    mforce_per_atom);
+    atom.position_per_atom,
+    atom.potential_per_atom,
+    atom.force_per_atom,
+    atom.virial_per_atom,
+    position_image);
+  atom.mforce_per_atom.fill(0.0);
+  GPU_CHECK_KERNEL
+  spin_runtime_->compute(*potentials[0], box, atom);
 }

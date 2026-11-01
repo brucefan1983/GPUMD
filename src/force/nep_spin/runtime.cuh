@@ -14,6 +14,7 @@ public:
   explicit Spin_Runtime(const RunInput& input);
   std::unique_ptr<Potential> create_potential(const std::vector<std::string>& tokens, int atoms);
   void initialize(Atom& atom) const;
+  void compute(Potential& potential, Box& box, Atom& atom) const;
 
 private:
   void check_command(const std::vector<std::string>& tokens) const;

@@ -40,7 +40,7 @@ public:
   void parse_potential(
     const std::vector<std::string>& tokens,
     const Box& box,
-    const int number_of_atoms,
+    Atom& atom,
     const RunInput& run_input);
 
   void compute(
@@ -64,20 +64,7 @@ public:
     GPU_Vector<double>& mass_per_atom,
     int* position_image = nullptr);
 
-  void compute_spin(
-    Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<int>& type,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& spin_per_atom,
-    GPU_Vector<double>& mforce_per_atom,
-    int* position_image = nullptr);
-
-  bool has_spin_potential(void) const { return spin_runtime_ != nullptr; }
-
-  void initialize_spin(Atom& atom);
+  void compute(Box& box, Atom& atom, const std::vector<Group>& group);
 
   // Zeroes the given arrays and evaluates one potential alone into them. The positions and the
   // float box are read as they are.

@@ -91,3 +91,25 @@ Spin_Runtime::create_potential(const std::vector<std::string>& tokens, int atoms
   types_ = potential->spin_types();
   return std::unique_ptr<Potential>(std::move(potential));
 }
+
+void Spin_Runtime::compute(Potential& potential, Box& box, Atom& atom) const
+{
+  auto evaluate = [&](auto& model) {
+    model.compute(
+      box,
+      atom.type,
+      atom.position_per_atom,
+      atom.spin_per_atom,
+      atom.potential_per_atom,
+      atom.force_per_atom,
+      atom.virial_per_atom,
+      atom.mforce_per_atom);
+  };
+  if (auto* model = dynamic_cast<NEP_Spin*>(&potential)) {
+    evaluate(*model);
+  } else if (auto* model = dynamic_cast<NEP_Spin_MultiGPU*>(&potential)) {
+    evaluate(*model);
+  } else {
+    PRINT_INPUT_ERROR("Spin runtime requires a NEP_Spin potential.");
+  }
+}
