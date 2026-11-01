@@ -7,7 +7,6 @@
 #pragma once
 
 #include "force/neighbor.cuh"
-#include "force/nep.cuh"
 #include "force/potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -17,6 +16,66 @@
 
 class NEP_Spin : public Potential
 {
+public:
+  // Model-specific parameter types passed by value to CUDA kernels.
+  struct ParaMB {
+    bool use_typewise_cutoff_zbl = false;
+    float typewise_cutoff_zbl_factor = 0.0f;
+    int model_type = 0; // 0=potential, 3=temperature-dependent free energy
+    float rc_radial_max = 0.0f;
+    float rc_radial_max_inv = 0.0f;
+    float rc_radial[NUM_ELEMENTS];  // radial cutoff
+    float rc_angular[NUM_ELEMENTS]; // angular cutoff
+    int MN_radial = 200;
+    int MN_angular = 100;
+    int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
+    int n_max_angular = 0; // n_angular = 0, 1, 2, ..., n_max_angular
+    int L_max = 0;         // l = 0, 1, 2, ..., L_max
+    int dim_angular;
+    int has_q_222 = 0;
+    int has_q_1111 = 0;
+    int has_q_112 = 0;
+    int has_q_123 = 0;
+    int has_q_233 = 0;
+    int has_q_134 = 0;
+    int num_L;
+    int basis_size_radial = 8;
+    int basis_size_angular = 8;
+    int num_types_sq = 0;
+    int num_c_radial = 0;
+    int num_types = 0;
+  };
+
+  struct ANN {
+    int dim = 0;                   // dimension of the descriptor
+    int num_neurons1 = 0;          // number of neurons in the 1st hidden layer
+    int num_para = 0;              // number of parameters
+    int num_para_ann = 0;          // number of parameters for the ANN part
+    const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
+    const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
+    const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
+    const float* b1;               // bias for the output layer
+    const float* c;
+    const float* c_type_pair;
+    const float* q_scaler;
+    const double* energy_reference = nullptr;
+  };
+
+  struct ZBL {
+    bool enabled = false;
+    bool flexible = false;
+    float rc_inner = 1.0f;
+    float rc_outer = 2.0f;
+    float para[550];
+    int atomic_numbers[NUM_ELEMENTS];
+    int num_types;
+  };
+
+  struct ExpandedBox {
+    int num_cells[3];
+    float h[18];
+  };
+
 private:
   struct Data {
     GPU_Vector<float> parameters;
@@ -144,21 +203,21 @@ private:
     GPU_Vector<double> reference_;
   };
   Neighbors neighbor_;
-  NEP::ParaMB paramb_;
-  NEP::ANN ann_;
-  NEP::ZBL zbl_;
+  NEP_Spin::ParaMB paramb_;
+  NEP_Spin::ANN ann_;
+  NEP_Spin::ZBL zbl_;
   int num_atoms_ = 0;
   int input_neighbor_capacity_ = 0;
   gpuStream_t structural_descriptor_stream_ = nullptr;
   gpuStream_t spin_descriptor_stream_ = nullptr;
   bool small_box_initialized_ = false;
   int small_box_capacity_ = 0;
-  NEP::ExpandedBox expanded_box_;
+  NEP_Spin::ExpandedBox expanded_box_;
 
   template <int atoms_per_warp, int edge_lanes, bool l4_q222_only>
   void launch_force_angular_warp(
-    const NEP::ParaMB& paramb,
-    const NEP::ANN& ann,
+    const NEP_Spin::ParaMB& paramb,
+    const NEP_Spin::ANN& ann,
     const Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,

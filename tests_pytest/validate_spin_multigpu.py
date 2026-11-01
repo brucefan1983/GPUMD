@@ -128,7 +128,7 @@ def main():
     symbols=original_model.read_text().splitlines()[0].split()[2:]
     species=np.array([symbols[i % len(symbols)] for i in range(len(pos))])
     write_xyz(xyz,pos,spin,cell,vel,species)
-    ref,_=execute(a,'format-reference',xyz,1)
+    ref,_=execute(a,'format-reference',xyz,1,reference=True)
     reference_line=next(line for line in model.splitlines() if line.startswith('energy_reference '))
     original=np.array(list(map(float,reference_line.split()[1:])))
     shifts=np.array([(-1)**i*(100000.123456789+i*100000.864197532)
@@ -157,7 +157,7 @@ def main():
                     raise AssertionError(f'Energy reference changed {key} on {g} GPUs')
     a.model = converted
     field = 'add_mfield 0 0 100 -200 300\nadd_mfield 0 0 -20 50 10\n'
-    field_ref, _ = execute(a, 'field-reference', xyz, 1, field=field)
+    field_ref, _ = execute(a, 'field-reference', xyz, 1, field=field, reference=True)
     assert np.max(np.abs(field_ref['mforce'] - ref['mforce'])) > 1e-3
     for g in [1, 2, 4]:
         out, _ = execute(a, f'field-g{g}', xyz, g, field=field)
@@ -195,7 +195,7 @@ def main():
     a.model = fallback
     pos, spin, cell, vel = structure((48, 12, 12))
     write_xyz(xyz, pos, spin, cell, vel)
-    ref, _ = execute(a, 'angular-fallback-reference', xyz, 1)
+    ref, _ = execute(a, 'angular-fallback-reference', xyz, 1, reference=True)
     assert np.max(np.abs(ref['force'])) > 1e-8
     for g in [1, 2, 4]:
         out, _ = execute(a, f'angular-fallback-g{g}', xyz, g)

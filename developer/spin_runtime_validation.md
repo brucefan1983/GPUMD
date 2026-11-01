@@ -32,6 +32,9 @@ It also checks additive fields and clearing/redeclaring them across runs.
 Ordinary-model checks require extra scalar, vector, nonfinite, string and duplicate
 `spin` properties to leave predictions and restart output unchanged.
 Multi-GPU comparisons use componentwise tolerances and reject nonfinite values.
+To compare revisions, add `--reference /path/to/reference/gpumd` to the multi-GPU
+command. Every reference case then uses that executable on one GPU; without
+this option, the candidate executable supplies the one-GPU reference.
 They cover small cells, nonuniform and triclinic systems, cutoff boundaries,
 partition directions, motion across partition boundaries, additive magnetic fields
 and energy references.

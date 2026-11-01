@@ -15,10 +15,28 @@
 
 #pragma once
 
-#include "force/nep_small_box.cuh"
+#include "nep_spin.cuh"
+#include "utilities/gpu_macro.cuh"
+#include "utilities/nep_utilities.cuh"
+
+#ifdef USE_KEPLER
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
+static __device__ __inline__ double atomicAdd(double* address, double val)
+{
+  unsigned long long* address_as_ull = (unsigned long long*)address;
+  unsigned long long old = *address_as_ull, assumed;
+  do {
+    assumed = old;
+    old =
+      atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+
+  } while (assumed != old);
+  return __longlong_as_double(old);
+}
+#endif
+#endif
 
 // Spin retains double displacement and force accumulation in small periodic cells.
-// Ordinary NEP uses its unchanged small-box kernels.
 namespace
 {
 template <typename Real>
@@ -348,8 +366,8 @@ static __device__ __forceinline__ void accumulate_f12_small_box_in_double(
   }
 }
 static __global__ void spin_find_force_radial_small_box(
-  NEP::ParaMB paramb,
-  NEP::ANN annmb,
+  NEP_Spin::ParaMB paramb,
+  NEP_Spin::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -439,8 +457,8 @@ static __global__ void spin_find_force_radial_small_box(
   }
 }
 static __global__ void spin_find_force_angular_small_box(
-  NEP::ParaMB paramb,
-  NEP::ANN annmb,
+  NEP_Spin::ParaMB paramb,
+  NEP_Spin::ANN annmb,
   const int N,
   const int N1,
   const int N2,
