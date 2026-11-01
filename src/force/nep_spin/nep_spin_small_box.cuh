@@ -13,13 +13,23 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Force kernels and geometric helpers for NEP-spin in small periodic cells.
+
+Contributors:
+Chengbing Chen, 1747193328@qq.com
+
+References:
+Zheyong Fan et al., Neuroevolution machine learning potentials:
+Combining high accuracy and low cost in atomistic simulations and application to
+heat transport, Phys. Rev. B. 104, 104309 (2021).
+------------------------------------------------------------------------------*/
+
 #pragma once
 
 #include "nep_spin.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
-
-// Contributed by Chengbing Chen.
 
 #ifdef USE_KEPLER
 #if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)

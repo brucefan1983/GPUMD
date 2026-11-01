@@ -13,12 +13,16 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Multi-GPU NEP-spin potential interface and domain state.
+
+Contributors:
+Chengbing Chen, 1747193328@qq.com
+------------------------------------------------------------------------------*/
+
 #pragma once
 #include "nep_spin.cuh"
 #include <memory>
-
-// Single-process spatial decomposition for NEP-Spin.
-// Contributed by Chengbing Chen.
 
 class NEP_Spin_MultiGPU : public Potential
 {

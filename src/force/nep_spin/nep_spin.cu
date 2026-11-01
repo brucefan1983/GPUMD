@@ -13,6 +13,19 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+NEP-spin model loading and evaluation of energies, atomic forces,
+magnetic forces, and virials.
+
+Contributors:
+Chengbing Chen, 1747193328@qq.com
+
+References:
+Zheyong Fan et al., Neuroevolution machine learning potentials:
+Combining high accuracy and low cost in atomistic simulations and application to
+heat transport, Phys. Rev. B. 104, 104309 (2021).
+------------------------------------------------------------------------------*/
+
 #include "nep_spin.cuh"
 #include "nep_spin_small_box.cuh"
 #include "utilities/error.cuh"
@@ -24,8 +37,6 @@
 #include <fstream>
 #include <limits>
 #include <stdexcept>
-
-// Contributed by Chengbing Chen.
 
 namespace
 {

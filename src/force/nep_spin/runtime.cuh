@@ -13,13 +13,18 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Runtime interface for initializing and evaluating NEP-spin potentials.
+
+Contributors:
+Chengbing Chen, 1747193328@qq.com
+------------------------------------------------------------------------------*/
+
 #pragma once
 #include "force/potential.cuh"
 #include "model/atom.cuh"
 #include <memory>
 #include <string>
-
-// Contributed by Chengbing Chen.
 
 class RunInput;
 

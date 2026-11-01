@@ -13,6 +13,13 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Single-process spatial decomposition and multi-GPU evaluation for NEP-spin.
+
+Contributors:
+Chengbing Chen, 1747193328@qq.com
+------------------------------------------------------------------------------*/
+
 #include "model/box.cuh"
 #include "nep_spin_multigpu.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -21,9 +28,6 @@
 #include <limits>
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
-
-// Single-process spatial decomposition for NEP-Spin.
-// Contributed by Chengbing Chen.
 
 namespace
 {

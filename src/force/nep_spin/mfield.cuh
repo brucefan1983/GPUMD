@@ -13,12 +13,17 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Action interface and state for external magnetic fields in NEP-spin.
+
+Contributors:
+Chengbing Chen, 1747193328@qq.com
+------------------------------------------------------------------------------*/
+
 #pragma once
 
 #include "measure/action.cuh"
 #include <vector>
-
-// Contributed by Chengbing Chen.
 
 class Spin_Magnetic_Field : public Action
 {

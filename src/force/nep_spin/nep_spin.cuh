@@ -13,6 +13,18 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+NEP-spin potential interface, model parameters, and GPU workspaces.
+
+Contributors:
+Chengbing Chen, 1747193328@qq.com
+
+References:
+Zheyong Fan et al., Neuroevolution machine learning potentials:
+Combining high accuracy and low cost in atomistic simulations and application to
+heat transport, Phys. Rev. B. 104, 104309 (2021).
+------------------------------------------------------------------------------*/
+
 #pragma once
 
 #include "force/neighbor.cuh"
@@ -22,8 +34,6 @@
 #include <cstddef>
 #include <string>
 #include <vector>
-
-// Contributed by Chengbing Chen.
 
 class NEP_Spin : public Potential
 {

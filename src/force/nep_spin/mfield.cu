@@ -13,6 +13,13 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+External magnetic fields for NEP-spin using the Action lifecycle.
+
+Contributors:
+Chengbing Chen, 1747193328@qq.com
+------------------------------------------------------------------------------*/
+
 #include "force/force.cuh"
 #include "mfield.cuh"
 #include "model/box.cuh"
@@ -23,8 +30,6 @@
 #include "utilities/read_file.cuh"
 #include <cmath>
 #include <cstring>
-
-// Contributed by Chengbing Chen.
 
 Spin_Magnetic_Field::Spin_Magnetic_Field(
   const std::vector<std::string>& tokens, const std::vector<Group>& group)

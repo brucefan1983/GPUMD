@@ -13,14 +13,19 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+NEP-spin initialization, input validation, and force dispatch.
+
+Contributors:
+Chengbing Chen, 1747193328@qq.com
+------------------------------------------------------------------------------*/
+
 #include "nep_spin.cuh"
 #include "nep_spin_multigpu.cuh"
 #include "runtime.cuh"
 #include "utilities/error.cuh"
 #include "utilities/run_input.cuh"
 #include <cmath>
-
-// Contributed by Chengbing Chen.
 
 Spin_Runtime::Spin_Runtime(const RunInput& input)
 {

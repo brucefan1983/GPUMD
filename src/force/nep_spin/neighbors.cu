@@ -13,11 +13,16 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Cell-list neighbor construction and rebuild checks for NEP-spin.
+
+Contributors:
+Chengbing Chen, 1747193328@qq.com
+------------------------------------------------------------------------------*/
+
 #include "nep_spin.cuh"
 #include "utilities/error.cuh"
 #include <algorithm>
-
-// Contributed by Chengbing Chen.
 
 namespace
 {
