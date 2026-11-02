@@ -184,9 +184,9 @@ __device__ __forceinline__ void spin3_oc_reverse_l22_scalar_from_canonical(
   spin3_oc_add_full_matrix_pull_to_stf5(q_matrix_pull, q_pull);
 }
 
-template <int C, bool AtomicPull = true>
+template <int C, bool AtomicPull = true, typename Layout>
 __device__ __noinline__ void build_spin3_oc_center_pull_row(
-  SpinPolynomialLayout layout,
+  Layout layout,
   int atom,
   int row,
   unsigned active_mask,
@@ -516,9 +516,14 @@ struct Spin3ForceTile {
   static constexpr int centers_per_block = block_size / 32 * atoms_per_warp;
 };
 
-template <int C, SpinVirialMode VirialMode, bool AccumulateSpinTransfer, int AtomsPerWarp>
+template <
+  int C,
+  SpinVirialMode VirialMode,
+  bool AccumulateSpinTransfer,
+  int AtomsPerWarp,
+  typename Layout>
 __global__ void accumulate_spin3_oc_native_forces(
-  SpinPolynomialLayout layout,
+  Layout layout,
   int atom_count,
   int atom_stride,
   int struct_dim,

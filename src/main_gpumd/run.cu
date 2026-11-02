@@ -216,17 +216,7 @@ void Run::compute_force()
         atom.mass);
     }
   } else {
-    force.compute(
-      box,
-      atom.position_per_atom,
-      atom.type,
-      group,
-      atom.potential_per_atom,
-      atom.force_per_atom,
-      atom.virial_per_atom,
-      atom.velocity_per_atom,
-      atom.mass,
-      atom.position_image.size() > 0 ? atom.position_image.data() : nullptr);
+    force.compute(box, atom, group);
   }
 }
 
@@ -323,7 +313,7 @@ void Run::parse_one_keyword(
 #endif
 
   if (tokens[0] == "potential") {
-    force.parse_potential(tokens, box, atom.type.size(), run_input);
+    force.parse_potential(tokens, box, atom, run_input);
   } else if (tokens[0] == "minimize") {
     Minimize minimize;
     minimize.parse_minimize(

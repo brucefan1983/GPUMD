@@ -28,16 +28,19 @@
 #include <vector>
 
 class RunInput;
+class Spin_Runtime;
+class Atom;
 
 class Force
 {
 public:
   Force(void);
+  ~Force();
 
   void parse_potential(
     const std::vector<std::string>& tokens,
     const Box& box,
-    const int number_of_atoms,
+    Atom& atom,
     const RunInput& run_input);
 
   void compute(
@@ -60,6 +63,8 @@ public:
     GPU_Vector<double>& velocity_per_atom,
     GPU_Vector<double>& mass_per_atom,
     int* position_image = nullptr);
+
+  void compute(Box& box, Atom& atom, const std::vector<Group>& group);
 
   // Zeroes the given arrays and evaluates one potential alone into them. The positions and the
   // float box are read as they are.
@@ -106,6 +111,7 @@ private:
   double temperature = 0;
   double delta_T;
   std::vector<std::unique_ptr<Potential>> potentials;
+  std::unique_ptr<Spin_Runtime> spin_runtime_;
   bool is_fcp = false;
   bool has_non_nep = false;
   std::string multiple_potentials_mode_ = "observe"; // "observe" or "average"

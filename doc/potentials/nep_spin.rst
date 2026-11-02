@@ -609,3 +609,45 @@ selected Spin layout. The magnetic kernels share their formulas with the
 native path. If runtime compilation is unavailable, native kernels remain
 available. Compilation adds startup time, so very short runs may be slower;
 ``nep_compile 0`` disables specialization. Prediction uses the native path.
+
+.. _nep_spin_runtime:
+
+Fixed-spin molecular dynamics
+-----------------------------
+
+Load the exported model with ``potential nep.txt`` and provide Cartesian
+magnetic moments through ``spin:R:3`` in :ref:`model.xyz <model_xyz>`.
+The ``nve`` and ``nvt_nhc`` ensembles evolve positions and velocities while
+keeping the magnetic moments fixed. Only one potential is allowed, and all
+three cell directions must be periodic.
+
+Atoms whose elements are absent from ``spin_type`` have zero effective spin.
+Their input spin values are ignored; they still contribute geometric
+environments. Their magnetic forces remain zero, including in an applied
+external field. The reader does not normalize the active spins.
+
+For example::
+
+   potential nep.txt
+   velocity 300
+   ensemble nve
+   time_step 1
+   dump_xyz 100 trajectory.xyz spin mforce
+   dump_restart 1000
+   run 1000
+
+Use ``dump_xyz`` with ``spin`` and ``mforce`` to write the moments and magnetic
+forces. ``dump_restart`` preserves the fixed spins in ``restart.xyz``;
+copy this file to ``model.xyz`` and use the same potential to resume.
+``replicate`` copies the spin vectors with their atoms.
+
+The :ref:`add_mfield keyword <kw_add_mfield>` applies a magnetic induction in
+tesla to a group or fractional-coordinate region. Magnetic force is
+:math:`-\partial E/\partial \mathbf{s}` in eV/Bohr magneton; it is evaluated
+although spins are fixed. Spin dynamics and spin velocities are not part of
+this runtime interface.
+
+Multi-GPU execution uses every visible GPU in a single process. Use
+``potential nep.txt x`` (or ``y``/``z``) to select the spatial partition
+direction. Small cells may require replicated geometry and offer little
+speedup. GPU 0 retains the global arrays.

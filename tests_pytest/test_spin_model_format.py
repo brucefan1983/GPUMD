@@ -26,6 +26,9 @@ int main(int argc, char** argv) {
   NEP_Spin_Model_File model;
   std::string error;
   if (!model.read(input, error)) { std::cerr << error; return 1; }
+  if (!NEP_Spin_Model_File::is_spin_model(argv[1])) {
+    std::cerr << "Spin model was not recognized"; return 2;
+  }
   std::cout << std::setprecision(17);
   auto dump = [](const char* name, const auto& values) {
     std::cout << name;
@@ -142,3 +145,12 @@ def test_spin_cutoff_bound(codec, tmp_path, cutoff, spin_first):
     else:
         assert result.returncode == 1
         assert 'spin_cutoff must not exceed the NEP radial cutoff' in result.stderr
+
+
+@pytest.mark.parametrize('record', ['MODEL NEP_SPIN', 'model nep_spin#comment', None])
+def test_model_selection_uses_file_parser(codec, tmp_path, record):
+    model, _ = load_fixture('o3c2_uniform')
+    changed = model.replace('model nep_spin\n', record + '\n' if record else '')
+    if record is None:
+        changed += '\nmodel nep_spin\n'
+    assert parse(codec, tmp_path / 'model.nep', changed)['spin_type'] == [1, 0]

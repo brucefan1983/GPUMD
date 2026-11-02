@@ -23,6 +23,7 @@ struct NEP_Spin_Model_File {
   std::vector<double> energy_reference;
   std::vector<float> parameters, q_scaler;
 
+  static bool is_spin_model(const std::string& filename);
   bool read(std::istream& input, std::string& error);
   static int spin_dimension(int channels, int l_max, int order, int soc);
 };

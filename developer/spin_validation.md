@@ -90,3 +90,5 @@ implementation to make a failing check pass. Models use `model nep_spin`,
 
 Keep build logs, source/binary hashes, timing and numerical reports outside the
 source tree.
+
+For GPUMD fixed-spin inference and restart checks, see [Spin runtime validation](spin_runtime_validation.md).

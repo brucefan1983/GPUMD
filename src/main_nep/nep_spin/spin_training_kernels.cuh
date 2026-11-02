@@ -82,12 +82,6 @@ __global__ void mask_inactive_spin_mforce_training(
   }
 }
 
-#ifdef NEP_SPIN_LAYOUT_JIT
-using SpinPolynomialLayout = SpinConstantLayout;
-#else
-using SpinPolynomialLayout = NEP_Spin_Model::Spin_Polynomial_Layout;
-#endif
-
 template <int C, bool NeedDerivatives>
 __device__ __forceinline__ void evaluate_spin3_edge_weights_b9_f32(
   const float spin_cutoff,

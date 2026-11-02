@@ -41,6 +41,7 @@ TB_LIBS = -lcublas -lcusolver
 NEP_LIBS =
 GNEP_LIBS =
 ifndef OS
+LIBS += -lpthread
 NEP_LIBS += -ldl
 GNEP_LIBS += -lpthread
 endif

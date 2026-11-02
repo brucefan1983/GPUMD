@@ -5,6 +5,19 @@ from pathlib import Path
 
 FIXTURE = Path(__file__).parent / "fixtures" / "nep_spin3"
 
+def write_xyz(path, case):
+    lattice = " ".join(f"{value:.17g}" for value in case["cell"])
+    lines = [
+        str(len(case["types"])),
+        f'Lattice="{lattice}" '
+        'Properties=species:S:1:pos:R:3:spin:R:3 pbc="T T T"',
+    ]
+    for symbol, position, spin in zip(
+            case["types"], case["positions"], case["spins"]):
+        values = position + spin
+        lines.append(symbol + " " + " ".join(f"{value:.17g}" for value in values))
+    path.write_text("\n".join(lines) + "\n")
+
 def reshape(values, width):
     if len(values) % width:
         raise ValueError(f"cannot reshape {len(values)} values with width {width}")
