@@ -25,7 +25,6 @@ The driver class for the various integrators.
 #include "ensemble_msst.cuh"
 #include "ensemble_mttk.cuh"
 #include "ensemble_nhc.cuh"
-#include "spin/lattice.cuh"
 #include "ensemble_nphug.cuh"
 #include "ensemble_npt_qtb.cuh"
 #include "ensemble_npt_scr.cuh"
@@ -43,8 +42,7 @@ The driver class for the various integrators.
 #include "ensemble_wall_mirror.cuh"
 #include "ensemble_wall_piston.cuh"
 #include "integrate.cuh"
-#include "spin_sib.cuh"
-#include "spin_tspin.cuh"
+#include "spin/ensemble.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -95,45 +93,6 @@ double Integrate::get_temperature2() const
 double Integrate::get_temperature() const
 {
   return temperature;
-}
-
-bool Integrate::has_spin_mttk_driver() const
-{
-  return type == EnsembleType::MTTK && (use_spin_tspin || use_spin_sib);
-}
-
-bool Integrate::has_spin_nhc_driver() const
-{
-  // lattice off uses Ensemble_Fixed_Lattice despite the NVT_NHC type tag.
-  return type == EnsembleType::NVT_NHC && spin_lattice_enabled &&
-    (use_spin_tspin || use_spin_sib);
-}
-
-std::string Integrate::spin_mttk_restart_state() const
-{
-  return has_spin_mttk_driver() ? static_cast<const Spin_Lattice_MTTK*>(ensemble_.get())->restart_state() : "";
-}
-
-std::string Integrate::spin_nhc_restart_state() const
-{
-  return has_spin_nhc_driver() ? static_cast<const Spin_Lattice_NHC*>(ensemble_.get())->restart_state() : "";
-}
-
-double Integrate::spin_protocol_fraction(int step, int number_of_steps) const
-{
-  if (has_spin_mttk_driver())
-    return static_cast<const Spin_Lattice_MTTK*>(ensemble_.get())->protocol_fraction(step, number_of_steps);
-  if (has_spin_nhc_driver())
-    return static_cast<const Spin_Lattice_NHC*>(ensemble_.get())->protocol_fraction(step, number_of_steps);
-  return double(step) / number_of_steps;
-}
-
-void Integrate::restore_spin_time(const Atom& atom, double& global_time) const
-{
-  if (use_spin_tspin || use_spin_sib) {
-    if (!atom.spin_lattice_restart.mttk.empty()) global_time = atom.spin_lattice_restart.mttk_time;
-    if (!atom.spin_lattice_restart.nhc.empty()) global_time = atom.spin_lattice_restart.nhc_time;
-  }
 }
 
 double Integrate::get_target_temperature_of_step() const { return ensemble_->temperature; }
@@ -239,35 +198,7 @@ void Integrate::initialize(
   ensemble.deform_xy = deform_xy;
   ensemble.deform_xz = deform_xz;
   ensemble.deform_yz = deform_yz;
-  if (!has_spin_mttk_driver() && !atom.spin_lattice_restart.mttk.empty()) {
-    printf("Discarding MTTK restart state for a different ensemble.\n");
-    atom.spin_lattice_restart.mttk.clear();
-  }
-  if (!has_spin_nhc_driver() && !atom.spin_lattice_restart.nhc.empty()) {
-    printf("Discarding NVT NHC restart state for a different ensemble or lattice off.\n");
-    atom.spin_lattice_restart.nhc.clear();
-  }
   ensemble.initialize_run(time_step, atom, box, group);
-  spin_integrator.reset();
-  if (use_spin_tspin) {
-    spin_integrator.reset(new Spin_TSPIN(
-      temperature1,
-      temperature_coupling,
-      time_step,
-      spin_mass_factor_by_type,
-      spin_seed,
-      atom));
-    spin_integrator->temperature = temperature;
-  } else if (use_spin_sib) {
-    spin_integrator.reset(new Spin_SIB(
-      spin_sib_alpha,
-      spin_dynamics_gamma,
-      spin_dynamics_temperature,
-      spin_dynamics_seed,
-      atom));
-    spin_integrator->temperature = temperature;
-  }
-
 }
 
 void Integrate::finalize(const Atom& atom, const Box& box)
@@ -276,8 +207,6 @@ void Integrate::finalize(const Atom& atom, const Box& box)
     ensemble_->finalize_run(atom, box);
   }
   ensemble_.reset();
-  spin_integrator.reset();
-  use_spin_tspin = use_spin_sib = false;
   type = EnsembleType::UNKNOWN;
   fixed_group = -1; // no group has an index of -1
   move_group = -1;
@@ -301,29 +230,22 @@ void Integrate::compute1(
   GPU_Vector<double>& thermo)
 {
   Ensemble& ensemble = *ensemble_;
-  if (step == 0 && has_spin_mttk_driver()) {
-    ensemble.initialize_before_first_step(
-      time_step, number_of_steps, group, box, atom, thermo);
-  }
-  const double step_over_number_of_steps = spin_protocol_fraction(step, number_of_steps);
+  const double step_over_number_of_steps = double(step) / number_of_steps;
   if (
     type == EnsembleType::NVE || type == EnsembleType::RPMD ||
     type == EnsembleType::TRPMD) {
     ensemble.temperature = temperature2;
-  } else if (is_standard_nvt(type) || is_standard_npt(type) || type == EnsembleType::PIMD ||
-             (type == EnsembleType::MTTK && (use_spin_tspin || use_spin_sib))) {
+  } else if (is_standard_nvt(type) || is_standard_npt(type) || type == EnsembleType::PIMD) {
     ensemble.temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
 
-  if (step == 0 && !has_spin_mttk_driver()) {
+  if (step == 0) {
     ensemble.initialize_before_first_step(
       time_step, number_of_steps, group, box, atom, thermo);
   }
 
-  if (spin_integrator) spin_integrator->temperature = ensemble.temperature;
   ensemble.compute1(time_step, step, number_of_steps, group, box, atom, thermo);
-  if (spin_integrator) spin_integrator->compute1(time_step, atom);
 }
 
 void Integrate::compute2(
@@ -337,20 +259,17 @@ void Integrate::compute2(
   Force& force)
 {
   Ensemble& ensemble = *ensemble_;
-  const double step_over_number_of_steps = spin_protocol_fraction(step, number_of_steps);
+  const double step_over_number_of_steps = double(step) / number_of_steps;
   if (
     type == EnsembleType::NVE || type == EnsembleType::RPMD ||
     type == EnsembleType::TRPMD) {
     ensemble.temperature = temperature2;
-  } else if (is_standard_nvt(type) || is_standard_npt(type) || type == EnsembleType::PIMD ||
-             (type == EnsembleType::MTTK && (use_spin_tspin || use_spin_sib))) {
+  } else if (is_standard_nvt(type) || is_standard_npt(type) || type == EnsembleType::PIMD) {
     ensemble.temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
 
-  if (spin_integrator) spin_integrator->temperature = ensemble.temperature;
   ensemble.compute2(time_step, step, number_of_steps, group, box, atom, thermo, force);
-  if (spin_integrator) spin_integrator->compute2(time_step, atom);
   // A barostat can change the box in compute2. Force::compute refreshes the float copy of the box
   // only at the next step, and the measurements at the end of this step read it.
   box.set_is_orthogonal();
@@ -370,10 +289,13 @@ void Integrate::parse_ensemble(
     PRINT_INPUT_ERROR("Only one ensemble can be specified before each run.");
   }
 
-  use_spin_tspin = tokens[1] == "nvt_tspin" || tokens[1] == "npt_tspin";
-  use_spin_sib = tokens[1] == "nve_sib" || tokens[1] == "nvt_sib" || tokens[1] == "npt_sib";
-  if (use_spin_tspin || use_spin_sib) {
-    parse_spin_ensemble(tokens, atom, box, group);
+  if (tokens[1] == "nvt_tspin" || tokens[1] == "npt_tspin" || tokens[1] == "nve_sib" || tokens[1] == "nvt_sib" || tokens[1] == "npt_sib") {
+    auto spin = std::make_unique<Spin_Ensemble>(tokens, atom, box, group);
+    type = spin->type;
+    temperature1 = spin->initial_temperature();
+    temperature2 = spin->final_temperature();
+    temperature = temperature1;
+    ensemble_ = std::move(spin);
     return;
   }
 

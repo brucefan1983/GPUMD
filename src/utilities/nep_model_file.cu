@@ -241,6 +241,9 @@ bool NEP_Model_File::read_zbl(
   enable_zbl = true;
   flexible_zbl = zbl_rc_inner == 0.0f && zbl_rc_outer == 0.0f;
   if (flexible_zbl) {
+    if (name != "nep") {
+      return fail(error, "Flexible ZBL is only supported for model nep.", field->line);
+    }
     if (field->values.size() != 2) {
       return fail(error, "flexible ZBL cannot use a typewise cutoff factor.", field->line);
     }
@@ -325,13 +328,13 @@ bool NEP_Model_File::parse(const NEP_File& document, std::string& error)
   bool success = false;
   if (parsed.name == "nep" || parsed.name == "nep_temperature") {
     success = parsed.read_nep(document, fields, blocks, error);
-  } else if (parsed.name == "qnep1" || parsed.name == "qnep2") {
+  } else if (parsed.name == "qnep1" || parsed.name == "qnep2" || parsed.name == "qnep3") {
     success = parsed.read_charge(document, fields, blocks, error);
   } else if (parsed.name == "nep_dipole" || parsed.name == "nep_polarizability") {
     success = parsed.read_tnep(document, fields, blocks, error);
   } else if (parsed.name == "nep_vdw") {
     success = parsed.read_vdw(document, fields, blocks, error);
-  } else if (parsed.name == "qnep2_vdw") {
+  } else if (parsed.name == "qnep3_vdw") {
     success = parsed.read_charge_vdw(document, fields, blocks, error);
   } else {
     return fail(

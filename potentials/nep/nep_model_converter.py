@@ -20,7 +20,7 @@ MODELS = {
     "_dipole": ("nep_dipole", 0, 0, 1, 1),
     "_polarizability": ("nep_polarizability", 0, 0, 1, 2),
     "_vdw": ("nep_vdw", 0, 1, 1, 1),
-    "_charge_vdw": ("qnep2_vdw", 0, 2, 2, 1),
+    "_charge_vdw": ("qnep3_vdw", 0, 2, 2, 1),
 }
 ELEMENTS = {
     element.lower(): element for element in (
@@ -116,6 +116,8 @@ def read_model(filename):
             inner, outer = [float_value(v, where) for v in values[:2]]
             flexible_zbl = inner == 0.0 and outer == 0.0
             if flexible_zbl:
+                if name != "nep":
+                    raise ValueError(f"{where}: flexible ZBL is only supported for model nep")
                 if len(values) != 2:
                     raise ValueError(f"{where}: flexible ZBL cannot have a cutoff factor")
             else:

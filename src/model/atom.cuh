@@ -14,7 +14,6 @@
 */
 
 #pragma once
-#include "integrate/spin/restart.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <cstdint>
@@ -49,7 +48,13 @@ public:
   GPU_Vector<double> heat_per_atom;      // per-atom heat current (5 components)
   GPU_Vector<double> virial_per_atom;    // per-atom virial (9 components)
   GPU_Vector<double> potential_per_atom; // per-atom potential energy (1 component)
+  struct Spin_Lattice_Restart {
+    std::string mttk, nhc;
+    double mttk_time = -1.0, nhc_time = -1.0;
+    void read(const std::vector<std::string>& tokens);
+  };
   Spin_Lattice_Restart spin_lattice_restart;
+  std::vector<int> spin_types; // model-defined spin degrees of freedom by atom type
   bool has_spin = false;
   bool spin_velocity_initialized = false;
   // for beads in PIMD

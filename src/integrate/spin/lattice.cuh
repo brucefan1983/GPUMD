@@ -13,22 +13,44 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*
+Spin lattice implementation.
+
+Contributors:
+  Chengbing Chen: 1747193328@qq.com
+*/
+
 #pragma once
-#include "integrate/ensemble_nhc.cuh"
+#include "ensemble.cuh"
 #include "integrate/ensemble_mttk.cuh"
+#include "integrate/ensemble_nhc.cuh"
 #include <cstdint>
 
 // Only Spin ensembles persist lattice baths and the original ramp protocol.
 // The upstream base classes own and advance the mechanical state.
-class Spin_Lattice_NHC final : public Ensemble_NHC
+class Spin_Ensemble::Lattice_NHC final : public Ensemble_NHC
 {
 public:
   using Ensemble_NHC::Ensemble_NHC;
-  void initialize_run(double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
-  void compute1(double time_step, int step, int number_of_steps, const std::vector<Group>& group,
-    Box& box, Atom& atom, GPU_Vector<double>& thermo) override;
-  void compute2(double time_step, int step, int number_of_steps, const std::vector<Group>& group,
-    Box& box, Atom& atom, GPU_Vector<double>& thermo, Force& force) override;
+  void
+  initialize_run(double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
+  void compute1(
+    double time_step,
+    int step,
+    int number_of_steps,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo) override;
+  void compute2(
+    double time_step,
+    int step,
+    int number_of_steps,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo,
+    Force& force) override;
   std::string restart_state() const;
   double protocol_fraction(int step, int number_of_steps) const;
 
@@ -39,23 +61,45 @@ private:
   int protocol_steps_ = 0;
 };
 
-class Spin_Lattice_MTTK final : public Ensemble_MTTK
+class Spin_Ensemble::Lattice_MTTK final : public Ensemble_MTTK
 {
 public:
   using Ensemble_MTTK::Ensemble_MTTK;
-  void initialize_before_first_step(double time_step, int number_of_steps, const std::vector<Group>& group,
-    Box& box, Atom& atom, GPU_Vector<double>& thermo) override;
-  void compute2(double time_step, int step, int number_of_steps, const std::vector<Group>& group,
-    Box& box, Atom& atom, GPU_Vector<double>& thermo, Force& force) override;
+  void initialize_before_first_step(
+    double time_step,
+    int number_of_steps,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo) override;
+  void compute2(
+    double time_step,
+    int step,
+    int number_of_steps,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo,
+    Force& force) override;
   std::string restart_state() const;
   double protocol_fraction(int step, int number_of_steps) const;
   double get_temperature_period() const { return t_period; }
 
 private:
-  void get_target_temp(int step, int number_of_steps, const std::vector<Group>& group,
-    const Box& box, const Atom& atom, GPU_Vector<double>& thermo) override;
-  void get_target_pressure(int step, int number_of_steps, const std::vector<Group>& group,
-    const Box& box, const Atom& atom, GPU_Vector<double>& thermo) override;
+  void get_target_temp(
+    int step,
+    int number_of_steps,
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo) override;
+  void get_target_pressure(
+    int step,
+    int number_of_steps,
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo) override;
   std::vector<double> restart_configuration() const;
   void restore_restart(const std::string& state);
   std::uint64_t restart_offset = 0, completed_steps = 0;

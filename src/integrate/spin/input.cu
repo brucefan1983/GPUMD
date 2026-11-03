@@ -13,8 +13,14 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "integrate/integrate.cuh"
-#include "integrate/ensemble_fixed_lattice.cuh"
+/*
+Spin input implementation.
+
+Contributors:
+  Chengbing Chen: 1747193328@qq.com
+*/
+
+#include "ensemble.cuh"
 #include "lattice.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
@@ -28,20 +34,17 @@ namespace
 {
 bool is_tspin_option(const char* value)
 {
-  return strcmp(value, "lattice") == 0 ||
-    strcmp(value, "mass_factor") == 0 || strcmp(value, "seed") == 0;
+  return strcmp(value, "lattice") == 0 || strcmp(value, "mass_factor") == 0 ||
+         strcmp(value, "seed") == 0;
 }
 
 bool is_langevin_spin_option(const char* value)
 {
   return strcmp(value, "lattice") == 0 || strcmp(value, "alpha") == 0 ||
-    strcmp(value, "gamma") == 0 || strcmp(value, "stemp") == 0 ||
-    strcmp(value, "seed") == 0;
+         strcmp(value, "gamma") == 0 || strcmp(value, "stemp") == 0 || strcmp(value, "seed") == 0;
 }
 
-void print_spin_mass_factors(
-  const Atom& atom,
-  const std::vector<double>& mass_factor_by_type)
+void print_spin_mass_factors(const Atom& atom, const std::vector<double>& mass_factor_by_type)
 {
   for (std::size_t type = 0; type < mass_factor_by_type.size(); ++type) {
     for (int atom_index = 0; atom_index < atom.number_of_atoms; ++atom_index) {
@@ -57,13 +60,20 @@ void print_spin_mass_factors(
 }
 } // namespace
 
-void Integrate::parse_spin_ensemble(
-  const std::vector<std::string>& tokens, const Atom& atom,
-  const Box& box, const std::vector<Group>& group)
+Spin_Ensemble::Spin_Ensemble(
+  const std::vector<std::string>& tokens,
+  const Atom& atom,
+  const Box& box,
+  const std::vector<Group>& group)
 {
+  if (!atom.has_spin)
+    PRINT_INPUT_ERROR("A spin ensemble requires NEP-spin and spin:R:3.");
+  use_spin_tspin = tokens[1] == "nvt_tspin" || tokens[1] == "npt_tspin";
+  use_spin_sib = tokens[1] == "nve_sib" || tokens[1] == "nvt_sib" || tokens[1] == "npt_sib";
   const int num_param = tokens.size();
   std::vector<const char*> args;
-  for (const auto& token : tokens) args.push_back(token.c_str());
+  for (const auto& token : tokens)
+    args.push_back(token.c_str());
   const char** param = args.data();
   const bool spin_only = tokens[1] == "nve_sib";
   spin_lattice_enabled = !spin_only;
@@ -84,7 +94,8 @@ void Integrate::parse_spin_ensemble(
       }
     }
   }
-  if (num_param < spin_option_start) PRINT_INPUT_ERROR("Missing spin ensemble parameters.");
+  if (num_param < spin_option_start)
+    PRINT_INPUT_ERROR("Missing spin ensemble parameters.");
   if (use_spin_tspin) {
     bool has_lattice = false;
     bool has_mass_factor = false;
@@ -124,17 +135,14 @@ void Integrate::parse_spin_ensemble(
             PRINT_INPUT_ERROR("Scalar TSPIN mass_factor should be finite and > 0.");
           }
           std::fill(
-            spin_mass_factor_by_type.begin(),
-            spin_mass_factor_by_type.end(),
-            common_factor);
+            spin_mass_factor_by_type.begin(), spin_mass_factor_by_type.end(), common_factor);
           index += 2;
         } else {
           std::vector<int> configured(atom.cpu_type_size.size(), 0);
           ++index;
           while (index < num_param && !is_tspin_option(param[index])) {
             if (index + 1 >= num_param || is_tspin_option(param[index + 1])) {
-              PRINT_INPUT_ERROR(
-                "Element-wise TSPIN mass_factor requires element-value pairs.");
+              PRINT_INPUT_ERROR("Element-wise TSPIN mass_factor requires element-value pairs.");
             }
             int type = -1;
             for (int atom_index = 0; atom_index < atom.number_of_atoms; ++atom_index) {
@@ -150,10 +158,9 @@ void Integrate::parse_spin_ensemble(
               PRINT_INPUT_ERROR("Element in TSPIN mass_factor cannot be repeated.");
             }
             double factor = 0.0;
-            if (!is_valid_real(param[index + 1], &factor) ||
-                !std::isfinite(factor) || factor < 0.0) {
-              PRINT_INPUT_ERROR(
-                "Element-wise TSPIN mass_factor should be finite and >= 0.");
+            if (
+              !is_valid_real(param[index + 1], &factor) || !std::isfinite(factor) || factor < 0.0) {
+              PRINT_INPUT_ERROR("Element-wise TSPIN mass_factor should be finite and >= 0.");
             }
             spin_mass_factor_by_type[type] = factor;
             configured[type] = 1;
@@ -215,8 +222,9 @@ void Integrate::parse_spin_ensemble(
           PRINT_INPUT_ERROR("alpha belongs only to SIB and cannot be repeated.");
         }
         has_alpha = true;
-        if (!is_valid_real(param[index + 1], &spin_sib_alpha) ||
-            !std::isfinite(spin_sib_alpha) || spin_sib_alpha < 0.0) {
+        if (
+          !is_valid_real(param[index + 1], &spin_sib_alpha) || !std::isfinite(spin_sib_alpha) ||
+          spin_sib_alpha < 0.0) {
           PRINT_INPUT_ERROR("SIB alpha should be finite and >= 0.");
         }
       } else if (strcmp(param[index], "gamma") == 0) {
@@ -224,8 +232,9 @@ void Integrate::parse_spin_ensemble(
           PRINT_INPUT_ERROR("SIB gamma cannot be repeated.");
         }
         has_gamma = true;
-        if (!is_valid_real(param[index + 1], &spin_dynamics_gamma) ||
-            !std::isfinite(spin_dynamics_gamma) || spin_dynamics_gamma <= 0.0) {
+        if (
+          !is_valid_real(param[index + 1], &spin_dynamics_gamma) ||
+          !std::isfinite(spin_dynamics_gamma) || spin_dynamics_gamma <= 0.0) {
           PRINT_INPUT_ERROR("SIB gamma should be finite and > 0.");
         }
       } else if (strcmp(param[index], "stemp") == 0) {
@@ -233,9 +242,10 @@ void Integrate::parse_spin_ensemble(
           PRINT_INPUT_ERROR("SIB stemp cannot be repeated.");
         }
         has_spin_temperature = true;
-        if (!is_valid_real(param[index + 1], &spin_dynamics_temperature) ||
-            !std::isfinite(spin_dynamics_temperature) ||
-            (spin_dynamics_temperature < 0.0 && spin_dynamics_temperature != -1.0)) {
+        if (
+          !is_valid_real(param[index + 1], &spin_dynamics_temperature) ||
+          !std::isfinite(spin_dynamics_temperature) ||
+          (spin_dynamics_temperature < 0.0 && spin_dynamics_temperature != -1.0)) {
           PRINT_INPUT_ERROR("SIB stemp should be -1, 0, or a positive temperature.");
         }
       } else if (strcmp(param[index], "seed") == 0) {
@@ -253,37 +263,37 @@ void Integrate::parse_spin_ensemble(
     }
 
     if (spin_only && spin_dynamics_temperature == 0.0) {
-      PRINT_INPUT_ERROR(
-        "SIB stemp 0 requires a temperature-controlled ensemble; use stemp -1 "
-        "or a positive temperature with nve_sib.");
+      PRINT_INPUT_ERROR("SIB stemp 0 requires a temperature-controlled ensemble; use stemp -1 "
+                        "or a positive temperature with nve_sib.");
     }
   }
-
 
   std::vector<std::string> lattice(tokens.begin(), tokens.begin() + spin_option_start);
   if (npt) {
     lattice[1] = "npt_mttk";
-    auto mttk = std::make_unique<Spin_Lattice_MTTK>(lattice);
+    auto mttk = std::make_unique<Lattice_MTTK>(lattice);
     temperature1 = mttk->t_start;
     temperature2 = mttk->t_stop;
     temperature = temperature1;
     temperature_coupling = mttk->get_temperature_period();
     type = EnsembleType::MTTK;
-    ensemble_ = std::move(mttk);
+    lattice_ = std::move(mttk);
   } else if (spin_only) {
     temperature = temperature1 = temperature2 = 0.0;
     type = EnsembleType::NVE;
-    ensemble_ = std::make_unique<Ensemble_Fixed_Lattice>(type);
+    lattice_.reset();
   } else {
     lattice[1] = "nvt_nhc";
-    auto nhc = std::make_unique<Spin_Lattice_NHC>(lattice, group);
+    auto nhc = std::make_unique<Lattice_NHC>(lattice, group);
     temperature1 = nhc->get_temperature1();
     temperature2 = nhc->get_temperature2();
     temperature = temperature1;
     temperature_coupling = get_double_from_token(tokens[4], __FILE__, __LINE__);
     type = EnsembleType::NVT_NHC;
-    if (spin_lattice_enabled) ensemble_ = std::move(nhc);
-    else ensemble_ = std::make_unique<Ensemble_Fixed_Lattice>(type);
+    if (spin_lattice_enabled)
+      lattice_ = std::move(nhc);
+    else
+      lattice_.reset();
   }
   if (use_spin_tspin) {
     printf("Integrate spins with TSPIN.\n");
@@ -291,7 +301,10 @@ void Integrate::parse_spin_ensemble(
   } else {
     printf("Integrate spins with the semi-implicit B (SIB) method.\n");
     printf("    alpha = %g.\n", spin_sib_alpha);
-    printf("    gamma = %g (eV ps)^-1, stemp = %g K, seed = %d.\n",
-      spin_dynamics_gamma, spin_dynamics_temperature, spin_dynamics_seed);
+    printf(
+      "    gamma = %g (eV ps)^-1, stemp = %g K, seed = %d.\n",
+      spin_dynamics_gamma,
+      spin_dynamics_temperature,
+      spin_dynamics_seed);
   }
 }

@@ -1478,7 +1478,7 @@ void NEP_Charge_VDW::find_force(
 
 void NEP_Charge_VDW::configure(NEP_Charge_Parameters& para)
 {
-  para.model_name = "qnep2_vdw";
+  para.model_name = "qnep3_vdw";
   calculate_nep_model_parameters(para, 0, 2, 2, 1);
 }
 
@@ -1570,7 +1570,7 @@ void NEP_Charge_VDW::prepare_training()
 {
   NEP_Charge_Parameters& para = *model_parameters;
   int devices = training->device_count;
-  std::vector<float> dummy_solution(para.number_of_variables * devices, para.initial_para);
+  std::vector<float> dummy_solution(para.number_of_variables * devices, 1.0f);
   for (int batch = 0; batch < training->num_batches; ++batch) {
     find_force(para, dummy_solution.data(), training->train_set[batch],
       (para.fine_tune || para.import_q_scaler) ? false : true, devices);

@@ -114,6 +114,7 @@ void Dump_XYZ::parse(
 
   bool group_seen = false;
   bool precision_seen = false;
+  bool split_seen = false;
 
   for (int m = 3; m < num_param; ++m) {
     if (tokens[m] == "spin") {
@@ -154,9 +155,26 @@ void Dump_XYZ::parse(
       precision_seen = true;
       continue;
     }
+    if (tokens[m] == "split") {
+      if (split_seen) {
+        PRINT_INPUT_ERROR("Option 'split' is specified more than once in dump_xyz.\n");
+      }
+      if (m + 1 >= num_param || !is_valid_int(tokens[m + 1], &split_frames_) ||
+          split_frames_ <= 0) {
+        PRINT_INPUT_ERROR("Option 'split' requires a positive number of frames.\n");
+      }
+      ++m;
+      split_seen = true;
+      printf("    split every %d frames.\n", split_frames_);
+      continue;
+    }
     if (!parse_dump_quantity(tokens[m], quantities, is_nep_charge, groups, "dump_xyz")) {
       PRINT_INPUT_ERROR("Unrecognized argument in dump_xyz.\n");
     }
+  }
+
+  if (split_frames_ > 0 && separated_) {
+    PRINT_INPUT_ERROR("Option 'split' cannot be combined with a filename ending in '*'.\n");
   }
 
   if (grouping_method_ < 0) {
@@ -173,7 +191,10 @@ void Dump_XYZ::pre_run(
   Box& box,
   Force& force)
 {
-  if (separated_ == 0) {
+  if (split_frames_ > 0) {
+    splitter_.reset(filename_, split_frames_);
+    fid_ = nullptr;
+  } else if (separated_ == 0) {
     fid_ = my_fopen(filename_.c_str(), "a");
   }
 
@@ -188,10 +209,10 @@ void Dump_XYZ::pre_run(
   }
   if ((has_spin_ || has_mforce_ || has_spin_velocity_) &&
       !atom.has_spin) {
-    PRINT_INPUT_ERROR("dump_xyz spin quantities require spin:R:3 in model.xyz.");
+    PRINT_INPUT_ERROR("dump_xyz spin/mforce/spin_velocity require a NEP-spin model and spin:R:3 in model.xyz.");
   }
   if (has_spin_velocity_ && !atom.spin_velocity_initialized) {
-    PRINT_INPUT_ERROR("dump_xyz spin_velocity requires initialized spin_vel:R:3.");
+    PRINT_INPUT_ERROR("dump_xyz spin_velocity requires TSPIN or spin_vel:R:3 in model.xyz.");
   }
   if (has_spin_) {
     cpu_spin_per_atom_.resize(atom.number_of_atoms * 3);
@@ -401,6 +422,12 @@ void Dump_XYZ::end_of_step(
   if (separated_) {
     std::string filename = filename_ + std::to_string(step + 1);
     fid_ = my_fopen(filename.data(), "w");
+  } else if (split_frames_ > 0 && splitter_.needs_new_file()) {
+    if (fid_ != nullptr) {
+      fclose(fid_);
+    }
+    const std::string filename = splitter_.next_filename();
+    fid_ = my_fopen(filename.c_str(), "w");
   }
 
   // line 1
@@ -487,10 +514,13 @@ void Dump_XYZ::end_of_step(
     }
     fprintf(fid_, "\n");
   }
-  if (separated_ == 0) {
-    fflush(fid_);
-  } else {
+  if (separated_) {
     fclose(fid_);
+  } else {
+    fflush(fid_);
+    if (split_frames_ > 0) {
+      splitter_.frame_written();
+    }
   }
 }
 
@@ -502,7 +532,8 @@ void Dump_XYZ::post_run(
   const double time_step,
   const double temperature)
 {
-  if (separated_ == 0) {
+  if (separated_ == 0 && fid_ != nullptr) {
     fclose(fid_);
+    fid_ = nullptr;
   }
 }
