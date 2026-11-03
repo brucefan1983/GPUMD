@@ -116,7 +116,7 @@ def test_lattice_restart_trajectory(tmp_path, kind, analytic):
     pos, spin, cell, velocity = structure((24, 4, 4))
     write_xyz(whole / 'model.xyz', pos, spin, cell, velocity)
     if not analytic:
-        shutil.copyfile(Path(__file__).parent / 'fixtures/nep_spin3/nep4_spin3_o3c2_uniform.nep',
+        shutil.copyfile(Path(__file__).parent / 'fixtures/nep_spin3/nep_spin_o3c2_uniform.nep',
                         whole / 'nep.txt')
     run(whole, trajectory_commands(kind, 80, 43))
     expected = frames(whole / 'state.xyz')

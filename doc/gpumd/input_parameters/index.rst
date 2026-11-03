@@ -56,6 +56,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    :caption: Actions
 
    minimize
+   minimize_spin_fire
    run
    compute
    compute_chunk

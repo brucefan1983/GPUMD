@@ -63,7 +63,6 @@ static bool is_compactable_nep(const std::vector<std::string>& tokens)
   if (tokens.size() < 3) {
     return false;
   }
-  if (tokens[0].rfind("nep4_spin", 0) == 0) return false;
   return tokens[0].substr(0, 4) == "nep4" || NEP_Model_Input::is_new_format(tokens[0]);
 }
 
@@ -421,7 +420,7 @@ void prepare_compact_nep_files(
   }
 
   std::vector<std::string> first = get_first_line(potential_files.back());
-  if (!is_compactable_nep(first) || is_nep_spin_model_file(potential_files.back())) {
+  if (!is_compactable_nep(first) || NEP_Spin_Model_File::is_spin_model(potential_files.back())) {
     return;
   }
   for (const std::string& filename : potential_files) {

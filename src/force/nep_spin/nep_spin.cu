@@ -1,30 +1,85 @@
 /*
     Copyright 2017 Zheyong Fan and GPUMD development team
-    Copyright 2026 NEPAdapters contributors
-    This file is part of GPUMD and is distributed under LGPLv3 or later.
-
-    The Spin3 protocol follows TorchNEP spin commit 3e2a5b3 and the matching
-    NEPAdapters dev implementation inspected on 2026-09-03 (GPLv3+).
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+NEP-spin model loading and evaluation of energies, atomic forces,
+magnetic forces, and virials.
+
+Contributors:
+Chengbing Chen, 1747193328@qq.com
+
+References:
+Zheyong Fan et al., Neuroevolution machine learning potentials:
+Combining high accuracy and low cost in atomistic simulations and application to
+heat transport, Phys. Rev. B. 104, 104309 (2021).
+------------------------------------------------------------------------------*/
+
 #include "nep_spin.cuh"
-#include "utilities/nep_spin_model_file.cuh"
-#include "force/nep_kernels.cuh"
 #include "nep_spin_small_box.cuh"
-#include "utilities/gpu_macro.cuh"
-#include "utilities/nep_utilities.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
+#include "utilities/nep_spin_model_file.cuh"
+#include "utilities/nep_utilities.cuh"
 #include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <limits>
-#include <set>
-#include <sstream>
 #include <stdexcept>
 
-namespace {
+namespace
+{
 
 using SimulationBox = Box;
+
+struct Spin_Polynomial_Layout {
+  int channels = 0;
+  int pair_count = 0;
+  int density_stride = 38;
+  int moment_count = 0;
+  int local_s2 = -1;
+  int edge_l0_dot = -1;
+  int edge_l0_neighbor_s2 = -1;
+  int edge_l2_pair = -1;
+  int center_l2_environment = -1;
+  int edge_l0_dot2 = -1;
+  int density_l0_self = -1;
+  int density_l1_longitudinal_self = -1;
+  int density_l1_axial_self = -1;
+  int density_l1_stf_self = -1;
+  int density_l1_product_self = -1;
+  int density_l2_product_self = -1;
+  int density_l0_dot_response = -1;
+  int correlation_same_edge = -1;
+  int correlation_distinct_neighbor = -1;
+  int correlation_distinct_l1 = -1;
+  int correlation_distinct_l2 = -1;
+  int angular_l1_moment_offset = -1;
+  int angular_l2_moment_offset = -1;
+  int coupling_l11_axial = -1;
+  int edge_l11_axial = -1;
+  int coupling_l22_axial = -1;
+  int edge_l22_axial = -1;
+  int edge_l0_moment_gate = -1;
+  int coupling_l11_dot_response = -1;
+  int coupling_l111_p_m_x = -1;
+  int coupling_l22_dot_response = -1;
+  int coupling_l111_p_qs_x = -1;
+  int coupling_l112_edge_response = -1;
+  int coupling_l111_bulk = -1;
+  int descriptor_dim = 0;
+};
 
 #include "nep_spin3_common.cuh"
 
@@ -87,8 +142,8 @@ __device__ __forceinline__ void atomic_add_per_atom_virial_float(
   atomicAdd(&virial[8 * atom_stride + atom], -z12 * fy);
 }
 
-__device__ __forceinline__ void atomic_add_spin_transfer_float(
-  int, int, float, float, float, const float*, float*)
+__device__ __forceinline__ void
+atomic_add_spin_transfer_float(int, int, float, float, float, const float*, float*)
 {
 }
 
@@ -96,18 +151,16 @@ __global__ void mask_inactive_spin_mforce(
   const int atom_count,
   const int atom_stride,
   const int* __restrict__ types,
-  const int* __restrict__ spin_dof_type_active,
+  const int* __restrict__ spin_type_active,
   double* __restrict__ mforce)
 {
   const int atom = blockIdx.x * blockDim.x + threadIdx.x;
-  if (atom < atom_count && spin_dof_type_active[types[atom]] == 0) {
+  if (atom < atom_count && spin_type_active[types[atom]] == 0) {
     mforce[atom] = 0.0;
     mforce[atom_stride + atom] = 0.0;
     mforce[2 * atom_stride + atom] = 0.0;
   }
 }
-
-using SpinPolynomialLayout = NEP_Spin::Spin_Polynomial_Layout;
 
 template <int C, bool NeedDerivatives>
 __device__ __forceinline__ void evaluate_spin3_edge_weights_b9_f32(
@@ -148,14 +201,16 @@ __device__ __forceinline__ void evaluate_spin3_edge_weights_b9_f32(
     fn[n] = raw * fc;
     fnp[n] = static_cast<float>(n) * u1 * dxdr * fc + raw * fcp;
     const float u2 = 2.0f * x * u1 - u0;
-    t0 = t1; t1 = t2; u0 = u1; u1 = u2;
+    t0 = t1;
+    t1 = t2;
+    u0 = u1;
+    u1 = u2;
   }
   for (int c = 0; c < C; ++c) {
     float weight = 0.0f;
     float derivative = 0.0f;
     for (int k = 0; k < BasisCount; ++k) {
-      const int index = spin_coefficient_offset +
-        (c * BasisCount + k) * pair_count + type_pair;
+      const int index = spin_coefficient_offset + (c * BasisCount + k) * pair_count + type_pair;
       weight += fn[k] * descriptor_coefficients[index];
       if (NeedDerivatives) {
         derivative += fnp[k] * descriptor_coefficients[index];
@@ -205,8 +260,7 @@ __device__ __forceinline__ bool load_spin3_edge_f32(
       rhat[2] = dz * inverse_distance;
     }
   } else {
-    compute_spin_edge_geometry_f32(
-      atom, neighbor, atom_stride, box, positions_soa3, rhat, dist);
+    compute_spin_edge_geometry_f32(atom, neighbor, atom_stride, box, positions_soa3, rhat, dist);
   }
   for (int d = 0; d < 3; ++d) {
     si[d] = static_cast<float>(spins_soa3[d * atom_stride + atom]);
@@ -230,11 +284,9 @@ __device__ __forceinline__ bool load_spin3_edge_f32(
   return true;
 }
 
-#include "nep_spin3_layout.cuh"
 #include "nep_spin3_descriptor.cuh"
 #include "nep_spin3_force.cuh"
-
-__device__ int required_small_box_capacity[1];
+#include "nep_spin3_layout.cuh"
 
 __global__ void find_local_neighbors_spin(
   const int N,
@@ -291,40 +343,34 @@ __global__ void find_local_neighbors_spin(
 }
 
 __device__ __forceinline__ void apply_mic_spin_small_box(
-  const Box& box, const NEP::ExpandedBox& ebox, double& x12, double& y12, double& z12)
+  const Box& box, const NEP_Spin::ExpandedBox& ebox, double& x12, double& y12, double& z12)
 {
   double sx12 =
-    (box.cpu_h[9] * x12 + box.cpu_h[10] * y12 + box.cpu_h[11] * z12) /
-    ebox.num_cells[0];
+    (box.cpu_h[9] * x12 + box.cpu_h[10] * y12 + box.cpu_h[11] * z12) / ebox.num_cells[0];
   double sy12 =
-    (box.cpu_h[12] * x12 + box.cpu_h[13] * y12 + box.cpu_h[14] * z12) /
-    ebox.num_cells[1];
+    (box.cpu_h[12] * x12 + box.cpu_h[13] * y12 + box.cpu_h[14] * z12) / ebox.num_cells[1];
   double sz12 =
-    (box.cpu_h[15] * x12 + box.cpu_h[16] * y12 + box.cpu_h[17] * z12) /
-    ebox.num_cells[2];
+    (box.cpu_h[15] * x12 + box.cpu_h[16] * y12 + box.cpu_h[17] * z12) / ebox.num_cells[2];
   if (box.pbc_x == 1)
     sx12 -= nearbyint(sx12);
   if (box.pbc_y == 1)
     sy12 -= nearbyint(sy12);
   if (box.pbc_z == 1)
     sz12 -= nearbyint(sz12);
-  x12 = box.cpu_h[0] * ebox.num_cells[0] * sx12 +
-        box.cpu_h[1] * ebox.num_cells[1] * sy12 +
+  x12 = box.cpu_h[0] * ebox.num_cells[0] * sx12 + box.cpu_h[1] * ebox.num_cells[1] * sy12 +
         box.cpu_h[2] * ebox.num_cells[2] * sz12;
-  y12 = box.cpu_h[3] * ebox.num_cells[0] * sx12 +
-        box.cpu_h[4] * ebox.num_cells[1] * sy12 +
+  y12 = box.cpu_h[3] * ebox.num_cells[0] * sx12 + box.cpu_h[4] * ebox.num_cells[1] * sy12 +
         box.cpu_h[5] * ebox.num_cells[2] * sz12;
-  z12 = box.cpu_h[6] * ebox.num_cells[0] * sx12 +
-        box.cpu_h[7] * ebox.num_cells[1] * sy12 +
+  z12 = box.cpu_h[6] * ebox.num_cells[0] * sx12 + box.cpu_h[7] * ebox.num_cells[1] * sy12 +
         box.cpu_h[8] * ebox.num_cells[2] * sz12;
 }
 
 __global__ void find_neighbor_list_spin_small_box(
-  const NEP::ParaMB paramb,
+  const NEP_Spin::ParaMB paramb,
   const float spin_cutoff,
   const int N,
   const Box box,
-  const NEP::ExpandedBox ebox,
+  const NEP_Spin::ExpandedBox ebox,
   const int capacity,
   const int* type,
   const double* x,
@@ -360,12 +406,9 @@ __global__ void find_neighbor_list_spin_small_box(
           if (n1 == n2 && ia == 0 && ib == 0 && ic == 0) {
             continue;
           }
-          double x12 = x[n2] + box.cpu_h[0] * ia + box.cpu_h[1] * ib +
-                       box.cpu_h[2] * ic - x1;
-          double y12 = y[n2] + box.cpu_h[3] * ia + box.cpu_h[4] * ib +
-                       box.cpu_h[5] * ic - y1;
-          double z12 = z[n2] + box.cpu_h[6] * ia + box.cpu_h[7] * ib +
-                       box.cpu_h[8] * ic - z1;
+          double x12 = x[n2] + box.cpu_h[0] * ia + box.cpu_h[1] * ib + box.cpu_h[2] * ic - x1;
+          double y12 = y[n2] + box.cpu_h[3] * ia + box.cpu_h[4] * ib + box.cpu_h[5] * ic - y1;
+          double z12 = z[n2] + box.cpu_h[6] * ia + box.cpu_h[7] * ib + box.cpu_h[8] * ic - z1;
           apply_mic_spin_small_box(box, ebox, x12, y12, z12);
           const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
           const int t2 = type[n2];
@@ -412,8 +455,8 @@ __global__ void find_neighbor_list_spin_small_box(
 }
 
 __global__ void find_structural_descriptor(
-  const NEP::ParaMB paramb,
-  const NEP::ANN ann,
+  const NEP_Spin::ParaMB paramb,
+  const NEP_Spin::ANN ann,
   const int N,
   const Box box,
   const int* NN_radial,
@@ -457,8 +500,7 @@ __global__ void find_structural_descriptor(
     find_fc(rc, rcinv, d12, fc12);
     float fn12[MAX_NUM_N];
     find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
-    const int basis_count =
-      (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
+    const int basis_count = (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
     for (int n = 0; n <= paramb.n_max_radial; ++n) {
       float gn12 = 0.0f;
       for (int k = 0; k <= paramb.basis_size_radial; ++k) {
@@ -539,18 +581,17 @@ __global__ void find_potential(
     return;
   }
   const int atom_type = type[atom];
-  const std::size_t type_block =
-    static_cast<std::size_t>(hidden_neurons) * (descriptor_dim + 2);
+  const std::size_t type_block = static_cast<std::size_t>(hidden_neurons) * (descriptor_dim + 2);
   const float* w0 = parameters + static_cast<std::size_t>(atom_type) * type_block;
   const float* b0 = w0 + static_cast<std::size_t>(hidden_neurons) * descriptor_dim;
   const float* w1 = b0 + hidden_neurons;
   const float* b1 = parameters + static_cast<std::size_t>(num_types) * type_block;
-  float q[MAX_DIM_SPIN] = {0.0f};
+  float q[NEP_Spin_Model_File::MAX_DIM_SPIN] = {0.0f};
   for (int d = 0; d < descriptor_dim; ++d) {
     q[d] = descriptor[static_cast<std::size_t>(N) * d + atom] * q_scaler[d];
   }
   float energy = 0.0f;
-  float fp[MAX_DIM_SPIN] = {0.0f};
+  float fp[NEP_Spin_Model_File::MAX_DIM_SPIN] = {0.0f};
   for (int neuron = 0; neuron < hidden_neurons; ++neuron) {
     float projection = 0.0f;
     for (int d = 0; d < descriptor_dim; ++d) {
@@ -560,13 +601,11 @@ __global__ void find_potential(
     const float activation_derivative = 1.0f - activation * activation;
     energy += w1[neuron] * activation;
     for (int d = 0; d < descriptor_dim; ++d) {
-      fp[d] += w1[neuron] * activation_derivative *
-               w0[neuron * descriptor_dim + d];
+      fp[d] += w1[neuron] * activation_derivative * w0[neuron * descriptor_dim + d];
     }
   }
   energy -= b1[0];
-  potential[atom] +=
-    static_cast<double>(energy) + static_cast<double>(energy_reference[atom_type]);
+  potential[atom] += static_cast<double>(energy) + static_cast<double>(energy_reference[atom_type]);
   for (int d = 0; d < descriptor_dim; ++d) {
     Fp[static_cast<std::size_t>(N) * d + atom] = fp[d] * q_scaler[d];
   }
@@ -596,14 +635,12 @@ __global__ void find_potential_warp(
   const int work_lane = lane - atom_lane * lanes_per_atom;
   const int atom_local = warp * atoms_per_warp + atom_lane;
   const int atom = blockIdx.x * atoms_per_block + atom_local;
-  const unsigned int atom_mask =
-    ((1u << lanes_per_atom) - 1u) << (atom_lane * lanes_per_atom);
+  const unsigned int atom_mask = ((1u << lanes_per_atom) - 1u) << (atom_lane * lanes_per_atom);
 
   extern __shared__ float state[];
   float* q = state + static_cast<std::size_t>(atom_local) * descriptor_dim;
-  float* hidden_delta =
-    state + static_cast<std::size_t>(atoms_per_block) * descriptor_dim +
-    static_cast<std::size_t>(atom_local) * hidden_neurons;
+  float* hidden_delta = state + static_cast<std::size_t>(atoms_per_block) * descriptor_dim +
+                        static_cast<std::size_t>(atom_local) * hidden_neurons;
 
   if (atom < N) {
     for (int d = work_lane; d < descriptor_dim; d += lanes_per_atom) {
@@ -616,8 +653,7 @@ __global__ void find_potential_warp(
   }
 
   const int atom_type = type[atom];
-  const std::size_t type_block =
-    static_cast<std::size_t>(hidden_neurons) * (descriptor_dim + 2);
+  const std::size_t type_block = static_cast<std::size_t>(hidden_neurons) * (descriptor_dim + 2);
   const float* w0 = parameters + static_cast<std::size_t>(atom_type) * type_block;
   const float* b0 = w0 + static_cast<std::size_t>(hidden_neurons) * descriptor_dim;
   const float* w1 = b0 + hidden_neurons;
@@ -655,8 +691,8 @@ __global__ void find_potential_warp(
 
 template <int atoms_per_warp, int edge_lanes, bool l4_q222_only>
 __global__ void find_force_angular_warp(
-  const NEP::ParaMB paramb,
-  const NEP::ANN ann,
+  const NEP_Spin::ParaMB paramb,
+  const NEP_Spin::ANN ann,
   const int N,
   const Box box,
   const int* NN_angular,
@@ -677,8 +713,7 @@ __global__ void find_force_angular_warp(
   const int lane = threadIdx.x & 31;
   const int atom_lane = lane / edge_lanes;
   const int edge_lane = lane - atom_lane * edge_lanes;
-  const unsigned int center_mask =
-    (0xffffffffu >> (32 - edge_lanes)) << (atom_lane * edge_lanes);
+  const unsigned int center_mask = (0xffffffffu >> (32 - edge_lanes)) << (atom_lane * edge_lanes);
   const int center_local = warp * atoms_per_warp + atom_lane;
   const int n1 = blockIdx.x * centers_per_block + center_local;
 
@@ -697,8 +732,7 @@ __global__ void find_force_angular_warp(
     for (int d = edge_lane; d < compact_sum_count; d += edge_lanes) {
       const int n = d / abc_count;
       const int abc = d - n * abc_count;
-      center_sum_fxyz[n * NUM_OF_ABC + abc] =
-        sum_fxyz[static_cast<size_t>(N) * d + n1];
+      center_sum_fxyz[n * NUM_OF_ABC + abc] = sum_fxyz[static_cast<size_t>(N) * d + n1];
     }
   }
   __syncwarp();
@@ -730,8 +764,7 @@ __global__ void find_force_angular_warp(
 
     float fn12[MAX_NUM_N];
     float fnp12[MAX_NUM_N];
-    find_fn_and_fnp(
-      paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
+    find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
       float gn12 = 0.0f;
       float gnp12 = 0.0f;
@@ -792,16 +825,13 @@ __global__ void find_force_angular_warp(
     for (int a = 0; a < 3; ++a) {
       for (int b = 0; b < 3; ++b) {
         const int component = virial_internal_component(3 * a + b);
-        atomicAdd(
-          virial + component * N + n2,
-          -static_cast<double>(r12[a] * f12[b]));
+        atomicAdd(virial + component * N + n2, -static_cast<double>(r12[a] * f12[b]));
       }
     }
   }
   for (int offset = edge_lanes / 2; offset > 0; offset >>= 1) {
     for (int d = 0; d < 3; ++d) {
-      center_force[d] +=
-        __shfl_down_sync(center_mask, center_force[d], offset, edge_lanes);
+      center_force[d] += __shfl_down_sync(center_mask, center_force[d], offset, edge_lanes);
     }
   }
   if (edge_lane == 0) {
@@ -811,319 +841,214 @@ __global__ void find_force_angular_warp(
   }
 }
 
-template <int atoms_per_warp, int edge_lanes, bool l4_q222_only>
-void launch_force_angular_warp(
-  const NEP::ParaMB& paramb,
-  const NEP::ANN& ann,
-  const Box& box,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position,
-  const NEP_Spin_Data& data,
-  GPU_Vector<double>& force,
-  GPU_Vector<double>& virial,
-  const int grid_size,
-  const int block_size,
-  const std::size_t shared_size)
+static __global__ void find_force_radial(
+  NEP_Spin::ParaMB paramb,
+  NEP_Spin::ANN annmb,
+  const int N,
+  const int N1,
+  const int N2,
+  const Box box,
+  const int* g_NN,
+  const int* g_NL,
+  const int* __restrict__ g_type,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  const float* __restrict__ g_Fp,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_virial)
 {
-  const int N = type.size();
-  find_force_angular_warp<atoms_per_warp, edge_lanes, l4_q222_only>
-    <<<grid_size, block_size, shared_size>>>(
-    paramb,
-    ann,
-    N,
-    box,
-    data.NN_angular.data(),
-    data.NL_angular.data(),
-    type.data(),
-    position.data(),
-    position.data() + N,
-    position.data() + 2 * N,
-    data.Fp.data(),
-    data.sum_fxyz.data(),
-    force.data(),
-    virial.data());
-}
-
-std::vector<std::string> split(const std::string& line)
-{
-  std::istringstream input(line);
-  std::vector<std::string> tokens;
-  std::string token;
-  while (input >> token) {
-    tokens.push_back(token);
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    int t1 = g_type[n1];
+    float s_fx = 0.0f;
+    float s_fy = 0.0f;
+    float s_fz = 0.0f;
+    float s_sxx = 0.0f;
+    float s_sxy = 0.0f;
+    float s_sxz = 0.0f;
+    float s_syx = 0.0f;
+    float s_syy = 0.0f;
+    float s_syz = 0.0f;
+    float s_szx = 0.0f;
+    float s_szy = 0.0f;
+    float s_szz = 0.0f;
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
+      int n2 = g_NL[static_cast<size_t>(N) * i1 + n1];
+      int t2 = g_type[n2];
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float d12inv = 1.0f / d12;
+      float f12[3] = {0.0f};
+      float f21[3] = {0.0f};
+      float fc12, fcp12;
+      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
+      float rcinv = 1.0f / rc;
+      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
+      float fn12[MAX_NUM_N];
+      float fnp12[MAX_NUM_N];
+      find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
+      for (int n = 0; n <= paramb.n_max_radial; ++n) {
+        float gnp12 = 0.0f;
+        float gnp21 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+          int c_index_12 = get_c_index(
+            t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
+          int c_index_21 = get_c_index(
+            t2 * paramb.num_types + t1, n, k, paramb.n_max_radial, paramb.basis_size_radial);
+          gnp12 += fnp12[k] * annmb.c_type_pair[c_index_12];
+          gnp21 += fnp12[k] * annmb.c_type_pair[c_index_21];
+        }
+        float tmp12 = g_Fp[static_cast<size_t>(N) * n + n1] * gnp12 * d12inv;
+        float tmp21 = g_Fp[static_cast<size_t>(N) * n + n2] * gnp21 * d12inv;
+        for (int d = 0; d < 3; ++d) {
+          f12[d] += tmp12 * r12[d];
+          f21[d] -= tmp21 * r12[d];
+        }
+      }
+      s_fx += f12[0] - f21[0];
+      s_fy += f12[1] - f21[1];
+      s_fz += f12[2] - f21[2];
+      s_sxx += r12[0] * f21[0];
+      s_syy += r12[1] * f21[1];
+      s_szz += r12[2] * f21[2];
+      s_sxy += r12[0] * f21[1];
+      s_sxz += r12[0] * f21[2];
+      s_syx += r12[1] * f21[0];
+      s_syz += r12[1] * f21[2];
+      s_szx += r12[2] * f21[0];
+      s_szy += r12[2] * f21[1];
+    }
+    g_fx[n1] += s_fx;
+    g_fy[n1] += s_fy;
+    g_fz[n1] += s_fz;
+    // save virial
+    // xx xy xz    0 3 4
+    // yx yy yz    6 1 5
+    // zx zy zz    7 8 2
+    g_virial[n1 + 0 * N] += s_sxx;
+    g_virial[n1 + 1 * N] += s_syy;
+    g_virial[n1 + 2 * N] += s_szz;
+    g_virial[n1 + 3 * N] += s_sxy;
+    g_virial[n1 + 4 * N] += s_sxz;
+    g_virial[n1 + 5 * N] += s_syz;
+    g_virial[n1 + 6 * N] += s_syx;
+    g_virial[n1 + 7 * N] += s_szx;
+    g_virial[n1 + 8 * N] += s_szy;
   }
-  return tokens;
 }
 
-std::vector<std::string> next_tokens(std::istream& input)
+static __global__ void find_partial_force_angular(
+  NEP_Spin::ParaMB paramb,
+  NEP_Spin::ANN annmb,
+  const int N,
+  const int N1,
+  const int N2,
+  const Box box,
+  const int* g_NN_angular,
+  const int* g_NL_angular,
+  const int* __restrict__ g_type,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  const float* __restrict__ g_Fp,
+  const float* __restrict__ g_sum_fxyz,
+  float* g_f12x,
+  float* g_f12y,
+  float* g_f12z)
 {
-  std::string line;
-  while (std::getline(input, line)) {
-    std::vector<std::string> tokens = split(line);
-    if (!tokens.empty()) {
-      return tokens;
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+
+    float Fp[MAX_DIM_ANGULAR] = {0.0f};
+    float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
+    for (int d = 0; d < paramb.dim_angular; ++d) {
+      Fp[d] = g_Fp[static_cast<size_t>(N) * (paramb.n_max_radial + 1 + d) + n1];
+    }
+    for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
+      for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
+        sum_fxyz[n * NUM_OF_ABC + abc] = g_sum_fxyz
+          [static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1];
+      }
+    }
+
+    int t1 = g_type[n1];
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+    for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
+      int index = i1 * N + n1;
+      int n2 = g_NL_angular[n1 + N * i1];
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      float r12[3] = {x12, y12, z12};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float f12[3] = {0.0f};
+      float fc12, fcp12;
+      int t2 = g_type[n2];
+      float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
+      float rcinv = 1.0f / rc;
+      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
+
+      float fn12[MAX_NUM_N];
+      float fnp12[MAX_NUM_N];
+      find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
+      for (int n = 0; n <= paramb.n_max_angular; ++n) {
+        float gn12 = 0.0f;
+        float gnp12 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+          int c_index = get_c_index(
+            t1 * paramb.num_types + t2,
+            n,
+            k,
+            paramb.n_max_angular,
+            paramb.basis_size_angular,
+            paramb.num_c_radial);
+          gn12 += fn12[k] * annmb.c_type_pair[c_index];
+          gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
+        }
+        accumulate_f12(
+          paramb.L_max,
+          paramb.has_q_222,
+          paramb.has_q_1111,
+          paramb.has_q_112,
+          paramb.has_q_123,
+          paramb.has_q_233,
+          paramb.has_q_134,
+          paramb.num_L,
+          n,
+          paramb.n_max_angular + 1,
+          d12,
+          r12,
+          gn12,
+          gnp12,
+          Fp,
+          sum_fxyz,
+          f12);
+      }
+      g_f12x[index] = f12[0];
+      g_f12y[index] = f12[1];
+      g_f12z[index] = f12[2];
     }
   }
-  return {};
-}
-
-int parse_int(const std::string& token)
-{
-  std::size_t end = 0;
-  const long value = std::stol(token, &end);
-  if (end != token.size() || value < std::numeric_limits<int>::min() ||
-      value > std::numeric_limits<int>::max()) {
-    throw std::runtime_error("invalid integer token: " + token);
-  }
-  return static_cast<int>(value);
-}
-
-double parse_double(const std::string& token)
-{
-  std::size_t end = 0;
-  const double value = std::stod(token, &end);
-  if (end != token.size() || !std::isfinite(value)) {
-    throw std::runtime_error("invalid finite numeric token: " + token);
-  }
-  return value;
-}
-
-float parse_float(const std::string& token)
-{
-  const double value = parse_double(token);
-  if (std::abs(value) > std::numeric_limits<float>::max()) {
-    throw std::runtime_error("model parameter is outside the float range");
-  }
-  return static_cast<float>(value);
-}
-
-void require_line(
-  const std::vector<std::string>& tokens, const char* name, const std::size_t arity)
-{
-  if (tokens.size() != arity || tokens.empty() || tokens[0] != name) {
-    throw std::runtime_error(
-      std::string("expected exact '") + name + "' line with " +
-      std::to_string(arity - 1) + " value(s)");
-  }
-}
-
-bool parse_flag(const std::string& token, const char* name, const bool allow_legacy_two = false)
-{
-  const int value = parse_int(token);
-  if (value != 0 && value != 1 && !(allow_legacy_two && value == 2)) {
-    throw std::runtime_error(std::string(name) + " must be 0 or 1");
-  }
-  return value != 0;
-}
-
-void check_unique_elements(const std::vector<std::string>& elements)
-{
-  const std::set<std::string> unique(elements.begin(), elements.end());
-  if (unique.size() != elements.size()) {
-    throw std::runtime_error("model element symbols must be unique");
-  }
-}
-
-std::vector<int> parse_active_types(
-  const std::vector<std::string>& tokens,
-  const std::vector<std::string>& elements,
-  const char* name)
-{
-  if (tokens.size() < 2) {
-    throw std::runtime_error(std::string(name) + " must enable at least one model type");
-  }
-  std::vector<int> active(elements.size(), 0);
-  for (std::size_t index = 1; index < tokens.size(); ++index) {
-    const auto found = std::find(elements.begin(), elements.end(), tokens[index]);
-    if (found == elements.end()) {
-      throw std::runtime_error(std::string("unknown ") + name + " model type");
-    }
-    const std::size_t type = static_cast<std::size_t>(found - elements.begin());
-    if (active[type] != 0) {
-      throw std::runtime_error(std::string("duplicate model type in ") + name);
-    }
-    active[type] = 1;
-  }
-  return active;
-}
-
-template <int C>
-void launch_spin3_descriptors_typed(
-  const NEP_Spin::Model& model,
-  const Box& box,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position,
-  const GPU_Vector<double>& spin,
-  NEP_Spin_Data& data,
-  const double* slot_r12 = nullptr,
-  int r12_plane_size = 0,
-  gpuStream_t stream = nullptr)
-{
-  constexpr int block_size = 128;
-  const int N = type.size();
-  const int density_work = C * N;
-  build_spin3_oc_density_bank<C><<<
-    (density_work + block_size - 1) / block_size, block_size, 0, stream>>>(
-    model.spin_polynomial_layout,
-    N,
-    N,
-    model.struct_descriptor_dim,
-    model.num_types,
-    model.spin_basis_size[0],
-    static_cast<float>(model.spin_cutoff),
-    data.spin_cutoff_pair.data(),
-    static_cast<int>(model.radial_parameter_count + model.angular_parameter_count),
-    box,
-    type.data(),
-    data.spin_dof_type_active.data(),
-    data.spin_env_type_active.data(),
-    position.data(),
-    slot_r12,
-    r12_plane_size,
-    spin.data(),
-    data.NN_spin.data(),
-    data.NL_spin.data(),
-    data.descriptor_parameters_type_pair.data(),
-    data.descriptor.data(),
-    data.spin3_moments.data());
-  contract_spin3_oc_descriptors<C><<<
-    (N + block_size - 1) / block_size, block_size, 0, stream>>>(
-    model.spin_polynomial_layout,
-    N,
-    N,
-    model.struct_descriptor_dim,
-    type.data(),
-    data.spin_dof_type_active.data(),
-    spin.data(),
-    data.spin_projection_parameters.data(),
-    data.spin3_moments.data(),
-    data.descriptor.data());
-  GPU_CHECK_KERNEL
-}
-
-void launch_spin3_descriptors(
-  const NEP_Spin::Model& model,
-  const Box& box,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position,
-  const GPU_Vector<double>& spin,
-  NEP_Spin_Data& data,
-  const double* slot_r12 = nullptr,
-  int r12_plane_size = 0,
-  gpuStream_t stream = nullptr)
-{
-  switch (model.spin_compress) {
-    case 1: launch_spin3_descriptors_typed<1>(model, box, type, position, spin, data, slot_r12, r12_plane_size, stream); break;
-    case 2: launch_spin3_descriptors_typed<2>(model, box, type, position, spin, data, slot_r12, r12_plane_size, stream); break;
-    case 3: launch_spin3_descriptors_typed<3>(model, box, type, position, spin, data, slot_r12, r12_plane_size, stream); break;
-    case 4: launch_spin3_descriptors_typed<4>(model, box, type, position, spin, data, slot_r12, r12_plane_size, stream); break;
-    case 5: launch_spin3_descriptors_typed<5>(model, box, type, position, spin, data, slot_r12, r12_plane_size, stream); break;
-    case 6: launch_spin3_descriptors_typed<6>(model, box, type, position, spin, data, slot_r12, r12_plane_size, stream); break;
-    case 7: launch_spin3_descriptors_typed<7>(model, box, type, position, spin, data, slot_r12, r12_plane_size, stream); break;
-    case 8: launch_spin3_descriptors_typed<8>(model, box, type, position, spin, data, slot_r12, r12_plane_size, stream); break;
-    case 9: launch_spin3_descriptors_typed<9>(model, box, type, position, spin, data, slot_r12, r12_plane_size, stream); break;
-  }
-}
-
-template <int C>
-void launch_spin3_forces_typed(
-  const NEP_Spin::Model& model,
-  const Box& box,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position,
-  const GPU_Vector<double>& spin,
-  NEP_Spin_Data& data,
-  GPU_Vector<double>& force,
-  GPU_Vector<double>& mforce,
-  GPU_Vector<double>& virial,
-  const double* slot_r12 = nullptr,
-  int r12_plane_size = 0)
-{
-  using Tile = Spin3ForceTile<C>;
-  constexpr int block_size = Tile::block_size;
-  const int N = type.size();
-  constexpr int atoms_per_warp = Tile::atoms_per_warp;
-  constexpr int centers_per_block = Tile::centers_per_block;
-  const int grid_size = (N - 1) / centers_per_block + 1;
-  const std::size_t shared_size =
-    static_cast<std::size_t>(centers_per_block) *
-    model.spin_polynomial_layout.moment_count * sizeof(float);
-  accumulate_spin3_oc_native_forces<
-    C, SpinVirialMode::center_owned, false, atoms_per_warp>
-    <<<grid_size, block_size, shared_size>>>(
-      model.spin_polynomial_layout,
-      N,
-      N,
-      model.struct_descriptor_dim,
-      model.num_types,
-      model.spin_basis_size[0],
-      static_cast<float>(model.spin_cutoff),
-      data.spin_cutoff_pair.data(),
-      box,
-      type.data(),
-      data.spin_dof_type_active.data(),
-      data.spin_env_type_active.data(),
-      position.data(),
-      slot_r12,
-      r12_plane_size,
-      spin.data(),
-      data.NN_spin.data(),
-      data.NL_spin.data(),
-      data.Fp.data(),
-      data.descriptor_parameters_type_pair.data(),
-      data.spin_projection_parameters.data(),
-      data.spin3_moments.data(),
-      static_cast<int>(model.radial_parameter_count + model.angular_parameter_count),
-      force.data(),
-      mforce.data(),
-      virial.data(),
-      nullptr,
-      nullptr);
-  GPU_CHECK_KERNEL
-}
-
-void launch_spin3_forces(
-  const NEP_Spin::Model& model,
-  const Box& box,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position,
-  const GPU_Vector<double>& spin,
-  NEP_Spin_Data& data,
-  GPU_Vector<double>& force,
-  GPU_Vector<double>& mforce,
-  GPU_Vector<double>& virial,
-  const double* slot_r12 = nullptr,
-  int r12_plane_size = 0)
-{
-  switch (model.spin_compress) {
-    case 1: launch_spin3_forces_typed<1>(model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size); break;
-    case 2: launch_spin3_forces_typed<2>(model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size); break;
-    case 3: launch_spin3_forces_typed<3>(model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size); break;
-    case 4: launch_spin3_forces_typed<4>(model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size); break;
-    case 5: launch_spin3_forces_typed<5>(model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size); break;
-    case 6: launch_spin3_forces_typed<6>(model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size); break;
-    case 7: launch_spin3_forces_typed<7>(model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size); break;
-    case 8: launch_spin3_forces_typed<8>(model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size); break;
-    case 9: launch_spin3_forces_typed<9>(model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size); break;
-  }
-  const bool has_inactive_dof = std::any_of(
-    model.spin_dof_type_active.begin(),
-    model.spin_dof_type_active.end(),
-    [](const int active) { return active == 0; });
-  if (has_inactive_dof) {
-    constexpr int block_size = 128;
-    const int grid_size = (type.size() - 1) / block_size + 1;
-    mask_inactive_spin_mforce<<<grid_size, block_size>>>(
-      type.size(), type.size(), type.data(), data.spin_dof_type_active.data(), mforce.data());
-  }
-  GPU_CHECK_KERNEL
 }
 
 template <bool SmallBox>
 __global__ void find_spin_zbl_force(
-  const NEP::ParaMB paramb,
+  const NEP_Spin::ParaMB paramb,
   const int atom_count,
-  const NEP::ZBL zbl,
+  const NEP_Spin::ZBL zbl,
   const Box box,
   const int* neighbor_count,
   const int* neighbor_list,
@@ -1165,15 +1090,13 @@ __global__ void find_spin_zbl_force(
       apply_mic(box, displacement[0], displacement[1], displacement[2]);
     }
     const float distance = sqrtf(
-      displacement[0] * displacement[0] +
-      displacement[1] * displacement[1] +
+      displacement[0] * displacement[0] + displacement[1] * displacement[1] +
       displacement[2] * displacement[2]);
     const float inverse_distance = 1.0f / distance;
     const int type2 = type[atom2];
     const int atomic_number2 = zbl.atomic_numbers[type2];
     const float inverse_screening_length =
-      (atomic_number_power1 + powf(static_cast<float>(atomic_number2), 0.23f)) *
-      2.134563f;
+      (atomic_number_power1 + powf(static_cast<float>(atomic_number2), 0.23f)) * 2.134563f;
     const float charge_product = K_C_SP * atomic_number1 * atomic_number2;
     float pair_energy = 0.0f;
     float pair_derivative = 0.0f;
@@ -1181,8 +1104,7 @@ __global__ void find_spin_zbl_force(
     float outer_cutoff = zbl.rc_outer;
     if (paramb.use_typewise_cutoff_zbl) {
       outer_cutoff = min(
-        (COVALENT_RADIUS[atomic_number1 - 1] +
-         COVALENT_RADIUS[atomic_number2 - 1]) *
+        (COVALENT_RADIUS[atomic_number1 - 1] + COVALENT_RADIUS[atomic_number2 - 1]) *
           paramb.typewise_cutoff_zbl_factor,
         outer_cutoff);
       inner_cutoff = 0.0f;
@@ -1198,9 +1120,7 @@ __global__ void find_spin_zbl_force(
       pair_derivative);
     const float force_scale = 0.5f * pair_derivative * inverse_distance;
     const float pair_force[3] = {
-      displacement[0] * force_scale,
-      displacement[1] * force_scale,
-      displacement[2] * force_scale};
+      displacement[0] * force_scale, displacement[1] * force_scale, displacement[2] * force_scale};
     energy += 0.5f * pair_energy;
     if (SmallBox) {
       atomicAdd(&force_x[atom1], static_cast<double>(pair_force[0]));
@@ -1211,13 +1131,20 @@ __global__ void find_spin_zbl_force(
       atomicAdd(&force_z[atom2], static_cast<double>(-pair_force[2]));
       atomicAdd(&virial[atom2], static_cast<double>(-displacement[0] * pair_force[0]));
       atomicAdd(&virial[atom_count + atom2], static_cast<double>(-displacement[1] * pair_force[1]));
-      atomicAdd(&virial[2 * atom_count + atom2], static_cast<double>(-displacement[2] * pair_force[2]));
-      atomicAdd(&virial[3 * atom_count + atom2], static_cast<double>(-displacement[0] * pair_force[1]));
-      atomicAdd(&virial[4 * atom_count + atom2], static_cast<double>(-displacement[0] * pair_force[2]));
-      atomicAdd(&virial[5 * atom_count + atom2], static_cast<double>(-displacement[1] * pair_force[2]));
-      atomicAdd(&virial[6 * atom_count + atom2], static_cast<double>(-displacement[1] * pair_force[0]));
-      atomicAdd(&virial[7 * atom_count + atom2], static_cast<double>(-displacement[2] * pair_force[0]));
-      atomicAdd(&virial[8 * atom_count + atom2], static_cast<double>(-displacement[2] * pair_force[1]));
+      atomicAdd(
+        &virial[2 * atom_count + atom2], static_cast<double>(-displacement[2] * pair_force[2]));
+      atomicAdd(
+        &virial[3 * atom_count + atom2], static_cast<double>(-displacement[0] * pair_force[1]));
+      atomicAdd(
+        &virial[4 * atom_count + atom2], static_cast<double>(-displacement[0] * pair_force[2]));
+      atomicAdd(
+        &virial[5 * atom_count + atom2], static_cast<double>(-displacement[1] * pair_force[2]));
+      atomicAdd(
+        &virial[6 * atom_count + atom2], static_cast<double>(-displacement[1] * pair_force[0]));
+      atomicAdd(
+        &virial[7 * atom_count + atom2], static_cast<double>(-displacement[2] * pair_force[0]));
+      atomicAdd(
+        &virial[8 * atom_count + atom2], static_cast<double>(-displacement[2] * pair_force[1]));
     } else {
       force_sum[0] += 2.0f * pair_force[0];
       force_sum[1] += 2.0f * pair_force[1];
@@ -1247,11 +1174,273 @@ __global__ void find_spin_zbl_force(
 
 } // namespace
 
+template <int atoms_per_warp, int edge_lanes, bool l4_q222_only>
+void NEP_Spin::launch_force_angular_warp(
+  const NEP_Spin::ParaMB& paramb,
+  const NEP_Spin::ANN& ann,
+  const Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position,
+  const Data& data,
+  GPU_Vector<double>& force,
+  GPU_Vector<double>& virial,
+  const int grid_size,
+  const int block_size,
+  const std::size_t shared_size)
+{
+  const int N = type.size();
+  find_force_angular_warp<atoms_per_warp, edge_lanes, l4_q222_only>
+    <<<grid_size, block_size, shared_size>>>(
+      paramb,
+      ann,
+      N,
+      box,
+      data.NN_angular.data(),
+      data.NL_angular.data(),
+      type.data(),
+      position.data(),
+      position.data() + N,
+      position.data() + 2 * N,
+      data.Fp.data(),
+      data.sum_fxyz.data(),
+      force.data(),
+      virial.data());
+}
+
+template <int C>
+void NEP_Spin::launch_spin3_descriptors_typed(
+  const NEP_Spin::Model& model,
+  const Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position,
+  const GPU_Vector<double>& spin,
+  Data& data,
+  const double* slot_r12,
+  int r12_plane_size,
+  gpuStream_t stream)
+{
+  constexpr int block_size = 128;
+  const int N = type.size();
+  const auto layout = make_spin_polynomial_layout<Spin_Polynomial_Layout>(
+    C, model.spin_l_max[0], model.spin_order, model.spin_soc);
+  const int density_work = C * N;
+  build_spin3_oc_density_bank<C>
+    <<<(density_work + block_size - 1) / block_size, block_size, 0, stream>>>(
+      layout,
+      N,
+      N,
+      model.struct_descriptor_dim,
+      model.num_types,
+      model.spin_basis_size[0],
+      static_cast<float>(model.spin_cutoff),
+      data.spin_cutoff_pair.data(),
+      static_cast<int>(model.radial_parameter_count + model.angular_parameter_count),
+      box,
+      type.data(),
+      data.spin_type_active.data(),
+      position.data(),
+      slot_r12,
+      r12_plane_size,
+      spin.data(),
+      data.NN_spin.data(),
+      data.NL_spin.data(),
+      data.descriptor_parameters_type_pair.data(),
+      data.descriptor.data(),
+      data.spin3_moments.data());
+  contract_spin3_oc_descriptors<C><<<(N + block_size - 1) / block_size, block_size, 0, stream>>>(
+    layout,
+    N,
+    N,
+    model.struct_descriptor_dim,
+    type.data(),
+    data.spin_type_active.data(),
+    spin.data(),
+    data.spin_projection_parameters.data(),
+    data.spin3_moments.data(),
+    data.descriptor.data());
+  GPU_CHECK_KERNEL
+}
+
+void NEP_Spin::launch_spin3_descriptors(
+  const NEP_Spin::Model& model,
+  const Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position,
+  const GPU_Vector<double>& spin,
+  Data& data,
+  const double* slot_r12,
+  int r12_plane_size,
+  gpuStream_t stream)
+{
+  switch (model.spin_compress) {
+    case 1:
+      launch_spin3_descriptors_typed<1>(
+        model, box, type, position, spin, data, slot_r12, r12_plane_size, stream);
+      break;
+    case 2:
+      launch_spin3_descriptors_typed<2>(
+        model, box, type, position, spin, data, slot_r12, r12_plane_size, stream);
+      break;
+    case 3:
+      launch_spin3_descriptors_typed<3>(
+        model, box, type, position, spin, data, slot_r12, r12_plane_size, stream);
+      break;
+    case 4:
+      launch_spin3_descriptors_typed<4>(
+        model, box, type, position, spin, data, slot_r12, r12_plane_size, stream);
+      break;
+    case 5:
+      launch_spin3_descriptors_typed<5>(
+        model, box, type, position, spin, data, slot_r12, r12_plane_size, stream);
+      break;
+    case 6:
+      launch_spin3_descriptors_typed<6>(
+        model, box, type, position, spin, data, slot_r12, r12_plane_size, stream);
+      break;
+    case 7:
+      launch_spin3_descriptors_typed<7>(
+        model, box, type, position, spin, data, slot_r12, r12_plane_size, stream);
+      break;
+    case 8:
+      launch_spin3_descriptors_typed<8>(
+        model, box, type, position, spin, data, slot_r12, r12_plane_size, stream);
+      break;
+    case 9:
+      launch_spin3_descriptors_typed<9>(
+        model, box, type, position, spin, data, slot_r12, r12_plane_size, stream);
+      break;
+    default:
+      PRINT_INPUT_ERROR("Unsupported spin_compress in descriptor dispatch.");
+  }
+}
+
+template <int C>
+void NEP_Spin::launch_spin3_forces_typed(
+  const NEP_Spin::Model& model,
+  const Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position,
+  const GPU_Vector<double>& spin,
+  Data& data,
+  GPU_Vector<double>& force,
+  GPU_Vector<double>& mforce,
+  GPU_Vector<double>& virial,
+  const double* slot_r12,
+  int r12_plane_size)
+{
+  const auto layout = make_spin_polynomial_layout<Spin_Polynomial_Layout>(
+    C, model.spin_l_max[0], model.spin_order, model.spin_soc);
+  using Tile = Spin3ForceTile<C>;
+  constexpr int block_size = Tile::block_size;
+  const int N = type.size();
+  constexpr int atoms_per_warp = Tile::atoms_per_warp;
+  constexpr int centers_per_block = Tile::centers_per_block;
+  const int grid_size = (N - 1) / centers_per_block + 1;
+  const std::size_t shared_size =
+    static_cast<std::size_t>(centers_per_block) * layout.moment_count * sizeof(float);
+  accumulate_spin3_oc_native_forces<C, SpinVirialMode::center_owned, false, atoms_per_warp>
+    <<<grid_size, block_size, shared_size>>>(
+      layout,
+      N,
+      N,
+      model.struct_descriptor_dim,
+      model.num_types,
+      model.spin_basis_size[0],
+      static_cast<float>(model.spin_cutoff),
+      data.spin_cutoff_pair.data(),
+      box,
+      type.data(),
+      data.spin_type_active.data(),
+      position.data(),
+      slot_r12,
+      r12_plane_size,
+      spin.data(),
+      data.NN_spin.data(),
+      data.NL_spin.data(),
+      data.Fp.data(),
+      data.descriptor_parameters_type_pair.data(),
+      data.spin_projection_parameters.data(),
+      data.spin3_moments.data(),
+      static_cast<int>(model.radial_parameter_count + model.angular_parameter_count),
+      force.data(),
+      mforce.data(),
+      virial.data(),
+      nullptr,
+      nullptr);
+  GPU_CHECK_KERNEL
+}
+
+void NEP_Spin::launch_spin3_forces(
+  const NEP_Spin::Model& model,
+  const Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position,
+  const GPU_Vector<double>& spin,
+  Data& data,
+  GPU_Vector<double>& force,
+  GPU_Vector<double>& mforce,
+  GPU_Vector<double>& virial,
+  const double* slot_r12,
+  int r12_plane_size)
+{
+  switch (model.spin_compress) {
+    case 1:
+      launch_spin3_forces_typed<1>(
+        model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size);
+      break;
+    case 2:
+      launch_spin3_forces_typed<2>(
+        model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size);
+      break;
+    case 3:
+      launch_spin3_forces_typed<3>(
+        model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size);
+      break;
+    case 4:
+      launch_spin3_forces_typed<4>(
+        model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size);
+      break;
+    case 5:
+      launch_spin3_forces_typed<5>(
+        model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size);
+      break;
+    case 6:
+      launch_spin3_forces_typed<6>(
+        model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size);
+      break;
+    case 7:
+      launch_spin3_forces_typed<7>(
+        model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size);
+      break;
+    case 8:
+      launch_spin3_forces_typed<8>(
+        model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size);
+      break;
+    case 9:
+      launch_spin3_forces_typed<9>(
+        model, box, type, position, spin, data, force, mforce, virial, slot_r12, r12_plane_size);
+      break;
+    default:
+      PRINT_INPUT_ERROR("Unsupported spin_compress in force dispatch.");
+  }
+  const bool has_inactive_dof =
+    std::any_of(model.spin_type_active.begin(), model.spin_type_active.end(), [](const int active) {
+      return active == 0;
+    });
+  if (has_inactive_dof) {
+    constexpr int block_size = 128;
+    const int grid_size = (type.size() - 1) / block_size + 1;
+    mask_inactive_spin_mforce<<<grid_size, block_size>>>(
+      type.size(), type.size(), type.data(), data.spin_type_active.data(), mforce.data());
+  }
+  GPU_CHECK_KERNEL
+}
+
 int NEP_Spin::Body_Channels::count(void) const
 {
   return l_max_3body + static_cast<int>(has_q_222) + static_cast<int>(has_q_1111) +
-         static_cast<int>(has_q_112) + static_cast<int>(has_q_123) +
-         static_cast<int>(has_q_233) + static_cast<int>(has_q_134);
+         static_cast<int>(has_q_112) + static_cast<int>(has_q_123) + static_cast<int>(has_q_233) +
+         static_cast<int>(has_q_134);
 }
 
 NEP_Spin::NEP_Spin(const char* file_potential, const int num_atoms) : num_atoms_(num_atoms)
@@ -1279,7 +1468,7 @@ NEP_Spin::NEP_Spin(const char* file_potential, const int num_atoms) : num_atoms_
   data_.spin_cutoff_pair.copy_from_host(spin_cutoff_pair.data(), spin_cutoff_pair.size());
 
   printf(
-    "Use NEP4 Spin3 potential with %d atom type%s.\n",
+    "Use NEP-spin potential with %d atom type%s.\n",
     model_.num_types,
     model_.num_types == 1 ? "" : "s");
   printf(
@@ -1296,31 +1485,57 @@ NEP_Spin::NEP_Spin(const char* file_potential, const int num_atoms) : num_atoms_
 void NEP_Spin::resize_domain(int num_atoms)
 {
   num_atoms_ = num_atoms;
+  N1 = 0;
+  N2 = num_atoms;
   small_box_initialized_ = false;
   neighbor_.initialize(rc, num_atoms_, input_neighbor_capacity_);
   model_.neighbor_capacity = neighbor_.get_capacity();
   const std::size_t slots =
     static_cast<std::size_t>(num_atoms_) * static_cast<std::size_t>(model_.neighbor_capacity);
-  data_.NN_radial.resize_with_capacity(num_atoms_);
-  data_.NN_angular.resize_with_capacity(num_atoms_);
-  data_.NN_spin.resize_with_capacity(num_atoms_);
-  data_.NL_radial.resize_with_capacity(slots);
-  data_.NL_angular.resize_with_capacity(slots);
-  data_.NL_spin.resize_with_capacity(slots);
-  data_.descriptor.resize_with_capacity(static_cast<std::size_t>(num_atoms_) * model_.descriptor_dim);
-  data_.Fp.resize_with_capacity(static_cast<std::size_t>(num_atoms_) * model_.descriptor_dim);
-  data_.f12x.resize_with_capacity(slots);
-  data_.f12y.resize_with_capacity(slots);
-  data_.f12z.resize_with_capacity(slots);
+  if (data_.NN_radial.size() != (num_atoms_)) {
+    data_.NN_radial.resize(num_atoms_);
+  }
+  if (data_.NN_angular.size() != (num_atoms_)) {
+    data_.NN_angular.resize(num_atoms_);
+  }
+  if (data_.NN_spin.size() != (num_atoms_)) {
+    data_.NN_spin.resize(num_atoms_);
+  }
+  if (data_.NL_radial.size() != (slots)) {
+    data_.NL_radial.resize(slots);
+  }
+  if (data_.NL_angular.size() != (slots)) {
+    data_.NL_angular.resize(slots);
+  }
+  if (data_.NL_spin.size() != (slots)) {
+    data_.NL_spin.resize(slots);
+  }
+  if (data_.descriptor.size() != (static_cast<std::size_t>(num_atoms_) * model_.descriptor_dim)) {
+    data_.descriptor.resize(static_cast<std::size_t>(num_atoms_) * model_.descriptor_dim);
+  }
+  if (data_.Fp.size() != (static_cast<std::size_t>(num_atoms_) * model_.descriptor_dim)) {
+    data_.Fp.resize(static_cast<std::size_t>(num_atoms_) * model_.descriptor_dim);
+  }
+  if (data_.f12x.size() != (slots)) {
+    data_.f12x.resize(slots);
+  }
+  if (data_.f12y.size() != (slots)) {
+    data_.f12y.resize(slots);
+  }
+  if (data_.f12z.size() != (slots)) {
+    data_.f12z.resize(slots);
+  }
   const std::size_t N = static_cast<std::size_t>(num_atoms_);
-  const std::size_t spin3_state_size =
-    N * static_cast<std::size_t>(model_.spin_polynomial_layout.moment_count);
-  data_.spin3_moments.resize_with_capacity(spin3_state_size);
+  const std::size_t spin3_state_size = N * static_cast<std::size_t>(model_.spin_moment_count);
+  if (data_.spin3_moments.size() != (spin3_state_size)) {
+    data_.spin3_moments.resize(spin3_state_size);
+  }
   const std::size_t sum_fxyz_size =
     N * static_cast<std::size_t>(model_.n_max_angular + 1) *
-    static_cast<std::size_t>(
-      (model_.body.l_max_3body + 1) * (model_.body.l_max_3body + 1) - 1);
-  data_.sum_fxyz.resize_with_capacity(std::max<std::size_t>(sum_fxyz_size, 1));
+    static_cast<std::size_t>((model_.body.l_max_3body + 1) * (model_.body.l_max_3body + 1) - 1);
+  if (data_.sum_fxyz.size() != (std::max<std::size_t>(sum_fxyz_size, 1))) {
+    data_.sum_fxyz.resize(std::max<std::size_t>(sum_fxyz_size, 1));
+  }
 }
 
 NEP_Spin::~NEP_Spin(void)
@@ -1335,24 +1550,57 @@ NEP_Spin::~NEP_Spin(void)
 
 void NEP_Spin::read_model(const char* file_potential)
 {
-  std::istringstream input(read_nep_spin_model_input(file_potential));
+  std::ifstream input(file_potential);
+  NEP_Spin_Model_File file;
+  std::string error;
+  if (!file.read(input, error)) {
+    throw std::runtime_error(error);
+  }
+  model_.elements = file.elements;
+  model_.num_types = file.elements.size();
+  model_.cutoff_radial = file.rc_radial;
+  model_.cutoff_angular = file.rc_angular;
+  model_.max_neighbors_global = file.max_radial;
+  model_.max_neighbors_angular = file.max_angular;
+  if (file.max_radial <= 0 || file.max_angular <= 0) {
+    throw std::runtime_error("NEP_Spin neighbor capacities must be positive");
+  }
+  model_.n_max_radial = file.n_max[0];
+  model_.n_max_angular = file.n_max[1];
+  model_.basis_size_radial = file.basis_size[0];
+  model_.basis_size_angular = file.basis_size[1];
+  model_.body.l_max_3body = file.l_max[0];
+  model_.body.has_q_222 = file.l_max[1] != 0;
+  model_.body.has_q_1111 = file.l_max[2] != 0;
+  model_.body.has_q_112 = file.l_max[3] != 0;
+  model_.body.has_q_123 = file.l_max[4] != 0;
+  model_.body.has_q_233 = file.l_max[5] != 0;
+  model_.body.has_q_134 = file.l_max[6] != 0;
+  model_.hidden_neurons = file.num_neurons;
+  model_.spin_basis_size[0] = file.spin_basis_size;
+  model_.spin_l_max[0] = file.spin_l_max;
+  model_.spin_compress = file.spin_compress;
+  model_.spin_cutoff_by_type.assign(file.spin_cutoff.begin(), file.spin_cutoff.end());
+  model_.spin_cutoff = *std::max_element(file.spin_cutoff.begin(), file.spin_cutoff.end());
+  model_.spin_order = file.spin_order;
+  model_.spin_soc = file.spin_soc;
+  model_.spin_projection_size = file.spin_projection_size;
+  model_.spin_type_active = file.spin_type;
+  model_.energy_reference = file.energy_reference;
+  model_.struct_descriptor_dim = file.dim_struct;
+  model_.spin_descriptor_dim = file.dim_spin;
+  model_.descriptor_dim = file.dim;
+  model_.spin_moment_count =
+    make_spin_polynomial_layout<Spin_Polynomial_Layout>(
+      model_.spin_compress, model_.spin_l_max[0], model_.spin_order, model_.spin_soc)
+      .moment_count;
 
-  std::vector<std::string> tokens = next_tokens(input);
-  const bool has_zbl = !tokens.empty() && tokens[0] == "nep4_spin3_zbl";
-  if (tokens.size() < 3 ||
-      (tokens[0] != "nep4_spin3" && !has_zbl)) {
-    throw std::runtime_error("NEP_Spin accepts only nep4_spin3[/zbl] models");
-  }
-  zbl_.enabled = has_zbl;
-  model_.num_types = parse_int(tokens[1]);
-  if (
-    model_.num_types < 1 || model_.num_types > NUM_ELEMENTS ||
-    tokens.size() != static_cast<std::size_t>(model_.num_types + 2)) {
-    throw std::runtime_error("invalid NEP_Spin model type count");
-  }
-  model_.elements.assign(tokens.begin() + 2, tokens.end());
-  check_unique_elements(model_.elements);
+  zbl_.enabled = file.enable_zbl;
   zbl_.num_types = model_.num_types;
+  zbl_.rc_inner = file.zbl_rc_inner;
+  zbl_.rc_outer = file.zbl_rc_outer;
+  paramb_.use_typewise_cutoff_zbl = file.use_typewise_cutoff_zbl;
+  paramb_.typewise_cutoff_zbl_factor = file.typewise_cutoff_zbl_factor;
   for (int type = 0; type < model_.num_types; ++type) {
     for (int element = 0; element < NUM_ELEMENTS; ++element) {
       if (model_.elements[type] == kElementSymbols[element]) {
@@ -1360,317 +1608,39 @@ void NEP_Spin::read_model(const char* file_potential)
         break;
       }
     }
-    if (zbl_.atomic_numbers[type] == 0) {
-      throw std::runtime_error("unknown element in NEP_Spin ZBL model");
-    }
-  }
-
-  tokens = next_tokens(input);
-  require_line(tokens, "spin_mode", 3);
-  if (parse_int(tokens[1]) != model_.spin_mode) {
-    throw std::runtime_error("spin_mode metadata does not match the model tag");
-  }
-  const int spin_header_lines = parse_int(tokens[2]);
-  constexpr int minimum_spin_header_lines = 9;
-  const int maximum_spin_header_lines = minimum_spin_header_lines + 2;
-  if (spin_header_lines < minimum_spin_header_lines ||
-      spin_header_lines > maximum_spin_header_lines) {
-    throw std::runtime_error("counted spin header has an invalid line count");
-  }
-
-  bool seen_baseline = false;
-  bool seen_basis_size = false;
-  bool seen_l_max = false;
-  bool seen_compress = false;
-  bool seen_cutoff = false;
-  bool seen_scaler = false;
-  bool seen_dof = false;
-  bool seen_env = false;
-  bool seen_order = false;
-  bool seen_soc = false;
-  bool seen_projection_size = false;
-  for (int line = 0; line < spin_header_lines; ++line) {
-    tokens = next_tokens(input);
-    if (tokens.empty()) {
-      throw std::runtime_error("truncated counted spin header");
-    }
-    const std::string& name = tokens[0];
-    if (name == "spin_baseline") {
-      if (seen_baseline || tokens.size() != static_cast<std::size_t>(model_.num_types + 1)) {
-        throw std::runtime_error("energy_reference must occur once with one value per type");
-      }
-      seen_baseline = true;
-      for (int type = 0; type < model_.num_types; ++type) {
-        model_.energy_reference.push_back(parse_double(tokens[type + 1]));
-      }
-    } else if (name == "spin_basis_size") {
-      require_line(tokens, "spin_basis_size", 2);
-      if (seen_basis_size)
-        throw std::runtime_error("duplicate spin_basis_size");
-      seen_basis_size = true;
-      model_.spin_basis_size[0] = parse_int(tokens[1]);
-    } else if (name == "spin_l_max") {
-      require_line(tokens, "spin_l_max", 2);
-      if (seen_l_max)
-        throw std::runtime_error("duplicate spin_l_max");
-      seen_l_max = true;
-      model_.spin_l_max[0] = parse_int(tokens[1]);
-    } else if (name == "spin_compress") {
-      require_line(tokens, "spin_compress", 2);
-      if (seen_compress)
-        throw std::runtime_error("duplicate spin_compress");
-      seen_compress = true;
-      model_.spin_compress = parse_int(tokens[1]);
-    } else if (name == "spin_cutoff") {
-      if (seen_cutoff)
-        throw std::runtime_error("duplicate spin_cutoff");
-      seen_cutoff = true;
-      if (tokens.size() != 2 &&
-          tokens.size() != static_cast<std::size_t>(model_.num_types + 1)) {
-        throw std::runtime_error(
-          "spin_cutoff requires one value or one value per atom type");
-      }
-      model_.spin_cutoff_by_type.resize(model_.num_types);
-      for (int type = 0; type < model_.num_types; ++type) {
-        const std::size_t value_index = tokens.size() == 2 ? 1 : type + 1;
-        model_.spin_cutoff_by_type[type] = parse_double(tokens[value_index]);
-        if (!(model_.spin_cutoff_by_type[type] > 0.0) ||
-            !std::isfinite(model_.spin_cutoff_by_type[type])) {
-          throw std::runtime_error("spin_cutoff values must be finite and positive");
-        }
-      }
-      model_.spin_cutoff = *std::max_element(
-        model_.spin_cutoff_by_type.begin(), model_.spin_cutoff_by_type.end());
-    } else if (name == "spin_order") {
-      require_line(tokens, "spin_order", 2);
-      if (seen_order)
-        throw std::runtime_error("duplicate spin_order");
-      seen_order = true;
-      model_.spin_order = parse_int(tokens[1]);
-    } else if (name == "spin_soc") {
-      require_line(tokens, "spin_soc", 2);
-      if (seen_soc)
-        throw std::runtime_error("duplicate spin_soc");
-      seen_soc = true;
-      model_.spin_soc = parse_flag(tokens[1], "spin_soc");
-    } else if (name == "spin_projection_size") {
-      require_line(tokens, "spin_projection_size", 2);
-      if (seen_projection_size)
-        throw std::runtime_error("duplicate spin_projection_size");
-      seen_projection_size = true;
-      model_.spin_projection_size = parse_int(tokens[1]);
-    } else if (name == "spin_scaler") {
-      require_line(tokens, "spin_scaler", 2);
-      if (seen_scaler || parse_int(tokens[1]) != 1)
-        throw std::runtime_error("spin_scaler must occur once and equal 1");
-      seen_scaler = true;
-    } else if (name == "spin_dof_type") {
-      if (seen_dof)
-        throw std::runtime_error("duplicate spin_dof_type");
-      seen_dof = true;
-      model_.spin_dof_type_active =
-        parse_active_types(tokens, model_.elements, "spin_dof_type");
-    } else if (name == "spin_env_type") {
-      if (seen_env)
-        throw std::runtime_error("duplicate spin_env_type");
-      seen_env = true;
-      model_.spin_env_type_active =
-        parse_active_types(tokens, model_.elements, "spin_env_type");
-    } else {
-      throw std::runtime_error("unknown or unsupported spin header line: " + name);
-    }
-  }
-  if (
-    !seen_baseline || !seen_basis_size || !seen_l_max || !seen_compress ||
-    !seen_cutoff || !seen_scaler || !seen_order || !seen_soc ||
-    !seen_projection_size) {
-    throw std::runtime_error("counted spin header is missing a required line");
-  }
-  if (!seen_dof) {
-    model_.spin_dof_type_active.assign(model_.num_types, 1);
-  }
-  if (!seen_env) {
-    model_.spin_env_type_active = model_.spin_dof_type_active;
-  }
-  for (int type = 0; type < model_.num_types; ++type) {
-    if (
-      model_.spin_dof_type_active[type] != 0 &&
-      model_.spin_env_type_active[type] == 0) {
-      throw std::runtime_error("spin_dof_type must be a subset of spin_env_type");
-    }
-  }
-
-  if (zbl_.enabled) {
-    tokens = next_tokens(input);
-    if ((tokens.size() != 3 && tokens.size() != 4) || tokens[0] != "zbl") {
-      throw std::runtime_error(
-        "nep4_spin3_zbl requires zbl rc_inner rc_outer [zbl_factor]");
-    }
-    zbl_.rc_inner = parse_float(tokens[1]);
-    zbl_.rc_outer = parse_float(tokens[2]);
-    if (zbl_.rc_inner == 0.0f && zbl_.rc_outer == 0.0f) {
-      throw std::runtime_error("NEP-spin does not support flexible ZBL (zbl 0 0).");
-    }
-    if (!(zbl_.rc_inner >= 0.0f && zbl_.rc_inner < zbl_.rc_outer)) {
-      throw std::runtime_error("invalid spin3 ZBL inner/outer cutoffs");
-    }
-    if (tokens.size() == 4) {
-      paramb_.use_typewise_cutoff_zbl = true;
-      paramb_.typewise_cutoff_zbl_factor = parse_float(tokens[3]);
-      if (paramb_.typewise_cutoff_zbl_factor < 0.5f) {
-        throw std::runtime_error("spin3 ZBL typewise cutoff factor must be >= 0.5");
-      }
-    }
-  }
-
-  tokens = next_tokens(input);
-  require_line(tokens, "cutoff", 5);
-  model_.cutoff_radial = parse_double(tokens[1]);
-  model_.cutoff_angular = parse_double(tokens[2]);
-  model_.max_neighbors_global = parse_int(tokens[3]);
-  model_.max_neighbors_angular = parse_int(tokens[4]);
-
-  tokens = next_tokens(input);
-  require_line(tokens, "n_max", 3);
-  model_.n_max_radial = parse_int(tokens[1]);
-  model_.n_max_angular = parse_int(tokens[2]);
-
-  tokens = next_tokens(input);
-  require_line(tokens, "basis_size", 3);
-  model_.basis_size_radial = parse_int(tokens[1]);
-  model_.basis_size_angular = parse_int(tokens[2]);
-
-  tokens = next_tokens(input);
-  if (tokens.size() < 2 || tokens.size() > 8 || tokens[0] != "l_max") {
-    throw std::runtime_error("invalid l_max line");
-  }
-  model_.body.l_max_3body = parse_int(tokens[1]);
-  if (tokens.size() >= 3)
-    model_.body.has_q_222 = parse_flag(tokens[2], "q_222", true);
-  if (tokens.size() >= 4)
-    model_.body.has_q_1111 = parse_flag(tokens[3], "q_1111");
-  if (tokens.size() >= 5)
-    model_.body.has_q_112 = parse_flag(tokens[4], "q_112");
-  if (tokens.size() >= 6)
-    model_.body.has_q_123 = parse_flag(tokens[5], "q_123");
-  if (tokens.size() >= 7)
-    model_.body.has_q_233 = parse_flag(tokens[6], "q_233");
-  if (tokens.size() >= 8)
-    model_.body.has_q_134 = parse_flag(tokens[7], "q_134");
-
-  tokens = next_tokens(input);
-  require_line(tokens, "ANN", 3);
-  model_.hidden_neurons = parse_int(tokens[1]);
-  if (parse_int(tokens[2]) != 0) {
-    throw std::runtime_error("NEP_Spin supports only a single hidden ANN layer");
-  }
-
-  if (
-    model_.cutoff_radial <= 0.0 || model_.cutoff_angular <= 0.0 ||
-    model_.spin_cutoff <= 0.0 ||
-    model_.max_neighbors_global <= 0 || model_.max_neighbors_angular <= 0) {
-    throw std::runtime_error("cutoffs and neighbor capacities must be finite and positive");
-  }
-  if (model_.n_max_radial < 0 || model_.n_max_radial > 12 ||
-      model_.n_max_angular < 0 || model_.n_max_angular > 8 ||
-      model_.basis_size_radial < 0 || model_.basis_size_radial > 16 ||
-      model_.basis_size_angular < 0 || model_.basis_size_angular > 12 ||
-      model_.body.l_max_3body < 0 || model_.body.l_max_3body > 8 ||
-      model_.hidden_neurons < 1 || model_.hidden_neurons > 120) {
-    throw std::runtime_error("ordinary NEP_Spin shape is outside the supported range");
-  }
-  if ((model_.body.has_q_222 || model_.body.has_q_112) && model_.body.l_max_3body < 2)
-    throw std::runtime_error("q_222/q_112 require l_max_3body >= 2");
-  if (model_.body.has_q_1111 && model_.body.l_max_3body < 1)
-    throw std::runtime_error("q_1111 requires l_max_3body >= 1");
-  if ((model_.body.has_q_123 || model_.body.has_q_233) && model_.body.l_max_3body < 3)
-    throw std::runtime_error("q_123/q_233 require l_max_3body >= 3");
-  if (model_.body.has_q_134 && model_.body.l_max_3body < 4)
-    throw std::runtime_error("q_134 requires l_max_3body >= 4");
-
-  if (
-    model_.spin_compress < 1 || model_.spin_compress > 9 ||
-    model_.spin_basis_size[0] != 8 || model_.spin_l_max[0] < 0 ||
-    model_.spin_l_max[0] > 2 || model_.spin_order < 1 ||
-    model_.spin_order > 3 || (model_.spin_soc != 0 && model_.spin_soc != 1) ||
-    model_.spin_projection_size != 4 * model_.spin_compress * model_.spin_compress) {
-    throw std::runtime_error("Spin3 O/C descriptor shape is outside the supported range");
-  }
-
-  model_.struct_descriptor_dim =
-    model_.n_max_radial + 1 + (model_.n_max_angular + 1) * model_.body.count();
-  if ((model_.n_max_angular + 1) * model_.body.count() > 90) {
-    throw std::runtime_error("structural angular descriptor dimension exceeds 90");
-  }
-  model_.spin_polynomial_layout = make_spin_polynomial_layout<Spin_Polynomial_Layout>(
-    model_.spin_compress, model_.spin_l_max[0], model_.spin_order, model_.spin_soc);
-  model_.spin_descriptor_dim = model_.spin_polynomial_layout.descriptor_dim;
-  model_.descriptor_dim = model_.struct_descriptor_dim + model_.spin_descriptor_dim;
-  if (model_.descriptor_dim > MAX_DIM_SPIN) {
-    throw std::runtime_error(
-      "combined structural and spin descriptor dimension exceeds GPUMD MAX_DIM_SPIN");
   }
 
   const std::size_t types = static_cast<std::size_t>(model_.num_types);
   const std::size_t type_pairs = types * types;
   model_.ann_parameter_count =
     static_cast<std::size_t>(model_.descriptor_dim + 2) * model_.hidden_neurons * types + 1;
-  model_.radial_parameter_count = static_cast<std::size_t>(model_.n_max_radial + 1) *
-                                  (model_.basis_size_radial + 1) * type_pairs;
+  model_.radial_parameter_count =
+    static_cast<std::size_t>(model_.n_max_radial + 1) * (model_.basis_size_radial + 1) * type_pairs;
   model_.angular_parameter_count = static_cast<std::size_t>(model_.n_max_angular + 1) *
                                    (model_.basis_size_angular + 1) * type_pairs;
-  model_.spin_parameter_count = static_cast<std::size_t>(model_.spin_compress) *
-                                (model_.spin_basis_size[0] + 1) * type_pairs;
-  model_.spin_projection_parameter_count =
-    static_cast<std::size_t>(model_.spin_projection_size);
+  model_.spin_parameter_count =
+    static_cast<std::size_t>(model_.spin_compress) * (model_.spin_basis_size[0] + 1) * type_pairs;
+  model_.spin_projection_parameter_count = static_cast<std::size_t>(model_.spin_projection_size);
   model_.model_parameter_count = model_.ann_parameter_count + model_.radial_parameter_count +
                                  model_.angular_parameter_count + model_.spin_parameter_count +
                                  model_.spin_projection_parameter_count;
 
-  std::vector<float> parameters;
-  parameters.reserve(model_.model_parameter_count + model_.descriptor_dim);
-  for (std::size_t i = 0; i < model_.model_parameter_count + model_.descriptor_dim; ++i) {
-    tokens = next_tokens(input);
-    if (tokens.size() != 1) {
-      throw std::runtime_error("truncated or malformed NEP_Spin numeric payload");
-    }
-    parameters.push_back(parse_float(tokens[0]));
-  }
-  if (!next_tokens(input).empty()) {
-    throw std::runtime_error("extra header or numeric payload after NEP_Spin model");
-  }
+  std::vector<float> parameters = file.parameters;
+  parameters.insert(parameters.end(), file.q_scaler.begin(), file.q_scaler.end());
   data_.parameters.resize(parameters.size());
   data_.parameters.copy_from_host(parameters.data());
 
   const std::size_t descriptor_offset = model_.ann_parameter_count;
-  const std::size_t ordinary_count =
-    model_.radial_parameter_count + model_.angular_parameter_count;
-  std::vector<float> descriptor_parameters(ordinary_count + model_.spin_parameter_count);
-  const std::size_t radial_basis =
-    static_cast<std::size_t>(model_.n_max_radial + 1) * (model_.basis_size_radial + 1);
-  const std::size_t angular_basis =
-    static_cast<std::size_t>(model_.n_max_angular + 1) * (model_.basis_size_angular + 1);
-  for (std::size_t pair = 0; pair < type_pairs; ++pair) {
-    for (std::size_t basis = 0; basis < radial_basis; ++basis) {
-      descriptor_parameters[pair * radial_basis + basis] =
-        parameters[descriptor_offset + basis * type_pairs + pair];
-    }
-    for (std::size_t basis = 0; basis < angular_basis; ++basis) {
-      descriptor_parameters[
-        model_.radial_parameter_count + pair * angular_basis + basis] =
-        parameters[
-          descriptor_offset + model_.radial_parameter_count + basis * type_pairs + pair];
-    }
-  }
-  std::copy(
-    parameters.begin() + descriptor_offset + ordinary_count,
-    parameters.begin() + descriptor_offset + ordinary_count + model_.spin_parameter_count,
-    descriptor_parameters.begin() + ordinary_count);
+  const std::size_t ordinary_count = model_.radial_parameter_count + model_.angular_parameter_count;
+  // Current model blocks already use the runtime structural type-pair order.
+  std::vector<float> descriptor_parameters(
+    parameters.begin() + descriptor_offset,
+    parameters.begin() + descriptor_offset + ordinary_count + model_.spin_parameter_count);
   data_.descriptor_parameters_type_pair.resize(descriptor_parameters.size());
   data_.descriptor_parameters_type_pair.copy_from_host(descriptor_parameters.data());
   if (model_.spin_projection_parameter_count > 0) {
-    const std::size_t projection_offset = descriptor_offset + ordinary_count +
-      model_.spin_parameter_count;
+    const std::size_t projection_offset =
+      descriptor_offset + ordinary_count + model_.spin_parameter_count;
     std::vector<float> projection_parameters(
       parameters.begin() + projection_offset,
       parameters.begin() + projection_offset + model_.spin_projection_parameter_count);
@@ -1681,10 +1651,8 @@ void NEP_Spin::read_model(const char* file_potential)
   const auto& energy_reference = model_.energy_reference;
   data_.energy_reference.resize(energy_reference.size());
   data_.energy_reference.copy_from_host(energy_reference.data());
-  data_.spin_dof_type_active.resize(model_.spin_dof_type_active.size());
-  data_.spin_dof_type_active.copy_from_host(model_.spin_dof_type_active.data());
-  data_.spin_env_type_active.resize(model_.spin_env_type_active.size());
-  data_.spin_env_type_active.copy_from_host(model_.spin_env_type_active.data());
+  data_.spin_type_active.resize(model_.spin_type_active.size());
+  data_.spin_type_active.copy_from_host(model_.spin_type_active.data());
 
   paramb_.num_types = model_.num_types;
   paramb_.num_types_sq = model_.num_types * model_.num_types;
@@ -1751,42 +1719,27 @@ void NEP_Spin::initialize_small_box(const Box& box)
   const double volume = box.get_volume();
   const double thickness[3] = {
     volume / box.get_area(0), volume / box.get_area(1), volume / box.get_area(2)};
-  expanded_box_.num_cells[0] =
-    box.pbc_x ? static_cast<int>(std::ceil(2.0 * rc / thickness[0])) : 1;
-  expanded_box_.num_cells[1] =
-    box.pbc_y ? static_cast<int>(std::ceil(2.0 * rc / thickness[1])) : 1;
-  expanded_box_.num_cells[2] =
-    box.pbc_z ? static_cast<int>(std::ceil(2.0 * rc / thickness[2])) : 1;
+  expanded_box_.num_cells[0] = box.pbc_x ? static_cast<int>(std::ceil(2.0 * rc / thickness[0])) : 1;
+  expanded_box_.num_cells[1] = box.pbc_y ? static_cast<int>(std::ceil(2.0 * rc / thickness[1])) : 1;
+  expanded_box_.num_cells[2] = box.pbc_z ? static_cast<int>(std::ceil(2.0 * rc / thickness[2])) : 1;
 
-  const std::size_t cell_count =
-    static_cast<std::size_t>(expanded_box_.num_cells[0]) *
-    static_cast<std::size_t>(expanded_box_.num_cells[1]) *
-    static_cast<std::size_t>(expanded_box_.num_cells[2]);
+  const std::size_t cell_count = static_cast<std::size_t>(expanded_box_.num_cells[0]) *
+                                 static_cast<std::size_t>(expanded_box_.num_cells[1]) *
+                                 static_cast<std::size_t>(expanded_box_.num_cells[2]);
   if (
-    cell_count == 0 ||
-    cell_count > (std::numeric_limits<std::size_t>::max() - 1) /
-                   static_cast<std::size_t>(num_atoms_)) {
+    cell_count == 0 || cell_count > (std::numeric_limits<std::size_t>::max() - 1) /
+                                      static_cast<std::size_t>(num_atoms_)) {
     PRINT_INPUT_ERROR("NEP_Spin small-box image count overflows size_t.");
   }
-  const std::size_t capacity =
-    static_cast<std::size_t>(num_atoms_) * cell_count - 1;
+  const std::size_t capacity = static_cast<std::size_t>(num_atoms_) * cell_count - 1;
   if (capacity > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
     PRINT_INPUT_ERROR("NEP_Spin small-box neighbor capacity exceeds int.");
   }
-  const std::size_t plane_size = static_cast<std::size_t>(num_atoms_) * capacity;
-  if (capacity != 0 && plane_size / capacity != static_cast<std::size_t>(num_atoms_)) {
-    PRINT_INPUT_ERROR("NEP_Spin small-box slot count overflows size_t.");
+  if (!small_box_initialized_) {
+    const int estimate = static_cast<int>(
+      std::min(capacity, static_cast<std::size_t>(std::max(1, input_neighbor_capacity_))));
+    resize_small_box_storage(std::max(1, estimate));
   }
-  if (plane_size > std::numeric_limits<std::size_t>::max() / (3 * sizeof(double))) {
-    PRINT_INPUT_ERROR("NEP_Spin small-box displacement storage overflows size_t.");
-  }
-  if (plane_size > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
-    PRINT_INPUT_ERROR("NEP_Spin small-box slot plane exceeds int indexing.");
-  }
-  const int new_capacity = static_cast<int>(capacity);
-  const bool resize_storage =
-    !small_box_initialized_ || small_box_capacity_ != new_capacity;
-  small_box_capacity_ = new_capacity;
 
   expanded_box_.h[0] = box.cpu_h[0] * expanded_box_.num_cells[0];
   expanded_box_.h[3] = box.cpu_h[3] * expanded_box_.num_cells[0];
@@ -1817,30 +1770,43 @@ void NEP_Spin::initialize_small_box(const Box& box)
     expanded_box_.h[0] * expanded_box_.h[4] - expanded_box_.h[1] * expanded_box_.h[3];
   const double determinant =
     expanded_box_.h[0] *
-      (expanded_box_.h[4] * expanded_box_.h[8] -
-       expanded_box_.h[5] * expanded_box_.h[7]) +
+      (expanded_box_.h[4] * expanded_box_.h[8] - expanded_box_.h[5] * expanded_box_.h[7]) +
     expanded_box_.h[1] *
-      (expanded_box_.h[5] * expanded_box_.h[6] -
-       expanded_box_.h[3] * expanded_box_.h[8]) +
+      (expanded_box_.h[5] * expanded_box_.h[6] - expanded_box_.h[3] * expanded_box_.h[8]) +
     expanded_box_.h[2] *
-      (expanded_box_.h[3] * expanded_box_.h[7] -
-       expanded_box_.h[4] * expanded_box_.h[6]);
+      (expanded_box_.h[3] * expanded_box_.h[7] - expanded_box_.h[4] * expanded_box_.h[6]);
   for (int index = 9; index < 18; ++index) {
     expanded_box_.h[index] /= determinant;
   }
 
-  if (resize_storage) {
-    data_.NL_radial.resize(plane_size);
-    data_.NL_angular.resize(plane_size);
-    data_.NL_spin.resize(plane_size);
-    data_.r12_radial.resize(3 * plane_size);
-    data_.r12_angular.resize(3 * plane_size);
-    data_.r12_spin.resize(3 * plane_size);
-    data_.f12x.resize(plane_size);
-    data_.f12y.resize(plane_size);
-    data_.f12z.resize(plane_size);
-  }
   small_box_initialized_ = true;
+}
+
+void NEP_Spin::resize_small_box_storage(int capacity)
+{
+  const std::size_t atoms = static_cast<std::size_t>(num_atoms_);
+  if (
+    capacity <= 0 || atoms > static_cast<std::size_t>(std::numeric_limits<int>::max()) /
+                               (3 * static_cast<std::size_t>(capacity))) {
+    PRINT_INPUT_ERROR("NEP_Spin small-box displacement storage exceeds int indexing.");
+  }
+  const std::size_t plane_size = atoms * static_cast<std::size_t>(capacity);
+  if (plane_size > std::numeric_limits<std::size_t>::max() / (3 * sizeof(double))) {
+    PRINT_INPUT_ERROR("NEP_Spin small-box displacement storage overflows size_t.");
+  }
+  small_box_capacity_ = capacity;
+  data_.NL_radial.resize(plane_size);
+  data_.NL_angular.resize(plane_size);
+  data_.NL_spin.resize(plane_size);
+  data_.r12_radial.resize(3 * plane_size);
+  data_.r12_angular.resize(3 * plane_size);
+  data_.r12_spin.resize(3 * plane_size);
+  data_.f12x.resize(plane_size);
+  data_.f12y.resize(plane_size);
+  data_.f12z.resize(plane_size);
+  if (data_.required_small_box_capacity.size() != 1) {
+    data_.required_small_box_capacity.resize(1);
+  }
 }
 
 void NEP_Spin::compute(
@@ -1867,51 +1833,45 @@ void NEP_Spin::compute(
   const double thickness_y = volume / box.get_area(1);
   const double thickness_z = volume / box.get_area(2);
   const double minimum_safe_thickness = neighbor_.minimum_safe_box_thickness(rc);
-  const bool is_small_box =
-    (box.pbc_x && thickness_x < minimum_safe_thickness) ||
-    (box.pbc_y && thickness_y < minimum_safe_thickness) ||
-    (box.pbc_z && thickness_z < minimum_safe_thickness);
+  const bool is_small_box = (box.pbc_x && thickness_x < minimum_safe_thickness) ||
+                            (box.pbc_y && thickness_y < minimum_safe_thickness) ||
+                            (box.pbc_z && thickness_z < minimum_safe_thickness);
 
   constexpr int block_size = 64;
   const int grid_size = (N - 1) / block_size + 1;
   if (is_small_box) {
     initialize_small_box(box);
-    int* gpu_required_capacity = nullptr;
-    CHECK(gpuGetSymbolAddress(
-      reinterpret_cast<void**>(&gpu_required_capacity), required_small_box_capacity));
-    const int zero = 0;
-    CHECK(gpuMemcpy(gpu_required_capacity, &zero, sizeof(int), gpuMemcpyHostToDevice));
-    find_neighbor_list_spin_small_box<<<grid_size, block_size>>>(
-      paramb_,
-      static_cast<float>(model_.spin_cutoff),
-      N,
-      box,
-      expanded_box_,
-      small_box_capacity_,
-      type.data(),
-      position.data(),
-      position.data() + N,
-      position.data() + 2 * N,
-      data_.NN_radial.data(),
-      data_.NL_radial.data(),
-      data_.NN_angular.data(),
-      data_.NL_angular.data(),
-      data_.NN_spin.data(),
-      data_.NL_spin.data(),
-      data_.r12_radial.data(),
-      data_.r12_angular.data(),
-      data_.r12_spin.data(),
-      gpu_required_capacity);
-    GPU_CHECK_KERNEL
-    int required_capacity = 0;
-    CHECK(gpuMemcpy(
-      &required_capacity, gpu_required_capacity, sizeof(int), gpuMemcpyDeviceToHost));
-    if (required_capacity > small_box_capacity_) {
-      PRINT_INPUT_ERROR(
-        ("NEP_Spin small-box neighbor capacity overflow: required " +
-         std::to_string(required_capacity) + " slots but capacity is " +
-         std::to_string(small_box_capacity_) + ".")
-          .c_str());
+    while (true) {
+      data_.required_small_box_capacity.fill(0);
+      find_neighbor_list_spin_small_box<<<grid_size, block_size>>>(
+        paramb_,
+        static_cast<float>(model_.spin_cutoff),
+        N,
+        box,
+        expanded_box_,
+        small_box_capacity_,
+        type.data(),
+        position.data(),
+        position.data() + N,
+        position.data() + 2 * N,
+        data_.NN_radial.data(),
+        data_.NL_radial.data(),
+        data_.NN_angular.data(),
+        data_.NL_angular.data(),
+        data_.NN_spin.data(),
+        data_.NL_spin.data(),
+        data_.r12_radial.data(),
+        data_.r12_angular.data(),
+        data_.r12_spin.data(),
+        data_.required_small_box_capacity.data());
+      GPU_CHECK_KERNEL
+      int required_capacity = 0;
+      data_.required_small_box_capacity.copy_to_host(&required_capacity);
+      if (required_capacity <= small_box_capacity_) {
+        break;
+      }
+      // The bounded fill counted all neighbors; no consumer runs until it fits.
+      resize_small_box_storage(required_capacity);
     }
     const int plane_size = N * small_box_capacity_;
     find_structural_descriptor<<<grid_size, block_size>>>(
@@ -1948,7 +1908,7 @@ void NEP_Spin::compute(
       potential.data(),
       data_.Fp.data());
     GPU_CHECK_KERNEL
-    nep_spin_small_box::find_force_radial_small_box<<<grid_size, block_size>>>(
+    spin_find_force_radial_small_box<<<grid_size, block_size>>>(
       paramb_,
       ann_,
       N,
@@ -1966,7 +1926,7 @@ void NEP_Spin::compute(
       force.data() + 2 * N,
       virial.data());
     GPU_CHECK_KERNEL
-    nep_spin_small_box::find_force_angular_small_box<<<grid_size, block_size>>>(
+    spin_find_force_angular_small_box<<<grid_size, block_size>>>(
       paramb_,
       ann_,
       N,
@@ -1986,8 +1946,17 @@ void NEP_Spin::compute(
       virial.data());
     GPU_CHECK_KERNEL
     launch_spin3_forces(
-      model_, box, type, position, spin, data_, force, mforce, virial,
-      data_.r12_spin.data(), plane_size);
+      model_,
+      box,
+      type,
+      position,
+      spin,
+      data_,
+      force,
+      mforce,
+      virial,
+      data_.r12_spin.data(),
+      plane_size);
     if (zbl_.enabled) {
       find_spin_zbl_force<true><<<grid_size, block_size>>>(
         paramb_,
@@ -2013,6 +1982,9 @@ void NEP_Spin::compute(
     return;
   }
 
+  if (small_box_initialized_) {
+    resize_domain(N);
+  }
   neighbor_.find_neighbor_global(rc, box, type, position);
   constexpr int neighbor_block_size = 128;
   const int neighbor_grid_size = (N - 1) / neighbor_block_size + 1;
@@ -2035,8 +2007,7 @@ void NEP_Spin::compute(
     data_.NL_spin.data());
   GPU_CHECK_KERNEL
 
-  find_structural_descriptor<<<
-    grid_size, block_size, 0, structural_descriptor_stream_>>>(
+  find_structural_descriptor<<<grid_size, block_size, 0, structural_descriptor_stream_>>>(
     paramb_,
     ann_,
     N,
@@ -2067,28 +2038,26 @@ void NEP_Spin::compute(
 #endif
   constexpr int potential_lanes_per_atom = 4;
   constexpr int potential_block_size = 128;
-  constexpr int potential_atoms_per_block =
-    potential_block_size / potential_lanes_per_atom;
-  const int potential_grid_size =
-    (N - 1) / potential_atoms_per_block + 1;
-  const std::size_t potential_shared_size =
-    static_cast<std::size_t>(potential_atoms_per_block) *
-    (model_.descriptor_dim + model_.hidden_neurons) * sizeof(float);
+  constexpr int potential_atoms_per_block = potential_block_size / potential_lanes_per_atom;
+  const int potential_grid_size = (N - 1) / potential_atoms_per_block + 1;
+  const std::size_t potential_shared_size = static_cast<std::size_t>(potential_atoms_per_block) *
+                                            (model_.descriptor_dim + model_.hidden_neurons) *
+                                            sizeof(float);
   constexpr std::size_t maximum_potential_shared_size = 48 * 1024;
   if (potential_shared_size <= maximum_potential_shared_size) {
     find_potential_warp<potential_lanes_per_atom>
       <<<potential_grid_size, potential_block_size, potential_shared_size>>>(
-      N,
-      model_.descriptor_dim,
-      model_.hidden_neurons,
-      model_.num_types,
-      type.data(),
-      data_.descriptor.data(),
-      data_.parameters.data(),
-      data_.parameters.data() + model_.model_parameter_count,
-      data_.energy_reference.data(),
-      potential.data(),
-      data_.Fp.data());
+        N,
+        model_.descriptor_dim,
+        model_.hidden_neurons,
+        model_.num_types,
+        type.data(),
+        data_.descriptor.data(),
+        data_.parameters.data(),
+        data_.parameters.data() + model_.model_parameter_count,
+        data_.energy_reference.data(),
+        potential.data(),
+        data_.Fp.data());
   } else {
     find_potential<<<grid_size, block_size>>>(
       N,
@@ -2105,7 +2074,7 @@ void NEP_Spin::compute(
   }
   GPU_CHECK_KERNEL
 
-  find_force_radial<<<grid_size, block_size>>>(
+  find_force_radial<<<(N + 63) / 64, 64>>>(
     paramb_,
     ann_,
     N,
@@ -2128,24 +2097,19 @@ void NEP_Spin::compute(
   constexpr int angular_atoms_per_warp = 4;
   constexpr int angular_edge_lanes = 8;
   constexpr int angular_block_size = 128;
-  constexpr int angular_centers_per_block =
-    angular_block_size / 32 * angular_atoms_per_warp;
-  const int angular_grid_size =
-    (N - 1) / angular_centers_per_block + 1;
-  const int angular_state_size =
-    paramb_.dim_angular + (paramb_.n_max_angular + 1) * NUM_OF_ABC;
+  constexpr int angular_centers_per_block = angular_block_size / 32 * angular_atoms_per_warp;
+  const int angular_grid_size = (N - 1) / angular_centers_per_block + 1;
+  const int angular_state_size = paramb_.dim_angular + (paramb_.n_max_angular + 1) * NUM_OF_ABC;
   const std::size_t angular_shared_size =
     static_cast<std::size_t>(angular_centers_per_block) * angular_state_size * sizeof(float);
   constexpr std::size_t maximum_angular_shared_size = 48 * 1024;
-  const bool use_direct_angular_force =
-    angular_shared_size <= maximum_angular_shared_size;
+  const bool use_direct_angular_force = angular_shared_size <= maximum_angular_shared_size;
   if (use_direct_angular_force) {
     // The body-channel signature comes from l_max in the model input. Keep a
     // generic instance for every signature other than the common L4+q222 case.
-    const bool l4_q222_only =
-      paramb_.L_max == 4 && paramb_.has_q_222 && !paramb_.has_q_1111 &&
-      !paramb_.has_q_112 && !paramb_.has_q_123 && !paramb_.has_q_233 &&
-      !paramb_.has_q_134 && paramb_.num_L == 5;
+    const bool l4_q222_only = paramb_.L_max == 4 && paramb_.has_q_222 && !paramb_.has_q_1111 &&
+                              !paramb_.has_q_112 && !paramb_.has_q_123 && !paramb_.has_q_233 &&
+                              !paramb_.has_q_134 && paramb_.num_L == 5;
     if (l4_q222_only) {
       launch_force_angular_warp<angular_atoms_per_warp, angular_edge_lanes, true>(
         paramb_,
@@ -2174,7 +2138,7 @@ void NEP_Spin::compute(
         angular_shared_size);
     }
   } else {
-    find_partial_force_angular<<<grid_size, block_size>>>(
+    find_partial_force_angular<<<(N + 63) / 64, 64>>>(
       paramb_,
       ann_,
       N,

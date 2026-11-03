@@ -18,35 +18,9 @@ def base_model():
 def run_case(root, name, run_input, model_text=None):
     case = root / name
     case.mkdir()
-    shutil.copy(FIXTURE / "nep4_spin3_o3c2_uniform.nep", case / "nep.txt")
+    shutil.copy(FIXTURE / "nep_spin_o3c2_uniform.nep", case / "nep.txt")
     (case / "model.xyz").write_text(model_text or base_model())
     (case / "run.in").write_text(run_input)
     result = subprocess.run(
         [str(GPUMD)], cwd=case, capture_output=True, text=True, check=False)
     return case, result
-
-def read_last_frame(path):
-    lines = path.read_text().splitlines()
-    number_of_atoms = int(lines[0])
-    values = [
-        [float(value) for value in line.split()[1:]]
-        for line in lines[-number_of_atoms:]
-    ]
-    return {
-        "spin": [row[4:7] for row in values],
-        "mforce": [row[7:10] for row in values],
-    }
-
-def evaluate(root, name, model_text):
-    case, result = run_case(
-        root,
-        name,
-        "potential nep.txt\n"
-        "ensemble nve\n"
-        "time_step 0\n"
-        "dump_xyz 1 state.xyz mass spin mforce\n"
-        "run 1\n",
-        model_text)
-    if result.returncode != 0:
-        raise AssertionError(result.stdout + result.stderr)
-    return read_last_frame(case / "state.xyz")

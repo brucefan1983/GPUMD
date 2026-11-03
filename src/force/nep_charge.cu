@@ -189,6 +189,12 @@ NEP_Charge::NEP_Charge(
   } else if (tokens[0] == "nep4_zbl_charge2") {
     zbl.enabled = true;
     paramb.charge_mode = 2;
+  } else if (tokens[0] == "nep4_charge3") {
+    zbl.enabled = false;
+    paramb.charge_mode = 3;
+  } else if (tokens[0] == "nep4_zbl_charge3") {
+    zbl.enabled = true;
+    paramb.charge_mode = 3;
   } else {
     std::cout << tokens[0]
               << " is an unsupported NEP model. We only support NEP4 charge models now."
@@ -232,8 +238,7 @@ NEP_Charge::NEP_Charge(
     zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
     zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
     if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
-      zbl.flexible = true;
-      printf("    has the flexible ZBL potential\n");
+      PRINT_INPUT_ERROR("Flexible ZBL is only supported for model nep.");
     } else {
       if (tokens.size() == 4) {
         paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
@@ -402,16 +407,6 @@ NEP_Charge::NEP_Charge(
     nep_data.energy_reference.resize(input.energy_reference().size());
     nep_data.energy_reference.copy_from_host(input.energy_reference().data());
     annmb.energy_reference = nep_data.energy_reference.data();
-  }
-
-  // flexible zbl potential parameters
-  if (zbl.flexible) {
-    int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
-    for (int d = 0; d < 10 * num_type_zbl; ++d) {
-      tokens = input.get_tokens();
-      zbl.para[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-    }
-    zbl.num_types = paramb.num_types;
   }
 
   // charge related parameters and data
@@ -1206,33 +1201,16 @@ static __global__ void find_force_ZBL(
       int zj = zbl.atomic_numbers[type2];
       float a_inv = (pow_zi + pow(float(zj), 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
-      if (zbl.flexible) {
-        int t1, t2;
-        if (type1 < type2) {
-          t1 = type1;
-          t2 = type2;
-        } else {
-          t1 = type2;
-          t2 = type1;
-        }
-        int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
-        float ZBL_para[10];
-        for (int i = 0; i < 10; ++i) {
-          ZBL_para[i] = zbl.para[10 * zbl_index + i];
-        }
-        find_f_and_fp_zbl(ZBL_para, zizj, a_inv, d12, d12inv, f, fp);
-      } else {
-        float rc_inner = zbl.rc_inner;
-        float rc_outer = zbl.rc_outer;
-        if (paramb.use_typewise_cutoff_zbl) {
-          // zi and zj start from 1, so need to minus 1 here
-          rc_outer = min(
-            (COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor,
-            rc_outer);
-          rc_inner = 0.0f;
-        }
-        find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
+      float rc_inner = zbl.rc_inner;
+      float rc_outer = zbl.rc_outer;
+      if (paramb.use_typewise_cutoff_zbl) {
+        // zi and zj start from 1, so need to minus 1 here
+        rc_outer = min(
+          (COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor,
+          rc_outer);
+        rc_inner = 0.0f;
       }
+      find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
       float f2 = fp * d12inv * 0.5f;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
       float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};
@@ -1351,6 +1329,24 @@ static __global__ void find_force_charge_real_space(
     g_virial[n1 + 6 * N] += s_syx;
     g_virial[n1 + 7 * N] += s_szx;
     g_virial[n1 + 8 * N] += s_szy;
+    g_D_real[n1] += K_C_SP * D_real;
+    g_pe[n1] += K_C_SP * s_pe;
+  }
+}
+
+static __global__ void find_charge_self_energy(
+  const NEP_Charge::Charge_Para charge_para,
+  const int N1,
+  const int N2,
+  const float* g_charge,
+  double* g_pe,
+  float* g_D_real)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    const float q1 = g_charge[n1];
+    const float s_pe = -charge_para.two_alpha_over_sqrt_pi * 0.5f * q1 * q1;
+    const float D_real = -q1 * charge_para.two_alpha_over_sqrt_pi;
     g_D_real[n1] += K_C_SP * D_real;
     g_pe[n1] += K_C_SP * s_pe;
   }
@@ -1537,6 +1533,15 @@ void NEP_Charge::compute_large_box(
       force_per_atom.data() + N,
       force_per_atom.data() + N * 2,
       virial_per_atom.data(),
+      potential_per_atom.data(),
+      nep_data.D_real.data());
+    GPU_CHECK_KERNEL
+  } else if (paramb.charge_mode == 3) {
+    find_charge_self_energy<<<grid_size, BLOCK_SIZE>>>(
+      charge_para,
+      N1,
+      N2,
+      nep_data.charge.data(),
       potential_per_atom.data(),
       nep_data.D_real.data());
     GPU_CHECK_KERNEL
@@ -1811,6 +1816,15 @@ void NEP_Charge::compute_small_box(
       force_per_atom.data() + N,
       force_per_atom.data() + N * 2,
       virial_per_atom.data(),
+      potential_per_atom.data(),
+      nep_data.D_real.data());
+    GPU_CHECK_KERNEL
+  } else if (paramb.charge_mode == 3) {
+    find_charge_self_energy<<<grid_size, BLOCK_SIZE>>>(
+      charge_para,
+      N1,
+      N2,
+      nep_data.charge.data(),
       potential_per_atom.data(),
       nep_data.D_real.data());
     GPU_CHECK_KERNEL

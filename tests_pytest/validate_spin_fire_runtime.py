@@ -100,7 +100,7 @@ def validate(root):
         assert abs(.2*s[2]/math.cosh(.1*s[2]**2)**2-5.7883818060e-3)<3e-6
 
     # A constant energy reference must not affect the FIRE trajectory or endpoint.
-    shifted = analytic_model(True).replace('spin_baseline 0 0', 'spin_baseline 1024 1024')
+    shifted = analytic_model(True).replace('energy_reference 0 0', 'energy_reference 1024 1024')
     case,run = run_case(root,'shifted_onsite',shifted,structure(),
                         'minimize spin_fire 1e-6 3000 1\n')
     summary['shifted_onsite'],shifted_state = check_run(case,run,1e-6)
@@ -167,7 +167,7 @@ def validate(root):
     # First-step oracle from independently dumped force, magnetic force and
     # nonsymmetric virial. At zero initial fictitious velocity, FIRE mixing
     # leaves v=dt*g; this checks simultaneous Cartesian and affine updates.
-    potential=(FIXTURE/'nep4_spin3_o3c2_uniform.nep').read_text()
+    potential=(FIXTURE/'nep_spin_o3c2_uniform.nep').read_text()
     skew=structure().replace('20 0 0 0 20 0 0 0 20','20 0 0 2 20 0 0 1 20')
     case,run=run_case(root,'joint_reference',potential,skew,'')
     assert run.returncode==0,run.stderr
@@ -204,7 +204,7 @@ def validate(root):
     summary['explicit_moving_atoms']={'matches_joint_one_step':True}
 
     # Nonzero atomic forces make this a meaningful freeze test. Both magnitude
-    # modes must match the legacy spin-only path and preserve the skew cell.
+    # modes must match the spin-only shorthand and preserve the skew cell.
     for mode in (0,1):
         endpoints=[]
         records=[]
@@ -220,7 +220,7 @@ def validate(root):
             assert max(abs(a-b) for s,t in zip(ref['spin'],state['spin']) for a,b in zip(s,t))>1e-12
         assert all(state==endpoints[0] for state in endpoints[1:])
         assert all(record==records[0] for record in records[1:])
-        summary['fixed_atoms_'+str(mode)]=dict(records[1],matches_legacy=True)
+        summary['fixed_atoms_'+str(mode)]=dict(records[1],matches_shorthand=True)
 
     case,run = run_case(root,'max_steps',analytic_model(False),model,
                         field+'minimize spin_fire 1e-7 1 0\n')

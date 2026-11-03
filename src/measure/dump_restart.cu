@@ -17,9 +17,8 @@
 Dump a restart file
 --------------------------------------------------------------------------------------------------*/
 
-#include "integrate/spin/restart.cuh"
-#include "dump_restart.cuh"
 #include "integrate/integrate.cuh"
+#include "dump_restart.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "utilities/common.cuh"
@@ -116,7 +115,7 @@ void Dump_Restart::end_of_step(
     box.cpu_h[5],
     box.cpu_h[8]);
 
-  const bool spin_checkpoint = write_spin_restart(fid, atom, integrate, global_time);
+  integrate.write_restart(fid, atom, global_time);
   fprintf(fid, "Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3");
   if (atom.has_spin) {
     fprintf(fid, ":spin:R:3");
@@ -146,14 +145,14 @@ void Dump_Restart::end_of_step(
     if (atom.has_spin) {
       fprintf(
         fid,
-        spin_checkpoint ? "%.17g %.17g %.17g " : "%g %g %g ",
+        "%.17g %.17g %.17g ",
         atom.cpu_spin_per_atom[n],
         atom.cpu_spin_per_atom[n + number_of_atoms],
         atom.cpu_spin_per_atom[n + 2 * number_of_atoms]);
       if (atom.spin_velocity_initialized) {
         fprintf(
           fid,
-          "%g %g %g ",
+          "%.17g %.17g %.17g ",
           atom.cpu_spin_velocity_per_atom[n] * natural_to_A_per_fs,
           atom.cpu_spin_velocity_per_atom[n + number_of_atoms] * natural_to_A_per_fs,
           atom.cpu_spin_velocity_per_atom[n + 2 * number_of_atoms] * natural_to_A_per_fs);

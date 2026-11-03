@@ -15,10 +15,11 @@ Version 1 supports the following model types:
 | `nep_temperature` | Temperature-dependent NEP |
 | `qnep1` | qNEP with charge mode 1 |
 | `qnep2` | qNEP with charge mode 2 |
+| `qnep3` | qNEP mode 3 with charge self-energy correction |
 | `nep_dipole` | TNEP dipole model |
 | `nep_polarizability` | TNEP polarizability model |
 | `nep_vdw` | NEP with learned long-range vdW |
-| `qnep2_vdw` | qNEP mode 2 with learned long-range vdW |
+| `qnep3_vdw` | qNEP with charge self-energy excluded and learned long-range vdW |
 
 ## 2. General syntax of `nep.txt`
 
@@ -203,7 +204,8 @@ There are exactly `T` float64 values in element order, with no count preceding t
 
 ### 3.9 `zbl`
 
-The `zbl` field is optional for energy models and omitted for dipole and polarizability models.
+The `zbl` field is optional for energy models. Dipole and polarizability models
+reject this field and the `zbl_parameters` block.
 
 For a universal ZBL potential:
 
@@ -223,7 +225,7 @@ For a typewise cutoff:
 zbl <rc_inner> <rc_outer> <typewise_cutoff_factor>
 ```
 
-A flexible ZBL model is indicated by
+Flexible ZBL is supported only for `model nep`. It is indicated by
 
 ```text
 zbl 0 0
@@ -279,8 +281,9 @@ The model-dependent values are:
 | `nep_temperature` | 1 | 1 | 1 | 1 | energy |
 | `qnep1` | 2 | 2 | 1 | 0 | energy, charge |
 | `qnep2` | 2 | 2 | 1 | 0 | energy, charge |
+| `qnep3` | 2 | 2 | 1 | 0 | energy, charge |
 | `nep_vdw` | 2 | 1 | 1 | 0 | energy, C6 |
-| `qnep2_vdw` | 3 | 2 | 1 | 0 | energy, charge, C6 |
+| `qnep3_vdw` | 3 | 2 | 1 | 0 | energy, charge, C6 |
 | `nep_dipole` | 1 | 1 | 1 | 0 | one TNEP scalar ANN output |
 | `nep_polarizability` | 1 | 1 | 2 | 0 | one scalar ANN output per ANN set |
 
@@ -298,7 +301,7 @@ The global parameters within one ANN set are ordered as follows:
 |---|---|
 | `nep`, `nep_spin`, `nep_temperature`, `nep_vdw`, `nep_dipole` | common output bias |
 | `nep_polarizability` | common output bias for each ANN set |
-| `qnep1`, `qnep2`, `qnep2_vdw` | `sqrt_epsilon_inf`, common energy-output bias |
+| `qnep1`, `qnep2`, `qnep3`, `qnep3_vdw` | `sqrt_epsilon_inf`, common energy-output bias |
 
 #### 4.1.1 ANN-set ordering
 
@@ -495,7 +498,8 @@ The `q_scaler` block is not part of the trainable `parameters` vector and is not
 
 ### 4.3 `zbl_parameters`
 
-Flexible ZBL models additionally contain
+Ordinary NEP models with `zbl 0 0` additionally contain the following block.
+It is not allowed for other models or without flexible ZBL.
 
 ```text
 @ zbl_parameters <N>
@@ -535,67 +539,50 @@ with the rows ordered as above.
 
 ## 5. Model-specific requirements
 
-`qnep1`, `qnep2`, `nep_vdw`, and `qnep2_vdw` require one hidden layer. `qnep1` and `qnep2` also require uniform cutoffs.
+`qnep1`, `qnep2`, `qnep3`, `nep_vdw`, and `qnep3_vdw` require one hidden layer. `qnep1`, `qnep2`, and `qnep3` also require uniform cutoffs.
 
 The model tables in Section 4.1 determine the number of outputs, global parameters, and ANN sets. Use these together with the descriptor and network dimensions to determine all array lengths.
 
 ### 5.1 Spin-dependent models: `model nep_spin`
 
-New Spin models use:
-
-```text
-nep 2 Fe Ge
-format_version 1
-model nep_spin
-spin_version 1
-```
-
-`format_version` describes the shared file syntax. `spin_version` describes the
-magnetic descriptor definitions, units, scaler interpretation, and parameter
-layout. Version `1` is the current order/compression (Spin3) model, including its
-existing response/environment masks.
-`spin_order` selects O1/O2/O3 within this contract and is not a version number.
-
-`spin_version` is required and must contain exactly the integer token `1`.
-Missing or unknown versions are errors. Changes to descriptor meaning or array
-layout that reinterpret existing parameter values require a new supported spin
-version. Training-loss settings, implementation optimizations, and bug fixes
-that restore the specified behavior do not change the version.
-
-The model fields below supplement the common energy-model fields:
+For `model nep_spin`, `spin_version` identifies the magnetic descriptor and
+parameter layout, independently of `format_version`. Its only supported value
+is the literal token `1`. The following fields supplement the common
+energy-model fields; all are required except `spin_type`.
 
 | Field | Version-1 meaning |
 |---|---|
-| `spin_version 1` | Magnetic model contract version |
-| `spin_basis_size 8` | Highest magnetic radial basis index; nine basis functions |
+| `spin_version 1` | Magnetic descriptor and parameter-layout version |
+| `spin_basis_size 8` | Fixed maximum magnetic radial basis index; nine basis functions |
 | `spin_l_max L` | Magnetic angular rank, `L` in `0..2` |
 | `spin_compress C` | Number of compressed radial channels, `C` in `1..9` |
-| `spin_order O` | Contraction order, `O` in `1..3` |
-| `spin_soc S` | Joint spin/spatial channels: `0` or `1` |
-| `spin_cutoff ...` | One positive cutoff, or `T` cutoffs in element order, in angstroms; pair cutoff is their arithmetic mean |
+| `spin_order <order>` | Contraction order in `1..3` |
+| `spin_soc <flag>` | Joint spin/spatial channels: `0` or `1` |
+| `spin_cutoff ...` | One cutoff, or `T` cutoffs in element order, in angstroms; each must satisfy `0 < cutoff <= rc_radial`; pair cutoff is their arithmetic mean |
 | `spin_projection_size P` | Number of projection coefficients; must equal `4*C*C` |
 | `spin_scaler 1` | Per-component scaling is present in `q_scaler` |
-| `spin_dof_type <elements...>` | Optional nonempty subset receiving public magnetic forces; defaults to all elements |
-| `spin_env_type <elements...>` | Optional nonempty subset entering magnetic environments; defaults to `spin_dof_type` |
+| `spin_type <elements...>` | Optional nonempty subset with independent spin degrees of freedom; defaults to all elements |
 
-`spin_dof_type` must be a subset of `spin_env_type`. An environment-only spin
-can influence the energy while its public magnetic force is masked to zero.
-These masks do not freeze coordinates in a spin integrator. Spins use muB,
-energy uses eV, and magnetic force uses eV/muB. For descriptor definitions and
-scaling formulas, see [the Spin potential documentation](../../doc/potentials/nep_spin.rst).
+Entries in `spin_type` must be distinct elements from the first line. This
+selection does not change the element order or the sizes of parameter arrays.
+For descriptor definitions and units, see
+[the Spin potential documentation](../../doc/potentials/nep_spin.rst).
 
-Version 1 supports one hidden layer (`ann N1 0`, `1 <= N1 <= 120`) and uniform
-structural cutoffs. Structural limits are `nr <= 12`, `na <= 8`, `br <= 16`,
-`ba <= 12`, and `L_max <= 8`, with at most 90 structural angular components.
-Training supports at most 96 magnetic components, and the combined descriptor
-must fit 199 components. The structural and magnetic dimensions are determined
-by the enabled contractions, not by free metadata counts.
+Version 1 requires one hidden layer (`ann N1 0`, `1 <= N1 <= 120`) and uniform
+structural cutoffs with `3 <= rc_angular <= rc_radial <= 100`. Structural
+indices satisfy `0 <= nr <= 12`, `0 <= na <= 8`, `0 <= br <= 16`,
+`0 <= ba <= 12`, and `2 <= L_max <= 8`. The model reader accepts at most
+90 structural angular components, 96 magnetic components, and 199 total
+descriptor components. `energy_reference` and optional universal `zbl` use
+the shared syntax; flexible ZBL and the `zbl_parameters` block are unsupported.
 
 #### Parameter and scaler layout
 
-Let `D = D_struct + D_spin`. With `O = G = S = 1` in the notation of Section 4.1
-(these symbols there describe ANN outputs, global parameters, and ANN sets),
-the parameter vector is:
+Let `D = D_struct + D_spin`, where `D_struct` is the dimension in Section 4.1
+without extra inputs. `D_spin` is determined by `spin_compress`, `spin_l_max`,
+`spin_order`, and `spin_soc`, as implemented by `NEP_Spin_Model_File::spin_dimension`
+in [nep_spin_model_file.cu](../../src/utilities/nep_spin_model_file.cu).
+With `O = G = S = 1` in Section 4.1, the parameter vector is:
 
 ```text
 ANN parameters and common energy-output bias
@@ -608,8 +595,7 @@ magnetic projection coefficients [4, C, C]
 All arrays use C order. The magnetic radial indices are
 `[channel, basis, center_type, neighbor_type]`; their type pair is the fastest
 varying index, unlike the structural segments. Projection indices are
-`[leg, output_channel, source_channel]`. This preserves the existing Spin3
-magnetic layout. The total parameter count is
+`[leg, output_channel, source_channel]`. The total parameter count is
 
 ```text
 N = T * N1 * (D + 2) + 1
@@ -617,28 +603,18 @@ N = T * N1 * (D + 2) + 1
     + 9*C*T*T + 4*C*C.
 ```
 
-The scaler contains `D` values, with structural components first as in Section
-4.2. Magnetic components follow the version-1 contraction order defined by
+The `q_scaler` block contains `D` finite, strictly positive values, with
+structural components first as in Section 4.2. Magnetic components follow
+the version-1 contraction order defined by
 `make_spin_polynomial_layout` in [nep_spin3_layout.cuh](../../src/force/nep_spin/nep_spin3_layout.cuh):
 local squared moment; order-1 edge terms; order-2 edge/density/correlation and
 axial terms; then order-3 gated and coupled terms. Disabled families contribute
 no entries. Channels increase within a family; channel-pair families use
-`(0,0), (0,1), ..., (0,C-1), (1,1), ..., (C-1,C-1)`. All enabled components retain
-their original scaler and projection semantics.
+`(0,0), (0,1), ..., (0,C-1), (1,1), ..., (C-1,C-1)`.
 
-`energy_reference`, optional ZBL, numerical precision, and the restart syntax
-remain the shared conventions. `nep.restart` has no separate spin version: it
-must be interpreted with the corresponding `nep.txt`, whose version is checked
-before loading the restart. Loss weights such as `lambda_m_parallel` and
-`lambda_m_perp` are training inputs, not model-file fields.
-
-#### Training input
-
-Select this model in `nep.in` with `spin_version 1` and the ordinary NEP
-architecture selector `version 4`. Omit `spin_version` for ordinary NEP.
-Unsupported versions and repeated or conflicting model selectors are errors.
-Prediction, scaler import, and restart require a compatible `nep.txt`.
-Do not put the model-file fields `model` or `format_version` in `nep.in`.
+Spin models use the shared `nep.restart` syntax in Section 6. Its `mu` and
+`sigma` vectors use the same parameter ordering above; Spin metadata and
+`q_scaler` are stored only in the corresponding `nep.txt`.
 
 ## 6. `nep.restart`
 

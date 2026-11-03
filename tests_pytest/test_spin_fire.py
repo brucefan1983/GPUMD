@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
-"""Runtime regression for the fixed-lattice spin minimizer."""
+"""Runtime regression for the Spin minimizer and optional lattice/cell relaxation."""
 import pytest
 from validate_spin_fire_runtime import GPUMD, validate
 

@@ -205,9 +205,12 @@ bool read_nep_restart(
 #ifdef USE_CJ
   read_nep_restart_file(filename, para, para.num_types, reference, &mu, &sigma);
 #else
-  read_nep_restart_file(filename, para, para.num_types, reference, &mu, &sigma, para.number_of_variables);
+  read_nep_restart_file(
+    filename, para, para.num_types, reference, &mu, &sigma, para.number_of_variables);
 #endif
-  if (energy_reference) *energy_reference = reference;
+  if (energy_reference != nullptr) {
+    *energy_reference = reference;
+  }
   return true;
 }
 

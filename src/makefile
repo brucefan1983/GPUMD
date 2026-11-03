@@ -37,6 +37,7 @@ endif
 INC = -I./
 LDFLAGS = 
 LIBS = -lcublas -lcusolver -lcufft
+TB_LIBS = -lcublas -lcusolver
 NEP_LIBS =
 GNEP_LIBS =
 ifndef OS
@@ -68,6 +69,11 @@ SOURCES_GNEP =                     \
 	$(wildcard main_gnep/*.cu)     \
 	$(wildcard utilities/*.cu)
 
+SOURCES_TB =                      \
+	$(wildcard main_tb/*.cu)      \
+	utilities/error.cu           \
+	utilities/main_common.cu
+
 
 ###########################################################
 # object files
@@ -75,10 +81,12 @@ SOURCES_GNEP =                     \
 ifdef OS # For Windows with the cl.exe compiler
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.obj)
 OBJ_NEP = $(SOURCES_NEP:.cu=.obj)
+OBJ_TB = $(SOURCES_TB:.cu=.obj)
 OBJ_GNEP = $(SOURCES_GNEP:.cu=.obj)
 else
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
 OBJ_NEP = $(SOURCES_NEP:.cu=.o)
+OBJ_TB = $(SOURCES_TB:.cu=.o)
 OBJ_GNEP = $(SOURCES_GNEP:.cu=.o)
 endif
 
@@ -101,11 +109,13 @@ HEADERS =                         \
 	$(wildcard main_nep/*/*.cuh)  \
 	$(wildcard main_gnep/*.cuh)
 
+HEADERS_TB = $(wildcard main_tb/*.cuh) $(wildcard utilities/*.cuh)
+
 
 ###########################################################
 # executables
 ###########################################################
-all: gpumd nep gpumd_replica
+all: gpumd nep gpumd_replica tb
 
 .PHONY: all gpumd_replica clean_replica clean
 
@@ -127,6 +137,12 @@ gnep: $(OBJ_GNEP)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS) $(GNEP_LIBS)
 	@echo =================================================
 	@echo The gnep executable is successfully compiled!
+	@echo =================================================
+
+tb: $(OBJ_TB)
+	$(CC) $(LDFLAGS) $^ -o $@ $(TB_LIBS)
+	@echo =================================================
+	@echo The tb executable is successfully compiled!
 	@echo =================================================
 
 
@@ -154,6 +170,8 @@ phonon/%.obj: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.obj: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_tb/%.obj: main_tb/%.cu $(HEADERS_TB)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_gnep/%.obj: main_gnep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 else # for Linux
@@ -177,6 +195,8 @@ phonon/%.o: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.o: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_tb/%.o: main_tb/%.cu $(HEADERS_TB)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_gnep/%.o: main_gnep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 endif
@@ -192,5 +212,5 @@ clean: clean_replica
 ifdef OS
 	del /s *.obj *.exp *.lib *.exe
 else
-	rm -f */*.o */*/*.o gpumd nep gnep
+	rm -f */*.o */*/*.o gpumd nep gnep tb
 endif

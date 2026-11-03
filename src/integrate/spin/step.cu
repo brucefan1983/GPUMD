@@ -13,59 +13,77 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "step.cuh"
-#include "force/force.cuh"
-#include "integrate/integrate.cuh"
-#include "model/atom.cuh"
+/*
+Spin step implementation.
+
+Contributors:
+  Chengbing Chen: 1747193328@qq.com
+*/
+
+#include "ensemble.cuh"
 #include "utilities/gpu_macro.cuh"
 
-static __global__ void gpu_form_force_delta(
-  const int size,
-  const double* force_with_modifiers,
-  double* base_force)
+namespace
 {
-  const int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index < size) {
-    base_force[index] = force_with_modifiers[index] - base_force[index];
+__global__ void form_delta(int size, const double* current, double* base)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < size)
+    base[i] = current[i] - base[i];
+}
+__global__ void restore_modifiers(
+  int n,
+  const double* df,
+  const double* db,
+  const double* spin,
+  double* force,
+  double* mforce,
+  double* potential)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < n) {
+    double zeeman = 0.0;
+    for (int d = 0; d < 3; ++d) {
+      const int k = i + d * n;
+      force[k] += df[k];
+      mforce[k] += db[k];
+      zeeman -= db[k] * spin[k];
+    }
+    potential[i] += zeeman;
   }
 }
+} // namespace
 
-static __global__ void gpu_add_force_delta(
-  const int size,
-  const double* force_delta,
-  double* force)
+void Spin_Ensemble::save_force(const Atom& atom)
 {
-  const int index = blockIdx.x * blockDim.x + threadIdx.x;
-  if (index < size) {
-    force[index] += force_delta[index];
-  }
+  if (use_spin_tspin)
+    return;
+  base_force_.copy_from_device(atom.force_per_atom.data());
+  base_mforce_.copy_from_device(atom.mforce_per_atom.data());
 }
 
-void refresh_spin_endpoint(
-  Force& force, Integrate& integrate, Box& box, Atom& atom, std::vector<Group>& group,
-  GPU_Vector<double>& thermo, GPU_Vector<double>& spin_predictor_base_force)
+void Spin_Ensemble::refresh_endpoint(
+  Force& force, Box& box, Atom& atom, const std::vector<Group>& group, GPU_Vector<double>& thermo)
 {
-  // The saved force is at SIB's chord midpoint (GLSD: Euler predictor). The
-  // endpoint field is the starting field of the next predictor and the
-  // state consumed by measurements, so refresh the complete endpoint state.
-  // Preserve the already-sampled external-force increment instead of
-  // invoking stateful modifiers (random force/electron stopping) twice.
-  const int force_size = 3 * atom.number_of_atoms;
-  gpu_form_force_delta<<<(force_size - 1) / 128 + 1, 128>>>(
-    force_size,
+  // Reuse each Action's already sampled increment. Replaying post_force would
+  // resample mechanical noise. Magnetic Actions add a constant field on a group
+  // or fractional region; the corrector preserves membership under cell scaling.
+  const int n = atom.number_of_atoms;
+  form_delta<<<(3 * n + 127) / 128, 128>>>(3 * n, atom.force_per_atom.data(), base_force_.data());
+  GPU_CHECK_KERNEL
+  form_delta<<<(3 * n + 127) / 128, 128>>>(3 * n, atom.mforce_per_atom.data(), base_mforce_.data());
+  GPU_CHECK_KERNEL
+  force.compute(box, atom, group);
+  restore_modifiers<<<(n + 127) / 128, 128>>>(
+    n,
+    base_force_.data(),
+    base_mforce_.data(),
+    atom.spin_per_atom.data(),
     atom.force_per_atom.data(),
-    spin_predictor_base_force.data());
+    atom.mforce_per_atom.data(),
+    atom.potential_per_atom.data());
   GPU_CHECK_KERNEL
-  force.compute_spin(
-    box, atom.position_per_atom, atom.type, group, atom.potential_per_atom,
-    atom.force_per_atom, atom.virial_per_atom, atom.spin_per_atom, atom.mforce_per_atom,
-    atom.position_image.size() > 0 ? atom.position_image.data() : nullptr);
-  gpu_add_force_delta<<<(force_size - 1) / 128 + 1, 128>>>(
-    force_size,
-    spin_predictor_base_force.data(),
-    atom.force_per_atom.data());
-  GPU_CHECK_KERNEL
-  integrate.find_thermo(
+  find_thermo(
     box.get_volume(),
     group,
     atom.mass,

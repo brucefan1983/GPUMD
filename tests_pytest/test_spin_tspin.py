@@ -12,7 +12,10 @@ import numpy as np
 import pytest
 from spin_runtime_helpers import base_model as _model_with_zero_lattice_velocity
 
-from spin_fixtures import load_fixture, selective_type_model
+from spin_fixtures import load_fixture
+
+def selective_type_model():
+    return (FIXTURE / "nep_spin_o3c2_uniform.nep").read_text()
 
 
 FIXTURE = Path(__file__).parent / "fixtures" / "nep_spin3"
@@ -25,7 +28,7 @@ MASK64 = (1 << 64) - 1
 
 def _prepare_case(case_dir, run_input, model_text=None):
     case_dir.mkdir()
-    shutil.copy(FIXTURE / "nep4_spin3_o3c2_uniform.nep", case_dir / "nep.txt")
+    (case_dir / "nep.txt").write_text(selective_type_model().replace("spin_type Fe\n", "spin_type Fe Ge\n"))
     (case_dir / "model.xyz").write_text(
         model_text if model_text is not None else _model_with_zero_lattice_velocity())
     (case_dir / "run.in").write_text(run_input)
@@ -340,7 +343,7 @@ def test_nvt_tspin_lattice_off_only_integrates_spins(tmp_path):
     assert np.max(np.abs(rows[:, 6:9] - np.array(initial_spin))) > 1.0e-12
 
 
-def test_tspin_integrates_coordinates_excluded_by_potential_response_mask(tmp_path):
+def test_tspin_keeps_nonmagnetic_elements_masked(tmp_path):
     directory = tmp_path / "potential_mask"
     directory.mkdir()
     (directory / "nep.txt").write_text(selective_type_model())
@@ -364,14 +367,14 @@ def test_tspin_integrates_coordinates_excluded_by_potential_response_mask(tmp_pa
     actual = _read_spin_frame(directory / "state.xyz")
     initial_excluded_spin = np.array([0.4, -0.3, 0.7])
     assert np.max(np.abs(actual["mforce"][1])) <= 1.0e-12
-    assert np.max(np.abs(actual["spin"][1] - initial_excluded_spin)) > 1.0e-12
-    assert np.max(np.abs(actual["spin_velocity"][1])) > 1.0e-12
+    np.testing.assert_array_equal(actual["spin"][1], 0.0)
+    np.testing.assert_array_equal(actual["spin_velocity"][1], 0.0)
 
 
 def test_element_mass_factor_zero_freezes_only_selected_spins(tmp_path):
     directory = tmp_path / "element_mass"
     directory.mkdir()
-    (directory / "nep.txt").write_text(selective_type_model())
+    (directory / "nep.txt").write_text(selective_type_model().replace("spin_type Fe\n", "spin_type Fe Ge\n"))
     (directory / "model.xyz").write_text(
         '2\nLattice="16 0 0 0 16 0 0 0 16" '
         'Properties=species:S:1:pos:R:3:vel:R:3:spin:R:3:spin_vel:R:3 '
@@ -403,7 +406,7 @@ def test_npt_tspin_runs_with_spin3_force_path(tmp_path):
     case = oracle["cases"]["chiral_soc"]
     directory = tmp_path / "spin3"
     directory.mkdir()
-    shutil.copy(fixture / "nep4_spin3_o3c2_uniform.nep", directory / "nep.txt")
+    shutil.copy(fixture / "nep_spin_o3c2_uniform.nep", directory / "nep.txt")
     lattice = " ".join(str(value) for value in case["cell"])
     lines = [
         str(len(case["types"])),

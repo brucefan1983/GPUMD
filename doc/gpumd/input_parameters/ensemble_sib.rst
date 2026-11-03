@@ -143,10 +143,9 @@ positive seed. Target temperatures are only required by the NVT/NPT forms. A
 zero spin vector remains zero. ``nve_sib`` always fixes the lattice and does
 not accept ``lattice``; ``npt_sib`` always includes
 lattice and cell dynamics and therefore does not accept ``lattice off``.
-SIB propagates every nonzero ``spin:R:3`` vector; ``spin_dof_type`` masks the
-potential response but is not an integration constraint. In particular, an
-excluded type has zero deterministic magnetic field but can still rotate
-under thermal noise.
+SIB propagates nonzero moments of elements listed in ``spin_type``. Moments
+of other elements are masked to zero, receive no magnetic noise, and remain
+zero. The initial magnitude of each active moment is conserved.
 
 For variable-magnitude dynamics use the independent
 :ref:`GLSD ensembles <kw_ensemble_glsd>`. SIB does not accept ``lsf``, ``damping`` or

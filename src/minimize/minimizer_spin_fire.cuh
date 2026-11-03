@@ -1,18 +1,36 @@
 /*
+    Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
-    SPDX-License-Identifier: LGPL-3.0-or-later
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
+
+/*
+Spin minimizer spin fire implementation.
+
+Contributors:
+  Chengbing Chen: 1747193328@qq.com
+*/
+
 #pragma once
 #include "minimizer.cuh"
+#include <string>
+class Measure;
 
 // Spherical or Cartesian spins, optionally coupled to atoms and cell strain.
 class Minimizer_Spin_FIRE : public Minimizer
 {
 public:
-  Minimizer_Spin_FIRE(int atoms, int steps, double tolerance, bool fixed_magnitude,
-    bool relax_atoms=false, bool box_change=false, bool hydrostatic_strain=false)
-    : Minimizer(-1, 0, atoms, steps, tolerance), fixed_magnitude_(fixed_magnitude),
-      relax_atoms_(relax_atoms), box_change_(box_change), hydrostatic_strain_(hydrostatic_strain) {}
+  Minimizer_Spin_FIRE(
+    const std::vector<std::string>&, int fixed_group, const Atom&, const Box&, Measure&);
   void compute(Force&, Box&, Atom&, GPU_Vector<double>&, std::vector<Group>&) override;
 
 private:
@@ -28,10 +46,10 @@ private:
   static constexpr int N_min = 5; // Grow dt after more than N_min positive-power steps.
 
   // Per-step limits and the zero-pressure convergence target.
-  static constexpr double max_spin_angle = 0.1; // rad, fixed magnitude
+  static constexpr double max_spin_angle = 0.1;        // rad, fixed magnitude
   static constexpr double max_spin_displacement = 0.1; // mu_B, variable magnitude
   static constexpr double max_atom_displacement = 0.1; // angstrom, nonaffine
-  static constexpr double max_cell_strain = 0.01; // Frobenius norm
+  static constexpr double max_cell_strain = 0.01;      // Frobenius norm
   static constexpr double stress_tolerance_gpa = 1.0e-4;
 
   // Stagnation detection; these do not relax the requested force tolerance.
@@ -40,5 +58,6 @@ private:
   static constexpr double residual_progress_ratio = 0.99;
   static constexpr int max_steps_without_progress = 1000;
 
+  Measure& measure_;
   bool fixed_magnitude_, relax_atoms_, box_change_, hydrostatic_strain_;
 };
