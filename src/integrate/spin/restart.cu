@@ -20,9 +20,9 @@ Contributors:
   Chengbing Chen: 1747193328@qq.com
 */
 
-#include "ensemble.cuh"
 #include "lattice.cuh"
 #include "model/atom.cuh"
+#include "spin_ensemble.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
@@ -70,7 +70,7 @@ void Atom::Spin_Lattice_Restart::read(const std::vector<std::string>& tokens)
     PRINT_INPUT_ERROR("Conflicting NHC and MTTK restart states.");
 }
 
-void Spin_Ensemble::write_restart(FILE* fid, const Atom& atom, double global_time) const
+void Spin_Ensemble::write_restart(FILE* fid, double global_time) const
 {
   const std::string mttk_state =
     has_spin_mttk_driver() ? static_cast<const Lattice_MTTK*>(lattice_.get())->restart_state() : "";
