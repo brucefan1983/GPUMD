@@ -505,3 +505,48 @@ def test_ordinary_nhc_keeps_spins_fixed(tmp_path):
         "dump_xyz 10 state.xyz mass spin mforce\nrun 10\n", model)
     assert result.returncode == 0, result.stdout + result.stderr
     np.testing.assert_array_equal(_read_spin_frame(tmp_path / "fixed/state.xyz")["spin"], initial)
+
+
+@pytest.mark.parametrize("ensemble", [
+    "nvt_tspin 300 300 100 lattice off",
+    "nvt_tspin 300 300 100",
+    "npt_tspin temp 300 300 iso 0 0 tperiod 100 pperiod 1000",
+], ids=["fixed-lattice", "nvt", "npt"])
+def test_tspin_next_run_is_independent_of_restart_output(tmp_path, ensemble):
+    model = (
+        '2\nLattice="16 0 0 0 16 0 0 0 16" '
+        'Properties=species:S:1:pos:R:3:vel:R:3:spin:R:3:spin_vel:R:3 '
+        'pbc="T T T"\n'
+        'Fe 0 0 0 0 0 0 1 0.2 -0.1 0.08 -0.03 0.04\n'
+        'Ge 3 0 0 0 0 0 0.4 -0.3 0.7 0.15 -0.05 0.1\n')
+    trajectory = None
+    for name, restart in (("off", ""), ("last", "dump_restart 7\n"),
+                          ("earlier", "dump_restart 3\n")):
+        case = tmp_path / name
+        # dump_xyz uses its own host buffer; it must not refresh Atom's cached
+        # spin velocity and thereby hide a stale-host-state initialization bug.
+        result = _prepare_case(
+            case,
+            "potential nep.txt\ntime_step 0.1\n"
+            f"ensemble {ensemble} mass_factor 1.5 seed 731\n"
+            "dump_xyz 7 boundary.xyz precision double mass spin mforce spin_velocity\n"
+            + restart + "run 7\n"
+            # Also exercise freezing a previously active type at the run boundary.
+            f"ensemble {ensemble} mass_factor Fe 0 Ge 1.5 seed 731\n"
+            "dump_xyz 1 second.xyz precision double mass spin mforce spin_velocity\n"
+            "run 5\n", model)
+        assert result.returncode == 0, result.stdout + result.stderr
+        boundary = _read_spin_frame(case / "boundary.xyz")
+        final = _read_spin_frame(case / "second.xyz")
+        np.testing.assert_array_equal(final["spin"][0], boundary["spin"][0])
+        np.testing.assert_array_equal(final["spin_velocity"][0], 0.0)
+        text = (case / "second.xyz").read_text()
+        lines = text.splitlines()
+        assert len(lines) == 5 * 4  # Five frames, each with two atoms.
+        values = [float(value) for i, line in enumerate(lines) if i % 4 >= 2
+                  for value in line.split()[1:]]
+        assert np.isfinite(values).all()
+        if trajectory is None:
+            trajectory = text
+        else:
+            assert text == trajectory, name
