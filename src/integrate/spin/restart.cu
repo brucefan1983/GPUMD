@@ -20,9 +20,9 @@ Contributors:
   Chengbing Chen: 1747193328@qq.com
 */
 
-#include "ensemble.cuh"
 #include "lattice.cuh"
 #include "model/atom.cuh"
+#include "spin_ensemble.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>

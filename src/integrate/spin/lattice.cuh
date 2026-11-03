@@ -21,9 +21,9 @@ Contributors:
 */
 
 #pragma once
-#include "ensemble.cuh"
 #include "integrate/ensemble_mttk.cuh"
 #include "integrate/ensemble_nhc.cuh"
+#include "spin_ensemble.cuh"
 #include <cstdint>
 
 // Only Spin ensembles persist lattice baths and the original ramp protocol.

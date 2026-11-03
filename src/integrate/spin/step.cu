@@ -20,7 +20,7 @@ Contributors:
   Chengbing Chen: 1747193328@qq.com
 */
 
-#include "ensemble.cuh"
+#include "spin_ensemble.cuh"
 #include "utilities/gpu_macro.cuh"
 
 namespace
