@@ -270,6 +270,8 @@ Spin_TSPIN::Spin_TSPIN(
 void Spin_TSPIN::initialize_spin_velocity(double initial_temperature, int seed, Atom& atom)
 {
   if (atom.spin_velocity_initialized) {
+    // The device holds the current state; output may leave the host cache stale.
+    atom.spin_velocity_per_atom.copy_to_host(atom.cpu_spin_velocity_per_atom.data());
     const int number_of_atoms = atom.number_of_atoms;
     for (int component = 0; component < 3; ++component) {
       for (int atom_index = 0; atom_index < number_of_atoms; ++atom_index) {

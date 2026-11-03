@@ -22,7 +22,6 @@ Contributors:
 
 #include "ensemble.cuh"
 #include "glsd.cuh"
-#include "integrate/integrate.cuh"
 #include "lattice.cuh"
 #include "sib.cuh"
 #include "tspin.cuh"
@@ -186,27 +185,4 @@ void Spin_Ensemble::compute2(
     atom.update_unwrapped_position(box);
     refresh_endpoint(force, box, atom, group, thermo);
   }
-}
-
-void Integrate::initialize(
-  double time_step, Atom& atom, Box& box, const std::vector<Group>& group, double& global_time)
-{
-  if (const auto* spin = dynamic_cast<const Spin_Ensemble*>(ensemble_.get()))
-    spin->restore_time(atom, global_time);
-  else {
-    atom.spin_lattice_restart = {};
-    atom.spin_lattice_restart.glsd_step = atom.spin_lattice_restart.glsd_seed = 0;
-  }
-  initialize(time_step, atom, box, group);
-}
-void Integrate::write_restart(FILE* fid, const Atom& atom, double global_time) const
-{
-  const auto* spin = dynamic_cast<const Spin_Ensemble*>(ensemble_.get());
-  if (spin)
-    spin->write_restart(fid, atom, global_time);
-}
-void Integrate::post_force(const Atom& atom)
-{
-  if (auto* spin = dynamic_cast<Spin_Ensemble*>(ensemble_.get()))
-    spin->save_force(atom);
 }
