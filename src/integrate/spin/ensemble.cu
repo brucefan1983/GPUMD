@@ -21,7 +21,6 @@ Contributors:
 */
 
 #include "ensemble.cuh"
-#include "integrate/integrate.cuh"
 #include "lattice.cuh"
 #include "tspin.cuh"
 
@@ -159,21 +158,4 @@ void Spin_Ensemble::compute2(
       thermo);
   }
   spin_integrator->compute2(dt, atom);
-}
-
-void Integrate::initialize(
-  double time_step, Atom& atom, Box& box, const std::vector<Group>& group, double& global_time)
-{
-  if (const auto* spin = dynamic_cast<const Spin_Ensemble*>(ensemble_.get()))
-    spin->restore_time(atom, global_time);
-  else {
-    atom.spin_lattice_restart = {};
-  }
-  initialize(time_step, atom, box, group);
-}
-void Integrate::write_restart(FILE* fid, const Atom& atom, double global_time) const
-{
-  const auto* spin = dynamic_cast<const Spin_Ensemble*>(ensemble_.get());
-  if (spin)
-    spin->write_restart(fid, atom, global_time);
 }
