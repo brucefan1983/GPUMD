@@ -28,7 +28,7 @@ def _replace_spins(model_text, spins):
 
 def _run(case_dir, run_input, model_text=None):
     case_dir.mkdir()
-    shutil.copy(FIXTURE / "nep4_spin3_o3c2_uniform.nep", case_dir / "nep.txt")
+    (case_dir / "nep.txt").write_text((FIXTURE / "nep_spin_o3c2_uniform.nep").read_text().replace("spin_type Fe\n", "spin_type Fe Ge\n"))
     (case_dir / "model.xyz").write_text(model_text or _base_model())
     (case_dir / "run.in").write_text(run_input)
     return subprocess.run(

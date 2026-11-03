@@ -52,7 +52,7 @@ Essentially any keyword is allowed, but we only read the following ones:
   * ``charge:R:1`` charge (*Optional*: default charge is zero)  
   * ``vel:R:3`` velocity vector (*Optional*)
   * ``spin:R:3`` magnetic-moment vector in Bohr magnetons (muB) (*Required for NEP_Spin*)
-  * ``spin_vel:R:3`` spin velocity vector (*Optional; requires ``spin:R:3``*)
+  * ``spin_vel:R:3`` spin velocity vector (*Optional for NEP-spin; requires ``spin:R:3``*)
   * ``group:I:number_of_grouping_methods`` grouping methods (*Optional*)
 
 
@@ -74,10 +74,12 @@ Magnetic force is the negative energy derivative with respect to spin, in eV/muB
 The spin torque, spin crossed with magnetic force, is in eV.
 External magnetic induction B is specified in tesla (T).
 Spin vectors store Cartesian magnetic moments, not normalized directions.
-Readers do not normalize them or rescale model parameters; training and
-runtime data must use the same spin convention.
-Property names may not be repeated. NEP_Spin fails if ``spin:R:3`` is absent;
-missing spin values are never filled with zeros.
+Active spins are not normalized; training and runtime data must use the same
+spin convention. Elements excluded by the model's ``spin_type`` have zero
+effective spin and zero magnetic force, while their geometry is retained.
+For NEP-spin models, the ``spin`` property may not be repeated, and
+``spin:R:3`` is required; missing spin values are never filled with zeros.
+Other potential models ignore the ``spin`` property.
 
 Example
 -------

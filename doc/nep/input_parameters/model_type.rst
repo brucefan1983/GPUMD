@@ -5,17 +5,21 @@
 :attr:`model_type`
 ==================
 
-This keyword allows one to specify the type of model that is being trained.
+This legacy keyword remains supported but prints a deprecation warning.
+Use :ref:`model <kw_model>` for new inputs. Do not combine the two keywords.
+
+This keyword specifies the type of model that is being trained.
 The syntax is::
 
   model_type <type_value>
 
 where :attr:`<type_value>` must be an integer that can assume one of the following values.
 
-=====  ===================
+=====  ============================
 Value  Type of model
------  -------------------
+-----  ----------------------------
 0      potential (default)
 1      dipole
 2      polarizability
-=====  ===================
+3      temperature-dependent energy
+=====  ============================

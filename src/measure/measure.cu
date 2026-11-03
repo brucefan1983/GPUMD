@@ -20,6 +20,7 @@ The driver class dealing with measurement.
 #include "measure.cuh"
 #include "active.cuh"
 #include "add_efield.cuh"
+#include "force/nep_spin/mfield.cuh"
 #include "add_force.cuh"
 #include "add_random_force.cuh"
 #include "add_spring.cuh"
@@ -267,6 +268,9 @@ bool Measure::parse_action(
     std::unique_ptr<Action> action;
     action.reset(new Add_Spring(tokens, group, atom));
     actions_.emplace_back(std::move(action));
+  } else if (tokens[0] == "add_mfield") {
+    std::unique_ptr<Action> action(new Spin_Magnetic_Field(tokens, group));
+    actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "add_efield") {
     std::unique_ptr<Action> action;
     action.reset(new Add_Efield(
@@ -306,13 +310,13 @@ void Measure::pre_run(
       printf("    Please set the action name you developed.\n");
       exit(1);
     }
-    // dump_xyz, dump_netcdf, compute_chunk, add_force, add_spring, and add_efield are allowed
-    // to be called multiple times; others are not
+    // dump_xyz, dump_netcdf, compute_chunk, add_force, add_spring, add_efield, and
+    // add_mfield are allowed to be called multiple times; others are not
     if (
       action->action_name != "dump_xyz" && action->action_name != "dump_netcdf" &&
       action->action_name != "compute_chunk" &&
       action->action_name != "add_force" && action->action_name != "add_spring" &&
-      action->action_name != "add_efield") {
+      action->action_name != "add_efield" && action->action_name != "add_mfield") {
       for (auto& action_name : action_names) {
         if (action_name == action->action_name) {
           std::cout << "There are multiple " << action->action_name << " keywords within one run.\n";

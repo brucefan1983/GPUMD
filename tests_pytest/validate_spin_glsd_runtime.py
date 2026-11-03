@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LGPL-3.0-or-later
-"""Full executable GLSD lifecycle and 1/4 GPU checks (numpy, four allocated GPUs).
+"""Full executable GLSD lifecycle and 1/2/4 GPU checks (numpy, four allocated GPUs).
 
-The analytic CUDA companion tests a confining harmonic Hamiltonian. This file
-checks actual NEP/field plumbing; the bounded tanh ANN is NOT a thermal oracle.
+Analytic zero/constant-field, free-diffusion, and deterministic onsite cases
+check the public gpumd path. The bounded tanh ANN is not an equilibrium oracle.
 """
 import argparse
 import json
@@ -34,7 +34,7 @@ def main():
     p=argparse.ArgumentParser()
     for key in ('binary','output'):
         p.add_argument('--'+key,type=Path,required=True)
-    p.add_argument('--model', type=Path, default=FIXTURE/'nep4_spin3_o3c2_uniform.nep')
+    p.add_argument('--model', type=Path, default=FIXTURE/'nep_spin_o3c2_uniform.nep')
     a=p.parse_args()
     for key in ('binary','model','output'): setattr(a,key,getattr(a,key).resolve())
     a.output.mkdir(parents=True,exist_ok=False)
@@ -85,9 +85,24 @@ def main():
         assert math.isclose(converted, expected, rel_tol=5e-15, abs_tol=0)
         record('damping-' + name, converted)
     assert difference(frame(a.output/'custom/state.xyz'), frame(a.output/'order/state.xyz'))['spin'] < 1e-12
+    masked_model=a.output/'masked.nep'
+    masked_model.write_text(analytic_model(False).replace('spin_type Fe Ge', 'spin_type Fe'))
+    masked_xyz=a.output/'masked.xyz'
+    masked_lines=small_structure([[1.,0.,0.]]*4).splitlines()
+    masked_lines[-1]='Ge '+masked_lines[-1].split(' ',1)[1]
+    masked_xyz.write_text('\n'.join(masked_lines)+'\n')
+    symbols=[line.split()[0] for line in masked_xyz.read_text().splitlines()[2:]]
+    for g in (1,2,4):
+        _,masked=run(f'masked-noise-g{g}',g, f'nve_glsd {damping(2,3)} gamma 3 stemp 300',
+                     20,1,masked_model,masked_xyz)
+        inactive=np.array([symbol!='Fe' for symbol in symbols])
+        assert inactive.any()
+        assert np.max(np.abs(masked['spin'][inactive]))==0
+        assert np.max(np.abs(masked['mforce'][inactive]))==0
+        record(f'masked-noise-g{g}', {'inactive_atoms':int(inactive.sum())})
     # Exact zero and constant-field solution through actual Force::compute.
     small=a.output/'small.xyz';small.write_text(small_structure([[0,0,0]]*4))
-    for g in (1,4):
+    for g in (1,2,4):
         _,z=run(f'zero-g{g}',g,f'nve_glsd {damping(2, 3)} gamma 3',100,10,zero,small)
         assert np.max(np.abs(z['spin']))==0
         _,z=run(f'zero-field-g{g}',g,f'nve_glsd {damping(2, 3)} gamma 3',100,10,zero,small,
@@ -149,7 +164,7 @@ def main():
         ('coupled',f'nvt_glsd 300 300 100 lattice on {damping(10)} seed 731',100),
         ('npt',f'npt_glsd temp 300 300 iso 0 0 tperiod 100 pperiod 1000 {damping(10)} seed 731',20)]:
         states=[]
-        for g in (1,4):
+        for g in (1,2,4):
             case,s=run(f'{name}-g{g}',g,ens,steps,field=field)
             states.append(s)
             _,endpoint=run(f'{name}-endpoint-g{g}',g,'nve',1,0,
@@ -163,12 +178,13 @@ def main():
             record(f'{name}-g{g}',{'norm_min':float(norms.min()),'norm_max':float(norms.max()),
                    'mean_spin':s['spin'].mean(axis=0).tolist(),'mean_norm':float(norms.mean()),
                    'norm_sd':float(norms.std()),'wrapped_position_difference':float(np.max(np.abs(s['pos']-pos)))})
-        dif=difference(*states)
-        assert dif['spin']<3e-5 and dif['mforce']<1e-5 and dif['force']<1e-4,dif
-        record(name+'-g1-g4',dif)
+        for g, candidate in zip((2, 4), states[1:]):
+            dif=difference(states[0],candidate)
+            assert dif['spin']<3e-5 and dif['mforce']<1e-5 and dif['force']<1e-4,dif
+            record(name+f'-g1-g{g}',dif)
     # Free Cartesian diffusion is an independent Gaussian transient oracle.
     # It is deliberately not described as an equilibrium for a zero potential.
-    for g in (1,4):
+    for g in (1,2,4):
         samples=[]
         for seed in (731,913,1171):
             _,s=run(f'diffusion-{seed}-g{g}',g,
@@ -183,7 +199,7 @@ def main():
     # Restart and consecutive run blocks: exact counter stream, unchanged order.
     for temp in (-1,300):
         ens=f'nve_glsd {damping(2, 3)} gamma 3 stemp {temp} seed 731'
-        for g in (1,4):
+        for g in (1,2,4):
             _,whole=run(f'whole-{temp}-g{g}',g,ens,40,1,toy)
             half,_=run(f'half-{temp}-g{g}',g,ens,20,1,toy)
             _,restart=run(f'restart-{temp}-g{g}',g,ens,20,1,toy,half/'restart.xyz')
@@ -195,7 +211,7 @@ def main():
             assert err2<1e-12,err2
             assert 'spin_vel:' not in (half/'restart.xyz').read_text().splitlines()[1]
             record(f'restart-{temp}-g{g}',{'restart_error':err,'run_block_error':err2})
-    for g in (1,4):
+    for g in (1,2,4):
         source=a.output/f'half-300-g{g}'/'restart.xyz'
         sib_case,_=run(f'switch-sib-g{g}',g,'nve_sib alpha 0',1,1,toy,source)
         assert 'spin_glsd_' not in (sib_case/'restart.xyz').read_text()

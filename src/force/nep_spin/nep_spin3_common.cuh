@@ -49,15 +49,15 @@ __device__ __forceinline__ void compute_spin_edge_geometry_f32(
   rhat[2] = dz * inverse_distance;
 }
 
-__device__ __forceinline__ int virial_internal_component(
-  const int row_major)
+__device__ __forceinline__ int virial_internal_component(const int row_major)
 {
-  return row_major == 0 ? 0 :
-         row_major == 1 ? 3 :
-         row_major == 2 ? 4 :
-         row_major == 3 ? 6 :
-         row_major == 4 ? 1 :
-         row_major == 5 ? 5 :
-         row_major == 6 ? 7 :
-         row_major == 7 ? 8 : 2;
+  return row_major == 0   ? 0
+         : row_major == 1 ? 3
+         : row_major == 2 ? 4
+         : row_major == 3 ? 6
+         : row_major == 4 ? 1
+         : row_major == 5 ? 5
+         : row_major == 6 ? 7
+         : row_major == 7 ? 8
+                          : 2;
 }

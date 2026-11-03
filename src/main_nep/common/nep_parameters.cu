@@ -104,6 +104,9 @@ void NEP_Parameters::read(const ParameterInput& input)
 void NEP_Parameters::finish_reading(
   const ParameterInput& input, const char* model_name, const char* model_description)
 {
+  if (flexible_zbl && this->model_name != "nep") {
+    PRINT_INPUT_ERROR("Flexible ZBL is only supported for model nep.");
+  }
   set_regularization_defaults();
   check_existing_nep_model(*this);
   initialize_q_scaler();
@@ -696,9 +699,13 @@ void NEP_Parameters::report_inputs(
 {
   printf("Input or default parameters:\n");
 
-  printf("    (%s) %smodel_type = %s.\n",
-    input.is_model_type_set ? "input" : "default", input.is_model_type_set ? "  " : "",
-    model_name);
+  if (!input.model.empty()) {
+    printf("    (input)   model = %s.\n", input.model.c_str());
+  } else {
+    printf("    (%s) %smodel_type = %s.\n",
+      input.is_model_type_set ? "input" : "default", input.is_model_type_set ? "  " : "",
+      model_name);
+  }
 
   std::string calculation_mode_name = "train";
   if (prediction == 1) {

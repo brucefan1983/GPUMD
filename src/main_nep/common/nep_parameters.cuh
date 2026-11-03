@@ -116,8 +116,8 @@ protected:
   void report_inputs(const ParameterInput& input, const char* model_name,
     const char* model_description);
   virtual void report_model_inputs() const {}
-
   virtual void read_zbl_in();
+
 private:
   void initialize_q_scaler();
   void parse_nep_compile(const char** param, int num_param);
