@@ -42,7 +42,7 @@ The driver class for the various integrators.
 #include "ensemble_wall_mirror.cuh"
 #include "ensemble_wall_piston.cuh"
 #include "integrate.cuh"
-#include "spin/ensemble.cuh"
+#include "spin/spin_ensemble.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -168,11 +168,11 @@ void Integrate::initialize(
   }
   initialize(time_step, atom, box, group);
 }
-void Integrate::write_restart(FILE* fid, const Atom& atom, double global_time) const
+void Integrate::write_restart(FILE* fid, double global_time) const
 {
   const auto* spin = dynamic_cast<const Spin_Ensemble*>(ensemble_.get());
   if (spin)
-    spin->write_restart(fid, atom, global_time);
+    spin->write_restart(fid, global_time);
 }
 
 void Integrate::initialize(

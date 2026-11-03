@@ -22,9 +22,10 @@ Contributors:
 
 #pragma once
 #include "integrate/ensemble.cuh"
-#include "integrator.cuh"
 #include <memory>
 #include <string>
+
+class Spin_Integrator;
 
 class Spin_Ensemble final : public Ensemble
 {
@@ -43,7 +44,7 @@ public:
   void compute2(
     double, int, int, const std::vector<Group>&, Box&, Atom&, GPU_Vector<double>&, Force&) override;
   void restore_time(const Atom&, double&) const;
-  void write_restart(FILE*, const Atom&, double) const;
+  void write_restart(FILE*, double global_time) const;
 
 private:
   class Lattice_NHC;

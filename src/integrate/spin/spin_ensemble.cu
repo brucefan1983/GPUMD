@@ -20,8 +20,9 @@ Contributors:
   Chengbing Chen: 1747193328@qq.com
 */
 
-#include "ensemble.cuh"
+#include "integrator.cuh"
 #include "lattice.cuh"
+#include "spin_ensemble.cuh"
 #include "tspin.cuh"
 
 Spin_Ensemble::~Spin_Ensemble() = default;
