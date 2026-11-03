@@ -26,7 +26,7 @@ Run simulation according to the inputs in the run.in file.
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
 #include "phonon/hessian.cuh"
-#include "keyword_dispatcher.cuh"
+#include "phonon/nep_hessian_command.cuh"
 #include "replicate.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
@@ -342,6 +342,17 @@ void Run::parse_one_keyword(
       PRINT_INPUT_ERROR("replicate keyword not found in run.in file.");
     }
     hessian.compute(force, box, atom, group, replicate_size_);
+  } else if (tokens[0] == "compute_hessian") {
+    // The dftd3 keyword may appear anywhere in run.in, so scan the whole
+    // input instead of relying on the keyword order.  This uses the same
+    // detection as NEP::initialize_dftd3.
+    if (run_input.contains("dftd3")) {
+      PRINT_INPUT_ERROR(
+        "compute_hessian does not support the DFT-D3 dispersion correction.");
+    }
+    NEP_Hessian_Command hessian;
+    hessian.parse(tokens);
+    hessian.compute(force, box, atom, group, first_potential_filename_);
   } else if (tokens[0] == "compute_cohesive") {
     Cohesive cohesive;
     cohesive.parse(tokens, 0);
@@ -385,12 +396,6 @@ void Run::parse_one_keyword(
                box,
                force,
                first_potential_filename_)) {
-    keyword_dispatcher::Context dispatcher_ctx{
-      force, box, atom, group, has_replicate_,
-      {replicate_size_[0], replicate_size_[1], replicate_size_[2]}};
-    if (keyword_dispatcher::dispatch(tokens, dispatcher_ctx)) {
-      return;
-    }
     PRINT_KEYWORD_ERROR(tokens[0].c_str());
   }
 }

@@ -11,19 +11,13 @@ the current configuration and can optionally solve phonons from it. It is an
 immediate, standalone command: it is executed when it is read and does not
 require an :ref:`ensemble <kw_ensemble>` or a :ref:`run <kw_run>` command.
 
-Two Hessian modes are available:
+The Hessian is computed analytically. This is currently available for supported
+:term:`NEP` models only.
 
-* ``compute_hessian analytic`` computes the Hessian analytically. This mode is
-  currently available for supported :term:`NEP` models only.
-* ``compute_hessian fd`` computes the Hessian by central finite differences of
-  the forces. This mode supports every potential implemented by the
-  :ref:`potential <kw_potential>` command, including non-NEP potentials and
-  composite potentials such as those containing an interlayer potential
-  (:term:`ILP`).
-
-If the analytic mode is not supported for the selected potential, model, or
-configuration, it reports an error and terminates. It does not automatically
-fall back to the finite-difference mode; use ``compute_hessian fd`` instead.
+If the analytic computation is not supported for the selected potential, model,
+or configuration, the command reports an error and terminates. It never falls
+back to a finite-difference calculation. Use the :ref:`compute_phonon
+<kw_compute_phonon>` command if a finite-difference Hessian is required.
 
 Syntax
 ------
@@ -31,13 +25,12 @@ Syntax
 .. code::
 
    compute_hessian analytic [key value ...]
-   compute_hessian fd       [key value ...]
 
 The command must appear after the :ref:`potential <kw_potential>` definition.
 The first argument after the keyword selects the mode. All further arguments
 are optional key-value pairs; each key is followed by exactly one value.
 
-The following parameters are available in both modes:
+The following parameters are available:
 
 ``output <path>``
    Path of the symmetrized Hessian matrix. Default: ``hessian.out``.
@@ -74,7 +67,7 @@ The following parameters are available in both modes:
    Number of interpolation intervals per path segment. Default: ``100``. This
    parameter is accepted only together with ``phonon dispersion``.
 
-The following parameters are available only in analytic mode:
+The following parameters control the output format:
 
 ``output_format dense|sparse``
    Choose the dense text matrix (``dense``, the default) or a sparse Matrix
@@ -84,15 +77,7 @@ The following parameters are available only in analytic mode:
    ``raw_output`` and ``metadata``.
 
 ``raw_output <path>``
-   Path of the un-symmetrized analytic matrix. Disabled by default. This
-   parameter is available only in analytic mode.
-
-The following parameter is available only in finite-difference mode:
-
-``displacement <value>``
-   Positive finite Cartesian displacement in Å used by the central-difference
-   formula. Default: ``0.001``. This parameter is available only in
-   ``compute_hessian fd`` mode.
+   Path of the un-symmetrized analytic matrix. Disabled by default.
 
 Input files
 -----------
@@ -129,7 +114,7 @@ The symmetrized Hessian is written to ``hessian.out`` (or to the path given by
    * - ``hessian.out``
      - Symmetrized Hessian matrix (default; rename with ``output``)
    * - ``raw_output`` path
-     - Un-symmetrized analytic Hessian matrix (analytic mode only)
+     - Un-symmetrized analytic Hessian matrix
    * - ``metadata`` path
      - Diagnostic JSON metadata (disabled by default)
    * - ``structure_output`` path
@@ -167,17 +152,13 @@ and is written in units of eV/Å\ :sup:`2`. This is a Cartesian Hessian, not a
 mass-weighted dynamical matrix.
 
 The matrix written to ``output`` has been symmetrized as
-:math:`(H+H^\mathsf{T})/2`. In analytic mode the un-symmetrized matrix is
-written to ``raw_output`` when requested. In finite-difference mode the
-unavoidable small asymmetry caused by numerical force evaluations is removed by
-the same symmetrization before ``output`` is written; no un-symmetrized fd
-matrix is written.
+:math:`(H+H^\mathsf{T})/2`. The un-symmetrized matrix is written to
+``raw_output`` when requested.
 
 Every dense output file starts with comment lines recording the coordinate
 order, matrix order, definition, units, number of atoms and the kind of matrix.
-For finite-difference output, the result is identified as
-``finite_difference_symmetrized``; for analytic output it is identified as
-``analytic_symmetrized`` (or ``analytic_raw`` for ``raw_output``).
+The symmetrized result is identified as ``analytic_symmetrized`` and the
+un-symmetrized one as ``analytic_raw`` (for ``raw_output``).
 
 .. _hessian_sparse:
 
@@ -224,9 +205,9 @@ Matrix Market matrix rather than a symmetric-storage matrix, and it can be read
 by standard Matrix Market readers.
 
 Sparse output is supported only for the analytic Hessian of a single NEP4
-energy model without a DFT-D3 or interlayer-potential (:term:`ILP`) component;
-the other restrictions of analytic mode also apply. ``raw_output`` and
-``metadata`` cannot be combined with ``output_format sparse``.
+energy model without an interlayer-potential (:term:`ILP`) component; the other
+restrictions of the analytic mode also apply. ``raw_output`` and ``metadata``
+cannot be combined with ``output_format sparse``.
 ``structure_output`` remains available. If a ``phonon`` mode is requested, the
 sparse blocks are expanded to a dense matrix for the phonon solver, so the
 sparse representation reduces matrix storage only for Hessian-only
@@ -237,15 +218,15 @@ calculations.
 Analytic mode
 -------------
 
-The generic keyword does not imply analytic support for every potential. The
-current analytic provider supports only a single NEP energy model: the ordinary
-or temperature-dependent NEP4 variants, with an angular expansion of
+The current analytic provider supports only a single NEP energy model: the
+ordinary or temperature-dependent NEP4 variants, with an angular expansion of
 :math:`L_\mathrm{max}\le 8` and at most 80 angular terms. It does not support:
 
 * a standalone non-NEP potential such as Lennard-Jones or Tersoff;
-* composite models that combine a NEP with an interlayer potential (:term:`ILP`)
-  or DFT-D3, even if those components are supported elsewhere in
+* composite models that combine a NEP with an interlayer potential
+  (:term:`ILP`), even if those components are supported elsewhere in
   :program:`GPUMD`;
+* models that enable the DFT-D3 dispersion correction;
 * more than one potential, including the ``observe`` and ``average``
   multiple-potential modes used by :ref:`dump_observer <kw_dump_observer>`;
 * model or configuration parameters outside the ranges checked by the provider.
@@ -253,40 +234,20 @@ or temperature-dependent NEP4 variants, with an angular expansion of
 If the analytic provider rejects the model or configuration, or fails the
 built-in symmetry and translation-sum validation, the command reports an error
 and terminates. Finite-difference fallback is not performed; use
-``compute_hessian fd`` when an analytic Hessian is unavailable.
+:ref:`compute_phonon <kw_compute_phonon>` when an analytic Hessian is
+unavailable.
 
-Finite-difference mode
-----------------------
-
-For each Cartesian coordinate :math:`r_j`, the finite-difference mode evaluates
-the forces at :math:`r_j+\delta` and :math:`r_j-\delta`, where :math:`\delta` is
-the value of ``displacement``. It then forms every column of the Hessian using
-the central-difference formula
-
-.. math::
-
-   H_{ij} = -\frac{F_i(r_j+\delta)-F_i(r_j-\delta)}{2\delta}.
-
-This requires :math:`2\times3N` force evaluations in addition to the baseline
-evaluation at the unperturbed configuration. The resulting matrix is
-symmetrized before it is written to ``output``. A smaller ``displacement`` can
-reduce truncation error but may increase floating-point noise in the force
-differences; a larger value may introduce finite-displacement truncation error.
-The default is a compromise appropriate for many force fields, but the optimal
-value can depend on the potential and configuration.
-
-The finite-difference mode can be used with any force field supported by
-GPUMD. In particular, it is the recommended mode for non-NEP potentials,
-multiple potentials, and models containing an ILP or DFT-D3 component. The
-interaction range used by phonon postprocessing is taken as twice the largest
-potential cutoff, which is a conservative estimate for composite potentials.
+A configuration that enables the DFT-D3 dispersion correction is rejected
+explicitly, no matter whether the ``dftd3`` keyword appears before or after
+the ``compute_hessian`` keyword in ``run.in``. Such a configuration has to be
+evaluated with :ref:`compute_phonon <kw_compute_phonon>` instead.
 
 .. _hessian_phonons:
 
 Phonons from the Hessian
 ------------------------
 
-Both Hessian modes can optionally produce phonons. ``phonon gamma`` forms a
+The command can optionally produce phonons. ``phonon gamma`` forms a
 mass-weighted real dynamical matrix and computes all eigenvalues and
 eigenvectors. By default the entire current structure is used as the basis,
 which works for both molecules and periodic supercell Gamma modes without
@@ -383,19 +344,9 @@ Write the symmetrized analytic Hessian in sparse Matrix Market format::
    potential /absolute/path/nep.txt
    compute_hessian analytic output_format sparse output hessian.mtx
 
-Compute a central finite-difference Hessian with the default displacement::
-
-   potential /absolute/path/lj.txt
-   compute_hessian fd
-
-Use a larger finite-difference displacement::
-
-   compute_hessian fd displacement 0.01
-
-Compute Gamma modes using either Hessian mode::
+Compute Gamma modes::
 
    compute_hessian analytic phonon gamma
-   compute_hessian fd phonon gamma
 
 Compute a dispersion for an explicitly replicated reference crystal::
 
@@ -405,7 +356,8 @@ Compute a dispersion for an explicitly replicated reference crystal::
 
 The repeat counts above are an example, not a universally sufficient cell size.
 The original finite-displacement :ref:`compute_phonon <kw_compute_phonon>`
-command is unchanged and remains available.
+command is unchanged and remains available for configurations that the analytic
+provider does not support.
 
 To also produce a structure snapshot for external mode analysis, use::
 
@@ -423,15 +375,12 @@ scales with the number of populated atom-pair blocks for Hessian-only
 calculations, but it is expanded to a dense matrix whenever phonons are
 requested. The quadratic memory requirement is especially important for
 ``phonon dispersion``, where the requested supercell must be large enough to
-satisfy the interaction-range condition above. The analytic mode computes one
-Hessian; the finite-difference mode additionally requires :math:`2\times3N`
-force evaluations and can therefore be considerably more expensive for large
-systems.
+satisfy the interaction-range condition above. The analytic mode computes the
+Hessian in a single pass and does not require additional force evaluations.
 
 For a molecule, a valid Hessian should have exactly six zero modes (three
 translations and three rotations) if the structure is fully relaxed and the
 frequencies are computed for the isolated system. For a periodic crystal, the
 three acoustic modes should vanish at Gamma. Deviations from these limits
-indicate that the structure is not at a stationary point, that the
-finite-difference displacement is not suitable, or that the supercell and cutoff
-parameters are insufficient.
+indicate that the structure is not at a stationary point, or that the supercell
+and cutoff parameters are insufficient.

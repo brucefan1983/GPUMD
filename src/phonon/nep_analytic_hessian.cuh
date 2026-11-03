@@ -28,10 +28,13 @@ axis * N + atom.  Atom-major ordering is an export-layer concern only.
 
 The current implementation covers radial, angular, radial-angular ANN cross,
 and NEP ZBL terms for model classes accepted by the entry point. Unsupported
-models and periodic small-box systems return false so callers can use the
-validated batch finite-difference fallback. Angular derivatives are prepared
-once per center-neighbor-n tuple and reused by staged pair and radial-angular
-kernels. Unsupported model classes return false.
+models and periodic small-box systems return false so that the caller can
+report an explicit error. Angular derivatives are prepared once per
+center-neighbor-n tuple and reused by staged pair and radial-angular kernels.
+Unsupported model classes return false.
+
+This module is analytic only: there is no finite-difference fallback here.
+Configurations that enable DFT-D3 dispersion are rejected explicitly.
 ------------------------------------------------------------------------------*/
 
 #pragma once
@@ -43,9 +46,11 @@ class Force;
 class Box;
 class Atom;
 class Group;
+class NEP_Hessian_Model;
 
 bool compute_nep_analytic_hessian(
   Force& force,
+  NEP_Hessian_Model& model,
   Box& box,
   Atom& atom,
   const std::vector<double>& position_soa, // 3 * N, component * N + atom
@@ -53,10 +58,5 @@ bool compute_nep_analytic_hessian(
   std::vector<double>& hessian_soa,        // 3N x 3N, row-major SoA
   std::vector<double>& force_soa,          // 3N, component * N + atom
   double& pe_out,
-  // Optional diagnostic output.  When Cartesian FD validation is enabled, this
-  // receives the finite-difference matrix in the same SoA layout.  It remains
-  // available even when analytic validation fails and the analytic output is
-  // cleared for fallback.
-  std::vector<double>* validation_hessian_soa = nullptr,
   std::vector<Group>* groups = nullptr,
   sparse_hessian::BlockPattern* sparse_pattern = nullptr);

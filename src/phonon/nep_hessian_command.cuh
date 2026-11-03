@@ -21,23 +21,21 @@ class Group;
 class NEP_Hessian_Command
 {
 public:
-  void parse(const char** param, int num_param);
+  void parse(const std::vector<std::string>& tokens);
   void compute(
-    Force& force, Box& box, Atom& atom, std::vector<Group>& group);
+    Force& force, Box& box, Atom& atom, std::vector<Group>& group,
+    const std::string& potential_filename);
 
 private:
   void compute_analytic(
-    Force& force, Box& box, Atom& atom, std::vector<Group>& group);
-  void compute_fd(
-    Force& force, Box& box, Atom& atom, std::vector<Group>& group);
+    Force& force, Box& box, Atom& atom, std::vector<Group>& group,
+    const std::string& potential_filename);
 
-  std::string mode_;                       // "analytic" or "fd"
   std::string output_ = "hessian.out";
-  std::string output_format_ = "dense";    // analytic only
-  std::string raw_output_;                 // analytic only
+  std::string output_format_ = "dense";
+  std::string raw_output_;
   std::string metadata_output_;
   std::string structure_output_;
-  double displacement_ = 1.0e-3;           // fd only
   std::string phonon_mode_ = "none";
   std::array<int, 3> supercell_{{1, 1, 1}};
   std::string kpoints_file_ = "kpoints.in";

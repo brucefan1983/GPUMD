@@ -8,10 +8,13 @@
 */
 
 /*----------------------------------------------------------------------------80
-Standalone one-shot Cartesian Hessian diagnostic command. Two modes:
+Standalone one-shot Cartesian Hessian diagnostic command. The command is
+analytic only:
   compute_hessian analytic  -> analytic NEP Hessian
-  compute_hessian fd        -> central finite-difference Hessian (any potential)
-Both can optionally solve phonons from the resulting Hessian.
+It can optionally solve phonons from the resulting Hessian.  A configuration
+that is not supported by the analytic provider is rejected explicitly; the
+command never falls back to a finite-difference Hessian.  The original
+finite-difference command compute_phonon is unchanged and remains available.
 ------------------------------------------------------------------------------*/
 
 #include "nep_hessian_command.cuh"
@@ -22,6 +25,7 @@ Both can optionally solve phonons from the resulting Hessian.
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "nep_analytic_hessian.cuh"
+#include "nep_hessian_model.cuh"
 #include "analytic_phonon.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -587,7 +591,7 @@ struct OutputPaths
 void write_metadata(
   const std::string& path, Force& force, Box& box, Atom& atom,
   const std::vector<double>& raw, const std::vector<double>& sym,
-  const std::string& method, double displacement,
+  const std::string& method,
   double potential_energy, const std::vector<double>& cartesian_force,
   const OutputPaths& outputs)
 {
@@ -679,12 +683,6 @@ void write_metadata(
   output << "    \"definition\": \"minus_force_jacobian\",\n";
   output << "    \"unit\": \"eV/A^2\",\n";
   output << "    \"method\": \"" << json_escape(method) << "\"\n";
-  output << "  },\n";
-
-  output << "  \"finite_difference\": {\n";
-  output << "    \"method\": \"central\",\n";
-  output << "    \"epsilon_A\": "
-         << (method == "fd" ? displacement : 0.0) << "\n";
   output << "  },\n";
 
   output << "  \"analytic\": {\n";
@@ -965,75 +963,21 @@ private:
   GPU_Vector<double> virial_;
 };
 
-// Central finite-difference Hessian in the SoA 3N x 3N layout. This works for
-// any potential the force engine supports (unlike the analytic provider), and
-// uses the same H_ij = -dF_i/dr_j convention.
-std::vector<double> compute_finite_difference_hessian(
-  Force& force, Box& box, Atom& atom, std::vector<Group>& group,
-  const std::vector<double>& position, int N, double displacement,
-  std::vector<double>& baseline_force, double& potential_energy)
-{
-  const int N3 = 3 * N;
-  std::vector<double> hessian(static_cast<size_t>(N3) * N3, 0.0);
-  ScopedAtomStateBackup atom_backup(force, box, atom, group);
-
-  // Baseline geometry: refresh forces and record energy/forces for snapshots.
-  atom.position_per_atom.copy_from_host(position.data());
-  force.compute(
-    box, atom.position_per_atom, atom.type, group, atom.potential_per_atom,
-    atom.force_per_atom, atom.virial_per_atom);
-  CHECK(gpuDeviceSynchronize());
-  baseline_force.resize(N3);
-  atom.force_per_atom.copy_to_host(baseline_force.data());
-  std::vector<double> potential(N);
-  atom.potential_per_atom.copy_to_host(potential.data());
-  potential_energy = std::accumulate(potential.begin(), potential.end(), 0.0);
-
-  std::vector<double> displacement_buffer(position);
-  for (int column = 0; column < N3; ++column) {
-    std::vector<double> force_plus(N3), force_minus(N3);
-    displacement_buffer[column] = position[column] + displacement;
-    atom.position_per_atom.copy_from_host(displacement_buffer.data());
-    force.compute(
-      box, atom.position_per_atom, atom.type, group, atom.potential_per_atom,
-      atom.force_per_atom, atom.virial_per_atom);
-    CHECK(gpuDeviceSynchronize());
-    atom.force_per_atom.copy_to_host(force_plus.data());
-
-    displacement_buffer[column] = position[column] - displacement;
-    atom.position_per_atom.copy_from_host(displacement_buffer.data());
-    force.compute(
-      box, atom.position_per_atom, atom.type, group, atom.potential_per_atom,
-      atom.force_per_atom, atom.virial_per_atom);
-    CHECK(gpuDeviceSynchronize());
-    atom.force_per_atom.copy_to_host(force_minus.data());
-
-    displacement_buffer[column] = position[column];
-    for (int row = 0; row < N3; ++row)
-      hessian[static_cast<size_t>(row) * N3 + column] =
-        -(force_plus[row] - force_minus[row]) / (2.0 * displacement);
-  }
-
-  return hessian;
-}
-
 } // namespace
 
-void NEP_Hessian_Command::parse(const char** param, int num_param)
+void NEP_Hessian_Command::parse(const std::vector<std::string>& tokens)
 {
-  if (num_param < 2 ||
-      (std::strcmp(param[1], "analytic") != 0 &&
-       std::strcmp(param[1], "fd") != 0)) {
+  const int num_param = static_cast<int>(tokens.size());
+  if (num_param < 2 || tokens[1] != "analytic") {
     PRINT_INPUT_ERROR(
-      "compute_hessian requires a method: 'analytic' or 'fd'.");
+      "compute_hessian requires the method 'analytic'. Use 'compute_phonon' "
+      "for a finite-difference Hessian.");
   }
-  mode_ = param[1];
-  const bool analytic_mode = (mode_ == "analytic");
 
   bool phonon_options = false, path_options = false;
   for (int i = 2; i + 1 < num_param; i += 2) {
-    const std::string key = param[i];
-    const std::string value = param[i + 1];
+    const std::string key = tokens[i];
+    const std::string value = tokens[i + 1];
     if (key == "phonon") {
       if (value != "none" && value != "gamma" && value != "dispersion")
         PRINT_INPUT_ERROR("phonon must be none, gamma, or dispersion.");
@@ -1056,28 +1000,16 @@ void NEP_Hessian_Command::parse(const char** param, int num_param)
     } else if (key == "structure_output") {
       structure_output_ = value;
     } else if (key == "output_format") {
-      if (!analytic_mode)
-        PRINT_INPUT_ERROR("output_format is only available for 'compute_hessian analytic'.");
       if (value != "dense" && value != "sparse")
         PRINT_INPUT_ERROR("output_format must be dense or sparse.");
       output_format_ = value;
     } else if (key == "raw_output") {
-      if (!analytic_mode)
-        PRINT_INPUT_ERROR("raw_output is only available for 'compute_hessian analytic'.");
       raw_output_ = value;
-    } else if (key == "displacement") {
-      if (analytic_mode)
-        PRINT_INPUT_ERROR("displacement is only available for 'compute_hessian fd'.");
-      if (!is_valid_real(value.c_str(), &displacement_) ||
-          !std::isfinite(displacement_) || displacement_ <= 0.0) {
-        PRINT_INPUT_ERROR("Hessian displacement must be finite and positive.");
-      }
     } else {
       PRINT_INPUT_ERROR(
         "Unknown compute_hessian parameter. Supported parameters are "
-        "output, metadata, structure_output, phonon, supercell, kpoints, and "
-        "kpoint_intervals (both modes), plus output_format and raw_output "
-        "(analytic only) and displacement (fd only).");
+        "output, metadata, structure_output, phonon, supercell, kpoints, "
+        "kpoint_intervals, output_format, and raw_output.");
     }
   }
   if (num_param % 2 != 0) {
@@ -1132,18 +1064,37 @@ void NEP_Hessian_Command::parse(const char** param, int num_param)
 }
 
 void NEP_Hessian_Command::compute(
-  Force& force, Box& box, Atom& atom, std::vector<Group>& group)
+  Force& force, Box& box, Atom& atom, std::vector<Group>& group,
+  const std::string& potential_filename)
 {
-  if (mode_ == "analytic") {
-    compute_analytic(force, box, atom, group);
-  } else {
-    compute_fd(force, box, atom, group);
-  }
+  compute_analytic(force, box, atom, group, potential_filename);
 }
 
 void NEP_Hessian_Command::compute_analytic(
-  Force& force, Box& box, Atom& atom, std::vector<Group>& group)
+  Force& force, Box& box, Atom& atom, std::vector<Group>& group,
+  const std::string& potential_filename)
 {
+  // This command is analytic only.  A configuration that enables the DFT-D3
+  // dispersion correction is rejected explicitly instead of being silently
+  // replaced by a finite-difference Hessian.
+  if (nep_hessian_run_input_has_dftd3()) {
+    PRINT_INPUT_ERROR(
+      "compute_hessian does not support the DFT-D3 dispersion correction. "
+      "Remove the 'dftd3' keyword from run.in, or use 'compute_phonon' for a "
+      "finite-difference Hessian.");
+  }
+  if (force.get_number_of_potentials() != 1) {
+    PRINT_INPUT_ERROR("compute_hessian requires exactly one potential.");
+  }
+  if (potential_filename.empty()) {
+    PRINT_INPUT_ERROR("compute_hessian could not locate the potential file.");
+  }
+
+  // Load the NEP model on our own so that the analytic Hessian does not need
+  // to touch the private state of class NEP.
+  NEP_Hessian_Model model;
+  model.initialize(potential_filename.c_str());
+
   if (output_format_ == "sparse") {
     const int sparse_atom_count = atom.number_of_atoms;
     if (sparse_atom_count <= 0 ||
@@ -1160,8 +1111,8 @@ void NEP_Hessian_Command::compute_analytic(
         PRINT_INPUT_ERROR("Sparse compute_hessian found a non-finite coordinate.");
     double potential_energy = 0.0;
     if (!compute_nep_analytic_hessian(
-          force, box, atom, position, sparse_atom_count, sparse_values,
-          analytic_force, potential_energy, nullptr, &group, &pattern)) {
+          force, model, box, atom, position, sparse_atom_count, sparse_values,
+          analytic_force, potential_energy, &group, &pattern)) {
       PRINT_INPUT_ERROR(
         "Sparse analytic Hessian is unsupported for this potential or configuration.");
     }
@@ -1223,12 +1174,11 @@ void NEP_Hessian_Command::compute_analytic(
   std::vector<double> analytic_force;
   double potential_energy = 0.0;
   if (!compute_nep_analytic_hessian(
-        force, box, atom, position, N, analytic_raw, analytic_force,
-        potential_energy, nullptr, &group)) {
+        force, model, box, atom, position, N, analytic_raw, analytic_force,
+        potential_energy, &group)) {
     PRINT_INPUT_ERROR(
       "compute_hessian analytic is not supported for this potential/model or "
-      "configuration. Use 'compute_hessian fd' for a finite-difference "
-      "Hessian.");
+      "configuration. Use 'compute_phonon' for a finite-difference Hessian.");
   }
 
   const std::vector<double> symmetrized = symmetrize(analytic_raw);
@@ -1254,7 +1204,7 @@ void NEP_Hessian_Command::compute_analytic(
   if (!metadata_output_.empty()) {
     write_metadata(
       metadata_output_, force, box, atom, analytic_raw, symmetrized,
-      "analytic", displacement_, potential_energy, analytic_force, paths);
+      "analytic", potential_energy, analytic_force, paths);
   }
 
   printf(
@@ -1263,107 +1213,3 @@ void NEP_Hessian_Command::compute_analytic(
     N, inspect_matrix(analytic_raw, N, true).asymmetry_max,
     inspect_matrix(analytic_raw, N, true).translation_max);
 }
-
-void NEP_Hessian_Command::compute_fd(
-  Force& force, Box& box, Atom& atom, std::vector<Group>& group)
-{
-  const int N = atom.number_of_atoms;
-  if (N <= 0 || N > std::numeric_limits<int>::max() / 3) {
-    PRINT_INPUT_ERROR("compute_hessian requires a valid positive system.");
-  }
-  const int N3 = 3 * N;
-  if (atom.position_per_atom.size() != static_cast<size_t>(N3)) {
-    PRINT_INPUT_ERROR("compute_hessian has inconsistent Atom positions.");
-  }
-
-  std::vector<double> position(N3);
-  atom.position_per_atom.copy_to_host(position.data());
-  for (double value : position) {
-    if (!std::isfinite(value)) {
-      PRINT_INPUT_ERROR("compute_hessian found a non-finite coordinate.");
-    }
-  }
-
-  PhononRequest request;
-  if (phonon_mode_ != "none") {
-    try {
-      request = build_phonon_request(
-        phonon_mode_, kpoints_file_, kpoint_intervals_, supercell_, force, box,
-        position, atom.cpu_mass, atom.cpu_type, group);
-    } catch (const std::exception& error) {
-      PRINT_INPUT_ERROR(error.what());
-    }
-  }
-
-  std::vector<double> baseline_force;
-  double potential_energy = 0.0;
-  std::vector<double> fd_raw;
-  try {
-    fd_raw = compute_finite_difference_hessian(
-      force, box, atom, group, position, N, displacement_, baseline_force,
-      potential_energy);
-  } catch (const std::exception& error) {
-    PRINT_INPUT_ERROR(error.what());
-  }
-
-  const MatrixDiagnostics fd_check = inspect_matrix(fd_raw, N, false);
-  if (!fd_check.finite) {
-    PRINT_INPUT_ERROR("compute_hessian fd produced a non-finite Hessian.");
-  }
-
-  const std::vector<double> symmetrized = symmetrize(fd_raw);
-  if (phonon_mode_ != "none") {
-    try {
-      write_phonons(
-        symmetrized, position, atom.cpu_mass, request.cell, supercell_,
-        request.path);
-    } catch (const std::exception& error) {
-      PRINT_INPUT_ERROR(error.what());
-    }
-  }
-  write_matrix(output_, symmetrized, N, "finite_difference_symmetrized");
-  if (!structure_output_.empty())
-    write_structure_snapshot(
-      structure_output_, force, box, atom, position, baseline_force);
-
-  OutputPaths paths;
-  paths.matrix = output_;
-  if (!metadata_output_.empty()) {
-    write_metadata(
-      metadata_output_, force, box, atom, fd_raw, symmetrized, "fd",
-      displacement_, potential_energy, baseline_force, paths);
-  }
-
-  printf(
-    "Hessian command: method=fd N=%d displacement=%.17g "
-    "raw_asymmetry_max=%.12g raw_translation_max=%.12g.\n",
-    N, displacement_, inspect_matrix(fd_raw, N, true).asymmetry_max,
-    inspect_matrix(fd_raw, N, true).translation_max);
-}
-
-// Register the compute_hessian keyword with the dispatcher so this module
-// adds the keyword without modifying src/main_gpumd/run.cu's chain.
-#include "main_gpumd/keyword_dispatcher.cuh"
-#include "main_gpumd/run.cuh"
-
-namespace {
-void nep_hessian_keyword_handler(
-  const std::vector<std::string>& tokens,
-  const keyword_dispatcher::Context& ctx)
-{
-  NEP_Hessian_Command hessian;
-  std::vector<const char*> params;
-  params.reserve(tokens.size());
-  for (const auto& token : tokens) params.push_back(token.c_str());
-  hessian.parse(params.data(), static_cast<int>(params.size()));
-  hessian.compute(ctx.force, ctx.box, ctx.atom, ctx.group);
-}
-
-struct AutoRegister {
-  AutoRegister() {
-    keyword_dispatcher::register_handler("compute_hessian",
-                                         &nep_hessian_keyword_handler);
-  }
-};
-const AutoRegister nep_hessian_auto_register;
-} // namespace
