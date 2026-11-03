@@ -35,7 +35,6 @@ public:
   float lambda_1;         // weight parameter for L1 regularization loss
   float lambda_2;         // weight parameter for L2 regularization loss
   int prediction; // 0=no, 1=yes
-  float initial_para;
   float sigma0;
   bool is_prediction_set;
   bool is_lambda_1_set;
@@ -58,6 +57,5 @@ private:
   void parse_generation(const char** param, int num_param);
   void parse_save_potential(const char** param, int num_param);
   void parse_output_interval(const char** param, int num_param);
-  void parse_initial_para(const char** param, int num_param);
   void parse_sigma0(const char** param, int num_param);
 };

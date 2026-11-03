@@ -16,7 +16,6 @@
 #pragma once
 
 #include "ensemble.cuh"
-#include "spin_integrator.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include <memory>
@@ -51,21 +50,8 @@ private:
   // PIMD
   int number_of_beads;
 
-private:
-  std::unique_ptr<Spin_Integrator> spin_integrator;
-  void parse_spin_ensemble(const std::vector<std::string>&, const Atom&, const Box&, const std::vector<Group>&);
-  double temperature_coupling = 100.0;
-  std::vector<double> spin_mass_factor_by_type;
-  int spin_seed = 12345;
-  bool has_spin_nhc_driver() const;
-  bool has_spin_mttk_driver() const;
-  double spin_protocol_fraction(int step, int number_of_steps) const;
 public:
-  bool use_spin_tspin = false, spin_lattice_enabled = true;
   bool has_ensemble() const;
-  void restore_spin_time(const Atom& atom, double& global_time) const;
-  std::string spin_mttk_restart_state() const;
-  std::string spin_nhc_restart_state() const;
   EnsembleType get_type() const;
   int get_fixed_group() const;
   int get_move_group() const;
@@ -107,6 +93,9 @@ public:
     Atom& atom,
     Box& box,
     const std::vector<Group>& group);
+
+  void initialize(double, Atom&, Box&, const std::vector<Group>&, double& global_time);
+  void write_restart(FILE*, const Atom&, double global_time) const;
 
   void finalize(const Atom& atom, const Box& box);
 

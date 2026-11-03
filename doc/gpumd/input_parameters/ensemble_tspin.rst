@@ -110,21 +110,14 @@ Parameters
   absent. The default is ``12345``. The seed is ignored when initialized spin
   velocities are supplied.
 
-Spin integration and ``spin_dof_type``
---------------------------------------
+Spin degrees of freedom
+-----------------------
 
-TSPIN integrates every ``spin:R:3`` coordinate in ``model.xyz`` and includes
-all of them in the spin thermostat degrees of freedom. It consumes the public
-``mforce:R:3`` returned by the potential, but it does not read
-``spin_dof_type``.
-
-``spin_dof_type`` is a Spin-potential response mask. For an excluded atom
-type, the potential returns zero public magnetic force. This does not freeze
-the spin, clear its spin velocity, or remove it from TSPIN. With zero magnetic
-force, that coordinate can still move because of its current spin velocity
-and the spin thermostat. Fixing selected spin coordinates therefore requires
-an explicit integration constraint; ``spin_dof_type`` must not be used for
-that purpose.
+Only elements listed in the model's ``spin_type`` have spin degrees of freedom.
+Other elements contribute to the geometric environment, but their effective
+moments and spin velocities are zero and they are excluded from the spin
+thermostat. ``mass_factor <element> 0`` additionally freezes a magnetic
+coordinate and excludes it from the thermostat.
 
 State initialization and restart
 --------------------------------

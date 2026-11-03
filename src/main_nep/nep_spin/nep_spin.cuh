@@ -14,19 +14,22 @@
 */
 
 #pragma once
-#include "main_nep/dataset.cuh"
-#include "main_nep/potential.cuh"
+#include "main_nep/common/energy_difference.cuh"
+#include "main_nep/common/nep_batch_data.cuh"
+#include "main_nep/common/nep_common.cuh"
+#include "main_nep/common/nep_compile.cuh"
+#include "main_nep/common/nep_energy_reader.cuh"
+#include "main_nep/common/nep_evaluate.cuh"
 #include "main_nep/common/nep_parameters.cuh"
 #include "main_nep/common/nep_training.cuh"
-#include "main_nep/common/nep_batch_data.cuh"
-#include "main_nep/common/energy_difference.cuh"
-#include "main_nep/common/nep_compile.cuh"
-#include "main_nep/common/nep_evaluate.cuh"
-#include "main_nep/common/nep_common.cuh"
+#include "main_nep/dataset.cuh"
+#include "main_nep/potential.cuh"
 #include <memory>
+#include <set>
 
 #include "spin_data.cuh"
-class NEP_Spin_Model : public Potential {
+class NEP_Spin_Model : public Potential
+{
 public:
   explicit NEP_Spin_Model(const ParameterInput&);
   int prepare_data() override;
@@ -80,6 +83,52 @@ public:
   };
 
 private:
+  class ResponseLoss
+  {
+  public:
+    void append(int device_id, Dataset& dataset, Spin_Data& spin_data);
+    float value() const;
+
+  private:
+    struct Point {
+      std::string group;
+      double coordinate;
+      double prediction;
+      double target;
+    };
+    std::vector<Point> points_;
+  };
+
+  class Spin_Reader : public NEP_Energy_Reader
+  {
+  public:
+    Spin_Reader(Spin_Parameters& p, EnergyDifference& e, NEP_Batch_Data<Spin_Data>& d)
+      : NEP_Energy_Reader(p, e), parameters(p), data(d)
+    {
+    }
+    void read_response(std::vector<Structure>&, std::vector<Spin_Data::Labels>&);
+
+  private:
+    void prepare_train(std::vector<Structure>&, int, int&, std::vector<int>&) override;
+    void prepare_test(const std::vector<Structure>&, bool) override;
+    void prepare_dataset(Dataset&) override;
+    const char* energy_difference_conflict(const Structure&, const Structure&) const override;
+    void begin_reading() override { labels.clear(); }
+    void read_structure(const XYZ_Record&, Structure&) override;
+    struct Frame {
+      const Structure& geometry;
+      Spin_Data::Labels& label;
+    };
+    void derive_spin_response_tangents(std::vector<Frame>&);
+    Spin_Parameters& parameters;
+    NEP_Batch_Data<Spin_Data>& data;
+    std::vector<Spin_Data::Labels> labels;
+    std::set<std::string> train_groups, test_groups, test_frames;
+  };
+
+  void write_spin_model(FILE*, const float*, int max_radial, int max_angular);
+  void finalize_q_scaler();
+  void initialize_search(std::mt19937&, std::vector<float>&, std::vector<float>&) const;
   std::unique_ptr<Spin_Parameters> model_parameters;
   std::unique_ptr<NEP_Training> training;
   NEP_Batch_Data<Spin_Data> magnetic_data;
@@ -94,6 +143,55 @@ private:
   NEP_Data nep_data[16];
   NEP_ZBL zbl;
   std::unique_ptr<NEP_Compiled_Evaluation> compiled_kernel_;
+  std::unique_ptr<NEP_Compile> compiled_spin_;
+  using SpinDescriptorFunction = void (*)(
+    Spin_Polynomial_Layout layout,
+    int atom_count,
+    int struct_dim,
+    int num_types,
+    int spin_basis_size,
+    float spin_cutoff,
+    const float* spin_cutoff_pair,
+    const int* type,
+    const int* spin_type_active,
+    const double* position,
+    const double* spin,
+    const int* NN_spin,
+    const int* NL_spin,
+    const double* r12_spin,
+    int r12_plane_size,
+    const float* descriptor_coefficients,
+    int spin_coefficient_offset,
+    const float* projection,
+    float* moments,
+    float* descriptors);
+  SpinDescriptorFunction spin_descriptor_jit_ = nullptr;
+  using SpinForceFunction = void (*)(
+    Spin_Polynomial_Layout layout,
+    int atom_count,
+    int struct_dim,
+    int num_types,
+    int spin_basis_size,
+    float spin_cutoff,
+    const float* spin_cutoff_pair,
+    const int* type,
+    const int* spin_type_active,
+    const double* position,
+    const double* spin,
+    const int* NN_spin,
+    const int* NL_spin,
+    const double* r12_spin,
+    int r12_plane_size,
+    const float* Fp,
+    const float* descriptor_coefficients,
+    int spin_coefficient_offset,
+    const float* projection,
+    const float* moments,
+    double* force,
+    double* mforce,
+    double* virial);
+  SpinForceFunction spin_force_jit_ = nullptr;
+  void initialize_spin_compiled(const Spin_Parameters&);
   void initialize(Spin_Parameters&, int, int);
   void initialize_model(const Spin_Parameters&);
   void initialize_device(const Spin_Parameters&, int, int);
@@ -107,8 +205,7 @@ private:
   float response_loss(int);
   void write_magnetic_predictions(const char*, const std::vector<std::pair<Dataset*, int>>&);
   struct Spin_Workspace {
-    GPU_Vector<int> spin_dof_type_active;
-    GPU_Vector<int> spin_env_type_active;
+    GPU_Vector<int> spin_type_active;
     GPU_Vector<float> spin_cutoff_pair;
     GPU_Vector<float> spin3_moments;
     GPU_Vector<double> force;

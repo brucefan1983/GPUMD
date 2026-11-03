@@ -11,6 +11,8 @@ src/*/*/*.o
 src/gpumd*
 src/nep*
 src/gnep*
+src/tb
+src/tb.exe
 
 .history
 .vscode
@@ -25,6 +27,8 @@ public.*
 /*build*/
 /gpumd*
 /gnep
+/tb
+/tb.exe
 
 __pycache__/
 */__pycache__/

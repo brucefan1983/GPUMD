@@ -22,7 +22,6 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 #include "neighbor.cuh"
 #include "nep.cuh"
-#include "nep_kernels.cuh"
 #include "nep_small_box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/compact_nep.cuh"
@@ -129,6 +128,9 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
     zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
     zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
     if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
+      if (paramb.model_type != 0) {
+        PRINT_INPUT_ERROR("Flexible ZBL is only supported for model nep.");
+      }
       zbl.flexible = true;
       printf("    has the flexible ZBL potential\n");
     } else {
@@ -542,7 +544,7 @@ static __global__ void find_descriptor(
   }
 }
 
-__global__ void find_force_radial(
+static __global__ void find_force_radial(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
   const int N,
@@ -648,7 +650,7 @@ __global__ void find_force_radial(
   }
 }
 
-__global__ void find_partial_force_angular(
+static __global__ void find_partial_force_angular(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
   const int N,

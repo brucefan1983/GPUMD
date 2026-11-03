@@ -1,12 +1,9 @@
 """Frozen Spin model/oracle loaders; independent of runtime and integrators."""
 import hashlib
+import math
 from pathlib import Path
 
 FIXTURE = Path(__file__).parent / "fixtures" / "nep_spin3"
-
-def selective_type_model():
-    """Return the production C=2 fixture with Fe DOFs and Fe/Ge environments."""
-    return (FIXTURE / "nep4_spin3_o3c2_uniform.nep").read_text()
 
 def write_xyz(path, case):
     lattice = " ".join(f"{value:.17g}" for value in case["cell"])
@@ -60,6 +57,8 @@ def read_text_oracle(path, model):
                 raise ValueError(f"{path}: data outside a case: {fields[0]}")
             count = int(fields[1])
             values = [float(value) for value in fields[2:]]
+            if not all(math.isfinite(value) for value in values):
+                raise ValueError(f"{path}: nonfinite {fields[0]} reference")
             if len(values) != count:
                 raise ValueError(
                     f"{path}: {fields[0]} count mismatch: {len(values)} != {count}")
@@ -80,9 +79,9 @@ def read_text_oracle(path, model):
 
 def load_fixture(name):
     fixtures = {
-        "o3c2_uniform": ("nep4_spin3_o3c2_uniform.nep", "spin3_o3c2_uniform_oracle.txt"),
-        "o3c2_typewise": ("nep4_spin3_o3c2_uniform.nep", "spin3_o3c2_typewise_oracle.txt"),
-        "o3c3_uniform": ("nep4_spin3_o3c3_uniform.nep", "spin3_o3c3_uniform_oracle.txt"),
+        "o3c2_uniform": ("nep_spin_o3c2_uniform.nep", "spin3_o3c2_uniform_oracle.txt"),
+        "o3c2_typewise": ("nep_spin_o3c2_uniform.nep", "spin3_o3c2_typewise_oracle.txt"),
+        "o3c3_uniform": ("nep_spin_o3c3_uniform.nep", "spin3_o3c3_uniform_oracle.txt"),
     }
     if name not in fixtures:
         raise ValueError(f"unknown fixture: {name}")
