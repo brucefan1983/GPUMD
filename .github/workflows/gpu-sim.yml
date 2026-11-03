@@ -1,0 +1,58 @@
+name: GPU tests (simulated)
+
+# Optional, non-required check. The runners have no GPU, so this runs the pytest
+# suite on a simulated NVIDIA A100 (https://github.com/pantheongpu/pantheonsim).
+# A simulator cannot reproduce hardware-specific behaviour or timing, so it
+# complements real-GPU testing and does not replace it. The job takes about
+# 50 minutes, so it only runs when started by hand (Actions > Run workflow).
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gpu-tests:
+    name: pytest on a simulated A100
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up the simulated GPU and CUDA toolkit
+        uses: pantheongpu/setup-pantheonsim@dda0c8df8d72627c295edbae525354ba2bcb1687 # v0.1.4
+        with:
+          gpu: nvidia/a100
+          # The makefile builds with -std=c++14, which CUDA 13 headers (C++17) reject.
+          cuda-toolkit: "12.6"
+
+      # The simulator JIT-compiles PTX and does not run SASS, so build for the
+      # virtual architecture compute_80, and link the shared CUDA runtime.
+      - name: Build gpumd and nep
+        working-directory: src
+        run: |
+          make -j2 gpumd nep \
+            CUDA_ARCH="-gencode arch=compute_80,code=compute_80 -cudart shared" \
+            LDFLAGS="-cudart shared"
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install ase calorine numpy pytest hypothesis
+
+      - name: Test
+        working-directory: tests_pytest
+        run: |
+          source "$RUNNER_TEMP/venv/bin/activate"
+          # Excluded: the charge-model (qNEP) tests, whose long-range kernels
+          # use 88-96 registers x 1024 threads (> 65,536 registers per block,
+          # which the simulator rejects), and three tests that take 2-9 minutes each.
+          vgpu run --preload pytest -m fast -q -rfE --durations=15 \
+            -k 'not qnep and not charge_mode and not different_boundaries and not compute_elastic and not compute_cohesive and not combination_of_large_structures'
