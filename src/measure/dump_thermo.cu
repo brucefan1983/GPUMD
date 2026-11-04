@@ -119,6 +119,13 @@ void Dump_Thermo::pre_run(
   }
 }
 
+void Dump_Thermo::rerun_frame(GPU_Vector<double>& gpu_thermo, const int n_atoms, const Box& box)
+{
+  // The snapshot is evaluated using its actual velocity and current forces.
+  // This is independent from an MD thermostat or target temperature.
+  write_thermo_row(fid_, gpu_thermo, false, 0.0, n_atoms, box);
+}
+
 void Dump_Thermo::end_of_step(
   const int number_of_steps,
   int step,
