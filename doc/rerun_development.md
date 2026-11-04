@@ -9,22 +9,27 @@ of coordinates instead of calling the MD integrator. Existing measurement
 actions handle all outputs. No dedicated `rerun_energy.dat` or `output`
 keyword is produced/supported.
 
-## Structural PLUMED analysis without a potential
+## PLUMED structural analysis (potential required)
 
 ```text
+potential nep.txt
 time_step 1
 plumed plumed.dat 1 0
 rerun trajectory.xyz first 0 last 100000 every 1000
 ```
 
-This reuses the existing `plumed <input> <interval> <restart>` syntax,
-initialization and `PLUMED::calculate()`; it does not require an `ensemble`
-or NEP. Its `COLVAR`, etc. outputs are controlled by `plumed.dat`.
+A valid `potential` command is mandatory for **all** `rerun` invocations,
+including analysis-only PLUMED workflows. The potential must be loaded **before**
+`rerun`. Every selected snapshot gets a fresh physical force, potential
+energy and virial evaluation with `force.compute(box, atom, group)`.
+There is no MD integration and no `ensemble` requirement.
 
-Only structure-analysis CVs are intended. PLUMED uses zero kBT as a replay
-initialization placeholder; **do not use biasing or kBT-dependent PLUMED actions
-in this mode**. Unlike a normal MD run, replay does not write PLUMED bias
-forces/virials back into the GPU state.
+This preserves existing `plumed <input> <interval> <restart>` syntax,
+initialization and `PLUMED::calculate()`. PLUMED structure-based CVs are
+evaluated on trajectory positions, and its COLVAR output remains controlled
+by `plumed.dat`. PLUMED does not write its bias forces back into GPUMD during
+replay, but temperature-dependent/biasing actions should not be used with
+the analysis-only zero-kBT initialization.
 
 ## Recalculate potential-dependent properties
 
@@ -57,7 +62,7 @@ Without velocities, the command errors rather than outputting synthetic
 temperature or kinetic energy. Other output actions requiring velocities also
 error if `vel:R:3` is absent.
 
-When force evaluation is performed without velocities, XYZ still supports
+When trajectory velocities are absent, XYZ still supports
 the potential energy and per-atom virial fields, but temperature and
 velocity-dependent stress header fields are reported as NaN rather than using
 synthetic velocities.
@@ -67,7 +72,7 @@ synthetic velocities.
 `rerun` is not required to be the last `run.in` command. It restores
 positions, velocities, simulation box, image flags, unwrapped positions,
 force/potential/virial arrays, and thermo state before the next run/replay.
-The usual `run` still requires a potential and an ensemble.
+Both `run` and `rerun` require a loaded potential; only `run` requires an ensemble.
 
 Supported selection keywords:
 - `first N`: minimum timestep, default 0
@@ -97,8 +102,9 @@ per-frame velocity. Without atom IDs, XYZ line order must match `model.xyz`.
   not implemented.
 - PLUMED `setStep` and existing GPUMD Measure interfaces use signed integer
   step numbers; large timesteps above INT_MAX are rejected.
-- Existing system initialization still requires `model.xyz` to define
-  atom types, masses and grouping before replay.
+- Initialization requires `model.xyz` and a valid potential to define
+  the atom types, masses and grouping before replay.
+- `potential` is mandatory and must appear before the `rerun` command.
 - CUDA, actual GPUMD + PLUMED, and numerical consistency checks remain
   unverified.
 
