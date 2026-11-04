@@ -174,7 +174,7 @@ void PLUMED::rerun_frame(const long long timestep, Box& box, Atom& atom)
   }
   if (timestep % interval != 0) return;
   step = static_cast<int>(timestep);
-  calculate(step, box, atom);
+  calculate(step, box, atom, false);
 }
 
 void PLUMED::post_rerun()
@@ -185,7 +185,7 @@ void PLUMED::post_rerun()
   }
 }
 
-void PLUMED::calculate(int plumed_step, Box& box, Atom& atom)
+void PLUMED::calculate(int plumed_step, Box& box, Atom& atom, bool apply_bias)
 {
   atom.force_per_atom.copy_to_host(cpu_f_vector.data());
   atom.position_per_atom.copy_to_host(cpu_q_vector.data());
@@ -218,6 +218,7 @@ void PLUMED::calculate(int plumed_step, Box& box, Atom& atom)
   plumed_cmd(plumed_main, "performCalc", NULL);
   plumed_cmd(plumed_main, "getBias", &bias_energy);
 
+  if (apply_bias) {
   atom.force_per_atom.copy_from_host(cpu_f_vector.data());
 
   // PLUMED and GPUMD use opposite virial sign conventions. Distribute the
@@ -245,6 +246,8 @@ void PLUMED::calculate(int plumed_step, Box& box, Atom& atom)
     atom.virial_per_atom.data() + n_atom * 7,
     atom.virial_per_atom.data() + n_atom * 8);
   GPU_CHECK_KERNEL
+  }
+
 }
 
 void PLUMED::setup_force(
