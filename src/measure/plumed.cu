@@ -20,6 +20,7 @@ Interface to the PLUMED plugin: https://www.plumed.org
 #ifdef USE_PLUMED
 
 #include "plumed.cuh"
+#include <limits>
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -150,6 +151,38 @@ void PLUMED::init(const double ts, const double T)
   plumed_cmd(plumed_main, "setRestart", &restart);
   plumed_cmd(plumed_main, "setNatoms", &n_atom);
   plumed_cmd(plumed_main, "init", NULL);
+}
+
+void PLUMED::pre_rerun(const double ts, Atom& atom)
+{
+  n_atom = atom.number_of_atoms;
+  cpu_b_vector.resize(9);
+  cpu_v_vector.resize(9);
+  cpu_m_vector.resize(3 * n_atom);
+  cpu_f_vector.resize(3 * n_atom);
+  cpu_q_vector.resize(3 * n_atom);
+  memcpy(cpu_m_vector.data(), atom.cpu_mass.data(), n_atom * sizeof(double));
+  // Structural CVs do not depend on kBT. Bias/temperature-dependent methods
+  // must not be used with this analysis-only initialization.
+  init(ts, 0.0);
+}
+
+void PLUMED::rerun_frame(const long long timestep, Box& box, Atom& atom)
+{
+  if (timestep < 0 || timestep > std::numeric_limits<int>::max()) {
+    PRINT_INPUT_ERROR("PLUMED rerun timestep exceeds supported integer range.");
+  }
+  if (timestep % interval != 0) return;
+  step = static_cast<int>(timestep);
+  calculate(step, box, atom);
+}
+
+void PLUMED::post_rerun()
+{
+  if (use_plumed == 1) {
+    use_plumed = 0;
+    plumed_finalize(plumed_main);
+  }
 }
 
 void PLUMED::calculate(int plumed_step, Box& box, Atom& atom)
