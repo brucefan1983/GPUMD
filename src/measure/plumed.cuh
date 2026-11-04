@@ -105,7 +105,7 @@ protected:
   std::vector<double> cpu_v_vector; // PLUMED virial (CPU)
   plumed plumed_main;
 
-  void calculate(int plumed_step, Box& box, Atom& atom);
+  void calculate(int plumed_step, Box& box, Atom& atom, bool apply_bias = true);
 };
 
 #endif
