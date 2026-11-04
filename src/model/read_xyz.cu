@@ -517,8 +517,10 @@ void initialize_position(
   // Rerun can analyze existing coordinates without evaluating a potential.
   // If one is provided, retain the original NEP species ordering.
   std::vector<std::string> atom_symbols;
-  auto filename_potential = get_first_potential_filename(run_input);
-  if (!filename_potential.empty()) {
+  const bool has_potential = !get_first_potential_filename(run_input).empty();
+  // Preserve the original model.xyz species behavior for normal multi-potential runs.
+  auto filename_potential = has_potential ? get_filename_potential(run_input) : std::string();
+  if (has_potential) {
     atom_symbols = get_atom_symbols(filename_potential);
   }
 
