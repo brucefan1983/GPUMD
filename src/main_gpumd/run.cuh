@@ -51,11 +51,14 @@ private:
     const std::vector<std::string>& tokens, const std::vector<Group>& group);
   void parse_time_step(const std::vector<std::string>& tokens);
   void parse_run(const std::vector<std::string>& tokens);
+  void parse_rerun(const std::vector<std::string>& tokens);
 
   int number_of_types; // number of atom types
   int has_velocity_in_xyz = 0;
   bool has_seen_dftd3_command = false;
   bool has_seen_kspace_command = false;
+  bool has_potential_for_rerun_ = false;
+  bool has_completed_rerun_ = false;
   bool has_replicate_ = false;
   int replicate_size_[3] = {1, 1, 1};
   std::string first_potential_filename_;
