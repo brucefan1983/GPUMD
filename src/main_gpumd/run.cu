@@ -308,10 +308,6 @@ void Run::parse_one_keyword(
   if (tokens[0] == "replicate") {
     PRINT_INPUT_ERROR("replicate must be the first effective command.");
   }
-  if (has_completed_rerun_) {
-    PRINT_INPUT_ERROR("rerun must be the final command in run.in.");
-  }
-
   const int num_param = tokens.size();
   const int max_num_param = 32;
   if (num_param > max_num_param)
@@ -377,7 +373,6 @@ void Run::parse_one_keyword(
     parse_run(tokens);
   } else if (tokens[0] == "rerun") {
     parse_rerun(tokens);
-    has_completed_rerun_ = true;
   } else if (!measure.parse_action(
                tokens,
                number_of_types,
@@ -394,112 +389,140 @@ void Run::parse_one_keyword(
 
 void Run::parse_rerun(const std::vector<std::string>& tokens)
 {
-  // First implementation: force/energy evaluation on GPUMD Extended XYZ frames.
-  // This execution path intentionally does not call any integrator.
-  if (!has_potential_for_rerun_) {
-    PRINT_INPUT_ERROR("rerun currently requires a preceding potential command.");
-  }
+  // A rerun is a stream of independent snapshots, not a simulation step.
+  // No integrate.compute1/compute2() or measure dynamics callbacks are used.
   if (integrate.has_ensemble()) {
     PRINT_INPUT_ERROR("rerun does not accept an active ensemble.");
   }
   if (measure.has_actions()) {
-    PRINT_INPUT_ERROR("rerun v1 does not support analysis actions yet (including PLUMED).");
+    PRINT_INPUT_ERROR("rerun analysis actions (including PLUMED) are not supported yet.");
   }
   if (tokens.size() < 2) {
-    PRINT_INPUT_ERROR("rerun syntax: rerun trajectory.xyz [first N] [last N] [every N] [skip N]");
+    PRINT_INPUT_ERROR(
+      "rerun syntax: rerun trajectory.xyz [first N] [last N] [every N] [skip N] [output file]");
   }
 
-  long long first = 0;
-  long long last = std::numeric_limits<long long>::max();
-  long long every = 0;
-  long long skip = 1;
+  gpumd_rerun::Selection selection;
+  std::string output_name = has_potential_for_rerun_ ? "rerun_energy.dat" : "rerun_frames.dat";
   for (size_t i = 2; i < tokens.size(); i += 2) {
     if (i + 1 >= tokens.size()) {
       PRINT_INPUT_ERROR("rerun requires a value after each keyword.");
     }
+    if (tokens[i] == "output") {
+      if (tokens[i + 1].empty()) PRINT_INPUT_ERROR("rerun output filename must not be empty.");
+      output_name = tokens[i + 1];
+      continue;
+    }
+
     long long value = 0;
     try {
       size_t used = 0;
       value = std::stoll(tokens[i + 1], &used);
       if (used != tokens[i + 1].size()) {
-        PRINT_INPUT_ERROR("rerun expects an integer keyword value.");
+        throw std::invalid_argument("trailing characters");
       }
     } catch (const std::exception&) {
-      PRINT_INPUT_ERROR("rerun expects an integer keyword value.");
+      PRINT_INPUT_ERROR("rerun first/last/every/skip require integer values.");
     }
-    if (tokens[i] == "first") {
-      first = value;
-    } else if (tokens[i] == "last") {
-      last = value;
-    } else if (tokens[i] == "every") {
-      every = value;
-    } else if (tokens[i] == "skip") {
-      skip = value;
-    } else {
-      PRINT_INPUT_ERROR("unsupported rerun keyword (supported: first last every skip).");
-    }
+
+    if (tokens[i] == "first") selection.first = value;
+    else if (tokens[i] == "last") selection.last = value;
+    else if (tokens[i] == "every") selection.every = value;
+    else if (tokens[i] == "skip") selection.skip = value;
+    else PRINT_INPUT_ERROR("unsupported rerun keyword.");
   }
-  if (first > last || every < 0 || skip <= 0) {
+  if (selection.first < 0 || selection.last < selection.first ||
+      selection.every < 0 || selection.skip <= 0) {
     PRINT_INPUT_ERROR("invalid rerun first/last/every/skip arguments.");
   }
+  if (output_name == tokens[1]) {
+    PRINT_INPUT_ERROR("rerun output file must differ from the input trajectory.");
+  }
 
-  // Rerun uses GPUMD dump_xyz Time (fs), converting it back to a MD step with
-  // the time_step from run.in. It does not equate frame index to MD step.
   const double dt_fs = time_step * TIME_UNIT_CONVERSION;
-  gpumd_rerun::Reader reader(tokens[1]);
-  gpumd_rerun::Frame frame;
-  std::ofstream output("rerun_energy.dat");
-  if (!output) PRINT_INPUT_ERROR("cannot create rerun_energy.dat.");
-  output.precision(17);
-  output << "# timestep time_fs potential_energy_eV\n";
+  // Snapshot the actual GPU configuration (which may differ from model.xyz if
+  // previous 'run' commands have executed). Restore it after rerun, so further
+  // run/rerun commands do not accidentally start from the last replayed frame.
+  const Box original_box = box;
+  const int N = atom.number_of_atoms;
+  std::vector<double> original_positions(3 * N);
+  atom.position_per_atom.copy_to_host(original_positions.data());
 
-  long long seen = 0;
-  long long selected = 0;
+  std::vector<int> original_images(atom.position_image.size());
+  if (!original_images.empty())
+    atom.position_image.copy_to_host(original_images.data());
+
+  std::vector<double> original_forces(atom.force_per_atom.size());
+  std::vector<double> original_potential(atom.potential_per_atom.size());
+  std::vector<double> original_virial(atom.virial_per_atom.size());
+  if (!original_forces.empty()) atom.force_per_atom.copy_to_host(original_forces.data());
+  if (!original_potential.empty()) atom.potential_per_atom.copy_to_host(original_potential.data());
+  if (!original_virial.empty()) atom.virial_per_atom.copy_to_host(original_virial.data());
+
+  long long processed = 0;
   long long previous_step = std::numeric_limits<long long>::min();
-  std::vector<double> per_atom_energy(atom.number_of_atoms);
-  try {
-    while (reader.next(frame)) {
-      const long long step = gpumd_rerun::time_to_step(frame.time_fs, dt_fs);
-      if (step <= previous_step) {
-        throw std::runtime_error("rerun requires strictly increasing timesteps");
-      }
-      previous_step = step;
-      if (step < first || step > last) continue;
-      if (every > 0 && step % every != 0) continue;
-      if (seen++ % skip != 0) continue;
+  std::vector<double> per_atom_energy(N);
 
-      if (frame.species.size() != static_cast<size_t>(atom.number_of_atoms)) {
+  try {
+    gpumd_rerun::Reader reader(tokens[1]);
+    gpumd_rerun::Frame frame;
+    std::ofstream output(output_name);
+    if (!output) throw std::runtime_error("cannot create " + output_name);
+    output.precision(17);
+    output << "# timestep time_fs";
+    if (has_potential_for_rerun_) output << " potential_energy_eV";
+    output << "\n";
+
+    while (reader.next(frame)) {
+      const long long step = gpumd_rerun::frame_step(frame, dt_fs);
+      if (step <= previous_step)
+        throw std::runtime_error("rerun requires strictly increasing timesteps");
+      previous_step = step;
+      if (!selection.accepts(step)) continue;
+
+      if (frame.species.size() != static_cast<size_t>(N))
         throw std::runtime_error("rerun atom count differs from model.xyz");
-      }
-      for (int i = 0; i < atom.number_of_atoms; ++i) {
-        if (frame.species[i] != atom.cpu_atom_symbol[i]) {
+      for (int i = 0; i < N; ++i) {
+        if (frame.species[i] != atom.cpu_atom_symbol[i])
           throw std::runtime_error("rerun atom symbols/order differ from model.xyz");
-        }
       }
+
       for (int i = 0; i < 9; ++i) box.cpu_h[i] = frame.lattice[i];
       box.pbc_x = frame.pbc[0];
       box.pbc_y = frame.pbc[1];
       box.pbc_z = frame.pbc[2];
-      if (!(box.get_volume() > 1.0e-12)) {
+      if (!(box.get_volume() > 1.0e-12))
         throw std::runtime_error("rerun invalid simulation cell");
-      }
       box.get_inverse();
       box.set_is_orthogonal();
       atom.position_per_atom.copy_from_host(frame.positions.data());
 
-      // Exactly one energy/force evaluation. No velocity or position integration.
-      compute_force();
-      atom.potential_per_atom.copy_to_host(per_atom_energy.data());
-      const double energy = std::accumulate(per_atom_energy.begin(), per_atom_energy.end(), 0.0);
-      output << step << " " << frame.time_fs << " " << energy << "\n";
-      ++selected;
+      output << step << " " << frame.time_fs;
+      if (has_potential_for_rerun_) {
+        compute_force(); // Force evaluation only; no integration.
+        atom.potential_per_atom.copy_to_host(per_atom_energy.data());
+        const double energy =
+          std::accumulate(per_atom_energy.begin(), per_atom_energy.end(), 0.0);
+        output << " " << energy;
+      }
+      output << "\n";
+      ++processed;
     }
   } catch (const std::exception& error) {
     fprintf(stderr, "rerun failed: %s\n", error.what());
     exit(EXIT_FAILURE);
   }
-  printf("Rerun processed %lld frames without integration.\n", selected);
-  force.finalize();
+
+  // Restore state rather than finalize the force object. Finalizing here could
+  // affect subsequent regular MD and repeat rerun commands in the same run.in.
+  box = original_box;
+  atom.position_per_atom.copy_from_host(original_positions.data());
+  if (!original_images.empty()) atom.position_image.copy_from_host(original_images.data());
+  if (!original_forces.empty()) atom.force_per_atom.copy_from_host(original_forces.data());
+  if (!original_potential.empty()) atom.potential_per_atom.copy_from_host(original_potential.data());
+  if (!original_virial.empty()) atom.virial_per_atom.copy_from_host(original_virial.data());
+
+  printf("Rerun processed %lld frames without integration.\n", processed);
 }
 
 void Run::parse_velocity(const std::vector<std::string>& tokens)
@@ -618,6 +641,9 @@ void Run::parse_run(const std::vector<std::string>& tokens)
   }
   if (!integrate.has_ensemble()) {
     PRINT_INPUT_ERROR("An ensemble must be specified before each run.");
+  }
+  if (!has_potential_for_rerun_) {
+    PRINT_INPUT_ERROR("A potential must be specified before an MD run.");
   }
   printf("Run %d steps.\n", number_of_steps);
 
