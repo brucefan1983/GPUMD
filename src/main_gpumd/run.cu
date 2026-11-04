@@ -402,6 +402,9 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   if (integrate.has_ensemble()) {
     PRINT_INPUT_ERROR("rerun does not accept an active ensemble.");
   }
+  if (measure.has_actions()) {
+    PRINT_INPUT_ERROR("rerun v1 does not support analysis actions yet (including PLUMED).");
+  }
   if (tokens.size() < 2) {
     PRINT_INPUT_ERROR("rerun syntax: rerun trajectory.xyz [first N] [last N] [every N] [skip N]");
   }
@@ -448,7 +451,7 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   std::ofstream output("rerun_energy.dat");
   if (!output) PRINT_INPUT_ERROR("cannot create rerun_energy.dat.");
   output.precision(17);
-  output << "# timestep time_fs potential_energy_eV\\n";
+  output << "# timestep time_fs potential_energy_eV\n";
 
   long long seen = 0;
   long long selected = 0;
@@ -488,7 +491,7 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
       compute_force();
       atom.potential_per_atom.copy_to_host(per_atom_energy.data());
       const double energy = std::accumulate(per_atom_energy.begin(), per_atom_energy.end(), 0.0);
-      output << step << " " << frame.time_fs << " " << energy << "\\n";
+      output << step << " " << frame.time_fs << " " << energy << "\n";
       ++selected;
     }
   } catch (const std::exception& error) {
