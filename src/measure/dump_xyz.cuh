@@ -33,6 +33,11 @@ public:
     Atom& atom,
     bool is_nep_charge);
   void parse(const std::vector<std::string>& tokens, const std::vector<Group>& groups);
+  // Replay checks reuse the existing XYZ output implementation.
+  void validate_rerun(bool has_potential) const;
+  bool rerun_requires_velocity() const;
+  bool rerun_overwrites_input(const std::string& path) const;
+
   virtual void pre_run(
     const int number_of_steps,
     const double time_step,
