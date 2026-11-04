@@ -35,6 +35,12 @@ public:
   
   void parse(const std::vector<std::string>& tokens);
   void init(const double ts, const double T);
+  // Reuse the existing PLUMED engine without requiring an MD ensemble.
+  // Rerun does not alter the public 'plumed filename interval restart' syntax.
+  void pre_rerun(const double ts, Atom& atom);
+  void rerun_frame(const long long timestep, Box& box, Atom& atom);
+  void post_rerun();
+
 
   virtual void pre_run(
     const int number_of_steps,
