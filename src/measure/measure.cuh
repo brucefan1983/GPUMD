@@ -30,6 +30,19 @@ class Measure
 {
 public:
   bool has_actions() const { return !actions_.empty(); }
+  // Rerun-specific dispatch reuses the existing measurement Actions, without
+  // invoking their integration/force modification hooks.
+  void validate_rerun(bool has_potential) const;
+  void pre_rerun(
+    const double time_step, Integrate& integrate, std::vector<Group>& group,
+    Atom& atom, Box& box, Force& force);
+  void rerun_frame(
+    const long long timestep, const double time_natural,
+    Integrate& integrate, std::vector<Group>& group, Atom& atom,
+    Box& box, Force& force, GPU_Vector<double>& thermo);
+  void post_rerun(
+    const double time_step, Integrate& integrate, Atom& atom, Box& box);
+
 
   bool parse_action(
     const std::vector<std::string>& tokens,
