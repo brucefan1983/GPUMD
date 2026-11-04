@@ -472,7 +472,9 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   Thermo thermo_calculator;
   std::vector<double> zero_forces(3 * N, 0.0);
   std::vector<double> zero_potential(N, 0.0);
-  std::vector<double> zero_virial(9 * N, 0.0);
+  // Unknown virial must not be represented as an actual zero-virial frame.
+  std::vector<double> zero_virial(
+    9 * N, std::numeric_limits<double>::quiet_NaN());
   std::vector<double> thermo_row(thermo.size(), 0.0);
 
   long long processed = 0;
@@ -522,7 +524,10 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
       atom.update_unwrapped_position(box);
 
       if (has_potential_for_rerun_) {
-        compute_force();
+        // Replay always evaluates the current Atom snapshot directly. Avoid
+        // compute_force(), whose PIMD branch can select bead buffers left
+        // by a preceding MD ensemble rather than the trajectory positions.
+        force.compute(box, atom, group);
       } else {
         atom.force_per_atom.copy_from_host(zero_forces.data());
         atom.potential_per_atom.copy_from_host(zero_potential.data());
