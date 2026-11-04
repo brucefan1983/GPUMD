@@ -67,9 +67,84 @@ The driver class dealing with measurement.
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>
+#include <limits>
 #include <string>
 #include <utility>
 #include <vector>
+
+void Measure::validate_rerun(bool has_potential) const
+{
+  for (const auto& action : actions_) {
+    const std::string& name = action->action_name;
+    if (name == "plumed" || name == "dump_xyz") continue;
+    if (name == "dump_thermo" && has_potential) continue;
+    PRINT_INPUT_ERROR(
+      "rerun currently supports only plumed, dump_xyz and "
+      "dump_thermo (the latter requires a potential and trajectory velocities).");
+  }
+}
+
+void Measure::pre_rerun(
+  const double time_step, Integrate& integrate, std::vector<Group>& group,
+  Atom& atom, Box& box, Force& force)
+{
+  for (auto& action : actions_) {
+#ifdef USE_PLUMED
+    if (action->action_name == "plumed") {
+      static_cast<PLUMED*>(action.get())->pre_rerun(time_step, atom);
+      continue;
+    }
+#endif
+    action->pre_run(0, time_step, integrate, group, atom, box, force);
+  }
+}
+
+void Measure::rerun_frame(
+  const long long timestep, const double time_natural,
+  Integrate& integrate, std::vector<Group>& group, Atom& atom,
+  Box& box, Force& force, GPU_Vector<double>& thermo)
+{
+  // Keep a consistent meaning for interval: original MD timestep, not
+  // the count of snapshots read by the rerun loop.
+  if (timestep > static_cast<long long>(std::numeric_limits<int>::max())) {
+    PRINT_INPUT_ERROR("rerun timestep exceeds supported Measure interval range.");
+  }
+  // CVs are evaluated before dump output so their PRINT outputs follow the
+  // original trajectory time. Normal MD integration hooks are not called.
+#ifdef USE_PLUMED
+  for (auto& action : actions_) {
+    if (action->action_name == "plumed") {
+      static_cast<PLUMED*>(action.get())->rerun_frame(timestep, box, atom);
+    }
+  }
+#endif
+  for (auto& action : actions_) {
+    if (action->action_name == "plumed") continue;
+    if (action->action_name == "dump_thermo") {
+      static_cast<Dump_Thermo*>(action.get())->rerun_frame(thermo, atom.number_of_atoms, box);
+      continue;
+    }
+    // end_of_step is zero-indexed in GPUMD, hence timestep-1 here.
+    action->end_of_step(
+      0, static_cast<int>(timestep) - 1, -1, -1, time_natural, 0.0,
+      integrate, box, group, thermo, atom, force);
+  }
+}
+
+void Measure::post_rerun(
+  const double time_step, Integrate& integrate, Atom& atom, Box& box)
+{
+  for (auto& action : actions_) {
+#ifdef USE_PLUMED
+    if (action->action_name == "plumed") {
+      static_cast<PLUMED*>(action.get())->post_rerun();
+      continue;
+    }
+#endif
+    action->post_run(atom, box, integrate, 0, time_step, 0.0);
+  }
+  actions_.clear();
+}
 
 bool Measure::parse_action(
   const std::vector<std::string>& tokens,
