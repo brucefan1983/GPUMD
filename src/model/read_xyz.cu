@@ -514,15 +514,10 @@ void initialize_position(
     PRINT_INPUT_ERROR("Failed to open model.xyz.");
   }
 
-  // Rerun can analyze existing coordinates without evaluating a potential.
-  // If one is provided, retain the original NEP species ordering.
-  std::vector<std::string> atom_symbols;
-  const bool has_potential = !get_first_potential_filename(run_input).empty();
-  // Preserve the original model.xyz species behavior for normal multi-potential runs.
-  auto filename_potential = has_potential ? get_filename_potential(run_input) : std::string();
-  if (has_potential) {
-    atom_symbols = get_atom_symbols(filename_potential);
-  }
+  // Potential is required for both MD and rerun; preserve the standard
+  // potential-defined atom-type ordering and spin model initialization.
+  std::string filename_potential = get_filename_potential(run_input);
+  std::vector<std::string> atom_symbols = get_atom_symbols(filename_potential);
 
   read_xyz_line_1(input, atom.number_of_atoms);
   int property_offset[7] = {0, 0, 0, 0, 0, 0, 0};
@@ -536,28 +531,10 @@ void initialize_position(
     has_mass,
     has_charge,
     atom.has_spin,
-    !filename_potential.empty() && NEP_Spin_Model_File::is_spin_model(filename_potential),
+    NEP_Spin_Model_File::is_spin_model(filename_potential),
     num_columns,
     property_offset,
     group);
-
-  if (filename_potential.empty()) {
-    // Infer element types from model.xyz only when there is no potential.
-    // The original cursor is restored before the normal atom reader runs.
-    const std::streampos atoms_begin = input.tellg();
-    for (int i = 0; i < atom.number_of_atoms; ++i) {
-      const auto fields = get_tokens(input);
-      if (property_offset[0] >= static_cast<int>(fields.size())) {
-        PRINT_INPUT_ERROR("Invalid species column in model.xyz.");
-      }
-      const std::string& symbol = fields[property_offset[0]];
-      if (std::find(atom_symbols.begin(), atom_symbols.end(), symbol) == atom_symbols.end()) {
-        atom_symbols.push_back(symbol);
-      }
-    }
-    input.clear();
-    input.seekg(atoms_begin);
-  }
 
   read_xyz_in_line_3(
     input,
@@ -581,12 +558,9 @@ void initialize_position(
 
   input.close();
 
-  if (!filename_potential.empty()) {
-    prepare_compact_nep_files(atom.cpu_atom_symbol, run_input);
-  }
+  prepare_compact_nep_files(atom.cpu_atom_symbol, run_input);
   const std::vector<std::string>& compact_species = get_compact_nep_species();
-  if (!filename_potential.empty() &&
-      compact_species.size() > 0 && compact_species.size() < atom_symbols.size()) {
+  if (compact_species.size() > 0 && compact_species.size() < atom_symbols.size()) {
     atom_symbols = compact_species;
     number_of_types = atom_symbols.size();
     for (int n = 0; n < atom.number_of_atoms; ++n) {
