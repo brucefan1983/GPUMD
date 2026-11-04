@@ -201,7 +201,7 @@ bool Measure::parse_action(
 #ifdef USE_NETCDF
     std::unique_ptr<Action> action;
     action.reset(new DUMP_NETCDF(
-      tokens, group, atom, is_nep_charge_potential(first_potential_filename)));
+      tokens, group, atom, (!first_potential_filename.empty() && is_nep_charge_potential(first_potential_filename))));
     actions_.emplace_back(std::move(action));
 #else
     PRINT_INPUT_ERROR("dump_netcdf is available only when USE_NETCDF flag is set.\n");
@@ -237,7 +237,7 @@ bool Measure::parse_action(
   } else if (tokens[0] == "dump_xyz") {
     std::unique_ptr<Action> action;
     action.reset(new Dump_XYZ(
-      tokens, group, atom, is_nep_charge_potential(first_potential_filename)));
+      tokens, group, atom, (!first_potential_filename.empty() && is_nep_charge_potential(first_potential_filename))));
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "dump_cg") {
     std::unique_ptr<Action> action;
@@ -306,7 +306,7 @@ bool Measure::parse_action(
   } else if (tokens[0] == "compute_dpdt") {
     std::unique_ptr<Action> action;
     action.reset(new Compute_dpdt(
-      tokens, is_nep_charge_potential(first_potential_filename)));
+      tokens, (!first_potential_filename.empty() && is_nep_charge_potential(first_potential_filename))));
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "compute_es") {
     std::unique_ptr<Action> action;
@@ -382,7 +382,7 @@ bool Measure::parse_action(
   } else if (tokens[0] == "add_efield") {
     std::unique_ptr<Action> action;
     action.reset(new Add_Efield(
-      tokens, group, is_nep_charge_potential(first_potential_filename)));
+      tokens, group, (!first_potential_filename.empty() && is_nep_charge_potential(first_potential_filename))));
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "mc") {
     std::unique_ptr<Action> action;
