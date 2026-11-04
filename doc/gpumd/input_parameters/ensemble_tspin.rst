@@ -132,7 +132,8 @@ and rescales them separately for each atom type to ``T_1``. If
 is replaced by zero. Initialized spin velocities are reused by later ``run``
 commands.
 They are also written by ``dump_restart`` and reused when its ``restart.xyz``
-is loaded as ``model.xyz``.
+is loaded as ``model.xyz``. Thermostat and barostat internal variables are
+initialized anew; see :ref:`Spin restart <spin_restart>`.
 
 Pressure coupling in ``npt_tspin``
 ----------------------------------

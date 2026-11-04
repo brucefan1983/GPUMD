@@ -20,8 +20,9 @@ Contributors:
   Chengbing Chen: 1747193328@qq.com
 */
 
+#include "integrate/ensemble_mttk.cuh"
+#include "integrate/ensemble_nhc.cuh"
 #include "integrator.cuh"
-#include "lattice.cuh"
 #include "model/atom.cuh"
 #include "spin_ensemble.cuh"
 #include "utilities/common.cuh"
@@ -30,6 +31,13 @@ Contributors:
 #include <cmath>
 #include <cstring>
 #include <utility>
+
+class Spin_Ensemble::Lattice_MTTK final : public Ensemble_MTTK
+{
+public:
+  using Ensemble_MTTK::Ensemble_MTTK;
+  double get_temperature_period() const { return t_period; }
+};
 
 namespace
 {
@@ -314,7 +322,7 @@ Spin_Ensemble::Spin_Ensemble(
     lattice_.reset();
   } else {
     lattice[1] = "nvt_nhc";
-    auto nhc = std::make_unique<Lattice_NHC>(lattice, group);
+    auto nhc = std::make_unique<Ensemble_NHC>(lattice, group);
     temperature1 = nhc->get_temperature1();
     temperature2 = nhc->get_temperature2();
     temperature = temperature1;

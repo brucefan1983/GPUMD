@@ -94,8 +94,6 @@ public:
     Box& box,
     const std::vector<Group>& group);
 
-  void initialize(double, Atom&, Box&, const std::vector<Group>&, double& global_time);
-  void write_restart(FILE*, const Atom&, double global_time) const;
   void post_force(const Atom&);
 
   void finalize(const Atom& atom, const Box& box);

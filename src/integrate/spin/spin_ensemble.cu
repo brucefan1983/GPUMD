@@ -22,45 +22,11 @@ Contributors:
 
 #include "glsd.cuh"
 #include "integrator.cuh"
-#include "lattice.cuh"
 #include "sib.cuh"
 #include "spin_ensemble.cuh"
 #include "tspin.cuh"
 
 Spin_Ensemble::~Spin_Ensemble() = default;
-bool Spin_Ensemble::has_spin_mttk_driver() const
-{
-  return type == EnsembleType::MTTK && (use_spin_tspin || use_spin_sib || use_spin_glsd);
-}
-
-bool Spin_Ensemble::has_spin_nhc_driver() const
-{
-  // A fixed lattice has no thermostat driver despite the NVT_NHC type tag.
-  return type == EnsembleType::NVT_NHC && spin_lattice_enabled &&
-         (use_spin_tspin || use_spin_sib || use_spin_glsd);
-}
-
-double Spin_Ensemble::spin_protocol_fraction(int step, int number_of_steps) const
-{
-  if (has_spin_mttk_driver())
-    return static_cast<const Lattice_MTTK*>(lattice_.get())
-      ->protocol_fraction(step, number_of_steps);
-  if (has_spin_nhc_driver())
-    return static_cast<const Lattice_NHC*>(lattice_.get())
-      ->protocol_fraction(step, number_of_steps);
-  return double(step) / number_of_steps;
-}
-
-void Spin_Ensemble::restore_time(const Atom& atom, double& global_time) const
-{
-  if (use_spin_tspin || use_spin_sib || use_spin_glsd) {
-    if (!atom.spin_lattice_restart.mttk.empty())
-      global_time = atom.spin_lattice_restart.mttk_time;
-    if (!atom.spin_lattice_restart.nhc.empty())
-      global_time = atom.spin_lattice_restart.nhc_time;
-  }
-}
-
 void Spin_Ensemble::initialize_run(
   double time_step, Atom& atom, Box& box, const std::vector<Group>& group)
 {
@@ -80,19 +46,9 @@ void Spin_Ensemble::initialize_run(
     lattice_->deform_yz = deform_yz;
     lattice_->temperature = temperature;
   }
-  if (!has_spin_mttk_driver() && !atom.spin_lattice_restart.mttk.empty()) {
-    printf("Discarding MTTK restart state for a different ensemble.\n");
-    atom.spin_lattice_restart.mttk.clear();
-  }
-  if (!has_spin_nhc_driver() && !atom.spin_lattice_restart.nhc.empty()) {
-    printf("Discarding NVT NHC restart state for a different ensemble or lattice off.\n");
-    atom.spin_lattice_restart.nhc.clear();
-  }
   if (lattice_)
     lattice_->initialize_run(time_step, atom, box, group);
   spin_integrator.reset();
-  if (!use_spin_glsd)
-    atom.spin_lattice_restart.glsd_step = atom.spin_lattice_restart.glsd_seed = 0;
   if (use_spin_tspin) {
     spin_integrator.reset(new Spin_TSPIN(
       temperature1, temperature_coupling, time_step, spin_mass_factor_by_type, spin_seed, atom));
@@ -135,7 +91,7 @@ void Spin_Ensemble::finalize_run(const Atom& atom, const Box& box)
 }
 void Spin_Ensemble::set_step_temperature(int step, int steps)
 {
-  temperature = temperature1 + (temperature2 - temperature1) * spin_protocol_fraction(step, steps);
+  temperature = temperature1 + (temperature2 - temperature1) * (double(step) / steps);
   if (lattice_)
     lattice_->temperature = temperature;
   spin_integrator->temperature = temperature;

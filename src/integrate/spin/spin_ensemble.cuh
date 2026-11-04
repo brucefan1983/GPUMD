@@ -43,19 +43,13 @@ public:
   compute1(double, int, int, const std::vector<Group>&, Box&, Atom&, GPU_Vector<double>&) override;
   void compute2(
     double, int, int, const std::vector<Group>&, Box&, Atom&, GPU_Vector<double>&, Force&) override;
-  void restore_time(const Atom&, double&) const;
-  void write_restart(FILE*, const Atom&, double global_time) const;
   void save_force(const Atom&);
 
 private:
-  class Lattice_NHC;
   class Lattice_MTTK;
   std::unique_ptr<Ensemble> lattice_;
   std::unique_ptr<Spin_Integrator> spin_integrator;
   double temperature1 = 0.0, temperature2 = 0.0;
-  bool has_spin_nhc_driver() const;
-  bool has_spin_mttk_driver() const;
-  double spin_protocol_fraction(int, int) const;
   void set_step_temperature(int, int);
   double temperature_coupling = 100.0;
   std::vector<double> spin_mass_factor_by_type;

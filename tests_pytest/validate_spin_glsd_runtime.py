@@ -196,7 +196,7 @@ def main():
         assert np.max(np.abs(var/target-1)) < 6*np.sqrt(2/len(values)),var
         record(f'diffusion-statistics-g{g}',{'samples':len(values),'target_variance':target,
                'mean':mean.tolist(),'variance':var.tolist()})
-    # Restart and consecutive run blocks: exact counter stream, unchanged order.
+    # Physical-state restart; each ensemble starts a new seeded noise stream.
     for temp in (-1,300):
         ens=f'nve_glsd {damping(2, 3)} gamma 3 stemp {temp} seed 731'
         for g in (1,2,4):
@@ -204,21 +204,22 @@ def main():
             half,_=run(f'half-{temp}-g{g}',g,ens,20,1,toy)
             _,restart=run(f'restart-{temp}-g{g}',g,ens,20,1,toy,half/'restart.xyz')
             err=float(np.max(np.abs(whole['spin']-restart['spin'])))
-            assert err<1e-12,err
+            if temp < 0:
+                assert err < 1e-12, err
             extra=f'ensemble {ens}\ntime_step 1\ndump_xyz 20 continued.xyz precision double spin\nrun 20\n'
             repeated,_=run(f'repeated-{temp}-g{g}',g,ens,20,1,toy,extra=extra)
-            err2=float(np.max(np.abs(whole['spin']-frame(repeated/'continued.xyz')['spin'])))
+            err2=float(np.max(np.abs(restart['spin']-frame(repeated/'continued.xyz')['spin'])))
             assert err2<1e-12,err2
             assert 'spin_vel:' not in (half/'restart.xyz').read_text().splitlines()[1]
-            record(f'restart-{temp}-g{g}',{'restart_error':err,'run_block_error':err2})
+            record(f'restart-{temp}-g{g}',{'uninterrupted_difference':err,'restart_vs_new_run_error':err2})
     for g in (1,2,4):
         source=a.output/f'half-300-g{g}'/'restart.xyz'
         sib_case,_=run(f'switch-sib-g{g}',g,'nve_sib alpha 0',1,1,toy,source)
         assert 'spin_glsd_' not in (sib_case/'restart.xyz').read_text()
         glsd_case,_=run(f'switch-glsd-g{g}',g,f'nve_glsd {damping(2)} seed 913',1,1,toy,sib_case/'restart.xyz')
         metadata=(glsd_case/'restart.xyz').read_text().splitlines()[1]
-        assert 'spin_glsd_step=1 ' in metadata and 'spin_glsd_seed=913 ' in metadata
-        record(f'integrator-switch-g{g}',{'counter':1,'seed':913})
+        assert 'spin_glsd_' not in metadata
+        record(f'integrator-switch-g{g}',{'physical_state_restart':True})
     invalid_ensembles = [
         'nve_sib lsf 0', 'nve_sib lsf 1', 'nve_sib damping 1',
         'nvt_sib 300 300 100 lsf 0',
@@ -241,17 +242,10 @@ def main():
         run(f'invalid-{i}',1,ens,1,model=toy,fail=True)
     for i,dt in enumerate((0,-1,float('nan'))):
         run(f'invalid-dt-{i}',1,'nve_glsd damping 1',1,dt,model=toy,fail=True)
-    for i,metadata in enumerate(('spin_glsd_step=1', 'spin_glsd_step=-1 spin_glsd_seed=731',
-         'spin_glsd_step=1 spin_glsd_seed=913',
-         'spin_glsd_step=18446744073709551615 spin_glsd_seed=731')):
-        malformed=a.output/f'malformed-{i}.xyz'
-        lines=xyz.read_text().splitlines();lines[1]+=' '+metadata
-        malformed.write_text('\n'.join(lines)+'\n')
-        run(f'invalid-restart-{i}',1,'nve_glsd damping 1 seed 731',1,model=toy,xyz_in=malformed,fail=True)
     ens=f'nve_glsd {damping(2, 3)} gamma 3 seed 731'
     run('invalid-spin-velocity',1,ens,1,model=toy,fail=True,
         extra=f'ensemble {ens}\ndump_xyz 1 invalid.xyz spin_velocity\nrun 1\n')
-    record('invalid_inputs',len(invalid_ensembles)+8)
+    record('invalid_inputs',len(invalid_ensembles)+4)
     report['status']='passed';(a.output/'report.json').write_text(json.dumps(report,indent=2))
 
 if __name__=='__main__':main()

@@ -365,20 +365,13 @@ requesting ``spin_velocity`` output then fails explicitly. Switching later to
 TSPIN lets that integrator initialize its own velocity. No spin kinetic energy
 is included in the lattice temperature.
 
-``dump_restart`` writes full-precision moments plus ``spin_glsd_step`` and
-``spin_glsd_seed`` in ``restart.xyz`` for this mode. To continue, copy it to
-``model.xyz`` and repeat the ensemble parameters, field, timestep, seed and
-atom order. The seed must match. The counter also continues across successive
-GLSD ``run`` blocks. Old XYZ files without these fields start at counter zero.
-Selecting another integrator clears this GLSD counter. Restart preserves the
-noise stream. With lattice motion enabled, ``nvt_glsd`` also saves the NHC
-chain masses, positions and momenta; ``npt_glsd`` saves the MTTK thermostat
-and barostat. Both retain the original temperature/pressure protocol phase
-and global time; see the :ref:`continuation procedure <spin_restart>`.
-Repeat the original ensemble endpoints and run the remaining steps. NHC
-masses keep their original starting-temperature convention. ``lattice off``
-has no atomic thermostat to checkpoint. Other stateful modifiers and analysis
-histories are outside this thermostat checkpoint contract.
+``dump_restart`` saves the cell and per-atom state, including magnetic moments.
+Copy ``restart.xyz`` to ``model.xyz`` to start a new simulation from that state.
+Thermostats, barostats and the noise counter are initialized for each new run;
+``seed`` selects its random sequence. Reusing a seed restarts the same sequence.
+Neither the original ramp progress nor the random stream is restored, so a
+stochastic restart need not follow an uninterrupted trajectory.
+See :ref:`Spin restart <spin_restart>` for the input procedure.
 
 Integration and Gaussian generation run on GPU 0, keyed by seed, original
 atom index, step and component. Multi-GPU NEP distributes predictor/endpoint

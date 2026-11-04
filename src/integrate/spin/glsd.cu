@@ -80,7 +80,7 @@ Spin_GLSD::Spin_GLSD(double gamma, double mobility, double spin_temperature, int
     mobility_(mobility),
     spin_temperature_(spin_temperature),
     seed_(static_cast<std::uint64_t>(seed)),
-    step_(atom.spin_lattice_restart.glsd_step)
+    step_(0)
 {
   const int n = atom.number_of_atoms;
   if (
@@ -93,10 +93,6 @@ Spin_GLSD::Spin_GLSD(double gamma, double mobility, double spin_temperature, int
     seed <= 0) {
     PRINT_INPUT_ERROR("GLSD requires gamma > 0, mobility >= 0, stemp -1 or >= 0, and seed > 0.");
   }
-  if (atom.spin_lattice_restart.glsd_seed != 0 && atom.spin_lattice_restart.glsd_seed != seed_) {
-    PRINT_INPUT_ERROR("GLSD restart seed differs from ensemble seed.");
-  }
-  atom.spin_lattice_restart.glsd_seed = seed_;
   // First-order Langevin dynamics has no independent inertial spin velocity.
   atom.spin_velocity_initialized = false;
   atom.spin_velocity_per_atom.fill(0.0);
@@ -159,5 +155,5 @@ void Spin_GLSD::compute2(const double time_step, Atom& atom)
     drift_start_.data(),
     noise_increment_.data());
   GPU_CHECK_KERNEL
-  atom.spin_lattice_restart.glsd_step = ++step_;
+  ++step_;
 }

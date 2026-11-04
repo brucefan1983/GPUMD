@@ -174,10 +174,6 @@ static void read_xyz_line_2(
       token.begin(), token.end(), token.begin(), [](unsigned char c) { return std::tolower(c); });
   }
 
-  if (enable_spin) {
-    atom.spin_lattice_restart.read(tokens);
-  }
-
   box.pbc_x = box.pbc_y = box.pbc_z = 1; // default is periodic
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string tmp_string = "pbc=";

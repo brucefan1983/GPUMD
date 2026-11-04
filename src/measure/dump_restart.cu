@@ -17,7 +17,6 @@
 Dump a restart file
 --------------------------------------------------------------------------------------------------*/
 
-#include "integrate/integrate.cuh"
 #include "dump_restart.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
@@ -115,7 +114,6 @@ void Dump_Restart::end_of_step(
     box.cpu_h[5],
     box.cpu_h[8]);
 
-  integrate.write_restart(fid, atom, global_time);
   fprintf(fid, "Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3");
   if (atom.has_spin) {
     fprintf(fid, ":spin:R:3");
