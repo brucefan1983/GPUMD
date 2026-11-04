@@ -60,10 +60,12 @@ Optional `Step`, `step`, or `Timestep` integer metadata overrides
 from `Time` and the `time_step` value in `run.in`. For variable-timestep
 trajectories, include an explicit integer step in the XYZ header.
 
-Frames must have a fixed number of atoms, the same species **in the same
-index order** as `model.xyz`, valid cells and strictly increasing steps.
-Atom-ID remapping is not yet implemented, so the reader cannot detect swaps of
-atoms of the same species.
+Frames must have a fixed number of atoms, valid cells and strictly
+increasing steps. When an `id:I:1` property is present, atom rows are mapped
+to the GPUMD index using the **1-based IDs 1..N**. Duplicate, invalid and
+out-of-range IDs are rejected. Without an ID property, atom rows must remain
+in the exact same atom-index order as `model.xyz`; exchanging atoms of the same
+species cannot be detected.
 
 ## Limitations and validation
 
