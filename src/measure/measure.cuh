@@ -29,6 +29,8 @@ class Ensemble;
 class Measure
 {
 public:
+  bool has_actions() const { return !actions_.empty(); }
+
   bool parse_action(
     const std::vector<std::string>& tokens,
     const int number_of_types,
