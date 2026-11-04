@@ -33,6 +33,7 @@ public:
   // Rerun-specific dispatch reuses the existing measurement Actions, without
   // invoking their integration/force modification hooks.
   void validate_rerun(bool has_potential) const;
+  bool rerun_needs_thermo() const;
   void pre_rerun(
     const double time_step, Integrate& integrate, std::vector<Group>& group,
     Atom& atom, Box& box, Force& force);
