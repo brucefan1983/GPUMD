@@ -137,16 +137,7 @@ Run::Run(const RunInput& run_input)
   has_replicate_ = parse_initial_replicate(run_input, replicate_size_);
 
   if (get_first_potential_filename(run_input).empty()) {
-    bool has_rerun_command = false;
-    for (const auto& line : run_input.lines()) {
-      if (!line.tokens.empty() && line.tokens[0] == "rerun") {
-        has_rerun_command = true;
-        break;
-      }
-    }
-    if (!has_rerun_command) {
-      PRINT_INPUT_ERROR("A potential is required unless run.in contains rerun.");
-    }
+    PRINT_INPUT_ERROR("A potential is required in run.in, including for rerun.");
   }
 
   initialize_position(
@@ -404,7 +395,11 @@ void Run::parse_one_keyword(
 void Run::parse_rerun(const std::vector<std::string>& tokens)
 {
   // Pseudo-run: trajectories replace integration as the source of configurations.
+  // A potential must already have been loaded, even for PLUMED-only analysis.
   // All analysis/output is dispatched by Measure; rerun never creates a data file.
+  if (!has_potential_for_rerun_) {
+    PRINT_INPUT_ERROR("A potential must be specified before rerun.");
+  }
   if (tokens.size() < 2) {
     PRINT_INPUT_ERROR("rerun trajectory.xyz [first N] [last N] [every N] [skip N]");
   }
@@ -441,12 +436,7 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   if (measure.rerun_output_conflicts(tokens[1])) {
     PRINT_INPUT_ERROR("rerun dump_xyz output must not overwrite its input trajectory.");
   }
-  const bool needs_thermo = measure.rerun_needs_thermo();
   const bool needs_velocity = measure.rerun_needs_velocity();
-  if (needs_thermo && !has_potential_for_rerun_) {
-    PRINT_INPUT_ERROR("dump_thermo during rerun requires a potential.");
-  }
-
   const double dt_fs = time_step * TIME_UNIT_CONVERSION;
   const Box original_box = box;
   const int N = atom.number_of_atoms;
@@ -476,10 +466,7 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   // A separate thermodynamic calculator avoids requiring an MD ensemble.
   Thermo thermo_calculator;
   std::vector<double> zero_forces(3 * N, 0.0);
-  std::vector<double> zero_potential(N, 0.0);
-  // Unknown virial must not be represented as an actual zero-virial frame.
-  std::vector<double> zero_virial(
-    9 * N, std::numeric_limits<double>::quiet_NaN());
+  // The potential is mandatory, so energy/forces/virial are always recalculated.
   std::vector<double> thermo_row(thermo.size(), 0.0);
 
   long long processed = 0;
@@ -528,18 +515,10 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
       }
       atom.update_unwrapped_position(box);
 
-      if (has_potential_for_rerun_) {
-        // Replay always evaluates the current Atom snapshot directly. Avoid
-        // compute_force(), whose PIMD branch can select bead buffers left
-        // by a preceding MD ensemble rather than the trajectory positions.
-        force.compute(box, atom, group);
-      } else {
-        atom.force_per_atom.copy_from_host(zero_forces.data());
-        atom.potential_per_atom.copy_from_host(zero_potential.data());
-        atom.virial_per_atom.copy_from_host(zero_virial.data());
-      }
+      // Recalculate physical forces for each snapshot without integration.
+      force.compute(box, atom, group);
 
-      if (has_potential_for_rerun_ && !frame.velocities.empty()) {
+      if (!frame.velocities.empty()) {
         thermo_calculator.compute(
           N, box.get_volume(), atom.mass, atom.potential_per_atom,
           atom.velocity_per_atom, atom.virial_per_atom, thermo);
@@ -547,22 +526,17 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
         std::fill(thermo_row.begin(), thermo_row.end(), 0.0);
         // A potential energy can still be computed with no velocities.
         // For position-only replay, use NaN rather than reporting false KE or stress.
-        if (!has_potential_for_rerun_)
-          std::fill(thermo_row.begin(), thermo_row.end(),
-                    std::numeric_limits<double>::quiet_NaN());
-        if (has_potential_for_rerun_ && frame.velocities.empty()) {
+        if (frame.velocities.empty()) {
           const double nan = std::numeric_limits<double>::quiet_NaN();
           thermo_row[0] = nan; // temperature and kinetic energy are unknown
           for (int j = 2; j < 8 && j < static_cast<int>(thermo_row.size()); ++j)
             thermo_row[j] = nan; // do not report artificial stress from missing velocities
         }
-        if (has_potential_for_rerun_) {
-          std::vector<double> per_atom_energy(N);
-          atom.potential_per_atom.copy_to_host(per_atom_energy.data());
-          if (thermo_row.size() > 1)
-            thermo_row[1] = std::accumulate(
-              per_atom_energy.begin(), per_atom_energy.end(), 0.0);
-        }
+        std::vector<double> per_atom_energy(N);
+        atom.potential_per_atom.copy_to_host(per_atom_energy.data());
+        if (thermo_row.size() > 1)
+          thermo_row[1] = std::accumulate(
+            per_atom_energy.begin(), per_atom_energy.end(), 0.0);
         thermo.copy_from_host(thermo_row.data());
       }
 
