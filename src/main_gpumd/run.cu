@@ -495,10 +495,10 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
       ++selected;
     }
   } catch (const std::exception& error) {
-    fprintf(stderr, "rerun failed: %s\\n", error.what());
+    fprintf(stderr, "rerun failed: %s\n", error.what());
     exit(EXIT_FAILURE);
   }
-  printf("Rerun processed %lld frames without integration.\\n", selected);
+  printf("Rerun processed %lld frames without integration.\n", selected);
   force.finalize();
 }
 
