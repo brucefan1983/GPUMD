@@ -1,81 +1,108 @@
-# GPUMD trajectory rerun (experimental)
+# GPUMD rerun: replay existing trajectories (experimental)
 
-This feature is under development on `feature/rerun`. It reads existing GPUMD
-Extended XYZ trajectories, evaluates optional potential energies and does not
-perform time integration. **CUDA build and NEP numerical verification are still
-outstanding. PLUMED is not supported yet.**
+**Implementation status:** the replay-mode Measure integration has been committed
+on `feature/rerun`, but a full CUDA compilation and numerical/PLUMED runtime
+test have NOT yet been completed. Do not use for production before validation.
 
-## Example: NEP evaluation
+The replay loop reads GPUMD Extended XYZ snapshots and uses them as the source
+of coordinates instead of calling the MD integrator. Existing measurement
+actions handle all outputs. No dedicated `rerun_energy.dat` or `output`
+keyword is produced/supported.
+
+## Structural PLUMED analysis without a potential
+
+```text
+time_step 1
+plumed plumed.dat 1 0
+rerun trajectory.xyz first 0 last 100000 every 1000
+```
+
+This reuses the existing `plumed <input> <interval> <restart>` syntax,
+initialization and `PLUMED::calculate()`; it does not require an `ensemble`
+or NEP. Its `COLVAR`, etc. outputs are controlled by `plumed.dat`.
+
+Only structure-analysis CVs are intended. PLUMED uses zero kBT as a replay
+initialization placeholder; **do not use biasing or kBT-dependent PLUMED actions
+in this mode**. Unlike a normal MD run, replay does not write PLUMED bias
+forces/virials back into the GPU state.
+
+## Recalculate potential-dependent properties
 
 ```text
 potential nep.txt
 time_step 1
-
-rerun trajectory.xyz first 1000 last 100000 every 1000 skip 1 output energy_1.dat
-rerun trajectory2.xyz output energy_2.dat
+dump_xyz 1000 recalculated.xyz force potential virial
+plumed plumed.dat 1 0
+rerun trajectory.xyz first 0 last 100000 every 1000
 ```
 
-`rerun` is **not** required to be the last command: it restores the original
-positions, simulation cell, image flags and available force/energy/virial buffers
-on completion. It does not finalize the active force object. Subsequent
-`run` or `rerun` commands are therefore allowed, subject to their individual
-command requirements. Normal MD `run` still requires `ensemble` and `potential`.
+All XYZ output attributes are selected with existing `dump_xyz` keywords,
+not `rerun output`. `dump_xyz` writes Extended XYZ with the existing GPUMD
+format and metadata. Frame output schedules use **original trajectory timestep**.
 
-## Example: trajectory-only pass (no potential)
+## Thermodynamic replay
 
 ```text
+potential nep.txt
 time_step 1
-rerun trajectory.xyz output frames.dat
+dump_thermo 1000
+rerun trajectory-with-velocities.xyz
 ```
 
-Without a potential, `rerun` emits only `timestep time_fs` metadata, not
-energy. This is a foundation for future structure-only analysis; **it does not
-yet run PLUMED or GPUMD measurement actions**. `model.xyz` is still required
-to define the atom count, species, masses, and grouping. With no potential, its
-species indices are inferred in first-occurrence order from `model.xyz`.
+`dump_thermo` requires a valid potential **and `vel:R:3` for every selected
+frame**. GPUMD's per-atom velocities in XYZ are in Angstrom/fs; the replay
+reader converts them to GPUMD internal units. Thermodynamics are calculated
+from this frame's actual positions, velocities, and recalculated potential.
+Without velocities, the command errors rather than outputting synthetic
+temperature or kinetic energy. Other output actions requiring velocities also
+error if `vel:R:3` is absent.
 
-## Keywords
+When force evaluation is performed without velocities, XYZ still supports
+the potential energy and per-atom virial fields, but temperature and
+velocity-dependent stress header fields are reported as NaN rather than using
+synthetic velocities.
 
-- `first N`: minimum timestep (default 0)
-- `last N`: maximum timestep (default unlimited)
-- `every N`: timesteps divisible by N, except the first in-range frame is
-  eligible regardless of divisibility (default 0)
-- `skip N`: retain every Nth frame after timestep filtering (default 1)
-- `output FILE`: GPUMD-specific output path; default `rerun_energy.dat` if
-  a potential is loaded and `rerun_frames.dat` otherwise
+## Execution semantics
 
-`first/last/every/skip` mirror the basic LAMMPS selection semantics.
-Unlike LAMMPS this GPUMD implementation does not currently support
-multi-file arguments, `start/stop/post`, `dump`, or LAMMPS dump parsing.
-Output file names may differ from the input trajectory. Files are
-overwritten at each rerun invocation, so specify different names to keep
-outputs from successive reruns.
+`rerun` is not required to be the last `run.in` command. It restores
+positions, velocities, simulation box, image flags, unwrapped positions,
+force/potential/virial arrays, and thermo state before the next run/replay.
+The usual `run` still requires a potential and an ensemble.
 
-## Frame metadata and requirements
+Supported selection keywords:
+- `first N`: minimum timestep, default 0
+- `last N`: maximum timestep, default unlimited
+- `every N`: modulo-step filtering, with the first in-range snapshot eligible
+- `skip N`: retain every Nth candidate frame, default 1
 
-The reader requires `Time` (fs), `Lattice` (9 components), `pbc` (3 flags)
-and `Properties` containing `species:S:1` and `pos:R:3`.
-Optional `Step`, `step`, or `Timestep` integer metadata overrides
-`Time/time_step` reconstruction. When absent, an integral step is reconstructed
-from `Time` and the `time_step` value in `run.in`. For variable-timestep
-trajectories, include an explicit integer step in the XYZ header.
+Frame metadata: `Time` (fs), `Lattice` (9 values), `pbc` (three flags)
+and `Properties` with `species:S:1` and `pos:R:3`. Optional
+`Step`/`step`/`Timestep` takes precedence over `Time/time_step`.
+Optional `id:I:1` maps 1-based atom indices. Optional `vel:R:3` supplies
+per-frame velocity. Without atom IDs, XYZ line order must match `model.xyz`.
 
-Frames must have a fixed number of atoms, valid cells and strictly
-increasing steps. When an `id:I:1` property is present, atom rows are mapped
-to the GPUMD index using the **1-based IDs 1..N**. Duplicate, invalid and
-out-of-range IDs are rejected. Without an ID property, atom rows must remain
-in the exact same atom-index order as `model.xyz`; exchanging atoms of the same
-species cannot be detected.
+## Limitations
 
-## Limitations and validation
+- Only existing `plumed`, `dump_xyz` and `dump_thermo` actions are currently
+  dispatched during replay; other Measure actions are explicitly rejected.
+- Dump of `unwrapped_position` is not yet supported because the reader does
+  not restore image flags from the trajectory.
+- Output and input XYZ file paths must differ (simple direct path comparison).
+- Missing velocity is never silently replaced with the initial random
+  velocity when actual velocity-dependent outputs are requested.
+- Time-dependent PLUMED quantities still rely on the selected timestep and
+  `time_step`. Variable time stepping cannot be reproduced fully by supplying
+  only a `Step` if no per-step clock is available to PLUMED.
+- Unlike LAMMPS, multi-file input syntax and arbitrary dump formats are
+  not implemented.
+- PLUMED `setStep` and existing GPUMD Measure interfaces use signed integer
+  step numbers; large timesteps above INT_MAX are rejected.
+- Existing system initialization still requires `model.xyz` to define
+  atom types, masses and grouping before replay.
+- CUDA, actual GPUMD + PLUMED, and numerical consistency checks remain
+  unverified.
 
-- The existing `Measure` actions (including PLUMED) are rejected until an
-  analysis-only lifecycle is implemented. Removing that guard alone would
-  be unsafe.
-- The potential evaluation path is written but is not yet validated by CUDA
-  compilation, direct GPU NEP reference calculations, or numerical regression.
-- A standalone CPU-only parser/selector test is in
-  `tests_regression/rerun_reader_test.cpp`:
+## Standalone reader/selector test
 
 ```sh
 c++ -std=c++14 -Wall -Wextra -Werror -Isrc/main_gpumd \\
@@ -83,6 +110,9 @@ c++ -std=c++14 -Wall -Wextra -Werror -Isrc/main_gpumd \\
 /tmp/rerun_reader_test
 ```
 
-Before production use, run GPU build and compare per-frame energy, forces and
-virials with independent NEP single-point evaluations, then test consecutive
-rerun and run commands for exact state restoration.
+Validation plan: run a CUDA build with `USE_PLUMED` and NEP enabled, check
+PLUMED coordinate CVs from XYZ against the same frames in an ordinary run,
+compare force/energy/virial results with NEP reference calculations, test
+no-potential PLUMED-only replay, check dump intervals with sparse timesteps,
+test missing velocity rejection and verify repeated rerun then normal run
+preserves the original simulation state.
