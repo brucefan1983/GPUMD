@@ -34,6 +34,9 @@ public:
   // invoking their integration/force modification hooks.
   void validate_rerun(bool has_potential) const;
   bool rerun_needs_thermo() const;
+  bool rerun_needs_velocity() const;
+  bool rerun_output_conflicts(const std::string& trajectory) const;
+
   void pre_rerun(
     const double time_step, Integrate& integrate, std::vector<Group>& group,
     Atom& atom, Box& box, Force& force);
