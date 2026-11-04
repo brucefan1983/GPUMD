@@ -38,7 +38,7 @@ public:
   void parse(const std::vector<std::string>& tokens);
 
   Dump_Thermo(const std::vector<std::string>& tokens);
-  void rerun_frame(GPU_Vector<double>& thermo, const int n_atoms, const Box& box);
+  void rerun_frame(long long timestep, GPU_Vector<double>& thermo, const int n_atoms, const Box& box);
 
 
   virtual void pre_run(
