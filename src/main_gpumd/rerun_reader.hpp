@@ -31,7 +31,7 @@ inline std::string attribute(const std::string& line, const std::string& key)
   // Match complete metadata keys, not suffixes of unrelated attributes.
   size_t start = line.find(prefix);
   while (start != std::string::npos && start > 0 &&
-         line[start - 1] != ' ' && line[start - 1] != '\\t') {
+         line[start - 1] != ' ' && line[start - 1] != '\t') {
     start = line.find(prefix, start + 1);
   }
   if (start == std::string::npos) {
