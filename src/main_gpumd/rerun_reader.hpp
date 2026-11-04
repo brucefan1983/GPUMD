@@ -21,12 +21,19 @@ struct Frame {
   std::array<double, 9> lattice{}; // GPUMD column-vector matrix
   std::array<int, 3> pbc{{1, 1, 1}};
   double time_fs = 0.0;
+  bool has_step = false;
+  long long step = 0;
 };
 
 inline std::string attribute(const std::string& line, const std::string& key)
 {
   const std::string prefix = key + "=";
-  const size_t start = line.find(prefix);
+  // Match complete metadata keys, not suffixes of unrelated attributes.
+  size_t start = line.find(prefix);
+  while (start != std::string::npos && start > 0 &&
+         line[start - 1] != ' ' && line[start - 1] != '\\t') {
+    start = line.find(prefix, start + 1);
+  }
   if (start == std::string::npos) {
     throw std::runtime_error("rerun: missing XYZ attribute " + key);
   }
@@ -77,9 +84,33 @@ public:
     if (!std::getline(stream_, line))
       throw std::runtime_error("rerun: truncated XYZ comment line");
 
+    frame.has_step = false; // A reused Frame must not retain the previous step.
     frame.time_fs = std::stod(attribute(line, "Time"));
     if (!std::isfinite(frame.time_fs))
       throw std::runtime_error("rerun: nonfinite XYZ Time");
+
+    // Prefer an explicit integer Step when supplied; time-based reconstruction
+    // cannot recover variable-timestep trajectories unambiguously.
+    for (const std::string& step_key : {"Step", "step", "Timestep"}) {
+      try {
+        const std::string value = attribute(line, step_key);
+        size_t used = 0;
+        const long long step = std::stoll(value, &used);
+        if (used != value.size() || step < 0)
+          throw std::runtime_error("rerun: invalid integer timestep");
+        frame.step = step;
+        frame.has_step = true;
+        break;
+      } catch (const std::invalid_argument&) {
+        throw std::runtime_error("rerun: invalid integer timestep");
+      } catch (const std::out_of_range&) {
+        throw std::runtime_error("rerun: integer timestep is out of range");
+      } catch (const std::runtime_error& error) {
+        // A missing key is normal; a malformed present key is not.
+        if (std::string(error.what()) != "rerun: missing XYZ attribute " + step_key)
+          throw;
+      }
+    }
     std::istringstream cell(attribute(line, "Lattice"));
     // Extended XYZ writes a_x,a_y,a_z,b_x,...; GPUMD uses columns.
     for (int i = 0; i < 9; ++i) {
@@ -88,7 +119,10 @@ public:
     }
     double extra;
     if (cell >> extra) throw std::runtime_error("rerun: Lattice must have 9 entries");
-    auto bc = split(attribute(line, "pbc"), ' ');
+    std::istringstream bc_stream(attribute(line, "pbc"));
+    std::vector<std::string> bc;
+    std::string bc_item;
+    while (bc_stream >> bc_item) bc.push_back(bc_item);
     if (bc.size() != 3) throw std::runtime_error("rerun: pbc must have 3 entries");
     for (int i = 0; i < 3; ++i) {
       if (bc[i] == "T" || bc[i] == "t") frame.pbc[i] = 1;
@@ -146,5 +180,31 @@ inline long long time_to_step(double time_fs, double dt_fs)
     throw std::runtime_error("rerun: Time is not a multiple of time_step");
   return step;
 }
+
+
+inline long long frame_step(const Frame& frame, double dt_fs)
+{
+  return frame.has_step ? frame.step : time_to_step(frame.time_fs, dt_fs);
+}
+
+// The selection policy is independent from file I/O and GPU evaluation.
+struct Selection {
+  long long first = 0;
+  long long last = std::numeric_limits<long long>::max();
+  long long every = 0;
+  long long skip = 1;
+  long long candidates = 0;
+
+  bool accepts(long long step)
+  {
+    if (step < first || step > last) return false;
+    // Like LAMMPS, preserve the first eligible snapshot even when it is
+    // not divisible by 'every'. The skip counter counts eligible snapshots.
+    if (every > 0 && candidates > 0 && step % every != 0) return false;
+    const bool selected = (candidates % skip == 0);
+    ++candidates;
+    return selected;
+  }
+};
 
 } // namespace gpumd_rerun
