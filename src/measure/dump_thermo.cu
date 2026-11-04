@@ -119,8 +119,9 @@ void Dump_Thermo::pre_run(
   }
 }
 
-void Dump_Thermo::rerun_frame(GPU_Vector<double>& gpu_thermo, const int n_atoms, const Box& box)
+void Dump_Thermo::rerun_frame(long long timestep, GPU_Vector<double>& gpu_thermo, const int n_atoms, const Box& box)
 {
+  if (timestep % dump_interval_ != 0) return;
   // The snapshot is evaluated using its actual velocity and current forces.
   // This is independent from an MD thermostat or target temperature.
   write_thermo_row(fid_, gpu_thermo, false, 0.0, n_atoms, box);
