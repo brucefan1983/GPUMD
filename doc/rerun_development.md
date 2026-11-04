@@ -1,57 +1,86 @@
-# GPUMD trajectory rerun (initial implementation)
+# GPUMD trajectory rerun (experimental)
 
-This development branch contains an **experimental**, energy-only rerun path.
-It is not yet a replacement for LAMMPS `rerun` or PLUMED `driver`.
+This feature is under development on `feature/rerun`. It reads existing GPUMD
+Extended XYZ trajectories, evaluates optional potential energies and does not
+perform time integration. **CUDA build and NEP numerical verification are still
+outstanding. PLUMED is not supported yet.**
 
-## Input
-
-Place `model.xyz`, the NEP potential, `run.in`, and a previously written GPUMD
-Extended XYZ trajectory in the working directory:
+## Example: NEP evaluation
 
 ```text
 potential nep.txt
 time_step 1
-rerun trajectory.xyz first 1000 last 100000 every 1000 skip 1
+
+rerun trajectory.xyz first 1000 last 100000 every 1000 skip 1 output energy_1.dat
+rerun trajectory2.xyz output energy_2.dat
 ```
 
-The command must be the last one in `run.in`. A potential is currently required.
-No `ensemble`, `plumed`, `dump_xyz` or other analysis action is accepted in
-this first stage. The command **does not integrate positions, velocities, or the
-box**. The current output is `rerun_energy.dat`, with three columns: original
-timestep, time in fs, and total potential energy in eV.
+`rerun` is **not** required to be the last command: it restores the original
+positions, simulation cell, image flags and available force/energy/virial buffers
+on completion. It does not finalize the active force object. Subsequent
+`run` or `rerun` commands are therefore allowed, subject to their individual
+command requirements. Normal MD `run` still requires `ensemble` and `potential`.
 
-## Current keyword meanings
+## Example: trajectory-only pass (no potential)
 
-- `first N`: minimum original MD timestep (default 0)
-- `last N`: maximum original MD timestep (default unlimited)
-- `every N`: select steps divisible by N (default 0, all)
-- `skip N`: retain every Nth frame from those remaining after timestep filters (default 1)
+```text
+time_step 1
+rerun trajectory.xyz output frames.dat
+```
 
-As with GPUMD's current `dump_xyz`, timestep is reconstructed from the
-`Time` metadata in femtoseconds divided by `time_step`. Non-integral times
-are rejected. Trajectory steps must be strictly increasing. This initial
-version is limited to a single file with a fixed number and order of atoms,
-matching `model.xyz`. It reads `Properties` to find species and Cartesian
-positions, and handles variable triclinic `Lattice` and PBC per frame.
+Without a potential, `rerun` emits only `timestep time_fs` metadata, not
+energy. This is a foundation for future structure-only analysis; **it does not
+yet run PLUMED or GPUMD measurement actions**. `model.xyz` is still required
+to define the atom count, species, masses, and grouping. With no potential, its
+species indices are inferred in first-occurrence order from `model.xyz`.
 
-**Important:** do not use an input trajectory produced with variable MD
-timesteps unless its times can be mapped unambiguously to integral steps.
+## Keywords
 
-## Remaining work before general use
+- `first N`: minimum timestep (default 0)
+- `last N`: maximum timestep (default unlimited)
+- `every N`: timesteps divisible by N, except the first in-range frame is
+  eligible regardless of divisibility (default 0)
+- `skip N`: retain every Nth frame after timestep filtering (default 1)
+- `output FILE`: GPUMD-specific output path; default `rerun_energy.dat` if
+  a potential is loaded and `rerun_frames.dat` otherwise
 
-- Integrate PLUMED with a read-only/analysis-only evaluation path, preserving
-  real trajectory steps and excluding biasing effects.
-- Support multiple trajectory files and selected GPUMD analysis actions.
-- Add GPU-backed integration tests and compare energies and forces against
-  direct per-frame NEP evaluation.
-- Verify builds in CUDA and HIP CI. No compilation or runtime verification
-  is claimed for this first commit.
+`first/last/every/skip` mirror the basic LAMMPS selection semantics.
+Unlike LAMMPS this GPUMD implementation does not currently support
+multi-file arguments, `start/stop/post`, `dump`, or LAMMPS dump parsing.
+Output file names may differ from the input trajectory. Files are
+overwritten at each rerun invocation, so specify different names to keep
+outputs from successive reruns.
 
-## Parser regression test
+## Frame metadata and requirements
 
-The standalone C++ test does not need CUDA:
+The reader requires `Time` (fs), `Lattice` (9 components), `pbc` (3 flags)
+and `Properties` containing `species:S:1` and `pos:R:3`.
+Optional `Step`, `step`, or `Timestep` integer metadata overrides
+`Time/time_step` reconstruction. When absent, an integral step is reconstructed
+from `Time` and the `time_step` value in `run.in`. For variable-timestep
+trajectories, include an explicit integer step in the XYZ header.
+
+Frames must have a fixed number of atoms, the same species **in the same
+index order** as `model.xyz`, valid cells and strictly increasing steps.
+Atom-ID remapping is not yet implemented, so the reader cannot detect swaps of
+atoms of the same species.
+
+## Limitations and validation
+
+- The existing `Measure` actions (including PLUMED) are rejected until an
+  analysis-only lifecycle is implemented. Removing that guard alone would
+  be unsafe.
+- The potential evaluation path is written but is not yet validated by CUDA
+  compilation, direct GPU NEP reference calculations, or numerical regression.
+- A standalone CPU-only parser/selector test is in
+  `tests_regression/rerun_reader_test.cpp`:
 
 ```sh
-c++ -std=c++14 -Isrc/main_gpumd tests_regression/rerun_reader_test.cpp -o /tmp/rerun_reader_test
+c++ -std=c++14 -Wall -Wextra -Werror -Isrc/main_gpumd \\
+  tests_regression/rerun_reader_test.cpp -o /tmp/rerun_reader_test
 /tmp/rerun_reader_test
 ```
+
+Before production use, run GPU build and compare per-frame energy, forces and
+virials with independent NEP single-point evaluations, then test consecutive
+rerun and run commands for exact state restoration.
