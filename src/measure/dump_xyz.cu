@@ -69,6 +69,29 @@ Dump_XYZ::Dump_XYZ(
   action_name = "dump_xyz";
 }
 
+void Dump_XYZ::validate_rerun(bool has_potential) const
+{
+  if (!has_potential &&
+      (quantities.has_force_ || quantities.has_potential_ ||
+       quantities.has_virial_ || quantities.has_bec_ || has_mforce_)) {
+    PRINT_INPUT_ERROR("rerun dump_xyz force/potential/virial/bec/mforce requires a potential.");
+  }
+  if (quantities.has_unwrapped_position_) {
+    PRINT_INPUT_ERROR(
+      "rerun dump_xyz unwrapped_position requires trajectory image flags (not yet supported).");
+  }
+}
+
+bool Dump_XYZ::rerun_requires_velocity() const
+{
+  return quantities.has_velocity_;
+}
+
+bool Dump_XYZ::rerun_overwrites_input(const std::string& path) const
+{
+  return separated_ == 0 && split_frames_ == 0 && filename_ == path;
+}
+
 void Dump_XYZ::parse(
   const std::vector<std::string>& tokens, const std::vector<Group>& groups)
 {
