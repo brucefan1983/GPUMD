@@ -121,7 +121,7 @@ void Measure::rerun_frame(
   for (auto& action : actions_) {
     if (action->action_name == "plumed") continue;
     if (action->action_name == "dump_thermo") {
-      static_cast<Dump_Thermo*>(action.get())->rerun_frame(thermo, atom.number_of_atoms, box);
+      static_cast<Dump_Thermo*>(action.get())->rerun_frame(timestep, thermo, atom.number_of_atoms, box);
       continue;
     }
     // end_of_step is zero-indexed in GPUMD, hence timestep-1 here.
