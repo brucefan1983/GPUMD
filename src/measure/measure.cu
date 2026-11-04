@@ -72,6 +72,27 @@ The driver class dealing with measurement.
 #include <utility>
 #include <vector>
 
+bool Measure::rerun_needs_velocity() const
+{
+  if (rerun_needs_thermo()) return true;
+  for (const auto& action : actions_) {
+    if (action->action_name == "dump_xyz" &&
+        static_cast<const Dump_XYZ*>(action.get())->rerun_requires_velocity())
+      return true;
+  }
+  return false;
+}
+
+bool Measure::rerun_output_conflicts(const std::string& trajectory) const
+{
+  for (const auto& action : actions_) {
+    if (action->action_name == "dump_xyz" &&
+        static_cast<const Dump_XYZ*>(action.get())->rerun_overwrites_input(trajectory))
+      return true;
+  }
+  return false;
+}
+
 bool Measure::rerun_needs_thermo() const
 {
   for (const auto& action : actions_) {
@@ -84,7 +105,11 @@ void Measure::validate_rerun(bool has_potential) const
 {
   for (const auto& action : actions_) {
     const std::string& name = action->action_name;
-    if (name == "plumed" || name == "dump_xyz") continue;
+    if (name == "plumed") continue;
+    if (name == "dump_xyz") {
+      static_cast<const Dump_XYZ*>(action.get())->validate_rerun(has_potential);
+      continue;
+    }
     if (name == "dump_thermo" && has_potential) continue;
     PRINT_INPUT_ERROR(
       "rerun currently supports only plumed, dump_xyz and "
