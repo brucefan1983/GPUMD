@@ -24,9 +24,9 @@ int main()
     out << "Pd 5 6 7\n";
     out << "2\n";
     out << "Time=40 Step=400 pbc=\"T T T\" Lattice=\"5 0 0 0 6 0 0 0 7\" "
-           "Properties=id:I:1:species:S:1:pos:R:3\n";
-    out << "2 Pd 8 9 10\n";
-    out << "1 Ga 2 3 4\n";
+           "Properties=id:I:1:species:S:1:pos:R:3:vel:R:3\n";
+    out << "2 Pd 8 9 10 0.01 0.02 0.03\n";
+    out << "1 Ga 2 3 4 0.04 0.05 0.06\n";
   }
   gpumd_rerun::Reader reader(path);
   gpumd_rerun::Frame frame;
@@ -46,6 +46,10 @@ int main()
   assert(frame.species[0] == "Ga" && frame.species[1] == "Pd");
   assert(frame.positions[0] == 2 && frame.positions[1] == 8);
   assert(frame.positions[2] == 3 && frame.positions[3] == 9);
+  assert(frame.velocities.size() == 6);
+  assert(std::abs(frame.velocities[0] - 0.04) < 1.0e-12);
+  assert(std::abs(frame.velocities[1] - 0.01) < 1.0e-12);
+  assert(std::abs(frame.velocities[2] - 0.05) < 1.0e-12);
   assert(!reader.next(frame));
 
   gpumd_rerun::Selection selector;
