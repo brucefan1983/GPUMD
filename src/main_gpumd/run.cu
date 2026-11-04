@@ -135,6 +135,19 @@ Run::Run(const RunInput& run_input)
 
   has_replicate_ = parse_initial_replicate(run_input, replicate_size_);
 
+  if (get_first_potential_filename(run_input).empty()) {
+    bool has_rerun_command = false;
+    for (const auto& line : run_input.lines()) {
+      if (!line.tokens.empty() && line.tokens[0] == "rerun") {
+        has_rerun_command = true;
+        break;
+      }
+    }
+    if (!has_rerun_command) {
+      PRINT_INPUT_ERROR("A potential is required unless run.in contains rerun.");
+    }
+  }
+
   initialize_position(
     run_input,
     has_velocity_in_xyz,
@@ -455,6 +468,8 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   std::vector<double> original_forces(atom.force_per_atom.size());
   std::vector<double> original_potential(atom.potential_per_atom.size());
   std::vector<double> original_virial(atom.virial_per_atom.size());
+  std::vector<double> original_mforce(atom.mforce_per_atom.size());
+  if (!original_mforce.empty()) atom.mforce_per_atom.copy_to_host(original_mforce.data());
   if (!original_forces.empty()) atom.force_per_atom.copy_to_host(original_forces.data());
   if (!original_potential.empty()) atom.potential_per_atom.copy_to_host(original_potential.data());
   if (!original_virial.empty()) atom.virial_per_atom.copy_to_host(original_virial.data());
@@ -521,6 +536,7 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   if (!original_forces.empty()) atom.force_per_atom.copy_from_host(original_forces.data());
   if (!original_potential.empty()) atom.potential_per_atom.copy_from_host(original_potential.data());
   if (!original_virial.empty()) atom.virial_per_atom.copy_from_host(original_virial.data());
+  if (!original_mforce.empty()) atom.mforce_per_atom.copy_from_host(original_mforce.data());
 
   printf("Rerun processed %lld frames without integration.\n", processed);
 }
