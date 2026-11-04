@@ -72,6 +72,14 @@ The driver class dealing with measurement.
 #include <utility>
 #include <vector>
 
+bool Measure::rerun_needs_thermo() const
+{
+  for (const auto& action : actions_) {
+    if (action->action_name == "dump_thermo") return true;
+  }
+  return false;
+}
+
 void Measure::validate_rerun(bool has_potential) const
 {
   for (const auto& action : actions_) {
