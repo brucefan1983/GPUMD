@@ -53,6 +53,15 @@ inline std::string attribute(const std::string& line, const std::string& key)
   return line.substr(begin, end - begin);
 }
 
+inline double parse_finite_double(const std::string& value, const std::string& field)
+{
+  size_t used = 0;
+  const double result = std::stod(value, &used);
+  if (used != value.size() || !std::isfinite(result))
+    throw std::runtime_error("rerun: invalid " + field);
+  return result;
+}
+
 inline std::vector<std::string> split(const std::string& text, char delim)
 {
   std::vector<std::string> out;
@@ -86,7 +95,7 @@ public:
       throw std::runtime_error("rerun: truncated XYZ comment line");
 
     frame.has_step = false; // A reused Frame must not retain the previous step.
-    frame.time_fs = std::stod(attribute(line, "Time"));
+    frame.time_fs = parse_finite_double(attribute(line, "Time"), "Time");
     if (!std::isfinite(frame.time_fs))
       throw std::runtime_error("rerun: nonfinite XYZ Time");
 
@@ -171,11 +180,11 @@ public:
       }
       frame.species[target] = fields[species_offset];
       for (int d = 0; d < 3; ++d) {
-        frame.positions[target + n * d] = std::stod(fields[pos_offset + d]);
+        frame.positions[target + n * d] = parse_finite_double(fields[pos_offset + d], "coordinate");
         if (!std::isfinite(frame.positions[target + n * d]))
           throw std::runtime_error("rerun: nonfinite coordinates");
         if (vel_offset >= 0) {
-          frame.velocities[target + n * d] = std::stod(fields[vel_offset + d]);
+          frame.velocities[target + n * d] = parse_finite_double(fields[vel_offset + d], "velocity");
           if (!std::isfinite(frame.velocities[target + n * d]))
             throw std::runtime_error("rerun: nonfinite velocities");
         }
