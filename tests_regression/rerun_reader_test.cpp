@@ -22,6 +22,11 @@ int main()
            "Properties=species:S:1:pos:R:3\n";
     out << "Ga 2 3 4\n";
     out << "Pd 5 6 7\n";
+    out << "2\n";
+    out << "Time=40 Step=400 pbc=\"T T T\" Lattice=\"5 0 0 0 6 0 0 0 7\" "
+           "Properties=id:I:1:species:S:1:pos:R:3\n";
+    out << "2 Pd 8 9 10\n";
+    out << "1 Ga 2 3 4\n";
   }
   gpumd_rerun::Reader reader(path);
   gpumd_rerun::Frame frame;
@@ -36,6 +41,11 @@ int main()
   assert(frame.time_fs == 30 && frame.positions[0] == 2);
   assert(frame.has_step && frame.step == 300);
   assert(gpumd_rerun::frame_step(frame, 1.0) == 300);
+  assert(reader.next(frame));
+  assert(frame.has_step && frame.step == 400);
+  assert(frame.species[0] == "Ga" && frame.species[1] == "Pd");
+  assert(frame.positions[0] == 2 && frame.positions[1] == 8);
+  assert(frame.positions[2] == 3 && frame.positions[3] == 9);
   assert(!reader.next(frame));
 
   gpumd_rerun::Selection selector;
