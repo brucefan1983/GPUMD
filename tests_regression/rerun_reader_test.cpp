@@ -72,6 +72,23 @@ int main()
   assert(by_step.accepts(100));
   assert(by_step.accepts(200));
   assert(by_step.accepts(300));
+  // Numeric parser must reject silent partial parsing such as 1.0garbage.
+  bool rejected = false;
+  try {
+    gpumd_rerun::parse_finite_double("1.0junk", "coordinate");
+  } catch (const std::exception&) {
+    rejected = true;
+  }
+  assert(rejected);
+
+  rejected = false;
+  try {
+    gpumd_rerun::parse_finite_double("nan", "coordinate");
+  } catch (const std::exception&) {
+    rejected = true;
+  }
+  assert(rejected);
+
   std::remove(path);
   return 0;
 }
