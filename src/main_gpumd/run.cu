@@ -27,6 +27,7 @@ Run simulation according to the inputs in the run.in file.
 #include "model/read_xyz.cuh"
 #include "phonon/hessian.cuh"
 #include "replicate.cuh"
+#include "rerun_reader.hpp"
 #include "run.cuh"
 #include "utilities/error.cuh"
 #include "utilities/compact_nep.cuh"
@@ -35,6 +36,11 @@ Run simulation according to the inputs in the run.in file.
 #include "utilities/run_input.cuh"
 #include "velocity.cuh"
 #include <chrono>
+#include <algorithm>
+#include <fstream>
+#include <limits>
+#include <numeric>
+#include <stdexcept>
 
 static __global__ void gpu_find_largest_v2(
   int N, int number_of_rounds, double* g_vx, double* g_vy, double* g_vz, double* g_v2_max)
@@ -302,6 +308,9 @@ void Run::parse_one_keyword(
   if (tokens[0] == "replicate") {
     PRINT_INPUT_ERROR("replicate must be the first effective command.");
   }
+  if (has_completed_rerun_) {
+    PRINT_INPUT_ERROR("rerun must be the final command in run.in.");
+  }
 
   const int num_param = tokens.size();
   const int max_num_param = 32;
@@ -314,6 +323,7 @@ void Run::parse_one_keyword(
 
   if (tokens[0] == "potential") {
     force.parse_potential(tokens, box, atom, run_input);
+    has_potential_for_rerun_ = true;
   } else if (tokens[0] == "minimize") {
     Minimize minimize;
     minimize.parse_minimize(
@@ -365,6 +375,9 @@ void Run::parse_one_keyword(
     has_seen_dftd3_command = true;
   } else if (tokens[0] == "run") {
     parse_run(tokens);
+  } else if (tokens[0] == "rerun") {
+    parse_rerun(tokens);
+    has_completed_rerun_ = true;
   } else if (!measure.parse_action(
                tokens,
                number_of_types,
@@ -376,6 +389,114 @@ void Run::parse_one_keyword(
                first_potential_filename_)) {
     PRINT_KEYWORD_ERROR(tokens[0].c_str());
   }
+}
+
+
+void Run::parse_rerun(const std::vector<std::string>& tokens)
+{
+  // First implementation: force/energy evaluation on GPUMD Extended XYZ frames.
+  // This execution path intentionally does not call any integrator.
+  if (!has_potential_for_rerun_) {
+    PRINT_INPUT_ERROR("rerun currently requires a preceding potential command.");
+  }
+  if (integrate.has_ensemble()) {
+    PRINT_INPUT_ERROR("rerun does not accept an active ensemble.");
+  }
+  if (tokens.size() < 2) {
+    PRINT_INPUT_ERROR("rerun syntax: rerun trajectory.xyz [first N] [last N] [every N] [skip N]");
+  }
+
+  long long first = 0;
+  long long last = std::numeric_limits<long long>::max();
+  long long every = 0;
+  long long skip = 1;
+  for (size_t i = 2; i < tokens.size(); i += 2) {
+    if (i + 1 >= tokens.size()) {
+      PRINT_INPUT_ERROR("rerun requires a value after each keyword.");
+    }
+    long long value = 0;
+    try {
+      size_t used = 0;
+      value = std::stoll(tokens[i + 1], &used);
+      if (used != tokens[i + 1].size()) {
+        PRINT_INPUT_ERROR("rerun expects an integer keyword value.");
+      }
+    } catch (const std::exception&) {
+      PRINT_INPUT_ERROR("rerun expects an integer keyword value.");
+    }
+    if (tokens[i] == "first") {
+      first = value;
+    } else if (tokens[i] == "last") {
+      last = value;
+    } else if (tokens[i] == "every") {
+      every = value;
+    } else if (tokens[i] == "skip") {
+      skip = value;
+    } else {
+      PRINT_INPUT_ERROR("unsupported rerun keyword (supported: first last every skip).");
+    }
+  }
+  if (first > last || every < 0 || skip <= 0) {
+    PRINT_INPUT_ERROR("invalid rerun first/last/every/skip arguments.");
+  }
+
+  // Rerun uses GPUMD dump_xyz Time (fs), converting it back to a MD step with
+  // the time_step from run.in. It does not equate frame index to MD step.
+  const double dt_fs = time_step * TIME_UNIT_CONVERSION;
+  gpumd_rerun::Reader reader(tokens[1]);
+  gpumd_rerun::Frame frame;
+  std::ofstream output("rerun_energy.dat");
+  if (!output) PRINT_INPUT_ERROR("cannot create rerun_energy.dat.");
+  output.precision(17);
+  output << "# timestep time_fs potential_energy_eV\\n";
+
+  long long seen = 0;
+  long long selected = 0;
+  long long previous_step = std::numeric_limits<long long>::min();
+  std::vector<double> per_atom_energy(atom.number_of_atoms);
+  try {
+    while (reader.next(frame)) {
+      const long long step = gpumd_rerun::time_to_step(frame.time_fs, dt_fs);
+      if (step <= previous_step) {
+        throw std::runtime_error("rerun requires strictly increasing timesteps");
+      }
+      previous_step = step;
+      if (step < first || step > last) continue;
+      if (every > 0 && step % every != 0) continue;
+      if (seen++ % skip != 0) continue;
+
+      if (frame.species.size() != static_cast<size_t>(atom.number_of_atoms)) {
+        throw std::runtime_error("rerun atom count differs from model.xyz");
+      }
+      for (int i = 0; i < atom.number_of_atoms; ++i) {
+        if (frame.species[i] != atom.cpu_atom_symbol[i]) {
+          throw std::runtime_error("rerun atom symbols/order differ from model.xyz");
+        }
+      }
+      for (int i = 0; i < 9; ++i) box.cpu_h[i] = frame.lattice[i];
+      box.pbc_x = frame.pbc[0];
+      box.pbc_y = frame.pbc[1];
+      box.pbc_z = frame.pbc[2];
+      if (!(box.get_volume() > 1.0e-12)) {
+        throw std::runtime_error("rerun invalid simulation cell");
+      }
+      box.get_inverse();
+      box.set_is_orthogonal();
+      atom.position_per_atom.copy_from_host(frame.positions.data());
+
+      // Exactly one energy/force evaluation. No velocity or position integration.
+      compute_force();
+      atom.potential_per_atom.copy_to_host(per_atom_energy.data());
+      const double energy = std::accumulate(per_atom_energy.begin(), per_atom_energy.end(), 0.0);
+      output << step << " " << frame.time_fs << " " << energy << "\\n";
+      ++selected;
+    }
+  } catch (const std::exception& error) {
+    fprintf(stderr, "rerun failed: %s\\n", error.what());
+    exit(EXIT_FAILURE);
+  }
+  printf("Rerun processed %lld frames without integration.\\n", selected);
+  force.finalize();
 }
 
 void Run::parse_velocity(const std::vector<std::string>& tokens)
