@@ -132,12 +132,13 @@ public:
 
     auto props = split(attribute(line, "Properties"), ':');
     if (props.size() % 3 != 0) throw std::runtime_error("rerun: malformed Properties");
-    int species_offset = -1, pos_offset = -1, width = 0;
+    int species_offset = -1, pos_offset = -1, id_offset = -1, width = 0;
     for (size_t i = 0; i < props.size(); i += 3) {
       int count = std::stoi(props[i + 2]);
       if (count <= 0) throw std::runtime_error("rerun: invalid property width");
       if (props[i] == "species" && count == 1) species_offset = width;
       if (props[i] == "pos" && count == 3) pos_offset = width;
+      if (props[i] == "id" && count == 1) id_offset = width;
       width += count;
     }
     if (species_offset < 0 || pos_offset < 0)
@@ -145,6 +146,7 @@ public:
 
     frame.species.resize(n);
     frame.positions.resize(3 * n);
+    std::vector<bool> used_ids(n, false);
     for (int i = 0; i < n; ++i) {
       if (!std::getline(stream_, line))
         throw std::runtime_error("rerun: truncated XYZ atom data");
@@ -154,10 +156,20 @@ public:
       while (in >> field) fields.push_back(field);
       if (static_cast<int>(fields.size()) != width)
         throw std::runtime_error("rerun: wrong number of XYZ columns");
-      frame.species[i] = fields[species_offset];
+      int target = i;
+      if (id_offset >= 0) {
+        size_t consumed = 0;
+        const long long id = std::stoll(fields[id_offset], &consumed);
+        if (consumed != fields[id_offset].size() || id < 1 || id > n)
+          throw std::runtime_error("rerun: invalid atom ID");
+        target = static_cast<int>(id - 1);
+        if (used_ids[target]) throw std::runtime_error("rerun: duplicate atom ID");
+        used_ids[target] = true;
+      }
+      frame.species[target] = fields[species_offset];
       for (int d = 0; d < 3; ++d) {
-        frame.positions[i + n * d] = std::stod(fields[pos_offset + d]);
-        if (!std::isfinite(frame.positions[i + n * d]))
+        frame.positions[target + n * d] = std::stod(fields[pos_offset + d]);
+        if (!std::isfinite(frame.positions[target + n * d]))
           throw std::runtime_error("rerun: nonfinite coordinates");
       }
     }
