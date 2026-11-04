@@ -18,6 +18,7 @@ namespace gpumd_rerun {
 struct Frame {
   std::vector<std::string> species;
   std::vector<double> positions; // GPUMD structure of arrays: x[N], y[N], z[N]
+  std::vector<double> velocities; // optional vel:R:3, Angstrom/fs (same indexing)
   std::array<double, 9> lattice{}; // GPUMD column-vector matrix
   std::array<int, 3> pbc{{1, 1, 1}};
   double time_fs = 0.0;
@@ -132,13 +133,14 @@ public:
 
     auto props = split(attribute(line, "Properties"), ':');
     if (props.size() % 3 != 0) throw std::runtime_error("rerun: malformed Properties");
-    int species_offset = -1, pos_offset = -1, id_offset = -1, width = 0;
+    int species_offset = -1, pos_offset = -1, id_offset = -1, vel_offset = -1, width = 0;
     for (size_t i = 0; i < props.size(); i += 3) {
       int count = std::stoi(props[i + 2]);
       if (count <= 0) throw std::runtime_error("rerun: invalid property width");
       if (props[i] == "species" && count == 1) species_offset = width;
       if (props[i] == "pos" && count == 3) pos_offset = width;
       if (props[i] == "id" && count == 1) id_offset = width;
+      if (props[i] == "vel" && count == 3) vel_offset = width;
       width += count;
     }
     if (species_offset < 0 || pos_offset < 0)
@@ -146,6 +148,7 @@ public:
 
     frame.species.resize(n);
     frame.positions.resize(3 * n);
+    frame.velocities.resize(vel_offset >= 0 ? 3 * n : 0);
     std::vector<bool> used_ids(n, false);
     for (int i = 0; i < n; ++i) {
       if (!std::getline(stream_, line))
@@ -171,6 +174,11 @@ public:
         frame.positions[target + n * d] = std::stod(fields[pos_offset + d]);
         if (!std::isfinite(frame.positions[target + n * d]))
           throw std::runtime_error("rerun: nonfinite coordinates");
+        if (vel_offset >= 0) {
+          frame.velocities[target + n * d] = std::stod(fields[vel_offset + d]);
+          if (!std::isfinite(frame.velocities[target + n * d]))
+            throw std::runtime_error("rerun: nonfinite velocities");
+        }
       }
     }
     return true;
