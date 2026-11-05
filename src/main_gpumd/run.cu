@@ -402,6 +402,16 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   if (!has_potential_for_rerun_) {
     PRINT_INPUT_ERROR("A potential must be specified before rerun.");
   }
+  // Temperature-dependent potentials consume Force::temperature, which the
+  // trajectory-only interface does not define. Never silently reuse an
+  // uninitialized or previous MD-run temperature.
+  for (int i = 0; i < force.get_number_of_potentials(); ++i) {
+    if (force.get_potential(i).nep_model_type == 3) {
+      PRINT_INPUT_ERROR(
+        "rerun does not yet support temperature-dependent NEP potentials; "
+        "the replay trajectory has no temperature parameter.");
+    }
+  }
   if (tokens.size() < 2) {
     PRINT_INPUT_ERROR("rerun trajectory.xyz [first N] [last N] [every N] [skip N]");
   }
