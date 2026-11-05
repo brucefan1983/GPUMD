@@ -309,6 +309,9 @@ void Integrate::parse_ensemble(
   if (has_ensemble()) {
     PRINT_INPUT_ERROR("Only one ensemble can be specified before each run.");
   }
+  // Avoid inheriting temperature from a previous run when this ensemble
+  // does not define a target temperature (e.g. NVE).
+  temperature1 = temperature2 = temperature = 0.0;
 
   // 1. Determine the integration method
   if (tokens[1] == "nve") {
