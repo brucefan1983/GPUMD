@@ -538,6 +538,9 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
       // boundaries between sequential dump files.
       if (step <= previous_step) continue;
       previous_step = step;
+      // Snapshots are expected in ascending order. Like LAMMPS, stop once
+      // the first snapshot beyond the requested last timestep is reached.
+      if (step > selection.last) break;
       if (!selection.accepts(step)) continue;
       if (frame.species.size() != static_cast<size_t>(N))
         throw std::runtime_error("rerun atom count differs from model.xyz");
