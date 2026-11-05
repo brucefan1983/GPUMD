@@ -37,6 +37,7 @@ public:
   void validate_rerun(bool has_potential) const;
   bool rerun_requires_velocity() const;
   bool rerun_overwrites_input(const std::string& path) const;
+  void set_header_step(long long timestep) { header_step_ = timestep; }
 
   virtual void pre_run(
     const int number_of_steps,
@@ -74,6 +75,7 @@ private:
   int grouping_method_ = -1;
   int group_id_ = -1;
   int dump_interval_ = 1;
+  long long header_step_ = -1; // exact cumulative MD step or replay step
   int precision_ = 1; // 1 = single precision, 2 = double
   DumpQuantities quantities;
   bool has_spin_ = false;
