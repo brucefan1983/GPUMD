@@ -40,6 +40,7 @@ Run simulation according to the inputs in the run.in file.
 #include <algorithm>
 #include <fstream>
 #include <limits>
+#include <memory>
 #include <numeric>
 #include <stdexcept>
 
