@@ -81,8 +81,12 @@ Supported selection keywords:
 - `skip N`: retain every Nth candidate frame, default 1
 
 Frame metadata: `Time` (fs), `Lattice` (9 values), `pbc` (three flags)
-and `Properties` with `species:S:1` and `pos:R:3`. Optional
-`Step`/`step`/`Timestep` takes precedence over `Time/time_step`.
+and `Properties` with `species:S:1` and `pos:R:3`. Modern GPUMD `dump_xyz`
+now also emits an exact cumulative integer `Step` (not reset by consecutive
+`run` commands); during `rerun`, that Step is preserved in the output.
+Optional `Step`/`step`/`Timestep` takes precedence over deriving a step
+from `Time/time_step`, but when both are present their clocks must agree
+for the configured fixed timestep.
 Optional `id:I:1` maps 1-based atom indices. Optional `vel:R:3` supplies
 per-frame velocity. Without atom IDs, XYZ line order must match `model.xyz`.
 
@@ -95,9 +99,10 @@ per-frame velocity. Without atom IDs, XYZ line order must match `model.xyz`.
 - Output and input XYZ file paths must differ (simple direct path comparison).
 - Missing velocity is never silently replaced with the initial random
   velocity when actual velocity-dependent outputs are requested.
-- Time-dependent PLUMED quantities still rely on the selected timestep and
-  `time_step`. Variable time stepping cannot be reproduced fully by supplying
-  only a `Step` if no per-step clock is available to PLUMED.
+- Time-dependent PLUMED quantities rely on `Step` and the configured
+  `time_step`. `Step` and `Time` are checked for consistency; variable
+  timestep trajectories are deliberately rejected until an explicit-time
+  replay implementation is available.
 - Unlike LAMMPS, multi-file input syntax and arbitrary dump formats are
   not implemented.
 - PLUMED `setStep` and existing GPUMD Measure interfaces use signed integer
