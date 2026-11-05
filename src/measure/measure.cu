@@ -127,13 +127,13 @@ void Measure::validate_rerun(bool has_potential) const
 }
 
 void Measure::pre_rerun(
-  const double time_step, Integrate& integrate, std::vector<Group>& group,
+  const double time_step, const double temperature, Integrate& integrate, std::vector<Group>& group,
   Atom& atom, Box& box, Force& force)
 {
   for (auto& action : actions_) {
 #ifdef USE_PLUMED
     if (action->action_name == "plumed") {
-      static_cast<PLUMED*>(action.get())->pre_rerun(time_step, atom);
+      static_cast<PLUMED*>(action.get())->pre_rerun(time_step, temperature, atom);
       continue;
     }
 #endif
