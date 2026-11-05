@@ -114,6 +114,36 @@ int main()
     }
     assert(rejected);
   }
+  // LAMMPS-like selection: every checks timestep, skip counts candidates.
+  gpumd_rerun::Selection sparse;
+  sparse.every = 100;
+  sparse.skip = 2;
+  assert(sparse.accepts(25));   // first eligible snapshot always accepted
+  assert(!sparse.accepts(50));  // not on every-grid
+  assert(!sparse.accepts(100)); // candidate 2, removed by skip
+  assert(sparse.accepts(200));  // candidate 3
+  assert(!sparse.accepts(300)); // candidate 4
+
+  // A reader can be reopened at a file boundary without losing frame
+  // metadata or selection state; the Run loop owns duplicate-step skipping.
+  const char* path2 = "rerun_reader_test_second.xyz";
+  {
+    std::ofstream out(path2);
+    out << "2\\n";
+    out << "Time=500 Step=500 pbc=\\\"T T T\\\" "
+           "Lattice=\\\"5 0 0 0 6 0 0 0 7\\\" "
+           "Properties=species:S:1:pos:R:3\\n";
+    out << "Ga 1 2 3\\n";
+    out << "Pd 4 5 6\\n";
+  }
+  {
+    gpumd_rerun::Reader second_reader(path2);
+    gpumd_rerun::Frame second_frame;
+    assert(second_reader.next(second_frame));
+    assert(gpumd_rerun::frame_step(second_frame, 1.0) == 500);
+    assert(!second_reader.next(second_frame));
+  }
+  std::remove(path2);
   std::remove(path);
   return 0;
 }
