@@ -404,31 +404,19 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
     PRINT_INPUT_ERROR("A potential must be specified before rerun.");
   }
   if (tokens.size() < 2) {
-    PRINT_INPUT_ERROR("rerun file1.xyz [file2.xyz ...] [first N] [last N] [every N] [skip N] [temperature T]");
+    PRINT_INPUT_ERROR("rerun trajectory.xyz [first N] [last N] [every N] [skip N] [temperature T]");
   }
   // A pending MD ensemble should not be used for replay-only analysis.
   if (integrate.has_ensemble()) {
     PRINT_INPUT_ERROR("rerun cannot execute with a pending ensemble; run or remove it first.");
   }
 
-  // LAMMPS-like multi-file replay: filenames precede the selection
-  // keywords, and are processed in the specified order.
-  std::vector<std::string> trajectory_files;
-  size_t options_begin = 1;
-  while (options_begin < tokens.size()) {
-    const std::string& word = tokens[options_begin];
-    if (word == "first" || word == "last" || word == "every" ||
-        word == "skip" || word == "temperature") break;
-    trajectory_files.push_back(word);
-    ++options_begin;
-  }
-  if (trajectory_files.empty()) {
-    PRINT_INPUT_ERROR("rerun needs at least one Extended XYZ trajectory filename.");
-  }
   gpumd_rerun::Selection selection;
   double rerun_temperature = 0.0;
   bool has_rerun_temperature = false;
-  for (size_t i = options_begin; i < tokens.size(); i += 2) {
+  // The first version accepts exactly one trajectory, tokens[1].
+  // Any additional positional filename is rejected as an unknown keyword.
+  for (size_t i = 2; i < tokens.size(); i += 2) {
     if (i + 1 >= tokens.size()) {
       PRINT_INPUT_ERROR("rerun requires a value after each keyword.");
     }
@@ -474,10 +462,8 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
       "(T in kelvin).");
   }
   measure.validate_rerun(has_potential_for_rerun_);
-  for (const auto& filename : trajectory_files) {
-    if (measure.rerun_output_conflicts(filename)) {
-      PRINT_INPUT_ERROR("rerun dump_xyz output must not overwrite an input trajectory.");
-    }
+  if (measure.rerun_output_conflicts(tokens[1])) {
+    PRINT_INPUT_ERROR("rerun dump_xyz output must not overwrite the input trajectory.");
   }
   const bool needs_velocity = measure.rerun_needs_velocity();
   const double dt_fs = time_step * TIME_UNIT_CONVERSION;
@@ -525,18 +511,10 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
     gpumd_rerun::Frame frame;
     measure.pre_rerun(time_step, has_rerun_temperature ? rerun_temperature : 0.0, integrate, group, atom, box, force);
     // Keep PLUMED and Measure alive across file boundaries.
-    size_t file_index = 0;
-    std::unique_ptr<gpumd_rerun::Reader> reader(
-      new gpumd_rerun::Reader(trajectory_files[file_index]));
-    while (true) {
-      if (!reader->next(frame)) {
-        if (++file_index == trajectory_files.size()) break;
-        reader.reset(new gpumd_rerun::Reader(trajectory_files[file_index]));
-        continue;
-      }
+    gpumd_rerun::Reader reader(tokens[1]);
+    while (reader.next(frame)) {
       const long long step = gpumd_rerun::frame_step(frame, dt_fs);
-      // LAMMPS skips duplicate or out-of-order snapshots, including at
-      // boundaries between sequential dump files.
+      // Skip duplicate or out-of-order timesteps in the input trajectory.
       if (step <= previous_step) continue;
       previous_step = step;
       // Snapshots are expected in ascending order. Like LAMMPS, stop once
