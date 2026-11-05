@@ -29,7 +29,6 @@ class Ensemble;
 class Measure
 {
 public:
-  void apply_static_fields(Box&, Atom&, Force&, const std::vector<Group>&);
   bool parse_action(
     const std::vector<std::string>& tokens,
     const int number_of_types,

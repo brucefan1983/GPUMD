@@ -250,7 +250,6 @@ void Run::perform_a_run(const int number_of_steps)
 
     measure.pre_force(step, time_step, integrate, group, atom, box, force);
     compute_force();
-    integrate.post_force(atom);
 
     atom.update_unwrapped_position(box);
     measure.post_force(step, time_step, integrate, group, atom, box, force);
@@ -324,8 +323,7 @@ void Run::parse_one_keyword(
       force,
       box,
       atom,
-      group,
-      measure);
+      group);
   } else if (tokens[0] == "compute_phonon") {
     Hessian hessian;
     hessian.parse(tokens);
@@ -346,7 +344,7 @@ void Run::parse_one_keyword(
   } else if (tokens[0] == "velocity") {
     parse_velocity(tokens);
   } else if (tokens[0] == "ensemble") {
-    integrate.parse_ensemble(tokens, atom, box, group);
+    integrate.parse_ensemble(tokens, atom, box, group, force);
   } else if (tokens[0] == "time_step") {
     parse_time_step(tokens);
   } else if (tokens[0] == "correct_velocity") {

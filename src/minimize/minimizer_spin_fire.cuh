@@ -23,14 +23,12 @@ Contributors:
 #pragma once
 #include "minimizer.cuh"
 #include <string>
-class Measure;
 
 // Spherical or Cartesian spins, optionally coupled to atoms and cell strain.
 class Minimizer_Spin_FIRE : public Minimizer
 {
 public:
-  Minimizer_Spin_FIRE(
-    const std::vector<std::string>&, int fixed_group, const Atom&, const Box&, Measure&);
+  Minimizer_Spin_FIRE(const std::vector<std::string>&, int fixed_group, const Atom&, const Box&);
   void compute(Force&, Box&, Atom&, GPU_Vector<double>&, std::vector<Group>&) override;
 
 private:
@@ -58,6 +56,5 @@ private:
   static constexpr double residual_progress_ratio = 0.99;
   static constexpr int max_steps_without_progress = 1000;
 
-  Measure& measure_;
   bool fixed_magnitude_, relax_atoms_, box_change_, hydrostatic_strain_;
 };

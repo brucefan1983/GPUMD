@@ -54,10 +54,7 @@ public:
     Box& box,
     Force& force) override;
 
-  void apply(Box&, Atom&, Force&, const std::vector<Group>&);
-
 private:
-  void initialize(const Atom&, Force&);
   void parse(const char** param, int num_param, const std::vector<Group>& group);
   void compute(Box& box, const std::vector<Group>& group, Atom& atom) const;
   GPU_Vector<int> active_types_;

@@ -158,12 +158,6 @@ void Integrate::set_deform(
   deform_yz = new_deform_yz;
 }
 
-void Integrate::post_force(const Atom& atom)
-{
-  if (auto* spin = dynamic_cast<Spin_Ensemble*>(ensemble_.get()))
-    spin->save_force(atom);
-}
-
 void Integrate::initialize(
   double time_step,
   Atom& atom,
@@ -285,7 +279,8 @@ void Integrate::parse_ensemble(
   const std::vector<std::string>& tokens,
   const Atom& atom,
   const Box& box,
-  const std::vector<Group>& group)
+  const std::vector<Group>& group,
+  Force& force)
 {
   if (tokens.size() < 2) {
     PRINT_INPUT_ERROR("Keyword 'ensemble' requires an ensemble type.");
@@ -296,7 +291,7 @@ void Integrate::parse_ensemble(
   }
 
   if (tokens[1] == "nvt_tspin" || tokens[1] == "npt_tspin" || tokens[1] == "nve_sib" || tokens[1] == "nvt_sib" || tokens[1] == "npt_sib" || tokens[1] == "nve_glsd" || tokens[1] == "nvt_glsd" || tokens[1] == "npt_glsd") {
-    auto spin = std::make_unique<Spin_Ensemble>(tokens, atom, box, group);
+    auto spin = std::make_unique<Spin_Ensemble>(tokens, atom, box, group, force);
     type = spin->type;
     temperature1 = spin->initial_temperature();
     temperature2 = spin->final_temperature();

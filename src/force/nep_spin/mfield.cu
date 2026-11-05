@@ -45,11 +45,6 @@ Spin_Magnetic_Field::Spin_Magnetic_Field(
 void Spin_Magnetic_Field::pre_run(
   int, double, Integrate&, std::vector<Group>&, Atom& atom, Box&, Force& force)
 {
-  initialize(atom, force);
-}
-
-void Spin_Magnetic_Field::initialize(const Atom& atom, Force& force)
-{
   const std::vector<int>* types = nullptr;
   if (force.get_number_of_potentials() == 1) {
     auto& potential = force.get_potential(0);
@@ -263,11 +258,4 @@ void Spin_Magnetic_Field::compute(Box& box, const std::vector<Group>& group, Ato
       }
     }
   }
-}
-
-void Spin_Magnetic_Field::apply(Box& box, Atom& atom, Force& force, const std::vector<Group>& group)
-{
-  if (active_types_.size() == 0)
-    initialize(atom, force);
-  compute(box, group, atom);
 }

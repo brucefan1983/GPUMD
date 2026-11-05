@@ -21,7 +21,6 @@ Contributors:
 */
 
 #include "force/force.cuh"
-#include "measure/measure.cuh"
 #include "minimizer_spin_fire.cuh"
 #include "model/atom.cuh"
 #include "utilities/error.cuh"
@@ -259,12 +258,8 @@ constexpr double EV_A3_TO_GPA = 160.2176621;
 } // namespace
 
 Minimizer_Spin_FIRE::Minimizer_Spin_FIRE(
-  const std::vector<std::string>& tokens,
-  int fixed_group,
-  const Atom& atom,
-  const Box& box,
-  Measure& measure)
-  : Minimizer(-1, 0, atom.number_of_atoms, 0, 0.0), measure_(measure)
+  const std::vector<std::string>& tokens, int fixed_group, const Atom& atom, const Box& box)
+  : Minimizer(-1, 0, atom.number_of_atoms, 0, 0.0)
 {
   const int num_param = tokens.size();
   double tolerance;
@@ -364,7 +359,6 @@ void Minimizer_Spin_FIRE::compute(
     if (atom.position_image.size())
       atom.position_image.fill(0);
     force.compute(working_box, atom, group);
-    measure_.apply_static_fields(working_box, atom, force, group);
     position_per_atom_temp_.copy_from_device(atom.position_per_atom.data());
     atom.position_per_atom.copy_from_device(original_position.data());
     if (atom.position_image.size())
@@ -643,7 +637,6 @@ void Minimizer_Spin_FIRE::compute(
     if (atom.position_image.size())
       atom.position_image.fill(0);
     force.compute(box, atom, group);
-    measure_.apply_static_fields(box, atom, force, group);
     CHECK(gpuSetDevice(0));
     atom.update_unwrapped_position(box);
     position.copy_to_host(atom.cpu_position_per_atom.data());

@@ -54,7 +54,5 @@ The field is magnetic induction B, not H in A/m.
 For example, a 2 muB moment aligned with 1 T has Zeeman energy approximately
 -1.1576e-4 eV and magnetic force +5.7884e-5 eV/muB along the field.
 
-Fields declared before ``minimize spin_fire`` also contribute to that
-minimization. They remain declared for the next ``run``, and are cleared when
-that run finishes. Multiple fields add; minimization does not invoke stochastic
-force modifiers.
+Fields do not participate in ``minimize spin_fire``. A field declared before
+minimization applies to the next ``run`` and is cleared when that run finishes.

@@ -26,12 +26,14 @@ Contributors:
 #include <string>
 
 class Spin_Integrator;
+class NEP_Spin;
+class NEP_Spin_MultiGPU;
 
 class Spin_Ensemble final : public Ensemble
 {
 public:
   Spin_Ensemble(
-    const std::vector<std::string>&, const Atom&, const Box&, const std::vector<Group>&);
+    const std::vector<std::string>&, const Atom&, const Box&, const std::vector<Group>&, Force&);
   ~Spin_Ensemble() override;
   double initial_temperature() const { return temperature1; }
   double final_temperature() const { return temperature2; }
@@ -43,10 +45,12 @@ public:
   compute1(double, int, int, const std::vector<Group>&, Box&, Atom&, GPU_Vector<double>&) override;
   void compute2(
     double, int, int, const std::vector<Group>&, Box&, Atom&, GPU_Vector<double>&, Force&) override;
-  void save_force(const Atom&);
 
 private:
   class Lattice_MTTK;
+  Force& force_;
+  NEP_Spin* potential_ = nullptr;
+  NEP_Spin_MultiGPU* multigpu_potential_ = nullptr;
   std::unique_ptr<Ensemble> lattice_;
   std::unique_ptr<Spin_Integrator> spin_integrator;
   double temperature1 = 0.0, temperature2 = 0.0;

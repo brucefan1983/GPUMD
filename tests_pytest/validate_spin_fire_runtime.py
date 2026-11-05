@@ -75,16 +75,6 @@ def validate(root):
     summary = {}
     spins = [[1,0.2,0], [0.4,-0.3,0.7], [0,0,0], [0.6,0.1,-0.4]]
     model = structure(spins)
-    field = 'add_mfield region 0 1 0 1 0 1 0 0 10000\n'
-    case, run = run_case(root,'fixed_zeeman',analytic_model(False),model,
-                         field+'minimize spin_fire 1e-7 3000 0\n')
-    summary['fixed_zeeman'], state = check_run(case,run,1e-7)
-    for before, after in zip(spins,state['spin']):
-        assert abs(norm(before)-norm(after)) < 2e-8
-        assert abs(after[2]-norm(before)) < 2e-7
-    expected = -5.7883818060e-5*10000*sum(map(norm,spins))
-    assert abs(summary['fixed_zeeman']['final_energy']-expected)<1e-9
-
     case,run = run_case(root,'variable_onsite',analytic_model(True),structure(),
                         'minimize spin_fire 1e-6 3000 1\n')
     summary['variable_onsite'],state = check_run(case,run,1e-6)
@@ -93,11 +83,10 @@ def validate(root):
     assert abs(summary['variable_onsite']['initial_energy']-sum(math.tanh(.1*norm(s)**2) for s in initial))<2e-7
 
     case,run = run_case(root,'zero_variable',analytic_model(True),structure([[0,0,0]]*4),
-                        'add_mfield region 0 1 0 1 0 1 0 0 100\nminimize spin_fire 2e-6 3000 1\n')
+                        'minimize spin_fire 2e-6 3000 1\n')
     summary['zero_variable'],state = check_run(case,run,2e-6)
-    for s in state['spin']:
-        assert s[2] > .02
-        assert abs(.2*s[2]/math.cosh(.1*s[2]**2)**2-5.7883818060e-3)<3e-6
+    assert state['spin'] == [[0, 0, 0]] * 4
+    assert summary['zero_variable']['steps'] == 0
 
     # A constant energy reference must not affect the FIRE trajectory or endpoint.
     shifted = analytic_model(True).replace('energy_reference 0 0', 'energy_reference 1024 1024')
@@ -109,28 +98,6 @@ def validate(root):
     for key in ('steps', 'status', 'initial_residual', 'final_residual'):
         assert summary['shifted_onsite'][key] == summary['variable_onsite'][key]
     assert abs(summary['shifted_onsite']['final_energy'] - summary['variable_onsite']['final_energy'] - 4096) < 1e-10
-
-    # Nonzero Zeeman force below representable spin updates must report a stall,
-    # not convergence or an exhausted iteration budget.
-    case,run = run_case(root,'unresolved_updates',analytic_model(False),structure([[0,0,1]]*4),
-                        'add_mfield region 0 1 0 1 0 1 0 0 1e-12\nminimize spin_fire 1e-18 3000 1\n')
-    summary['unresolved_updates'],state = check_run(case,run,converged=False)
-    assert summary['unresolved_updates']['status'] == 'stalled'
-    assert 'stagnation unresolved_spin_updates' in run.stdout
-    assert summary['unresolved_updates']['final_residual'] > 1e-18
-    assert state['spin'] == [[0,0,1]]*4
-
-    # A pure Zeeman potential with a free magnitude has no stationary point:
-    # spins keep moving and energy falls, but the force cannot converge.
-    case,run = run_case(root,'residual_plateau',analytic_model(False),model,
-                        'add_mfield region 0 1 0 1 0 1 0 0 100\nminimize spin_fire 1e-6 1500 1\n')
-    summary['residual_plateau'],state = check_run(case,run,converged=False)
-    record = summary['residual_plateau']
-    assert record['status'] == 'stalled' and record['steps'] < 1500
-    assert 'stagnation no_residual_progress' in run.stdout
-    assert record['final_energy'] < record['initial_energy']
-    assert record['final_residual'] > 1e-6
-    assert state['spin'][0][2] > spins[0][2]+1
 
     case,run = run_case(root,'fixed_radial',analytic_model(True),structure(),
                         'minimize spin_fire 1e-7 10 0\nminimize spin_fire 1e-7 10 0\n')
@@ -222,8 +189,55 @@ def validate(root):
         assert all(record==records[0] for record in records[1:])
         summary['fixed_atoms_'+str(mode)]=dict(records[1],matches_shorthand=True)
 
-    case,run = run_case(root,'max_steps',analytic_model(False),model,
-                        field+'minimize spin_fire 1e-7 1 0\n')
+    # Declaring fields before FIRE must leave optimization unchanged and keep
+    # the Action available for the following MD run. Test spin-only and joint
+    # cell relaxation, which use both force evaluation sites in the minimizer.
+    field = 'add_mfield region 0 1 0 1 0 1 12 -7 31\n'
+    for mode in ('0', '1 0 1'):
+        command = 'minimize spin_fire 1e-14 1 ' + mode + '\n'
+        results = {}
+        for placement in ('none', 'before', 'after'):
+            commands = (field if placement == 'before' else '') + command
+            if placement == 'after':
+                commands += field
+            commands += (
+                'ensemble nve\ntime_step 0\n'
+                'dump_xyz 1 field.xyz precision double force potential spin mforce\nrun 2\n'
+                'ensemble nve\ndump_xyz 1 cleared.xyz precision double force potential spin mforce\nrun 1\n')
+            case, run = run_case(root, 'md_field_' + mode.replace(' ', '_') + '_' + placement,
+                                 potential, skew, commands, dump=False)
+            record, _ = check_run(case, run, converged=False)
+            results[placement] = (record, read_frame(case/'field.xyz'), read_frame(case/'cleared.xyz'))
+        plain, before, after = (results[key] for key in ('none', 'before', 'after'))
+        assert before == after
+        assert plain[0] == before[0]
+        for cleared in (plain[2], before[2]):
+            assert plain[1].keys() == cleared.keys()
+            for key, rows in plain[1].items():
+                if key == 'species':
+                    assert rows == cleared[key]
+                    continue
+                # A new run wraps the relaxed cell again; allow roundoff.
+                pairs = [(a, b) for row, other in zip(rows, cleared[key])
+                         for a, b in zip(row, other)]
+                assert all(math.isfinite(a) and math.isfinite(b) for a, b in pairs)
+                assert max(abs(a-b) for a, b in pairs) < 1e-12, key
+        assert plain[1]['spin'] == before[1]['spin']
+        assert plain[1]['pos'] == before[1]['pos']
+        assert plain[1]['forces'] == before[1]['forces']
+        magnetic_force = [5.7883818060e-5 * value for value in (12, -7, 31)]
+        for species, spin, g0, g1, e0, e1 in zip(plain[1]['species'], plain[1]['spin'], plain[1]['mforce'],
+                                       before[1]['mforce'], plain[1]['energy_atom'],
+                                       before[1]['energy_atom']):
+            expected_force = magnetic_force if species == ['Fe'] else [0.0] * 3
+            assert all(math.isfinite(v) for v in spin + g0 + g1 + e0 + e1)
+            assert max(abs(b-a-g) for a, b, g in zip(g0, g1, expected_force)) < 1e-12
+            assert abs(e1[0]-e0[0]+sum(s*g for s, g in zip(spin, expected_force))) < 1e-12
+        summary['md_field_' + mode.replace(' ', '_')] = {'minimization_unchanged': True,
+                                                        'md_field_and_cleanup': True}
+
+    case,run = run_case(root,'max_steps',analytic_model(True),model,
+                        'minimize spin_fire 1e-7 1 1\n')
     summary['max_steps'],_ = check_run(case,run,converged=False)
     assert summary['max_steps']['status']=='maximum_steps'
 

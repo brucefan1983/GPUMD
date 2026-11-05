@@ -473,10 +473,3 @@ void Measure::post_force(
     action->post_force(step, time_step, integrate, group, atom, box, force);
   }
 }
-
-void Measure::apply_static_fields(Box& box, Atom& atom, Force& force, const std::vector<Group>& group)
-{
-  for (auto& action : actions_) {
-    if (auto* field = dynamic_cast<Spin_Magnetic_Field*>(action.get())) field->apply(box, atom, force, group);
-  }
-}

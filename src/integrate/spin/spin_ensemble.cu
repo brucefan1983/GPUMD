@@ -20,6 +20,8 @@ Contributors:
   Chengbing Chen: 1747193328@qq.com
 */
 
+#include "force/nep_spin/nep_spin.cuh"
+#include "force/nep_spin/nep_spin_multigpu.cuh"
 #include "glsd.cuh"
 #include "integrator.cuh"
 #include "sib.cuh"
@@ -68,6 +70,13 @@ void Spin_Ensemble::initialize_run(
   }
 
   if (!use_spin_tspin) {
+    if (force_.get_number_of_potentials() != 1)
+      PRINT_INPUT_ERROR("A spin ensemble requires one NEP-spin potential.");
+    auto& potential = force_.get_potential(0);
+    potential_ = dynamic_cast<NEP_Spin*>(&potential);
+    multigpu_potential_ = dynamic_cast<NEP_Spin_MultiGPU*>(&potential);
+    if (!potential_ && !multigpu_potential_)
+      PRINT_INPUT_ERROR("A spin ensemble requires a NEP-spin potential.");
     base_force_.resize(3 * atom.number_of_atoms);
     base_mforce_.resize(3 * atom.number_of_atoms);
   }
@@ -109,6 +118,12 @@ void Spin_Ensemble::compute1(
   if (lattice_)
     lattice_->compute1(dt, step, steps, group, box, atom, thermo);
   spin_integrator->compute1(dt, atom);
+  // Capture the next potential evaluation before Actions add their increments.
+  // The request is consumed there, so the corrector cannot overwrite it.
+  if (potential_)
+    potential_->request_force_snapshot(base_force_, base_mforce_);
+  else if (multigpu_potential_)
+    multigpu_potential_->request_force_snapshot(base_force_, base_mforce_);
 }
 void Spin_Ensemble::compute2(
   double dt,

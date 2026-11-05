@@ -21,7 +21,6 @@ class Force;
 class Box;
 class Group;
 class Atom;
-class Measure;
 
 class Minimize
 {
@@ -33,6 +32,5 @@ public:
     Force& force,
     Box& box,
     Atom& atom,
-    std::vector<Group>& group,
-    Measure& measure);
+    std::vector<Group>& group);
 };

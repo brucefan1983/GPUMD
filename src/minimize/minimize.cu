@@ -36,12 +36,11 @@ void Minimize::parse_minimize(
   Force& force,
   Box& box,
   Atom& atom,
-  std::vector<Group>& group,
-  Measure& measure)
+  std::vector<Group>& group)
 {
   const int num_param = tokens.size();
   if (num_param > 1 && tokens[1] == "spin_fire") {
-    Minimizer_Spin_FIRE minimizer(tokens, fixed_group, atom, box, measure);
+    Minimizer_Spin_FIRE minimizer(tokens, fixed_group, atom, box);
     minimizer.compute(force, box, atom, atom.position_per_atom, group);
     return;
   }

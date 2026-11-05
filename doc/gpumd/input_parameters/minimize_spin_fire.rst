@@ -91,8 +91,8 @@ Caveats
 * Atomic velocities and physical ``spin_vel`` are preserved. FIRE uses separate
   fictitious velocities. After joint optimization, positions, cell inverses,
   periodic images, and endpoint forces are updated for subsequent commands.
-* Active ``add_mfield`` contributions enter energy and magnetic force. The
-  model's magnetic-response mask retains its usual meaning.
+* External magnetic fields do not participate in Spin FIRE minimization.
+  ``add_mfield`` applies only to MD runs.
 * Output reports energy, maximum magnetic-force residual, and (for joint runs)
   maximum atomic force and virial stress in GPa (mean normal stress in the
   hydrostatic case). At fixed cell, stress is reported but is not a stopping

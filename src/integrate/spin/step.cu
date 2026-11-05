@@ -54,14 +54,6 @@ __global__ void restore_modifiers(
 }
 } // namespace
 
-void Spin_Ensemble::save_force(const Atom& atom)
-{
-  if (use_spin_tspin)
-    return;
-  base_force_.copy_from_device(atom.force_per_atom.data());
-  base_mforce_.copy_from_device(atom.mforce_per_atom.data());
-}
-
 void Spin_Ensemble::refresh_endpoint(
   Force& force, Box& box, Atom& atom, const std::vector<Group>& group, GPU_Vector<double>& thermo)
 {

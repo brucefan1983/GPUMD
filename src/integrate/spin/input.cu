@@ -74,7 +74,9 @@ Spin_Ensemble::Spin_Ensemble(
   const std::vector<std::string>& tokens,
   const Atom& atom,
   const Box& box,
-  const std::vector<Group>& group)
+  const std::vector<Group>& group,
+  Force& force)
+  : force_(force)
 {
   if (!atom.has_spin)
     PRINT_INPUT_ERROR("A spin ensemble requires NEP-spin and spin:R:3.");

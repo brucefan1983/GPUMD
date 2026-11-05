@@ -199,9 +199,20 @@ public:
   void resize_domain(int num_atoms);
   void invalidate_neighbors() { neighbor_.invalidate(); }
 
+  // The caller owns the buffers until the next compute completes. Only that
+  // evaluation is captured; later endpoint evaluations leave the buffers intact.
+  void request_force_snapshot(GPU_Vector<double>& force, GPU_Vector<double>& mforce)
+  {
+    force_snapshot_ = &force;
+    mforce_snapshot_ = &mforce;
+  }
+
   const std::vector<int>& spin_types() const { return model_.spin_type_active; }
 
 private:
+  GPU_Vector<double>* force_snapshot_ = nullptr;
+  GPU_Vector<double>* mforce_snapshot_ = nullptr;
+  void save_force_snapshot(const GPU_Vector<double>&, const GPU_Vector<double>&);
   Model model_;
   Data data_;
   class Neighbors
