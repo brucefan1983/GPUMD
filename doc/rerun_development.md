@@ -4,10 +4,11 @@
 on `feature/rerun`, but a full CUDA compilation and numerical/PLUMED runtime
 test have NOT yet been completed. Do not use for production before validation.
 
-The replay loop reads one or more GPUMD Extended XYZ files in order and
-uses their snapshots as the source of coordinates instead of calling the MD
-integrator. As in LAMMPS, duplicate or out-of-order snapshot timesteps are
-skipped, and reading stops once the first snapshot exceeds `last`. Existing measurement
+The replay loop reads one GPUMD Extended XYZ trajectory and uses its
+snapshots as the source of coordinates instead of calling the MD integrator.
+Duplicate or out-of-order timesteps are skipped, and reading stops when a
+snapshot exceeds `last`. Multiple trajectories are deliberately not supported
+in this first version. Existing measurement
 actions handle all outputs. No dedicated `rerun_energy.dat` or `output`
 keyword is produced/supported.
 
@@ -94,7 +95,6 @@ force/potential/virial arrays, and thermo state before the next run/replay.
 Both `run` and `rerun` require a loaded potential; only `run` requires an ensemble.
 
 Supported selection keywords:
-- `file1.xyz [file2.xyz ...]`: read files sequentially in the specified order
 - `first N`: minimum timestep, default 0
 - `last N`: maximum timestep, default unlimited
 - `every N`: modulo-step filtering, with the first in-range snapshot eligible
@@ -125,8 +125,9 @@ per-frame velocity. Without atom IDs, XYZ line order must match `model.xyz`.
   `time_step`. `Step` and `Time` are checked for consistency; variable
   timestep trajectories are deliberately rejected until an explicit-time
   replay implementation is available.
-- GPUMD supports sequential multiple Extended XYZ files but not LAMMPS
-  dump-format selection, multi-rank dump files, or arbitrary dump formats.
+- The first version supports exactly one Extended XYZ trajectory. Multiple
+  input trajectories, LAMMPS dump-format selection, and arbitrary dump formats
+  are not supported.
 - LAMMPS options `start`, `stop`, `post`, and `dump` are not implemented;
   `temperature T` is GPUMD-specific and is only needed for force models
   requiring simulation temperature.
