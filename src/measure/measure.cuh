@@ -39,7 +39,7 @@ public:
   void set_xyz_header_step(long long timestep);
 
   void pre_rerun(
-    const double time_step, Integrate& integrate, std::vector<Group>& group,
+    const double time_step, const double temperature, Integrate& integrate, std::vector<Group>& group,
     Atom& atom, Box& box, Force& force);
   void rerun_frame(
     const long long timestep, const double time_natural,
