@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <limits>
@@ -213,7 +214,21 @@ inline long long time_to_step(double time_fs, double dt_fs)
 
 inline long long frame_step(const Frame& frame, double dt_fs)
 {
-  return frame.has_step ? frame.step : time_to_step(frame.time_fs, dt_fs);
+  if (!frame.has_step) return time_to_step(frame.time_fs, dt_fs);
+  if (!(dt_fs > 0.0) || !std::isfinite(dt_fs))
+    throw std::runtime_error("rerun: time_step must be positive");
+  // PLUMED receives a fixed timestep via setTimestep and the integer step
+  // via setStep. Refuse inconsistent XYZ clocks instead of writing conflicting
+  // times to COLVAR and dump_xyz. Trajectories with variable MD timestep
+  // need a separate explicit-time replay design.
+  const double implied_time_fs = static_cast<double>(frame.step) * dt_fs;
+  const double tolerance_fs = std::max(1.0e-8, 1.0e-5 * dt_fs);
+  if (!std::isfinite(implied_time_fs) ||
+      std::abs(frame.time_fs - implied_time_fs) > tolerance_fs)
+    throw std::runtime_error(
+      "rerun: Step and Time disagree for the configured time_step "
+      "(variable-timestep replay is not supported)");
+  return frame.step;
 }
 
 // The selection policy is independent from file I/O and GPU evaluation.
