@@ -403,7 +403,7 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
     PRINT_INPUT_ERROR("A potential must be specified before rerun.");
   }
   if (tokens.size() < 2) {
-    PRINT_INPUT_ERROR("rerun trajectory.xyz [first N] [last N] [every N] [skip N]");
+    PRINT_INPUT_ERROR("rerun trajectory.xyz [first N] [last N] [every N] [skip N] [temperature T]");
   }
   // A pending MD ensemble should not be used for replay-only analysis.
   if (integrate.has_ensemble()) {
@@ -507,7 +507,7 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   try {
     gpumd_rerun::Reader reader(tokens[1]);
     gpumd_rerun::Frame frame;
-    measure.pre_rerun(time_step, integrate, group, atom, box, force);
+    measure.pre_rerun(time_step, has_rerun_temperature ? rerun_temperature : 0.0, integrate, group, atom, box, force);
     while (reader.next(frame)) {
       const long long step = gpumd_rerun::frame_step(frame, dt_fs);
       if (step <= previous_step)
