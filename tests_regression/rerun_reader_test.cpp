@@ -18,12 +18,12 @@ int main()
     out << "Ga 0 0 0 1 2 3\n";
     out << "Pd 0 0 0 4 5 6\n";
     out << "2\n";
-    out << "Time=30 Step=300 pbc=\"T F T\" Lattice=\"5 0 0 0 6 0 0 0 7\" "
+    out << "Time=300 Step=300 pbc=\"T F T\" Lattice=\"5 0 0 0 6 0 0 0 7\" "
            "Properties=species:S:1:pos:R:3\n";
     out << "Ga 2 3 4\n";
     out << "Pd 5 6 7\n";
     out << "2\n";
-    out << "Time=40 Step=400 pbc=\"T T T\" Lattice=\"5 0 0 0 6 0 0 0 7\" "
+    out << "Time=400 Step=400 pbc=\"T T T\" Lattice=\"5 0 0 0 6 0 0 0 7\" "
            "Properties=id:I:1:species:S:1:pos:R:3:vel:R:3\n";
     out << "2 Pd 8 9 10 0.01 0.02 0.03\n";
     out << "1 Ga 2 3 4 0.04 0.05 0.06\n";
@@ -38,7 +38,7 @@ int main()
   assert(frame.pbc[1] == 0);
   assert(gpumd_rerun::time_to_step(frame.time_fs, 1.0) == 20);
   assert(reader.next(frame));
-  assert(frame.time_fs == 30 && frame.positions[0] == 2);
+  assert(frame.time_fs == 300 && frame.positions[0] == 2);
   assert(frame.has_step && frame.step == 300);
   assert(gpumd_rerun::frame_step(frame, 1.0) == 300);
   assert(reader.next(frame));
@@ -51,6 +51,19 @@ int main()
   assert(std::abs(frame.velocities[1] - 0.01) < 1.0e-12);
   assert(std::abs(frame.velocities[2] - 0.05) < 1.0e-12);
   assert(!reader.next(frame));
+
+  // The fixed step-to-time mapping must agree before PLUMED receives a frame.
+  gpumd_rerun::Frame bad_clock;
+  bad_clock.has_step = true;
+  bad_clock.step = 300;
+  bad_clock.time_fs = 30;
+  bool bad_time_rejected = false;
+  try {
+    (void)gpumd_rerun::frame_step(bad_clock, 1.0);
+  } catch (const std::runtime_error&) {
+    bad_time_rejected = true;
+  }
+  assert(bad_time_rejected);
 
   gpumd_rerun::Selection selector;
   selector.first = 15;
