@@ -449,7 +449,8 @@ void Dump_XYZ::end_of_step(
   fprintf(fid_, "%d\n", number_of_atoms_to_dump);
 
   // line 2
-  output_line2(static_cast<long long>(step) + 1, global_time, box, groups, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
+  const long long frame_step = header_step_ >= 0 ? header_step_ : static_cast<long long>(step) + 1;
+  output_line2(frame_step, global_time, box, groups, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
 
   // other lines
   for (int n = 0; n < number_of_atoms_to_dump; n++) {
