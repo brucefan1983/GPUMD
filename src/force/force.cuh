@@ -91,6 +91,7 @@ public:
   void set_temperature_range(
     const double temperature1, const double temperature2, const int number_of_steps);
   void advance_temperature();
+  double get_temperature() const;
   int get_number_of_potentials() const;
   Potential& get_potential(const int index);
 
