@@ -110,6 +110,7 @@ per-frame velocity. Without atom IDs, XYZ line order must match `model.xyz`.
 - Initialization requires `model.xyz` and a valid potential to define
   the atom types, masses and grouping before replay.
 - `potential` is mandatory and must appear before the `rerun` command.
+- Temperature-dependent NEP potentials (which use `Force::temperature`) are rejected in replay until a physical temperature policy is defined; ordinary NEP force calculations are supported.
 - CUDA, actual GPUMD + PLUMED, and numerical consistency checks remain
   unverified.
 
