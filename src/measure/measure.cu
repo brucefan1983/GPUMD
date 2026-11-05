@@ -72,6 +72,15 @@ The driver class dealing with measurement.
 #include <utility>
 #include <vector>
 
+void Measure::set_xyz_header_step(long long timestep)
+{
+  for (auto& action : actions_) {
+    if (action->action_name == "dump_xyz") {
+      static_cast<Dump_XYZ*>(action.get())->set_header_step(timestep);
+    }
+  }
+}
+
 bool Measure::rerun_needs_velocity() const
 {
   if (rerun_needs_thermo()) return true;
@@ -142,6 +151,7 @@ void Measure::rerun_frame(
   if (timestep > static_cast<long long>(std::numeric_limits<int>::max())) {
     PRINT_INPUT_ERROR("rerun timestep exceeds supported Measure interval range.");
   }
+  set_xyz_header_step(timestep);
   // CVs are evaluated before dump output so their PRINT outputs follow the
   // original trajectory time. Normal MD integration hooks are not called.
 #ifdef USE_PLUMED
