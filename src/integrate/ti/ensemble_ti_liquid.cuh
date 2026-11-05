@@ -14,22 +14,16 @@
 */
 
 #pragma once
-#include "ensemble_lan.cuh"
-#include "langevin_utilities.cuh"
-#include "model/box.cuh"
-#include "utilities/common.cuh"
-#include "utilities/error.cuh"
-#include "utilities/read_file.cuh"
-#include <map>
-#include <math.h>
+#include "integrate/ensemble_lan.cuh"
+#include <cstdio>
 #include <string>
 #include <vector>
 
-class Ensemble_TI : public Ensemble_LAN
+class Ensemble_TI_Liquid : public Ensemble_LAN
 {
 public:
-  Ensemble_TI(const std::vector<std::string>& tokens);
-  ~Ensemble_TI(void) override;
+  Ensemble_TI_Liquid(const std::vector<std::string>& tokens);
+  ~Ensemble_TI_Liquid(void) override;
 
   void finalize_run(const Atom& atom, const Box& box) override;
 
@@ -51,26 +45,31 @@ public:
     GPU_Vector<double>& thermo,
     Force& force) override;
 
-  void find_thermo(
-    const Box& box,
-    const std::vector<Group>& group,
-    const Atom& atom,
-    GPU_Vector<double>& thermo);
-  double get_espring_sum(const int number_of_atoms);
-  void add_spring_force(const Box& box, Atom& atom);
-  void init(const Atom& atom, const GPU_Vector<double>& thermo);
+  double fe(double x, const double coef[4], const double sum_spline[106], int index);
+  void get_UF_sum(const int number_of_atoms);
+  void add_UF_force(const Box& box, Atom& atom, Force& force);
+  void init(const int number_of_steps, const Atom& atom);
+  bool find_lambda(const int step, const int number_of_atoms);
+  double switch_func(double t);
+  double dswitch_func(double t);
 
 protected:
   FILE* output_file = nullptr;
-  double lambda = 0;
-  double pe, espring;
-  // spring constants
-  std::map<std::string, double> spring_map;
-  GPU_Vector<double> gpu_k;
-  std::vector<double> cpu_k;
-  GPU_Vector<double> gpu_espring;
-  GPU_Vector<double> position_0;
-  std::vector<double> thermo_cpu;
+  double lambda = 0, dlambda = 0;
+  int t_equil = -1, t_switch = -1;
+  double sigma_sqrd = 1;
+  double p = 1;
+  double beta;
+  double V;
+  // The input pressure is only used when reporting the Gibbs free energy.
+  double target_pressure = 0;
+  double E_diff = 0, E_ref = 0;
+  bool auto_switch = true;
+  GPU_Vector<double> gpu_eUF;
+  GPU_Vector<double> gpu_fx_UF;
+  GPU_Vector<double> gpu_fy_UF;
+  GPU_Vector<double> gpu_fz_UF;
+  GPU_Vector<double> gpu_ti_values;
 
 private:
   void close_output_file(const bool print_message);

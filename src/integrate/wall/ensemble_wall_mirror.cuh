@@ -14,7 +14,7 @@
 */
 
 #pragma once
-#include "ensemble.cuh"
+#include "integrate/ensemble.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"

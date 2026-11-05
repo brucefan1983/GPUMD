@@ -14,7 +14,7 @@
 */
 
 #pragma once
-#include "ensemble.cuh"
+#include "integrate/ensemble_mttk.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -23,10 +23,13 @@
 #include <string>
 #include <vector>
 
-class Ensemble_wall_harmonic : public Ensemble
+class Ensemble_TI_RS : public Ensemble_MTTK
 {
 public:
-  Ensemble_wall_harmonic(const std::vector<std::string>& tokens);
+  Ensemble_TI_RS(const std::vector<std::string>& tokens);
+  ~Ensemble_TI_RS(void) override;
+
+  void finalize_run(const Atom& atom, const Box& box) override;
 
   void initialize_before_first_step(
     const double time_step,
@@ -34,15 +37,6 @@ public:
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    GPU_Vector<double>& thermo) override;
-
-  void compute1(
-    const double time_step,
-    const int step,
-    const int number_of_steps,
-    const std::vector<Group>& group,
-    Box& box,
-    Atom& atoms,
     GPU_Vector<double>& thermo) override;
 
   void compute2(
@@ -55,13 +49,39 @@ public:
     GPU_Vector<double>& thermo,
     Force& force) override;
 
-  void init(Box& box, Atom& atom);
+  void init(const int number_of_steps, const GPU_Vector<double>& thermo);
+  void find_ti_thermo(
+    const Box& box,
+    const std::vector<Group>& group,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  void scale_force(Atom& atom);
+  void find_lambda(
+    const int step,
+    const Box& box,
+    const std::vector<Group>& group,
+    const Atom& atom,
+    GPU_Vector<double>& thermo);
+  double switch_func(double t);
+  double dswitch_func(double t);
+  void get_target_pressure(
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo) override;
 
 protected:
-  double wall_pos_left;
-  double vp;
-  double k = 10;
+  FILE* output_file = nullptr;
+  double lambda_f;
+  double lambda = 1, dlambda = 0;
+  int t_switch = -1, t_equil = -1;
+  double t_max;
+  double pe;
   std::vector<double> thermo_cpu;
-  GPU_Vector<bool> gpu_right_wall_list;
-  double thickness = 20;
+  bool auto_switch = true;
+
+private:
+  void close_output_file(const bool print_message);
 };

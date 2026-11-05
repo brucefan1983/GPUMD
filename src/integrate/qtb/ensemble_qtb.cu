@@ -19,7 +19,7 @@ The QTB thermostat based on a colored noise filter:
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_qtb.cuh"
-#include "langevin_utilities.cuh"
+#include "integrate/langevin_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"

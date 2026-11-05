@@ -14,7 +14,7 @@
 */
 
 #pragma once
-#include "ensemble_mttk.cuh"
+#include "integrate/ensemble_mttk.cuh"
 #include <string>
 #include <vector>
 

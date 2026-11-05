@@ -14,27 +14,35 @@
 */
 
 #pragma once
-#include "ensemble_lan.cuh"
-#include "langevin_utilities.cuh"
-#include "model/box.cuh"
+#include "integrate/ensemble.cuh"
 #include "utilities/common.cuh"
-#include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
-#include <map>
 #include <math.h>
 #include <string>
 #include <vector>
 
-class Ensemble_TI_Spring : public Ensemble_LAN
+class Ensemble_MSST : public Ensemble
 {
 public:
-  Ensemble_TI_Spring(const std::vector<std::string>& tokens);
-  ~Ensemble_TI_Spring(void) override;
+  Ensemble_MSST(const std::vector<std::string>& tokens);
 
-  void finalize_run(const Atom& atom, const Box& box) override;
+  void initialize_run(
+    const double time_step,
+    Atom& atom,
+    Box& box,
+    const std::vector<Group>& group) override;
 
   void initialize_before_first_step(
     const double time_step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo) override;
+
+  void compute1(
+    const double time_step,
+    const int step,
     const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
@@ -47,48 +55,56 @@ public:
     const int number_of_steps,
     const std::vector<Group>& group,
     Box& box,
-    Atom& atoms,
+    Atom& atom,
     GPU_Vector<double>& thermo,
     Force& force) override;
 
+  void remap(const double dilation, Box& box, Atom& atom);
+  void init(
+    const Box& box,
+    const std::vector<Group>& group,
+    Atom& atom,
+    GPU_Vector<double>& thermo);
   void find_thermo(
     const Box& box,
     const std::vector<Group>& group,
     const Atom& atom,
     GPU_Vector<double>& thermo);
-  double get_espring_sum(const int number_of_atoms);
-  void add_spring_force(const Box& box, Atom& atom);
-  void init(
-    const int number_of_steps, const Atom& atom, const GPU_Vector<double>& thermo);
-  void find_lambda(
-    const int step,
+  void get_omega();
+  void get_conserved(
     const Box& box,
     const std::vector<Group>& group,
-    Atom& atom,
+    const Atom& atom,
     GPU_Vector<double>& thermo);
-  double switch_func(double t);
-  double dswitch_func(double t);
+  void get_vsum(const Atom& atom);
+  void msst_v(Atom& atom);
 
-protected:
-  FILE* output_file = nullptr;
-  double lambda = 0, dlambda = 0;
-  int t_equil = -1, t_switch = -1;
-  double pe, espring;
-  // this is the actual pressure, which may cause problems due to its fluctuation
-  double pressure, avg_pressure = 0, V;
-  // so I use the input pressure.
-  double target_pressure = 0;
-  double E_diff = 0, E_Ein = 0;
-  bool auto_k = true;
-  bool auto_switch = true;
-  // spring constants
-  std::map<std::string, double> spring_map;
-  GPU_Vector<double> gpu_k;
-  std::vector<double> cpu_k;
-  GPU_Vector<double> gpu_espring;
-  GPU_Vector<double> position_0;
+  int N;
+  int shock_direction;
+  double initial_time_step;
+  double dthalf;
+  double vs;
+  double qmass;
+  double mu;
+  double p0;
+  double v0;
+  double e0;
+  bool p0_given = false;
+  bool v0_given = false;
+  bool e0_given = false;
+  double p_current;
+  double dhugo, dray;
+  double tscale = 0;
+  double lagrangian_position = 0;
+  double lagrangian_velocity;
+  double omega;
+  double total_mass = 0;
+  double etotal;
+  double ke, temperature;
+  double e_conserved, e_msst;
+  double vol;
+  const double kB = 8.617333262e-5;
   std::vector<double> thermo_cpu;
-
-private:
-  void close_output_file(const bool print_message);
+  GPU_Vector<double> gpu_vsum;
+  GPU_Vector<double> gpu_v_backup;
 };

@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "ensemble_mttk.cuh"
+#include "integrate/ensemble.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <string>
 #include <vector>
@@ -25,10 +25,16 @@
   #include <curand_kernel.h>
 #endif
 
-class Ensemble_NPT_QTB : public Ensemble_MTTK
+class Ensemble_QTB : public Ensemble
 {
 public:
-  Ensemble_NPT_QTB(const std::vector<std::string>& tokens);
+  Ensemble_QTB(const std::vector<std::string>& tokens);
+
+  double get_temperature1() const;
+  double get_temperature2() const;
+
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
 
   void compute1(
     const double time_step,
@@ -50,43 +56,33 @@ public:
     Force& force) override;
 
 private:
-  int qtb_number_of_atoms;
-  int qtb_N_f;
-  int qtb_nfreq2;
-  int qtb_alpha;
-  int qtb_counter_mu;
+  double temperature1_ = 0.0;
+  double temperature2_ = 0.0;
+  double f_max_input_ = 200.0;
+  int n_f_input_ = 100;
 
-  double qtb_dt;
-  double qtb_h_timestep;
-  double qtb_fric_coef;
-  double qtb_f_max_natural;
-  double qtb_last_filter_temperature;
-  double qtb_f_max = 200.0;
+  int number_of_atoms;
+  int N_f;
+  int nfreq2;
+  int alpha;
+  int counter_mu;
 
-  std::vector<double> qtb_time_H_host;
-  GPU_Vector<double> qtb_time_H_device;
-  GPU_Vector<double> qtb_random_array_0;
-  GPU_Vector<double> qtb_random_array_1;
-  GPU_Vector<double> qtb_random_array_2;
-  GPU_Vector<double> qtb_fran;
-  GPU_Vector<gpurandState> qtb_curand_states;
+  double dt;
+  double h_timestep;
+  double fric_coef;
+  double f_max_natural;
+  double last_filter_temperature;
 
-  void init_qtb(const Atom& atom);
-  void qtb_update_time_filter(const double target_temperature);
-  void qtb_refresh_colored_random_force(const Atom& atom);
-  void qtb_apply_half_step(Atom& atom);
+  std::vector<double> time_H_host;
+  GPU_Vector<double> time_H_device;
+  GPU_Vector<double> random_array_0;
+  GPU_Vector<double> random_array_1;
+  GPU_Vector<double> random_array_2;
+  GPU_Vector<double> fran;
+  GPU_Vector<gpurandState> curand_states;
 
-protected:
-  void init_mttk(
-    const std::vector<Group>& group,
-    const Box& box,
-    const Atom& atom,
-    GPU_Vector<double>& thermo) override;
-  void get_target_temp(
-    const int step,
-    const int number_of_steps,
-    const std::vector<Group>& group,
-    const Box& box,
-    const Atom& atom,
-    GPU_Vector<double>& thermo) override;
+  void init_qtb_common(int N, double T, double Tc, double dt_input, double f_max_input, int N_f_input);
+  void update_time_filter(const double target_temperature);
+  void refresh_colored_random_force(const Atom& atom);
+  void apply_qtb_half_step(Atom& atom);
 };

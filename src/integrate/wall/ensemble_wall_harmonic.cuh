@@ -14,18 +14,19 @@
 */
 
 #pragma once
-#include "ensemble_lan.cuh"
-#include <cstdio>
+#include "integrate/ensemble.cuh"
+#include "model/box.cuh"
+#include "utilities/common.cuh"
+#include "utilities/error.cuh"
+#include "utilities/read_file.cuh"
+#include <math.h>
 #include <string>
 #include <vector>
 
-class Ensemble_TI_Liquid : public Ensemble_LAN
+class Ensemble_wall_harmonic : public Ensemble
 {
 public:
-  Ensemble_TI_Liquid(const std::vector<std::string>& tokens);
-  ~Ensemble_TI_Liquid(void) override;
-
-  void finalize_run(const Atom& atom, const Box& box) override;
+  Ensemble_wall_harmonic(const std::vector<std::string>& tokens);
 
   void initialize_before_first_step(
     const double time_step,
@@ -33,6 +34,15 @@ public:
     const std::vector<Group>& group,
     Box& box,
     Atom& atom,
+    GPU_Vector<double>& thermo) override;
+
+  void compute1(
+    const double time_step,
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atoms,
     GPU_Vector<double>& thermo) override;
 
   void compute2(
@@ -45,32 +55,13 @@ public:
     GPU_Vector<double>& thermo,
     Force& force) override;
 
-  double fe(double x, const double coef[4], const double sum_spline[106], int index);
-  void get_UF_sum(const int number_of_atoms);
-  void add_UF_force(const Box& box, Atom& atom, Force& force);
-  void init(const int number_of_steps, const Atom& atom);
-  bool find_lambda(const int step, const int number_of_atoms);
-  double switch_func(double t);
-  double dswitch_func(double t);
+  void init(Box& box, Atom& atom);
 
 protected:
-  FILE* output_file = nullptr;
-  double lambda = 0, dlambda = 0;
-  int t_equil = -1, t_switch = -1;
-  double sigma_sqrd = 1;
-  double p = 1;
-  double beta;
-  double V;
-  // The input pressure is only used when reporting the Gibbs free energy.
-  double target_pressure = 0;
-  double E_diff = 0, E_ref = 0;
-  bool auto_switch = true;
-  GPU_Vector<double> gpu_eUF;
-  GPU_Vector<double> gpu_fx_UF;
-  GPU_Vector<double> gpu_fy_UF;
-  GPU_Vector<double> gpu_fz_UF;
-  GPU_Vector<double> gpu_ti_values;
-
-private:
-  void close_output_file(const bool print_message);
+  double wall_pos_left;
+  double vp;
+  double k = 10;
+  std::vector<double> thermo_cpu;
+  GPU_Vector<bool> gpu_right_wall_list;
+  double thickness = 20;
 };

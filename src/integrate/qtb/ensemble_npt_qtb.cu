@@ -21,7 +21,7 @@ Equivalent to LAMMPS fix nph + fix qtb.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_npt_qtb.cuh"
-#include "langevin_utilities.cuh"
+#include "integrate/langevin_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cmath>

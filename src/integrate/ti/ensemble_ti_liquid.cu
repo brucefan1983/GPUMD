@@ -15,7 +15,7 @@
 
 #include "ensemble_ti_liquid.cuh"
 #include "force/force.cuh"
-#include "langevin_utilities.cuh"
+#include "integrate/langevin_utilities.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"

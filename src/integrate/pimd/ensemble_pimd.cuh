@@ -14,7 +14,7 @@
 */
 
 #pragma once
-#include "ensemble.cuh"
+#include "integrate/ensemble.cuh"
 #include "utilities/gpu_macro.cuh"
 #ifdef USE_HIP
   #include <hiprand/hiprand_kernel.h>

@@ -25,8 +25,8 @@ References for implementation:
 
 #include "eco_pimd.cuh"
 #include "ensemble_pimd.cuh"
-#include "langevin_utilities.cuh"
-#include "svr_utilities.cuh"
+#include "integrate/langevin_utilities.cuh"
+#include "integrate/svr_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
