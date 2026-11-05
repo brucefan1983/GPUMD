@@ -75,7 +75,13 @@ static __global__ void gpu_glsd_heun(
   }
 }
 
-Spin_GLSD::Spin_GLSD(double gamma, double mobility, double spin_temperature, int seed, Atom& atom)
+Spin_GLSD::Spin_GLSD(
+  double gamma,
+  double mobility,
+  double spin_temperature,
+  int seed,
+  const std::vector<int>& spin_types,
+  Atom& atom)
   : gamma_(gamma),
     mobility_(mobility),
     spin_temperature_(spin_temperature),
@@ -98,7 +104,7 @@ Spin_GLSD::Spin_GLSD(double gamma, double mobility, double spin_temperature, int
   atom.spin_velocity_per_atom.fill(0.0);
   std::vector<int> active(n);
   for (int i = 0; i < n; ++i)
-    active[i] = atom.spin_types[atom.cpu_type[i]];
+    active[i] = spin_types[atom.cpu_type[i]];
   active_.resize(n);
   active_.copy_from_host(active.data());
   spin_start_.resize(3 * n);

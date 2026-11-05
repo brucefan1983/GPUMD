@@ -92,7 +92,6 @@ void Spin_Runtime::initialize(Atom& atom) const
         PRINT_INPUT_ERROR("Active spin components must be finite.");
     }
   }
-  atom.spin_types = types_;
   atom.spin_per_atom.copy_from_host(atom.cpu_spin_per_atom.data());
   atom.spin_velocity_per_atom.copy_from_host(atom.cpu_spin_velocity_per_atom.data());
 }

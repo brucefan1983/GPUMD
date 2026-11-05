@@ -27,6 +27,7 @@ References:
 #include "integrator.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <cstdint>
+#include <vector>
 
 class Atom;
 
@@ -34,7 +35,13 @@ class Atom;
 class Spin_GLSD : public Spin_Integrator
 {
 public:
-  Spin_GLSD(double gamma, double mobility, double spin_temperature, int seed, Atom& atom);
+  Spin_GLSD(
+    double gamma,
+    double mobility,
+    double spin_temperature,
+    int seed,
+    const std::vector<int>& spin_types,
+    Atom& atom);
   void compute1(const double time_step, Atom& atom) override;
   void compute2(const double time_step, Atom& atom) override;
 

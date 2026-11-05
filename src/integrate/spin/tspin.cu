@@ -212,6 +212,7 @@ Spin_TSPIN::Spin_TSPIN(
   double time_step,
   const std::vector<double>& mass_factor_by_type,
   int seed,
+  const std::vector<int>& spin_types,
   Atom& atom)
   : twice_kinetic_energy_(1)
 {
@@ -239,9 +240,8 @@ Spin_TSPIN::Spin_TSPIN(
   }
   cpu_mass_factor_per_atom_.resize(number_of_atoms);
   for (int atom_index = 0; atom_index < number_of_atoms; ++atom_index) {
-    const double factor = atom.spin_types[atom.cpu_type[atom_index]]
-                            ? mass_factor_by_type[atom.cpu_type[atom_index]]
-                            : 0.0;
+    const double factor =
+      spin_types[atom.cpu_type[atom_index]] ? mass_factor_by_type[atom.cpu_type[atom_index]] : 0.0;
     if (factor < 0.0 || !std::isfinite(factor)) {
       PRINT_INPUT_ERROR("TSPIN mass factors should be finite and >= 0.");
     }

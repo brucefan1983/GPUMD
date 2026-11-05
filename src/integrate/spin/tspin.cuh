@@ -37,6 +37,7 @@ public:
     double time_step,
     const std::vector<double>& mass_factor_by_type,
     int seed,
+    const std::vector<int>& spin_types,
     Atom& atom);
 
   void compute1(const double time_step, Atom& atom) override;

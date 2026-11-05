@@ -32,6 +32,15 @@ Spin_Ensemble::~Spin_Ensemble() = default;
 void Spin_Ensemble::initialize_run(
   double time_step, Atom& atom, Box& box, const std::vector<Group>& group)
 {
+  if (force_.get_number_of_potentials() != 1)
+    PRINT_INPUT_ERROR("A spin ensemble requires one NEP-spin potential.");
+  auto& potential = force_.get_potential(0);
+  auto* spin = dynamic_cast<NEP_Spin*>(&potential);
+  auto* multigpu = dynamic_cast<NEP_Spin_MultiGPU*>(&potential);
+  if (!spin && !multigpu)
+    PRINT_INPUT_ERROR("A spin ensemble requires a NEP-spin potential.");
+  const auto& spin_types = spin ? spin->spin_types() : multigpu->spin_types();
+
   if (lattice_) {
     lattice_->fixed_group = fixed_group;
     lattice_->move_group = move_group;
@@ -53,7 +62,13 @@ void Spin_Ensemble::initialize_run(
   spin_integrator.reset();
   if (use_spin_tspin) {
     spin_integrator.reset(new Spin_TSPIN(
-      temperature1, temperature_coupling, time_step, spin_mass_factor_by_type, spin_seed, atom));
+      temperature1,
+      temperature_coupling,
+      time_step,
+      spin_mass_factor_by_type,
+      spin_seed,
+      spin_types,
+      atom));
     spin_integrator->temperature = temperature;
   } else if (use_spin_sib) {
     spin_integrator.reset(new Spin_SIB(
@@ -65,18 +80,14 @@ void Spin_Ensemble::initialize_run(
       spin_glsd_mobility,
       spin_dynamics_temperature,
       spin_dynamics_seed,
+      spin_types,
       atom));
     spin_integrator->temperature = temperature;
   }
 
   if (!use_spin_tspin) {
-    if (force_.get_number_of_potentials() != 1)
-      PRINT_INPUT_ERROR("A spin ensemble requires one NEP-spin potential.");
-    auto& potential = force_.get_potential(0);
-    potential_ = dynamic_cast<NEP_Spin*>(&potential);
-    multigpu_potential_ = dynamic_cast<NEP_Spin_MultiGPU*>(&potential);
-    if (!potential_ && !multigpu_potential_)
-      PRINT_INPUT_ERROR("A spin ensemble requires a NEP-spin potential.");
+    potential_ = spin;
+    multigpu_potential_ = multigpu;
     base_force_.resize(3 * atom.number_of_atoms);
     base_mforce_.resize(3 * atom.number_of_atoms);
   }
