@@ -12,13 +12,13 @@
 */
 
 #include "compact_nep.cuh"
-#include "error.cuh"
+#include "utilities/error.cuh"
 #include "nep_file.cuh"
 #include "nep_model_file.cuh"
 #include "nep_model_input.cuh"
 #include "nep_spin_model_file.cuh"
-#include "read_file.cuh"
-#include "run_input.cuh"
+#include "utilities/read_file.cuh"
+#include "utilities/run_input.cuh"
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>

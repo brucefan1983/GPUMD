@@ -15,7 +15,7 @@
 
 #include "nep_file.cuh"
 #include "nep_model_file.cuh"
-#include "nep_utilities.cuh"
+#include "utilities/nep_utilities.cuh"
 #include <cmath>
 #include <limits>
 #include <utility>

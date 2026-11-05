@@ -26,7 +26,7 @@ when there is NVlink, but is also not very bad when there is only PCI-E.
 #include "nep_multigpu.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
-#include "utilities/nep_model_input.cuh"
+#include "utilities/nep_io/nep_model_input.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
 #include "utilities/run_input.cuh"

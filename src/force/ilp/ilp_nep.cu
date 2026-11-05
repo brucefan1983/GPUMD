@@ -29,7 +29,7 @@ Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
 #include "force/neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
-#include "utilities/nep_model_input.cuh"
+#include "utilities/nep_io/nep_model_input.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <iostream>

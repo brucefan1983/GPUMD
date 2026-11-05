@@ -29,7 +29,8 @@ file(GLOB GPUMD_SOURCES
     src/measure/*.cu
     src/measure/*/*.cu
     src/model/*.cu
-    src/utilities/*.cu)
+    src/utilities/*.cu
+    src/utilities/*/*.cu)
 add_executable(gpumd ${GPUMD_SOURCES})
 target_include_directories(gpumd PRIVATE src)
 target_link_libraries(gpumd PRIVATE CUDA::cublas CUDA::cusolver CUDA::cufft Threads::Threads)
@@ -38,7 +39,8 @@ target_link_libraries(gpumd PRIVATE CUDA::cublas CUDA::cusolver CUDA::cufft Thre
 file(GLOB NEP_SOURCES
     src/main_nep/*.cu
     src/main_nep/*/*.cu
-    src/utilities/*.cu)
+    src/utilities/*.cu
+    src/utilities/*/*.cu)
 add_executable(nep ${NEP_SOURCES})
 target_include_directories(nep PRIVATE src)
 target_link_libraries(nep PRIVATE CUDA::cublas CUDA::cusolver CUDA::cufft)
@@ -54,7 +56,8 @@ target_link_libraries(tb PRIVATE CUDA::cublas CUDA::cusolver)
 # --- gnep (optional, build with: cmake --build . --target gnep) ---
 file(GLOB GNEP_SOURCES
     src/main_gnep/*.cu
-    src/utilities/*.cu)
+    src/utilities/*.cu
+    src/utilities/*/*.cu)
 add_executable(gnep EXCLUDE_FROM_ALL ${GNEP_SOURCES})
 target_include_directories(gnep PRIVATE src)
 target_link_libraries(gnep PRIVATE CUDA::cublas CUDA::cusolver CUDA::cufft Threads::Threads)

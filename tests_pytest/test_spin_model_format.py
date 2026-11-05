@@ -17,7 +17,7 @@ def codec(tmp_path_factory):
         pytest.skip('C++ compiler unavailable')
     root = tmp_path_factory.mktemp('spin-codec')
     main = root / 'main.cpp'
-    main.write_text('''#include "utilities/nep_spin_model_file.cuh"
+    main.write_text('''#include "utilities/nep_io/nep_spin_model_file.cuh"
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -47,8 +47,8 @@ int main(int argc, char** argv) {
 ''')
     binary = root / 'codec'
     subprocess.run([compiler, '-std=c++14', '-pedantic-errors', '-I' + str(ROOT / 'src'), '-x', 'c++',
-        str(main), str(ROOT / 'src/utilities/nep_spin_model_file.cu'),
-        str(ROOT / 'src/utilities/nep_file.cu'), '-o', str(binary)], check=True)
+        str(main), str(ROOT / 'src/utilities/nep_io/nep_spin_model_file.cu'),
+        str(ROOT / 'src/utilities/nep_io/nep_file.cu'), '-o', str(binary)], check=True)
     return binary
 
 

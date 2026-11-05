@@ -129,7 +129,8 @@ SOURCES_GPUMD =                   \
 	$(wildcard measure/*.cu)      \
 	$(wildcard measure/*/*.cu)      \
 	$(wildcard model/*.cu)        \
-	$(wildcard utilities/*.cu)
+	$(wildcard utilities/*.cu)   \
+	$(wildcard utilities/*/*.cu)
 
 
 ###########################################################
@@ -152,6 +153,7 @@ OBJECTS = $(OBJ_GPUMD) $(WPE_ADAPTER_OBJ) $(WPE_STAGE_OBJ)
 
 HEADERS =                         \
 	$(wildcard utilities/*.cuh)   \
+	$(wildcard utilities/*/*.cuh) \
 	$(wildcard main_gpumd/*.cuh)  \
 	$(wildcard integrate/*.cuh)   \
 	$(wildcard integrate/*/*.cuh) \

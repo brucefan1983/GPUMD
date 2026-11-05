@@ -13,7 +13,7 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "error.cuh"
+#include "utilities/error.cuh"
 #include "nep_model_file.cuh"
 #include "nep_model_input.cuh"
 

@@ -24,7 +24,7 @@ implementation. This class is independent of force/NEP.
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
-#include "utilities/nep_model_input.cuh"
+#include "utilities/nep_io/nep_model_input.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
 #include <fstream>

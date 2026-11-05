@@ -30,7 +30,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep_spin_small_box.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/nep_spin_model_file.cuh"
+#include "utilities/nep_io/nep_spin_model_file.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <algorithm>
 #include <cmath>

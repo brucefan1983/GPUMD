@@ -5,7 +5,7 @@
 
 #pragma once
 #include "main_nep/common/nep_parameters.cuh"
-#include "utilities/nep_spin_model_file.cuh"
+#include "utilities/nep_io/nep_spin_model_file.cuh"
 class Spin_Parameters : public NEP_Energy_Parameters
 {
 public:

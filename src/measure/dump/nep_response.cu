@@ -22,7 +22,7 @@ NEP4 response models used by dipole and polarizability measurements.
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
-#include "utilities/nep_model_input.cuh"
+#include "utilities/nep_io/nep_model_input.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
 #include <fstream>

@@ -62,14 +62,17 @@ SOURCES_GPUMD =                   \
 	$(wildcard measure/*.cu)      \
 	$(wildcard measure/*/*.cu)      \
 	$(wildcard model/*.cu)        \
-	$(wildcard utilities/*.cu)
+	$(wildcard utilities/*.cu)   \
+	$(wildcard utilities/*/*.cu)
 SOURCES_NEP =                     \
 	$(wildcard main_nep/*.cu)     \
 	$(wildcard main_nep/*/*.cu)   \
-	$(wildcard utilities/*.cu)
+	$(wildcard utilities/*.cu)   \
+	$(wildcard utilities/*/*.cu)
 SOURCES_GNEP =                     \
 	$(wildcard main_gnep/*.cu)     \
-	$(wildcard utilities/*.cu)
+	$(wildcard utilities/*.cu)   \
+	$(wildcard utilities/*/*.cu)
 
 SOURCES_TB =                      \
 	$(wildcard main_tb/*.cu)      \
@@ -98,6 +101,7 @@ endif
 ###########################################################
 HEADERS =                         \
 	$(wildcard utilities/*.cuh)   \
+	$(wildcard utilities/*/*.cuh) \
 	$(wildcard main_gpumd/*.cuh)  \
 	$(wildcard integrate/*.cuh)   \
 	$(wildcard integrate/*/*.cuh) \
@@ -113,7 +117,7 @@ HEADERS =                         \
 	$(wildcard main_nep/*/*.cuh)  \
 	$(wildcard main_gnep/*.cuh)
 
-HEADERS_TB = $(wildcard main_tb/*.cuh) $(wildcard utilities/*.cuh)
+HEADERS_TB = $(wildcard main_tb/*.cuh) $(wildcard utilities/*.cuh) $(wildcard utilities/*/*.cuh)
 
 
 ###########################################################

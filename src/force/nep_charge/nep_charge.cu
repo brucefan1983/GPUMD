@@ -24,11 +24,11 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "nep_charge.cuh"
 #include "nep_charge_small_box.cuh"
 #include "utilities/common.cuh"
-#include "utilities/compact_nep.cuh"
+#include "utilities/nep_io/compact_nep.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
-#include "utilities/nep_model_input.cuh"
+#include "utilities/nep_io/nep_model_input.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include <chrono>

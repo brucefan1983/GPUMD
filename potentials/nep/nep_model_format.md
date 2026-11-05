@@ -581,7 +581,7 @@ the shared syntax; flexible ZBL and the `zbl_parameters` block are unsupported.
 Let `D = D_struct + D_spin`, where `D_struct` is the dimension in Section 4.1
 without extra inputs. `D_spin` is determined by `spin_compress`, `spin_l_max`,
 `spin_order`, and `spin_soc`, as implemented by `NEP_Spin_Model_File::spin_dimension`
-in [nep_spin_model_file.cu](../../src/utilities/nep_spin_model_file.cu).
+in [nep_spin_model_file.cu](../../src/utilities/nep_io/nep_spin_model_file.cu).
 With `O = G = S = 1` in Section 4.1, the parameter vector is:
 
 ```text
