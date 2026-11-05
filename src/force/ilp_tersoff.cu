@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -138,7 +138,7 @@ ILP_TERSOFF::ILP_TERSOFF(FILE* fid_ilp, FILE* fid_tersoff, int num_types, int nu
   ilp_data.f12y_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR_CBN);
   ilp_data.f12z_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR_CBN);
 
-  // intialize tersoff neighbor list
+  // initialize Tersoff neighbor list
   tersoff_data.NN.resize(num_atoms);
   tersoff_data.NL.resize(num_atoms * 1024); // the largest supported by CUDA
   tersoff_data.cell_count.resize(num_atoms);
@@ -693,8 +693,6 @@ static __device__ void calc_vdW(
   Vilp = -C_6 * r6inv * TSvdwinv_float;
 
   // derivatives
-  // fpair = -6.0 * C_6 * r8inv * TSvdwinv + \
-  //   C_6 * d_Seff * (TSvdw - 1.0) * TSvdwinv * TSvdwinv * r8inv * r;
   fpair = (-6.0f + d_Seff * (1.0f - TSvdwinv_float) * r ) * C_6 * TSvdwinv_float * r8inv;
   fsum = fpair * Tap - Vilp * dTap * rinv;
 
@@ -753,7 +751,7 @@ static __global__ void gpu_find_force(
   if (n1 < N2) {
     double x12d, y12d, z12d;
     float x12f, y12f, z12f;
-    int neighor_number = g_neighbor_number[n1];
+    int neighbor_number = g_neighbor_number[n1];
     int type1 = g_type[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
@@ -805,7 +803,7 @@ static __global__ void gpu_find_force(
     calc_normal(vet, cont, normal, dnormdri, dnormal);
 
     // calculate energy and force
-    for (int i1 = 0; i1 < neighor_number; ++i1) {
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = n1 + number_of_particles * i1;
       int n2 = g_neighbor_list[index];
       int type2 = g_type[n2];
@@ -916,7 +914,7 @@ static __global__ void gpu_find_force(
       float prodnorm1_m_fpair1 = prodnorm1 * fpair1;
       float Vilp_m_dTap_m_rinv = Vilp * dTap * rinv;
 
-      // derivatives of the product of rij and ni, the resutl is a vector
+      // derivatives of the product of rij and ni, the result is a vector
       dprodnorm1[0] = 
         dnormdri[0][0] * delx + dnormdri[1][0] * dely + dnormdri[2][0] * delz;
       dprodnorm1[1] = 
@@ -1136,7 +1134,7 @@ static __global__ void reduce_force_many_body(
     for (int i1 = 0; i1 < ilp_neighbor_number_1; ++i1) {
       int index = n1 + number_of_particles * i1;
       int n2 = g_ilp_neighbor_list[index];
-      int ilp_neighor_number_2 = g_ilp_neighbor_number[n2];
+      int ilp_neighbor_number_2 = g_ilp_neighbor_number[n2];
 
       x12d = g_x[n2] - x1;
       y12d = g_y[n2] - y1;
@@ -1147,7 +1145,7 @@ static __global__ void reduce_force_many_body(
       z12f = float(z12d);
 
       int offset = 0;
-      for (int k = 0; k < ilp_neighor_number_2; ++k) {
+      for (int k = 0; k < ilp_neighbor_number_2; ++k) {
         if (n1 == g_ilp_neighbor_list[n2 + number_of_particles * k]) {
           offset = k;
           break;
@@ -1512,7 +1510,7 @@ void ILP_TERSOFF::compute_ilp(
   GPU_Vector<double> &potential_per_atom,
   GPU_Vector<double> &force_per_atom,
   GPU_Vector<double> &virial_per_atom,
-  std::vector<Group> &group)
+  const std::vector<Group> &group)
 {
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;

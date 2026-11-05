@@ -13,13 +13,13 @@ Syntax
 ^^^^^^^^^^^
 The full command is::
 
-  ensemble ttm <ttm_gm> <ttm_gid> <Ce> <rho_e> <kappa_e> <gamma_p> <gamma_s> <v_0> <nx> <ny> <nz> <T_e_init> [{optional_args}]
+  ensemble ttm <grouping_method> <group_id> <Ce> <rho_e> <kappa_e> <gamma_p> <gamma_s> <v_0> <nx> <ny> <nz> <T_e_init> [{optional_args}]
 
 :attr:`heat_ttm`
 ^^^^^^^^^^^^^^^^
 The full command is::
 
-  ensemble heat_ttm <T> <T_coup> <delta_T> <label_source> <label_sink> <ttm_gm> <ttm_gid> <Ce> <rho_e> <kappa_e> <gamma_p> <gamma_s> <v_0> <nx> <ny> <nz> <T_e_init> [{optional_args}]
+  ensemble heat_ttm <T> <T_coup> <delta_T> <label_source> <label_sink> <grouping_method> <group_id> <Ce> <rho_e> <kappa_e> <gamma_p> <gamma_s> <v_0> <nx> <ny> <nz> <T_e_init> [{optional_args}]
 
 For :attr:`heat_ttm`, the first five parameters,
 :attr:`<T>`, :attr:`<T_coup>`, :attr:`<delta_T>`, :attr:`<label_source>`, and
@@ -30,16 +30,16 @@ Required parameters
 
 For both :attr:`ttm` and :attr:`heat_ttm`:
 
-* :attr:`<ttm_gm>` and :attr:`<ttm_gid>` specify the atom group coupled to the electron grid.
-* :attr:`<Ce>` is the electron specific heat per electron.
-* :attr:`<rho_e>` is the electron number density.
+* :attr:`<grouping_method>` and :attr:`<group_id>` specify the atom group coupled to the electron grid.
+* :attr:`<Ce>` is the electron specific heat per electron in eV/K.
+* :attr:`<rho_e>` is the electron number density in Å\ :math:`^{-3}`.
 * :attr:`<kappa_e>` is the electron thermal conductivity in eV/(ps K Å).
 * :attr:`<gamma_p>` and :attr:`<gamma_s>` are friction coefficients in amu/ps.
 * :attr:`<v_0>` is the threshold velocity in Å/ps.
 * :attr:`<nx>`, :attr:`<ny>`, and :attr:`<nz>` are the numbers of electron grid cells in the three directions.
 * :attr:`<T_e_init>` is the initial electron temperature in K.
 
-The product :attr:`<Ce> \times <rho_e>` is the volumetric electron heat capacity.
+The product :attr:`<Ce> \times <rho_e>` is the volumetric electron heat capacity in eV/(K Å\ :math:`^3`).
 
 Optional arguments
 ------------------
@@ -77,11 +77,11 @@ The file must contain one line for each cell in the form::
 
   ix iy iz C_vol kappa_e gamma_p eta
 
-Here, :attr:`C_vol` is the volumetric electron heat capacity,
+Here, :attr:`C_vol` is the volumetric electron heat capacity in eV/(K Å\ :math:`^3`),
 :attr:`kappa_e` is in eV/(ps K Å), :attr:`gamma_p` is in amu/ps,
-and :attr:`eta` is the source absorption efficiency.
+and :attr:`eta` is the dimensionless source absorption efficiency.
 This file must define all grid cells and overrides the uniform
-:attr:`<Ce>`, :attr:`<rho_e>`, :attr:`<kappa_e>`, and :attr:`<gamma_p>` values.
+:attr:`<Ce> \times <rho_e>`, :attr:`<kappa_e>`, and :attr:`<gamma_p>` values.
 
 :attr:`ttm_source`
 ^^^^^^^^^^^^^^^^^^

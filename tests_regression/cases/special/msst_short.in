@@ -1,0 +1,11 @@
+replicate 6 6 6
+potential potential.txt
+velocity 300 seed 20260916
+time_step 0.1
+ensemble msst x 15 qmass 10000 mu 10 tscale 0.01
+
+dump_thermo 1
+dump_xyz 5 final.xyz precision double velocity force potential virial group_labels
+dump_restart 5
+run 5
+

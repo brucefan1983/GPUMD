@@ -17,17 +17,13 @@ Output files
      - :ref:`dump_thermo <kw_dump_thermo>`
      - Global thermodynamic quantities
      - Append
-   * - :ref:`movie.xyz <movie_xyz>`
-     - :ref:`dump_position <kw_dump_position>`
-     - Trajectory (atomic positions, velocities etc)
-     - Append
    * - :ref:`restart.xyz <restart_xyz>`
      - :ref:`dump_restart <kw_dump_restart>`
      - The restart file
      - Overwrite
    * - :ref:`dump.xyz <dump_xyz>`
-     - :ref:`dump_exyz <kw_dump_exyz>`
-     - Atomistic positions, velocities and forces
+     - :ref:`dump_xyz <kw_dump_xyz>`
+     - Per-atom data in the extended XYZ format
      - Append
    * - :ref:`observer.xyz <observer_xyz>`
      - :ref:`dump_observer <kw_dump_observer>`
@@ -53,17 +49,25 @@ Output files
      - :ref:`dump_polarizability <kw_dump_polarizability>`
      - Predicted polarizability
      - Append
-   * - :ref:`velocity.out <velocity_out>`
-     - :ref:`dump_velocity <kw_dump_velocity>`
-     - Contains the atomic velocities
-     - Append
-   * - :ref:`force.out <force_out_gpumd>`
-     - :ref:`dump_force <kw_dump_force>`
-     - Contains the atomic forces
+   * - ``beads_dump_<k>.xyz`` (:ref:`details <kw_dump_beads>`)
+     - :ref:`dump_beads <kw_dump_beads>`
+     - Per-bead trajectories for PIMD-related runs
      - Append
    * - :ref:`compute.out <compute_out>`
      - :ref:`compute <kw_compute>`
      - Time and space (group) averaged quantities
+     - Append
+   * - :ref:`compute_chunk.out <compute_chunk_out>`
+     - :ref:`compute_chunk <kw_compute_chunk>`
+     - Time-averaged quantities in dynamic spatial bins
+     - Append
+   * - :ref:`elastic.out <elastic_out>`
+     - :ref:`compute_elastic <kw_compute_elastic>`
+     - Elastic constants
+     - Overwrite
+   * - :ref:`extrapolation_dump.xyz <extrapolation_dump_xyz>`
+     - :ref:`compute_extrapolation <kw_compute_extrapolation>`
+     - Structures selected by the NEP extrapolation grade
      - Append
    * - :ref:`ttm_electron_temperature.out <ttm_electron_temperature_out>`
      - :ref:`ensemble <kw_ensemble>` with :attr:`ttm` or :attr:`heat_ttm`
@@ -107,7 +111,7 @@ Output files
      - Append
    * - :ref:`ic.out <ic_out>`
      - :ref:`compute_ic <kw_compute_ic>`
-     - Iron conductivity (:term:`IC`) data
+     - Ionic conductivity (:term:`IC`) data
      - Append
    * - :ref:`cohesive.out <cohesive_out>`
      - :ref:`compute_cohesive <kw_compute_cohesive>`
@@ -161,6 +165,22 @@ Output files
      - :ref:`compute_orientorder <kw_compute_orientorder>`
      - Steinhardt bond-orientational order parameters
      - Append
+   * - :ref:`shock-wave histogram files <shock_nemd_hist_out>`
+     - :ref:`dump_shock_nemd <kw_dump_shock_nemd>`
+     - ``temperature_hist.txt``, stress, density, and particle-velocity profiles
+     - Overwrite
+   * - ``spring_gm*_g*_s*.out`` (:ref:`details <kw_add_spring>`)
+     - :ref:`add_spring <kw_add_spring>`
+     - Spring force and energy data
+     - New file; append with ``continue``
+   * - ``spring_gm*_g*_s*.restart`` (:ref:`details <kw_add_spring>`)
+     - :ref:`add_spring <kw_add_spring>`
+     - Ghost-spring restart state
+     - Overwrite
+   * - ``deposited_N.xyz`` (:ref:`details <kw_deposit>`)
+     - :ref:`deposit <kw_deposit>`
+     - Structure after each deposition sub-run
+     - One file per sub-run
 
 .. toctree::
    :maxdepth: 0
@@ -173,15 +193,14 @@ Output files
    ic_out
    dos_out
    dpdt_out
-   force_out
    hac_out
    heatmode_out
    kappa_out
    kappamode_out
    mvac_out
-   movie_xyz
    omega2_out
    restart_xyz
+   spin_restart
    dump_xyz
    observer_xyz
    observer_out
@@ -193,7 +212,6 @@ Output files
    msd_out
    shc_out
    thermo_out
-   velocity_out
    viscosity_out
    onsager_out
    rdf_out

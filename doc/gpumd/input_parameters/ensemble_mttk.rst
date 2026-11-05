@@ -1,6 +1,7 @@
 .. _mttk:
 .. _kw_ensemble_mttk:
 .. index::
+   single: nvt_mttk (keyword in run.in)
    single: npt_mttk (keyword in run.in)
    single: nph_mttk (keyword in run.in)
    single: MTTK integrator
@@ -10,10 +11,10 @@
 
 The variants of the :attr:`ensemble` keyword described on this page implement the Nosé-Hoover thermostat [Hoover1996]_ and the Parrinello-Rahman barostat [Parrinello1981]_.
 Both the thermostat and barostat are enhanced by the :ref:`Nosé-Hoover chain method <nose_hoover_chain_thermostat>` as recommended in [Martyna1994]_. 
-The resulting so-called Martyna-Tuckerman-Tobias-Klein (:term:`MTTK`) integrators enable one to perform simulations in the isothermal-isobaric (NPT) or isenthalpic (NPH) ensembles.
+The resulting so-called Martyna-Tuckerman-Tobias-Klein (:term:`MTTK`) integrators enable one to perform simulations in the canonical (NVT), isothermal-isobaric (NPT), or isenthalpic (NPH) ensembles.
 
 This implementation of the :term:`MTTK` integrator provides more fine-grained control than :ref:`"standard" ensembles <kw_ensemble_standard>`.
-The style of the :attr:`npt_mttk` and :attr:`nph_mttk` keywords is therefore slightly different.
+The style of the :attr:`nvt_mttk`, :attr:`npt_mttk`, and :attr:`nph_mttk` keywords is therefore slightly different.
 
 Syntax
 ------
@@ -31,16 +32,20 @@ The :attr:`<direction>` parameter can assume one or more of the following values
 Here, ``iso``, ``aniso``, and ``tri`` use hydrostatic pressure as the target pressure.
 ``iso`` updates the simulation cell isotropically.
 ``aniso`` updates the dimensions of the simulation cell along :math:`x`, :math:`y`, and :math:`z` independently.
-``tri`` updatess all six degrees of freedom of the simulation cell.
+``tri`` updates all six degrees of freedom of the simulation cell.
 Using ``x``, ``y``, ``z``, ``xy``, ``yz``, ``xz`` allows one to specify each stress component independently.
 
 The parameters :attr:`<p_1>` and :attr:`<p_2>` specify the initial and final pressure, respectively.
 Finally, the optional parameter :attr:`<tau_press>`, which defaults to ``1000``, determines the period of the barostat in units of the timestep.
 It determines how strongly the system is coupled to the barostat and should be :math:`\geq 200` timesteps.
 
-The :attr:`nph_mttk` keyword can be used in analoguous fashion to run simulations in the isenthalpic (NPH) ensemble::
+The :attr:`nph_mttk` keyword can be used in analogous fashion to run simulations in the isenthalpic (NPH) ensemble::
 
-    ensemble nph_mttk <direction> <p_1> <p_2> <tau_press>
+    ensemble nph_mttk <direction> <p_1> <p_2> pperiod <tau_press>
+
+The :attr:`nvt_mttk` keyword can be used to run simulations in the canonical (NVT) ensemble::
+
+    ensemble nvt_mttk temp <T_1> <T_2> tperiod <tau_temp>
 
 
 Examples
@@ -56,7 +61,7 @@ NPT Ensemble
     ensemble npt_mttk temp 300 300 iso 10 10
 
 This command sets the target temperature to 300 K and the target pressure to 10 GPa.
-The cell shape will not change during the simlation but only the volume.
+The cell shape will not change during the simulation but only the volume.
 These conditions are suitable for simulating liquids.
 If not constrained, the cell shape may undergo extreme changes since liquids have a vanishing shear modulus (in the long-time limit).
 
@@ -102,3 +107,20 @@ NPH Ensemble
     ensemble nph_mttk iso 10 10
 
 When using this command one performs a NPH simulation at 10 GPa, allowing only changes in the volume but not the cell shape.
+
+
+NVT Ensemble
+^^^^^^^^^^^^
+
+.. code-block:: rst
+
+    ensemble nvt_mttk temp 300 300
+
+This command sets the target temperature to 300 K using the Nosé-Hoover chain thermostat.
+No barostat is used, so the simulation cell is fixed.
+
+.. code-block:: rst
+
+    ensemble nvt_mttk temp 300 1000 tperiod 100
+
+This command ramps the temperature from 300 K to 1000 K and explicitly sets the period of the thermostat to 100 timesteps.

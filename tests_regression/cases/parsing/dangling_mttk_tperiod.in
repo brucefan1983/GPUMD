@@ -1,0 +1,2 @@
+ensemble nvt_mttk temp 300 300 tperiod
+potential potential.txt

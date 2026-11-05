@@ -1,0 +1,10 @@
+replicate 6 6 6
+potential potential.txt
+velocity 300 seed 20260918
+time_step 0.2
+
+ensemble nve
+compute_sdc 1 4
+dump_thermo 1
+dump_restart 8
+run 8

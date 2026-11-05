@@ -5,7 +5,7 @@
 ``mvac.out``
 ============
 
-This file contains the data of mass-weighted velocity autocorrelation (:term:`VAC`).
+This file contains the normalized mass-weighted velocity autocorrelation (:term:`VAC`).
 The file is generated when invoking the :ref:`compute_dos keyword <kw_compute_dos>`.
 
 File format
@@ -13,8 +13,8 @@ File format
 The file is organized as follows:
  
 * column 1: correlation time (in units of ps)
-* column 2: VAC (in units of Å\ :math:`^2`\ /s\ :math:`^2`) in the math:`x` direction
-* column 3: VAC (in units of Å\ :math:`^2`\ /s\ :math:`^2`) in the math:`y` direction
-* column 4: VAC (in units of Å\ :math:`^2`\ /s\ :math:`^2`) in the math:`z` direction
+* column 2: normalized VAC :math:`C_x(t)/C_x(0)` in the :math:`x` direction (dimensionless)
+* column 3: normalized VAC :math:`C_y(t)/C_y(0)` in the :math:`y` direction (dimensionless)
+* column 4: normalized VAC :math:`C_z(t)/C_z(0)` in the :math:`z` direction (dimensionless)
 
 Only the group selected via the :ref:`compute_dos keyword <kw_compute_dos>` is included in the output.

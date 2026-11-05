@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "eam_alloy.cuh"
@@ -117,8 +117,8 @@ EAMAlloy::EAMAlloy(const char* filename, const int number_of_atoms, const int ma
 {
   initialize_eamalloy(filename, number_of_atoms);
 
-  neighbor.initialize(eam_data.rc, number_of_atoms, 1);
-  neighbor.NL.resize(static_cast<size_t>(number_of_atoms) * max_neighbor);
+  neighbor_manager.initialize(eam_data.rc, number_of_atoms, 1);
+  neighbor_manager.set_candidate_capacity(max_neighbor);
   eam_data.d_F_rho_i_g.resize(number_of_atoms);
 }
 
@@ -443,7 +443,10 @@ void EAMAlloy::compute(
 
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-  neighbor.find_neighbor_global(eam_data.rc, box, type, position_per_atom);
+  neighbor_manager.update(box, type, position_per_atom);
+
+  const GPU_Vector<int>& NN = neighbor_manager.get_candidate_NN();
+  const GPU_Vector<int>& NL = neighbor_manager.get_candidate_NL();
 
   const float4* F_rho_coef = eam_data.F_rho_g.data();
   const float4* rho_r_coef = eam_data.rho_r_g.data();
@@ -455,8 +458,8 @@ void EAMAlloy::compute(
     N1,
     N2,
     box,
-    neighbor.NN.data(),
-    neighbor.NL.data(),
+    NN.data(),
+    NL.data(),
     type.data(),
     eam_data.nr,
     eam_data.nrho,
@@ -481,8 +484,8 @@ void EAMAlloy::compute(
     N1,
     N2,
     box,
-    neighbor.NN.data(),
-    neighbor.NL.data(),
+    NN.data(),
+    NL.data(),
     type.data(),
     eam_data.nr,
     eam_data.Nelements,

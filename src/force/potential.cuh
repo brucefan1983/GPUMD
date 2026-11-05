@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -21,17 +21,11 @@
 class Potential
 {
 public:
-  // size of the B vector (for each atom) in extrapolation grade calculation
-  int B_projection_size = 0;
-  // this points to GPU
-  double* B_projection = nullptr;
-  bool need_B_projection = false;
 
   int N1;
   int N2;
   double rc; // maximum cutoff distance
-  int nep_model_type =
-    -1; // -1 for non_nep, 0 for potential, 1 for dipole, 2 for polarizability, 3 for temperature
+  int nep_model_type = -1; // -1 for non-NEP, 0 for potential, 3 for temperature
   int ilp_flag = 0; // 0 for non_ilp, 1 for ilp
   Potential(void);
   virtual ~Potential(void);
@@ -45,23 +39,23 @@ public:
     GPU_Vector<double>& virial) = 0;
 
   virtual void compute(
-    const float temperature,
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    GPU_Vector<double>& potential,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& virial){};
+    const float /* temperature */,
+    Box& /* box */,
+    const GPU_Vector<int>& /* type */,
+    const GPU_Vector<double>& /* position */,
+    GPU_Vector<double>& /* potential */,
+    GPU_Vector<double>& /* force */,
+    GPU_Vector<double>& /* virial */){}
 
   // add group message for ILPs
   virtual void compute_ilp(
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    GPU_Vector<double>& potential,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& virial,
-    std::vector<Group>& group){};
+    Box& /* box */,
+    const GPU_Vector<int>& /* type */,
+    const GPU_Vector<double>& /* position */,
+    GPU_Vector<double>& /* potential */,
+    GPU_Vector<double>& /* force */,
+    GPU_Vector<double>& /* virial */,
+    const std::vector<Group>& /* group */){}
 
   virtual const GPU_Vector<int>& get_NN_radial_ptr()
   {
@@ -106,7 +100,6 @@ protected:
     const float* f12x,
     const float* f12y,
     const float* f12z,
-    const bool is_dipole,
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);

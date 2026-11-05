@@ -1,0 +1,5 @@
+type 2 Pb Te
+charge_vdw 1
+batch 25
+generation 10
+output_interval 10

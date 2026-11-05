@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -168,7 +168,6 @@ void Potential::find_properties_many_body(
 }
 
 static __global__ void gpu_find_force_many_body(
-  const bool is_dipole,
   const int number_of_particles,
   const int N1,
   const int N2,
@@ -255,18 +254,9 @@ static __global__ void gpu_find_force_many_body(
       s_fz += f12z - f21z;
 
       // per-atom virial
-      if (is_dipole) {
-        // Float version of the function
-        // The dipole is proportional to minus the sum of the virials times r12
-        float r12_square = x12 * x12 + y12 * y12 + z12 * z12;
-        s_sxx -= r12_square * f21x;
-        s_syy -= r12_square * f21y;
-        s_szz -= r12_square * f21z;
-      } else {
-        s_sxx += x12 * f21x;
-        s_syy += y12 * f21y;
-        s_szz += z12 * f21z;
-      }
+      s_sxx += x12 * f21x;
+      s_syy += y12 * f21y;
+      s_szz += z12 * f21z;
       s_sxy += x12 * f21y;
       s_sxz += x12 * f21z;
       s_syx += y12 * f21x;
@@ -303,7 +293,6 @@ void Potential::find_properties_many_body(
   const float* f12x,
   const float* f12y,
   const float* f12z,
-  const bool is_dipole,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
@@ -312,7 +301,6 @@ void Potential::find_properties_many_body(
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
   gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    is_dipole,
     number_of_atoms,
     N1,
     N2,

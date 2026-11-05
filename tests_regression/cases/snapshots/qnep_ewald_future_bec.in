@@ -1,0 +1,16 @@
+replicate 3 3 3
+potential qnep_mode1_BaTiO3.txt
+kspace ewald
+velocity 300 seed 20260918
+time_step 0.2
+
+ensemble nve
+dump_thermo 1
+run 1
+
+ensemble nve
+dump_thermo 1
+dump_xyz 1 bec.xyz precision double bec virial
+compute_dpdt 1
+run 2
+

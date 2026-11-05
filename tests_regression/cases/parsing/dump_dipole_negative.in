@@ -1,0 +1,2 @@
+dump_dipole -1 dummy_nep.txt
+potential potential.txt

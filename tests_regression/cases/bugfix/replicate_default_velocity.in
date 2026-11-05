@@ -1,0 +1,9 @@
+replicate 2 1 1
+potential potential.txt
+time_step 1e-20
+ensemble nve
+
+dump_thermo 1
+dump_xyz 1 final.xyz precision double velocity
+dump_restart 1
+run 1

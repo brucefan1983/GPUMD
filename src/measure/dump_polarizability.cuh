@@ -2,24 +2,25 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
-#include "property.cuh"
-#include "force/force.cuh"
+#include "action.cuh"
 #include "integrate/integrate.cuh"
 #include "model/atom.cuh"
 #include "model/group.cuh"
+#include "nep_response.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <memory>
 #include <string>
 #include <vector>
 class Box;
@@ -27,12 +28,12 @@ class Atom;
 class Force;
 class Integrate;
 
-class Dump_Polarizability : public Property
+class Dump_Polarizability : public Action
 {
 public:
-  Dump_Polarizability(const char** param, int num_param);
-  void parse(const char** param, int num_param);
-  virtual void preprocess(
+  Dump_Polarizability(const std::vector<std::string>& tokens);
+  void parse(const std::vector<std::string>& tokens);
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -41,7 +42,7 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
+  virtual void end_of_step(
       const int number_of_steps,
       int step,
       const int fixed_group,
@@ -55,7 +56,7 @@ public:
       Atom& atom,
       Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,
@@ -66,9 +67,10 @@ public:
 private:
   bool dump_ = false;
   int dump_interval_ = 1;
+  std::string file_potential_;
   FILE* file_;
   GPU_Vector<double> gpu_pol_;
   std::vector<double> cpu_pol_;
   void write_polarizability(const int step);
-  Atom atom_copy;
+  std::unique_ptr<NEP_Response> nep_response_;
 };

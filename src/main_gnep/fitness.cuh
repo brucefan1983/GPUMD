@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -23,6 +23,16 @@
 #include <vector>
 
 class Parameters;
+
+struct GNEPTrainingBatch
+{
+  std::vector<Dataset> shards;
+  std::vector<Structure> output_structures;
+  std::vector<std::vector<int>> configuration_indices;
+  int num_configurations = 0;
+  int num_atoms = 0;
+  int virial_components = 0;
+};
 
 class Fitness
 {
@@ -60,7 +70,7 @@ protected:
   Adam* optimizer;
   FILE* fid_loss_out = NULL;
   std::unique_ptr<Potential> potential;
-  std::vector<std::vector<Dataset>> train_set;
+  std::vector<GNEPTrainingBatch> train_set;
   std::vector<Dataset> test_set;
   std::vector<int> batch_indices;
   std::vector<std::vector<int>> batch_type_sums;

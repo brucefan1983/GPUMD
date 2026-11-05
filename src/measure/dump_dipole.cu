@@ -2,22 +2,21 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details. You should have received a copy of the GNU General
-   Public License along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details. You should have received a copy of the GNU Lesser General
+   Public License along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
-Dump energy/force/virial with all loaded potentials at a given interval.
+Dump dipole at a given interval.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_dipole.cuh"
-#include "force/nep.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
 #include "parse_utilities.cuh"
@@ -31,7 +30,7 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 #include <cstring>
 
 static __global__ void sum_dipole(
-  const int N, const int number_of_patches, const double* g_virial_per_atom, double* g_dipole)
+  const int N, const int number_of_batches, const double* g_virial_per_atom, double* g_dipole)
 {
   //<<<3, 1024>>>
   int tid = threadIdx.x;
@@ -41,18 +40,18 @@ static __global__ void sum_dipole(
 
   const unsigned int componentIdx = blockIdx.x * N;
 
-  // 1024 threads, each summing a patch of N/1024 atoms
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    int atomIdx = tid + patch * 1024;
+  // Each thread accumulates one atom from each batch.
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int atomIdx = tid + batch * 1024;
     if (atomIdx < N)
       d += g_virial_per_atom[componentIdx + atomIdx];
   }
 
-  // save the sum for this patch
+  // Store the per-thread partial sum.
   s_d[tid] = d;
   __syncthreads();
 
-  // aggregate the patches in parallel
+  // Reduce the partial sums in parallel.
 
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
@@ -67,60 +66,33 @@ static __global__ void sum_dipole(
   }
 }
 
-static __global__ void initialize_properties(
-  int N,
-  double* g_fx,
-  double* g_fy,
-  double* g_fz,
-  double* g_pe,
-  double* g_virial,
-  double* g_virial_sum)
+Dump_Dipole::Dump_Dipole(const std::vector<std::string>& tokens)
 {
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    g_fx[n1] = 0.0;
-    g_fy[n1] = 0.0;
-    g_fz[n1] = 0.0;
-    g_pe[n1] = 0.0;
-    g_virial[n1 + 0 * N] = 0.0;
-    g_virial[n1 + 1 * N] = 0.0;
-    g_virial[n1 + 2 * N] = 0.0;
-    g_virial[n1 + 3 * N] = 0.0;
-    g_virial[n1 + 4 * N] = 0.0;
-    g_virial[n1 + 5 * N] = 0.0;
-    g_virial[n1 + 6 * N] = 0.0;
-    g_virial[n1 + 7 * N] = 0.0;
-    g_virial[n1 + 8 * N] = 0.0;
-  }
-  if (n1 == 0) {
-    // Only need to set g_virial_sum to zero once
-    g_virial_sum[0] = 0.0;
-    g_virial_sum[1] = 0.0;
-    g_virial_sum[2] = 0.0;
-  }
+  parse(tokens);
+  action_name = "dump_dipole";
 }
 
-Dump_Dipole::Dump_Dipole(const char** param, int num_param)
+void Dump_Dipole::parse(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
-  property_name = "dump_dipole";
-}
-
-void Dump_Dipole::parse(const char** param, int num_param)
-{
+  const int num_param = tokens.size();
   dump_ = true;
   printf("Dump dipole\n");
 
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("dump_dipole should have 1 parameters.");
+  if (num_param != 3) {
+    PRINT_INPUT_ERROR("dump_dipole should have 2 parameters.");
   }
-  if (!is_valid_int(param[1], &dump_interval_)) {
+  if (!is_valid_int(tokens[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("dump interval should be an integer.");
   }
+  if (dump_interval_ <= 0) {
+    PRINT_INPUT_ERROR("dump interval should be positive.");
+  }
+  file_potential_ = tokens[2];
   printf("   every %d steps.\n", dump_interval_);
+  printf("   response potential: %s.\n", file_potential_.c_str());
 }
 
-void Dump_Dipole::preprocess(
+void Dump_Dipole::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -129,35 +101,31 @@ void Dump_Dipole::preprocess(
   Box& box,
   Force& force)
 {
-  // Setup a dump_exyz with the dump_interval for dump_observer.
   if (dump_) {
     std::string filename_ = "dipole.out";
     file_ = my_fopen(filename_.c_str(), "a");
+    fprintf(file_, "# dump_dipole %d\n", dump_interval_);
+    fprintf(file_, "# format_version 1\n");
+    fprintf(file_, "# num_atoms %d\n", atom.number_of_atoms);
+    fprintf(
+      file_,
+      "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
+      box.cpu_h[0], box.cpu_h[3], box.cpu_h[6],
+      box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
+      box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+    fprintf(file_, "# dt_output %.10e fs\n", time_step * dump_interval_ * TIME_UNIT_CONVERSION);
+    fprintf(file_, "# columns step dipole_x dipole_y dipole_z\n");
     gpu_dipole_.resize(3);
     cpu_dipole_.resize(3);
 
-    // Set up a local copy of the Atoms, on which to compute the dipole
-    // Typically in GPUMD we are limited by computational speed, not memory,
-    // so we can sacrifice a bit of memory to skip having to recompute the forces
-    // & virials with the original potential
-    atom_copy.number_of_atoms = atom.number_of_atoms;
-    atom_copy.force_per_atom.resize(atom.number_of_atoms * 3);
-    atom_copy.virial_per_atom.resize(atom.number_of_atoms * 9);
-    atom_copy.potential_per_atom.resize(atom.number_of_atoms);
-
-    // make sure that the second potential is actually a dipole model.
-    if (force.potentials.size() != 2) {
-      PRINT_INPUT_ERROR("dump_dipole requires two potentials to be specified.");
-    }
-    // Multiple potentials may only be used with NEPs, so we know that
-    // the second potential must be an NEP
-    if (force.potentials[1]->nep_model_type != 1) {
-      PRINT_INPUT_ERROR("dump_dipole requires the second NEP potential to be a dipole model.");
+    nep_response_.reset(new NEP_Response(file_potential_.c_str(), atom));
+    if (!nep_response_->is_dipole()) {
+      PRINT_INPUT_ERROR("dump_dipole requires a nep4_dipole model.");
     }
   }
 }
 
-void Dump_Dipole::process(
+void Dump_Dipole::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -171,41 +139,20 @@ void Dump_Dipole::process(
   Atom& atom,
   Force& force)
 {
-  // Only run if should dump, since forces have to be recomputed with each potential.
+  // Only evaluate the response at requested output steps.
   if (!dump_)
     return;
   if (((step + 1) % dump_interval_ != 0))
     return;
-  const int number_of_atoms = atom_copy.number_of_atoms;
+  const int number_of_atoms = atom.number_of_atoms;
+  const GPU_Vector<double>& response = nep_response_->compute(box, atom.position_per_atom);
 
-  initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms,
-    atom_copy.force_per_atom.data(),
-    atom_copy.force_per_atom.data() + number_of_atoms,
-    atom_copy.force_per_atom.data() + number_of_atoms * 2,
-    atom_copy.potential_per_atom.data(),
-    atom_copy.virial_per_atom.data(),
-    gpu_dipole_.data());
-  GPU_CHECK_KERNEL
-
-  // Compute the dipole
-  // Use the positions and types from the existing atoms object,
-  // but store the results in the local copy.
-  force.potentials[1]->compute(
-    box,
-    atom.type,
-    atom.position_per_atom,
-    atom_copy.potential_per_atom,
-    atom_copy.force_per_atom,
-    atom_copy.virial_per_atom);
-
-  // Aggregate virial_per_atom into dipole
   const int number_of_threads = 1024;
-  const int number_of_atoms_per_thread = (number_of_atoms - 1) / number_of_threads + 1;
-  sum_dipole<<<3, 1024>>>(
+  const int number_of_batches = (number_of_atoms - 1) / number_of_threads + 1;
+  sum_dipole<<<3, number_of_threads>>>(
     number_of_atoms,
-    number_of_atoms_per_thread,
-    atom_copy.virial_per_atom.data(),
+    number_of_batches,
+    response.data(),
     gpu_dipole_.data());
   GPU_CHECK_KERNEL
 
@@ -225,7 +172,7 @@ void Dump_Dipole::write_dipole(const int step)
   fflush(file_);
 }
 
-void Dump_Dipole::postprocess(
+void Dump_Dipole::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

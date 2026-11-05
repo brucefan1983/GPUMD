@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -32,51 +32,43 @@ Interface to the PLUMED plugin: https://www.plumed.org
 
 const double ENERGY_UNIT_CONVERSION = N_A * E_C / 1000; // from eV to kJ/mol
 
-static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
-{
-  int number_of_rounds = (N - 1) / 1024 + 1;
-  __shared__ double s_data[1024];
-  s_data[threadIdx.x] = 0.0;
-  for (int round = 0; round < number_of_rounds; ++round) {
-    int n = threadIdx.x + round * 1024;
-    if (n < N) {
-      s_data[threadIdx.x] += g_data[n + blockIdx.x * N];
-    }
-  }
-  __syncthreads();
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (threadIdx.x < offset) {
-      s_data[threadIdx.x] += s_data[threadIdx.x + offset];
-    }
-    __syncthreads();
-  }
-  if (threadIdx.x == 0) {
-    g_data_sum[blockIdx.x] = s_data[0];
-  }
-}
-
-static void __global__ gpu_scale_virial(
+static __global__ void gpu_add_plumed_virial(
   const int N,
-  const double* factors,
+  const double vxx,
+  const double vyy,
+  const double vzz,
+  const double vxy,
+  const double vxz,
+  const double vyz,
+  const double vyx,
+  const double vzx,
+  const double vzy,
   double* g_sxx,
   double* g_syy,
   double* g_szz,
   double* g_sxy,
   double* g_sxz,
-  double* g_syz)
+  double* g_syz,
+  double* g_syx,
+  double* g_szx,
+  double* g_szy)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {
-    g_sxx[i] *= factors[0];
-    g_syy[i] *= factors[4];
-    g_szz[i] *= factors[8];
-    g_sxy[i] *= factors[1];
-    g_sxz[i] *= factors[2];
-    g_syz[i] *= factors[5];
+    const double inv_N = 1.0 / N;
+    g_sxx[i] += vxx * inv_N;
+    g_syy[i] += vyy * inv_N;
+    g_szz[i] += vzz * inv_N;
+    g_sxy[i] += vxy * inv_N;
+    g_sxz[i] += vxz * inv_N;
+    g_syz[i] += vyz * inv_N;
+    g_syx[i] += vyx * inv_N;
+    g_szx[i] += vzx * inv_N;
+    g_szy[i] += vzy * inv_N;
   }
 }
 
-void PLUMED::preprocess(
+void PLUMED::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -86,49 +78,45 @@ void PLUMED::preprocess(
   Force& force)
 {
   n_atom = atom.number_of_atoms;
-  gpu_v_vector.resize(6);
-  gpu_v_factor.resize(9);
   cpu_b_vector = std::vector<double>(9);
   cpu_v_vector = std::vector<double>(9);
-  cpu_v_factor = std::vector<double>(9);
   cpu_m_vector = std::vector<double>(3 * n_atom);
   cpu_f_vector = std::vector<double>(3 * n_atom);
   cpu_q_vector = std::vector<double>(3 * n_atom);
   memcpy(cpu_m_vector.data(), atom.cpu_mass.data(), n_atom * sizeof(double));
 
-  init(time_step, integrate.temperature);
+  init(time_step, integrate.get_temperature());
 }
 
-PLUMED::PLUMED(const char** param, int num_param)
+PLUMED::PLUMED(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
-  property_name = "plumed";
+  parse(tokens);
+  action_name = "plumed";
 }
 
-void PLUMED::parse(const char** param, int num_param)
+void PLUMED::parse(const std::vector<std::string>& tokens)
 {
   use_plumed = 1;
-  memset(input_file, 0, 80);
   if (!plumed_installed()) {
     PRINT_INPUT_ERROR("PLUMED not installed!\n");
   }
-  if (num_param != 4) {
+  if (tokens.size() != 4) {
     PRINT_INPUT_ERROR("plumed should have 3 parameters.");
   }
-  sprintf(input_file, "%s", param[1]);
-  sprintf(output_file, "%s.out", param[1]);
-  if (!is_valid_int(param[2], &interval)) {
+  input_file = tokens[1];
+  output_file = input_file + ".out";
+  if (!is_valid_int(tokens[2], &interval)) {
     PRINT_INPUT_ERROR("plumed invoke interval should be an integer.");
   }
   if (interval <= 0) {
     PRINT_INPUT_ERROR("plumed invoke interval should > 0.");
   }
-  if (!is_valid_int(param[3], &restart)) {
+  if (!is_valid_int(tokens[3], &restart)) {
     PRINT_INPUT_ERROR("plumed restart parameter should be 0 or 1.");
   }
   printf("Use PLUMED for this run.\n");
-  printf("    input  file: '%s'.\n", input_file);
-  printf("    output file: '%s'.\n", output_file);
+  printf("    input  file: '%s'.\n", input_file.c_str());
+  printf("    output file: '%s'.\n", output_file.c_str());
   printf("    invoke freq: every %d steps.\n", interval);
   if (restart) {
     printf("    will restart calculations from old files.\n");
@@ -140,7 +128,7 @@ void PLUMED::init(const double ts, const double T)
   step = 0;
   time_step = ts;
 
-  const char engine_name[7] = "GPUMD\0";                // my name
+  const char* engine_name = "GPUMD";                    // my name
   const double KbT = K_B * T;                           // eV
   const double time_unit = TIME_UNIT_CONVERSION / 1000; // natural -> ps
   const double mass_unit = 1.0;                         // amu. -> amu.
@@ -156,35 +144,16 @@ void PLUMED::init(const double ts, const double T)
   plumed_cmd(plumed_main, "setMDEnergyUnits", &energy_unit);
   plumed_cmd(plumed_main, "setMDLengthUnits", &length_unit);
   plumed_cmd(plumed_main, "setMDChargeUnits", &charge_unit);
-  plumed_cmd(plumed_main, "setPlumedDat", input_file);
-  plumed_cmd(plumed_main, "setLogFile", output_file);
+  plumed_cmd(plumed_main, "setPlumedDat", input_file.c_str());
+  plumed_cmd(plumed_main, "setLogFile", output_file.c_str());
   plumed_cmd(plumed_main, "setTimestep", &time_step);
   plumed_cmd(plumed_main, "setRestart", &restart);
   plumed_cmd(plumed_main, "setNatoms", &n_atom);
   plumed_cmd(plumed_main, "init", NULL);
 }
 
-void PLUMED::process(
-  const int number_of_steps,
-  int step_input,
-  const int fixed_group,
-  const int move_group,
-  const double global_time,
-  const double temperature,
-  Integrate& integrate,
-  Box& box,
-  std::vector<Group>& group,
-  GPU_Vector<double>& thermo,
-  Atom& atom,
-  Force& force)
+void PLUMED::calculate(int plumed_step, Box& box, Atom& atom)
 {
-  if (step_input % interval != 0) {
-    return;
-  }
-
-  std::vector<double> tmp(6);
-  step += interval;
-
   atom.force_per_atom.copy_to_host(cpu_f_vector.data());
   atom.position_per_atom.copy_to_host(cpu_q_vector.data());
 
@@ -198,12 +167,10 @@ void PLUMED::process(
   cpu_b_vector[7] = box.cpu_h[5];
   cpu_b_vector[8] = box.cpu_h[8];
 
-  gpu_sum<<<6, 1024>>>(n_atom, atom.virial_per_atom.data(), gpu_v_vector.data());
-  GPU_CHECK_KERNEL
-  gpu_v_vector.copy_to_host(tmp.data());
   fill(cpu_v_vector.begin(), cpu_v_vector.end(), 0.0);
+  stop_flag = 0;
 
-  plumed_cmd(plumed_main, "setStep", &step);
+  plumed_cmd(plumed_main, "setStep", &plumed_step);
   plumed_cmd(plumed_main, "setMasses", cpu_m_vector.data());
   plumed_cmd(plumed_main, "setBox", cpu_b_vector.data());
   plumed_cmd(plumed_main, "setVirial", cpu_v_vector.data());
@@ -213,36 +180,96 @@ void PLUMED::process(
   plumed_cmd(plumed_main, "setPositionsX", &(cpu_q_vector.data()[0 * n_atom]));
   plumed_cmd(plumed_main, "setPositionsY", &(cpu_q_vector.data()[1 * n_atom]));
   plumed_cmd(plumed_main, "setPositionsZ", &(cpu_q_vector.data()[2 * n_atom]));
+  plumed_cmd(plumed_main, "setStopFlag", &stop_flag);
   plumed_cmd(plumed_main, "prepareCalc", NULL);
   plumed_cmd(plumed_main, "performCalc", NULL);
   plumed_cmd(plumed_main, "getBias", &bias_energy);
-  plumed_cmd(plumed_main, "setStopFlag", &stop_flag);
 
   atom.force_per_atom.copy_from_host(cpu_f_vector.data());
 
-  cpu_v_factor[0] = (tmp[0] - cpu_v_vector[0]) / tmp[0];
-  cpu_v_factor[1] = (tmp[3] - cpu_v_vector[1]) / tmp[3];
-  cpu_v_factor[2] = (tmp[4] - cpu_v_vector[2]) / tmp[4];
-  cpu_v_factor[3] = (tmp[3] - cpu_v_vector[3]) / tmp[3];
-  cpu_v_factor[4] = (tmp[1] - cpu_v_vector[4]) / tmp[1];
-  cpu_v_factor[5] = (tmp[5] - cpu_v_vector[5]) / tmp[5];
-  cpu_v_factor[6] = (tmp[4] - cpu_v_vector[6]) / tmp[4];
-  cpu_v_factor[7] = (tmp[5] - cpu_v_vector[7]) / tmp[5];
-  cpu_v_factor[8] = (tmp[2] - cpu_v_vector[8]) / tmp[2];
-  gpu_v_factor.copy_from_host(cpu_v_factor.data());
-  gpu_scale_virial<<<(n_atom - 1) / 128 + 1, 128>>>(
+  // PLUMED and GPUMD use opposite virial sign conventions. Distribute the
+  // global PLUMED bias virial uniformly over atoms so that the total virial
+  // seen by the GPUMD pressure/barostat is correct without dividing by the
+  // pre-existing physical virial.
+  gpu_add_plumed_virial<<<(n_atom - 1) / 128 + 1, 128>>>(
     n_atom,
-    gpu_v_factor.data(),
+    -cpu_v_vector[0],
+    -cpu_v_vector[4],
+    -cpu_v_vector[8],
+    -cpu_v_vector[1],
+    -cpu_v_vector[2],
+    -cpu_v_vector[5],
+    -cpu_v_vector[3],
+    -cpu_v_vector[6],
+    -cpu_v_vector[7],
     atom.virial_per_atom.data() + n_atom * 0,
     atom.virial_per_atom.data() + n_atom * 1,
     atom.virial_per_atom.data() + n_atom * 2,
     atom.virial_per_atom.data() + n_atom * 3,
     atom.virial_per_atom.data() + n_atom * 4,
-    atom.virial_per_atom.data() + n_atom * 5);
+    atom.virial_per_atom.data() + n_atom * 5,
+    atom.virial_per_atom.data() + n_atom * 6,
+    atom.virial_per_atom.data() + n_atom * 7,
+    atom.virial_per_atom.data() + n_atom * 8);
   GPU_CHECK_KERNEL
 }
 
-void PLUMED::postprocess(
+void PLUMED::setup_force(
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  if (interval == 1) {
+    step = 0;
+    calculate(step, box, atom);
+  }
+}
+
+void PLUMED::post_force(
+  const int step_input,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  if (interval == 1) {
+    step = step_input + 1;
+    calculate(step, box, atom);
+  }
+}
+
+void PLUMED::end_of_step(
+  const int number_of_steps,
+  int step_input,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
+{
+  // interval = 1 is handled by setup_force() and post_force() so the PLUMED
+  // bias enters the velocity-Verlet integration at the correct point.
+  if (interval == 1 || step_input % interval != 0) {
+    return;
+  }
+
+  // Keep the historical invocation schedule when the dynamics hook is not used
+  // (for example in other executables) and for analysis-only interval > 1.
+  step += interval;
+  calculate(step, box, atom);
+}
+
+void PLUMED::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

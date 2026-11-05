@@ -38,7 +38,7 @@ If the dissipative flux is changed to momentum flux of component :math:`\alpha`,
 * column :math:`3M+3`: :math:`L_{z \mu}^{M\alpha}(t)` (in units of :math:`10^{-12} kgs/m^{3}K`)
 
 Both the potential part and the kinetic part of the heat current have been considered.
-One can obtain the onsager coefficent :math:`\Lambda_{i j}^{ml}` by:
+One can obtain the onsager coefficient :math:`\Lambda_{i j}^{ml}` by:
 
 .. math::
 

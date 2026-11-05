@@ -1,0 +1,7 @@
+replicate 6 6 1
+potential sw_ilp.txt sw_params.txt
+time_step 1e-20
+ensemble nve
+dump_thermo 1
+dump_restart 1
+run 1

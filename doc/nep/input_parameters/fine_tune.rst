@@ -14,6 +14,7 @@ where :attr:`<nep_model_file>` is the potential file for the foundation model an
 
 Currently, we provide one foundation model in GPUMD/potentials/nep/nep89_20250409.
 
+The hyperparameters that define the architecture of the foundation model cannot be changed and must be repeated in :attr:`nep.in`.
 For more details, see the following exemplary :attr:`nep.in` file::
 
   # for prediction
@@ -40,6 +41,6 @@ For more details, see the following exemplary :attr:`nep.in` file::
   lambda_v   1
   batch      5000
   population 50
-  save_potential 1000 0
+  save_potential 1000 0 1
   generation 5000
   

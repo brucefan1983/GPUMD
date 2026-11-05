@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
@@ -566,13 +566,13 @@ static __global__ void sort_neighbors(
 
 } // namespace
 
-OrientOrder::OrientOrder(const char** param, const int num_param)
+OrientOrder::OrientOrder(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
-  property_name = "compute_orientorder";
+  parse(tokens);
+  action_name = "compute_orientorder";
 }
 
-void OrientOrder::preprocess(
+void OrientOrder::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -634,7 +634,7 @@ void OrientOrder::preprocess(
   fid = fopen("orientorder.out", "a");
 };
 
-void OrientOrder::process(
+void OrientOrder::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -777,7 +777,7 @@ void OrientOrder::process(
   fflush(fid);
 };
 
-void OrientOrder::postprocess(
+void OrientOrder::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -795,33 +795,34 @@ void OrientOrder::postprocess(
 // compute_orientorder <interval> <mode_type> <mode_parameters> <ndegrees> <degree1> <degree2>
 // <average> <wl> <wlhat>
 
-void OrientOrder::parse(const char** param, const int num_param)
+void OrientOrder::parse(const std::vector<std::string>& tokens)
 {
   printf("Compute Steinhardt bond-orientational order parameters.\n");
   compute_ = true;
+  const int num_param = tokens.size();
 
   if (num_param < 6) {
     PRINT_INPUT_ERROR("compute_orientorder should have at least 5 parameters.\n");
   }
 
-  if (!is_valid_int(param[1], &num_interval_)) {
+  if (!is_valid_int(tokens[1], &num_interval_)) {
     PRINT_INPUT_ERROR("interval step per sample should be an integer.\n");
   }
   if (num_interval_ <= 0) {
     PRINT_INPUT_ERROR("interval step per sample should be positive.\n");
   }
 
-  mode_ = param[2];
+  mode_ = tokens[2];
 
   if (mode_ == "cutoff") {
-    if (!is_valid_real(param[3], &rc_)) {
+    if (!is_valid_real(tokens[3], &rc_)) {
       PRINT_INPUT_ERROR("cutoff should be an positive float.\n");
     }
     if (rc_ <= 0.) {
       PRINT_INPUT_ERROR("cutoff should be an positive float.\n");
     }
   } else if (mode_ == "nnn") {
-    if (!is_valid_int(param[3], &nnn_)) {
+    if (!is_valid_int(tokens[3], &nnn_)) {
       PRINT_INPUT_ERROR("nnn should be an positive integer.\n");
     }
     if (nnn_ <= 0) {
@@ -831,7 +832,7 @@ void OrientOrder::parse(const char** param, const int num_param)
     PRINT_INPUT_ERROR("mode_type should be cutoff or nnn.\n");
   }
 
-  if (!is_valid_int(param[4], &ndegrees_)) {
+  if (!is_valid_int(tokens[4], &ndegrees_)) {
     PRINT_INPUT_ERROR("ndegrees should be an positive integer.\n");
   }
 
@@ -839,7 +840,8 @@ void OrientOrder::parse(const char** param, const int num_param)
     PRINT_INPUT_ERROR("ndegrees should be an positive integer.\n");
   }
 
-  if (num_param < 5 + ndegrees_) {
+  const int num_required_params = 5 + ndegrees_;
+  if (num_param < num_required_params) {
     std::string message = "Must include " + std::to_string(ndegrees_) + " degrees.\n";
     PRINT_INPUT_ERROR(message.c_str());
   }
@@ -848,7 +850,7 @@ void OrientOrder::parse(const char** param, const int num_param)
 
   for (int i = 1; i < ndegrees_ + 1; ++i) {
     int degree = 0;
-    if (!is_valid_int(param[4 + i], &degree)) {
+    if (!is_valid_int(tokens[4 + i], &degree)) {
       std::string message = "Degree " + std::to_string(i) + " should be an positive integer.\n";
       PRINT_INPUT_ERROR(message.c_str());
     }
@@ -859,39 +861,38 @@ void OrientOrder::parse(const char** param, const int num_param)
     llist[i - 1] = degree;
   }
 
-  if ((num_param > 5 + ndegrees_) & (num_param < 5 + ndegrees_ + 5)) {
-    if (num_param > 5 + ndegrees_) {
-      int ave = 0;
-      if (!is_valid_int(param[4 + ndegrees_ + 1], &ave)) {
-        PRINT_INPUT_ERROR("average should be 1 or 0.\n");
-      }
-      if (ave != 0) {
-        average_ = true;
-      }
-    }
-    if (num_param > 5 + ndegrees_ + 1) {
-      int wl = 0;
-      if (!is_valid_int(param[4 + ndegrees_ + 2], &wl)) {
-        PRINT_INPUT_ERROR("wl should be 1 or 0.\n");
-      }
-      if (wl != 0) {
-        wl_ = true;
-      }
-    }
+  if (num_param > num_required_params + 3) {
+    PRINT_INPUT_ERROR("compute_orientorder should have at most 3 optional parameters.\n");
+  }
 
-    if (num_param > 5 + ndegrees_ + 2) {
-      int wlhat = 0;
-      if (!is_valid_int(param[4 + ndegrees_ + 3], &wlhat)) {
-        PRINT_INPUT_ERROR("wlhat should be 1 or 0.\n");
-      }
-      if (wlhat != 0) {
-        wlhat_ = true;
-      }
+  if (num_param > num_required_params) {
+    int ave = 0;
+    if (!is_valid_int(tokens[num_required_params], &ave)) {
+      PRINT_INPUT_ERROR("average should be 1 or 0.\n");
     }
-  } else {
-    std::string message =
-      "Number of paramaters exceeds " + std::to_string(5 + ndegrees_ + 4) + ".\n";
-    PRINT_INPUT_ERROR(message.c_str());
+    if (ave != 0) {
+      average_ = true;
+    }
+  }
+
+  if (num_param > num_required_params + 1) {
+    int wl = 0;
+    if (!is_valid_int(tokens[num_required_params + 1], &wl)) {
+      PRINT_INPUT_ERROR("wl should be 1 or 0.\n");
+    }
+    if (wl != 0) {
+      wl_ = true;
+    }
+  }
+
+  if (num_param > num_required_params + 2) {
+    int wlhat = 0;
+    if (!is_valid_int(tokens[num_required_params + 2], &wlhat)) {
+      PRINT_INPUT_ERROR("wlhat should be 1 or 0.\n");
+    }
+    if (wlhat != 0) {
+      wlhat_ = true;
+    }
   }
 
   printf("    every %d steps, \n", num_interval_);

@@ -1,0 +1,97 @@
+/*
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+#pragma once
+#include "ensemble.cuh"
+#include "utilities/gpu_macro.cuh"
+#include <string>
+#ifdef USE_HIP
+#include <hiprand/hiprand_kernel.h>
+#else
+#include <curand_kernel.h>
+#endif
+
+class Ensemble_Heat_Hybrid : public Ensemble
+{
+public:
+  Ensemble_Heat_Hybrid(
+    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+
+  void initialize_run(
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
+
+  void compute1(
+    const double time_step,
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo) override;
+
+  void compute2(
+    const double time_step,
+    const int step,
+    const int number_of_steps,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo,
+    Force& force) override;
+
+protected:
+  int num_thermostats;
+  std::vector<int> thermostat_type;
+  std::vector<int> label;
+  std::vector<int> size;
+  std::vector<int> offset;
+  std::vector<double> coupling;
+  std::vector<double> c1;
+  std::vector<double> c2;
+  std::vector<GPU_Vector<gpurandState>> curand_states;
+  bool has_nhc = false;
+  bool has_lan = false;
+  std::vector<int> nhc_labels;
+  std::vector<double> nhc_factors;
+  GPU_Vector<int> gpu_nhc_labels;
+  GPU_Vector<double> gpu_nhc_factors;
+
+  // additional function for scaling velocities in multiple groups
+  void scale_velocity_groups(
+    const GPU_Vector<double>& factors,
+    const GPU_Vector<int>& labels,
+    const double* vcx,
+    const double* vcy,
+    const double* vcz,
+    const double* ke,
+    const std::vector<Group>& group,
+    GPU_Vector<double>& velocity_per_atom);
+
+  // Flattened NHC arrays: [thermostat_index * NOSE_HOOVER_CHAIN_LENGTH + chain_index]
+  std::vector<double> pos_nhc;
+  std::vector<double> vel_nhc;
+  std::vector<double> mas_nhc;
+
+  void integrate_heat_hybrid_half(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    GPU_Vector<double>& velocity_per_atom);
+
+  double* get_nhc_pos(int index);
+  double* get_nhc_vel(int index);
+  double* get_nhc_mas(int index);
+  double target_temperature(int index) const;
+};

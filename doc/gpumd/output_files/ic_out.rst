@@ -5,7 +5,7 @@
 ``ic.out``
 ===========
 
-This file contains the iron conductivity (:term:`IC`) based on mean-square displacement (:term:`MSD`).
+This file contains the ionic conductivity (:term:`IC`) based on mean-square displacement (:term:`MSD`).
 It is generated when invoking the :ref:`compute_msd keyword <kw_compute_ic>`.
 
 File format

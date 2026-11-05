@@ -2,22 +2,22 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
-#include "property.cuh"
+#include "action.cuh"
 #include "utilities/gpu_vector.cuh"
 
-class HNEMDEC : public Property
+class HNEMDEC : public Action
 {
 public:
   int compute = -1; // 0 for heat flow algorithm, i(0<i<number_of_types+1) means producing (i-1)th
@@ -30,16 +30,16 @@ public:
   double fe_z = 0.0;
   double fe = 0.0; // magnitude of the driving force vector
 
-  int number_of_types;
-  int NUM_OF_DIFFUSION_COMPONENTS;
+  int number_of_types = 0;
+  int NUM_OF_DIFFUSION_COMPONENTS = 0;
   std::vector<double> cpu_mass_type; // atom types' mass
   GPU_Vector<double> mass_type;
-  double FACTOR;
+  double FACTOR = 0.0;
 
   GPU_Vector<double> heat_all;
   GPU_Vector<double> diffusion_all;
 
-  virtual void preprocess(
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -48,7 +48,16 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
+  virtual void post_force(
+    const int step,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
+  virtual void end_of_step(
       const int number_of_steps,
       int step,
       const int fixed_group,
@@ -62,7 +71,7 @@ public:
       Atom& atom,
       Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,
@@ -70,6 +79,11 @@ public:
     const double time_step,
     const double temperature);
 
-  HNEMDEC(const char** param, int num_param, Force& force, Atom& atom, double temperature);
-  void parse(const char** param, int num_param);
+  HNEMDEC(const std::vector<std::string>& tokens);
+  void parse(const std::vector<std::string>& tokens);
+
+private:
+  GPU_Vector<double> coefficient_;
+  GPU_Vector<double> tensor_per_atom_;
+  GPU_Vector<double> tensor_sum_;
 };

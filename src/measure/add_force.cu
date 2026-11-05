@@ -1,0 +1,178 @@
+/*
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+/*----------------------------------------------------------------------------80
+Add force to a group of atoms.
+------------------------------------------------------------------------------*/
+
+#include "add_force.cuh"
+#include "model/atom.cuh"
+#include "utilities/gpu_macro.cuh"
+#include "utilities/read_file.cuh"
+#include <iostream>
+#include <vector>
+#include <cstring>
+
+static void __global__ add_force(
+  const int group_size,
+  const int group_size_sum,
+  const int* g_group_contents,
+  const double added_fx,
+  const double added_fy,
+  const double added_fz,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz)
+{
+  const int tid = blockIdx.x * blockDim.x + threadIdx.x;
+  if (tid < group_size) {
+    const int atom_id = g_group_contents[group_size_sum + tid];
+    g_fx[atom_id] += added_fx;
+    g_fy[atom_id] += added_fy;
+    g_fz[atom_id] += added_fz;
+  }
+}
+
+void Add_Force::setup_force(
+  const double,
+  Integrate&,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box&,
+  Force&)
+{
+  apply_force(0, group, atom);
+}
+
+void Add_Force::post_force(
+  const int step,
+  const double,
+  Integrate&,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box&,
+  Force&)
+{
+  apply_force(step + 1, group, atom);
+}
+
+void Add_Force::apply_force(
+  const int md_step,
+  std::vector<Group>& group,
+  Atom& atom)
+{
+  const int table_index = md_step % table_length_;
+  const double added_fx = force_table_[0 * table_length_ + table_index];
+  const double added_fy = force_table_[1 * table_length_ + table_index];
+  const double added_fz = force_table_[2 * table_length_ + table_index];
+  const int num_atoms_total = atom.force_per_atom.size() / 3;
+  const int group_size = group[grouping_method_].cpu_size[group_id_];
+  const int group_size_sum = group[grouping_method_].cpu_size_sum[group_id_];
+  add_force<<<(group_size - 1) / 64 + 1, 64>>>(
+    group_size,
+    group_size_sum,
+    group[grouping_method_].contents.data(),
+    added_fx,
+    added_fy,
+    added_fz,
+    atom.force_per_atom.data(),
+    atom.force_per_atom.data() + num_atoms_total,
+    atom.force_per_atom.data() + num_atoms_total * 2);
+  GPU_CHECK_KERNEL
+}
+
+Add_Force::Add_Force(
+  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+{
+  const int num_param = tokens.size();
+  action_name = "add_force";
+  printf("Add force.\n");
+
+  // check the number of parameters
+  if (num_param != 6 && num_param != 4) {
+    PRINT_INPUT_ERROR("add_force should have 5 or 3 parameters.\n");
+  }
+
+  // parse grouping method
+  if (!is_valid_int(tokens[1], &grouping_method_)) {
+    PRINT_INPUT_ERROR("grouping method should be an integer.\n");
+  }
+  if (grouping_method_ < 0) {
+    PRINT_INPUT_ERROR("grouping method should >= 0.\n");
+  }
+  if (grouping_method_ >= group.size()) {
+    PRINT_INPUT_ERROR("grouping method should < maximum number of grouping methods.\n");
+  }
+
+  // parse group id
+  if (!is_valid_int(tokens[2], &group_id_)) {
+    PRINT_INPUT_ERROR("group id should be an integer.\n");
+  }
+  if (group_id_ < 0) {
+    PRINT_INPUT_ERROR("group id should >= 0.\n");
+  }
+  if (group_id_ >= group[grouping_method_].number) {
+    PRINT_INPUT_ERROR("group id should < maximum number of groups in the grouping method.\n");
+  }
+
+  printf(
+    "    for atoms in group %d of grouping method %d.\n",
+    group_id_,
+    grouping_method_);
+
+  if (num_param == 6) {
+    table_length_ = 1;
+    force_table_.resize(table_length_ * 3);
+    if (!is_valid_real(tokens[3], &force_table_[0])) {
+      PRINT_INPUT_ERROR("fx should be a number.\n");
+    }
+    if (!is_valid_real(tokens[4], &force_table_[1])) {
+      PRINT_INPUT_ERROR("fy should be a number.\n");
+    }
+    if (!is_valid_real(tokens[5], &force_table_[2])) {
+      PRINT_INPUT_ERROR("fz should be a number.\n");
+    }
+    printf("    fx = %g eV/A.\n", force_table_[0]);
+    printf("    fy = %g eV/A.\n", force_table_[1]);
+    printf("    fz = %g eV/A.\n", force_table_[2]);
+  } else {
+    std::ifstream input(tokens[3]);
+    if (!input.is_open()) {
+      printf("Failed to open %s.\n", tokens[3].c_str());
+      exit(1);
+    }
+    std::vector<std::string> tokens = get_tokens(input);
+    if (tokens.size() != 1) {
+      PRINT_INPUT_ERROR("The first line of the add_force file should have 1 value.");
+    }
+    table_length_ = get_int_from_token(tokens[0], __FILE__, __LINE__);
+    if (table_length_ < 2) {
+      PRINT_INPUT_ERROR("Number of steps in the add_force file should >= 2.\n");
+    } else {
+      printf("    number of values in the add_force file = %d.\n", table_length_);
+    }
+    force_table_.resize(table_length_ * 3);
+    for (int n = 0; n < table_length_; ++n) {
+      std::vector<std::string> tokens = get_tokens(input);
+      if (tokens.size() != 3) {
+        PRINT_INPUT_ERROR("Number of force components at each step should be 3.");
+      }
+      for (int t = 0; t < 3; ++t) {
+        force_table_[t * table_length_ + n] =
+          get_double_from_token(tokens[t], __FILE__, __LINE__);
+      }
+    }
+  }
+}

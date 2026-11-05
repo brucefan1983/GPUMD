@@ -2,24 +2,25 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
-#include "property.cuh"
+#include "action.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <string>
 #include <vector>
 
-class Compute : public Property
+class Compute : public Action
 {
 public:
   int compute_temperature = 0;
@@ -34,7 +35,7 @@ public:
   int output_interval = 1;
   int grouping_method = 0;
 
-  virtual void preprocess(
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -43,7 +44,7 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
+  virtual void end_of_step(
       const int number_of_steps,
       int step,
       const int fixed_group,
@@ -57,7 +58,7 @@ public:
       Atom& atom,
       Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,
@@ -66,8 +67,8 @@ public:
     const double temperature);
 
 
-  Compute(const char**, int, const std::vector<Group>& group);
-  void parse(const char**, int, const std::vector<Group>& group);
+  Compute(const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void parse(const std::vector<std::string>& tokens, const std::vector<Group>& group);
 
 private:
   FILE* fid;
@@ -80,6 +81,11 @@ private:
   GPU_Vector<double> gpu_per_atom_z;
 
   int number_of_scalars = 0;
+  
+  void output_results(
+    const double energy_transferred[], const std::vector<Group>& group);
 
-  void output_results(const double energy_transferred[], const std::vector<Group>& group);
+  // Handle multiple thermal reservoirs
+  void output_results_n(
+    const double energy_transferred_n[], const std::vector<Group>& group, int num_thermostats);
 };

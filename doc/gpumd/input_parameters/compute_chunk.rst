@@ -102,6 +102,8 @@ A typical use case for NEMD simulations::
 This computes the temperature and density profiles along z during a Langevin heat bath NEMD simulation.
 
 
+.. _compute_chunk_out:
+
 Output file
 -----------
 

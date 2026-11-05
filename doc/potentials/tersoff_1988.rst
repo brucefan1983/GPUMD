@@ -84,7 +84,7 @@ where
 File format
 -----------
 
-We have adopted a file format that similar but not identical to that used by `lammps <https://lammps.sandia.gov/doc/pair_tersoff.html>`_.
+We have adopted a file format that is similar but not identical to that used by `lammps <https://lammps.sandia.gov/doc/pair_tersoff.html>`_.
 
 The potential file for a single-element system reads::
   

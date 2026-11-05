@@ -1,13 +1,18 @@
 \.cproject
 \.project
-core
+\.idea
+/core
 
 src/.vscode/*
 src/*/*.obj
 src/*/*.o
+src/*/*/*.obj
+src/*/*/*.o
 src/gpumd*
 src/nep*
 src/gnep*
+src/tb
+src/tb.exe
 
 .history
 .vscode
@@ -19,10 +24,17 @@ public.*
 \#*
 
 /nep
+/*build*/
 /gpumd*
 /gnep
+/tb
+/tb.exe
 
 __pycache__/
 */__pycache__/
+.pytest_cache/
+.hypothesis/
 README.gnep.md
 push-to-both.sh
+
+src/.wpe_obj/

@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -93,7 +93,7 @@ Tersoff_mini::Tersoff_mini(FILE* fid, int num_of_types, const int num_atoms)
   tersoff_mini_data.f12z.resize(num_of_neighbors);
   tersoff_mini_data.NN.resize(num_atoms);
   tersoff_mini_data.NL.resize(num_of_neighbors);
-  neighbor.initialize(rc, num_atoms, 50);
+  neighbor_manager.initialize(rc, num_atoms, 50);
 }
 
 Tersoff_mini::~Tersoff_mini(void)
@@ -333,13 +333,9 @@ void Tersoff_mini::compute(
   const int number_of_atoms = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-  neighbor.find_neighbor_global(
-    rc,
-    box, 
-    type, 
-    position_per_atom);
+  neighbor_manager.update(box, type, position_per_atom);
 
-  neighbor.find_local_neighbor_from_global(
+  neighbor_manager.find_local_neighbor(
     rc,
     box, 
     position_per_atom,

@@ -75,7 +75,7 @@ File format
 -----------
 
 This hybrid potential requires 2 potential files: :term:`ILP` potential file and 
-:term:`SW` potential file. We have adopted the :term:`ILP` file format that similar 
+:term:`SW` potential file. We have adopted the :term:`ILP` file format that is similar
 but not identical to that used by `lammps <https://docs.lammps.org/pair_ilp_graphene_hbn.html>`_.
 To identify the layers, it's required to set two :attr:`group_methods`
 in ``model.xyz`` file. :attr:`group_method` 0 is used to identify the different layers and :attr:`group_method` 1 
@@ -127,4 +127,3 @@ of :term:`SW`. The potential file reads, specifically::
   lambda_XMX cos0_XMX
   lambda_XXM cos0_XXM
   lambda_XXX cos0_XXX
-

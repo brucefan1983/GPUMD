@@ -11,7 +11,7 @@ This keyword sets up a Hugoniot thermostat integrator.
 
 This integrator lets you specify a target stress, and adjust temperature to make the system converge to Hugoniot.
 
-In this implementation, we use the barostat and thermostat of :term:`MTTK` integrator, so it is very similiar to :ref:`mttk ensemble <kw_ensemble_mttk>`.
+In this implementation, we use the barostat and thermostat of :term:`MTTK` integrator, so it is very similar to :ref:`mttk ensemble <kw_ensemble_mttk>`.
 
 Please check [Ravelo2004]_ for more details.
 
@@ -26,7 +26,7 @@ The :attr:`<direction>` parameter can assume one or more of the following values
 Here, ``iso``, ``aniso``, and ``tri`` use hydrostatic pressure as the target pressure.
 ``iso`` updates the simulation cell isotropically.
 ``aniso`` updates the dimensions of the simulation cell along :math:`x`, :math:`y`, and :math:`z` independently.
-``tri`` updatess all six degrees of freedom of the simulation cell.
+``tri`` updates all six degrees of freedom of the simulation cell.
 Using ``x``, ``y``, ``z`` allows one to specify each stress component independently.
 
 The parameters :attr:`<p_1>` and :attr:`<p_2>` specify the target pressure, and they should be equal.

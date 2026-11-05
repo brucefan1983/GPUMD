@@ -37,7 +37,8 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx_autodoc_typehints',
     'sphinxcontrib.bibtex',
-    'nbsphinx']
+    'nbsphinx',
+    'sphinx_tabs.tabs']
 bibtex_bibfiles = ['publications.bib']
 
 graphviz_output_format = 'svg'

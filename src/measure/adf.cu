@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
@@ -174,13 +174,13 @@ static __global__ void gpu_find_adf_local(
 
 } // namespace
 
-ADF::ADF(const char** param, const int num_param, Box& box, const int number_of_types)
+ADF::ADF(const std::vector<std::string>& tokens, Box& box, const int number_of_types)
 {
-  parse(param, num_param, box, number_of_types);
-  property_name = "compute_adf";
+  parse(tokens, box, number_of_types);
+  action_name = "compute_adf";
 }
 
-void ADF::preprocess(
+void ADF::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -234,7 +234,7 @@ void ADF::preprocess(
   fid = fopen("adf.out", "a");
 };
 
-void ADF::process(
+void ADF::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -312,7 +312,7 @@ void ADF::process(
   CHECK(gpuMemcpy(adf.data(), adf_gpu.data(), sizeof(int) * adf.size(), gpuMemcpyDeviceToHost));
   CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
-  double delta = angle[1] - angle[0];
+  const double delta = 180.0 / adf_bins_;
   fprintf(fid, "#angles ");
   if (global_) {
     fprintf(fid, "total step = %d\n", step);
@@ -350,7 +350,7 @@ void ADF::process(
   fflush(fid);
 };
 
-void ADF::postprocess(
+void ADF::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -368,30 +368,35 @@ void ADF::postprocess(
 // compute_adf <interval> <num_bins> <rc_min> <rc_max>
 // compute_adf <interval> <num_bins> <itype1> <jtype1> <ktype1> <rc_min_j1> <rc_max_j1> <rc_min_k1>
 // <rc_max_k1> ...
-void ADF::parse(const char** param, const int num_param, Box& box, const int number_of_types)
+void ADF::parse(
+  const std::vector<std::string>& tokens, Box& box, const int number_of_types)
 {
   printf("Compute angular distribution functions (ADF).\n");
   compute_ = true;
+  const int num_param = tokens.size();
 
   if (num_param < 5) {
-    PRINT_INPUT_ERROR("compute_rdf should have at least 4 parameters.\n");
+    PRINT_INPUT_ERROR("compute_adf should have at least 4 parameters.\n");
+  }
+
+  if (!is_valid_int(tokens[1], &num_interval_)) {
+    PRINT_INPUT_ERROR("interval step per sample should be an integer.\n");
+  }
+  if (num_interval_ <= 0) {
+    PRINT_INPUT_ERROR("interval step per sample should be positive.\n");
+  }
+  if (!is_valid_int(tokens[2], &adf_bins_)) {
+    PRINT_INPUT_ERROR("number of bins should be an integer.\n");
+  }
+  if (adf_bins_ <= 0) {
+    PRINT_INPUT_ERROR("number of bins should be positive.\n");
   }
 
   if (num_param == 5) {
-
-    if (!is_valid_int(param[1], &num_interval_)) {
-      PRINT_INPUT_ERROR("interval step per sample should be an integer.\n");
-    }
-    if (num_interval_ <= 0) {
-      PRINT_INPUT_ERROR("interval step per sample should be positive.\n");
-    }
-    if (!is_valid_int(param[2], &adf_bins_)) {
-      PRINT_INPUT_ERROR("number of bins should be an integer.\n");
-    }
-    if (!is_valid_real(param[3], &rc_min_)) {
+    if (!is_valid_real(tokens[3], &rc_min_)) {
       PRINT_INPUT_ERROR("minimum radial cutoff should be a number.\n");
     }
-    if (!is_valid_real(param[4], &rc_max_)) {
+    if (!is_valid_real(tokens[4], &rc_max_)) {
       PRINT_INPUT_ERROR("maximum radial cutoff should be a number.\n");
     }
     if (rc_min_ >= rc_max_) {
@@ -420,15 +425,6 @@ void ADF::parse(const char** param, const int num_param, Box& box, const int num
     if ((num_param - 3) % 7 != 0) {
       PRINT_INPUT_ERROR("compute_adf should have 4 parameters or 2 + 7 * Ntriples parameters.\n");
     }
-    if (!is_valid_int(param[1], &num_interval_)) {
-      PRINT_INPUT_ERROR("interval step per sample should be an integer.\n");
-    }
-    if (num_interval_ <= 0) {
-      PRINT_INPUT_ERROR("interval step per sample should be positive.\n");
-    }
-    if (!is_valid_int(param[2], &adf_bins_)) {
-      PRINT_INPUT_ERROR("number of bins should be an integer.\n");
-    }
     num_triples_ = (num_param - 3) / 7;
     itype_cpu.resize(num_triples_);
     jtype_cpu.resize(num_triples_);
@@ -438,7 +434,7 @@ void ADF::parse(const char** param, const int num_param, Box& box, const int num
     rc_min_k_cpu.resize(num_triples_);
     rc_max_k_cpu.resize(num_triples_);
     for (int i = 0; i < num_triples_; i++) {
-      if (!is_valid_int(param[3 + i * 7], &itype_cpu[i])) {
+      if (!is_valid_int(tokens[3 + i * 7], &itype_cpu[i])) {
         std::string message = "itype in triples " + std::to_string(i) + " should be an integer.\n";
         PRINT_INPUT_ERROR(message.c_str());
       }
@@ -453,7 +449,7 @@ void ADF::parse(const char** param, const int num_param, Box& box, const int num
                               std::to_string(number_of_types) + ".\n";
         PRINT_INPUT_ERROR(message.c_str());
       }
-      if (!is_valid_int(param[4 + i * 7], &jtype_cpu[i])) {
+      if (!is_valid_int(tokens[4 + i * 7], &jtype_cpu[i])) {
         std::string message = "jtype in triples " + std::to_string(i) + " should be an integer.\n";
         PRINT_INPUT_ERROR(message.c_str());
       }
@@ -468,7 +464,7 @@ void ADF::parse(const char** param, const int num_param, Box& box, const int num
                               std::to_string(number_of_types) + ".\n";
         PRINT_INPUT_ERROR(message.c_str());
       }
-      if (!is_valid_int(param[5 + i * 7], &ktype_cpu[i])) {
+      if (!is_valid_int(tokens[5 + i * 7], &ktype_cpu[i])) {
         std::string message = "ktype in triples " + std::to_string(i) + " should be an integer.\n";
         PRINT_INPUT_ERROR(message.c_str());
       }
@@ -483,12 +479,12 @@ void ADF::parse(const char** param, const int num_param, Box& box, const int num
                               std::to_string(number_of_types) + ".\n";
         PRINT_INPUT_ERROR(message.c_str());
       }
-      if (!is_valid_real(param[6 + i * 7], &rc_min_j_cpu[i])) {
+      if (!is_valid_real(tokens[6 + i * 7], &rc_min_j_cpu[i])) {
         std::string message =
           "minimum radial cutoff in triples " + std::to_string(i) + " should be a number.\n";
         PRINT_INPUT_ERROR(message.c_str());
       }
-      if (!is_valid_real(param[7 + i * 7], &rc_max_j_cpu[i])) {
+      if (!is_valid_real(tokens[7 + i * 7], &rc_max_j_cpu[i])) {
         std::string message =
           "maximum radial cutoff in triples " + std::to_string(i) + " should be a number.\n";
         PRINT_INPUT_ERROR(message.c_str());
@@ -504,12 +500,12 @@ void ADF::parse(const char** param, const int num_param, Box& box, const int num
           "minimum radial cutoff in triples " + std::to_string(i) + " should be positive.\n";
         PRINT_INPUT_ERROR(message.c_str());
       }
-      if (!is_valid_real(param[8 + i * 7], &rc_min_k_cpu[i])) {
+      if (!is_valid_real(tokens[8 + i * 7], &rc_min_k_cpu[i])) {
         std::string message =
           "minimum radial cutoff in triples " + std::to_string(i) + " should be a number.\n";
         PRINT_INPUT_ERROR(message.c_str());
       }
-      if (!is_valid_real(param[9 + i * 7], &rc_max_k_cpu[i])) {
+      if (!is_valid_real(tokens[9 + i * 7], &rc_max_k_cpu[i])) {
         std::string message =
           "maximum radial cutoff in triples " + std::to_string(i) + " should be a number.\n";
         PRINT_INPUT_ERROR(message.c_str());

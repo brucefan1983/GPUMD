@@ -1,0 +1,2 @@
+compute_extrapolation nep_file dummy_nep.txt check_interval -1
+potential potential.txt

@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
@@ -27,18 +27,19 @@ Dump thermo data to a file at a given interval.
 #include "utilities/read_file.cuh"
 #include <cstring>
 
-Dump_Thermo::Dump_Thermo(const char** param, int num_param) 
+Dump_Thermo::Dump_Thermo(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
-  property_name = "dump_thermo";
+  parse(tokens);
+  action_name = "dump_thermo";
 }
 
-void Dump_Thermo::parse(const char** param, int num_param)
+void Dump_Thermo::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   if (num_param != 2) {
     PRINT_INPUT_ERROR("dump_thermo should have 1 parameter.");
   }
-  if (!is_valid_int(param[1], &dump_interval_)) {
+  if (!is_valid_int(tokens[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("thermo dump interval should be an integer.");
   }
   if (dump_interval_ <= 0) {
@@ -47,7 +48,55 @@ void Dump_Thermo::parse(const char** param, int num_param)
   printf("Dump thermo every %d steps.\n", dump_interval_);
 }
 
-void Dump_Thermo::preprocess(
+void write_thermo_row(
+  FILE* fid,
+  GPU_Vector<double>& gpu_thermo,
+  const bool thermo_holds_kinetic_energy,
+  const double temperature_target,
+  const int number_of_atoms_for_temperature,
+  const Box& box)
+{
+  double thermo[8];
+  gpu_thermo.copy_to_host(thermo, 8);
+  double energy_kin, temperature;
+  if (thermo_holds_kinetic_energy) {
+    energy_kin = thermo[0];
+    temperature = temperature_target;
+  } else {
+    energy_kin = 1.5 * number_of_atoms_for_temperature * K_B * thermo[0];
+    temperature = thermo[0];
+  }
+
+  // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
+  fprintf(
+    fid,
+    "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e",
+    temperature,
+    energy_kin,
+    thermo[1],
+    thermo[2] * PRESSURE_UNIT_CONVERSION,
+    thermo[3] * PRESSURE_UNIT_CONVERSION,
+    thermo[4] * PRESSURE_UNIT_CONVERSION,
+    thermo[7] * PRESSURE_UNIT_CONVERSION,
+    thermo[6] * PRESSURE_UNIT_CONVERSION,
+    thermo[5] * PRESSURE_UNIT_CONVERSION);
+
+  fprintf(
+    fid,
+    "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n",
+    box.cpu_h[0],
+    box.cpu_h[3],
+    box.cpu_h[6],
+    box.cpu_h[1],
+    box.cpu_h[4],
+    box.cpu_h[7],
+    box.cpu_h[2],
+    box.cpu_h[5],
+    box.cpu_h[8]);
+  fflush(fid);
+}
+
+void Dump_Thermo::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -57,9 +106,20 @@ void Dump_Thermo::preprocess(
   Force& force)
 {
   fid_ = my_fopen("thermo.out", "a");
+  fprintf(fid_, "# dump_thermo %d\n", dump_interval_);
+  fprintf(fid_, "# format_version 1\n");
+  fprintf(fid_, "# num_atoms %d\n", atom.number_of_atoms);
+  fprintf(fid_, "# dt_output %.10e fs\n", time_step * dump_interval_ * TIME_UNIT_CONVERSION);
+  if (is_pimd(integrate.get_type())) {
+    fprintf(
+      fid_,
+      "# columns T_target KE_quantum PE sxx syy szz syz sxz sxy ax ay az bx by bz cx cy cz\n");
+  } else {
+    fprintf(fid_, "# columns T KE PE sxx syy szz syz sxz sxy ax ay az bx by bz cx cy cz\n");
+  }
 }
 
-void Dump_Thermo::process(
+void Dump_Thermo::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -76,51 +136,16 @@ void Dump_Thermo::process(
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  int number_of_atoms_fixed =
-    (fixed_group < 0) ? 0 : group[integrate.fixed_grouping_method].cpu_size[fixed_group];
-
-  double thermo[8];
-  gpu_thermo.copy_to_host(thermo, 8);
-  double energy_kin, temperature;
-  if (integrate.type >= 31) {
-    energy_kin = thermo[0];
-    temperature = temperature_target;
-  } else {
-    const int number_of_atoms_moving = atom.number_of_atoms - number_of_atoms_fixed;
-    energy_kin = 1.5 * number_of_atoms_moving * K_B * thermo[0];
-    temperature = thermo[0];
-  }
-
-  // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
-  fprintf(
+  write_thermo_row(
     fid_,
-    "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e",
-    temperature,
-    energy_kin,
-    thermo[1],
-    thermo[2] * PRESSURE_UNIT_CONVERSION,
-    thermo[3] * PRESSURE_UNIT_CONVERSION,
-    thermo[4] * PRESSURE_UNIT_CONVERSION,
-    thermo[7] * PRESSURE_UNIT_CONVERSION,
-    thermo[6] * PRESSURE_UNIT_CONVERSION,
-    thermo[5] * PRESSURE_UNIT_CONVERSION);
-
-  fprintf(
-    fid_,
-    "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n",
-    box.cpu_h[0],
-    box.cpu_h[3],
-    box.cpu_h[6],
-    box.cpu_h[1],
-    box.cpu_h[4],
-    box.cpu_h[7],
-    box.cpu_h[2],
-    box.cpu_h[5],
-    box.cpu_h[8]);
-  fflush(fid_);
+    gpu_thermo,
+    is_pimd(integrate.get_type()),
+    integrate.get_target_temperature_of_step(),
+    integrate.get_number_of_atoms_for_temperature(atom.number_of_atoms, group),
+    box);
 }
 
-void Dump_Thermo::postprocess(
+void Dump_Thermo::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,

@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "error.cuh"
@@ -133,6 +133,11 @@ std::vector<std::string> get_tokens_without_unwanted_spaces(std::ifstream& input
 {
   std::string line;
   std::getline(input, line);
+  return get_tokens_without_unwanted_spaces(line);
+}
+
+std::vector<std::string> get_tokens_without_unwanted_spaces(const std::string& line)
+{
   auto line_without_unwanted_spaces = remove_spaces(line);
   std::istringstream iss(line_without_unwanted_spaces);
   std::vector<std::string> tokens{
@@ -140,7 +145,7 @@ std::vector<std::string> get_tokens_without_unwanted_spaces(std::ifstream& input
   return tokens;
 }
 
-std::vector<std::string> get_tokens(std::ifstream& input)
+std::vector<std::string> get_tokens(std::istream& input)
 {
   std::string line;
   std::getline(input, line);
@@ -148,6 +153,26 @@ std::vector<std::string> get_tokens(std::ifstream& input)
   std::vector<std::string> tokens{
     std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>{}};
   return tokens;
+}
+
+std::vector<std::string> get_tokens_without_comments(const std::string& line)
+{
+  std::vector<std::string> tokens = get_tokens(line);
+  for (int n = 0; n < tokens.size(); ++n) {
+    // A token beginning with '#' starts a comment.
+    if (tokens[n][0] == '#') {
+      tokens.resize(n);
+      break;
+    }
+  }
+  return tokens;
+}
+
+std::vector<std::string> get_tokens_without_comments(std::ifstream& input)
+{
+  std::string line;
+  std::getline(input, line);
+  return get_tokens_without_comments(line);
 }
 
 int get_int_from_token(const std::string& token, const char* filename, const int line)

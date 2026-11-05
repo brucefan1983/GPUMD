@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -22,7 +22,10 @@ The class defining the simulation model.
 #include "group.cuh"
 #include "read_xyz.cuh"
 #include "utilities/common.cuh"
+#include "utilities/compact_nep.cuh"
 #include "utilities/error.cuh"
+#include "utilities/run_input.cuh"
+#include "utilities/nep_spin_model_file.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
@@ -145,8 +148,8 @@ static void read_xyz_line_1(std::ifstream& input, int& N)
     PRINT_INPUT_ERROR("The first line for the xyz file should have one value.");
   }
   N = get_int_from_token(tokens[0], __FILE__, __LINE__);
-  if (N < 2) {
-    PRINT_INPUT_ERROR("Number of atoms should >= 2.");
+  if (N < 1) {
+    PRINT_INPUT_ERROR("Number of atoms should >= 1.");
   } else {
     printf("Number of atoms is %d.\n", N);
   }
@@ -158,6 +161,9 @@ static void read_xyz_line_2(
   int& has_velocity_in_xyz,
   bool& has_mass,
   bool& has_charge,
+  bool& has_spin,
+  bool& has_spin_velocity,
+  const bool enable_spin,
   int& num_columns,
   int* property_offset,
   std::vector<Group>& group)
@@ -239,10 +245,11 @@ static void read_xyz_line_2(
   }
 
   // properties
-  const int num_properties = 6;
-  std::string property_name[num_properties] = {"species", "pos", "mass", "charge", "vel", "group"};
+  const int num_properties = 8;
+  std::string property_name[num_properties] = {
+    "species", "pos", "mass", "charge", "vel", "group", "spin", "spin_vel"};
   int property_position[num_properties] = {
-    -1, -1, -1, -1, -1, -1}; // species,pos,mass,charge,vel,group
+    -1, -1, -1, -1, -1, -1, -1, -1};
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string properties_string = "properties=";
     if (tokens[n].substr(0, properties_string.length()) == properties_string) {
@@ -255,8 +262,22 @@ static void read_xyz_line_2(
       std::vector<std::string> sub_tokens = get_tokens(line);
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
         for (int prop = 0; prop < num_properties; ++prop) {
-          if (sub_tokens[k * 3] == property_name[prop]) {
+          if (sub_tokens[k * 3] == property_name[prop] && (prop < 6 || enable_spin)) {
+            if (prop >= 6 && property_position[prop] >= 0) {
+              PRINT_INPUT_ERROR(
+                prop == 6 ? "Duplicate spin property." : "Duplicate spin_vel property.");
+            }
             property_position[prop] = k;
+          }
+        }
+      }
+
+      for (int prop : {6, 7}) {
+        if (property_position[prop] >= 0) {
+          const int base = property_position[prop] * 3;
+          if (sub_tokens[base + 1] != "r" ||
+              get_int_from_token(sub_tokens[base + 2], __FILE__, __LINE__) != 3) {
+            PRINT_INPUT_ERROR(prop == 6 ? "spin must be R:3." : "spin_vel must be R:3.");
           }
         }
       }
@@ -307,6 +328,11 @@ static void read_xyz_line_2(
   } else {
     has_charge = true;
   }
+  has_spin = property_position[6] >= 0;
+  has_spin_velocity = property_position[7] >= 0;
+  if (has_spin_velocity && !has_spin) {
+    PRINT_INPUT_ERROR("spin_vel:R:3 requires spin:R:3.");
+  }
 }
 
 void read_xyz_in_line_3(
@@ -315,6 +341,8 @@ void read_xyz_in_line_3(
   const int has_velocity_in_xyz,
   const bool has_mass,
   const bool has_charge,
+  const bool has_spin,
+  const bool has_spin_velocity,
   const int num_columns,
   const int* property_offset,
   int& number_of_types,
@@ -325,6 +353,8 @@ void read_xyz_in_line_3(
   std::vector<float>& cpu_charge,
   std::vector<double>& cpu_position_per_atom,
   std::vector<double>& cpu_velocity_per_atom,
+  std::vector<double>& cpu_spin_per_atom,
+  std::vector<double>& cpu_spin_velocity_per_atom,
   std::vector<Group>& group)
 {
   cpu_atom_symbol.resize(N);
@@ -333,6 +363,8 @@ void read_xyz_in_line_3(
   cpu_charge.resize(N, 0.0);
   cpu_position_per_atom.resize(N * 3);
   cpu_velocity_per_atom.resize(N * 3);
+  cpu_spin_per_atom.resize(has_spin ? N * 3 : 0);
+  cpu_spin_velocity_per_atom.resize(has_spin ? N * 3 : 0, 0.0);
   number_of_types = atom_symbols.size();
 
   for (int m = 0; m < group.size(); ++m) {
@@ -386,6 +418,22 @@ void read_xyz_in_line_3(
       }
     }
 
+    if (has_spin) {
+      for (int d = 0; d < 3; ++d) {
+        cpu_spin_per_atom[n + N * d] =
+          get_double_from_token(tokens[property_offset[6] + d], __FILE__, __LINE__);
+      }
+    }
+
+    if (has_spin_velocity) {
+      const double spin_velocity_to_natural = TIME_UNIT_CONVERSION;
+      for (int d = 0; d < 3; ++d) {
+        cpu_spin_velocity_per_atom[n + N * d] =
+          get_double_from_token(tokens[property_offset[7] + d], __FILE__, __LINE__) *
+          spin_velocity_to_natural;
+      }
+    }
+
     for (int m = 0; m < group.size(); ++m) {
       group[m].cpu_label[n] =
         get_int_from_token(tokens[property_offset[5] + m], __FILE__, __LINE__);
@@ -424,24 +472,14 @@ void find_type_size(
   }
 }
 
-static std::string get_filename_potential()
+std::string get_filename_potential(const RunInput& run_input)
 {
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("No run.in.");
-  }
-
-  std::string line;
   std::string filename_potential;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() >= 2) {
-      if (tokens[0] == "potential") {
-        filename_potential = tokens[1];
-      }
+  for (const auto& line : run_input.lines()) {
+    if (line.tokens.size() >= 2 && line.tokens[0] == "potential") {
+      filename_potential = line.tokens[1];
     }
   }
-  input_run.close();
   if (filename_potential.size() == 0) {
     PRINT_INPUT_ERROR("There is no 'potential' keyword in run.in.");
   } else {
@@ -449,7 +487,13 @@ static std::string get_filename_potential()
   }
 }
 
-static std::vector<std::string> get_atom_symbols(std::string& filename_potential)
+std::string get_filename_potential()
+{
+  RunInput run_input("run.in");
+  return get_filename_potential(run_input);
+}
+
+std::vector<std::string> get_atom_symbols(std::string& filename_potential)
 {
   std::ifstream input_potential(filename_potential);
   if (!input_potential.is_open()) {
@@ -480,6 +524,7 @@ static std::vector<std::string> get_atom_symbols(std::string& filename_potential
 }
 
 void initialize_position(
+  const RunInput& run_input,
   int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom)
 {
   std::string filename("model.xyz");
@@ -490,16 +535,26 @@ void initialize_position(
   }
 
   std::vector<std::string> atom_symbols;
-  auto filename_potential = get_filename_potential();
+  auto filename_potential = get_filename_potential(run_input);
   atom_symbols = get_atom_symbols(filename_potential);
 
   read_xyz_line_1(input, atom.number_of_atoms);
-  int property_offset[6] = {0, 0, 0, 0, 0, 0}; // species,pos,mass,vel,group
+  int property_offset[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   int num_columns = 0;
   bool has_mass = true;
   bool has_charge = true;
   read_xyz_line_2(
-    input, box, has_velocity_in_xyz, has_mass, has_charge, num_columns, property_offset, group);
+    input,
+    box,
+    has_velocity_in_xyz,
+    has_mass,
+    has_charge,
+    atom.has_spin,
+    atom.spin_velocity_initialized,
+    NEP_Spin_Model_File::is_spin_model(filename_potential),
+    num_columns,
+    property_offset,
+    group);
 
   read_xyz_in_line_3(
     input,
@@ -507,6 +562,8 @@ void initialize_position(
     has_velocity_in_xyz,
     has_mass,
     has_charge,
+    atom.has_spin,
+    atom.spin_velocity_initialized,
     num_columns,
     property_offset,
     number_of_types,
@@ -517,9 +574,21 @@ void initialize_position(
     atom.cpu_charge,
     atom.cpu_position_per_atom,
     atom.cpu_velocity_per_atom,
+    atom.cpu_spin_per_atom,
+    atom.cpu_spin_velocity_per_atom,
     group);
 
   input.close();
+
+  prepare_compact_nep_files(atom.cpu_atom_symbol, run_input);
+  const std::vector<std::string>& compact_species = get_compact_nep_species();
+  if (compact_species.size() > 0 && compact_species.size() < atom_symbols.size()) {
+    atom_symbols = compact_species;
+    number_of_types = atom_symbols.size();
+    for (int n = 0; n < atom.number_of_atoms; ++n) {
+      atom.cpu_type[n] = get_compact_nep_type(atom.cpu_atom_symbol[n]);
+    }
+  }
 
   for (int m = 0; m < group.size(); ++m) {
     group[m].find_size(atom.number_of_atoms, m);
@@ -551,6 +620,14 @@ void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<doubl
   atom.position_per_atom.resize(N * 3);
   atom.position_per_atom.copy_from_host(atom.cpu_position_per_atom.data());
   atom.velocity_per_atom.resize(N * 3);
+  if (atom.has_spin) {
+    atom.spin_per_atom.resize(N * 3);
+    atom.spin_velocity_per_atom.resize(N * 3);
+    atom.spin_velocity_per_atom.copy_from_host(atom.cpu_spin_velocity_per_atom.data());
+    atom.mforce_per_atom.resize(N * 3, 0.0);
+    atom.spin_per_atom.copy_from_host(atom.cpu_spin_per_atom.data());
+  }
+  atom.velocity_per_atom.copy_from_host(atom.cpu_velocity_per_atom.data());
   atom.force_per_atom.resize(N * 3, 0);
   atom.virial_per_atom.resize(N * 9);
   atom.potential_per_atom.resize(N);

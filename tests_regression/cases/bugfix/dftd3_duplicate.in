@@ -1,0 +1,4 @@
+potential C_2022_NEP4.txt
+dftd3 pbe 4 3
+dftd3 pbe 4 3
+unreachable_after_duplicate_dftd3

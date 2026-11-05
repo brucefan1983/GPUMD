@@ -1,0 +1,5 @@
+type 2 H O
+charge_vdw 1
+batch 107
+generation 10
+output_interval 10

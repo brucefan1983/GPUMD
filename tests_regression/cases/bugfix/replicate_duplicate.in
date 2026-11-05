@@ -1,0 +1,4 @@
+replicate 1 1 1
+replicate 1 1 1
+unreachable_after_duplicate_replicate
+potential potential.txt

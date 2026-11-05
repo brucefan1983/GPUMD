@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "extrapolation.cuh"
@@ -42,41 +42,72 @@ __global__ void gpu_calculate_max_gamma(
   }
 }
 
-Extrapolation::Extrapolation(const char** params, int num_params)
+Extrapolation::Extrapolation(const std::vector<std::string>& tokens)
 {
-  property_name = "compute_extrapolation";
+  action_name = "compute_extrapolation";
+  const int num_params = tokens.size();
   int i = 1;
   while (i < num_params) {
-    if (strcmp(params[i], "asi_file") == 0) {
-      asi_file_name.assign(params[i + 1]);
+    if (tokens[i] == "nep_file") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for nep_file keyword.");
+      }
+      nep_file_name = tokens[i + 1];
       i += 2;
-    } else if (strcmp(params[i], "gamma_low") == 0) {
-      if (!is_valid_real(params[i + 1], &gamma_low)) {
+    } else if (tokens[i] == "asi_file") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for asi_file keyword.");
+      }
+      asi_file_name = tokens[i + 1];
+      i += 2;
+    } else if (tokens[i] == "gamma_low") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for gamma_low keyword.");
+      }
+      if (!is_valid_real(tokens[i + 1], &gamma_low)) {
         PRINT_INPUT_ERROR("Wrong input for gamma_low.\n");
       }
       i += 2;
-    } else if (strcmp(params[i], "gamma_high") == 0) {
-      if (!is_valid_real(params[i + 1], &gamma_high)) {
+    } else if (tokens[i] == "gamma_high") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for gamma_high keyword.");
+      }
+      if (!is_valid_real(tokens[i + 1], &gamma_high)) {
         PRINT_INPUT_ERROR("Wrong input for gamma_high.\n");
       }
       i += 2;
-    } else if (strcmp(params[i], "check_interval") == 0) {
-      if (!is_valid_int(params[i + 1], &check_interval)) {
+    } else if (tokens[i] == "check_interval") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for check_interval keyword.");
+      }
+      if (!is_valid_int(tokens[i + 1], &check_interval)) {
         PRINT_INPUT_ERROR("Wrong input for check_interval.\n");
       }
+      if (check_interval <= 0) {
+        PRINT_INPUT_ERROR("check_interval should be positive.");
+      }
       i += 2;
-    } else if (strcmp(params[i], "dump_interval") == 0) {
-      if (!is_valid_int(params[i + 1], &dump_interval)) {
+    } else if (tokens[i] == "dump_interval") {
+      if (i + 1 >= num_params) {
+        PRINT_INPUT_ERROR("Missing value for dump_interval keyword.");
+      }
+      if (!is_valid_int(tokens[i + 1], &dump_interval)) {
         PRINT_INPUT_ERROR("Wrong input for dump_interval.\n");
+      }
+      if (dump_interval <= 0) {
+        PRINT_INPUT_ERROR("dump_interval should be positive.");
       }
       i += 2;
     } else {
       PRINT_INPUT_ERROR("Wrong input parameter!");
     }
   }
+  if (nep_file_name.empty()) {
+    PRINT_INPUT_ERROR("compute_extrapolation requires nep_file.");
+  }
 }
 
-void Extrapolation::preprocess(
+void Extrapolation::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -88,28 +119,29 @@ void Extrapolation::preprocess(
   int N = atom.number_of_atoms;
   printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
   printf("Initializing extrapolation grade calculation...\n");
-  B_size_per_atom = force.potentials[0]->B_projection_size;
-  if (B_size_per_atom == 0)
-    PRINT_INPUT_ERROR("This potential cannot be used to calculate the extrapolation grade!");
-  else
-    printf("The length of B vector for each atom: %d\n", B_size_per_atom);
-  B.resize(B_size_per_atom * N);
+  nep_extrapolation.reset(new NEP_Extrapolation(nep_file_name.c_str(), atom));
+  B_size_per_atom = nep_extrapolation->get_B_size_per_atom();
+  printf("The length of B vector for each atom: %d\n", B_size_per_atom);
   gamma_full.resize(B_size_per_atom * N);
   gamma.resize(N, Memory_Type::managed);
-  force.potentials[0]->B_projection = B.data();
-  force.potentials[0]->need_B_projection = true;
   this->atom = &atom;
   this->box = &box;
   f = my_fopen("extrapolation_dump.xyz", "a");
 
-  blas_A.resize(N, Memory_Type::managed);
-  blas_x.resize(N, Memory_Type::managed);
-  blas_y.resize(N, Memory_Type::managed);
+  blas_A.resize(N);
+  blas_x.resize(N);
+  blas_y.resize(N);
+  cpu_blas_A.resize(N);
+  cpu_blas_x.resize(N);
+  cpu_blas_y.resize(N);
   load_asi();
   for (int i = 0; i < N; i++) {
-    blas_x[i] = B.data() + i * B_size_per_atom;
-    blas_y[i] = gamma_full.data() + i * B_size_per_atom;
+    cpu_blas_x[i] = nep_extrapolation->get_B_projection() + i * B_size_per_atom;
+    cpu_blas_y[i] = gamma_full.data() + i * B_size_per_atom;
   }
+  blas_A.copy_from_host(cpu_blas_A.data());
+  blas_x.copy_from_host(cpu_blas_x.data());
+  blas_y.copy_from_host(cpu_blas_y.data());
 
   gpublasCreate(&handle);
   printf("gamma_low:      %f\n", gamma_low);
@@ -119,7 +151,7 @@ void Extrapolation::preprocess(
   printf("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 }
 
-void Extrapolation::postprocess(
+void Extrapolation::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -168,7 +200,7 @@ void Extrapolation::load_asi()
 
       for (int j = 0; j < atom->number_of_atoms; j++) {
         if (atom->cpu_type[j] == type_of_atom) {
-          blas_A[j] = asi->data();
+          cpu_blas_A[j] = asi->data();
         }
       }
     }
@@ -179,7 +211,7 @@ void Extrapolation::load_asi()
   }
 }
 
-void Extrapolation::process(
+void Extrapolation::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -218,6 +250,7 @@ void Extrapolation::process(
 void Extrapolation::calculate_gamma()
 {
   int N = atom->number_of_atoms;
+  nep_extrapolation->compute(*box, atom->position_per_atom);
 
   double alpha = 1.0, beta = 0.0;
 
@@ -229,12 +262,12 @@ void Extrapolation::calculate_gamma()
       B_size_per_atom,
       B_size_per_atom,
       &alpha,
-      blas_A[i],
+      cpu_blas_A[i],
       B_size_per_atom,
-      blas_x[i],
+      cpu_blas_x[i],
       1,
       &beta,
-      blas_y[i],
+      cpu_blas_y[i],
       1);
   }
 #else
@@ -256,7 +289,7 @@ void Extrapolation::calculate_gamma()
 
   gpu_calculate_max_gamma<<<(N - 1) / 128 + 1, 128>>>(
     gamma_full.data(), gamma.data(), N, B_size_per_atom);
-  gpuDeviceSynchronize();
+  CHECK(gpuDeviceSynchronize());
 }
 
 void Extrapolation::dump()

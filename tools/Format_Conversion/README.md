@@ -6,6 +6,7 @@
 | dp2xyz      | Ke Xu        | twtdq@qq.com               | Convert `DP` training data to `xyz` format.                  |
 | exyz2pdb    | Zherui Chen  | chenzherui0124@foxmail.com | Convert `exyz` to `pdb`.                                     |
 | gmx2exyz    | Zherui Chen  | chenzherui0124@foxmail.com | Convert the `trr` trajectory of `gmx` to the `exyz` trajectory. |
+| gpumd_to_kaldo | Giuseppe Barbalinardo | giuseppp@gmail.com | Export NEP-derived 2nd/3rd-order force constants to kaldo (`format='gpumd'`). |
 | mtp2xyz     | Ke Xu        | twtdq@qq.com               | Convert `MTP` training data to xyz format.                   |
 | orca2xyz    | Zherui Chen  | chenzherui0124@foxmail.com | Automatically process `ORCA` calculations and sample configurations. |
 | runner2xyz  | Ke Xu        | twtdq@qq.com               | Convert `RUNNER` training data to `xyz` format.              |

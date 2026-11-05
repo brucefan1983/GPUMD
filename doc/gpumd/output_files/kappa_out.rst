@@ -18,7 +18,7 @@ If the driving force is in the :math:`\mu` (:math:`\mu` can be :math:`x`, :math:
 * column 4: :math:`\kappa_{\mu y}^{\text{out}}(t)` (in units of W/mK)
 * column 5: :math:`\kappa_{\mu z}^{\text{tot}}(t)` (in units of W/mK)
 
-Both :math:`\kappa_{\mu x}(t)` and :math:`\kappa_{\mu y}(t)` have been decomposed into comtributions from in-plane (hence superscript in) and out-of-plane (hence superscript out) vibrational modes, as described in [Fan2019]_.
+Both :math:`\kappa_{\mu x}(t)` and :math:`\kappa_{\mu y}(t)` have been decomposed into contributions from in-plane (hence superscript in) and out-of-plane (hence superscript out) vibrational modes, as described in [Fan2019]_.
 This decomposition is useful for 2D (or layered) materials but is not necessary for 3D materials.
 For 3D materials, one can sum up some columns to get the conventional data.
 That is:

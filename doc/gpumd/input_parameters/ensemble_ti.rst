@@ -3,7 +3,7 @@
 :attr:`ensemble` (TI)
 =====================
 
-This keyword is used to set up a equilibrium thermodynamic integration integrator. It is for testing purpose and its only differece from :ref:`ti_spring keyword <kw_ensemble_ti_spring>` is that the lambda value is fixed instead of changing.
+This keyword is used to set up an equilibrium thermodynamic integration integrator. It is for testing purpose and its only difference from :ref:`ti_spring keyword <kw_ensemble_ti_spring>` is that the lambda value is fixed instead of changing.
 
 Syntax
 ------
@@ -22,6 +22,6 @@ Example
 
 .. code-block:: rst
 
-    ensemble ti_spring temp 300 lambda 0.3 spring Si 6 O 5
+    ensemble ti lambda 0.3 temp 300 spring Si 6 O 5
 
 This command uses lambda value 0.3 (30% spring force and 70% original force field). The spring constant is 6 eV/A^2 for Si and 5 eV/A^2 for O.

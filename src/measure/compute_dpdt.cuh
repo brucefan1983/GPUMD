@@ -2,29 +2,29 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
-#include "property.cuh"
+#include "action.cuh"
 #include "utilities/gpu_vector.cuh"
 
-class Compute_dpdt : public Property
+class Compute_dpdt : public Action
 {
 public:
-  Compute_dpdt(const char**, int);
+  Compute_dpdt(const std::vector<std::string>& tokens, bool is_nep_charge);
 
   int sample_interval;
 
-  virtual void preprocess(
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -33,7 +33,7 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
+  virtual void end_of_step(
       const int number_of_steps,
       int step,
       const int fixed_group,
@@ -47,7 +47,7 @@ public:
       Atom& atom,
       Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,
@@ -55,7 +55,7 @@ public:
     const double time_step,
     const double temperature);
 
-  void parse(const char**, int);
+  void parse(const std::vector<std::string>& tokens, bool is_nep_charge);
 
 private:
   GPU_Vector<float> gpu_dpdt_per_atom;

@@ -82,7 +82,7 @@ File format
 -----------
 
 This hybrid potential requires 2 potential files: :term:`ILP` potential file and 
-Tersoff potential file. We have adopted the :term:`ILP` file format that similar 
+Tersoff potential file. We have adopted the :term:`ILP` file format that is similar
 but not identical to that used by `lammps <https://docs.lammps.org/pair_ilp_graphene_hbn.html>`_.
 To identify the different layers, it's required to set one :attr:`group_methods`
 in ``model.xyz`` file.
@@ -123,4 +123,3 @@ of Tersoff potential. The potential file reads, specifically for graphene::
   A_CCC B_CCC lambda_CCC mu_CCC beta_CCC n_CCC c_CCC d_CCC h_CCC R_CCC S_CCC m_CCC alpha_CCC gamma_CCC
 
 More parameter details are in :ref:`Tersoff (1988) potential <tersoff_1988>` and :ref:`NEP+ILP potential <nep_ilp>`.
-

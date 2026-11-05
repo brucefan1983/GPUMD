@@ -1,0 +1,9 @@
+replicate 2 2 2
+potential C_2022_NEP4.txt
+potential C_2022_NEP4_MODIFIED.txt
+velocity 300 seed 20260918
+time_step 0.2
+
+ensemble nve
+dump_observer average 1 1 1 1
+run 4

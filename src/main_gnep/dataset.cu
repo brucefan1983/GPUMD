@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "dataset.cuh"
@@ -20,6 +20,13 @@
 #include "utilities/error.cuh"
 #include "utilities/gnep_utilities.cuh"
 #include <algorithm> 
+
+Dataset::~Dataset()
+{
+  if (device_id >= 0) {
+    cudaSetDevice(device_id);
+  }
+}
 
 void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, int n2)
 {
@@ -348,6 +355,7 @@ void Dataset::find_neighbor(Parameters& para)
 void Dataset::construct(
   Parameters& para, std::vector<Structure>& structures_input, bool require_grad, int n1, int n2, int device_id)
 {
+  this->device_id = device_id;
   CHECK(cudaSetDevice(device_id));
   copy_structures(structures_input, n1, n2);
   find_has_type(para);

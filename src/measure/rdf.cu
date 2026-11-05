@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
@@ -30,10 +30,32 @@ Refactored by: Zheyong Fan
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include <cmath>
 #include <cstring>
 
 namespace
 {
+__device__ __forceinline__ int
+find_rdf_bin(const double distance_square, const double bin_width, const int number_of_bins)
+{
+  int bin = static_cast<int>(sqrt(distance_square) / bin_width);
+  if (bin >= number_of_bins) {
+    bin = number_of_bins - 1;
+  }
+
+  double edge = bin * bin_width;
+  if (distance_square <= edge * edge) {
+    --bin;
+  } else {
+    edge = (bin + 1) * bin_width;
+    if (distance_square > edge * edge) {
+      ++bin;
+    }
+  }
+
+  return (bin >= 0 && bin < number_of_bins) ? bin : -1;
+}
+
 __global__ void gpu_find_rdf_ON1(
   const int N,
   const RDF::RDF_Para para,
@@ -95,24 +117,27 @@ __global__ void gpu_find_rdf_ON1(
               double z12 = z[n2] - z1;
               apply_mic(box, x12, y12, z12);
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
-              if (d2 > para.rc_square) {
+              if (!(d2 > 0.0 && d2 <= para.rc_square)) {
                 continue;
               }
-              for (int w = 0; w < para.num_bins; w++) {
-                double r_low = (w * para.dr) * (w * para.dr);
-                double r_up = ((w + 1) * para.dr) * ((w + 1) * para.dr);
-                double r_mid_sqaure = ((w + 0.5) * para.dr) * ((w + 0.5) * para.dr);
-                double dV = r_mid_sqaure * 4 * rdf_PI * para.dr;
-                if (d2 > r_low && d2 <= r_up) {
-                  atomicAdd(&rdf_[w * para.num_RDFs + 0], 1 / (N * para.density_global * dV));
-                  int count = 1;
-                  for (int a = 0; a < para.num_types; ++a) {
-                    for (int b = a; b < para.num_types; ++b) {
-                      if(type[n1] == para.type_index[a] && type[n2] == para.type_index[b]) {
-                        atomicAdd(&rdf_[w * para.num_RDFs + count], 1 / (para.num_atoms[a] * para.density_type[b] * dV));
-                      }
-                      ++count;
+              const int w = find_rdf_bin(d2, para.dr, para.num_bins);
+              if (w >= 0) {
+                const double r_mid_square =
+                  ((w + 0.5) * para.dr) * ((w + 0.5) * para.dr);
+                const double dV = r_mid_square * 4 * rdf_PI * para.dr;
+                atomicAdd(
+                  &rdf_[w * para.num_RDFs + 0], 1 / (N * para.density_global * dV));
+                int count = 1;
+                for (int a = 0; a < para.num_types; ++a) {
+                  for (int b = a; b < para.num_types; ++b) {
+                    if (
+                      type[n1] == para.type_index[a] &&
+                      type[n2] == para.type_index[b]) {
+                      atomicAdd(
+                        &rdf_[w * para.num_RDFs + count],
+                        1 / (para.num_atoms[a] * para.density_type[b] * dV));
                     }
+                    ++count;
                   }
                 }
               }
@@ -132,6 +157,14 @@ void RDF::find_rdf(Box& box, const GPU_Vector<int>& type, const GPU_Vector<doubl
   const double rc_inv_cell_list = 2.0 / rdf_para.rc;
   int num_bins[3];
   box.get_num_bins(rc_cell_list, num_bins);
+  // The RDF kernel visits five cells in each periodic direction.
+  if (
+    (box.pbc_x && num_bins[0] < 5) || (box.pbc_y && num_bins[1] < 5) ||
+    (box.pbc_z && num_bins[2] < 5)) {
+    PRINT_INPUT_ERROR(
+      "The box has a thickness < 2.5 RDF radial cutoffs in a periodic direction.\n"
+      "Please increase the box size or reduce the RDF cutoff.");
+  }
   find_cell_list(
     rc_cell_list,
     num_bins,
@@ -160,7 +193,7 @@ void RDF::find_rdf(Box& box, const GPU_Vector<int>& type, const GPU_Vector<doubl
   GPU_CHECK_KERNEL
 }
 
-void RDF::preprocess(
+void RDF::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -169,13 +202,17 @@ void RDF::preprocess(
   Box& box,
   Force& force)
 {
+  if (sampling_interval_ > number_of_steps) {
+    PRINT_INPUT_ERROR("RDF sampling interval should not exceed the number of MD steps.\n");
+  }
+
   rdf_g_.resize(rdf_para.num_RDFs * rdf_para.num_bins, 0);
   cell_count.resize(atom.number_of_atoms);
   cell_count_sum.resize(atom.number_of_atoms);
   cell_contents.resize(atom.number_of_atoms);
 }
 
-void RDF::process(
+void RDF::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -198,10 +235,13 @@ void RDF::process(
   for (int t = 0; t < rdf_para.num_types; ++ t) {
     rdf_para.density_type[t] = rdf_para.num_atoms[t] / rdf_para.volume;
   }
-  find_rdf(box, atom.type, integrate.type >= 31 ? atom.position_beads[0] : atom.position_per_atom);
+  find_rdf(
+    box,
+    atom.type,
+    is_pimd(integrate.get_type()) ? atom.position_beads[0] : atom.position_per_atom);
 }
 
-void RDF::postprocess(
+void RDF::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -251,48 +291,35 @@ void RDF::postprocess(
 }
 
 RDF::RDF(
-  const char** param,
-  const int num_param,
+  const std::vector<std::string>& tokens,
   Box& box,
-  const std::vector<int>& cpu_type_size,
-  const int number_of_steps)
+  const std::vector<int>& cpu_type_size)
 {
-  parse(param, num_param, box, cpu_type_size, number_of_steps);
-  property_name = "compute_rdf";
+  parse(tokens, box, cpu_type_size);
+  action_name = "compute_rdf";
 }
 
 void RDF::parse(
-  const char** param,
-  const int num_param,
+  const std::vector<std::string>& tokens,
   Box& box,
-  const std::vector<int>& cpu_type_size,
-  const int number_of_steps)
+  const std::vector<int>& cpu_type_size)
 {
   printf("Compute radial distribution function (RDF).\n");
+  const int num_param = tokens.size();
 
   if (num_param != 4) {
     PRINT_INPUT_ERROR("compute_rdf should have 3 parameters.\n");
   }
 
-  if (!is_valid_real(param[1], &rdf_para.rc)) {
+  if (!is_valid_real(tokens[1], &rdf_para.rc)) {
     PRINT_INPUT_ERROR("radial cutoff should be a number.\n");
   }
   if (rdf_para.rc <= 0) {
     PRINT_INPUT_ERROR("radial cutoff should be positive.\n");
   }
-  double thickness_half[3] = {
-    box.get_volume() / box.get_area(0) / 2.5,
-    box.get_volume() / box.get_area(1) / 2.5,
-    box.get_volume() / box.get_area(2) / 2.5};
-  if (rdf_para.rc > thickness_half[0] || rdf_para.rc > thickness_half[1] || rdf_para.rc > thickness_half[2]) {
-    std::string message =
-      "The box has a thickness < 2.5 RDF radial cutoffs in a periodic direction.\n"
-      "                Please increase the periodic direction(s).\n";
-    PRINT_INPUT_ERROR(message.c_str());
-  }
   printf("    radial cutoff %g.\n", rdf_para.rc);
 
-  if (!is_valid_int(param[2], &rdf_para.num_bins)) {
+  if (!is_valid_int(tokens[2], &rdf_para.num_bins)) {
     PRINT_INPUT_ERROR("number of bins should be an integer.\n");
   }
   if (rdf_para.num_bins <= 20) {
@@ -305,7 +332,7 @@ void RDF::parse(
 
   printf("    radial cutoff will be divided into %d bins.\n", rdf_para.num_bins);
 
-  if (!is_valid_int(param[3], &sampling_interval_)) {
+  if (!is_valid_int(tokens[3], &sampling_interval_)) {
     PRINT_INPUT_ERROR("interval step per sample should be an integer.\n");
   }
   if (sampling_interval_ <= 0) {

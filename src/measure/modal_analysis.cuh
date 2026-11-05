@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -18,7 +18,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 ------------------------------------------------------------------------------*/
 
 #pragma once
-#include "property.cuh"
+#include "action.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #ifdef USE_HIP
@@ -36,7 +36,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 #define GKMA_METHOD 0
 #define HNEMA_METHOD 1
 
-class MODAL_ANALYSIS : public Property
+class MODAL_ANALYSIS : public Action
 {
 public:
   // Bookkeeping variables
@@ -81,7 +81,7 @@ public:
   char eig_file_position[200];
   char output_file_position[200];
 
-  virtual void preprocess(
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -90,7 +90,16 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
+  virtual void post_force(
+    const int step,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
+  virtual void end_of_step(
       const int number_of_steps,
       int step,
       const int fixed_group,
@@ -104,7 +113,7 @@ public:
       Atom& atom,
       Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,
@@ -113,13 +122,13 @@ public:
     const double temperature);
 
   MODAL_ANALYSIS(
-    const char** param, 
-    int num_param, 
-    const int number_of_types, 
-    int method_input,
-    Force& force);
-  void parse_compute_gkma(const char**, int, const int number_of_types);
-  void parse_compute_hnema(const char**, int, const int number_of_types);
+    const std::vector<std::string>& tokens,
+    const int number_of_types,
+    int method_input);
+  void parse_compute_gkma(
+    const std::vector<std::string>& tokens, const int number_of_types);
+  void parse_compute_hnema(
+    const std::vector<std::string>& tokens, const int number_of_types);
 
 private:
   int samples_per_output; // samples to be averaged for output
@@ -133,6 +142,7 @@ private:
   double fe_y = 0.0;
   double fe_z = 0.0;
   double fe;
+  GPU_Vector<double> force_sum_;
 
   gpublasHandle_t ma_handle;
 

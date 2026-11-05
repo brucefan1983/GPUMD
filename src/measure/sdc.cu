@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
@@ -129,7 +129,7 @@ __global__ void gpu_find_vac(
 
 } // namespace
 
-void SDC::preprocess(
+void SDC::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -140,6 +140,11 @@ void SDC::preprocess(
 {
   if (!compute_)
     return;
+
+  if (num_correlation_steps_ > number_of_steps / sample_interval_) {
+    PRINT_INPUT_ERROR(
+      "The number of SDC correlation steps should not exceed the number of sampled frames.\n");
+  }
 
   num_atoms_ = (grouping_method_ < 0) ? atom.number_of_atoms : groups[grouping_method_].cpu_size[group_id_];
   dt_in_natural_units_ = time_step * sample_interval_;
@@ -154,7 +159,7 @@ void SDC::preprocess(
   num_time_origins_ = 0;
 }
 
-void SDC::process(
+void SDC::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -223,7 +228,7 @@ void SDC::process(
   }
 }
 
-void SDC::postprocess(
+void SDC::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -258,6 +263,20 @@ void SDC::postprocess(
   const double vac_unit_conversion = sdc_unit_conversion * sdc_unit_conversion;
 
   FILE* fid = fopen("sdc.out", "a");
+  fprintf(fid, "# compute_sdc %d %d", sample_interval_, num_correlation_steps_);
+  if (grouping_method_ >= 0)
+    fprintf(fid, " group %d %d", grouping_method_, group_id_);
+  fprintf(fid, "\n");
+  fprintf(fid, "# format_version 1\n");
+  fprintf(fid, "# num_atoms %d\n", num_atoms_);
+  fprintf(
+    fid,
+    "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
+    box.cpu_h[0], box.cpu_h[3], box.cpu_h[6],
+    box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
+    box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+  fprintf(fid, "# dt_output %.10e ps\n", dt_in_ps_);
+  fprintf(fid, "# columns time_ps vacx vacy vacz sdcx sdcy sdcz\n");
   for (int nc = 0; nc < num_correlation_steps_; nc++) {
     fprintf(
       fid,
@@ -277,16 +296,17 @@ void SDC::postprocess(
   grouping_method_ = -1;
 }
 
-SDC::SDC(const char** param, const int num_param, const std::vector<Group>& groups)
+SDC::SDC(const std::vector<std::string>& tokens, const std::vector<Group>& groups)
 {
-  parse(param, num_param, groups);
-  property_name = "compute_sdc";
+  parse(tokens, groups);
+  action_name = "compute_sdc";
 }
 
-void SDC::parse(const char** param, const int num_param, const std::vector<Group>& groups)
+void SDC::parse(const std::vector<std::string>& tokens, const std::vector<Group>& groups)
 {
   printf("Compute self diffusion coefficient (SDC).\n");
   compute_ = true;
+  const int num_param = tokens.size();
 
   if (num_param < 3) {
     PRINT_INPUT_ERROR("compute_sdc should have at least 2 parameters.\n");
@@ -296,7 +316,7 @@ void SDC::parse(const char** param, const int num_param, const std::vector<Group
   }
 
   // sample interval
-  if (!is_valid_int(param[1], &sample_interval_)) {
+  if (!is_valid_int(tokens[1], &sample_interval_)) {
     PRINT_INPUT_ERROR("sample interval should be an integer.\n");
   }
   if (sample_interval_ <= 0) {
@@ -305,7 +325,7 @@ void SDC::parse(const char** param, const int num_param, const std::vector<Group
   printf("    sample interval is %d.\n", sample_interval_);
 
   // number of correlation steps
-  if (!is_valid_int(param[2], &num_correlation_steps_)) {
+  if (!is_valid_int(tokens[2], &num_correlation_steps_)) {
     PRINT_INPUT_ERROR("number of correlation steps should be an integer.\n");
   }
   if (num_correlation_steps_ <= 0) {
@@ -315,8 +335,8 @@ void SDC::parse(const char** param, const int num_param, const std::vector<Group
 
   // Process optional arguments
   for (int k = 3; k < num_param; k++) {
-    if (strcmp(param[k], "group") == 0) {
-      parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
+    if (tokens[k] == "group") {
+      parse_group(tokens, false, groups, k, grouping_method_, group_id_);
     } else {
       PRINT_INPUT_ERROR("Unrecognized argument in compute_sdc.\n");
     }

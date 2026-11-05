@@ -1,0 +1,5 @@
+replicate 6 6 6
+potential potential.txt
+velocity 300 seed 20260916
+time_step 0.2
+run 1

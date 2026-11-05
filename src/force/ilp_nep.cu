@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -29,6 +29,7 @@ Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
+#include "utilities/nep_model_input.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <iostream>
@@ -133,6 +134,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   parambs.resize(num_nep);
   annmbs.resize(num_nep);
   max_nep_rc = 0.0;
+  std::vector<double> reference(num_nep * num_types, 0.0);
 
   // init type map cpu
   type_map_cpu.resize(num_types * num_nep, -1);
@@ -145,27 +147,17 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     int count = fscanf(fid_nep_map, "%s", nep_file);
     PRINT_SCANF_ERROR(count, 1, "reading error for NEP filename");
 
-    std::ifstream input(nep_file);
-    if (!input.is_open()) {
-      std::cout << "Failed to open " << nep_file << std::endl;
-      exit(1);
-    }
+    NEP_Model_Input input(nep_file);
 
-    // nep3 1 C
-    std::vector<std::string> tokens = get_tokens(input);
+    // nep4 1 C
+    std::vector<std::string> tokens = input.get_tokens();
     if (tokens.size() < 3) {
       std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
       exit(1);
     }
-    if (tokens[0] == "nep3") {
-      parambs[i].version = 3;
-    } else if (tokens[0] == "nep4") {
-      parambs[i].version = 4;
-    } else if (tokens[0] == "nep5") {
-      parambs[i].version = 5;
-    } else {
+    if (tokens[0] != "nep4") {
       std::cout << tokens[0]
-                << " is an unsupported NEP model. We only support NEP3 and NEP4 models now."
+                << " is an unsupported NEP model. We only support NEP4 models now."
                 << std::endl;
       exit(1);
     }
@@ -202,12 +194,15 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
       for (int m = 0; m < num_types; ++m) {
         if (tokens[2 + n] == ilp_elements[m]) {
           type_map_cpu[m + i * num_types] = n;
+          if (!input.energy_reference().empty()) {
+            reference[m + i * num_types] = input.energy_reference()[n];
+          }
         }
       }
     }
 
     // cutoff 4.2 3.7 80 47 1
-    tokens = get_tokens(input);
+    tokens = input.get_tokens();
     if (tokens.size() != 5 && tokens.size() != 8) {
       std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular "
                    "[radial_factor] [angular_factor] [zbl_factor].\n";
@@ -244,7 +239,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     }
 
     // n_max 10 8
-    tokens = get_tokens(input);
+    tokens = input.get_tokens();
     if (tokens.size() != 3) {
       std::cout << "This line should be n_max n_max_radial n_max_angular." << std::endl;
       exit(1);
@@ -256,7 +251,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     printf("    n_max_angular = %d.\n", parambs[i].n_max_angular);
 
     // basis_size 10 8
-    tokens = get_tokens(input);
+    tokens = input.get_tokens();
     if (tokens.size() != 3) {
       std::cout << "This line should be basis_size basis_size_radial basis_size_angular."
                 << std::endl;
@@ -268,7 +263,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     printf("    basis_size_angular = %d.\n", parambs[i].basis_size_angular);
 
     // l_max
-    tokens = get_tokens(input);
+    tokens = input.get_tokens();
     if (tokens.size() != 4) {
       std::cout << "This line should be l_max l_max_3body l_max_4body l_max_5body." << std::endl;
       exit(1);
@@ -292,7 +287,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     parambs[i].dim_angular = (parambs[i].n_max_angular + 1) * parambs[i].num_L;
 
     // ANN
-    tokens = get_tokens(input);
+    tokens = input.get_tokens();
     if (tokens.size() != 3) {
       std::cout << "This line should be ANN num_neurons 0." << std::endl;
       exit(1);
@@ -308,13 +303,8 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     parambs[i].rcinv_angular = 1.0f / parambs[i].rc_angular;
     parambs[i].num_types_sq = parambs[i].num_types * parambs[i].num_types;
 
-    if (parambs[i].version == 3) {
-      annmbs[i].num_para_ann = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1;
-    } else if (parambs[i].version == 4) {
-      annmbs[i].num_para_ann = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 * parambs[i].num_types + 1;
-    } else {
-      annmbs[i].num_para_ann = ((annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1) * parambs[i].num_types + 1;
-    }
+    annmbs[i].num_para_ann =
+      (annmbs[i].dim + 2) * annmbs[i].num_neurons1 * parambs[i].num_types + 1;
     printf("    number of neural network parameters = %d.\n", annmbs[i].num_para_ann);
     int num_para_descriptor =
       parambs[i].num_types_sq * ((parambs[i].n_max_radial + 1) * (parambs[i].basis_size_radial + 1) +
@@ -329,12 +319,23 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     // NN and descriptor parameters
     std::vector<float> parameters(annmbs[i].num_para);
     for (int n = 0; n < annmbs[i].num_para; ++n) {
-      tokens = get_tokens(input);
+      tokens = input.get_tokens();
       parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    std::vector<float> descriptor_parameters = input.get_descriptor_parameters_type_pair(
+      parameters,
+      annmbs[i].num_para_ann,
+      parambs[i].num_types,
+      parambs[i].n_max_radial,
+      parambs[i].n_max_angular,
+      parambs[i].basis_size_radial,
+      parambs[i].basis_size_angular);
+    for (int n = 0; n < num_para_descriptor; ++n) {
+      parameters[annmbs[i].num_para_ann + n] = descriptor_parameters[n];
     }
     all_ann_para.push_back(parameters);
     for (int d = 0; d < annmbs[i].dim; ++d) {
-      tokens = get_tokens(input);
+      tokens = input.get_tokens();
       parambs[i].q_scaler[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
     }
 
@@ -417,6 +418,9 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
 
+  energy_reference.resize(reference.size());
+  energy_reference.copy_from_host(reference.data());
+
   // updata nep parameters and ann parameters
   // calc buffer size
   int parambs_size = num_nep * (H_PAR_OFFSET) * SIZEOF_INT;
@@ -472,14 +476,8 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   for (int i = 0; i < num_nep; ++i) {
     memcpy(para_buf_w + ANNDIM , &(annmbs[i].dim), SIZEOF_INT);
     memcpy(para_buf_w + NNEUR  , &(annmbs[i].num_neurons1), SIZEOF_INT);
-    int b1_pos = 0;
-    if (parambs[i].version == 3) {
-      b1_pos = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
-    } else if (parambs[i].version == 4) {
-      b1_pos = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 * parambs[i].num_types;
-    } else if (parambs[i].version == 5) {
-      b1_pos = ((annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1) * parambs[i].num_types;
-    }
+    int b1_pos =
+      (annmbs[i].dim + 2) * annmbs[i].num_neurons1 * parambs[i].num_types;
     memcpy(para_buf_w + OUTB1  , &(all_ann_para[i][b1_pos]), SIZEOF_INT);
     para_buf_w += H_ANN_OFFSET;  // skip 4 pointers: PTRC PTRW0 PTRB0 PTRW1 and an empty
   }
@@ -518,25 +516,12 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRW0, &para_buffer_gpu, SIZEOF_POINTER);
 
     int w0_offset = annmbs[i].num_neurons1 * annmbs[i].dim;
-    if (parambs[i].version == 3) {
-      memcpy(para_buf_w, &(all_ann_para[i][0]), w0_offset * SIZEOF_INT);
+    int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
+    for (int t = 0; t < parambs[i].num_types; ++t) {
+      memcpy(para_buf_w, &(all_ann_para[i][t * t_offset]), w0_offset * SIZEOF_INT);
       para_buf_w += w0_offset;
-      para_buffer_gpu += w0_offset * SIZEOF_INT;
-    } else if (parambs[i].version == 4) {
-      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
-      for (int t = 0; t < parambs[i].num_types; ++t) {
-        memcpy(para_buf_w, &(all_ann_para[i][t * t_offset]), w0_offset * SIZEOF_INT);
-        para_buf_w += w0_offset;
-      }
-      para_buffer_gpu += parambs[i].num_types * w0_offset * SIZEOF_INT;
-    } else if (parambs[i].version == 5) {
-      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1;
-      for (int t = 0; t < parambs[i].num_types; ++t) {
-        memcpy(para_buf_w, &(all_ann_para[i][t * t_offset]), w0_offset * SIZEOF_INT);
-        para_buf_w += w0_offset;
-      }
-      para_buffer_gpu += parambs[i].num_types * w0_offset * SIZEOF_INT;
     }
+    para_buffer_gpu += parambs[i].num_types * w0_offset * SIZEOF_INT;
 
   }
 
@@ -546,28 +531,13 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRB0, &para_buffer_gpu, SIZEOF_POINTER);
 
     int b0_offset = annmbs[i].num_neurons1;
-    if (parambs[i].version == 3) {
-      int b0_base = annmbs[i].num_neurons1 * annmbs[i].dim;
-      memcpy(para_buf_w, &(all_ann_para[i][b0_base]), b0_offset * SIZEOF_INT);
+    int b0_base = annmbs[i].num_neurons1 * annmbs[i].dim;
+    int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
+    for (int t = 0; t < parambs[i].num_types; ++t) {
+      memcpy(para_buf_w, &(all_ann_para[i][b0_base + t * t_offset]), b0_offset * SIZEOF_INT);
       para_buf_w += b0_offset;
-      para_buffer_gpu += b0_offset * SIZEOF_INT;
-    } else if (parambs[i].version == 4) {
-      int b0_base = annmbs[i].num_neurons1 * annmbs[i].dim;
-      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
-      for (int t = 0; t < parambs[i].num_types; ++t) {
-        memcpy(para_buf_w, &(all_ann_para[i][b0_base + t * t_offset]), b0_offset * SIZEOF_INT);
-        para_buf_w += b0_offset;
-      }
-      para_buffer_gpu += parambs[i].num_types * b0_offset * SIZEOF_INT;
-    } else if (parambs[i].version == 5) {
-      int b0_base = annmbs[i].num_neurons1 * annmbs[i].dim;
-      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1;
-      for (int t = 0; t < parambs[i].num_types; ++t) {
-        memcpy(para_buf_w, &(all_ann_para[i][b0_base + t * t_offset]), b0_offset * SIZEOF_INT);
-        para_buf_w += b0_offset;
-      }
-      para_buffer_gpu += parambs[i].num_types * b0_offset * SIZEOF_INT;
     }
+    para_buffer_gpu += parambs[i].num_types * b0_offset * SIZEOF_INT;
 
   }
 
@@ -577,29 +547,13 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     memcpy(para_buf_ptrw + i * H_ANN_OFFSET + PTRW1, &para_buffer_gpu, SIZEOF_POINTER);
 
     int w1_offset = annmbs[i].num_neurons1;
-    if (parambs[i].version == 3) {
-      int w1_base = annmbs[i].num_neurons1 * (annmbs[i].dim + 1);
-      memcpy(para_buf_w, &(all_ann_para[i][w1_base]), w1_offset * SIZEOF_INT);
+    int w1_base = annmbs[i].num_neurons1 * (annmbs[i].dim + 1);
+    int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
+    for (int t = 0; t < parambs[i].num_types; ++t) {
+      memcpy(para_buf_w, &(all_ann_para[i][w1_base + t * t_offset]), w1_offset * SIZEOF_INT);
       para_buf_w += w1_offset;
-      para_buffer_gpu += w1_offset * SIZEOF_INT;
-    } else if (parambs[i].version == 4) {
-      int w1_base = annmbs[i].num_neurons1 * (annmbs[i].dim + 1);
-      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1;
-      for (int t = 0; t < parambs[i].num_types; ++t) {
-        memcpy(para_buf_w, &(all_ann_para[i][w1_base + t * t_offset]), w1_offset * SIZEOF_INT);
-        para_buf_w += w1_offset;
-      }
-      para_buffer_gpu += parambs[i].num_types * w1_offset * SIZEOF_INT;
-    } else if (parambs[i].version == 5) {
-      int w1_base = annmbs[i].num_neurons1 * (annmbs[i].dim + 1);
-      int t_offset = (annmbs[i].dim + 2) * annmbs[i].num_neurons1 + 1;
-      ++w1_offset;
-      for (int t = 0; t < parambs[i].num_types; ++t) {
-        memcpy(para_buf_w, &(all_ann_para[i][w1_base + t * t_offset]), w1_offset * SIZEOF_INT);
-        para_buf_w += w1_offset;
-      }
-      para_buffer_gpu += parambs[i].num_types * w1_offset * SIZEOF_INT;
     }
+    para_buffer_gpu += parambs[i].num_types * w1_offset * SIZEOF_INT;
 
   }
 
@@ -719,14 +673,17 @@ static __global__ void gpu_find_neighbor_ON1_ilp_nep(
     int cell_id_z;
     find_cell_id(box, x1, y1, z1, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
 
-    const int z_lim = box.pbc_z ? 2 : 0;
-    const int y_lim = box.pbc_y ? 2 : 0;
-    const int x_lim = box.pbc_x ? 2 : 0;
+    int z_begin, z_end;
+    int y_begin, y_end;
+    int x_begin, x_end;
+    get_neighbor_cell_offset_range(box.pbc_z, nz, z_begin, z_end);
+    get_neighbor_cell_offset_range(box.pbc_y, ny, y_begin, y_end);
+    get_neighbor_cell_offset_range(box.pbc_x, nx, x_begin, x_end);
 
     // get radial descriptors
-    for (int k = -z_lim; k <= z_lim; ++k) {
-      for (int j = -y_lim; j <= y_lim; ++j) {
-        for (int i = -x_lim; i <= x_lim; ++i) {
+    for (int k = z_begin; k < z_end; ++k) {
+      for (int j = y_begin; j < y_end; ++j) {
+        for (int i = x_begin; i < x_end; ++i) {
           int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
           if (cell_id_x + i < 0)
             neighbor_cell += nx;
@@ -849,7 +806,7 @@ void find_neighbor_ilp_nep(
   GPU_CHECK_KERNEL
 
   const int MN = NL.size() / NN.size();
-  gpu_sort_neighbor_list_ilp<<<N, min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
+  gpu_sort_neighbor_list<<<N, min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
   GPU_CHECK_KERNEL
 }
 
@@ -1317,7 +1274,7 @@ static __device__ void calc_normal_tmd(
         pvet[k][ip] = vect[k][modulo(ip + 1, 3)] * vect[k + 1][modulo(ip + 2, 3)] -
                 vect[k][modulo(ip + 2, 3)] * vect[k + 1][modulo(ip + 1, 3)];
       }
-      // dpvet1[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l
+      // dpvet1[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l
       // derivatives respect to atom l
       // dNik,x/drl
       dpvet1[k][0][0] = 0.0f;
@@ -1332,7 +1289,7 @@ static __device__ void calc_normal_tmd(
       dpvet1[k][2][1] = -vect[modulo(k + 1, MAX_ILP_NEIGHBOR_TMD)][0];
       dpvet1[k][2][2] = 0.0f;
 
-      // dpvet2[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
+      // dpvet2[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
       // derivatives respect to atom l+1
       // dNik,x/drl+1
       dpvet2[k][0][0] = 0.0f;
@@ -1364,7 +1321,7 @@ static __device__ void calc_normal_tmd(
     normal[2] = Nave[2] * nninv;
 
     // derivatives of non-normalized normal vector, dNave:3xcontx3 array
-    // dNave[id][m][ip]: the derivatve of the id component of Nave respect to the ip component of atom m
+    // dNave[id][m][ip]: the derivative of the id component of Nave respect to the ip component of atom m
     for (id = 0; id < 3; id++) {
       for (ip = 0; ip < 3; ip++) {
         for (m = 0; m < cont; m++) {
@@ -1425,7 +1382,7 @@ static __device__ void calc_normal_tmd(
             vect[modulo(k, MAX_ILP_NEIGHBOR_TMD)][modulo(ip + 2, 3)] *
                 vect[modulo(k + 1, MAX_ILP_NEIGHBOR_TMD)][modulo(ip + 1, 3)];
       }
-      // dpvet1[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l
+      // dpvet1[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l
       // derivatives respect to atom l
       // dNik,x/drl
       dpvet1[k][0][0] = 0.0f;
@@ -1440,7 +1397,7 @@ static __device__ void calc_normal_tmd(
       dpvet1[k][2][1] = -vect[modulo(k + 1, MAX_ILP_NEIGHBOR_TMD)][0];
       dpvet1[k][2][2] = 0.0f;
 
-      // dpvet2[k][l][ip]: the derivatve of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
+      // dpvet2[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
       // derivatives respect to atom l+1
       // dNik,x/drl+1
       dpvet2[k][0][0] = 0.0f;
@@ -1480,7 +1437,7 @@ static __device__ void calc_normal_tmd(
     }
 
     // derivatives of non-normalized normal vector, dNave:3xMAX_ILP_NEIGHBOR_TMDx3 array
-    // dNave[id][m][ip]: the derivatve of the id component of Nave respect to the ip component of atom m
+    // dNave[id][m][ip]: the derivative of the id component of Nave respect to the ip component of atom m
     for (id = 0; id < 3; ++id) {
       for (ip = 0; ip < 3; ++ip) {
         for (
@@ -1548,9 +1505,6 @@ static __device__ void calc_vdW(
   Vilp = -C_6 * r6inv * TSvdwinv_float;
 
   // derivatives
-  // fpair = -6.0 * C_6 * r8inv * TSvdwinv + \
-  //   C_6 * d_Seff * (TSvdw - 1.0) * TSvdwinv * TSvdwinv * r8inv * r;
-  // fpair = (-6.0f + d_Seff * (TSvdw - 1.0f) * TSvdwinv * r ) * C_6 * TSvdwinv * r8inv;
   fpair = (-6.0f + d_Seff * (1.0f - TSvdwinv_float) * r ) * C_6 * TSvdwinv_float * r8inv;
   fsum = fpair * Tap - Vilp * dTap * rinv;
 
@@ -1609,7 +1563,7 @@ static __global__ void gpu_find_force(
   if (n1 < N2) {
     double x12d, y12d, z12d;
     float x12f, y12f, z12f;
-    int neighor_number = g_neighbor_number[n1];
+    int neighbor_number = g_neighbor_number[n1];
     int type1 = g_type[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
@@ -1663,7 +1617,7 @@ static __global__ void gpu_find_force(
 
 
     // calculate energy and force
-    for (int i1 = 0; i1 < neighor_number; ++i1) {
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = n1 + number_of_particles * i1;
       int n2 = g_neighbor_list[index];
       int type2 = g_type[n2];
@@ -1777,7 +1731,7 @@ static __global__ void gpu_find_force(
       float prodnorm1_m_fpair1 = prodnorm1 * fpair1;
       float Vilp_m_dTap_m_rinv = Vilp * dTap * rinv;
 
-      // derivatives of the product of rij and ni, the resutl is a vector
+      // derivatives of the product of rij and ni, the result is a vector
       dprodnorm1[0] = 
         dnormdri[0][0] * delx + dnormdri[1][0] * dely + dnormdri[2][0] * delz;
       dprodnorm1[1] = 
@@ -1989,7 +1943,7 @@ static __global__ void reduce_force_many_body(
     for (int i1 = 0; i1 < ilp_neighbor_number_1; ++i1) {
       int index = n1 + number_of_particles * i1;
       int n2 = g_ilp_neighbor_list[index];
-      int ilp_neighor_number_2 = g_ilp_neighbor_number[n2];
+      int ilp_neighbor_number_2 = g_ilp_neighbor_number[n2];
 
       x12d = g_x[n2] - x1;
       y12d = g_y[n2] - y1;
@@ -2000,7 +1954,7 @@ static __global__ void reduce_force_many_body(
       z12f = float(z12d);
 
       int offset = 0;
-      for (int k = 0; k < ilp_neighor_number_2; ++k) {
+      for (int k = 0; k < ilp_neighbor_number_2; ++k) {
         if (n1 == g_ilp_neighbor_list[n2 + number_of_particles * k]) {
           offset = k;
           break;
@@ -2070,6 +2024,7 @@ static __global__ void find_descriptor(
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   double* g_pe,
+  const double* energy_reference,
   float* g_Fp,
   double* g_virial,
   float* g_sum_fxyz)
@@ -2117,8 +2072,8 @@ static __global__ void find_descriptor(
       for (int n = 0; n <= paramb_int[NMAXR]; ++n) {
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb_int[BSR]; ++k) {
-          int c_index = (n * (paramb_int[BSR] + 1) + k) * paramb_int[NTS];
-          c_index += t1 * paramb_int[NT] + t2;
+          int c_index = get_c_index(
+            t1 * paramb_int[NT] + t2, n, k, paramb_int[NMAXR], paramb_int[BSR]);
           gn12 += fn12[k] * c[c_index];
         }
         q[n] += gn12;
@@ -2154,8 +2109,13 @@ static __global__ void find_descriptor(
         find_fn(paramb_int[BSA], rcinv, d12, fc12, fn12);
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb_int[BSA]; ++k) {
-          int c_index = (n * (paramb_int[BSA] + 1) + k) * paramb_int[NTS];
-          c_index += t1 * paramb_int[NT] + t2 + paramb_int[NCR];
+          int c_index = get_c_index(
+            t1 * paramb_int[NT] + t2,
+            n,
+            k,
+            paramb_int[NMAXA],
+            paramb_int[BSA],
+            paramb_int[NCR]);
           gn12 += fn12[k] * c[c_index];
         }
         accumulate_s(paramb_int[LMAX], d12, x12, y12, z12, gn12, s);
@@ -2167,7 +2127,7 @@ static __global__ void find_descriptor(
       }
     }
 
-    // nomalize descriptor
+    // normalize descriptor
     float* q_scaler = FLT_PTR(paramb + PTRQS);
     int ann_dim = *((int*)annmb + ANNDIM);
     for (int d = 0; d < ann_dim; ++d) {
@@ -2178,41 +2138,17 @@ static __global__ void find_descriptor(
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
     int ann_num_neurons1 = *((int*)annmb + NNEUR);
-    if (paramb_int[VERSION] == 3){
-      apply_ann_one_layer(
-        ann_dim,
-        ann_num_neurons1,
-        FLT_PTR(annmb + PTRW0),
-        FLT_PTR(annmb + PTRB0),
-        FLT_PTR(annmb + PTRW1),
-        &annmb[OUTB1],
-        q,
-        F,
-        Fp);
-    } else if (paramb_int[VERSION] == 4) {
-      apply_ann_one_layer(
-        ann_dim,
-        ann_num_neurons1,
-        FLT_PTR(annmb + PTRW0) + t1 * ann_dim * ann_num_neurons1,
-        FLT_PTR(annmb + PTRB0) + t1 * ann_num_neurons1,
-        FLT_PTR(annmb + PTRW1) + t1 * ann_num_neurons1,
-        &annmb[OUTB1],
-        q,
-        F,
-        Fp);
-    } else if (paramb_int[VERSION] == 5) {
-      apply_ann_one_layer_nep5(
-        ann_dim,
-        ann_num_neurons1,
-        FLT_PTR(annmb + PTRW0) + t1 * ann_dim * ann_num_neurons1,
-        FLT_PTR(annmb + PTRB0) + t1 * ann_num_neurons1,
-        FLT_PTR(annmb + PTRW1) + t1 * (ann_num_neurons1 + 1),
-        &annmb[OUTB1],
-        q,
-        F,
-        Fp);
-    }
-    g_pe[n1] += F;
+    apply_ann_one_layer(
+      ann_dim,
+      ann_num_neurons1,
+      FLT_PTR(annmb + PTRW0) + t1 * ann_dim * ann_num_neurons1,
+      FLT_PTR(annmb + PTRB0) + t1 * ann_num_neurons1,
+      FLT_PTR(annmb + PTRW1) + t1 * ann_num_neurons1,
+      &annmb[OUTB1],
+      q,
+      F,
+      Fp);
+    g_pe[n1] += double(F) + energy_reference[g_type[n1] + type_offset];
 
     // for (int d = 0; d < annmb.dim; ++d) {
     for (int d = 0; d < ann_dim; ++d) {
@@ -2309,9 +2245,12 @@ static __global__ void find_force_radial(
         float gnp12 = 0.0f;
         float gnp21 = 0.0f;
         for (int k = 0; k <= paramb_int[BSR]; ++k) {
-          int c_index = (n * (paramb_int[BSR] + 1) + k) * paramb_int[NTS];
-          gnp12 += fnp12[k] * c[c_index + t1 * paramb_int[NT] + t2];
-          gnp21 += fnp12[k] * c[c_index + t2 * paramb_int[NT] + t1];
+          int c_index_12 = get_c_index(
+            t1 * paramb_int[NT] + t2, n, k, paramb_int[NMAXR], paramb_int[BSR]);
+          int c_index_21 = get_c_index(
+            t2 * paramb_int[NT] + t1, n, k, paramb_int[NMAXR], paramb_int[BSR]);
+          gnp12 += fnp12[k] * c[c_index_12];
+          gnp21 += fnp12[k] * c[c_index_21];
         }
         float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
         float tmp21 = g_Fp[n2 + n * N] * gnp21 * d12inv;
@@ -2436,8 +2375,13 @@ static __global__ void find_partial_force_angular(
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb_int[BSA]; ++k) {
-          int c_index = (n * (paramb_int[BSA] + 1) + k) * paramb_int[NTS];
-          c_index += t1 * paramb_int[NT] + t2 + paramb_int[NCR];
+          int c_index = get_c_index(
+            t1 * paramb_int[NT] + t2,
+            n,
+            k,
+            paramb_int[NMAXA],
+            paramb_int[BSA],
+            paramb_int[NCR]);
           gn12 += fn12[k] * c[c_index];
           gnp12 += fnp12[k] * c[c_index];
         }
@@ -2656,7 +2600,7 @@ void ILP_NEP::compute_ilp(
   GPU_Vector<double> &potential_per_atom,
   GPU_Vector<double> &force_per_atom,
   GPU_Vector<double> &virial_per_atom,
-  std::vector<Group> &group)
+  const std::vector<Group> &group)
 {
 
   const int number_of_atoms = type.size();
@@ -2699,11 +2643,11 @@ void ILP_NEP::compute_ilp(
       nep_data.NN_angular,
       nep_data.NL_angular);
     
-  gpu_sort_neighbor_list<<<number_of_atoms, max_MN_radial, max_MN_radial * sizeof(int)>>>(
+  gpu_sort_neighbor_list<<<number_of_atoms, min(1024, max_MN_radial), max_MN_radial * sizeof(int)>>>(
     number_of_atoms, nep_data.NN_radial.data(), nep_data.NL_radial.data());
   GPU_CHECK_KERNEL
 
-  gpu_sort_neighbor_list<<<number_of_atoms, max_MN_angular, max_MN_angular * sizeof(int)>>>(
+  gpu_sort_neighbor_list<<<number_of_atoms, min(1024, max_MN_angular), max_MN_angular * sizeof(int)>>>(
     number_of_atoms, nep_data.NN_angular.data(), nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
 
@@ -2860,6 +2804,7 @@ void ILP_NEP::compute_ilp(
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
     potential_per_atom.data(),
+    energy_reference.data(),
     nep_data.Fp.data(),
     virial_per_atom.data(),
     nep_data.sum_fxyz.data());

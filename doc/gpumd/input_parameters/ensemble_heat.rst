@@ -38,7 +38,7 @@ The selected atom group is coupled to an electron temperature grid.
 
 The full command is::
 
-  ensemble ttm <ttm_gm> <ttm_gid> <Ce> <rho_e> <kappa_e> <gamma_p> <gamma_s> <v_0> <nx> <ny> <nz> <T_e_init> [{optional_args}]
+  ensemble ttm <grouping_method> <group_id> <Ce> <rho_e> <kappa_e> <gamma_p> <gamma_s> <v_0> <nx> <ny> <nz> <T_e_init> [{optional_args}]
 
 The meanings of the parameters and optional arguments are described in
 :ref:`TTM integrators <kw_ensemble_ttm>`.
@@ -49,7 +49,7 @@ If the first parameter is :attr:`heat_ttm`, the run uses local source/sink Lange
 
 The full command is::
 
-  ensemble heat_ttm <T> <T_coup> <delta_T> <label_source> <label_sink> <ttm_gm> <ttm_gid> <Ce> <rho_e> <kappa_e> <gamma_p> <gamma_s> <v_0> <nx> <ny> <nz> <T_e_init> [{optional_args}]
+  ensemble heat_ttm <T> <T_coup> <delta_T> <label_source> <label_sink> <grouping_method> <group_id> <Ce> <rho_e> <kappa_e> <gamma_p> <gamma_s> <v_0> <nx> <ny> <nz> <T_e_init> [{optional_args}]
 
 The first five parameters,
 :attr:`<T>`, :attr:`<T_coup>`, :attr:`<delta_T>`, :attr:`<label_source>`, and :attr:`<label_sink>`,

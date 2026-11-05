@@ -52,6 +52,6 @@ This file reads:
    & \vdots
    \end{array}
    
-* The output is in units of Wm\ :math:`^{-1}`\ K\ :math:`^{-1/2}`.
+* The output is in units of W m\ :math:`^{-1}`\ K\ :math:`^{-1}`.
 * The indices denote the output number (left) and the bin (right).
 * Each output comprises :math:`n` bins, which are determined by the arguments of the :ref:`compute_hnema keyword <kw_compute_hnema>`.

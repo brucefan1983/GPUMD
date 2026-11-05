@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -22,12 +22,16 @@
 #include "ewald.cuh"
 #include "pppm.cuh"
 
+class RunInput;
+
 struct NEP_Charge_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
   GPU_Vector<float> f12y; // 3-body or manybody partial forces
   GPU_Vector<float> f12z; // 3-body or manybody partial forces
   GPU_Vector<float> Fp;
   GPU_Vector<float> sum_fxyz;
+  GPU_Vector<float> descriptor_parameters_type_pair;
+  GPU_Vector<double> energy_reference;
   GPU_Vector<int> NN_radial;    // radial neighbor list
   GPU_Vector<int> NL_radial;    // radial neighbor list
   GPU_Vector<int> NN_angular;   // angular neighbor list
@@ -73,11 +77,12 @@ public:
     int has_q_112 = 0;
     int has_q_123 = 0;
     int has_q_233 = 0;
+    int has_q_134 = 0;
     int num_L;
-    int basis_size_radial = 8;  // for nep3
-    int basis_size_angular = 8; // for nep3
-    int num_types_sq = 0;       // for nep3
-    int num_c_radial = 0;       // for nep3
+    int basis_size_radial = 8;
+    int basis_size_angular = 8;
+    int num_types_sq = 0;
+    int num_c_radial = 0;
     int num_types = 0;
   };
 
@@ -92,17 +97,16 @@ public:
     const float* sqrt_epsilon_inf; // sqrt(epsilon_inf) related to BEC
     const float* b1;               // bias for the output layer
     const float* c;
+    const float* c_type_pair;
     const float* q_scaler;
+    const double* energy_reference = nullptr;
   };
 
   struct ZBL {
     bool enabled = false;
-    bool flexibled = false;
     float rc_inner = 1.0f;
     float rc_outer = 2.0f;
-    float para[550];
     int atomic_numbers[NUM_ELEMENTS];
-    int num_types;
   };
 
   struct ExpandedBox {
@@ -126,7 +130,7 @@ public:
     float B;
   };
 
-  NEP_Charge(const char* file_potential, const int num_atoms);
+  NEP_Charge(const char* file_potential, const int num_atoms, const RunInput& run_input);
   virtual ~NEP_Charge(void);
   virtual void compute(
     Box& box,
@@ -153,7 +157,7 @@ private:
   Charge_Para charge_para;
   Ewald ewald;
   PPPM pppm;
-  Neighbor neighbor;
+  NeighborManager neighbor_manager;
 
   void update_potential(float* parameters, ANN& ann);
 
@@ -175,8 +179,11 @@ private:
 
   void find_k_and_G(const double* box);
 
+  bool need_bec = false;
+  void check_need_bec(const RunInput& run_input);
   bool use_pppm = true; // use PPPM by default
-  void check_ewald_pppm();
+  double pppm_spacing;
+  void check_ewald_pppm(const RunInput& run_input);
   bool has_dftd3 = false;
-  void initialize_dftd3();
+  void initialize_dftd3(const RunInput& run_input);
 };

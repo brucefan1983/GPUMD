@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -21,10 +21,10 @@
 class NEP_Energy
 {
 public:
+  std::vector<double> energy_reference;
   struct ParaMB {
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_zbl_factor = 0.0f;
-    int version = 4;            // NEP version, 3 for NEP3 and 4 for NEP4
     float rc_radial_max = 0.0f; 
     float rc_angular_max = 0.0f;
     float rc_radial[NUM_ELEMENTS];     // radial cutoff
@@ -40,11 +40,12 @@ public:
     int has_q_112 = 0;
     int has_q_123 = 0;
     int has_q_233 = 0;
+    int has_q_134 = 0;
     int num_L;
-    int basis_size_radial = 8;  // for nep3
-    int basis_size_angular = 8; // for nep3
-    int num_types_sq = 0;       // for nep3
-    int num_c_radial = 0;       // for nep3
+    int basis_size_radial = 8;
+    int basis_size_angular = 8;
+    int num_types_sq = 0;
+    int num_c_radial = 0;
     int num_types = 0;
     float q_scaler[140];
   };
@@ -62,7 +63,7 @@ public:
 
   struct ZBL {
     bool enabled = false;
-    bool flexibled = false;
+    bool flexible = false;
     float rc_inner = 1.0f;
     float rc_outer = 2.0f;
     float para[550];

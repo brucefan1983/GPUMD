@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -21,9 +21,10 @@
 #include <cublas_v2.h>
 #endif
 #include "force/force.cuh"
+#include "nep_extrapolation.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
-#include "property.cuh"
+#include "action.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -32,16 +33,17 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <stdio.h>
 #include <string>
 #include <vector>
 
-class Extrapolation : public Property
+class Extrapolation : public Action
 {
 public:
-  Extrapolation(const char** params, int num_params);
+  Extrapolation(const std::vector<std::string>& tokens);
 
-  void preprocess(
+  void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -50,7 +52,7 @@ public:
     Box& box,
     Force& force) override;
 
-  void postprocess(
+  void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,
@@ -58,7 +60,7 @@ public:
     const double time_step,
     const double temperature) override;
 
-  void process(
+  void end_of_step(
     const int number_of_steps,
     int step,
     const int fixed_group,
@@ -74,10 +76,10 @@ public:
 
   FILE* f;
   std::vector<std::unique_ptr<GPU_Vector<double>>> asi_list;
-  GPU_Vector<double> B;          // N x B_size
   GPU_Vector<double> gamma_full; // N x B_size
   GPU_Vector<double> gamma;      // maximum of each component: N
   GPU_Vector<double*> blas_A, blas_x, blas_y;
+  std::vector<double*> cpu_blas_A, cpu_blas_x, cpu_blas_y;
   Atom* atom;
   Box* box;
   int B_size_per_atom;
@@ -88,6 +90,8 @@ public:
   double gamma_high = 1e100;
   double max_gamma; // global maximum
   std::string asi_file_name;
+  std::string nep_file_name;
+  std::unique_ptr<NEP_Extrapolation> nep_extrapolation;
   gpublasHandle_t handle;
 
 private:

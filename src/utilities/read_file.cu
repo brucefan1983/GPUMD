@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -18,6 +18,8 @@ Some functions for dealing with text files. Written by Mikko Ervasti.
 ------------------------------------------------------------------------------*/
 
 #include "error.cuh"
+#include "nep_file.cuh"
+#include "nep_model_input.cuh"
 #include "read_file.cuh"
 #include <ctype.h>
 #include <errno.h>
@@ -40,6 +42,11 @@ int is_valid_int(const char* s, int* result)
   }
 }
 
+int is_valid_int(const std::string& s, int* result)
+{
+  return is_valid_int(s.c_str(), result);
+}
+
 int is_valid_real(const char* s, double* result)
 {
   if (s == NULL) {
@@ -57,32 +64,14 @@ int is_valid_real(const char* s, double* result)
   }
 }
 
-static std::string get_potential_file_name()
+int is_valid_real(const std::string& s, double* result)
 {
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-  std::string potential_file_name;
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "potential") {
-        potential_file_name = tokens[1];
-        break;
-      }
-    }
-  }
-
-  input_run.close();
-  return potential_file_name;
+  return is_valid_real(s.c_str(), result);
 }
 
-bool check_is_nep_charge()
+bool is_nep_charge_potential(const std::string& potential_file_name)
 {
   bool is_nep_charge = false;
-  std::string potential_file_name = get_potential_file_name();
 
   std::ifstream input_potential(potential_file_name);
   if (!input_potential.is_open()) {
@@ -91,11 +80,25 @@ bool check_is_nep_charge()
   std::string line;
   std::getline(input_potential, line);
   std::vector<std::string> tokens = get_tokens(line);
+  if (tokens.empty()) {
+    PRINT_INPUT_ERROR("Empty potential file.");
+  }
+  if (NEP_Model_Input::is_new_format(tokens[0])) {
+    input_potential.clear();
+    input_potential.seekg(0);
+    NEP_File document;
+    std::string error;
+    if (!document.read(input_potential, error)) {
+      PRINT_INPUT_ERROR(error.c_str());
+    }
+    const std::string& model = document.find_field("model")->values[0];
+    return model == "qnep1" || model == "qnep2" || model == "qnep3" || model == "qnep3_vdw";
+  }
   if (tokens[0].size() >= 12) {
     if (tokens[0].substr(0, 11) == "nep4_charge") {
       is_nep_charge = true;
     }
-  } 
+  }
   if (tokens[0].size() >= 16) {
     if (tokens[0].substr(0, 15) == "nep4_zbl_charge") {
       is_nep_charge = true;
@@ -104,30 +107,4 @@ bool check_is_nep_charge()
   input_potential.close();
 
   return is_nep_charge;
-}
-
-bool check_need_peratom_virial()
-{
-  bool need_peratom_virial = false;
-  std::ifstream input_run("run.in");
-  if (!input_run.is_open()) {
-    PRINT_INPUT_ERROR("Cannot open run.in.");
-  }
-  std::string line;
-  while (std::getline(input_run, line)) {
-    std::vector<std::string> tokens = get_tokens(line);
-    if (tokens.size() != 0) {
-      if (tokens[0] == "compute_hac" || 
-        tokens[0] == "compute_hnemd" || 
-        tokens[0] == "compute_hnemdec" || 
-        tokens[0] == "compute_shc" ||
-        tokens[0] == "compute_gkma" ||
-        tokens[0] == "compute_hnema") {
-        need_peratom_virial = true;
-        break;
-      }
-    }
-  }
-  input_run.close();
-  return need_peratom_virial;
 }

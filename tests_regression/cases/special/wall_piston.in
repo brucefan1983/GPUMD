@@ -1,0 +1,10 @@
+replicate 12 6 6
+potential potential.txt
+velocity 300 seed 20260916
+time_step 0.1
+ensemble wall_piston vp 1 thickness 6
+dump_thermo 1
+dump_xyz 5 final.xyz precision double velocity force potential virial group_labels
+dump_restart 5
+run 5
+

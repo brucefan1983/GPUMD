@@ -39,7 +39,3 @@ This means that you
 * the velocity data will be recorded every 5 steps
 * the maximum number of correlation steps is 200
 * you would like to compute only over group 1 in group method 1.
-
-Caveats
--------
-This function cannot be used in the same run with the :ref:`compute_dos keyword <kw_compute_dos>`.

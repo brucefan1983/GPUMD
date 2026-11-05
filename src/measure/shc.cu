@@ -2,19 +2,19 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
-Spectral heat current (SHC) calculations. Referene:
+Spectral heat current (SHC) calculations. Reference:
 [1] Z. Fan, H. Dong, A. Harju, T. Ala-Nissila, Homogeneous nonequilibrium
 molecular dynamics method for heat transport and spectral decomposition
 with many-body potentials, Phys. Rev. B 99, 064308 (2019).
@@ -27,11 +27,10 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
-#include <cstring>
 
 const int BLOCK_SIZE_SHC = 128;
 
-void SHC::preprocess(
+void SHC::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -42,6 +41,11 @@ void SHC::preprocess(
 {
   if (!compute) {
     return;
+  }
+
+  if (Nc > number_of_steps / sample_interval) {
+    PRINT_INPUT_ERROR(
+      "The number of SHC correlation steps should not exceed the number of sampled frames.\n");
   }
 
   num_time_origins = 0;
@@ -159,7 +163,7 @@ static __global__ void gpu_copy_data(
   }
 }
 
-void SHC::process(
+void SHC::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -395,7 +399,7 @@ void SHC::find_shc(const double dt_in_ps, const double d_omega)
   }
 }
 
-void SHC::postprocess(
+void SHC::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -411,6 +415,25 @@ void SHC::postprocess(
   const double d_omega = max_omega / num_omega;
 
   FILE* fid = my_fopen("shc.out", "a");
+  fprintf(fid, "# compute_shc %d %d %d %d %g", sample_interval, Nc, direction, num_omega, max_omega);
+  if (group_method >= 0)
+    fprintf(fid, " group %d %d", group_method, group_id);
+  fprintf(fid, "\n");
+  fprintf(fid, "# format_version 1\n");
+  fprintf(fid, "# num_atoms %d\n", atom.number_of_atoms);
+  fprintf(
+    fid,
+    "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
+    box.cpu_h[0], box.cpu_h[3], box.cpu_h[6],
+    box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
+    box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+  fprintf(fid, "# dt_output %.10e ps\n", dt_in_ps);
+  fprintf(fid, "# num_correlation_rows %d\n", Nc * 2 - 1);
+  fprintf(fid, "# num_frequency_rows %d\n", num_omega);
+  if (group_id == -1)
+    fprintf(fid, "# num_output_groups %d\n", group_num - 1);
+  fprintf(fid, "# columns_correlation time_ps ki ko\n");
+  fprintf(fid, "# columns_shc omega_THz shc_i shc_o\n");
 
   average_k();
   find_shc(dt_in_ps, d_omega);
@@ -444,8 +467,10 @@ void SHC::postprocess(
   group_method = -1;
 }
 
-void SHC::parse(const char** param, int num_param, const std::vector<Group>& groups)
+void SHC::parse(
+  const std::vector<std::string>& tokens, const std::vector<Group>& groups)
 {
+  const int num_param = tokens.size();
   printf("Compute SHC.\n");
   compute = 1;
 
@@ -453,7 +478,7 @@ void SHC::parse(const char** param, int num_param, const std::vector<Group>& gro
     PRINT_INPUT_ERROR("compute_shc should have 5 or 8 parameters.");
   }
 
-  if (!is_valid_int(param[1], &sample_interval)) {
+  if (!is_valid_int(tokens[1], &sample_interval)) {
     PRINT_INPUT_ERROR("Sampling interval for SHC should be an integer.");
   }
   if (sample_interval < 1) {
@@ -464,7 +489,7 @@ void SHC::parse(const char** param, int num_param, const std::vector<Group>& gro
   }
   printf("    sampling interval for SHC is %d.\n", sample_interval);
 
-  if (!is_valid_int(param[2], &Nc)) {
+  if (!is_valid_int(tokens[2], &Nc)) {
     PRINT_INPUT_ERROR("Nc for SHC should be an integer.");
   }
   if (Nc < 100) {
@@ -475,7 +500,7 @@ void SHC::parse(const char** param, int num_param, const std::vector<Group>& gro
   }
   printf("    number of correlation data is %d.\n", Nc);
 
-  if (!is_valid_int(param[3], &direction)) {
+  if (!is_valid_int(tokens[3], &direction)) {
     PRINT_INPUT_ERROR("direction for SHC should be an integer.");
   }
   if (direction == 0) {
@@ -488,7 +513,7 @@ void SHC::parse(const char** param, int num_param, const std::vector<Group>& gro
     PRINT_INPUT_ERROR("Transport direction should be x or y or z.");
   }
 
-  if (!is_valid_int(param[4], &num_omega)) {
+  if (!is_valid_int(tokens[4], &num_omega)) {
     PRINT_INPUT_ERROR("num_omega for SHC should be an integer.");
   }
   if (num_omega < 0) {
@@ -496,7 +521,7 @@ void SHC::parse(const char** param, int num_param, const std::vector<Group>& gro
   }
   printf("    num_omega for SHC is %d.\n", num_omega);
 
-  if (!is_valid_real(param[5], &max_omega)) {
+  if (!is_valid_real(tokens[5], &max_omega)) {
     PRINT_INPUT_ERROR("max_omega for SHC should be a number.");
   }
   if (max_omega <= 0) {
@@ -505,8 +530,8 @@ void SHC::parse(const char** param, int num_param, const std::vector<Group>& gro
   printf("    max_omega for SHC is %g.\n", max_omega);
 
   for (int k = 6; k < num_param; k++) {
-    if (strcmp(param[k], "group") == 0) {
-      parse_group(param, num_param, true, groups, k, group_method, group_id);
+    if (tokens[k] == "group") {
+      parse_group(tokens, true, groups, k, group_method, group_id);
     } else {
       PRINT_INPUT_ERROR("Unrecognized argument in compute_shc.\n");
     }
@@ -522,8 +547,9 @@ void SHC::parse(const char** param, int num_param, const std::vector<Group>& gro
   }
 }
 
-SHC::SHC(const char** param, int num_param, const std::vector<Group>& groups)
+SHC::SHC(
+  const std::vector<std::string>& tokens, const std::vector<Group>& groups)
 {
-  parse(param, num_param, groups);
-  property_name = "compute_shc";
+  parse(tokens, groups);
+  action_name = "compute_shc";
 }

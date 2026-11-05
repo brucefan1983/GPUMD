@@ -1,0 +1,9 @@
+replicate 2 2 2
+potential nep.txt
+time_step 1
+velocity 300 seed 20260919
+ensemble nve
+dump_dipole 1 dipole.txt
+dump_xyz 1 dump.xyz force velocity precision double
+dump_thermo 1
+run 10

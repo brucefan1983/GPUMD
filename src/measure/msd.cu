@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
@@ -202,7 +202,7 @@ __global__ void gpu_find_msd(
   }
 } //namespace
 
-void MSD::preprocess(
+void MSD::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -251,6 +251,8 @@ void MSD::preprocess(
   
   dt_in_natural_units_ = time_step * sample_interval_;
   dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
+  for (int i = 0; i < 9; ++i)
+    cpu_h_[i] = box.cpu_h[i];
   x_.resize(num_atoms_ * num_correlation_steps_);
   y_.resize(num_atoms_ * num_correlation_steps_);
   z_.resize(num_atoms_ * num_correlation_steps_);
@@ -264,7 +266,7 @@ void MSD::preprocess(
   num_time_origins_ = 0;
 }
 
-void MSD::process(
+void MSD::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -397,6 +399,35 @@ void MSD::write(const char* filename)
   const double sdc_unit_conversion = 1.0e3 / TIME_UNIT_CONVERSION;
 
   FILE* fid = fopen(filename, "a");
+  fprintf(fid, "# compute_msd %d %d", sample_interval_, num_correlation_steps_);
+  if (msd_over_all_groups_)
+    fprintf(fid, " all_groups %d", grouping_method_);
+  else if (grouping_method_ >= 0)
+    fprintf(fid, " group %d %d", grouping_method_, group_id_);
+  if (save_output_every_ > 0)
+    fprintf(fid, " save_every %d", save_output_every_);
+  fprintf(fid, "\n");
+  fprintf(fid, "# format_version 1\n");
+  fprintf(fid, "# num_atoms %d\n", num_atoms_);
+  fprintf(fid, "# num_groups %d\n", num_groups_);
+  fprintf(fid, "# num_atoms_per_group");
+  for (int g = 0; g < num_groups_; ++g)
+    fprintf(fid, " %d", num_atoms_per_group_[g]);
+  fprintf(fid, "\n");
+  fprintf(fid,
+    "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
+    cpu_h_[0], cpu_h_[3], cpu_h_[6],
+    cpu_h_[1], cpu_h_[4], cpu_h_[7],
+    cpu_h_[2], cpu_h_[5], cpu_h_[8]);
+  fprintf(fid, "# dt_output %.10e ps\n", dt_in_ps_);
+  fprintf(fid, "# columns time_ps");
+  if (!msd_over_all_groups_) {
+    fprintf(fid, " msdx msdy msdz sdcx sdcy sdcz");
+  } else {
+    for (int g = 0; g < num_groups_; ++g)
+      fprintf(fid, " msdx_%d msdy_%d msdz_%d sdcx_%d sdcy_%d sdcz_%d", g, g, g, g, g, g);
+  }
+  fprintf(fid, "\n");
   for (int nc = 0; nc < num_correlation_steps_; nc++) {
     fprintf(fid, "%g", nc * dt_in_ps_);
     for (int group_id = 0; group_id < num_groups_; group_id++) {
@@ -419,7 +450,7 @@ void MSD::write(const char* filename)
 
 
 
-void MSD::postprocess(
+void MSD::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -434,33 +465,25 @@ void MSD::postprocess(
   grouping_method_ = -1;
 }
 
-MSD::MSD(const char** param, const int num_param, const std::vector<Group>& groups, Atom& atom)
+MSD::MSD(const std::vector<std::string>& tokens, const std::vector<Group>& groups, Atom& atom)
 {
-  parse(param, num_param, groups);
-  if (atom.unwrapped_position.size() < atom.number_of_atoms * 3) {
-    atom.unwrapped_position.resize(atom.number_of_atoms * 3);
-    atom.unwrapped_position.copy_from_device(atom.position_per_atom.data());
-  }
-  if (atom.position_temp.size() < atom.number_of_atoms * 3) {
-    atom.position_temp.resize(atom.number_of_atoms * 3);
-  }
-  property_name = "compute_msd";
+  parse(tokens, groups);
+  atom.enable_unwrapped_position();
+  action_name = "compute_msd";
 }
 
-void MSD::parse(const char** param, const int num_param, const std::vector<Group>& groups)
+void MSD::parse(const std::vector<std::string>& tokens, const std::vector<Group>& groups)
 {
   printf("Compute mean square displacement (MSD).\n");
   compute_ = true;
+  const int num_param = tokens.size();
 
   if (num_param < 3) {
     PRINT_INPUT_ERROR("compute_msd should have at least 2 parameters.\n");
   }
-  if (num_param > 8) {
-    PRINT_INPUT_ERROR("compute_msd has too many parameters.\n");
-  }
 
   // sample interval
-  if (!is_valid_int(param[1], &sample_interval_)) {
+  if (!is_valid_int(tokens[1], &sample_interval_)) {
     PRINT_INPUT_ERROR("sample interval should be an integer.\n");
   }
   if (sample_interval_ <= 0) {
@@ -469,7 +492,7 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
   printf("    sample interval is %d.\n", sample_interval_);
 
   // number of correlation steps
-  if (!is_valid_int(param[2], &num_correlation_steps_)) {
+  if (!is_valid_int(tokens[2], &num_correlation_steps_)) {
     PRINT_INPUT_ERROR("number of correlation steps should be an integer.\n");
   }
   if (num_correlation_steps_ <= 0) {
@@ -477,14 +500,34 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
   }
   printf("    number of correlation steps is %d.\n", num_correlation_steps_);
 
+  bool group_seen = false;
+  bool all_groups_seen = false;
+  bool save_every_seen = false;
   for (int k = 3; k < num_param; k++) {
-    if (strcmp(param[k], "group") == 0) {
-      parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
+    if (tokens[k] == "group") {
+      if (group_seen) {
+        PRINT_INPUT_ERROR("Option 'group' cannot be specified more than once.\n");
+      }
+      if (all_groups_seen) {
+        PRINT_INPUT_ERROR("Options 'group' and 'all_groups' cannot be used together.\n");
+      }
+      group_seen = true;
+      parse_group(tokens, false, groups, k, grouping_method_, group_id_);
 
-    } else if (strcmp(param[k], "all_groups") == 0) {
+    } else if (tokens[k] == "all_groups") {
+      if (all_groups_seen) {
+        PRINT_INPUT_ERROR("Option 'all_groups' cannot be specified more than once.\n");
+      }
+      if (group_seen) {
+        PRINT_INPUT_ERROR("Options 'group' and 'all_groups' cannot be used together.\n");
+      }
+      if (k + 2 > num_param) {
+        PRINT_INPUT_ERROR("Not enough arguments for option 'all_groups'.\n");
+      }
+      all_groups_seen = true;
       msd_over_all_groups_ = true;
       // Compute MSD individually for all groups
-     if (!is_valid_int(param[4], &grouping_method_)) {
+      if (!is_valid_int(tokens[k + 1], &grouping_method_)) {
         PRINT_INPUT_ERROR("Grouping method should be an integer.\n");
       }
       if (grouping_method_ < 0) {
@@ -495,17 +538,24 @@ void MSD::parse(const char** param, const int num_param, const std::vector<Group
       }
       printf("    will compute MSD for all groups in grouping %d.\n", grouping_method_);
       k += 1; // update index for next command
-    } else if (strcmp(param[k], "save_every") == 0) {
-      if (!is_valid_int(param[k+1], &save_output_every_)) {
+    } else if (tokens[k] == "save_every") {
+      if (save_every_seen) {
+        PRINT_INPUT_ERROR("Option 'save_every' cannot be specified more than once.\n");
+      }
+      if (k + 2 > num_param) {
+        PRINT_INPUT_ERROR("Not enough arguments for option 'save_every'.\n");
+      }
+      save_every_seen = true;
+      if (!is_valid_int(tokens[k + 1], &save_output_every_)) {
         PRINT_INPUT_ERROR("save_every should be an integer.\n");
+      }
+      if (save_output_every_ <= 0) {
+        PRINT_INPUT_ERROR("save_every should be positive.\n");
       }
       printf("    will save a copy of the MSD every %d steps.\n", save_output_every_);
       k += 1; // update index for next command
     } else {
       PRINT_INPUT_ERROR("Unrecognized argument in compute_msd.\n");
     }
-  }
-  if (msd_over_all_groups_ && grouping_method_ >= 0 && group_id_ >= 0) {
-    PRINT_INPUT_ERROR("Cannot compute MSD over a single group and all groups at the same time");
   }
 }

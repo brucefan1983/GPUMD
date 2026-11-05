@@ -23,6 +23,9 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    ensemble
    ensemble_standard
    ensemble_mttk
+   ensemble_tspin
+   ensemble_sib
+   ensemble_glsd
    ensemble_qtb
    ensemble_heat
    ensemble_ttm
@@ -32,12 +35,15 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    ensemble_ti_as
    ensemble_ti_rs
    ensemble_ti
+   ensemble_ti_nep
    ensemble_shock_nemd
    ensemble_msst
    ensemble_nphug
    add_force
    add_efield
+   add_mfield
    add_spring
+   deposit
    electron_stop
    fix
    kspace
@@ -50,6 +56,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    :caption: Actions
 
    minimize
+   minimize_spin_fire
    run
    compute
    compute_chunk
@@ -79,16 +86,12 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    :caption: Output
    
    active
-   dump_exyz
    dump_xyz
    dump_beads
    dump_observer
    dump_dipole
    dump_polarizability
-   dump_force
    dump_netcdf
-   dump_position
    dump_restart
    dump_thermo
-   dump_velocity
    dump_shock_nemd

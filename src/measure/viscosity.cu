@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -22,11 +22,10 @@ Calculate the stress autocorrelation function and viscosity.
 #include "utilities/read_file.cuh"
 #include "viscosity.cuh"
 #include <vector>
-#include <cstring>
 
 #define NUM_OF_COMPONENTS 9
 
-void Viscosity::preprocess(
+void Viscosity::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
@@ -37,6 +36,10 @@ void Viscosity::preprocess(
 {
   if (compute) {
     int number_of_frames = number_of_steps / sample_interval;
+    if (Nc > number_of_frames) {
+      PRINT_INPUT_ERROR(
+        "The number of viscosity correlation steps should not exceed the number of sampled frames.\n");
+    }
     stress_all.resize(NUM_OF_COMPONENTS * number_of_frames);
   }
 }
@@ -83,7 +86,7 @@ static __global__ void gpu_sum_stress(
   }
 }
 
-void Viscosity::process(
+void Viscosity::end_of_step(
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -195,7 +198,7 @@ find_viscosity(const int Nc, const double factor, const double* correlation, dou
   }
 }
 
-void Viscosity::postprocess(
+void Viscosity::post_run(
   Atom& atom,
   Box& box,
   Integrate& integrate,
@@ -229,6 +232,20 @@ void Viscosity::postprocess(
   find_viscosity(Nc, factor, correlation_cpu.data(), viscosity.data());
 
   FILE* fid = fopen("viscosity.out", "a");
+  fprintf(fid, "# compute_viscosity %d %d\n", sample_interval, Nc);
+  fprintf(fid, "# format_version 1\n");
+  fprintf(fid, "# num_atoms %d\n", atom.number_of_atoms);
+  fprintf(fid,
+    "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
+    box.cpu_h[0], box.cpu_h[3], box.cpu_h[6],
+    box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
+    box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+  fprintf(fid, "# dt_output %.10e ps\n", dt_in_ps);
+  fprintf(
+    fid,
+    "# columns time_ps"
+    " sacf_xx sacf_yy sacf_zz sacf_xy sacf_xz sacf_yz sacf_yx sacf_zx sacf_zy"
+    " visc_xx visc_yy visc_zz visc_xy visc_xz visc_yz visc_yx visc_zx visc_zy\n");
   for (int nc = 0; nc < Nc; nc++) {
     fprintf(fid, "%25.15e", nc * dt_in_ps);
     for (int m = 0; m < NUM_OF_COMPONENTS; m++) {
@@ -248,14 +265,15 @@ void Viscosity::postprocess(
   compute = 0;
 }
 
-Viscosity::Viscosity(const char** param, int num_param)
+Viscosity::Viscosity(const std::vector<std::string>& tokens)
 {
-  parse(param, num_param);
-  property_name = "compute_viscosity";
+  parse(tokens);
+  action_name = "compute_viscosity";
 }
 
-void Viscosity::parse(const char** param, int num_param)
+void Viscosity::parse(const std::vector<std::string>& tokens)
 {
+  const int num_param = tokens.size();
   compute = 1;
 
   printf("Compute Viscosity.\n");
@@ -264,13 +282,19 @@ void Viscosity::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("compute_viscosity should have 2 parameters.\n");
   }
 
-  if (!is_valid_int(param[1], &sample_interval)) {
+  if (!is_valid_int(tokens[1], &sample_interval)) {
     PRINT_INPUT_ERROR("sample interval for viscosity should be an integer number.\n");
+  }
+  if (sample_interval <= 0) {
+    PRINT_INPUT_ERROR("sample interval for viscosity should be positive.\n");
   }
   printf("    sample interval is %d.\n", sample_interval);
 
-  if (!is_valid_int(param[2], &Nc)) {
+  if (!is_valid_int(tokens[2], &Nc)) {
     PRINT_INPUT_ERROR("Nc for viscosity should be an integer number.\n");
+  }
+  if (Nc <= 0) {
+    PRINT_INPUT_ERROR("Nc for viscosity should be positive.\n");
   }
   printf("    Nc is %d\n", Nc);
 }

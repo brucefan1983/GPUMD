@@ -1,0 +1,5 @@
+model_type 2
+type 6 H C N O S Cl
+batch 120
+generation 10
+output_interval 10

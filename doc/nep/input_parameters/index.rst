@@ -13,6 +13,7 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
 
    version
    prediction
+   model
    model_type
    type
    type_weight
@@ -30,13 +31,29 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
    lambda_v
    lambda_q
    lambda_z
+   lambda_d
    atomic_v
    lambda_shear
    force_delta
    batch
    population
+   seed
    generation
    save_potential
+   output_interval
    output_descriptor
    fine_tune
+   import_q_scaler
    charge_mode
+   flip_charge
+   spin_version
+   spin_compress
+   spin_basis_size
+   spin_l_max
+   spin_cutoff
+   spin_order
+   spin_soc
+   spin_type
+   lambda_m
+   lambda_tau
+   lambda_spin_response

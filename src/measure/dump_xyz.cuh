@@ -2,32 +2,38 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
-#include "property.cuh"
+#include "parse_utilities.cuh"
+#include "action.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "xyz_frame_splitter.cuh"
 #include <string>
 #include <vector>
 class Box;
 class Atom;
 class Group;
 
-class Dump_XYZ : public Property
+class Dump_XYZ : public Action
 {
 public:
-  Dump_XYZ(const char** param, int num_param, const std::vector<Group>& groups, Atom& atom);
-  void parse(const char** param, int num_param, const std::vector<Group>& groups);
-  virtual void preprocess(
+  Dump_XYZ(
+    const std::vector<std::string>& tokens,
+    const std::vector<Group>& groups,
+    Atom& atom,
+    bool is_nep_charge);
+  void parse(const std::vector<std::string>& tokens, const std::vector<Group>& groups);
+  virtual void pre_run(
     const int number_of_steps,
     const double time_step,
     Integrate& integrate,
@@ -36,21 +42,21 @@ public:
     Box& box,
     Force& force);
 
-  virtual void process(
-      const int number_of_steps,
-      int step,
-      const int fixed_group,
-      const int move_group,
-      const double global_time,
-      const double temperature,
-      Integrate& integrate,
-      Box& box,
-      std::vector<Group>& group,
-      GPU_Vector<double>& thermo,
-      Atom& atom,
-      Force& force);
+  virtual void end_of_step(
+    const int number_of_steps,
+    int step,
+    const int fixed_group,
+    const int move_group,
+    const double global_time,
+    const double temperature,
+    Integrate& integrate,
+    Box& box,
+    std::vector<Group>& group,
+    GPU_Vector<double>& thermo,
+    Atom& atom,
+    Force& force);
 
-  virtual void postprocess(
+  virtual void post_run(
     Atom& atom,
     Box& box,
     Integrate& integrate,
@@ -58,36 +64,35 @@ public:
     const double time_step,
     const double temperature);
 
-  struct Quantities {
-    bool has_velocity_ = false;
-    bool has_force_ = false;
-    bool has_potential_ = false;
-    bool has_unwrapped_position_ = false;
-    bool has_mass_ = false;
-    bool has_charge_ = false;
-    bool has_bec_ = false;
-    bool has_virial_ = false;
-    bool has_group_ = false;
-  };
-
 private:
-
   bool is_nep_charge = false;
   int grouping_method_ = -1;
   int group_id_ = -1;
   int dump_interval_ = 1;
-  Quantities quantities;
+  int precision_ = 1; // 1 = single precision, 2 = double
+  DumpQuantities quantities;
+  bool has_spin_ = false;
+  bool has_mforce_ = false;
+  bool has_spin_velocity_ = false;
   int separated_ = 0;
+  int split_frames_ = 0;
+  XYZFrameSplitter splitter_;
   std::string filename_;
-  FILE* fid_;
+  std::string fmt_;
+  FILE* fid_ = nullptr;
 
   std::vector<double> cpu_unwrapped_position_;
   std::vector<double> cpu_force_per_atom_;
+  std::vector<double> cpu_spin_per_atom_;
+  std::vector<double> cpu_mforce_per_atom_;
+  std::vector<double> cpu_spin_velocity_per_atom_;
   std::vector<double> cpu_potential_per_atom_;
   std::vector<double> cpu_virial_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
   std::vector<float> cpu_bec_;
+
+  void print_tensor(const char* name, const double* tensor);
 
   void output_line2(
     const double time,

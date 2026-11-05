@@ -1,7 +1,8 @@
 potential   ../qnep_train/nep.txt
+kspace ewald
 velocity    1
 
 ensemble nve
 time_step 0
-dump_force 1
+dump_xyz 1 dump.xyz force precision double
 run 1

@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -126,7 +126,7 @@ public:
     bool use_typewise_cutoff = false;
     float typewise_cutoff_radial_factor = 0.0f;
     float typewise_cutoff_angular_factor = 0.0f;
-    int version = 4; // NEP version, 3 for NEP3 and 4 for NEP4
+    int version = 4; // NEP version
     int model_type =
       0; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
     float rc_radial = 0.0f;     // radial cutoff
@@ -140,10 +140,10 @@ public:
     int L_max = 0;         // l = 0, 1, 2, ..., L_max
     int dim_angular;
     int num_L;
-    int basis_size_radial = 8;  // for nep3
-    int basis_size_angular = 8; // for nep3
-    int num_types_sq = 0;       // for nep3
-    int num_c_radial = 0;       // for nep3
+    int basis_size_radial = 8;
+    int basis_size_angular = 8;
+    int num_types_sq = 0;
+    int num_c_radial = 0;
     int num_types = 0;
     float q_scaler[140];
     int atomic_numbers[NUM_ELEMENTS];
@@ -176,7 +176,7 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial,
-    std::vector<Group> &group);
+    const std::vector<Group>& group) override;
   
 
 protected:
@@ -191,6 +191,7 @@ private:
   int max_dim = 0;            // max of annmbs[i].dim
   std::vector<ParaMB> parambs;
   std::vector<ANN> annmbs;
+  GPU_Vector<double> energy_reference;
   char* h_parambs;                  // pointer to the head of parambs in gpu
   char* h_annmbs;                   // pointer to the head of annmbs in gpu
   std::vector<int> nep_map_cpu;     // map nep group to nep parameters (cpu)

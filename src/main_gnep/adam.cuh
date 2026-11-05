@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -26,12 +26,16 @@ class Adam
 {
 public:
   Adam(Parameters&);
+  ~Adam();
 
   // void zero_gradients();
-  void update(float lr, float* gradients); // Update moments and parameters
+  void update(float lr, const std::vector<float>& gradients); // Update moments and parameters
   float* get_parameters(); // get current parameters pointer
   void output_parameters(Parameters& para); // Output parameters
   void initialize_parameters(Parameters& para); // Initialize optimizer parameters
+#ifdef GNEP_TEST_DIAGNOSTICS
+  void copy_moments_to_host(std::vector<float>& first, std::vector<float>& second);
+#endif
 
 protected:
   // random number generator
@@ -56,5 +60,7 @@ protected:
   GPU_Vector<float> gpu_parameters; // Parameters to be optimized θ
   GPU_Vector<float> gpu_m; // First moment m
   GPU_Vector<float> gpu_v; // Second moment v
+  GPU_Vector<float> gpu_gradient; // Host-reduced global gradient
+  GPU_Vector<float> gpu_gradient_norm; // Clipping workspace
 
 };
