@@ -63,6 +63,15 @@ inline double parse_finite_double(const std::string& value, const std::string& f
   return result;
 }
 
+// Temperature passed to rerun is the physical simulation temperature in kelvin.
+inline double parse_temperature_kelvin(const std::string& value)
+{
+  const double temperature = parse_finite_double(value, "rerun temperature");
+  if (!(temperature > 0.0))
+    throw std::runtime_error("rerun: temperature must be positive in kelvin");
+  return temperature;
+}
+
 inline std::vector<std::string> split(const std::string& text, char delim)
 {
   std::vector<std::string> out;
