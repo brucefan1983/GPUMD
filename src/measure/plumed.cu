@@ -153,7 +153,7 @@ void PLUMED::init(const double ts, const double T)
   plumed_cmd(plumed_main, "init", NULL);
 }
 
-void PLUMED::pre_rerun(const double ts, Atom& atom)
+void PLUMED::pre_rerun(const double ts, const double temperature, Atom& atom)
 {
   n_atom = atom.number_of_atoms;
   cpu_b_vector.resize(9);
@@ -162,9 +162,9 @@ void PLUMED::pre_rerun(const double ts, Atom& atom)
   cpu_f_vector.resize(3 * n_atom);
   cpu_q_vector.resize(3 * n_atom);
   memcpy(cpu_m_vector.data(), atom.cpu_mass.data(), n_atom * sizeof(double));
-  // Structural CVs do not depend on kBT. Bias/temperature-dependent methods
-  // must not be used with this analysis-only initialization.
-  init(ts, 0.0);
+  // Use the normal PLUMED initialization; the caller supplies the replay
+  // temperature when a physical simulation temperature was specified.
+  init(ts, temperature);
 }
 
 void PLUMED::rerun_frame(const long long timestep, Box& box, Atom& atom)
