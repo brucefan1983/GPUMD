@@ -130,9 +130,9 @@ per-frame velocity. Without atom IDs, XYZ line order must match `model.xyz`.
 - The first version supports exactly one Extended XYZ trajectory. Multiple
   input trajectories, LAMMPS dump-format selection, and arbitrary dump formats
   are not supported.
-- LAMMPS options `start`, `stop`, `post`, and `dump` are not implemented;
-  `temperature T` is GPUMD-specific and is only needed for force models
-  requiring simulation temperature.
+- LAMMPS options `start`, `stop`, `post`, and `dump` are not implemented.
+  Replay temperature comes from the existing GPUMD `ensemble` command,
+  never from an extra `rerun` argument.
 - PLUMED `setStep` and existing GPUMD Measure interfaces use signed integer
   step numbers; large timesteps above INT_MAX are rejected.
 - Initialization requires `model.xyz` and a valid potential to define
