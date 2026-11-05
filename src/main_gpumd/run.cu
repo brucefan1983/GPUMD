@@ -405,8 +405,7 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   if (tokens.size() < 2) {
     PRINT_INPUT_ERROR("rerun trajectory.xyz [first N] [last N] [every N] [skip N]");
   }
-  // A previous run() finalizes its ensemble. A pending ensemble, however,
-  // would make replay-only dump callbacks misinterpret their mode as MD/PIMD.
+  // A pending MD ensemble should not be used for replay-only analysis.
   if (integrate.has_ensemble()) {
     PRINT_INPUT_ERROR("rerun cannot execute with a pending ensemble; run or remove it first.");
   }
