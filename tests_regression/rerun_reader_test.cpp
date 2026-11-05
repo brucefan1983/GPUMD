@@ -129,12 +129,12 @@ int main()
   const char* path2 = "rerun_reader_test_second.xyz";
   {
     std::ofstream out(path2);
-    out << "2\\n";
-    out << "Time=500 Step=500 pbc=\\\"T T T\\\" "
-           "Lattice=\\\"5 0 0 0 6 0 0 0 7\\\" "
-           "Properties=species:S:1:pos:R:3\\n";
-    out << "Ga 1 2 3\\n";
-    out << "Pd 4 5 6\\n";
+    out << "2\n";
+    out << "Time=500 Step=500 pbc=\"T T T\" "
+           "Lattice=\"5 0 0 0 6 0 0 0 7\" "
+           "Properties=species:S:1:pos:R:3\n";
+    out << "Ga 1 2 3\n";
+    out << "Pd 4 5 6\n";
   }
   {
     gpumd_rerun::Reader second_reader(path2);
