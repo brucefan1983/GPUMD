@@ -120,7 +120,8 @@ public:
     const std::vector<std::string>& tokens,
     const Atom& atom,
     const Box& box,
-    const std::vector<Group>& group);
+    const std::vector<Group>& group,
+    Force& force);
   void parse_fix(const std::vector<std::string>& tokens, const std::vector<Group>& group);
   void parse_move(const std::vector<std::string>& tokens, const std::vector<Group>& group);
 };

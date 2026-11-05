@@ -277,3 +277,5 @@ Spin moments are in muB and magnetic forces in eV/muB. See the
 
 See [Spin regression checks](spin_validation.md) for portable format, training,
 and GPU validation commands.
+
+Spin integrators use the existing Ensemble lifecycle; see [integration validation](spin_integration_validation.md).

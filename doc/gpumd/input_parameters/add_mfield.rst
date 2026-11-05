@@ -53,3 +53,6 @@ virial contribution. Time-dependent fields and linear gradients are not supporte
 The field is magnetic induction B, not H in A/m.
 For example, a 2 muB moment aligned with 1 T has Zeeman energy approximately
 -1.1576e-4 eV and magnetic force +5.7884e-5 eV/muB along the field.
+
+Fields do not participate in ``minimize spin_fire``. A field declared before
+minimization applies to the next ``run`` and is cleared when that run finishes.

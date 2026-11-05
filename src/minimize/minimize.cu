@@ -23,6 +23,7 @@ The driver class for minimizers.
 #include "minimizer_fire.cuh"
 #include "minimizer_fire_box_change.cuh"
 #include "minimizer_sd.cuh"
+#include "minimizer_spin_fire.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
@@ -101,6 +102,8 @@ void Minimize::parse_minimize(
         PRINT_INPUT_ERROR("Hydrostatic_strain should be 1 or 0.");
       }
     }
+  } else if (tokens[1] == "spin_fire") {
+    minimizer_type = 3;
   } else {
     PRINT_INPUT_ERROR("Invalid minimizer.");
   }
@@ -143,6 +146,12 @@ void Minimize::parse_minimize(
 
       minimizer.reset(new Minimizer_FIRE_Box_Change(
         atom.number_of_atoms, number_of_steps, force_tolerance, hydrostatic_strain));
+
+      minimizer->compute(force, box, atom, atom.position_per_atom, group);
+
+      break;
+    case 3:
+      minimizer.reset(new Minimizer_Spin_FIRE(tokens, fixed_group, atom, box));
 
       minimizer->compute(force, box, atom, atom.position_per_atom, group);
 

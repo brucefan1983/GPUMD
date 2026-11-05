@@ -78,3 +78,8 @@ Caveats
 * The per-atom ``virial`` property contains all nine row-major components
   ``xx xy xz yx yy yz zx zy zz``. NEP_Spin does not symmetrize this per-atom
   tensor.
+
+The ``spin_velocity`` option writes ``spin_vel:R:3`` in
+:math:`\mu_B/\mathrm{fs}`. It requires a NEP-spin model, ``spin:R:3``, and
+velocities initialized by TSPIN or supplied as ``spin_vel:R:3`` in
+``model.xyz``. Ordinary models ignore additional spin input properties.

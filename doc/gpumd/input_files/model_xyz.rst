@@ -52,6 +52,7 @@ Essentially any keyword is allowed, but we only read the following ones:
   * ``charge:R:1`` charge (*Optional*: default charge is zero)  
   * ``vel:R:3`` velocity vector (*Optional*)
   * ``spin:R:3`` magnetic-moment vector in Bohr magnetons (muB) (*Required for NEP_Spin*)
+  * ``spin_vel:R:3`` spin velocity vector (*Optional for NEP-spin; requires ``spin:R:3``*)
   * ``group:I:number_of_grouping_methods`` grouping methods (*Optional*)
 
 
@@ -68,7 +69,7 @@ The mass should be given in units of the unified atomic mass unit (amu).
 The charge is in units of e (proton charge).
 The cell dimensions and atom coordinates should be given in units of Ångstrom. 
 Velocities need to be specified in units of Å/fs.
-Spin is specified in Bohr magnetons (muB).
+Spin is specified in Bohr magnetons (muB). Spin velocity is in muB/fs.
 Magnetic force is the negative energy derivative with respect to spin, in eV/muB.
 The spin torque, spin crossed with magnetic force, is in eV.
 External magnetic induction B is specified in tesla (T).

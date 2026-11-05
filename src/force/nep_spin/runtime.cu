@@ -49,7 +49,6 @@ void Spin_Runtime::check_command(const std::vector<std::string>& tokens) const
         "compute_hnema",
         "deform",
         "compute_lsqt",
-        "minimize",
         "compute_phonon",
         "compute_cohesive",
         "compute_elastic",
@@ -58,8 +57,14 @@ void Spin_Runtime::check_command(const std::vector<std::string>& tokens) const
     unsupported = unsupported || tokens[0] == name;
   }
   if (tokens[0] == "ensemble") {
-    unsupported = tokens.size() < 2 || (tokens[1] != "nve" && tokens[1] != "nvt_nhc");
+    unsupported = tokens.size() < 2 ||
+                  (tokens[1] != "nve" && tokens[1] != "nvt_nhc" && tokens[1] != "nvt_tspin" &&
+                   tokens[1] != "npt_tspin" && tokens[1] != "nve_sib" && tokens[1] != "nvt_sib" &&
+                   tokens[1] != "npt_sib" && tokens[1] != "nve_glsd" && tokens[1] != "nvt_glsd" &&
+                   tokens[1] != "npt_glsd");
   }
+  if (tokens[0] == "minimize")
+    unsupported = tokens.size() < 2 || tokens[1] != "spin_fire";
   if (unsupported) {
     PRINT_INPUT_ERROR(("NEP-spin does not support command " + tokens[0] + ".").c_str());
   }
@@ -75,6 +80,11 @@ void Spin_Runtime::initialize(Atom& atom) const
   for (int i = 0; i < n; ++i) {
     const int type = atom.cpu_type[i];
     for (int d = 0; d < 3; ++d) {
+      double& velocity = atom.cpu_spin_velocity_per_atom[i + n * d];
+      if (!types_[type])
+        velocity = 0.0;
+      else if (atom.spin_velocity_initialized && !std::isfinite(velocity))
+        PRINT_INPUT_ERROR("Active spin velocity components must be finite.");
       double& spin = atom.cpu_spin_per_atom[i + n * d];
       if (!types_[type])
         spin = 0.0;
@@ -83,6 +93,7 @@ void Spin_Runtime::initialize(Atom& atom) const
     }
   }
   atom.spin_per_atom.copy_from_host(atom.cpu_spin_per_atom.data());
+  atom.spin_velocity_per_atom.copy_from_host(atom.cpu_spin_velocity_per_atom.data());
 }
 
 std::unique_ptr<Potential>

@@ -73,6 +73,7 @@ private:
   DumpQuantities quantities;
   bool has_spin_ = false;
   bool has_mforce_ = false;
+  bool has_spin_velocity_ = false;
   int separated_ = 0;
   int split_frames_ = 0;
   XYZFrameSplitter splitter_;
@@ -84,6 +85,7 @@ private:
   std::vector<double> cpu_force_per_atom_;
   std::vector<double> cpu_spin_per_atom_;
   std::vector<double> cpu_mforce_per_atom_;
+  std::vector<double> cpu_spin_velocity_per_atom_;
   std::vector<double> cpu_potential_per_atom_;
   std::vector<double> cpu_virial_per_atom_;
   GPU_Vector<double> gpu_total_virial_;

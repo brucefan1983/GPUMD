@@ -210,7 +210,8 @@ def validate_ordinary_spin_properties(root):
                 ("vector", ":spin:R:3", " 1 2 3"),
                 ("nonfinite", ":spin:R:3", " nan inf -inf"),
                 ("string", ":spin:S:1", " ignored"),
-                ("duplicate", ":spin:R:1:spin:R:1", " 1 2")]
+                ("duplicate", ":spin:R:1:spin:R:1", " 1 2"),
+                ("spin-velocity", ":spin_vel:S:1:spin_vel:R:1", " ignored nan")]
     reference = None
     for name, prop, values in variants:
         case = root / ("ordinary-spin-" + name)

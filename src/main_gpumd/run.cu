@@ -344,7 +344,7 @@ void Run::parse_one_keyword(
   } else if (tokens[0] == "velocity") {
     parse_velocity(tokens);
   } else if (tokens[0] == "ensemble") {
-    integrate.parse_ensemble(tokens, atom, box, group);
+    integrate.parse_ensemble(tokens, atom, box, group, force);
   } else if (tokens[0] == "time_step") {
     parse_time_step(tokens);
   } else if (tokens[0] == "correct_velocity") {

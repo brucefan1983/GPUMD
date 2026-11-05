@@ -49,9 +49,20 @@ public:
     GPU_Vector<double>&,
     GPU_Vector<double>&,
     GPU_Vector<double>&);
+  // The caller owns the buffers until the next compute completes. Only that
+  // evaluation is captured; later endpoint evaluations leave the buffers intact.
+  void request_force_snapshot(GPU_Vector<double>& force, GPU_Vector<double>& mforce)
+  {
+    force_snapshot_ = &force;
+    mforce_snapshot_ = &mforce;
+  }
+
   const std::vector<int>& spin_types() const { return domains_[0]->potential->spin_types(); }
 
 private:
+  GPU_Vector<double>* force_snapshot_ = nullptr;
+  GPU_Vector<double>* mforce_snapshot_ = nullptr;
+  void save_force_snapshot(const GPU_Vector<double>&, const GPU_Vector<double>&);
   struct Domain {
     std::unique_ptr<NEP_Spin> potential;
     GPU_Vector<int> type;

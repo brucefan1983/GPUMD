@@ -91,6 +91,9 @@ void Dump_Restart::end_of_step(
   atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
   if (atom.has_spin) {
     atom.spin_per_atom.copy_to_host(atom.cpu_spin_per_atom.data());
+    if (atom.spin_velocity_initialized) {
+      atom.spin_velocity_per_atom.copy_to_host(atom.cpu_spin_velocity_per_atom.data());
+    }
   }
 
   fprintf(fid, "%d\n", number_of_atoms);
@@ -114,6 +117,9 @@ void Dump_Restart::end_of_step(
   fprintf(fid, "Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3");
   if (atom.has_spin) {
     fprintf(fid, ":spin:R:3");
+    if (atom.spin_velocity_initialized) {
+      fprintf(fid, ":spin_vel:R:3");
+    }
   }
   if (!group.empty()) {
     fprintf(fid, ":group:I:%d", int(group.size()));
@@ -141,6 +147,15 @@ void Dump_Restart::end_of_step(
         atom.cpu_spin_per_atom[n],
         atom.cpu_spin_per_atom[n + number_of_atoms],
         atom.cpu_spin_per_atom[n + 2 * number_of_atoms]);
+      if (atom.spin_velocity_initialized) {
+        const double natural_to_per_fs = 1.0 / TIME_UNIT_CONVERSION;
+        fprintf(
+          fid,
+          "%.17g %.17g %.17g ",
+          atom.cpu_spin_velocity_per_atom[n] * natural_to_per_fs,
+          atom.cpu_spin_velocity_per_atom[n + number_of_atoms] * natural_to_per_fs,
+          atom.cpu_spin_velocity_per_atom[n + 2 * number_of_atoms] * natural_to_per_fs);
+      }
     }
 
     for (int m = 0; m < group.size(); ++m) {

@@ -200,6 +200,7 @@ Output files
    mvac_out
    omega2_out
    restart_xyz
+   spin_restart
    dump_xyz
    observer_xyz
    observer_out

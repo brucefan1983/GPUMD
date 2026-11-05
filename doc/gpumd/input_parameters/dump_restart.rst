@@ -30,3 +30,6 @@ This keyword is not propagating.
 That means, its effect will not be passed from one run to the next.
 
 NEP-spin models also save the per-atom Cartesian ``spin:R:3`` values.
+
+For Spin velocity and the state preserved when starting another run,
+see :ref:`Spin restart <spin_restart>`.

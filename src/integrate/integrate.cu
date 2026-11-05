@@ -42,6 +42,7 @@ The driver class for the various integrators.
 #include "ensemble_wall_mirror.cuh"
 #include "ensemble_wall_piston.cuh"
 #include "integrate.cuh"
+#include "spin/spin_ensemble.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -278,7 +279,8 @@ void Integrate::parse_ensemble(
   const std::vector<std::string>& tokens,
   const Atom& atom,
   const Box& box,
-  const std::vector<Group>& group)
+  const std::vector<Group>& group,
+  Force& force)
 {
   if (tokens.size() < 2) {
     PRINT_INPUT_ERROR("Keyword 'ensemble' requires an ensemble type.");
@@ -292,6 +294,16 @@ void Integrate::parse_ensemble(
   if (tokens[1] == "nve") {
     ensemble_ = std::make_unique<Ensemble_NVE>(tokens);
     type = EnsembleType::NVE;
+  } else if (
+    tokens[1] == "nvt_tspin" || tokens[1] == "npt_tspin" ||
+    tokens[1] == "nve_sib" || tokens[1] == "nvt_sib" || tokens[1] == "npt_sib" ||
+    tokens[1] == "nve_glsd" || tokens[1] == "nvt_glsd" || tokens[1] == "npt_glsd") {
+    auto ensemble_spin = std::make_unique<Spin_Ensemble>(tokens, atom, box, group, force);
+    type = ensemble_spin->type;
+    temperature1 = ensemble_spin->get_temperature1();
+    temperature2 = ensemble_spin->get_temperature2();
+    temperature = temperature1;
+    ensemble_ = std::move(ensemble_spin);
   } else if (tokens[1] == "nvt_ber" || tokens[1] == "npt_ber") {
     auto ensemble_ber = std::make_unique<Ensemble_BER>(tokens, box);
     type = ensemble_ber->type;

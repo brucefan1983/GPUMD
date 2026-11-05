@@ -80,3 +80,6 @@ Caveats
 -------
 
 * This keyword should occur after the :ref:`potential keyword <kw_potential>`.
+
+For magnetic moments, optionally coupled to atoms and cell strain, use
+:ref:`Spin FIRE <spin_fire_minimize>`.
