@@ -222,7 +222,11 @@ inline long long frame_step(const Frame& frame, double dt_fs)
   // times to COLVAR and dump_xyz. Trajectories with variable MD timestep
   // need a separate explicit-time replay design.
   const double implied_time_fs = static_cast<double>(frame.step) * dt_fs;
-  const double tolerance_fs = std::max(1.0e-8, 1.0e-5 * dt_fs);
+  // Allow small long-run floating-point accumulation error in Time while
+  // keeping Step as the exact source for output scheduling.
+  const double tolerance_fs = std::max(
+    std::max(1.0e-8, 1.0e-5 * dt_fs),
+    1.0e-11 * std::abs(implied_time_fs));
   if (!std::isfinite(implied_time_fs) ||
       std::abs(frame.time_fs - implied_time_fs) > tolerance_fs)
     throw std::runtime_error(
