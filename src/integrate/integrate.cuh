@@ -36,9 +36,9 @@ private:
   int move_grouping_method = 0;
   double move_velocity[3];
 
-  double temperature1; // target initial temperature for a run
-  double temperature2; // target final temperature for a run
-  double temperature;  // initial target temperature that parse_ensemble records
+  double temperature1 = 0.0; // target initial temperature for a run
+  double temperature2 = 0.0; // target final temperature for a run
+  double temperature = 0.0; // initial target temperature that parse_ensemble records
   int num_target_pressure_components;
   int deform_x = 0;
   int deform_y = 0;
@@ -95,6 +95,11 @@ public:
     const std::vector<Group>& group);
 
   void finalize(const Atom& atom, const Box& box);
+  // Drop an ensemble used solely to specify replay conditions without
+  // invoking its MD finalizer (it was never initialized for integration).
+  void finalize_rerun();
+  double get_rerun_temperature() const;
+
 
   void compute1(
     const double time_step,
