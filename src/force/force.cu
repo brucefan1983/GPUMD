@@ -431,6 +431,8 @@ void Force::set_temperature_range(
 
 void Force::advance_temperature() { temperature += delta_T; }
 
+double Force::get_temperature() const { return temperature; }
+
 int Force::get_number_of_potentials() const { return potentials.size(); }
 
 Potential& Force::get_potential(const int index) { return *potentials[index]; }
