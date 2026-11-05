@@ -41,6 +41,13 @@ diff -q omega2.out omega21.out
 rm D.out omega2.out
 cd ../..
 
+cd gpumd/ilp_nep_cutoff
+echo "#### ilp_nep_cutoff"
+../../../src/gpumd | tail -n 1 > error.out
+diff -q error.out error1.out
+rm -f error.out neighbor.out
+cd ../..
+
 cd gpumd/carbon
 echo "#### carbon"
 ../../../src/gpumd > /dev/null

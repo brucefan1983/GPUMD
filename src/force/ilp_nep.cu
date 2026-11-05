@@ -218,7 +218,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     printf("    radial cutoff = %g A.\n", parambs[i].rc_radial);
     printf("    angular cutoff = %g A.\n", parambs[i].rc_angular);
     // save the max rc_radial, same to max rc
-    max_nep_rc = max(max_nep_rc, parambs[i].rc_radial);
+    max_nep_rc = fmax(max_nep_rc, double(parambs[i].rc_radial));
 
     int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
     int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);

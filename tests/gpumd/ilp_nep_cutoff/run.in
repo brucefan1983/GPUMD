@@ -1,0 +1,5 @@
+potential       C.ilp map.nep
+velocity        300
+time_step       1.0
+ensemble        nve
+run             1
