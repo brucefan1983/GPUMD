@@ -60,6 +60,7 @@ SOURCES_GPUMD =                   \
 	$(wildcard force/*.cu)        \
 	$(wildcard force/*/*.cu)      \
 	$(wildcard measure/*.cu)      \
+	$(wildcard measure/*/*.cu)      \
 	$(wildcard model/*.cu)        \
 	$(wildcard utilities/*.cu)
 SOURCES_NEP =                     \
@@ -105,6 +106,7 @@ HEADERS =                         \
 	$(wildcard force/*.cuh)       \
 	$(wildcard force/*/*.cuh)     \
 	$(wildcard measure/*.cuh)     \
+	$(wildcard measure/*/*.cuh)     \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
 	$(wildcard main_nep/*.cuh)    \

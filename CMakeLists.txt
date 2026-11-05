@@ -27,6 +27,7 @@ file(GLOB GPUMD_SOURCES
     src/force/*.cu
     src/force/*/*.cu
     src/measure/*.cu
+    src/measure/*/*.cu
     src/model/*.cu
     src/utilities/*.cu)
 add_executable(gpumd ${GPUMD_SOURCES})
