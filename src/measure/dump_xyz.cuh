@@ -98,6 +98,7 @@ private:
   void print_tensor(const char* name, const double* tensor);
 
   void output_line2(
+    const long long timestep,
     const double time,
     const Box& box,
     std::vector<Group>& group,
