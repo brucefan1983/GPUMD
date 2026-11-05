@@ -443,11 +443,18 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
       uses_temperature_dependent_potential = true;
     }
   }
-  if (uses_temperature_dependent_potential &&
-      !(simulation_temperature > 0.0) ) {
+  if (uses_temperature_dependent_potential && !(simulation_temperature > 0.0)) {
     PRINT_INPUT_ERROR(
-      "Temperature-dependent potential requires a temperature-bearing GPUMD "
-      "ensemble command before rerun (e.g. a constant-temperature NVT ensemble).");
+      "Temperature-dependent potential requires a positive temperature from "
+      "an existing GPUMD ensemble command before rerun.");
+  }
+  // An MD temperature ramp cannot be reproduced by one constant replay
+  // force-model temperature. Do not silently use only the first endpoint.
+  if (uses_temperature_dependent_potential && has_ensemble_for_rerun &&
+      integrate.get_temperature2() > 0.0 &&
+      std::abs(integrate.get_temperature1() - integrate.get_temperature2()) > 1.0e-10) {
+    PRINT_INPUT_ERROR(
+      "Temperature-dependent rerun currently requires a constant-temperature ensemble.");
   }
   measure.validate_rerun(has_potential_for_rerun_);
   if (measure.rerun_output_conflicts(tokens[1])) {
