@@ -14,11 +14,11 @@
 */
 
 #pragma once
-#include "potential.cuh"
+#include "force/potential.cuh"
 #include <stdio.h>
 #include <vector>
 #include "utilities/gpu_vector.cuh"
-#include "tersoff1988.cuh"
+#include "force/tersoff/tersoff1988.cuh"
 
 // C B N
 #define MAX_TYPE_ILP_TERSOFF 3

@@ -14,29 +14,34 @@
 */
 
 #pragma once
-#include "neighbor.cuh"
-#include "potential.cuh"
+#include "force/neighbor.cuh"
+#include "force/potential.cuh"
 #include "utilities/gpu_vector.cuh"
-#include <stdio.h>
+#include <cstdio>
 
-struct Tersoff1988_Data {
-  GPU_Vector<double> b;    // bond orders
-  GPU_Vector<double> bp;   // derivative of bond orders
-  GPU_Vector<double> f12x; // partial forces
-  GPU_Vector<double> f12y;
-  GPU_Vector<double> f12z;
-  GPU_Vector<int> NN, NL; // neighbor list for angular-dependent potentials
-  GPU_Vector<int> cell_count;
-  GPU_Vector<int> cell_count_sum;
-  GPU_Vector<int> cell_contents;
+struct EAMAlloy_Data {
+
+  GPU_Vector<float4> F_rho_g;    // size = Nelements * nrho
+  GPU_Vector<float4> rho_r_g;    // size = Nelements * nr
+  GPU_Vector<float4> phi_r_g;    // size = Nelements * Nelements * nr   (r*phi)
+  GPU_Vector<float> d_F_rho_i_g; // dF/drho per atom
+
+  int Nelements;
+  std::vector<std::string> elements_list;
+  int nrho;
+  float drho;
+  int nr;
+  float dr;
+  float rc;
 };
 
-class Tersoff1988 : public Potential
+class EAMAlloy : public Potential
 {
 public:
   using Potential::compute;
-  Tersoff1988(FILE*, int sum_of_types, const int num_atoms);
-  virtual ~Tersoff1988(void);
+
+  EAMAlloy(const char*, const int number_of_atoms, const int max_neighbor = 400);
+  virtual ~EAMAlloy(void);
   virtual void compute(
     Box& box,
     const GPU_Vector<int>& type,
@@ -44,10 +49,9 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
+  void initialize_eamalloy(const char*, const int);
 
 protected:
-  int num_types;
-  GPU_Vector<double> ters;
-  Tersoff1988_Data tersoff_data;
+  EAMAlloy_Data eam_data;
   NeighborManager neighbor_manager;
 };

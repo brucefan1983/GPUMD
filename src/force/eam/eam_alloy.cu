@@ -14,7 +14,7 @@
 */
 
 #include "eam_alloy.cuh"
-#include "neighbor.cuh"
+#include "force/neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 

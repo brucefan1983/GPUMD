@@ -20,7 +20,7 @@ Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
 ------------------------------------------------------------------------------*/
 
 #include "ilp_tersoff.cuh"
-#include "neighbor.cuh"
+#include "force/neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"

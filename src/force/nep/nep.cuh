@@ -14,17 +14,15 @@
 */
 
 #pragma once
-#include "dftd3.cuh"
-#include "neighbor.cuh"
-#include "potential.cuh"
+#include "force/dftd3/dftd3.cuh"
+#include "force/neighbor.cuh"
+#include "force/potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "ewald.cuh"
-#include "pppm.cuh"
 
 class RunInput;
 
-struct NEP_Charge_Data {
+struct NEP_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
   GPU_Vector<float> f12y; // 3-body or manybody partial forces
   GPU_Vector<float> f12z; // 3-body or manybody partial forces
@@ -39,33 +37,20 @@ struct NEP_Charge_Data {
   GPU_Vector<float> parameters; // parameters to be optimized
   std::vector<int> cpu_NN_radial;
   std::vector<int> cpu_NN_angular;
-  GPU_Vector<float> kx;
-  GPU_Vector<float> ky;
-  GPU_Vector<float> kz;
-  GPU_Vector<float> G;
-  GPU_Vector<float> S_real;
-  GPU_Vector<float> S_imag;
-  GPU_Vector<float> D_real;
-  GPU_Vector<float> charge;
-  GPU_Vector<float> charge_derivative;
-  GPU_Vector<float> bec;               // BEC
 };
 
-class NEP_Charge : public Potential
+class NEP : public Potential
 {
 public:
-  using Potential::compute;
-
-  NEP_Charge_Data nep_data;
-
+  NEP_Data nep_data;
   struct ParaMB {
-    int charge_mode = 0;
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_zbl_factor = 0.0f;
-    float rc_radial = 0.0f;     // radial cutoff
-    float rc_angular = 0.0f;    // angular cutoff
-    float rcinv_radial = 0.0f;  // inverse of the radial cutoff
-    float rcinv_angular = 0.0f; // inverse of the angular cutoff
+    int model_type = 0; // 0=potential, 3=temperature-dependent free energy
+    float rc_radial_max = 0.0f;
+    float rc_radial_max_inv = 0.0f; 
+    float rc_radial[NUM_ELEMENTS];     // radial cutoff
+    float rc_angular[NUM_ELEMENTS];    // angular cutoff
     int MN_radial = 200;
     int MN_angular = 100;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
@@ -94,7 +79,6 @@ public:
     const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
     const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
     const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
-    const float* sqrt_epsilon_inf; // sqrt(epsilon_inf) related to BEC
     const float* b1;               // bias for the output layer
     const float* c;
     const float* c_type_pair;
@@ -104,9 +88,12 @@ public:
 
   struct ZBL {
     bool enabled = false;
+    bool flexible = false;
     float rc_inner = 1.0f;
     float rc_outer = 2.0f;
+    float para[550];
     int atomic_numbers[NUM_ELEMENTS];
+    int num_types;
   };
 
   struct ExpandedBox {
@@ -115,24 +102,25 @@ public:
   };
 
   struct Small_Box_Data {
-    GPU_Vector<int> NN_radial;
-    GPU_Vector<int> NL_radial;
-    GPU_Vector<int> NN_angular;
-    GPU_Vector<int> NL_angular;
-    GPU_Vector<float> r12;
-  } small_box_data;
+        GPU_Vector<int> NN_radial;
+        GPU_Vector<int> NL_radial;
+        GPU_Vector<int> NN_angular;
+        GPU_Vector<int> NL_angular;
+        GPU_Vector<float> r12;
+    } small_box_data;
 
-  struct Charge_Para {
-    int num_kpoints_max = 1;
-    float alpha = 0.5f; // 1 / (2 Angstrom)
-    float two_alpha_over_sqrt_pi = 0.564189583547756f;
-    float A;
-    float B;
-  };
-
-  NEP_Charge(const char* file_potential, const int num_atoms, const RunInput& run_input);
-  virtual ~NEP_Charge(void);
+  NEP(const char* file_potential, const int num_atoms, const RunInput& run_input);
+  virtual ~NEP(void);
   virtual void compute(
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial);
+
+  virtual void compute(
+    const float temperature,
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
@@ -144,19 +132,12 @@ public:
 
   const GPU_Vector<int>& get_NL_radial_ptr();
 
-  GPU_Vector<float>& get_charge_reference();
-
-  GPU_Vector<float>& get_bec_reference();
-
 private:
   ParaMB paramb;
   ANN annmb;
   ZBL zbl;
   ExpandedBox ebox;
   DFTD3 dftd3;
-  Charge_Para charge_para;
-  Ewald ewald;
-  PPPM pppm;
   NeighborManager neighbor_manager;
 
   void update_potential(float* parameters, ANN& ann);
@@ -177,13 +158,24 @@ private:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
 
-  void find_k_and_G(const double* box);
+  void compute_small_box(
+    const float temperature,
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial);
 
-  bool need_bec = false;
-  void check_need_bec(const RunInput& run_input);
-  bool use_pppm = true; // use PPPM by default
-  double pppm_spacing;
-  void check_ewald_pppm(const RunInput& run_input);
+  void compute_large_box(
+    const float temperature,
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial);
+
   bool has_dftd3 = false;
   void initialize_dftd3(const RunInput& run_input);
 };

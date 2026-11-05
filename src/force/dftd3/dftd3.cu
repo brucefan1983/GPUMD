@@ -30,7 +30,7 @@ J. Comput. Chem., 32, 1456 (2011).
 #include "dftd3.cuh"
 #include "dftd3para.cuh"
 #include "model/box.cuh"
-#include "neighbor.cuh"
+#include "force/neighbor.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>

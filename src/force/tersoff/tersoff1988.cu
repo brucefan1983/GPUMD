@@ -19,7 +19,7 @@ The version of the Tersoff potential as described in
     of covalent systems, PRB 37, 6991 (1988).
 ------------------------------------------------------------------------------*/
 
-#include "neighbor.cuh"
+#include "force/neighbor.cuh"
 #include "tersoff1988.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"

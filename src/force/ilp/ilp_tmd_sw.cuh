@@ -14,7 +14,7 @@
 */
 
 #pragma once
-#include "potential.cuh"
+#include "force/potential.cuh"
 #include <stdio.h>
 #include <vector>
 

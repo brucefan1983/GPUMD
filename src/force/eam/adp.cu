@@ -25,7 +25,7 @@ Implemented by: Hongjian Chen (Hunan University), hjchen@hnu.edu.cn
 ------------------------------------------------------------------------------*/
 
 #include "adp.cuh"
-#include "neighbor.cuh"
+#include "force/neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cstring>

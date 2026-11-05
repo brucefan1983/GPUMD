@@ -22,7 +22,7 @@ descriptions of elastic and phonon transport properties,
 J. Phys.: Condens. Matter 32, 135901 (2020).
 ------------------------------------------------------------------------------*/
 
-#include "neighbor.cuh"
+#include "force/neighbor.cuh"
 #include "tersoff_mini.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"

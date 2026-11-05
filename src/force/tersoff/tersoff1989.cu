@@ -19,7 +19,7 @@ The double-element version of the Tersoff potential as described in
         for multicomponent systems, PRB 39, 5566 (1989).
 ------------------------------------------------------------------------------*/
 
-#include "neighbor.cuh"
+#include "force/neighbor.cuh"
 #include "tersoff1989.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"

@@ -14,8 +14,8 @@
 */
 
 #pragma once
-#include "neighbor.cuh"
-#include "potential.cuh"
+#include "force/neighbor.cuh"
+#include "force/potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
 

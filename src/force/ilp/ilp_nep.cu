@@ -26,7 +26,7 @@ Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
 ------------------------------------------------------------------------------*/
 
 #include "ilp_nep.cuh"
-#include "neighbor.cuh"
+#include "force/neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
 #include "utilities/nep_model_input.cuh"

@@ -20,7 +20,7 @@ Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
 ------------------------------------------------------------------------------*/
 
-#include "neighbor.cuh"
+#include "force/neighbor.cuh"
 #include "nep_charge.cuh"
 #include "nep_charge_small_box.cuh"
 #include "utilities/common.cuh"

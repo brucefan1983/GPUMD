@@ -14,15 +14,13 @@
 */
 
 #pragma once
-#include "dftd3.cuh"
-#include "neighbor.cuh"
-#include "potential.cuh"
+#include "force/potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 
 class RunInput;
 
-struct NEP_Data {
+struct NEP_MULTIGPU_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
   GPU_Vector<float> f12y; // 3-body or manybody partial forces
   GPU_Vector<float> f12z; // 3-body or manybody partial forces
@@ -35,17 +33,51 @@ struct NEP_Data {
   GPU_Vector<int> NN_angular;   // angular neighbor list
   GPU_Vector<int> NL_angular;   // angular neighbor list
   GPU_Vector<float> parameters; // parameters to be optimized
-  std::vector<int> cpu_NN_radial;
-  std::vector<int> cpu_NN_angular;
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
+
+  GPU_Vector<int> type;
+  GPU_Vector<double> position;
+  GPU_Vector<double> force;
+  GPU_Vector<double> potential;
+  GPU_Vector<double> virial;
+
+  /*
+  M0   M1                   M2
+  |----|--------------------|----|
+  0    N1                   N2   N3
+    N4                         N5
+  using coordinate for [0, N3)
+  compute neighbor list, descriptor, and partial force for [N4, N5)
+  compute force for [N1 N2)
+  */
+
+  int N1, N2, N3, N4, N5; // for local system
+  int M0, M1, M2;         // for global system
+  gpuStream_t stream;
 };
 
-class NEP : public Potential
+struct NEP_TEMP_Data {
+  int num_atoms_per_gpu;
+  std::vector<int> cell_count_sum_cpu;
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
+  GPU_Vector<int> type;
+  GPU_Vector<double> position;
+  GPU_Vector<double> force;
+  GPU_Vector<double> potential;
+  GPU_Vector<double> virial;
+};
+
+class NEP_MULTIGPU : public Potential
 {
 public:
-  NEP_Data nep_data;
   struct ParaMB {
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_zbl_factor = 0.0f;
+    int num_gpus = 1;
     int model_type = 0; // 0=potential, 3=temperature-dependent free energy
     float rc_radial_max = 0.0f;
     float rc_radial_max_inv = 0.0f; 
@@ -56,13 +88,13 @@ public:
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
     int n_max_angular = 0; // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;         // l = 0, 1, 2, ..., L_max
-    int dim_angular;
     int has_q_222 = 0;
     int has_q_1111 = 0;
     int has_q_112 = 0;
     int has_q_123 = 0;
     int has_q_233 = 0;
     int has_q_134 = 0;
+    int dim_angular;
     int num_L;
     int basis_size_radial = 8;
     int basis_size_angular = 8;
@@ -96,21 +128,13 @@ public:
     int num_types;
   };
 
-  struct ExpandedBox {
-    int num_cells[3];
-    float h[18];
-  };
-
-  struct Small_Box_Data {
-        GPU_Vector<int> NN_radial;
-        GPU_Vector<int> NL_radial;
-        GPU_Vector<int> NN_angular;
-        GPU_Vector<int> NL_angular;
-        GPU_Vector<float> r12;
-    } small_box_data;
-
-  NEP(const char* file_potential, const int num_atoms, const RunInput& run_input);
-  virtual ~NEP(void);
+  NEP_MULTIGPU(
+    const int num_gpus,
+    const char* file_potential,
+    const int num_atoms,
+    const int partition_direction,
+    const RunInput& run_input);
+  virtual ~NEP_MULTIGPU(void);
   virtual void compute(
     Box& box,
     const GPU_Vector<int>& type,
@@ -127,55 +151,17 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
-
-  const GPU_Vector<int>& get_NN_radial_ptr();
-
-  const GPU_Vector<int>& get_NL_radial_ptr();
 
 private:
   ParaMB paramb;
-  ANN annmb;
+  ANN annmb[16];
   ZBL zbl;
-  ExpandedBox ebox;
-  DFTD3 dftd3;
-  NeighborManager neighbor_manager;
+  NEP_MULTIGPU_Data nep_data[16];
+  NEP_TEMP_Data nep_temp_data;
 
+  int partition_direction = -1;
+
+  void allocate_memory();
   void update_potential(float* parameters, ANN& ann);
-
-  void compute_small_box(
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    GPU_Vector<double>& potential,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& virial);
-
-  void compute_large_box(
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    GPU_Vector<double>& potential,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& virial);
-
-  void compute_small_box(
-    const float temperature,
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    GPU_Vector<double>& potential,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& virial);
-
-  void compute_large_box(
-    const float temperature,
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    GPU_Vector<double>& potential,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& virial);
-
-  bool has_dftd3 = false;
   void initialize_dftd3(const RunInput& run_input);
 };

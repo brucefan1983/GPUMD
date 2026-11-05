@@ -14,40 +14,29 @@
 */
 
 #pragma once
-#include "neighbor.cuh"
-#include "potential.cuh"
+#include "force/neighbor.cuh"
+#include "force/potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
 
-struct Tersoff_mini_Data {
+struct Tersoff1988_Data {
   GPU_Vector<double> b;    // bond orders
   GPU_Vector<double> bp;   // derivative of bond orders
   GPU_Vector<double> f12x; // partial forces
   GPU_Vector<double> f12y;
   GPU_Vector<double> f12z;
   GPU_Vector<int> NN, NL; // neighbor list for angular-dependent potentials
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
 };
 
-struct Tersoff_mini_Para {
-  double a[3];
-  double b[3];
-  double lambda[3];
-  double mu[3];
-  double beta[3];
-  double n[3];
-  double h[3];
-  double r1[3];
-  double r2[3];
-  double pi_factor[3];
-  double minus_half_over_n[3];
-};
-
-class Tersoff_mini : public Potential
+class Tersoff1988 : public Potential
 {
 public:
   using Potential::compute;
-  Tersoff_mini(FILE*, int, const int num_atoms);
-  virtual ~Tersoff_mini(void);
+  Tersoff1988(FILE*, int sum_of_types, const int num_atoms);
+  virtual ~Tersoff1988(void);
   virtual void compute(
     Box& box,
     const GPU_Vector<int>& type,
@@ -57,8 +46,8 @@ public:
     GPU_Vector<double>& virial);
 
 protected:
-  int num_types; // number of atom tpyes
-  Tersoff_mini_Data tersoff_mini_data;
-  Tersoff_mini_Para para;
+  int num_types;
+  GPU_Vector<double> ters;
+  Tersoff1988_Data tersoff_data;
   NeighborManager neighbor_manager;
 };
