@@ -36,6 +36,7 @@ public:
   bool rerun_needs_thermo() const;
   bool rerun_needs_velocity() const;
   bool rerun_output_conflicts(const std::string& trajectory) const;
+  void set_xyz_header_step(long long timestep);
 
   void pre_rerun(
     const double time_step, Integrate& integrate, std::vector<Group>& group,
