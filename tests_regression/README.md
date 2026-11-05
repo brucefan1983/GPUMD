@@ -38,12 +38,12 @@ regression-specific inputs self-contained.
 
 ## Acceptance contract
 
-`full` is the only acceptance suite. It contains all 255 cases and evaluates
+`full` is the only acceptance suite. It contains all 256 cases and evaluates
 all 25 cross-case relations after the cases pass. Every case and relation runs
 for both the baseline and candidate, using the same expectations. A successful run ends with:
 
 ```text
-Summary: 255 passed, 0 failed; relations: 25 passed, 0 failed, 0 skipped
+Summary: 256 passed, 0 failed; relations: 25 passed, 0 failed, 0 skipped
 ```
 
 Focused suites are diagnostic subsets only. A focused result is not a
@@ -68,7 +68,7 @@ python3 tests_regression/run_regression.py \
   --suite full --keep-all
 ```
 
-The intended self-comparison result is 255 passing cases and 25 passing
+The intended self-comparison result is 256 passing cases and 25 passing
 relations. A failure requires inspecting the diagnostic or numerical delta;
 using the same executable does not bypass any check or guarantee bitwise
 GPU reproducibility. After self-comparison, use the accepted and candidate
@@ -160,7 +160,7 @@ suites exist only to isolate a failure:
 | `training` | NEP, qNEP, vdW, charge-vdW, and tensorial-NEP training paths |
 | `prediction` | NEP prediction from an existing model over multiple batches |
 | `pppm` | spacing, mesh sizing, resource lifecycle, and related existing qNEP cases |
-| `full` | all 255 cases and all 25 relations |
+| `full` | all 256 cases and all 25 relations |
 
 For example, a focused rerun may help diagnose a full-suite failure:
 

@@ -239,6 +239,10 @@ def test_package_fixture_hashes_are_pinned():
             "d86495b5cc3db5d98bfc678b1d97772c3ce3686d82ded53efc19e57fe23a4580",
         "fixtures/potentials/graphene_nep_ilp.txt":
             "fd19e1228ee6627802f7be6cfe4f85e523885db36ff18ffd1e383f782a0e72f0",
+        "fixtures/potentials/graphene_nep_ilp_short_cutoff.txt":
+            "2f533c3e4806d445866df400d875aa8374af88aa6ab83e2809eb52ed83ddab4f",
+        "fixtures/potentials/bilayer_graphene_map_C_2022_NEP4.txt":
+            "292822a8e556d6055026d5db7dafcd02c86a629d4fb97d2b5bb232c97a5cc447",
         "fixtures/potentials/graphene_tersoff_ilp.txt":
             "389896b88a0a901a82160f407d3b7d2146c3e0c5972c1632dcb8fd88b43d33d2",
         "fixtures/potentials/graphene_tersoff_1988_params.txt":
@@ -387,6 +391,7 @@ def test_behavior_contract_cases_are_full_differential_cases():
         "replicate_duplicate",
         "dftd3_duplicate",
         "kspace_duplicate",
+        "ilp_nep_cutoff_below_nep",
     }
     for case_id in behavior_contract_ids:
         case = cases[case_id]

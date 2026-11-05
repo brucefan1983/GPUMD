@@ -292,6 +292,26 @@
         }
       ]
     },
+    "ilp_nep_graphene_short_cutoff": {
+      "stage": [
+        {
+          "source": "package:fixtures/systems/bilayer_graphene_primitive.xyz",
+          "target": "model.xyz"
+        },
+        {
+          "source": "package:fixtures/potentials/graphene_nep_ilp_short_cutoff.txt",
+          "target": "ilp_nep.txt"
+        },
+        {
+          "source": "package:fixtures/potentials/bilayer_graphene_map_C_2022_NEP4.txt",
+          "target": "bilayer_graphene_map_nep.txt"
+        },
+        {
+          "source": "repo:potentials/nep/C_2022_NEP4.txt",
+          "target": "C_2022_NEP4.txt"
+        }
+      ]
+    },
     "ilp_tersoff_graphene": {
       "stage": [
         {
@@ -4427,6 +4447,26 @@
         "neighbor.out"
       ],
       "input_style": "canonical"
+    },
+    {
+      "id": "ilp_nep_cutoff_below_nep",
+      "description": "Reject an ILP cutoff between the integer part and the full NEP radial cutoff",
+      "suites": [
+        "invalid",
+        "potential",
+        "full"
+      ],
+      "fixture": "ilp_nep_graphene_short_cutoff",
+      "input": "package:cases/bugfix/ilp_nep_cutoff_below_nep.in",
+      "covers": [
+        "potential:nep-ilp",
+        "contract:ilp-nep-cutoff"
+      ],
+      "expect": "failure",
+      "expected_returncode": 1,
+      "stdout_contains": "ERROR: Please make sure cutoff of ILP is larger than it of NEP.",
+      "outputs": [],
+      "input_style": "intentional_invalid"
     },
     {
       "id": "ilp_tersoff_compute",
