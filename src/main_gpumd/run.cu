@@ -252,6 +252,7 @@ void Run::perform_a_run(const int number_of_steps)
     calculate_time_step(
       max_distance_per_step, atom.velocity_per_atom, initial_time_step, time_step);
     global_time += time_step;
+    ++global_md_step;
 
     integrate.compute1(time_step, step, number_of_steps, group, box, atom, thermo);
 
@@ -268,6 +269,7 @@ void Run::perform_a_run(const int number_of_steps)
     integrate.compute2(time_step, step, number_of_steps, group, box, atom, thermo, force);
     atom.update_unwrapped_position(box);
 
+    measure.set_xyz_header_step(global_md_step);
     measure.end_of_step(
       number_of_steps,
       step,
