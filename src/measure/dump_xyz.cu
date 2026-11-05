@@ -266,6 +266,7 @@ void Dump_XYZ::print_tensor(const char* name, const double* tensor)
 }
 
 void Dump_XYZ::output_line2(
+  const long long timestep,
   const double time,
   const Box& box,
   std::vector<Group>& groups,
@@ -275,6 +276,8 @@ void Dump_XYZ::output_line2(
 {
   // time
   fprintf(fid_, "Time=%.8f", time * TIME_UNIT_CONVERSION); // output time is in units of fs
+  // Exact integer step avoids loss of precision when rerunning long trajectories.
+  fprintf(fid_, " Step=%lld", timestep);
 
   // PBC
   fprintf(
@@ -446,7 +449,7 @@ void Dump_XYZ::end_of_step(
   fprintf(fid_, "%d\n", number_of_atoms_to_dump);
 
   // line 2
-  output_line2(global_time, box, groups, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
+  output_line2(static_cast<long long>(step) + 1, global_time, box, groups, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
 
   // other lines
   for (int n = 0; n < number_of_atoms_to_dump; n++) {
