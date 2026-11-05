@@ -37,7 +37,7 @@ public:
   void init(const double ts, const double T);
   // Reuse the existing PLUMED engine without requiring an MD ensemble.
   // Rerun does not alter the public 'plumed filename interval restart' syntax.
-  void pre_rerun(const double ts, Atom& atom);
+  void pre_rerun(const double ts, const double temperature, Atom& atom);
   void rerun_frame(const long long timestep, Box& box, Atom& atom);
   void post_rerun();
 
