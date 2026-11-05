@@ -402,16 +402,6 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   if (!has_potential_for_rerun_) {
     PRINT_INPUT_ERROR("A potential must be specified before rerun.");
   }
-  // Temperature-dependent potentials consume Force::temperature, which the
-  // trajectory-only interface does not define. Never silently reuse an
-  // uninitialized or previous MD-run temperature.
-  for (int i = 0; i < force.get_number_of_potentials(); ++i) {
-    if (force.get_potential(i).nep_model_type == 3) {
-      PRINT_INPUT_ERROR(
-        "rerun does not yet support temperature-dependent NEP potentials; "
-        "the replay trajectory has no temperature parameter.");
-    }
-  }
   if (tokens.size() < 2) {
     PRINT_INPUT_ERROR("rerun trajectory.xyz [first N] [last N] [every N] [skip N]");
   }
@@ -421,9 +411,23 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   }
 
   gpumd_rerun::Selection selection;
+  double rerun_temperature = 0.0;
+  bool has_rerun_temperature = false;
   for (size_t i = 2; i < tokens.size(); i += 2) {
     if (i + 1 >= tokens.size()) {
       PRINT_INPUT_ERROR("rerun requires a value after each keyword.");
+    }
+    if (tokens[i] == "temperature") {
+      if (has_rerun_temperature) {
+        PRINT_INPUT_ERROR("rerun temperature may only be specified once.");
+      }
+      try {
+        rerun_temperature = gpumd_rerun::parse_temperature_kelvin(tokens[i + 1]);
+      } catch (const std::exception& error) {
+        PRINT_INPUT_ERROR(error.what());
+      }
+      has_rerun_temperature = true;
+      continue;
     }
     long long value = 0;
     try {
@@ -437,11 +441,22 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
     else if (tokens[i] == "last") selection.last = value;
     else if (tokens[i] == "every") selection.every = value;
     else if (tokens[i] == "skip") selection.skip = value;
-    else PRINT_INPUT_ERROR("unsupported rerun keyword (first, last, every, skip).");
+    else PRINT_INPUT_ERROR("unsupported rerun keyword (first, last, every, skip, temperature).");
   }
   if (selection.first < 0 || selection.last < selection.first ||
       selection.every < 0 || selection.skip <= 0) {
     PRINT_INPUT_ERROR("invalid rerun selection arguments.");
+  }
+  bool uses_temperature_dependent_potential = false;
+  for (int i = 0; i < force.get_number_of_potentials(); ++i) {
+    if (force.get_potential(i).nep_model_type == 3) {
+      uses_temperature_dependent_potential = true;
+    }
+  }
+  if (uses_temperature_dependent_potential && !has_rerun_temperature) {
+    PRINT_INPUT_ERROR(
+      "Temperature-dependent potential requires rerun trajectory.xyz temperature T "
+      "(T in kelvin).");
   }
   measure.validate_rerun(has_potential_for_rerun_);
   if (measure.rerun_output_conflicts(tokens[1])) {
@@ -449,6 +464,13 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   }
   const bool needs_velocity = measure.rerun_needs_velocity();
   const double dt_fs = time_step * TIME_UNIT_CONVERSION;
+  // GPUMD's temperature-dependent potentials read Force::temperature.
+  // Use the existing setter with a constant-temperature interval, without
+  // introducing an ensemble or changing any PLUMED parameters.
+  const double previous_force_temperature = force.get_temperature();
+  if (has_rerun_temperature) {
+    force.set_temperature_range(rerun_temperature, rerun_temperature, 1);
+  }
   const Box original_box = box;
   const int N = atom.number_of_atoms;
 
@@ -575,6 +597,9 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   if (!original_mforce.empty()) atom.mforce_per_atom.copy_from_host(original_mforce.data());
   if (!original_thermo.empty()) thermo.copy_from_host(original_thermo.data());
 
+  if (has_rerun_temperature) {
+    force.set_temperature_range(previous_force_temperature, previous_force_temperature, 1);
+  }
   printf("Rerun processed %lld frames without integration.\n", processed);
 }
 
