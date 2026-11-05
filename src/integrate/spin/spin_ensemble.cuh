@@ -35,8 +35,8 @@ public:
   Spin_Ensemble(
     const std::vector<std::string>&, const Atom&, const Box&, const std::vector<Group>&, Force&);
   ~Spin_Ensemble() override;
-  double initial_temperature() const { return temperature1; }
-  double final_temperature() const { return temperature2; }
+  double get_temperature1() const { return temperature1; }
+  double get_temperature2() const { return temperature2; }
   void initialize_run(double, Atom&, Box&, const std::vector<Group>&) override;
   void initialize_before_first_step(
     double, int, const std::vector<Group>&, Box&, Atom&, GPU_Vector<double>&) override;

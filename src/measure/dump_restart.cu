@@ -148,12 +148,13 @@ void Dump_Restart::end_of_step(
         atom.cpu_spin_per_atom[n + number_of_atoms],
         atom.cpu_spin_per_atom[n + 2 * number_of_atoms]);
       if (atom.spin_velocity_initialized) {
+        const double natural_to_per_fs = 1.0 / TIME_UNIT_CONVERSION;
         fprintf(
           fid,
           "%.17g %.17g %.17g ",
-          atom.cpu_spin_velocity_per_atom[n] * natural_to_A_per_fs,
-          atom.cpu_spin_velocity_per_atom[n + number_of_atoms] * natural_to_A_per_fs,
-          atom.cpu_spin_velocity_per_atom[n + 2 * number_of_atoms] * natural_to_A_per_fs);
+          atom.cpu_spin_velocity_per_atom[n] * natural_to_per_fs,
+          atom.cpu_spin_velocity_per_atom[n + number_of_atoms] * natural_to_per_fs,
+          atom.cpu_spin_velocity_per_atom[n + 2 * number_of_atoms] * natural_to_per_fs);
       }
     }
 

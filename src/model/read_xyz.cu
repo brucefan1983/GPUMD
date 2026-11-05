@@ -162,11 +162,11 @@ static void read_xyz_line_2(
   bool& has_mass,
   bool& has_charge,
   bool& has_spin,
+  bool& has_spin_velocity,
   const bool enable_spin,
   int& num_columns,
   int* property_offset,
-  std::vector<Group>& group,
-  Atom& atom)
+  std::vector<Group>& group)
 {
   std::vector<std::string> tokens = get_tokens_without_unwanted_spaces(input);
   for (auto& token : tokens) {
@@ -264,7 +264,8 @@ static void read_xyz_line_2(
         for (int prop = 0; prop < num_properties; ++prop) {
           if (sub_tokens[k * 3] == property_name[prop] && (prop < 6 || enable_spin)) {
             if (prop >= 6 && property_position[prop] >= 0) {
-              PRINT_INPUT_ERROR(prop == 6 ? "Duplicate spin property." : "Duplicate spin_vel property.");
+              PRINT_INPUT_ERROR(
+                prop == 6 ? "Duplicate spin property." : "Duplicate spin_vel property.");
             }
             property_position[prop] = k;
           }
@@ -328,8 +329,8 @@ static void read_xyz_line_2(
     has_charge = true;
   }
   has_spin = property_position[6] >= 0;
-  atom.spin_velocity_initialized = property_position[7] >= 0;
-  if (atom.spin_velocity_initialized && !has_spin) {
+  has_spin_velocity = property_position[7] >= 0;
+  if (has_spin_velocity && !has_spin) {
     PRINT_INPUT_ERROR("spin_vel:R:3 requires spin:R:3.");
   }
 }
@@ -549,11 +550,11 @@ void initialize_position(
     has_mass,
     has_charge,
     atom.has_spin,
+    atom.spin_velocity_initialized,
     NEP_Spin_Model_File::is_spin_model(filename_potential),
     num_columns,
     property_offset,
-    group,
-    atom);
+    group);
 
   read_xyz_in_line_3(
     input,
