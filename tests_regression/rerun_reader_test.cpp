@@ -102,6 +102,18 @@ int main()
   }
   assert(rejected);
 
+  // Explicit rerun temperature parsing: positive, finite Kelvin values only.
+  assert(gpumd_rerun::parse_temperature_kelvin("950") == 950.0);
+  assert(gpumd_rerun::parse_temperature_kelvin("300.5") == 300.5);
+  for (const char* invalid : {"0", "-5", "nan", "inf", "950junk"}) {
+    bool rejected = false;
+    try {
+      (void)gpumd_rerun::parse_temperature_kelvin(invalid);
+    } catch (const std::exception&) {
+      rejected = true;
+    }
+    assert(rejected);
+  }
   std::remove(path);
   return 0;
 }
