@@ -647,7 +647,7 @@ __global__ void find_potential_warp(
       q[d] = descriptor[static_cast<std::size_t>(N) * d + atom] * q_scaler[d];
     }
   }
-  __syncwarp(atom_mask);
+  __syncwarp(gpuLaneMask(atom_mask));
   if (atom >= N) {
     return;
   }
@@ -671,9 +671,9 @@ __global__ void find_potential_warp(
     energy += w1[neuron] * activation;
   }
   for (int offset = lanes_per_atom / 2; offset > 0; offset >>= 1) {
-    energy += __shfl_down_sync(atom_mask, energy, offset, lanes_per_atom);
+    energy += __shfl_down_sync(gpuLaneMask(atom_mask), energy, offset, lanes_per_atom);
   }
-  __syncwarp(atom_mask);
+  __syncwarp(gpuLaneMask(atom_mask));
 
   if (work_lane == 0) {
     energy -= b1[0];
@@ -831,7 +831,8 @@ __global__ void find_force_angular_warp(
   }
   for (int offset = edge_lanes / 2; offset > 0; offset >>= 1) {
     for (int d = 0; d < 3; ++d) {
-      center_force[d] += __shfl_down_sync(center_mask, center_force[d], offset, edge_lanes);
+      center_force[d] +=
+        __shfl_down_sync(gpuLaneMask(center_mask), center_force[d], offset, edge_lanes);
     }
   }
   if (edge_lane == 0) {

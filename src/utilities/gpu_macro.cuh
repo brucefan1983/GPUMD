@@ -105,6 +105,10 @@
 #define GPUFFT_FORWARD HIPFFT_FORWARD
 #define GPUFFT_INVERSE HIPFFT_BACKWARD
 
+// warp masks: kernels tile blocks into 32-lane warps, and on a 64-lane
+// wavefront the second tile occupies lanes 32-63
+#define gpuLaneMask(mask) (static_cast<unsigned long long>(mask) << (__lane_id() & 32))
+
 #else // CUDA for Nvidia card
 
 // memory manipulation
@@ -195,5 +199,8 @@
 #define GPUFFT_C2C CUFFT_C2C
 #define GPUFFT_FORWARD CUFFT_FORWARD
 #define GPUFFT_INVERSE CUFFT_INVERSE
+
+// warp masks
+#define gpuLaneMask(mask) (mask)
 
 #endif

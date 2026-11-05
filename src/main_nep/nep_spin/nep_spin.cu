@@ -185,7 +185,7 @@ static __global__ void apply_ann_one_layer_warp(
         w0_times_q += w0[n * dim + d] * q[k];
     }
     for (int offset = warp_size / 2; offset > 0; offset /= 2) {
-      w0_times_q += __shfl_down_sync(0xffffffff, w0_times_q, offset);
+      w0_times_q += __shfl_down_sync(gpuLaneMask(0xffffffff), w0_times_q, offset, warp_size);
     }
     float derivative_scale = 0.0f;
     if (lane == 0) {
@@ -193,7 +193,7 @@ static __global__ void apply_ann_one_layer_warp(
       derivative_scale = w1[n] * (1.0f - x1 * x1);
       energy += w1[n] * x1;
     }
-    derivative_scale = __shfl_sync(0xffffffff, derivative_scale, 0);
+    derivative_scale = __shfl_sync(gpuLaneMask(0xffffffff), derivative_scale, 0, warp_size);
     for (int k = 0; k < values_per_lane; ++k) {
       const int d = lane + k * warp_size;
       if (d < dim)

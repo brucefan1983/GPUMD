@@ -340,7 +340,7 @@ __device__ __noinline__ void build_spin3_oc_center_pull_row(
     }
   }
 
-  __syncwarp(active_mask);
+  __syncwarp(gpuLaneMask(active_mask));
 
   if (layout.edge_l11_axial >= 0) {
     float m0[3], p0[3], p1[3], x0[3], l0[1], t0[5], w0[3];
@@ -579,7 +579,7 @@ __global__ void accumulate_spin3_oc_native_forces(
     for (int k = edge_lane; k < layout.moment_count; k += EdgeLanes) {
       inline_pull[k] = 0.0f;
     }
-    __syncwarp(center_mask);
+    __syncwarp(gpuLaneMask(center_mask));
     if (edge_lane < C) {
       const unsigned int row_mask = (0xffffffffu >> (32 - C)) << (atom_lane * EdgeLanes);
       build_spin3_oc_center_pull_row<C, true>(
@@ -596,7 +596,7 @@ __global__ void accumulate_spin3_oc_native_forces(
         inline_pull,
         mforce_soa3);
     }
-    __syncwarp(center_mask);
+    __syncwarp(gpuLaneMask(center_mask));
     if (edge_lane == 0) {
       const double scale =
         2.0 * static_cast<double>(fp[atom + atom_stride * (struct_dim + layout.local_s2)]);
@@ -810,13 +810,15 @@ __global__ void accumulate_spin3_oc_native_forces(
   }
   for (int offset = EdgeLanes / 2; offset > 0; offset >>= 1) {
     for (int d = 0; d < 3; ++d) {
-      center_force[d] += __shfl_down_sync(center_mask, center_force[d], offset, EdgeLanes);
-      center_mforce[d] += __shfl_down_sync(center_mask, center_mforce[d], offset, EdgeLanes);
+      center_force[d] +=
+        __shfl_down_sync(gpuLaneMask(center_mask), center_force[d], offset, EdgeLanes);
+      center_mforce[d] +=
+        __shfl_down_sync(gpuLaneMask(center_mask), center_mforce[d], offset, EdgeLanes);
     }
     if (AccumulateCenterVirial) {
       for (int component = 0; component < 9; ++component) {
         center_virial[component] +=
-          __shfl_down_sync(center_mask, center_virial[component], offset, EdgeLanes);
+          __shfl_down_sync(gpuLaneMask(center_mask), center_virial[component], offset, EdgeLanes);
       }
     }
   }
