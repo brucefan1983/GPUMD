@@ -200,6 +200,28 @@ void Integrate::initialize(
   ensemble.initialize_run(time_step, atom, box, group);
 }
 
+double Integrate::get_rerun_temperature() const
+{
+  // Most thermostatted ensembles expose their configured target via
+  // temperature1; a few older ensembles record it in temperature.
+  return temperature1 > 0.0 ? temperature1 : temperature;
+}
+
+void Integrate::finalize_rerun()
+{
+  // No ensemble.initialize_run() or integration was performed; do not call
+  // ensemble_->finalize_run() on a never-initialized ensemble.
+  ensemble_.reset();
+  type = EnsembleType::UNKNOWN;
+  fixed_group = -1;
+  move_group = -1;
+  fixed_grouping_method = 0;
+  move_grouping_method = 0;
+  deform_x = deform_y = deform_z = 0;
+  deform_xy = deform_xz = deform_yz = 0;
+  temperature1 = temperature2 = temperature = 0.0;
+}
+
 void Integrate::finalize(const Atom& atom, const Box& box)
 {
   if (has_ensemble()) {
