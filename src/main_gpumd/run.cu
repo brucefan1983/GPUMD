@@ -404,33 +404,20 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
     PRINT_INPUT_ERROR("A potential must be specified before rerun.");
   }
   if (tokens.size() < 2) {
-    PRINT_INPUT_ERROR("rerun trajectory.xyz [first N] [last N] [every N] [skip N] [temperature T]");
+    PRINT_INPUT_ERROR("rerun trajectory.xyz [first N] [last N] [every N] [skip N]");
   }
-  // A pending MD ensemble should not be used for replay-only analysis.
-  if (integrate.has_ensemble()) {
-    PRINT_INPUT_ERROR("rerun cannot execute with a pending ensemble; run or remove it first.");
-  }
+  // Replay reads any configured temperature from the ordinary GPUMD
+  // ensemble command. No separate temperature option is introduced.
+  const bool has_ensemble_for_rerun = integrate.has_ensemble();
+  const double simulation_temperature =
+    has_ensemble_for_rerun ? integrate.get_rerun_temperature() : 0.0;
 
   gpumd_rerun::Selection selection;
-  double rerun_temperature = 0.0;
-  bool has_rerun_temperature = false;
   // The first version accepts exactly one trajectory, tokens[1].
   // Any additional positional filename is rejected as an unknown keyword.
   for (size_t i = 2; i < tokens.size(); i += 2) {
     if (i + 1 >= tokens.size()) {
       PRINT_INPUT_ERROR("rerun requires a value after each keyword.");
-    }
-    if (tokens[i] == "temperature") {
-      if (has_rerun_temperature) {
-        PRINT_INPUT_ERROR("rerun temperature may only be specified once.");
-      }
-      try {
-        rerun_temperature = gpumd_rerun::parse_temperature_kelvin(tokens[i + 1]);
-      } catch (const std::exception& error) {
-        PRINT_INPUT_ERROR(error.what());
-      }
-      has_rerun_temperature = true;
-      continue;
     }
     long long value = 0;
     try {
@@ -444,7 +431,7 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
     else if (tokens[i] == "last") selection.last = value;
     else if (tokens[i] == "every") selection.every = value;
     else if (tokens[i] == "skip") selection.skip = value;
-    else PRINT_INPUT_ERROR("unsupported rerun keyword (first, last, every, skip, temperature).");
+    else PRINT_INPUT_ERROR("unsupported rerun keyword (first, last, every, skip).");
   }
   if (selection.first < 0 || selection.last < selection.first ||
       selection.every < 0 || selection.skip <= 0) {
@@ -456,10 +443,11 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
       uses_temperature_dependent_potential = true;
     }
   }
-  if (uses_temperature_dependent_potential && !has_rerun_temperature) {
+  if (uses_temperature_dependent_potential &&
+      !(simulation_temperature > 0.0) ) {
     PRINT_INPUT_ERROR(
-      "Temperature-dependent potential requires rerun trajectory.xyz temperature T "
-      "(T in kelvin).");
+      "Temperature-dependent potential requires a temperature-bearing GPUMD "
+      "ensemble command before rerun (e.g. a constant-temperature NVT ensemble).");
   }
   measure.validate_rerun(has_potential_for_rerun_);
   if (measure.rerun_output_conflicts(tokens[1])) {
@@ -467,12 +455,11 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   }
   const bool needs_velocity = measure.rerun_needs_velocity();
   const double dt_fs = time_step * TIME_UNIT_CONVERSION;
-  // GPUMD's temperature-dependent potentials read Force::temperature.
-  // Use the existing setter with a constant-temperature interval, without
-  // introducing an ensemble or changing any PLUMED parameters.
+  // Match ordinary run: initialize Force from GPUMD's ensemble temperature,
+  // but never initialize or advance the integrator.
   const double previous_force_temperature = force.get_temperature();
-  if (has_rerun_temperature) {
-    force.set_temperature_range(rerun_temperature, rerun_temperature, 1);
+  if (simulation_temperature > 0.0) {
+    force.set_temperature_range(simulation_temperature, simulation_temperature, 1);
   }
   const Box original_box = box;
   const int N = atom.number_of_atoms;
@@ -509,8 +496,7 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   long long previous_step = std::numeric_limits<long long>::min();
   try {
     gpumd_rerun::Frame frame;
-    measure.pre_rerun(time_step, has_rerun_temperature ? rerun_temperature : 0.0, integrate, group, atom, box, force);
-    // Keep PLUMED and Measure alive across file boundaries.
+    measure.pre_rerun(time_step, simulation_temperature, integrate, group, atom, box, force);
     gpumd_rerun::Reader reader(tokens[1]);
     while (reader.next(frame)) {
       const long long step = gpumd_rerun::frame_step(frame, dt_fs);
@@ -604,9 +590,12 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   if (!original_mforce.empty()) atom.mforce_per_atom.copy_from_host(original_mforce.data());
   if (!original_thermo.empty()) thermo.copy_from_host(original_thermo.data());
 
-  if (has_rerun_temperature) {
+  if (simulation_temperature > 0.0) {
     force.set_temperature_range(previous_force_temperature, previous_force_temperature, 1);
   }
+  // No MD integration occurred, so do not call the MD ensemble finalizer.
+  // Consume its configuration as a normal run would consume the ensemble.
+  if (has_ensemble_for_rerun) integrate.finalize_rerun();
   printf("Rerun processed %lld frames without integration.\n", processed);
 }
 
