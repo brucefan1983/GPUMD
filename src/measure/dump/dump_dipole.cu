@@ -120,7 +120,7 @@ void Dump_Dipole::pre_run(
 
     nep_response_.reset(new NEP_Response(file_potential_.c_str(), atom));
     if (!nep_response_->is_dipole()) {
-      PRINT_INPUT_ERROR("dump_dipole requires a nep4_dipole model.");
+      PRINT_INPUT_ERROR("dump_dipole requires model nep_dipole.");
     }
   }
 }
