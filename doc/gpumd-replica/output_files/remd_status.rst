@@ -1,6 +1,6 @@
 .. _replica_remd_status:
 .. index::
-   single: gpumd_replica output files; remd_status
+   single: replica dynamics output files; remd_status
 
 ``remd_temperature_status.out``
 ===============================

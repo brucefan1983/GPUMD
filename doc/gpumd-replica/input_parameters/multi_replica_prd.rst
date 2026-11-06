@@ -1,6 +1,6 @@
 .. _replica_prd:
 .. index::
-   single: multi_replica prd (keyword in gpumd_replica run.in)
+   single: multi_replica prd (keyword in replica run.in)
 
 :attr:`!multi_replica prd`
 ==========================

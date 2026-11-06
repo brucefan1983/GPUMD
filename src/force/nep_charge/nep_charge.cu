@@ -169,6 +169,15 @@ void NEP_Charge::initialize_dftd3(const RunInput& run_input)
 
 NEP_Charge::NEP_Charge(
   const char* file_potential, const int num_atoms, const RunInput& run_input)
+  : NEP_Charge(file_potential, num_atoms, run_input, true)
+{
+}
+
+NEP_Charge::NEP_Charge(
+  const char* file_potential,
+  const int num_atoms,
+  const RunInput& run_input,
+  const bool verbose)
 {
   NEP_Model_Input input(file_potential);
 
@@ -209,10 +218,10 @@ NEP_Charge::NEP_Charge(
   }
 
   if (paramb.num_types == 1) {
-    printf("Use the NEP4-Charge%d potential with %d atom type.\n", 
+    if (verbose) printf("Use the NEP4-Charge%d potential with %d atom type.\n",
       paramb.charge_mode, paramb.num_types);
   } else {
-    printf("Use the NEP4-Charge%d potential with %d atom types.\n", 
+    if (verbose) printf("Use the NEP4-Charge%d potential with %d atom types.\n",
       paramb.charge_mode, paramb.num_types);
   }
 
@@ -225,7 +234,7 @@ NEP_Charge::NEP_Charge(
       }
     }
     zbl.atomic_numbers[n] = atomic_number;
-    printf("    type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
+    if (verbose) printf("    type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
   }
 
   // zbl
@@ -243,10 +252,10 @@ NEP_Charge::NEP_Charge(
       if (tokens.size() == 4) {
         paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
         paramb.use_typewise_cutoff_zbl = true;
-        printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
+        if (verbose) printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
           paramb.typewise_cutoff_zbl_factor);
       } else {
-        printf(
+        if (verbose) printf(
           "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
           zbl.rc_inner,
           zbl.rc_outer);
@@ -262,12 +271,12 @@ NEP_Charge::NEP_Charge(
   }
   paramb.rc_radial = get_double_from_token(tokens[1], __FILE__, __LINE__);
   paramb.rc_angular = get_double_from_token(tokens[2], __FILE__, __LINE__);
-  printf("    radial cutoff = %g A.\n", paramb.rc_radial);
-  printf("    angular cutoff = %g A.\n", paramb.rc_angular);
+  if (verbose) printf("    radial cutoff = %g A.\n", paramb.rc_radial);
+  if (verbose) printf("    angular cutoff = %g A.\n", paramb.rc_angular);
 
   int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
   int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
-  printf("    MN_radial = %d.\n", MN_radial);
+  if (verbose) printf("    MN_radial = %d.\n", MN_radial);
   if (MN_radial > 819) {
     std::cout << "The maximum number of neighbors exceeds 819. Please reduce this value."
               << std::endl;
@@ -275,8 +284,8 @@ NEP_Charge::NEP_Charge(
   }
   paramb.MN_radial = int(ceil(MN_radial * 1.25));
   paramb.MN_angular = int(ceil(MN_angular * 1.25));
-  printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
-  printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
+  if (verbose) printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
+  if (verbose) printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
   // n_max 10 8
   tokens = input.get_tokens();
@@ -286,8 +295,8 @@ NEP_Charge::NEP_Charge(
   }
   paramb.n_max_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
   paramb.n_max_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
-  printf("    n_max_radial = %d.\n", paramb.n_max_radial);
-  printf("    n_max_angular = %d.\n", paramb.n_max_angular);
+  if (verbose) printf("    n_max_radial = %d.\n", paramb.n_max_radial);
+  if (verbose) printf("    n_max_angular = %d.\n", paramb.n_max_angular);
 
   // basis_size 10 8
   tokens = input.get_tokens();
@@ -298,8 +307,8 @@ NEP_Charge::NEP_Charge(
   }
   paramb.basis_size_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
   paramb.basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
-  printf("    basis_size_radial = %d.\n", paramb.basis_size_radial);
-  printf("    basis_size_angular = %d.\n", paramb.basis_size_angular);
+  if (verbose) printf("    basis_size_radial = %d.\n", paramb.basis_size_radial);
+  if (verbose) printf("    basis_size_angular = %d.\n", paramb.basis_size_angular);
 
   // l_max
   tokens = input.get_tokens();
@@ -309,7 +318,7 @@ NEP_Charge::NEP_Charge(
   }
 
   paramb.L_max = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  printf("    l_max_3body = %d.\n", paramb.L_max);
+  if (verbose) printf("    l_max_3body = %d.\n", paramb.L_max);
   paramb.num_L = paramb.L_max;
 
   paramb.has_q_222 = get_int_from_token(tokens[2], __FILE__, __LINE__);
@@ -326,12 +335,12 @@ NEP_Charge::NEP_Charge(
   if (tokens.size() >= 8) {
     paramb.has_q_134 = get_int_from_token(tokens[7], __FILE__, __LINE__);
   }
-  printf("    has_q_222 = %d.\n", paramb.has_q_222);
-  printf("    has_q_1111 = %d.\n", paramb.has_q_1111);
-  printf("    has_q_112 = %d.\n", paramb.has_q_112);
-  printf("    has_q_123 = %d.\n", paramb.has_q_123);
-  printf("    has_q_233 = %d.\n", paramb.has_q_233);
-  printf("    has_q_134 = %d.\n", paramb.has_q_134);
+  if (verbose) printf("    has_q_222 = %d.\n", paramb.has_q_222);
+  if (verbose) printf("    has_q_1111 = %d.\n", paramb.has_q_1111);
+  if (verbose) printf("    has_q_112 = %d.\n", paramb.has_q_112);
+  if (verbose) printf("    has_q_123 = %d.\n", paramb.has_q_123);
+  if (verbose) printf("    has_q_233 = %d.\n", paramb.has_q_233);
+  if (verbose) printf("    has_q_134 = %d.\n", paramb.has_q_134);
   if (paramb.has_q_222) {
     paramb.num_L += 1;
   }
@@ -361,7 +370,7 @@ NEP_Charge::NEP_Charge(
   }
   annmb.num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
   annmb.dim = (paramb.n_max_radial + 1) + paramb.dim_angular;
-  printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
+  if (verbose) printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
 
   // calculated parameters:
   rc = paramb.rc_radial; // largest cutoff
@@ -371,13 +380,13 @@ NEP_Charge::NEP_Charge(
 
   annmb.num_para_ann = (annmb.dim + 3) * annmb.num_neurons1 * paramb.num_types + 2;
 
-  printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
+  if (verbose) printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
                            (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-  printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
+  if (verbose) printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
   annmb.num_para = annmb.num_para_ann + num_para_descriptor;
-  printf("    total number of parameters = %d.\n", annmb.num_para);
+  if (verbose) printf("    total number of parameters = %d.\n", annmb.num_para);
 
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
@@ -415,6 +424,7 @@ NEP_Charge::NEP_Charge(
   check_need_bec(run_input);
   if (use_pppm) {
     pppm.initialize(charge_para.alpha, check_need_peratom_virial(run_input), pppm_spacing);
+    pppm.set_verbose(verbose);
   } else {
     ewald.initialize(charge_para.alpha);
   }
@@ -1353,6 +1363,18 @@ static __global__ void find_charge_self_energy(
 }
 
 // large box fo MD applications
+void NEP_Charge::update_candidate_neighbors(
+  Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position_per_atom,
+  const int*& NN,
+  const int*& NL)
+{
+  neighbor_manager.update(box, type, position_per_atom);
+  NN = neighbor_manager.get_candidate_NN().data();
+  NL = neighbor_manager.get_candidate_NL().data();
+}
+
 void NEP_Charge::compute_large_box(
   Box& box,
   const GPU_Vector<int>& type,
@@ -1365,12 +1387,11 @@ void NEP_Charge::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor_manager.update(
-    box, 
-    type, 
-    position_per_atom);
+  const int* candidate_NN = nullptr;
+  const int* candidate_NL = nullptr;
+  update_candidate_neighbors(box, type, position_per_atom, candidate_NN, candidate_NL);
 
-  find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
+  find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
     paramb,
     N,
     N1,
@@ -1380,16 +1401,19 @@ void NEP_Charge::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    neighbor_manager.get_candidate_NN().data(),
-    neighbor_manager.get_candidate_NL().data(),
+    candidate_NN,
+    candidate_NL,
     nep_data.NN_radial.data(),
     nep_data.NL_radial.data(),
     nep_data.NN_angular.data(),
     nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
 
-  static int num_calls = 0;
-  if (num_calls++ % 1000 == 0) {
+  if (num_calls_large_box_++ % 1000 == 0) {
+    const int num_calls = num_calls_large_box_;
+    if (stream_ != nullptr) {
+      CHECK(gpuStreamSynchronize(stream_));
+    }
     nep_data.NN_radial.copy_to_host(nep_data.cpu_NN_radial.data());
     nep_data.NN_angular.copy_to_host(nep_data.cpu_NN_angular.data());
     int radial_actual = 0;
@@ -1410,7 +1434,7 @@ void NEP_Charge::compute_large_box(
     output_file.close();
   }
 
-  find_descriptor<<<grid_size, BLOCK_SIZE>>>(
+  find_descriptor<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
     paramb,
     annmb,
     N,
@@ -1434,19 +1458,19 @@ void NEP_Charge::compute_large_box(
   GPU_CHECK_KERNEL
 
   // enforce charge neutrality
-  zero_total_charge<<<1, 1024>>>(N, nep_data.charge.data());
+  zero_total_charge<<<1, 1024, 0, stream_>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
   if (need_bec) {
     // get BEC (the diagonal part)
-    find_bec_diagonal<<<grid_size, BLOCK_SIZE>>>(
+    find_bec_diagonal<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       N,
       nep_data.charge.data(),
       nep_data.bec.data());
     GPU_CHECK_KERNEL
 
     // get BEC (radial descriptor part)
-    find_bec_radial<<<grid_size, BLOCK_SIZE>>>(
+    find_bec_radial<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       paramb,
       annmb,
       N,
@@ -1464,7 +1488,7 @@ void NEP_Charge::compute_large_box(
     GPU_CHECK_KERNEL
 
     // get BEC (angular descriptor part)
-    find_bec_angular<<<grid_size, BLOCK_SIZE>>>(
+    find_bec_angular<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       paramb,
       annmb,
       N,
@@ -1483,7 +1507,7 @@ void NEP_Charge::compute_large_box(
     GPU_CHECK_KERNEL
 
     // scale q to q * sqrt(epsilon_inf)
-    scale_bec<<<grid_size, BLOCK_SIZE>>>(
+    scale_bec<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       N,
       annmb.sqrt_epsilon_inf,
       nep_data.bec.data());
@@ -1517,7 +1541,7 @@ void NEP_Charge::compute_large_box(
   }
 
   if (paramb.charge_mode == 1) {
-    find_force_charge_real_space<<<grid_size, BLOCK_SIZE>>>(
+    find_force_charge_real_space<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       N,
       charge_para,
       N1,
@@ -1537,7 +1561,7 @@ void NEP_Charge::compute_large_box(
       nep_data.D_real.data());
     GPU_CHECK_KERNEL
   } else if (paramb.charge_mode == 3) {
-    find_charge_self_energy<<<grid_size, BLOCK_SIZE>>>(
+    find_charge_self_energy<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       charge_para,
       N1,
       N2,
@@ -1548,10 +1572,10 @@ void NEP_Charge::compute_large_box(
   }
 
   // Chain rule correction: D_real -= mean(D_real)
-  zero_mean_D_real<<<1, 1024>>>(N, nep_data.D_real.data());
+  zero_mean_D_real<<<1, 1024, 0, stream_>>>(N, nep_data.D_real.data());
   GPU_CHECK_KERNEL
 
-  find_force_radial<<<grid_size, BLOCK_SIZE>>>(
+  find_force_radial<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
     paramb,
     annmb,
     N,
@@ -1573,7 +1597,7 @@ void NEP_Charge::compute_large_box(
     virial_per_atom.data());
   GPU_CHECK_KERNEL
 
-  find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
+  find_partial_force_angular<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
     paramb,
     annmb,
     N,
@@ -1597,18 +1621,22 @@ void NEP_Charge::compute_large_box(
 
   find_properties_many_body(
     box,
+    N,
+    N1,
+    N2,
     nep_data.NN_angular.data(),
     nep_data.NL_angular.data(),
     nep_data.f12x.data(),
     nep_data.f12y.data(),
     nep_data.f12z.data(),
-    position_per_atom,
-    force_per_atom,
-    virial_per_atom);
+    position_per_atom.data(),
+    force_per_atom.data(),
+    virial_per_atom.data(),
+    stream_);
   GPU_CHECK_KERNEL
 
   if (zbl.enabled) {
-    find_force_ZBL<<<grid_size, BLOCK_SIZE>>>(
+    find_force_ZBL<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       paramb,
       N,
       zbl,
@@ -1646,7 +1674,7 @@ void NEP_Charge::compute_small_box(
   const int big_neighbor_size = 2000;
   const int size_x12 = type.size() * big_neighbor_size;
 
-  find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
+  find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
     paramb,
     N,
     N1,
@@ -1669,8 +1697,11 @@ void NEP_Charge::compute_small_box(
     small_box_data.r12.data() + size_x12 * 5);
   GPU_CHECK_KERNEL
 
-  static int num_calls = 0;
-  if (num_calls++ % 1000 == 0) {
+  if (num_calls_small_box_++ % 1000 == 0) {
+    const int num_calls = num_calls_small_box_;
+    if (stream_ != nullptr) {
+      CHECK(gpuStreamSynchronize(stream_));
+    }
     std::vector<int> cpu_NN_radial(type.size());
     std::vector<int> cpu_NN_angular(type.size());
     small_box_data.NN_radial.copy_to_host(cpu_NN_radial.data());
@@ -1693,7 +1724,7 @@ void NEP_Charge::compute_small_box(
     output_file.close();
   }
 
-  find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
+  find_descriptor_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
     paramb,
     annmb,
     N,
@@ -1719,19 +1750,19 @@ void NEP_Charge::compute_small_box(
   GPU_CHECK_KERNEL
 
   // enforce charge neutrality
-  zero_total_charge<<<1, 1024>>>(N, nep_data.charge.data());
+  zero_total_charge<<<1, 1024, 0, stream_>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
   if (need_bec) {
     // get BEC (the diagonal part)
-    find_bec_diagonal<<<grid_size, BLOCK_SIZE>>>(
+    find_bec_diagonal<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       N,
       nep_data.charge.data(),
       nep_data.bec.data());
     GPU_CHECK_KERNEL
 
     // get BEC (radial descriptor part)
-    find_bec_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
+    find_bec_radial_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       paramb,
       annmb,
       N,
@@ -1748,7 +1779,7 @@ void NEP_Charge::compute_small_box(
     GPU_CHECK_KERNEL
 
     // get BEC (angular descriptor part)
-    find_bec_angular_small_box<<<grid_size, BLOCK_SIZE>>>(
+    find_bec_angular_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       paramb,
       annmb,
       N,
@@ -1766,7 +1797,7 @@ void NEP_Charge::compute_small_box(
     GPU_CHECK_KERNEL
 
     // scale q to q * sqrt(epsilon_inf)
-    scale_bec<<<grid_size, BLOCK_SIZE>>>(
+    scale_bec<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       N,
       annmb.sqrt_epsilon_inf,
       nep_data.bec.data());
@@ -1800,7 +1831,7 @@ void NEP_Charge::compute_small_box(
   }
 
   if (paramb.charge_mode == 1) {
-    find_force_charge_real_space_small_box<<<grid_size, BLOCK_SIZE>>>(
+    find_force_charge_real_space_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       N,
       charge_para,
       N1,
@@ -1820,7 +1851,7 @@ void NEP_Charge::compute_small_box(
       nep_data.D_real.data());
     GPU_CHECK_KERNEL
   } else if (paramb.charge_mode == 3) {
-    find_charge_self_energy<<<grid_size, BLOCK_SIZE>>>(
+    find_charge_self_energy<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       charge_para,
       N1,
       N2,
@@ -1831,10 +1862,10 @@ void NEP_Charge::compute_small_box(
   }
 
   // Chain rule correction: D_real -= mean(D_real)
-  zero_mean_D_real<<<1, 1024>>>(N, nep_data.D_real.data());
+  zero_mean_D_real<<<1, 1024, 0, stream_>>>(N, nep_data.D_real.data());
   GPU_CHECK_KERNEL
 
-  find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
+  find_force_radial_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
     paramb,
     annmb,
     N,
@@ -1855,7 +1886,7 @@ void NEP_Charge::compute_small_box(
     virial_per_atom.data());
   GPU_CHECK_KERNEL
 
-  find_force_angular_small_box<<<grid_size, BLOCK_SIZE>>>(
+  find_force_angular_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
     paramb,
     annmb,
     N,
@@ -1878,7 +1909,7 @@ void NEP_Charge::compute_small_box(
   GPU_CHECK_KERNEL
 
   if (zbl.enabled) {
-    find_force_ZBL_small_box<<<grid_size, BLOCK_SIZE>>>(
+    find_force_ZBL_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
       paramb,
       N,
       zbl,
@@ -1899,7 +1930,7 @@ void NEP_Charge::compute_small_box(
   }
 }
 
-static bool get_expanded_box(const double rc, const Box& box, NEP_Charge::ExpandedBox& ebox)
+bool NEP_Charge::get_expanded_box(const double rc, const Box& box, NEP_Charge::ExpandedBox& ebox)
 {
   double volume = box.get_volume();
   double thickness_x = volume / box.get_area(0);

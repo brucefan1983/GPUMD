@@ -1,6 +1,6 @@
 .. _replica_temperatures:
 .. index::
-   single: gpumd_replica input files; temperatures
+   single: replica dynamics input files; temperatures
 
 Temperature file
 ================

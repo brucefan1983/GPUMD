@@ -1,12 +1,12 @@
 .. _gpumd_replica_executable:
 .. index::
-   single: gpumd_replica executable
+   single: replica dynamics
 
-gpumd_replica executable
-************************
+Replica dynamics
+****************
 
-The ``gpumd_replica`` executable supports replica-exchange molecular dynamics (REMD) and parallel replica dynamics (PRD).
-See :ref:`build_gpumd_replica` for compilation instructions.
+The ``gpumd`` executable runs replica-exchange molecular dynamics (REMD) and parallel replica dynamics (PRD) when the ``run.in`` file contains a :ref:`multi_replica <replica_kw_multi_replica>` command.
+Such a ``run.in`` file accepts only the keywords described here.
 
 .. toctree::
    :maxdepth: 2

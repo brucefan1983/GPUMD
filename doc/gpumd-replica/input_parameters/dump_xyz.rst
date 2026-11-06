@@ -1,6 +1,6 @@
 .. _replica_kw_dump_xyz:
 .. index::
-   single: dump_xyz (keyword in gpumd_replica run.in)
+   single: dump_xyz (keyword in replica run.in)
 
 :attr:`!dump_xyz`
 =================

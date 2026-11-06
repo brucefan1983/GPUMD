@@ -29,7 +29,6 @@ Prerequisites
       On Windows systems, one also needs the ``cl.exe`` compiler from Microsoft Visual Studio and CMake 3.24 or newer.
 
 .. _compilation:
-.. _build_gpumd_replica:
 
 Compilation
 ===========
@@ -38,7 +37,7 @@ Compilation
 
    .. tab:: Make
 
-      In the ``src`` directory run ``make``, which generates three executables: ``nep``, ``gpumd``, and ``gpumd_replica``.
+      In the ``src`` directory run ``make``, which generates the executables ``gpumd``, ``nep``, and ``tb``.
       Please check the comments in the beginning of the makefile for some compiling options.
 
    .. tab:: CMake (pre-release)

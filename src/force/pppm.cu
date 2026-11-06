@@ -578,8 +578,23 @@ void PPPM::destroy_plans()
   }
 }
 
+void PPPM::set_stream(gpuStream_t stream)
+{
+  stream_ = stream;
+  if (plan_initialized) {
+    gpufftSetStream(plan, stream_);
+  }
+  if (plan_virial_initialized) {
+    gpufftSetStream(plan_virial, stream_);
+  }
+}
+
 void PPPM::allocate_memory()
 {
+  // The mesh is reallocated while earlier work may still use it.
+  if (stream_ != nullptr) {
+    CHECK(gpuStreamSynchronize(stream_));
+  }
   destroy_plans();
   kx.resize(para.K0K1K2);
   ky.resize(para.K0K1K2);
@@ -596,6 +611,9 @@ void PPPM::allocate_memory()
     exit(1);
   }
   plan_initialized = true;
+  if (stream_ != nullptr) {
+    gpufftSetStream(plan, stream_);
+  }
 
   if (need_peratom_virial) {
     mesh_virial.resize(para.K0K1K2 * 6);
@@ -605,6 +623,9 @@ void PPPM::allocate_memory()
       exit(1);
     }
     plan_virial_initialized = true;
+    if (stream_ != nullptr) {
+      gpufftSetStream(plan_virial, stream_);
+    }
   }
 }
 
@@ -675,6 +696,9 @@ void PPPM::print_mesh(const int N1, const int N2, const Box& box, const GPU_Vect
     106640677.0 / 11737571328.0};
   const int number_of_charges = N2 - N1;
   std::vector<float> q(number_of_charges);
+  if (stream_ != nullptr) {
+    CHECK(gpuStreamSynchronize(stream_));
+  }
   CHECK(gpuMemcpy(
     q.data(), charge.data() + N1, sizeof(float) * number_of_charges, gpuMemcpyDeviceToHost));
   double sum_of_squared_charges = 0.0;
@@ -713,11 +737,11 @@ void PPPM::find_force(
 {
   const bool first_mesh = !plan_initialized;
   find_para(N, box);
-  if (first_mesh) {
+  if (first_mesh && verbose_) {
     print_mesh(N1, N2, box, charge);
   }
 
-  find_k_and_G_opt<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
+  find_k_and_G_opt<<<(para.K0K1K2 - 1) / 64 + 1, 64, 0, stream_>>>(
     para, 
     kx.data(), 
     ky.data(), 
@@ -725,10 +749,10 @@ void PPPM::find_force(
     G.data());
   GPU_CHECK_KERNEL
 
-  set_mesh_to_zero<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(para, mesh.data());
+  set_mesh_to_zero<<<(para.K0K1K2 - 1) / 64 + 1, 64, 0, stream_>>>(para, mesh.data());
   GPU_CHECK_KERNEL
 
-  find_mesh<<<(N - 1) / 64 + 1, 64>>>(
+  find_mesh<<<(N - 1) / 64 + 1, 64, 0, stream_>>>(
     N1,
     N2,
     para,
@@ -745,7 +769,7 @@ void PPPM::find_force(
     exit(1);
   }
 
-  ik_times_mesh_times_G<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
+  ik_times_mesh_times_G<<<(para.K0K1K2 - 1) / 64 + 1, 64, 0, stream_>>>(
     para,
     kx.data(),
     ky.data(),
@@ -757,7 +781,7 @@ void PPPM::find_force(
     mesh_z.data());
   GPU_CHECK_KERNEL
 
-  find_mesh_G<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
+  find_mesh_G<<<(para.K0K1K2 - 1) / 64 + 1, 64, 0, stream_>>>(
     para,
     G.data(),
     mesh.data(),
@@ -765,7 +789,7 @@ void PPPM::find_force(
   GPU_CHECK_KERNEL
 
   if (need_peratom_virial) {
-    find_mesh_virial<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
+    find_mesh_virial<<<(para.K0K1K2 - 1) / 64 + 1, 64, 0, stream_>>>(
       para,
       kx.data(),
       ky.data(),
@@ -808,7 +832,7 @@ void PPPM::find_force(
     }
 
     // get force, virial, and potential in single kernel
-    find_force_virial_potential_from_field<<<(N - 1) / 64 + 1, 64>>>(
+    find_force_virial_potential_from_field<<<(N - 1) / 64 + 1, 64, 0, stream_>>>(
       N,
       N1,
       N2,
@@ -837,7 +861,7 @@ void PPPM::find_force(
     GPU_CHECK_KERNEL
   } else {
     // get force only
-    find_force_from_field<<<(N - 1) / 64 + 1, 64>>>(
+    find_force_from_field<<<(N - 1) / 64 + 1, 64, 0, stream_>>>(
       N1,
       N2,
       para,
@@ -857,7 +881,7 @@ void PPPM::find_force(
     GPU_CHECK_KERNEL
 
     // then get average potential and virial
-    find_potential_and_virial<<<7, 1024>>>(
+    find_potential_and_virial<<<7, 1024, 0, stream_>>>(
       N,
       para,
       mesh.data(),

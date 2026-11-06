@@ -125,6 +125,11 @@ void Ewald::find_k_and_G(const double* box)
 
   num_kpoints = int(cpu_kx.size());
 
+  // The k-vectors are copied (and possibly reallocated) while earlier work may still use them.
+  if (stream_ != nullptr) {
+    CHECK(gpuStreamSynchronize(stream_));
+  }
+
   if (num_kpoints > num_kpoints_max) {
     num_kpoints_max = num_kpoints;
     kx.resize(num_kpoints_max);
@@ -259,7 +264,7 @@ void Ewald::find_force(
   GPU_Vector<double>& potential_per_atom)
 {
   find_k_and_G(box);
-  find_structure_factor<<<(num_kpoints - 1) / 64 + 1, 64>>>(
+  find_structure_factor<<<(num_kpoints - 1) / 64 + 1, 64, 0, stream_>>>(
     num_kpoints,
     N1,
     N2,
@@ -274,7 +279,7 @@ void Ewald::find_force(
     S_imag.data());
   GPU_CHECK_KERNEL
 
-  find_force_charge_reciprocal_space<<<(N - 1) / 64 + 1, 64>>>(
+  find_force_charge_reciprocal_space<<<(N - 1) / 64 + 1, 64, 0, stream_>>>(
     N,
     N1,
     N2,

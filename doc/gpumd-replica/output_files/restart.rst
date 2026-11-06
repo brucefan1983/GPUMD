@@ -1,6 +1,6 @@
 .. _replica_restart:
 .. index::
-   single: gpumd_replica output files; restart
+   single: replica dynamics output files; restart
 
 Restart files
 =============
@@ -29,6 +29,8 @@ Caveats
   Replica xyz files without ``vel_natural`` are accepted; their ``vel`` values are converted, which can differ in the last bit.
 * ``run.in``, ``model.xyz``, and the potential file are still required.
   Preserve atom count, species, masses, box, potential content, replica count, time step, thermostat, and method parameters.
+  For charge NEP models, also keep the ``kspace`` command: the method and an explicit PPPM spacing are stored and must match.
+  A restart that stores ``pppm`` without a spacing matches only a ``kspace`` command without a spacing.
 * REMD resume cannot request positive ``equilibrate``.
 * Restarts are written at normal completion, not periodically.
   Appended diagnostics and trajectories should correspond to the saved checkpoint.
