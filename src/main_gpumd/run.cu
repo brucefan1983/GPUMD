@@ -29,7 +29,7 @@ Run simulation according to the inputs in the run.in file.
 #include "replicate.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
-#include "utilities/compact_nep.cuh"
+#include "utilities/nep_io/compact_nep.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"

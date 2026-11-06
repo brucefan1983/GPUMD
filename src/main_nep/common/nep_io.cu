@@ -18,7 +18,7 @@
 #include "nep_parameters.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/nep_model_file.cuh"
+#include "utilities/nep_io/nep_model_file.cuh"
 #include <algorithm>
 #include <cctype>
 #include <cerrno>

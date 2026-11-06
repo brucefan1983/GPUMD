@@ -21,7 +21,7 @@ keyword and perform deposition between consecutive sub-runs.
 #include "deposition.cuh"
 #include "model/read_xyz.cuh"
 #include "utilities/error.cuh"
-#include "utilities/compact_nep.cuh"
+#include "utilities/nep_io/compact_nep.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include <algorithm>

@@ -122,13 +122,15 @@ SOURCES_GPUMD =                   \
 	$(wildcard minimize/*.cu)     \
 	$(wildcard phonon/*.cu)       \
 	$(wildcard integrate/*.cu)    \
-	$(wildcard integrate/spin/*.cu) \
+	$(wildcard integrate/*/*.cu) \
 	$(wildcard mc/*.cu)           \
 	$(wildcard force/*.cu)        \
 	$(wildcard force/*/*.cu)      \
 	$(wildcard measure/*.cu)      \
+	$(wildcard measure/*/*.cu)      \
 	$(wildcard model/*.cu)        \
-	$(wildcard utilities/*.cu)
+	$(wildcard utilities/*.cu)   \
+	$(wildcard utilities/*/*.cu)
 
 
 ###########################################################
@@ -151,14 +153,16 @@ OBJECTS = $(OBJ_GPUMD) $(WPE_ADAPTER_OBJ) $(WPE_STAGE_OBJ)
 
 HEADERS =                         \
 	$(wildcard utilities/*.cuh)   \
+	$(wildcard utilities/*/*.cuh) \
 	$(wildcard main_gpumd/*.cuh)  \
 	$(wildcard integrate/*.cuh)   \
-	$(wildcard integrate/spin/*.cuh) \
+	$(wildcard integrate/*/*.cuh) \
 	$(wildcard mc/*.cuh)          \
 	$(wildcard minimize/*.cuh)    \
 	$(wildcard force/*.cuh)       \
 	$(wildcard force/*/*.cuh)     \
 	$(wildcard measure/*.cuh)     \
+	$(wildcard measure/*/*.cuh)     \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
 	$(wildcard $(WPE_INTEGRATION)/*.cuh) \

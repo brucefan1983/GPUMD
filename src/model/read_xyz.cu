@@ -22,10 +22,10 @@ The class defining the simulation model.
 #include "group.cuh"
 #include "read_xyz.cuh"
 #include "utilities/common.cuh"
-#include "utilities/compact_nep.cuh"
+#include "utilities/nep_io/compact_nep.cuh"
 #include "utilities/error.cuh"
 #include "utilities/run_input.cuh"
-#include "utilities/nep_spin_model_file.cuh"
+#include "utilities/nep_io/nep_spin_model_file.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
