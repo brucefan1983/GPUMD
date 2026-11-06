@@ -18,7 +18,6 @@
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
-#include <string>
 
 class Atom;
 
@@ -109,7 +108,6 @@ private:
   GPU_Vector<double> virial_per_atom_;
   int model_type_ = 0; // 1=dipole, 2=polarizability
   int num_atoms_ = 0;
-  std::string atom_types_[NUM_ELEMENTS];
 
   void update_potential(float* parameters);
   void compute_large_box(Box& box, const GPU_Vector<double>& position);

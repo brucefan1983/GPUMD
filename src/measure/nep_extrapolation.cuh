@@ -18,7 +18,6 @@
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
-#include <string>
 
 class Atom;
 
@@ -104,7 +103,6 @@ private:
   int num_atoms_ = 0;
   int B_size_per_atom_ = 0;
   bool is_polarizability_ = false;
-  std::string atom_types_[NUM_ELEMENTS];
 
   void update_potential(float* parameters);
   void compute_large_box(Box& box, const GPU_Vector<double>& position);

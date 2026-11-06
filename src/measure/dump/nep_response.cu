@@ -52,15 +52,12 @@ NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
     PRINT_INPUT_ERROR("NEP_Response requires model nep_dipole or nep_polarizability.");
   }
   paramb_.num_types = model.num_types;
-  for (int t = 0; t < paramb_.num_types; ++t) {
-    atom_types_[t] = model.elements[t];
-  }
 
   std::vector<int> mapped_type(num_atoms_);
   for (int n = 0; n < num_atoms_; ++n) {
     mapped_type[n] = -1;
     for (int t = 0; t < paramb_.num_types; ++t) {
-      if (atom.cpu_atom_symbol[n] == atom_types_[t]) {
+      if (atom.cpu_atom_symbol[n] == model.elements[t]) {
         mapped_type[n] = t;
         break;
       }
