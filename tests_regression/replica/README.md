@@ -1,6 +1,6 @@
 # Replica regression tests
 
-These 12 basic integration tests exercise the standalone `gpumd_replica`
+These 16 basic integration tests exercise the standalone `gpumd_replica`
 executable. They run independently of the parent directory's 221-case
 GPUMD/NEP differential suite and do not require a historical executable.
 
@@ -33,7 +33,14 @@ The tests check:
 - rejection of unsupported restart versions and changed exchange/dephasing settings;
 - qNEP Ewald/PPPM selection, inline comments, default solver, and restart validation;
 - single-segment dephasing syntax and the retry limit;
-- rejection of the unsupported `verbose` and `verbose_output` options in both modes.
+- rejection of the unsupported `verbose` and `verbose_output` options in both modes;
+- batched integration (forced with `GPUMD_REPLICA_BATCH=1`) reproducing the per-slot
+  path (`GPUMD_REPLICA_BATCH=0`) bit for bit for REMD and PRD, on a 2000-atom triclinic
+  PbTe supercell that uses the large-box NEP path;
+- the automatic batching choice (on for 4 x 2000 atoms, off for 12 x 2000 atoms or when
+  forced off) and rejection of a `batch` keyword in `run.in`;
+- an uninterrupted REMD run and the same run split into two resumed segments giving
+  identical restart files and exchange records, with batching forced off and on.
 
 The four-carbon fixture has a zero-energy NEP and is used to obtain predictable
 exchange and event-clock behavior. It is not a physical model. Force-bearing
