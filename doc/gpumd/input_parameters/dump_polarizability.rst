@@ -5,7 +5,7 @@
 :attr:`dump_polarizability`
 ===========================
 
-Predicts the polarizability for the current configuration of atoms during MD using a separate `nep4_polarizability` model.
+Predicts the polarizability for the current configuration of atoms during MD using a separate ``nep_polarizability`` model.
 The response model is read by this keyword and is independent of the potential used to run the MD.
 
 Syntax
@@ -17,7 +17,7 @@ Syntax
 
 :attr:`interval` parameter is a positive integer giving the output interval (number of steps) for evaluating and writing the polarizability.
 
-:attr:`nep_file` is the name of the `nep4_polarizability` potential file used to predict the polarizability.
+:attr:`nep_file` is a :ref:`NEP model file <nep_txt>` with ``model nep_polarizability``.
 
 Examples
 --------
