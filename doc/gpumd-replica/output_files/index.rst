@@ -1,6 +1,6 @@
 .. _replica_output_files:
 .. index::
-   single: gpumd_replica output files
+   single: replica dynamics output files
 
 Output files
 ============

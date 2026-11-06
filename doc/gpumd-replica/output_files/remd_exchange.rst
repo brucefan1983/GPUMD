@@ -1,6 +1,6 @@
 .. _replica_remd_exchange:
 .. index::
-   single: gpumd_replica output files; remd_exchange
+   single: replica dynamics output files; remd_exchange
 
 ``remd_exchange.out``
 =====================

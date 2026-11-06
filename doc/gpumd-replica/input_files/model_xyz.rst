@@ -1,6 +1,6 @@
 .. _replica_model_xyz:
 .. index::
-   single: gpumd_replica input files; model.xyz
+   single: replica dynamics input files; model.xyz
 
 Simulation model (``model.xyz``)
 ================================

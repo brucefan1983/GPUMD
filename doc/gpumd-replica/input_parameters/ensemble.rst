@@ -1,6 +1,6 @@
 .. _replica_kw_ensemble:
 .. index::
-   single: ensemble (keyword in gpumd_replica run.in)
+   single: ensemble (keyword in replica run.in)
 
 :attr:`!ensemble`
 =================

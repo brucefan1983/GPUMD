@@ -1,6 +1,6 @@
 .. _replica_run_in:
 .. index::
-   single: gpumd_replica input files; run.in
+   single: replica dynamics input files; run.in
 
 Simulation protocol (``run.in``)
 ================================

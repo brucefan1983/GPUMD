@@ -1,6 +1,6 @@
 .. _replica_trajectory:
 .. index::
-   single: gpumd_replica output files; trajectory
+   single: replica dynamics output files; trajectory
 
 Trajectory files
 ================

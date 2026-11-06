@@ -1,6 +1,6 @@
 .. _replica_kw_time_step:
 .. index::
-   single: time_step (keyword in gpumd_replica run.in)
+   single: time_step (keyword in replica run.in)
 
 :attr:`!time_step`
 ==================

@@ -30,7 +30,6 @@ Prerequisites
       On Windows systems, the host compiler is ``cl.exe`` from Microsoft Visual Studio.
 
 .. _compilation:
-.. _build_gpumd_replica:
 
 Compilation
 ===========
@@ -39,7 +38,7 @@ Compilation
 
    .. tab:: Make
 
-      In the ``src`` directory run ``make``, which generates four executables: ``nep``, ``gpumd``, ``gpumd_replica``, and ``tb``.
+      In the ``src`` directory run ``make``, which generates three executables: ``nep``, ``gpumd``, and ``tb``.
       To build only the MD executable, run ``make gpumd``.
       Set ``CUDA_ARCH`` to an architecture supported by both your GPU and CUDA toolkit, for example::
 

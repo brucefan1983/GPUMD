@@ -1,6 +1,6 @@
 .. _replica_kw_run:
 .. index::
-   single: run (keyword in gpumd_replica run.in)
+   single: run (keyword in replica run.in)
 
 :attr:`!run`
 ============
