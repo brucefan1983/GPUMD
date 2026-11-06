@@ -118,31 +118,26 @@ private:
   bool read_parameters(
     const NEP_File& document, std::vector<std::string>& blocks, std::string& error);
 
-  void compact_nep(NEP_File& document, const std::vector<int>& active_to_full) const;
   bool read_nep(
     const NEP_File& document,
     std::vector<std::string>& fields,
     std::vector<std::string>& blocks,
     std::string& error);
-  void compact_charge(NEP_File& document, const std::vector<int>& active_to_full) const;
   bool read_charge(
     const NEP_File& document,
     std::vector<std::string>& fields,
     std::vector<std::string>& blocks,
     std::string& error);
-  void compact_tnep(NEP_File& document, const std::vector<int>& active_to_full) const;
   bool read_tnep(
     const NEP_File& document,
     std::vector<std::string>& fields,
     std::vector<std::string>& blocks,
     std::string& error);
-  void compact_vdw(NEP_File& document, const std::vector<int>& active_to_full) const;
   bool read_vdw(
     const NEP_File& document,
     std::vector<std::string>& fields,
     std::vector<std::string>& blocks,
     std::string& error);
-  void compact_charge_vdw(NEP_File& document, const std::vector<int>& active_to_full) const;
   bool read_charge_vdw(
     const NEP_File& document,
     std::vector<std::string>& fields,

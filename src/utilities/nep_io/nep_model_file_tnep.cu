@@ -27,9 +27,3 @@ bool NEP_Model_File::read_tnep(
   calculate_layout(0, 0, 1, name == "nep_polarizability" ? 2 : 1);
   return read_parameters(document, blocks, error);
 }
-
-void NEP_Model_File::compact_tnep(
-  NEP_File& document, const std::vector<int>& active_to_full) const
-{
-  compact_parameters(document, active_to_full);
-}

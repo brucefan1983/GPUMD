@@ -32,9 +32,3 @@ bool NEP_Model_File::read_vdw(
          read_zbl(document, fields, blocks, error) &&
          read_parameters(document, blocks, error);
 }
-
-void NEP_Model_File::compact_vdw(
-  NEP_File& document, const std::vector<int>& active_to_full) const
-{
-  compact_parameters(document, active_to_full);
-}

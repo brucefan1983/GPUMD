@@ -55,19 +55,7 @@ bool NEP_Model_File::read_and_compact(
   if (active_to_full.empty()) {
     return fail(error, "at least one active element is required.");
   }
-  if (model.name == "nep" || model.name == "nep_temperature") {
-    model.compact_nep(parsed, active_to_full);
-  } else if (model.name == "qnep1" || model.name == "qnep2" || model.name == "qnep3") {
-    model.compact_charge(parsed, active_to_full);
-  } else if (model.name == "nep_dipole" || model.name == "nep_polarizability") {
-    model.compact_tnep(parsed, active_to_full);
-  } else if (model.name == "nep_vdw") {
-    model.compact_vdw(parsed, active_to_full);
-  } else if (model.name == "qnep3_vdw") {
-    model.compact_charge_vdw(parsed, active_to_full);
-  } else {
-    return fail(error, "this model does not support element compaction.");
-  }
+  model.compact_parameters(parsed, active_to_full);
   parsed.elements = active_species;
   document = std::move(parsed);
   return true;
