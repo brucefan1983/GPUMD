@@ -28,6 +28,7 @@ endif
 SOURCES =                         \
 	main.cu                         \
 	replica.cu                      \
+	replica_batch.cu                \
 	replica_common.cu               \
 	replica_prd.cu                  \
 	replica_remd.cu                 \

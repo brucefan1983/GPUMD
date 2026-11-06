@@ -169,6 +169,133 @@ static __global__ void gpu_find_neighbor_ON1(
   }
 }
 
+// Batched cell list: cell (replica r, local cell c) has global index r * N_cells + c.
+static __global__ void find_cell_counts_batched(
+  const Batch_Box box,
+  const int N,
+  const int N_cells,
+  int* cell_count,
+  const double* x,
+  const double* y,
+  const double* z,
+  const int nx,
+  const int ny,
+  const int nz,
+  const double rc_inv)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    int cell_id;
+    find_cell_id(box.box_of(n1), x[n1], y[n1], z[n1], rc_inv, nx, ny, nz, cell_id);
+    atomicAdd(&cell_count[box.replica_of(n1) * N_cells + cell_id], 1);
+  }
+}
+
+static __global__ void find_cell_contents_batched(
+  const Batch_Box box,
+  const int N,
+  const int N_cells,
+  int* cell_count,
+  const int* cell_count_sum,
+  int* cell_contents,
+  const double* x,
+  const double* y,
+  const double* z,
+  const int nx,
+  const int ny,
+  const int nz,
+  const double rc_inv)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    int cell_id;
+    find_cell_id(box.box_of(n1), x[n1], y[n1], z[n1], rc_inv, nx, ny, nz, cell_id);
+    cell_id += box.replica_of(n1) * N_cells;
+    const int ind = atomicAdd(&cell_count[cell_id], 1);
+    cell_contents[cell_count_sum[cell_id] + ind] = n1;
+  }
+}
+
+static __global__ void gpu_find_neighbor_ON1_batched(
+  const Batch_Box box_view,
+  const int N,
+  const int N_cells,
+  const int* __restrict__ cell_counts,
+  const int* __restrict__ cell_count_sum,
+  const int* __restrict__ cell_contents,
+  int* NN,
+  int* NL,
+  const double* __restrict__ x,
+  const double* __restrict__ y,
+  const double* __restrict__ z,
+  const int nx,
+  const int ny,
+  const int nz,
+  const double rc_inv,
+  const float cutoff_square)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  int count = 0;
+  if (n1 < N) {
+    const Box& box = box_view.box_of(n1);
+    const int replica_cells = box_view.replica_of(n1) * N_cells;
+    const double x1 = x[n1];
+    const double y1 = y[n1];
+    const double z1 = z[n1];
+    int cell_id;
+    int cell_id_x;
+    int cell_id_y;
+    int cell_id_z;
+    find_cell_id(box, x1, y1, z1, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
+
+    int z_begin, z_end;
+    int y_begin, y_end;
+    int x_begin, x_end;
+    get_neighbor_cell_offset_range(box.pbc_z, nz, z_begin, z_end);
+    get_neighbor_cell_offset_range(box.pbc_y, ny, y_begin, y_end);
+    get_neighbor_cell_offset_range(box.pbc_x, nx, x_begin, x_end);
+
+    for (int k = z_begin; k < z_end; ++k) {
+      for (int j = y_begin; j < y_end; ++j) {
+        for (int i = x_begin; i < x_end; ++i) {
+          int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
+          if (cell_id_x + i < 0)
+            neighbor_cell += nx;
+          else if (cell_id_x + i >= nx)
+            neighbor_cell -= nx;
+          if (cell_id_y + j < 0)
+            neighbor_cell += ny * nx;
+          else if (cell_id_y + j >= ny)
+            neighbor_cell -= ny * nx;
+          if (cell_id_z + k < 0)
+            neighbor_cell += nz * ny * nx;
+          else if (cell_id_z + k >= nz)
+            neighbor_cell -= nz * ny * nx;
+          neighbor_cell += replica_cells;
+
+          const int num_atoms_neighbor_cell = cell_counts[neighbor_cell];
+          const int num_atoms_previous_cells = cell_count_sum[neighbor_cell];
+
+          for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
+            const int n2 = cell_contents[num_atoms_previous_cells + m];
+            if (n1 != n2) {
+              float x12 = x[n2] - x1;
+              float y12 = y[n2] - y1;
+              float z12 = z[n2] - z1;
+              apply_mic(box, x12, y12, z12);
+              const float d2 = x12 * x12 + y12 * y12 + z12 * z12;
+              if (d2 < cutoff_square) {
+                NL[static_cast<size_t>(N) * count++ + n1] = n2;
+              }
+            }
+          }
+        }
+      }
+    }
+    NN[n1] = count;
+  }
+}
+
 void find_cell_list(
   const double rc,
   const int* num_bins,
@@ -924,4 +1051,64 @@ void Neighbor::initialize(const double rc, const int num_atoms, const int num_ne
   cell_count_sum.resize(num_atoms);
   cell_contents.resize(num_atoms);
   atom_distance_flag.resize(1);
+}
+
+void Neighbor::find_neighbor_global_batched(
+  const double rc,
+  Batch_Box& box,
+  const int number_of_atoms,
+  const double* position_per_atom,
+  const gpuStream_t stream)
+{
+  const int N = number_of_atoms;
+  if (N <= 0 || box.atoms_per_replica <= 0 || N % box.atoms_per_replica != 0)
+    PRINT_INPUT_ERROR("Invalid batched neighbor-list size.");
+  if (N > NN.size())
+    PRINT_INPUT_ERROR("Batched neighbor list is larger than its workspace.");
+  const int replicas = N / box.atoms_per_replica;
+  const double rc_neighbor = rc + skin;
+  const double rc_cell_list = 0.5 * rc_neighbor;
+  const double rc_inv_cell_list = 2.0 / rc_neighbor;
+  const double* x = position_per_atom;
+  const double* y = position_per_atom + N;
+  const double* z = position_per_atom + N * 2;
+
+  // also sets box.box.thickness_*, which find_cell_id reads on the device
+  int num_bins[3];
+  box.box.get_num_bins(rc_cell_list, num_bins);
+  const int N_cells = num_bins[0] * num_bins[1] * num_bins[2];
+  const int total_cells = N_cells * replicas;
+
+  if (total_cells > cell_count.size()) {
+    CHECK(gpuStreamSynchronize(stream));
+    cell_count.resize(total_cells);
+    cell_count_sum.resize(total_cells);
+  }
+
+  const int block_size = 256;
+  const int grid_size = (N - 1) / block_size + 1;
+  set_to_zero<<<(total_cells - 1) / 64 + 1, 64, 0, stream>>>(total_cells, cell_count.data());
+  GPU_CHECK_KERNEL
+  find_cell_counts_batched<<<grid_size, block_size, 0, stream>>>(
+    box, N, N_cells, cell_count.data(), x, y, z,
+    num_bins[0], num_bins[1], num_bins[2], rc_inv_cell_list);
+  GPU_CHECK_KERNEL
+  scan_workspace->run(cell_count.data(), cell_count_sum.data(), total_cells, stream);
+  set_to_zero<<<(total_cells - 1) / 64 + 1, 64, 0, stream>>>(total_cells, cell_count.data());
+  GPU_CHECK_KERNEL
+  find_cell_contents_batched<<<grid_size, block_size, 0, stream>>>(
+    box, N, N_cells, cell_count.data(), cell_count_sum.data(), cell_contents.data(),
+    x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv_cell_list);
+  GPU_CHECK_KERNEL
+
+  gpu_find_neighbor_ON1_batched<<<grid_size, block_size, 0, stream>>>(
+    box, N, N_cells, cell_count.data(), cell_count_sum.data(), cell_contents.data(),
+    NN.data(), NL.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2],
+    rc_inv_cell_list, rc_neighbor * rc_neighbor);
+  GPU_CHECK_KERNEL
+
+  // the list capacity per atom is fixed by initialize(): NL.size() / NN.size()
+  const int MN = NL.size() / NN.size();
+  gpu_sort_neighbor_list<<<N, min(1024, MN), MN * sizeof(int), stream>>>(N, NN.data(), NL.data());
+  GPU_CHECK_KERNEL
 }

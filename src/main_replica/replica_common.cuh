@@ -23,6 +23,8 @@
 #include "utilities/gpu_pinned_vector.cuh"
 #include "utilities/gpu_stream.cuh"
 #include <condition_variable>
+#include <cstdio>
+#include <istream>
 #include <functional>
 #include <memory>
 #include <mutex>
@@ -33,6 +35,8 @@
 
 namespace replica
 {
+
+class Replica_Batch;
 
 struct Replica_Slot {
   Replica_Slot(int replica_id, int device_id);
@@ -70,6 +74,16 @@ bool extract_token_value(
   const std::string& line, const std::string& key, std::string& value);
 void validate_xyz_box(
   const std::string& comment, const Box& reference, const char* mode);
+
+// Replica restart xyz files store each velocity twice: vel in A/fs for other
+// tools and vel_natural in GPUMD's internal unit. Converting A/fs back is not
+// exact in the last bit, which would make a resumed run leave the trajectory
+// of the uninterrupted one. Files without vel_natural are still accepted.
+extern const char RESTART_XYZ_PROPERTIES[];
+bool parse_restart_xyz_properties(const std::string& properties, bool& natural_velocity);
+void write_restart_xyz_velocity(FILE* file, const std::vector<double>& velocity, int atom);
+bool read_restart_xyz_velocity(
+  std::istream& input, bool natural_velocity, std::vector<double>& velocity, int atom);
 
 template <typename T>
 bool parse_scalar(const std::string& text, T& value)
@@ -114,6 +128,7 @@ struct Device_Context {
 
   int device_id;
   Force force;
+  std::unique_ptr<Replica_Batch> batch; // set when batched integration is enabled
   std::vector<std::unique_ptr<Replica_Slot>> slots;
   std::thread worker;
   std::mutex mutex;
@@ -142,6 +157,9 @@ public:
   Replica_Runtime(const Replica_Runtime&) = delete;
   Replica_Runtime& operator=(const Replica_Runtime&) = delete;
 
+  // Batched integration (one concatenated system per GPU) is chosen in initialize: on when a GPU
+  // holds at least two replicas and at most 20000 atoms in total.
+  bool batched() const { return batch_active_; }
   void initialize(int replicas, int replicas_per_gpu, const Slot_Initializer& initialize_slot);
   void start_workers();
   void stop_workers();
@@ -162,11 +180,15 @@ private:
   Box& source_box_;
   std::vector<Group>& source_group_;
   double time_step_;
+  bool batch_active_ = false;
   std::vector<Replica_Slot*> replica_slots_;
   std::vector<std::unique_ptr<Device_Context>> devices_;
 
   void clone_source_state(Replica_Slot& slot) const;
   void initialize_device_force(Device_Context& device);
+  void initialize_batches();
+  void report_batches() const;
+  void dump_state() const;
   void compute_force(Device_Context& device, Replica_Slot& slot);
   void worker_loop(Device_Context& device);
   void advance_device(

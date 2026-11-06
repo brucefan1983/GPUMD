@@ -19,6 +19,8 @@ WORKDIR = os.environ.get("REPLICA_TEST_WORKDIR")
 ENV = dict(os.environ)
 # Keep a user-selected GPU (including UUIDs) while testing multiple streams on it.
 ENV["CUDA_VISIBLE_DEVICES"] = ENV.get("CUDA_VISIBLE_DEVICES", "0").split(",")[0]
+# Batched integration is chosen automatically unless a test forces it.
+ENV.pop("GPUMD_REPLICA_BATCH", None)
 
 
 def metadata(directory, mode):
@@ -90,6 +92,50 @@ class ReplicaRegression(unittest.TestCase):
             shutil.copyfile(ROOT / f"examples/{potential}/nep.txt", directory / "nep.txt")
         return directory
 
+    def prepare_large(self, name):
+        """2x2x2 supercell of the PbTe example (2000 atoms, triclinic) so that the
+        energy NEP uses the large-box path, which batched integration requires."""
+        directory = self.root / name
+        directory.mkdir()
+        lines = (ROOT / "examples/gpumd_static_qnep/model.xyz").read_text().splitlines()
+        number = int(lines[0])
+        lattice = [float(v) for v in lines[1].split('Lattice="')[1].split('"')[0].split()]
+        a, b, c = lattice[0:3], lattice[3:6], lattice[6:9]
+        atoms = []
+        for i in range(2):
+            for j in range(2):
+                for k in range(2):
+                    shift = [i * a[d] + j * b[d] + k * c[d] for d in range(3)]
+                    for row in lines[2:2 + number]:
+                        tokens = row.split()
+                        atoms.append((tokens[0], [float(tokens[1 + d]) + shift[d] for d in range(3)]))
+        header = " ".join(f"{2 * v!r}" for v in lattice)
+        with open(directory / "model.xyz", "w") as output:
+            output.write(f"{len(atoms)}\n")
+            output.write(f'pbc="T T T" Lattice="{header}" Properties=species:S:1:pos:R:3\n')
+            for symbol, position in atoms:
+                output.write(f"{symbol} {position[0]!r} {position[1]!r} {position[2]!r}\n")
+        shutil.copyfile(ROOT / "examples/nep_train/nep.txt", directory / "nep.txt")
+        return directory
+
+    def copy_restart(self, source, name, mode):
+        directory = self.root / name
+        directory.mkdir()
+        for filename in ("model.xyz", "nep.txt"):
+            shutil.copyfile(source / filename, directory / filename)
+        for path in source.glob(f"{mode}_*restart*"):
+            shutil.copyfile(path, directory / path.name)
+        return directory
+
+    def assert_files_identical(self, first, second, names):
+        for name in names:
+            self.assertEqual(
+                (first / name).read_bytes(), (second / name).read_bytes(),
+                f"{name} differs between {first.name} and {second.name}")
+
+    def restart_files(self, directory, mode):
+        return sorted(path.name for path in directory.glob(f"{mode}_*restart*"))
+
     def assert_restart_xyz_equal(self, first, second):
         a, b = first.read_text().splitlines(), second.read_text().splitlines()
         self.assertEqual(a[:2], b[:2])
@@ -97,15 +143,15 @@ class ReplicaRegression(unittest.TestCase):
         self.assertEqual(len(a), len(b))
         for row_a, row_b in zip(a[2:], b[2:]):
             tokens_a, tokens_b = row_a.split(), row_b.split()
-            self.assertEqual(len(tokens_a), 8)
-            self.assertEqual(len(tokens_b), 8)
+            self.assertEqual(len(tokens_a), 11)
+            self.assertEqual(len(tokens_b), 11)
             self.assertEqual(tokens_a[0], tokens_b[0])
             for x, y in zip(tokens_a[1:], tokens_b[1:]):
                 # Text restarts and velocity unit conversions introduce roundoff.
                 self.assertAlmostEqual(float(x), float(y), delta=1e-10)
 
     def run_md(self, directory, mode, steps, options, kspace="", resume=False,
-               coupling=100, expected_error=None):
+               coupling=100, expected_error=None, batch=None):
         final_temperature = 400 if mode == "remd" else 300
         restart = f" resume {mode}" if resume else ""
         commands = (
@@ -116,9 +162,12 @@ class ReplicaRegression(unittest.TestCase):
         if kspace:
             commands += f"kspace {kspace}\n"
         (directory / "run.in").write_text(commands + f"run {steps}\n")
+        env = dict(ENV)
+        if batch is not None:
+            env["GPUMD_REPLICA_BATCH"] = str(batch)
         result = subprocess.run(
             [str(BINARY)], cwd=directory, text=True, stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT, timeout=120, env=ENV,
+            stderr=subprocess.STDOUT, timeout=120, env=env,
         )
         (directory / "run.log").write_text(result.stdout)
         if expected_error:
@@ -192,6 +241,8 @@ class ReplicaRegression(unittest.TestCase):
                     for replica, speed in enumerate(speeds):
                         path = directory / f"prd_replica_{replica}_restart.xyz"
                         header = path.read_text().splitlines()[:2]
+                        # Hand-written velocities in A/fs only, i.e. the layout without vel_natural.
+                        header[1] = header[1].replace(":vel_natural:R:3", "")
                         # Equal and opposite velocities preserve zero COM
                         # momentum, with a known 0.15 A displacement crossing.
                         velocities = [speed, -speed, 0, 0]
@@ -212,6 +263,68 @@ class ReplicaRegression(unittest.TestCase):
                         self.assertEqual(int(rows[0][6]), winner)
                         self.assertEqual(int(rows[0][5]), coincident)
                         self.assertEqual(int(rows[0][1]), clock_before + increment)
+
+    # Batched integration (GPUMD_REPLICA_BATCH=1) must reproduce the per-slot path bit for bit.
+    BATCH_OPTIONS = {
+        "remd": "replicas 4 exchange 10 temp 300 400",
+        "prd": "replicas 3 event 5 dephase 10 correlate 5 distance 0.15 quench 0.01 3000",
+    }
+
+    def check_batched_matches_per_slot(self, mode):
+        options = self.BATCH_OPTIONS[mode]
+        start = self.prepare_large(f"{mode}_start")
+        self.run_md(start, mode, 20, options, batch=0)
+        runs = {}
+        for batch in (0, 1):
+            directory = self.copy_restart(start, f"{mode}_batch{batch}", mode)
+            result = self.run_md(directory, mode, 40, options, resume=True, batch=batch)
+            if batch == 1:
+                self.assertIn("batched integration: on", result.stdout)
+                self.assertIn("Batched integration:", result.stdout)
+            runs[batch] = directory
+        names = self.restart_files(runs[0], mode)
+        self.assertEqual(names, self.restart_files(runs[1], mode))
+        names += ["remd_exchange.out", "remd_temperature_status.out", "remd_thermo.out"] \
+            if mode == "remd" else ["prd_events.out"]
+        self.assert_files_identical(runs[0], runs[1], names)
+
+    def test_batched_matches_per_slot_remd(self):
+        self.check_batched_matches_per_slot("remd")
+
+    def test_batched_matches_per_slot_prd(self):
+        self.check_batched_matches_per_slot("prd")
+
+    def test_batch_choice(self):
+        # On when one GPU holds at least two replicas and at most 20000 atoms in total.
+        cases = [
+            ("on", 4, None, "on (one concatenated system per GPU)"),
+            ("off_atoms", 12, None, "off (24000 atoms per GPU > 20000)"),
+            ("off_forced", 4, 0, "off (GPUMD_REPLICA_BATCH=0)"),
+        ]
+        for name, replicas, batch, message in cases:
+            with self.subTest(name=name):
+                directory = self.prepare_large(f"batch_choice_{name}")
+                options = f"replicas {replicas} exchange 10 temp 300 400"
+                result = self.run_md(directory, "remd", 10, options, batch=batch)
+                self.assertIn("batched integration: " + message, result.stdout)
+        directory = self.prepare_large("batch_keyword")
+        self.run_md(directory, "remd", 10, "replicas 4 exchange 10 temp 300 400 batch 1",
+                    expected_error="Unknown multi_replica option.")
+
+    def test_split_resume_is_exact(self):
+        # A run split into two resumed segments must equal the uninterrupted run.
+        options = self.BATCH_OPTIONS["remd"]
+        start = self.prepare_large("split_start")
+        self.run_md(start, "remd", 20, options)
+        for batch in (0, 1):
+            with self.subTest(batch=batch):
+                whole = self.copy_restart(start, f"whole_{batch}", "remd")
+                self.run_md(whole, "remd", 40, options, resume=True, batch=batch)
+                split = self.copy_restart(start, f"split_{batch}", "remd")
+                self.run_md(split, "remd", 15, options, resume=True, batch=batch)
+                self.run_md(split, "remd", 25, options, resume=True, batch=batch)
+                names = self.restart_files(whole, "remd") + ["remd_exchange.out"]
+                self.assert_files_identical(whole, split, names)
 
     def test_qnep_comments_and_restart_solver_validation(self):
         for mode in ("remd", "prd"):

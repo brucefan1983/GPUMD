@@ -14,12 +14,14 @@
 */
 
 #include "replica_common.cuh"
+#include "replica_batch.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <fstream>
 
 namespace replica
@@ -174,6 +176,42 @@ void validate_xyz_box(
   }
 }
 
+const char RESTART_XYZ_PROPERTIES[] = "species:S:1:pos:R:3:mass:R:1:vel:R:3:vel_natural:R:3";
+
+bool parse_restart_xyz_properties(const std::string& properties, bool& natural_velocity)
+{
+  natural_velocity = properties == RESTART_XYZ_PROPERTIES;
+  return natural_velocity || properties == "species:S:1:pos:R:3:mass:R:1:vel:R:3";
+}
+
+void write_restart_xyz_velocity(FILE* file, const std::vector<double>& velocity, const int atom)
+{
+  const size_t n = velocity.size() / 3;
+  fprintf(
+    file,
+    " %.17g %.17g %.17g %.17g %.17g %.17g\n",
+    velocity[atom] / TIME_UNIT_CONVERSION,
+    velocity[atom + n] / TIME_UNIT_CONVERSION,
+    velocity[atom + 2 * n] / TIME_UNIT_CONVERSION,
+    velocity[atom],
+    velocity[atom + n],
+    velocity[atom + 2 * n]);
+}
+
+bool read_restart_xyz_velocity(
+  std::istream& input, const bool natural_velocity, std::vector<double>& velocity, const int atom)
+{
+  const size_t n = velocity.size() / 3;
+  double velocity_in_fs[3];
+  if (!(input >> velocity_in_fs[0] >> velocity_in_fs[1] >> velocity_in_fs[2]))
+    return false;
+  if (natural_velocity)
+    return static_cast<bool>(input >> velocity[atom] >> velocity[atom + n] >> velocity[atom + 2 * n]);
+  for (int d = 0; d < 3; ++d)
+    velocity[atom + d * n] = velocity_in_fs[d] * TIME_UNIT_CONVERSION;
+  return true;
+}
+
 Replica_Slot::Replica_Slot(const int replica_id, const int device_id)
   : replica_id(replica_id)
   , device_id(device_id)
@@ -271,6 +309,7 @@ Device_Context::~Device_Context()
     worker.join();
   }
   CHECK(gpuSetDevice(device_id));
+  batch.reset();
   slots.clear();
   force.clear();
 }
@@ -294,7 +333,69 @@ Replica_Runtime::Replica_Runtime(
 Replica_Runtime::~Replica_Runtime()
 {
   stop_workers();
+  report_batches();
+  dump_state();
   devices_.clear();
+}
+
+void Replica_Runtime::report_batches() const
+{
+  if (!batch_active_)
+    return;
+  Replica_Batch_Statistics total;
+  for (const auto& device : devices_) {
+    if (!device->batch)
+      continue;
+    const Replica_Batch_Statistics& s = device->batch->statistics();
+    total.advances += s.advances;
+    total.steps += s.steps;
+    total.longest_advance = std::max(total.longest_advance, s.longest_advance);
+    total.partial_advances += s.partial_advances;
+    total.noncontiguous_advances += s.noncontiguous_advances;
+    total.full_to_partial += s.full_to_partial;
+    total.partial_to_full += s.partial_to_full;
+    total.noise_chunks += s.noise_chunks;
+    total.noise_buffer_reuses += s.noise_buffer_reuses;
+    total.partial_tail_chunks += s.partial_tail_chunks;
+  }
+  printf(
+    "Batched integration: %lld advances, %lld steps, longest advance %d steps; "
+    "%lld partial (%lld non-contiguous), %lld full->partial, %lld partial->full; "
+    "%lld noise chunks, %lld buffer reuses, %lld short tail chunks.\n",
+    total.advances, total.steps, total.longest_advance,
+    total.partial_advances, total.noncontiguous_advances,
+    total.full_to_partial, total.partial_to_full,
+    total.noise_chunks, total.noise_buffer_reuses, total.partial_tail_chunks);
+  fflush(stdout);
+}
+
+// Testing aid: GPUMD_REPLICA_STATE_DUMP=<prefix> writes, at the end of the run,
+// <prefix>_replica_<id>.bin with the raw doubles of position[3N], velocity[3N],
+// force[3N], potential[N] and virial[9N] of every replica.
+void Replica_Runtime::dump_state() const
+{
+  const char* prefix = std::getenv("GPUMD_REPLICA_STATE_DUMP");
+  if (prefix == nullptr || prefix[0] == '\0')
+    return;
+  for (const Replica_Slot* slot : replica_slots_) {
+    CHECK(gpuSetDevice(slot->device_id));
+    slot->stream.synchronize();
+    const int N = slot->atom.number_of_atoms;
+    std::vector<double> buffer(static_cast<size_t>(N) * 19);
+    double* p = buffer.data();
+    CHECK(gpuMemcpy(p, slot->atom.position_per_atom.data(), sizeof(double) * 3 * N, gpuMemcpyDeviceToHost));
+    CHECK(gpuMemcpy(p + 3 * N, slot->atom.velocity_per_atom.data(), sizeof(double) * 3 * N, gpuMemcpyDeviceToHost));
+    CHECK(gpuMemcpy(p + 6 * N, slot->atom.force_per_atom.data(), sizeof(double) * 3 * N, gpuMemcpyDeviceToHost));
+    CHECK(gpuMemcpy(p + 9 * N, slot->atom.potential_per_atom.data(), sizeof(double) * N, gpuMemcpyDeviceToHost));
+    CHECK(gpuMemcpy(p + 10 * N, slot->atom.virial_per_atom.data(), sizeof(double) * 9 * N, gpuMemcpyDeviceToHost));
+    const std::string name =
+      std::string(prefix) + "_replica_" + std::to_string(slot->replica_id) + ".bin";
+    FILE* file = fopen(name.c_str(), "wb");
+    if (file == nullptr)
+      PRINT_INPUT_ERROR("Cannot open the replica state dump file.");
+    fwrite(buffer.data(), sizeof(double), buffer.size(), file);
+    fclose(file);
+  }
 }
 
 void Replica_Runtime::clone_source_state(Replica_Slot& slot) const
@@ -424,6 +525,8 @@ void Replica_Runtime::initialize(
     device.slots.push_back(std::move(slot));
   }
 
+  initialize_batches();
+
   printf("    visible/used GPUs: %d/%d; slot distribution:", number_of_devices, used_devices);
   for (const auto& device : devices_) {
     device->active_slots.resize(device->slots.size(), 1);
@@ -431,6 +534,64 @@ void Replica_Runtime::initialize(
   }
   printf(".\n");
   fflush(stdout);
+}
+
+// Batched integration pays off while the GPU is mostly waiting for kernel launches. Measured on
+// RTX 4090 and RTX 5090, it is faster up to about 20000 atoms per GPU (all replicas together) and
+// 5-20% slower above that. GPUMD_REPLICA_BATCH=0 or 1 overrides the choice, e.g. for tests.
+constexpr long long max_batched_atoms_per_gpu = 20000;
+
+void Replica_Runtime::initialize_batches()
+{
+  const char* forced = std::getenv("GPUMD_REPLICA_BATCH");
+  const bool is_forced = forced != nullptr && forced[0] != '\0';
+  if (is_forced && std::string(forced) != "0" && std::string(forced) != "1")
+    PRINT_INPUT_ERROR("GPUMD_REPLICA_BATCH should be 0 or 1.");
+  if (is_forced && forced[0] == '0') {
+    printf("    batched integration: off (GPUMD_REPLICA_BATCH=0).\n");
+    return;
+  }
+  if (!is_forced) {
+    size_t slots_per_device = 0;
+    for (const auto& device : devices_)
+      slots_per_device = std::max(slots_per_device, device->slots.size());
+    const long long atoms_per_device =
+      static_cast<long long>(slots_per_device) * source_atom_.number_of_atoms;
+    if (slots_per_device < 2) {
+      printf("    batched integration: off (one replica per GPU).\n");
+      return;
+    }
+    if (atoms_per_device > max_batched_atoms_per_gpu) {
+      printf(
+        "    batched integration: off (%lld atoms per GPU > %lld).\n",
+        atoms_per_device,
+        max_batched_atoms_per_gpu);
+      return;
+    }
+  }
+  const std::string& potential_file = potential_commands_[0][1];
+  if (is_supported_charge_nep_name(read_potential_name(potential_file))) {
+    printf("    batched integration: off (not supported for qNEP).\n");
+    return;
+  }
+  for (auto& device : devices_) {
+    CHECK(gpuSetDevice(device->device_id));
+    std::unique_ptr<Replica_Batch> batch(new Replica_Batch(
+      device->device_id,
+      static_cast<int>(device->slots.size()),
+      potential_file,
+      source_atom_,
+      source_box_));
+    if (!batch->supported()) {
+      for (auto& other : devices_)
+        other->batch.reset();
+      printf("    batched integration: off (the box needs the small-box NEP path).\n");
+      return;
+    }
+    device->batch = std::move(batch);
+  }
+  batch_active_ = true;
+  printf("    batched integration: on (one concatenated system per GPU).\n");
 }
 
 void Replica_Runtime::start_workers()
@@ -490,6 +651,28 @@ void Replica_Runtime::advance_device(
   CHECK(gpuSetDevice(device.device_id));
   if (active_slots.size() != device.slots.size())
     PRINT_INPUT_ERROR("Internal active replica selection is inconsistent.");
+
+  if (device.batch) {
+    std::vector<Replica_Slot*> batch_slots;
+    batch_slots.reserve(device.slots.size());
+    int first = -1;
+    int last = -1;
+    for (size_t local_slot = 0; local_slot < device.slots.size(); ++local_slot) {
+      if (active_slots[local_slot]) {
+        batch_slots.push_back(device.slots[local_slot].get());
+        if (first < 0)
+          first = static_cast<int>(local_slot);
+        last = static_cast<int>(local_slot);
+      }
+    }
+    if (batch_slots.empty())
+      return;
+    device.batch->note_selection(
+      batch_slots.size() == device.slots.size(),
+      last - first + 1 == static_cast<int>(batch_slots.size()));
+    device.batch->advance(batch_slots, steps, time_step_);
+    return;
+  }
 
   for (int local_step = 0; local_step < steps; ++local_step) {
     for (size_t local_slot = 0; local_slot < device.slots.size(); ++local_slot) {

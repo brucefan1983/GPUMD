@@ -61,6 +61,10 @@ public:
     GPU_Vector<double>& thermo,
     const gpuStream_t stream);
 
+  // Draws the stochastic part of one nvt_bdp velocity rescaling, exactly as
+  // compute2_stream does, so that batched integration keeps the RNG sequence.
+  void draw_svr_noise(int ndeg, double& gaussian, double& sum_of_squares);
+
   void seed_rng(unsigned int seed);
   BDP_RNG_State get_rng_state() const;
   void set_rng_state(const BDP_RNG_State& state);
