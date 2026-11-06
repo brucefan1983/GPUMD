@@ -146,7 +146,32 @@ public:
 
   GPU_Vector<float>& get_bec_reference();
 
-private:
+  // Whether the box needs the small-box path; also fills the expanded box for it.
+  static bool get_expanded_box(const double rc, const Box& box, ExpandedBox& ebox);
+
+protected:
+  // As above; verbose = false skips the model and PPPM mesh information, e.g. for all
+  // but one of several copies of the same model.
+  NEP_Charge(
+    const char* file_potential,
+    const int num_atoms,
+    const RunInput& run_input,
+    const bool verbose);
+
+  // Stream for all kernel launches; the default stream unless a derived class sets
+  // one (replica dynamics evaluates one qNEP per replica stream).
+  gpuStream_t stream_ = nullptr;
+  int num_calls_large_box_ = 0;
+  int num_calls_small_box_ = 0;
+
+  // Global (candidate) neighbor list for the large-box path.
+  virtual void update_candidate_neighbors(
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position_per_atom,
+    const int*& NN,
+    const int*& NL);
+
   ParaMB paramb;
   ANN annmb;
   ZBL zbl;
