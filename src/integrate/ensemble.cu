@@ -368,12 +368,13 @@ void Ensemble::velocity_verlet(
   const GPU_Vector<double>& mass,
   const GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom)
+  GPU_Vector<double>& velocity_per_atom,
+  const gpuStream_t stream)
 {
   const int number_of_atoms = mass.size();
 
   if (fixed_group == -1) {
-    gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128, 0, stream>>>(
       is_step1,
       number_of_atoms,
       time_step,
@@ -388,7 +389,7 @@ void Ensemble::velocity_verlet(
       force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
   } else {
-    gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128, 0, stream>>>(
       is_step1,
       number_of_atoms,
       fixed_group,

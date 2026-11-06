@@ -185,7 +185,8 @@ protected:
     const GPU_Vector<double>& mass,
     const GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& position_per_atom,
-    GPU_Vector<double>& velocity_per_atom);
+    GPU_Vector<double>& velocity_per_atom,
+    const gpuStream_t stream = nullptr);
 
 #ifdef USE_NEPCG
   void velocity_verlet_cg(
