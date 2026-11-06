@@ -22,6 +22,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 #include "force/neighbor.cuh"
 #include "nep.cuh"
+#include "nep_kernels.cuh"
 #include "nep_small_box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/nep_io/compact_nep.cuh"
@@ -70,6 +71,13 @@ void NEP::initialize_dftd3(const RunInput& run_input)
 }
 
 NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_input)
+  : NEP(file_potential, true)
+{
+  allocate_workspace(num_atoms);
+  initialize_dftd3(run_input);
+}
+
+NEP::NEP(const char* file_potential, const bool verbose)
 {
   NEP_Model_Input input(file_potential);
 
@@ -101,9 +109,9 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   }
 
   if (paramb.num_types == 1) {
-    printf("Use the NEP4 potential with %d atom type.\n", paramb.num_types);
+    if (verbose) printf("Use the NEP4 potential with %d atom type.\n", paramb.num_types);
   } else {
-    printf("Use the NEP4 potential with %d atom types.\n", paramb.num_types);
+    if (verbose) printf("Use the NEP4 potential with %d atom types.\n", paramb.num_types);
   }
 
   for (int n = 0; n < paramb.num_types; ++n) {
@@ -115,7 +123,7 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
       }
     }
     zbl.atomic_numbers[n] = atomic_number;
-    printf("    type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
+    if (verbose) printf("    type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
   }
 
   // zbl
@@ -132,15 +140,15 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
         PRINT_INPUT_ERROR("Flexible ZBL is only supported for model nep.");
       }
       zbl.flexible = true;
-      printf("    has the flexible ZBL potential\n");
+      if (verbose) printf("    has the flexible ZBL potential\n");
     } else {
       if (tokens.size() == 4) {
         paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
         paramb.use_typewise_cutoff_zbl = true;
-        printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
+        if (verbose) printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
           paramb.typewise_cutoff_zbl_factor);
       } else {
-        printf(
+        if (verbose) printf(
           "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
           zbl.rc_inner,
           zbl.rc_outer);
@@ -161,14 +169,14 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
       paramb.rc_radial[n] = paramb.rc_radial[0];
       paramb.rc_angular[n] = paramb.rc_angular[0];
     }
-    printf("    radial cutoff = %g A.\n", paramb.rc_radial[0]);
-    printf("    angular cutoff = %g A.\n", paramb.rc_angular[0]);
+    if (verbose) printf("    radial cutoff = %g A.\n", paramb.rc_radial[0]);
+    if (verbose) printf("    angular cutoff = %g A.\n", paramb.rc_angular[0]);
   } else {
-    printf("    cutoff = \n");
+    if (verbose) printf("    cutoff = \n");
     for (int n = 0; n < paramb.num_types; ++n) {
       paramb.rc_radial[n] = get_double_from_token(tokens[1 + n * 2], __FILE__, __LINE__);
       paramb.rc_angular[n] = get_double_from_token(tokens[2 + n * 2], __FILE__, __LINE__);
-      printf("    (%g A, %g A)\n", paramb.rc_radial[n], paramb.rc_angular[n]);
+      if (verbose) printf("    (%g A, %g A)\n", paramb.rc_radial[n], paramb.rc_angular[n]);
     }
   }
   for (int n = 0; n < paramb.num_types; ++n) {
@@ -180,7 +188,7 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
 
   int MN_radial = get_int_from_token(tokens[tokens.size() - 2], __FILE__, __LINE__);
   int MN_angular = get_int_from_token(tokens[tokens.size() - 1], __FILE__, __LINE__);
-  printf("    MN_radial = %d.\n", MN_radial);
+  if (verbose) printf("    MN_radial = %d.\n", MN_radial);
   if (MN_radial > 819) {
     std::cout << "The maximum number of neighbors exceeds 819. Please reduce this value."
               << std::endl;
@@ -188,8 +196,8 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   }
   paramb.MN_radial = int(ceil(MN_radial * 1.25));
   paramb.MN_angular = int(ceil(MN_angular * 1.25));
-  printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
-  printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
+  if (verbose) printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
+  if (verbose) printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
   // n_max 10 8
   tokens = input.get_tokens();
@@ -199,8 +207,8 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   }
   paramb.n_max_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
   paramb.n_max_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
-  printf("    n_max_radial = %d.\n", paramb.n_max_radial);
-  printf("    n_max_angular = %d.\n", paramb.n_max_angular);
+  if (verbose) printf("    n_max_radial = %d.\n", paramb.n_max_radial);
+  if (verbose) printf("    n_max_angular = %d.\n", paramb.n_max_angular);
 
   // basis_size 10 8
   tokens = input.get_tokens();
@@ -211,8 +219,8 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   }
   paramb.basis_size_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
   paramb.basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
-  printf("    basis_size_radial = %d.\n", paramb.basis_size_radial);
-  printf("    basis_size_angular = %d.\n", paramb.basis_size_angular);
+  if (verbose) printf("    basis_size_radial = %d.\n", paramb.basis_size_radial);
+  if (verbose) printf("    basis_size_angular = %d.\n", paramb.basis_size_angular);
 
   // l_max
   tokens = input.get_tokens();
@@ -222,7 +230,7 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   }
 
   paramb.L_max = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  printf("    l_max_3body = %d.\n", paramb.L_max);
+  if (verbose) printf("    l_max_3body = %d.\n", paramb.L_max);
   paramb.num_L = paramb.L_max;
 
   paramb.has_q_222 = get_int_from_token(tokens[2], __FILE__, __LINE__);
@@ -239,12 +247,12 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   if (tokens.size() >= 8) {
     paramb.has_q_134 = get_int_from_token(tokens[7], __FILE__, __LINE__);
   }
-  printf("    has_q_222 = %d.\n", paramb.has_q_222);
-  printf("    has_q_1111 = %d.\n", paramb.has_q_1111);
-  printf("    has_q_112 = %d.\n", paramb.has_q_112);
-  printf("    has_q_123 = %d.\n", paramb.has_q_123);
-  printf("    has_q_233 = %d.\n", paramb.has_q_233);
-  printf("    has_q_134 = %d.\n", paramb.has_q_134);
+  if (verbose) printf("    has_q_222 = %d.\n", paramb.has_q_222);
+  if (verbose) printf("    has_q_1111 = %d.\n", paramb.has_q_1111);
+  if (verbose) printf("    has_q_112 = %d.\n", paramb.has_q_112);
+  if (verbose) printf("    has_q_123 = %d.\n", paramb.has_q_123);
+  if (verbose) printf("    has_q_233 = %d.\n", paramb.has_q_233);
+  if (verbose) printf("    has_q_134 = %d.\n", paramb.has_q_134);
   if (paramb.has_q_222) {
     paramb.num_L += 1;
   }
@@ -278,7 +286,7 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   if (paramb.model_type == 3) {
     annmb.dim += 1;
   }
-  printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
+  if (verbose) printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
   if (
     paramb.n_max_radial + 1 > MAX_NUM_N || paramb.n_max_angular + 1 > MAX_NUM_N ||
     paramb.basis_size_radial + 1 > MAX_NUM_N || paramb.basis_size_angular + 1 > MAX_NUM_N ||
@@ -291,13 +299,13 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
   annmb.num_para_ann = (annmb.dim + 2) * annmb.num_neurons1 * paramb.num_types + 1;
-  printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
+  if (verbose) printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
                            (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-  printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
+  if (verbose) printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
   annmb.num_para = annmb.num_para_ann + num_para_descriptor;
-  printf("    total number of parameters = %d.\n", annmb.num_para);
+  if (verbose) printf("    total number of parameters = %d.\n", annmb.num_para);
 
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
@@ -339,7 +347,10 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
     }
     zbl.num_types = paramb.num_types;
   }
+}
 
+void NEP::allocate_workspace(const int num_atoms)
+{
   nep_data.f12x.resize(num_atoms * paramb.MN_angular);
   nep_data.f12y.resize(num_atoms * paramb.MN_angular);
   nep_data.f12z.resize(num_atoms * paramb.MN_angular);
@@ -353,8 +364,6 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
     static_cast<size_t>(num_atoms) * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
-
-  initialize_dftd3(run_input);
 }
 
 NEP::~NEP(void)
@@ -379,489 +388,6 @@ void NEP::update_potential(float* parameters, ANN& ann)
   ann.c = pointer;
 }
 
-static __global__ void find_neighbor_list_large_box(
-  NEP::ParaMB paramb,
-  const int N,
-  const int N1,
-  const int N2,
-  const Box box,
-  const int* g_type,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
-  const int* __restrict__ g_NN_global,
-  const int* __restrict__ g_NL_global,
-  int* g_NN_radial,
-  int* g_NL_radial,
-  int* g_NN_angular,
-  int* g_NL_angular)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 >= N2) {
-    return;
-  }
-
-  double x1 = g_x[n1];
-  double y1 = g_y[n1];
-  double z1 = g_z[n1];
-  int t1 = g_type[n1];
-  int count_radial = 0;
-  int count_angular = 0;
-
-  for (int i1 = 0; i1 < g_NN_global[n1]; ++i1) {
-    int n2 = g_NL_global[static_cast<size_t>(N) * i1 + n1];
-    float x12 = g_x[n2] - x1;
-    float y12 = g_y[n2] - y1;
-    float z12 = g_z[n2] - z1;
-    apply_mic(box, x12, y12, z12);
-    float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
-    int t2 = g_type[n2];
-    float rc_radial = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
-    float rc_angular = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
-    if (d12_square >= rc_radial * rc_radial) {
-      continue;
-    }
-    g_NL_radial[static_cast<size_t>(N) * count_radial++ + n1] = n2;
-    if (d12_square < rc_angular * rc_angular) {
-      g_NL_angular[count_angular++ * N + n1] = n2;
-    }
-  }
-
-  g_NN_radial[n1] = count_radial;
-  g_NN_angular[n1] = count_angular;
-}
-
-static __global__ void find_descriptor(
-  NEP::ParaMB paramb,
-  NEP::ANN annmb,
-  const int N,
-  const int N1,
-  const int N2,
-  const Box box,
-  const int* g_NN,
-  const int* g_NL,
-  const int* g_NN_angular,
-  const int* g_NL_angular,
-  const int* __restrict__ g_type,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
-  double* g_pe,
-  float* g_Fp,
-  double* g_virial,
-  float* g_sum_fxyz)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 < N2) {
-    int t1 = g_type[n1];
-    double x1 = g_x[n1];
-    double y1 = g_y[n1];
-    double z1 = g_z[n1];
-    float q[MAX_DIM] = {0.0f};
-
-    // get radial descriptors
-    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int n2 = g_NL[static_cast<size_t>(N) * i1 + n1];
-      float x12 = g_x[n2] - x1;
-      float y12 = g_y[n2] - y1;
-      float z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-      float fc12;
-      int t2 = g_type[n2];
-      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
-      float rcinv = 1.0f / rc;
-      find_fc(rc, rcinv, d12, fc12);
-      float fn12[MAX_NUM_N];
-
-      find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
-      for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float gn12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = get_c_index(
-            t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
-          gn12 += fn12[k] * annmb.c_type_pair[c_index];
-        }
-        q[n] += gn12;
-      }
-    }
-
-    // get angular descriptors
-    for (int n = 0; n <= paramb.n_max_angular; ++n) {
-      float s[NUM_OF_ABC] = {0.0f};
-      for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
-        int n2 = g_NL_angular[n1 + N * i1];
-        float x12 = g_x[n2] - x1;
-        float y12 = g_y[n2] - y1;
-        float z12 = g_z[n2] - z1;
-        apply_mic(box, x12, y12, z12);
-        float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-        float fc12;
-        int t2 = g_type[n2];
-        float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
-        float rcinv = 1.0f / rc;
-        find_fc(rc, rcinv, d12, fc12);
-        float fn12[MAX_NUM_N];
-        find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
-        float gn12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = get_c_index(
-            t1 * paramb.num_types + t2,
-            n,
-            k,
-            paramb.n_max_angular,
-            paramb.basis_size_angular,
-            paramb.num_c_radial);
-          gn12 += fn12[k] * annmb.c_type_pair[c_index];
-        }
-        accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
-      }
-      find_q(
-        paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
-        paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-      for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        g_sum_fxyz[static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1] = s[abc];
-      }
-    }
-
-    // normalize descriptor
-    for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = q[d] * annmb.q_scaler[d];
-    }
-
-    // get energy and energy gradient
-    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-
-    apply_ann_one_layer(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.w0[t1],
-      annmb.b0[t1],
-      annmb.w1[t1],
-      annmb.b1,
-      q,
-      F,
-      Fp);
-    g_pe[n1] += double(F) + (annmb.energy_reference ? annmb.energy_reference[t1] : 0.0);
-
-    for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[static_cast<size_t>(N) * d + n1] = Fp[d] * annmb.q_scaler[d];
-    }
-  }
-}
-
-static __global__ void find_force_radial(
-  NEP::ParaMB paramb,
-  NEP::ANN annmb,
-  const int N,
-  const int N1,
-  const int N2,
-  const Box box,
-  const int* g_NN,
-  const int* g_NL,
-  const int* __restrict__ g_type,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
-  const float* __restrict__ g_Fp,
-  double* g_fx,
-  double* g_fy,
-  double* g_fz,
-  double* g_virial)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 < N2) {
-    int t1 = g_type[n1];
-    float s_fx = 0.0f;
-    float s_fy = 0.0f;
-    float s_fz = 0.0f;
-    float s_sxx = 0.0f;
-    float s_sxy = 0.0f;
-    float s_sxz = 0.0f;
-    float s_syx = 0.0f;
-    float s_syy = 0.0f;
-    float s_syz = 0.0f;
-    float s_szx = 0.0f;
-    float s_szy = 0.0f;
-    float s_szz = 0.0f;
-    double x1 = g_x[n1];
-    double y1 = g_y[n1];
-    double z1 = g_z[n1];
-    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int n2 = g_NL[static_cast<size_t>(N) * i1 + n1];
-      int t2 = g_type[n2];
-      float x12 = g_x[n2] - x1;
-      float y12 = g_y[n2] - y1;
-      float z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      float r12[3] = {x12, y12, z12};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12inv = 1.0f / d12;
-      float f12[3] = {0.0f};
-      float f21[3] = {0.0f};
-      float fc12, fcp12;
-      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
-      float rcinv = 1.0f / rc;
-      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
-      float fn12[MAX_NUM_N];
-      float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
-      for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float gnp12 = 0.0f;
-        float gnp21 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index_12 = get_c_index(
-            t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
-          int c_index_21 = get_c_index(
-            t2 * paramb.num_types + t1, n, k, paramb.n_max_radial, paramb.basis_size_radial);
-          gnp12 += fnp12[k] * annmb.c_type_pair[c_index_12];
-          gnp21 += fnp12[k] * annmb.c_type_pair[c_index_21];
-        }
-        float tmp12 = g_Fp[static_cast<size_t>(N) * n + n1] * gnp12 * d12inv;
-        float tmp21 = g_Fp[static_cast<size_t>(N) * n + n2] * gnp21 * d12inv;
-        for (int d = 0; d < 3; ++d) {
-          f12[d] += tmp12 * r12[d];
-          f21[d] -= tmp21 * r12[d];
-        }
-      }
-      s_fx += f12[0] - f21[0];
-      s_fy += f12[1] - f21[1];
-      s_fz += f12[2] - f21[2];
-      s_sxx += r12[0] * f21[0];
-      s_syy += r12[1] * f21[1];
-      s_szz += r12[2] * f21[2];
-      s_sxy += r12[0] * f21[1];
-      s_sxz += r12[0] * f21[2];
-      s_syx += r12[1] * f21[0];
-      s_syz += r12[1] * f21[2];
-      s_szx += r12[2] * f21[0];
-      s_szy += r12[2] * f21[1];
-    }
-    g_fx[n1] += s_fx;
-    g_fy[n1] += s_fy;
-    g_fz[n1] += s_fz;
-    // save virial
-    // xx xy xz    0 3 4
-    // yx yy yz    6 1 5
-    // zx zy zz    7 8 2
-    g_virial[n1 + 0 * N] += s_sxx;
-    g_virial[n1 + 1 * N] += s_syy;
-    g_virial[n1 + 2 * N] += s_szz;
-    g_virial[n1 + 3 * N] += s_sxy;
-    g_virial[n1 + 4 * N] += s_sxz;
-    g_virial[n1 + 5 * N] += s_syz;
-    g_virial[n1 + 6 * N] += s_syx;
-    g_virial[n1 + 7 * N] += s_szx;
-    g_virial[n1 + 8 * N] += s_szy;
-  }
-}
-
-static __global__ void find_partial_force_angular(
-  NEP::ParaMB paramb,
-  NEP::ANN annmb,
-  const int N,
-  const int N1,
-  const int N2,
-  const Box box,
-  const int* g_NN_angular,
-  const int* g_NL_angular,
-  const int* __restrict__ g_type,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
-  const float* __restrict__ g_Fp,
-  const float* __restrict__ g_sum_fxyz,
-  float* g_f12x,
-  float* g_f12y,
-  float* g_f12z)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 < N2) {
-
-    float Fp[MAX_DIM_ANGULAR] = {0.0f};
-    float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
-    for (int d = 0; d < paramb.dim_angular; ++d) {
-      Fp[d] = g_Fp[static_cast<size_t>(N) * (paramb.n_max_radial + 1 + d) + n1];
-    }
-    for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
-      for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        sum_fxyz[n * NUM_OF_ABC + abc] =
-          g_sum_fxyz[static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1];
-      }
-    }
-
-    int t1 = g_type[n1];
-    double x1 = g_x[n1];
-    double y1 = g_y[n1];
-    double z1 = g_z[n1];
-    for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
-      int index = i1 * N + n1;
-      int n2 = g_NL_angular[n1 + N * i1];
-      float x12 = g_x[n2] - x1;
-      float y12 = g_y[n2] - y1;
-      float z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      float r12[3] = {x12, y12, z12};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float f12[3] = {0.0f};
-      float fc12, fcp12;
-      int t2 = g_type[n2];
-      float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
-      float rcinv = 1.0f / rc;
-      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
-
-      float fn12[MAX_NUM_N];
-      float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
-      for (int n = 0; n <= paramb.n_max_angular; ++n) {
-        float gn12 = 0.0f;
-        float gnp12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = get_c_index(
-            t1 * paramb.num_types + t2,
-            n,
-            k,
-            paramb.n_max_angular,
-            paramb.basis_size_angular,
-            paramb.num_c_radial);
-          gn12 += fn12[k] * annmb.c_type_pair[c_index];
-          gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
-        }
-        accumulate_f12(
-          paramb.L_max,
-          paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
-          paramb.num_L,
-          n,
-          paramb.n_max_angular + 1,
-          d12,
-          r12,
-          gn12,
-          gnp12,
-          Fp,
-          sum_fxyz,
-          f12);
-      }
-      g_f12x[index] = f12[0];
-      g_f12y[index] = f12[1];
-      g_f12z[index] = f12[2];
-    }
-  }
-}
-
-static __global__ void find_force_ZBL(
-  NEP::ParaMB paramb,
-  const int N,
-  const NEP::ZBL zbl,
-  const int N1,
-  const int N2,
-  const Box box,
-  const int* g_NN,
-  const int* g_NL,
-  const int* __restrict__ g_type,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
-  double* g_fx,
-  double* g_fy,
-  double* g_fz,
-  double* g_virial,
-  double* g_pe)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 < N2) {
-    float s_pe = 0.0f;
-    float s_fx = 0.0f;
-    float s_fy = 0.0f;
-    float s_fz = 0.0f;
-    float s_sxx = 0.0f;
-    float s_sxy = 0.0f;
-    float s_sxz = 0.0f;
-    float s_syx = 0.0f;
-    float s_syy = 0.0f;
-    float s_syz = 0.0f;
-    float s_szx = 0.0f;
-    float s_szy = 0.0f;
-    float s_szz = 0.0f;
-    double x1 = g_x[n1];
-    double y1 = g_y[n1];
-    double z1 = g_z[n1];
-    int type1 = g_type[n1];
-    int zi = zbl.atomic_numbers[type1];
-    float pow_zi = pow(float(zi), 0.23f);
-    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int n2 = g_NL[n1 + N * i1];
-      float x12 = g_x[n2] - x1;
-      float y12 = g_y[n2] - y1;
-      float z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      float r12[3] = {x12, y12, z12};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12inv = 1.0f / d12;
-      float f, fp;
-      int type2 = g_type[n2];
-      int zj = zbl.atomic_numbers[type2];
-      float a_inv = (pow_zi + pow(float(zj), 0.23f)) * 2.134563f;
-      float zizj = K_C_SP * zi * zj;
-      if (zbl.flexible) {
-        int t1, t2;
-        if (type1 < type2) {
-          t1 = type1;
-          t2 = type2;
-        } else {
-          t1 = type2;
-          t2 = type1;
-        }
-        int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
-        float ZBL_para[10];
-        for (int i = 0; i < 10; ++i) {
-          ZBL_para[i] = zbl.para[10 * zbl_index + i];
-        }
-        find_f_and_fp_zbl(ZBL_para, zizj, a_inv, d12, d12inv, f, fp);
-      } else {
-        float rc_inner = zbl.rc_inner;
-        float rc_outer = zbl.rc_outer;
-        if (paramb.use_typewise_cutoff_zbl) {
-          // zi and zj start from 1, so need to minus 1 here
-          rc_outer = min(
-            (COVALENT_RADIUS[zi - 1] + COVALENT_RADIUS[zj - 1]) * paramb.typewise_cutoff_zbl_factor,
-            rc_outer);
-          rc_inner = 0.0f;
-        }
-        find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
-      }
-      float f2 = fp * d12inv * 0.5f;
-      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
-      float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};
-      s_fx += f12[0] - f21[0];
-      s_fy += f12[1] - f21[1];
-      s_fz += f12[2] - f21[2];
-      s_sxx -= r12[0] * f12[0];
-      s_sxy -= r12[0] * f12[1];
-      s_sxz -= r12[0] * f12[2];
-      s_syx -= r12[1] * f12[0];
-      s_syy -= r12[1] * f12[1];
-      s_syz -= r12[1] * f12[2];
-      s_szx -= r12[2] * f12[0];
-      s_szy -= r12[2] * f12[1];
-      s_szz -= r12[2] * f12[2];
-      s_pe += f * 0.5f;
-    }
-    g_fx[n1] += s_fx;
-    g_fy[n1] += s_fy;
-    g_fz[n1] += s_fz;
-    g_virial[n1 + 0 * N] += s_sxx;
-    g_virial[n1 + 1 * N] += s_syy;
-    g_virial[n1 + 2 * N] += s_szz;
-    g_virial[n1 + 3 * N] += s_sxy;
-    g_virial[n1 + 4 * N] += s_sxz;
-    g_virial[n1 + 5 * N] += s_syz;
-    g_virial[n1 + 6 * N] += s_syx;
-    g_virial[n1 + 7 * N] += s_szx;
-    g_virial[n1 + 8 * N] += s_szy;
-    g_pe[n1] += s_pe;
-  }
-}
-
 // large box fo MD applications
 void NEP::compute_large_box(
   Box& box,
@@ -871,32 +397,24 @@ void NEP::compute_large_box(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  const int BLOCK_SIZE = 64;
   const int N = type.size();
-  const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
   neighbor_manager.update(
     box, 
     type, 
     position_per_atom);
 
-  find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
-    paramb,
+  find_neighbor_lists_large_box(
+    box,
     N,
     N1,
     N2,
-    box,
     type.data(),
     position_per_atom.data(),
-    position_per_atom.data() + N,
-    position_per_atom.data() + N * 2,
     neighbor_manager.get_candidate_NN().data(),
     neighbor_manager.get_candidate_NL().data(),
-    nep_data.NN_radial.data(),
-    nep_data.NL_radial.data(),
-    nep_data.NN_angular.data(),
-    nep_data.NL_angular.data());
-  GPU_CHECK_KERNEL
+    nep_data,
+    0);
 
   static int num_calls = 0;
   if (num_calls++ % 1000 == 0) {
@@ -920,100 +438,18 @@ void NEP::compute_large_box(
     output_file.close();
   }
 
-  find_descriptor<<<grid_size, BLOCK_SIZE>>>(
-    paramb,
-    annmb,
+  compute_large_box_from_neighbor_lists(
+    box,
     N,
     N1,
     N2,
-    box,
-    nep_data.NN_radial.data(),
-    nep_data.NL_radial.data(),
-    nep_data.NN_angular.data(),
-    nep_data.NL_angular.data(),
     type.data(),
     position_per_atom.data(),
-    position_per_atom.data() + N,
-    position_per_atom.data() + N * 2,
     potential_per_atom.data(),
-    nep_data.Fp.data(),
-    virial_per_atom.data(),
-    nep_data.sum_fxyz.data());
-  GPU_CHECK_KERNEL
-
-  find_force_radial<<<grid_size, BLOCK_SIZE>>>(
-    paramb,
-    annmb,
-    N,
-    N1,
-    N2,
-    box,
-    nep_data.NN_radial.data(),
-    nep_data.NL_radial.data(),
-    type.data(),
-    position_per_atom.data(),
-    position_per_atom.data() + N,
-    position_per_atom.data() + N * 2,
-    nep_data.Fp.data(),
     force_per_atom.data(),
-    force_per_atom.data() + N,
-    force_per_atom.data() + N * 2,
-    virial_per_atom.data());
-  GPU_CHECK_KERNEL
-
-  find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
-    paramb,
-    annmb,
-    N,
-    N1,
-    N2,
-    box,
-    nep_data.NN_angular.data(),
-    nep_data.NL_angular.data(),
-    type.data(),
-    position_per_atom.data(),
-    position_per_atom.data() + N,
-    position_per_atom.data() + N * 2,
-    nep_data.Fp.data(),
-    nep_data.sum_fxyz.data(),
-    nep_data.f12x.data(),
-    nep_data.f12y.data(),
-    nep_data.f12z.data());
-  GPU_CHECK_KERNEL
-
-  find_properties_many_body(
-    box,
-    nep_data.NN_angular.data(),
-    nep_data.NL_angular.data(),
-    nep_data.f12x.data(),
-    nep_data.f12y.data(),
-    nep_data.f12z.data(),
-    position_per_atom,
-    force_per_atom,
-    virial_per_atom);
-  GPU_CHECK_KERNEL
-
-  if (zbl.enabled) {
-    find_force_ZBL<<<grid_size, BLOCK_SIZE>>>(
-      paramb,
-      N,
-      zbl,
-      N1,
-      N2,
-      box,
-      nep_data.NN_angular.data(),
-      nep_data.NL_angular.data(),
-      type.data(),
-      position_per_atom.data(),
-      position_per_atom.data() + N,
-      position_per_atom.data() + N * 2,
-      force_per_atom.data(),
-      force_per_atom.data() + N,
-      force_per_atom.data() + N * 2,
-      virial_per_atom.data(),
-      potential_per_atom.data());
-    GPU_CHECK_KERNEL
-  }
+    virial_per_atom.data(),
+    nep_data,
+    0);
 }
 
 // small box possibly used for active learning:
@@ -1025,35 +461,10 @@ void NEP::compute_small_box(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  const int BLOCK_SIZE = 64;
   const int N = type.size();
-  const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  const int big_neighbor_size = 2000;
-  const int size_x12 = type.size() * big_neighbor_size;
-
-  find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
-    paramb,
-    N,
-    N1,
-    N2,
-    box,
-    ebox,
-    type.data(),
-    position_per_atom.data(),
-    position_per_atom.data() + N,
-    position_per_atom.data() + N * 2,
-    small_box_data.NN_radial.data(),
-    small_box_data.NL_radial.data(),
-    small_box_data.NN_angular.data(),
-    small_box_data.NL_angular.data(),
-    small_box_data.r12.data(),
-    small_box_data.r12.data() + size_x12,
-    small_box_data.r12.data() + size_x12 * 2,
-    small_box_data.r12.data() + size_x12 * 3,
-    small_box_data.r12.data() + size_x12 * 4,
-    small_box_data.r12.data() + size_x12 * 5);
-  GPU_CHECK_KERNEL
+  find_neighbor_lists_small_box(
+    box, ebox, N, N1, N2, type.data(), position_per_atom.data(), small_box_data, 0);
 
   static int num_calls = 0;
   if (num_calls++ % 1000 == 0) {
@@ -1079,91 +490,163 @@ void NEP::compute_small_box(
     output_file.close();
   }
 
-  find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
-    paramb,
-    annmb,
+  compute_small_box_from_neighbor_lists(
     N,
     N1,
     N2,
-    small_box_data.NN_radial.data(),
-    small_box_data.NL_radial.data(),
-    small_box_data.NN_angular.data(),
-    small_box_data.NL_angular.data(),
     type.data(),
-    small_box_data.r12.data(),
-    small_box_data.r12.data() + size_x12,
-    small_box_data.r12.data() + size_x12 * 2,
-    small_box_data.r12.data() + size_x12 * 3,
-    small_box_data.r12.data() + size_x12 * 4,
-    small_box_data.r12.data() + size_x12 * 5,
     potential_per_atom.data(),
-    nep_data.Fp.data(),
+    force_per_atom.data(),
     virial_per_atom.data(),
-    nep_data.sum_fxyz.data());
-  GPU_CHECK_KERNEL
+    nep_data,
+    small_box_data,
+    0);
+}
 
-  find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
+void NEP::find_neighbor_lists_small_box(
+  const Box& box,
+  const ExpandedBox& expanded_box,
+  const int N,
+  const int N1,
+  const int N2,
+  const int* type,
+  const double* position,
+  Small_Box_Data& small_box,
+  gpuStream_t stream) const
+{
+  const int BLOCK_SIZE = 64;
+  const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
+
+  const int big_neighbor_size = 2000;
+  const int size_x12 = N * big_neighbor_size;
+
+  find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
+    paramb,
+    N,
+    N1,
+    N2,
+    box,
+    expanded_box,
+    type,
+    position,
+    position + N,
+    position + N * 2,
+    small_box.NN_radial.data(),
+    small_box.NL_radial.data(),
+    small_box.NN_angular.data(),
+    small_box.NL_angular.data(),
+    small_box.r12.data(),
+    small_box.r12.data() + size_x12,
+    small_box.r12.data() + size_x12 * 2,
+    small_box.r12.data() + size_x12 * 3,
+    small_box.r12.data() + size_x12 * 4,
+    small_box.r12.data() + size_x12 * 5);
+  GPU_CHECK_KERNEL
+}
+
+void NEP::compute_small_box_from_neighbor_lists(
+  const int N,
+  const int N1,
+  const int N2,
+  const int* type,
+  double* potential,
+  double* force,
+  double* virial,
+  NEP_Data& data,
+  Small_Box_Data& small_box,
+  gpuStream_t stream)
+{
+  const int BLOCK_SIZE = 64;
+  const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
+
+  const int big_neighbor_size = 2000;
+  const int size_x12 = N * big_neighbor_size;
+
+  find_descriptor_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     annmb,
     N,
     N1,
     N2,
-    small_box_data.NN_radial.data(),
-    small_box_data.NL_radial.data(),
-    type.data(),
-    small_box_data.r12.data(),
-    small_box_data.r12.data() + size_x12,
-    small_box_data.r12.data() + size_x12 * 2,
-    nep_data.Fp.data(),
-    force_per_atom.data(),
-    force_per_atom.data() + N,
-    force_per_atom.data() + N * 2,
-    virial_per_atom.data());
+    small_box.NN_radial.data(),
+    small_box.NL_radial.data(),
+    small_box.NN_angular.data(),
+    small_box.NL_angular.data(),
+    type,
+    small_box.r12.data(),
+    small_box.r12.data() + size_x12,
+    small_box.r12.data() + size_x12 * 2,
+    small_box.r12.data() + size_x12 * 3,
+    small_box.r12.data() + size_x12 * 4,
+    small_box.r12.data() + size_x12 * 5,
+    potential,
+    data.Fp.data(),
+    virial,
+    data.sum_fxyz.data());
   GPU_CHECK_KERNEL
 
-  find_force_angular_small_box<<<grid_size, BLOCK_SIZE>>>(
+  find_force_radial_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
     annmb,
     N,
     N1,
     N2,
-    small_box_data.NN_angular.data(),
-    small_box_data.NL_angular.data(),
-    type.data(),
-    small_box_data.r12.data() + size_x12 * 3,
-    small_box_data.r12.data() + size_x12 * 4,
-    small_box_data.r12.data() + size_x12 * 5,
-    nep_data.Fp.data(),
-    nep_data.sum_fxyz.data(),
-    force_per_atom.data(),
-    force_per_atom.data() + N,
-    force_per_atom.data() + N * 2,
-    virial_per_atom.data());
+    small_box.NN_radial.data(),
+    small_box.NL_radial.data(),
+    type,
+    small_box.r12.data(),
+    small_box.r12.data() + size_x12,
+    small_box.r12.data() + size_x12 * 2,
+    data.Fp.data(),
+    force,
+    force + N,
+    force + N * 2,
+    virial);
+  GPU_CHECK_KERNEL
+
+  find_force_angular_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
+    paramb,
+    annmb,
+    N,
+    N1,
+    N2,
+    small_box.NN_angular.data(),
+    small_box.NL_angular.data(),
+    type,
+    small_box.r12.data() + size_x12 * 3,
+    small_box.r12.data() + size_x12 * 4,
+    small_box.r12.data() + size_x12 * 5,
+    data.Fp.data(),
+    data.sum_fxyz.data(),
+    force,
+    force + N,
+    force + N * 2,
+    virial);
   GPU_CHECK_KERNEL
 
   if (zbl.enabled) {
-    find_force_ZBL_small_box<<<grid_size, BLOCK_SIZE>>>(
+    find_force_ZBL_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
       paramb,
       N,
       zbl,
       N1,
       N2,
-      small_box_data.NN_angular.data(),
-      small_box_data.NL_angular.data(),
-      type.data(),
-      small_box_data.r12.data() + size_x12 * 3,
-      small_box_data.r12.data() + size_x12 * 4,
-      small_box_data.r12.data() + size_x12 * 5,
-      force_per_atom.data(),
-      force_per_atom.data() + N,
-      force_per_atom.data() + N * 2,
-      virial_per_atom.data(),
-      potential_per_atom.data());
+      small_box.NN_angular.data(),
+      small_box.NL_angular.data(),
+      type,
+      small_box.r12.data() + size_x12 * 3,
+      small_box.r12.data() + size_x12 * 4,
+      small_box.r12.data() + size_x12 * 5,
+      force,
+      force + N,
+      force + N * 2,
+      virial,
+      potential);
     GPU_CHECK_KERNEL
   }
 }
 
-static bool get_expanded_box(const double rc, const Box& box, NEP::ExpandedBox& ebox)
+bool NEP::get_expanded_box(const double rc, const Box& box, NEP::ExpandedBox& ebox)
 {
   double volume = box.get_volume();
   double thickness_x = volume / box.get_area(0);

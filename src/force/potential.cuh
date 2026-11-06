@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "model/batch_box.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -103,4 +104,36 @@ protected:
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
+
+  // Same as above for atoms [N1, N2) of number_of_atoms, launched on a given stream. The
+  // Batch_Box version treats the atoms as replicas concatenated into one system.
+  void find_properties_many_body(
+    const Box& box,
+    const int number_of_atoms,
+    const int N1,
+    const int N2,
+    const int* NN,
+    const int* NL,
+    const float* f12x,
+    const float* f12y,
+    const float* f12z,
+    const double* position_per_atom,
+    double* force_per_atom,
+    double* virial_per_atom,
+    gpuStream_t stream);
+
+  void find_properties_many_body(
+    const Batch_Box& box,
+    const int number_of_atoms,
+    const int N1,
+    const int N2,
+    const int* NN,
+    const int* NL,
+    const float* f12x,
+    const float* f12y,
+    const float* f12z,
+    const double* position_per_atom,
+    double* force_per_atom,
+    double* virial_per_atom,
+    gpuStream_t stream);
 };
