@@ -30,15 +30,6 @@ bool NEP_Model_File::read_nep(
          read_parameters(document, blocks, error);
 }
 
-bool NEP_Model_File::get_nep_md_input(std::string& input, std::string& error) const
-{
-  std::string tag = enable_zbl ? "nep4_zbl" : "nep4";
-  if (name == "nep_temperature") {
-    tag += "_temperature";
-  }
-  return get_md_input(tag, input, error);
-}
-
 void NEP_Model_File::compact_nep(
   NEP_File& document, const std::vector<int>& active_to_full) const
 {

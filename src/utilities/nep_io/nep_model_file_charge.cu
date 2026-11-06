@@ -36,19 +36,6 @@ bool NEP_Model_File::read_charge(
          read_parameters(document, blocks, error);
 }
 
-bool NEP_Model_File::get_charge_md_input(std::string& input, std::string& error) const
-{
-  std::string tag = enable_zbl ? "nep4_zbl" : "nep4";
-  if (name == "qnep1") {
-    tag += "_charge1";
-  } else if (name == "qnep2") {
-    tag += "_charge2";
-  } else {
-    tag += "_charge3";
-  }
-  return get_md_input(tag, input, error);
-}
-
 void NEP_Model_File::compact_charge(
   NEP_File& document, const std::vector<int>& active_to_full) const
 {

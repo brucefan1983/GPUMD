@@ -28,12 +28,6 @@ bool NEP_Model_File::read_tnep(
   return read_parameters(document, blocks, error);
 }
 
-bool NEP_Model_File::get_tnep_md_input(std::string& input, std::string& error) const
-{
-  const std::string tag = name == "nep_dipole" ? "nep4_dipole" : "nep4_polarizability";
-  return get_md_input(tag, input, error);
-}
-
 void NEP_Model_File::compact_tnep(
   NEP_File& document, const std::vector<int>& active_to_full) const
 {

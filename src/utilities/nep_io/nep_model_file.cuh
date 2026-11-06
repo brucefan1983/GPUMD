@@ -69,7 +69,6 @@ public:
 
   bool read(std::istream& input, std::string& error);
   bool validate_md(std::string& error) const;
-  bool get_md_input(std::string& input, std::string& error) const;
   static bool read_and_compact(
     std::istream& input,
     const std::vector<std::string>& active_species,
@@ -78,7 +77,6 @@ public:
 
 private:
   bool parse(const NEP_File& document, std::string& error);
-  bool get_md_input(const std::string& tag, std::string& input, std::string& error) const;
   void compact_parameters(NEP_File& document, const std::vector<int>& active_to_full) const;
   static bool fail(std::string& error, const std::string& message, std::size_t line = 0);
   static bool read_integer(
@@ -120,21 +118,18 @@ private:
   bool read_parameters(
     const NEP_File& document, std::vector<std::string>& blocks, std::string& error);
 
-  bool get_nep_md_input(std::string& input, std::string& error) const;
   void compact_nep(NEP_File& document, const std::vector<int>& active_to_full) const;
   bool read_nep(
     const NEP_File& document,
     std::vector<std::string>& fields,
     std::vector<std::string>& blocks,
     std::string& error);
-  bool get_charge_md_input(std::string& input, std::string& error) const;
   void compact_charge(NEP_File& document, const std::vector<int>& active_to_full) const;
   bool read_charge(
     const NEP_File& document,
     std::vector<std::string>& fields,
     std::vector<std::string>& blocks,
     std::string& error);
-  bool get_tnep_md_input(std::string& input, std::string& error) const;
   void compact_tnep(NEP_File& document, const std::vector<int>& active_to_full) const;
   bool read_tnep(
     const NEP_File& document,

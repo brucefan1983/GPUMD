@@ -325,6 +325,11 @@ bool NEP_File::parse_double(const std::string& token, double& value)
   return true;
 }
 
+bool NEP_File::is_nep_header(const std::string& token)
+{
+  return lower(token) == "nep";
+}
+
 bool NEP_File::read(std::istream& input, std::string& error)
 {
   *this = NEP_File();
@@ -336,7 +341,7 @@ bool NEP_File::read(std::istream& input, std::string& error)
   if (status < 0) {
     return fail(error, "input stream failure.", 1);
   }
-  if (status == 0 || !tokenize(line, tokens) || tokens.size() < 3 || lower(tokens[0]) != "nep") {
+  if (status == 0 || !tokenize(line, tokens) || tokens.size() < 3 || !is_nep_header(tokens[0])) {
     return fail(error, "expected first line: nep <num_types> <elements...>.", 1);
   }
   std::size_t num_types;
