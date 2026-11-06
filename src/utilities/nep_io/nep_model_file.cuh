@@ -68,6 +68,7 @@ public:
   std::vector<float> zbl_parameters;
 
   bool read(std::istream& input, std::string& error);
+  bool validate_md(std::string& error) const;
   bool get_md_input(std::string& input, std::string& error) const;
   static bool read_and_compact(
     std::istream& input,

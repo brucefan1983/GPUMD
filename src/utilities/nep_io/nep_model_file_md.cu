@@ -33,10 +33,8 @@ bool NEP_Model_File::get_md_input(std::string& input, std::string& error) const
   return get_md_input("", input, error);
 }
 
-bool NEP_Model_File::get_md_input(
-  const std::string& tag, std::string& input, std::string& error) const
+bool NEP_Model_File::validate_md(std::string& error) const
 {
-  input.clear();
   error.clear();
   if (num_neurons2 != 0) {
     error = "Native MD supports only one hidden layer.";
@@ -50,6 +48,16 @@ bool NEP_Model_File::get_md_input(
     max_radial < 1 || max_radial > 819 || max_angular < 1 ||
     max_angular > std::numeric_limits<int>::max() / 2) {
     error = "Invalid neighbor capacities for native MD.";
+    return false;
+  }
+  return true;
+}
+
+bool NEP_Model_File::get_md_input(
+  const std::string& tag, std::string& input, std::string& error) const
+{
+  input.clear();
+  if (!validate_md(error)) {
     return false;
   }
 
