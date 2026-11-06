@@ -4,7 +4,7 @@ This directory contains the long-term differential regression tests for the defa
 `gpumd` executable and the `nep` training executable. It compares previously accepted
 executables with candidate executables and is intended to be run after source changes.
 
-Basic tests for the standalone `gpumd_replica` executable are in
+Basic tests for replica dynamics (`multi_replica` runs of `gpumd`) are in
 [`replica/`](replica/README.md). They have a separate single-GPU entry point and
 are not included in the GPUMD/NEP `full` suite described below.
 

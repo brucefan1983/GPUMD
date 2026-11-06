@@ -1,11 +1,11 @@
 .. _replica_input_parameters:
 .. index::
-   single: gpumd_replica input parameters
+   single: replica dynamics input parameters
 
 Input parameters
 ================
 
-The following keywords are supported in the ``run.in`` file of ``gpumd_replica``.
+The following keywords are supported in a ``run.in`` file with a ``multi_replica`` command.
 
 .. toctree::
    :maxdepth: 1

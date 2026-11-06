@@ -1,6 +1,6 @@
 .. _replica_kw_multi_replica:
 .. index::
-   single: multi_replica (keyword in gpumd_replica run.in)
+   single: multi_replica (keyword in replica run.in)
 
 :attr:`!multi_replica`
 ======================

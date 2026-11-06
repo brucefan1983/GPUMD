@@ -1,7 +1,7 @@
-"""Basic single-GPU integration tests for gpumd_replica.
+"""Basic single-GPU integration tests for replica dynamics (multi_replica in gpumd).
 
 Run directly with python3 tests_regression/replica/test_replica.py.
-Set GPUMD_REPLICA to select the executable; see README.md in this directory.
+Set GPUMD to select the gpumd executable; see README.md in this directory.
 """
 
 import os
@@ -14,7 +14,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
-BINARY = Path(os.environ.get("GPUMD_REPLICA", ROOT / "src/gpumd_replica")).resolve()
+BINARY = Path(os.environ.get("GPUMD", ROOT / "src/gpumd")).resolve()
 WORKDIR = os.environ.get("REPLICA_TEST_WORKDIR")
 ENV = dict(os.environ)
 # Keep a user-selected GPU (including UUIDs) while testing multiple streams on it.
@@ -54,16 +54,16 @@ def events(directory):
 
 
 @unittest.skipUnless(
-    __name__ == "__main__" or "GPUMD_REPLICA" in os.environ,
-    "GPU tests: run this script directly or set GPUMD_REPLICA",
+    __name__ == "__main__" or "GPUMD" in os.environ,
+    "GPU tests: run this script directly or set GPUMD",
 )
 class ReplicaRegression(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         if not BINARY.is_file():
             raise RuntimeError(
-                f"Replica executable not found: {BINARY}. "
-                "Run make -C src or set GPUMD_REPLICA."
+                f"gpumd executable not found: {BINARY}. "
+                "Run make -C src gpumd or set GPUMD."
             )
 
     def setUp(self):
@@ -92,9 +92,10 @@ class ReplicaRegression(unittest.TestCase):
             shutil.copyfile(ROOT / f"examples/{potential}/nep.txt", directory / "nep.txt")
         return directory
 
-    def prepare_large(self, name):
-        """2x2x2 supercell of the PbTe example (2000 atoms, triclinic) so that the
-        energy NEP uses the large-box path, which batched integration requires."""
+    def prepare_large(self, name, charge=False):
+        """2x2x2 supercell of the PbTe example (2000 atoms, triclinic, thickness about
+        38 A) so that the NEP or qNEP model uses the large-box path, which batched
+        integration requires."""
         directory = self.root / name
         directory.mkdir()
         lines = (ROOT / "examples/gpumd_static_qnep/model.xyz").read_text().splitlines()
@@ -115,7 +116,8 @@ class ReplicaRegression(unittest.TestCase):
             output.write(f'pbc="T T T" Lattice="{header}" Properties=species:S:1:pos:R:3\n')
             for symbol, position in atoms:
                 output.write(f"{symbol} {position[0]!r} {position[1]!r} {position[2]!r}\n")
-        shutil.copyfile(ROOT / "examples/nep_train/nep.txt", directory / "nep.txt")
+        potential = "qnep_train" if charge else "nep_train"
+        shutil.copyfile(ROOT / f"examples/{potential}/nep.txt", directory / "nep.txt")
         return directory
 
     def copy_restart(self, source, name, mode):
@@ -345,6 +347,108 @@ class ReplicaRegression(unittest.TestCase):
                     if solver == "pppm":
                         # Omitting kspace must resolve to the same default.
                         self.run_md(directory, mode, 1, options, resume=True)
+
+    def assert_restart_xyz_close(self, first, second, tolerance):
+        a, b = first.read_text().splitlines(), second.read_text().splitlines()
+        self.assertEqual(a[0], b[0])
+        self.assertEqual(len(a), len(b))
+        # The comment line also stores the potential energy, which is compared numerically.
+        comments = []
+        for line in (a[1], b[1]):
+            fields = line.split()
+            energy = [f for f in fields if f.startswith("potential_energy=")]
+            self.assertEqual(len(energy), 1)
+            comments.append(([f for f in fields if f not in energy],
+                             float(energy[0].split("=", 1)[1])))
+        self.assertEqual(comments[0][0], comments[1][0])
+        self.assertAlmostEqual(comments[0][1], comments[1][1],
+                               delta=1e-9 * abs(comments[0][1]))
+        largest = 0.0
+        for row_a, row_b in zip(a[2:], b[2:]):
+            tokens_a, tokens_b = row_a.split(), row_b.split()
+            self.assertEqual(tokens_a[0], tokens_b[0])
+            for x, y in zip(tokens_a[1:], tokens_b[1:]):
+                largest = max(largest, abs(float(x) - float(y)))
+        self.assertLess(largest, tolerance, f"{first.name}: largest difference {largest}")
+
+    def test_qnep_large_box_split_resume(self):
+        # Two qNEP replicas on one GPU use the large-box path concurrently, each on its own
+        # stream. With Ewald, a repeated run and a run split into resumed segments are
+        # identical. PPPM spreads charges onto its mesh with floating-point atomics, so
+        # repeated evaluations differ in the last bits, as in ordinary gpumd runs; there the
+        # runs must agree closely, which an evaluation reading unfinished data would not.
+        options = "replicas 2 exchange 5 temp 300 400"
+        for solver in ("ewald", "pppm"):
+            with self.subTest(solver=solver):
+                start = self.prepare_large(f"qnep_large_{solver}", charge=True)
+                self.run_md(start, "remd", 5, options, kspace=solver)
+                runs = []
+                for name in ("whole", "again"):
+                    whole = self.copy_restart(start, f"qnep_large_{solver}_{name}", "remd")
+                    self.run_md(whole, "remd", 10, options, kspace=solver, resume=True)
+                    runs.append(whole)
+                split = self.copy_restart(start, f"qnep_large_{solver}_split", "remd")
+                self.run_md(split, "remd", 4, options, kspace=solver, resume=True)
+                self.run_md(split, "remd", 6, options, kspace=solver, resume=True)
+                names = self.restart_files(runs[0], "remd")
+                for other in (runs[1], split):
+                    if solver == "ewald":
+                        self.assert_files_identical(runs[0], other, names + ["remd_exchange.out"])
+                    else:
+                        for name in names:
+                            if name.endswith(".xyz"):
+                                self.assert_restart_xyz_close(
+                                    runs[0] / name, other / name, tolerance=1e-6)
+                        accepted = [[row[-1] for row in data_rows(run / "remd_exchange.out")]
+                                    for run in (runs[0], other)]
+                        self.assertEqual(accepted[0], accepted[1])
+
+    def test_species_subset_matches_plain_gpumd(self):
+        # For a model.xyz with only some species of a multi-element NEP, gpumd evaluates a
+        # compact copy of the model with renumbered types. A replica run must use the same
+        # model: its initial potential energy equals that of an ordinary gpumd run.
+        directory = self.prepare("subset")
+        lines = (directory / "model.xyz").read_text().splitlines()
+        number = int(lines[0])
+        lattice = lines[1].split('Lattice="')[1].split('"')[0]
+        rows = [row.split() for row in lines[2:2 + number] if row.split()[0] == "Pb"]
+        with open(directory / "model.xyz", "w") as output:
+            output.write(f"{len(rows)}\n")
+            output.write(f'pbc="T T T" Lattice="{lattice}" Properties=species:S:1:pos:R:3:vel:R:3\n')
+            for tokens in rows:
+                output.write(" ".join(tokens[:4]) + " 0 0 0\n")
+        plain = self.root / "subset_plain"
+        shutil.copytree(directory, plain)
+
+        result = self.run_md(directory, "remd", 1, "replicas 2 exchange 1 temp 300 400")
+        self.assertIn("type 0 = Pb", result.stdout)
+        replica_energy = float(data_rows(directory / "remd_thermo.out")[0][2])
+
+        # Zero velocities and a tiny time step: the energy after one step is the initial one.
+        (plain / "run.in").write_text(
+            "potential nep.txt\ntime_step 0.0001\nensemble nve\ndump_thermo 1\nrun 1\n")
+        result = subprocess.run(
+            [str(BINARY)], cwd=plain, text=True, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT, timeout=120, env=ENV,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout)
+        plain_energy = float(data_rows(plain / "thermo.out")[0][2])
+        self.assertAlmostEqual(replica_energy, plain_energy, delta=1e-6 * abs(plain_energy))
+
+    def test_pppm_spacing_restart_validation(self):
+        for mode in ("remd", "prd"):
+            options = ("replicas 2 exchange 2 temp 300 400" if mode == "remd" else
+                       "replicas 2 event 2 dephase 0 correlate 5 distance 0.5 quench 0.001 2000")
+            with self.subTest(mode=mode):
+                directory = self.prepare(f"{mode}_spacing", charge=True)
+                self.run_md(directory, mode, 1, options, kspace="pppm 0.5")
+                self.assertEqual(metadata(directory, mode)["kspace"], "pppm 0.5")
+                self.run_md(directory, mode, 1, options, kspace="pppm 0.5", resume=True)
+                before = (directory / f"{mode}_restart.meta").read_bytes()
+                for kspace in ("pppm 1.0", "pppm"):
+                    self.run_md(directory, mode, 1, options, kspace=kspace, resume=True,
+                                expected_error=f"{mode.upper()} restart kspace does not match")
+                self.assertEqual((directory / f"{mode}_restart.meta").read_bytes(), before)
 
     def test_split_runs_preserve_state(self):
         for mode in ("remd", "prd"):

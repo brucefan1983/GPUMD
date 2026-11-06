@@ -1,13 +1,13 @@
 # Replica regression tests
 
-These 16 basic integration tests exercise the standalone `gpumd_replica`
-executable. They run independently of the parent directory's 221-case
-GPUMD/NEP differential suite and do not require a historical executable.
+These 18 basic integration tests exercise replica dynamics, i.e. `gpumd` runs
+with a `multi_replica` command. They run independently of the parent directory's
+221-case GPUMD/NEP differential suite and do not require a historical executable.
 
 From the repository root, build with the ordinary `make` command and run:
 
 ```bash
-make -C src -j
+make -C src -j gpumd
 python3 tests_regression/replica/test_replica.py
 ```
 
@@ -18,7 +18,7 @@ or device `0` if that variable is unset. Multiple replicas share that GPU.
 To select another executable and GPU:
 
 ```bash
-GPUMD_REPLICA=/path/to/gpumd_replica CUDA_VISIBLE_DEVICES=1 \
+GPUMD=/path/to/gpumd CUDA_VISIBLE_DEVICES=1 \
   python3 tests_regression/replica/test_replica.py
 ```
 
@@ -31,7 +31,10 @@ The tests check:
 - uninterrupted versus split continuation from the same checkpoint, including
   every replica's thermostat RNG state;
 - rejection of unsupported restart versions and changed exchange/dephasing settings;
-- qNEP Ewald/PPPM selection, inline comments, default solver, and restart validation;
+- qNEP Ewald/PPPM selection, inline comments, default solver, and restart validation,
+  including a changed PPPM spacing;
+- two concurrent qNEP replicas on the large-box path (2000-atom PbTe supercell) with
+  Ewald and PPPM: a repeated run and a run split into resumed segments are identical;
 - single-segment dephasing syntax and the retry limit;
 - rejection of the unsupported `verbose` and `verbose_output` options in both modes;
 - batched integration (forced with `GPUMD_REPLICA_BATCH=1`) reproducing the per-slot
@@ -59,5 +62,5 @@ REPLICA_TEST_WORKDIR=/tmp/replica-checks \
 
 A missing executable, unavailable GPU, process timeout (120 seconds per run),
 or failed assertion fails an explicit invocation. General test discovery skips
-this GPU suite unless `GPUMD_REPLICA` is set. The suite does not modify CI and
+this GPU suite unless `GPUMD` is set. The suite does not modify CI and
 does not cover multiple GPUs, long-time sampling accuracy, or performance.
