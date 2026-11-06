@@ -15,7 +15,6 @@
 
 #include "nep_model_file.cuh"
 #include <algorithm>
-#include <utility>
 
 static int triangular_pair_index(int type1, int type2, int num_types)
 {
@@ -27,26 +26,20 @@ static int triangular_pair_index(int type1, int type2, int num_types)
   return type1 * num_types - type1 * (type1 - 1) / 2 + type2 - type1;
 }
 
-bool NEP_Model_File::read_and_compact(
-  std::istream& input,
+bool NEP_Model_File::compact(
   const std::vector<std::string>& active_species,
   NEP_File& document,
-  std::string& error)
+  std::string& error) const
 {
-  document = NEP_File();
-  NEP_File parsed;
-  NEP_Model_File model;
-  if (!parsed.read(input, error) || !model.parse(parsed, error)) {
-    return false;
-  }
+  error.clear();
   std::vector<int> active_to_full;
   for (const std::string& element : active_species) {
-    const auto found = std::find(model.elements.begin(), model.elements.end(), element);
-    if (found == model.elements.end()) {
+    const auto found = std::find(elements.begin(), elements.end(), element);
+    if (found == elements.end()) {
       error = "The active species is not supported by the potential.";
       return false;
     }
-    const int type = static_cast<int>(found - model.elements.begin());
+    const int type = static_cast<int>(found - elements.begin());
     if (std::find(active_to_full.begin(), active_to_full.end(), type) != active_to_full.end()) {
       return fail(error, "duplicate active element.");
     }
@@ -55,9 +48,8 @@ bool NEP_Model_File::read_and_compact(
   if (active_to_full.empty()) {
     return fail(error, "at least one active element is required.");
   }
-  model.compact_parameters(parsed, active_to_full);
-  parsed.elements = active_species;
-  document = std::move(parsed);
+  compact_parameters(document, active_to_full);
+  document.elements = active_species;
   return true;
 }
 

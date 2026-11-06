@@ -332,6 +332,22 @@ bool NEP_File::is_nep_header(const std::string& token)
 
 bool NEP_File::read(std::istream& input, std::string& error)
 {
+  return read_impl(input, error, false);
+}
+
+bool NEP_File::read_model_name(std::istream& input, std::string& name, std::string& error)
+{
+  name.clear();
+  NEP_File file;
+  if (!file.read_impl(input, error, true)) {
+    return false;
+  }
+  name = file.find_field("model")->values[0];
+  return true;
+}
+
+bool NEP_File::read_impl(std::istream& input, std::string& error, bool model_only)
+{
   *this = NEP_File();
   error.clear();
   NEP_File parsed;
@@ -364,13 +380,15 @@ bool NEP_File::read(std::istream& input, std::string& error)
       if (tokens.size() > remaining) {
         return fail(error, "too many values in block '" + block.name + "'.", line_number);
       }
-      for (const std::string& token : tokens) {
-        double value;
-        if (!parse_double(token, value)) {
-          return fail(
-            error, "expected finite decimal value in block '" + block.name + "'.", line_number);
+      if (!model_only) {
+        for (const std::string& token : tokens) {
+          double value;
+          if (!parse_double(token, value)) {
+            return fail(
+              error, "expected finite decimal value in block '" + block.name + "'.", line_number);
+          }
+          block.values.push_back(value);
         }
-        block.values.push_back(value);
       }
       remaining -= tokens.size();
     } else if (tokens[0] == "@") {
@@ -393,6 +411,15 @@ bool NEP_File::read(std::istream& input, std::string& error)
       field.name = lower(tokens[0]);
       field.values.assign(tokens.begin() + 1, tokens.end());
       field.line = line_number;
+      if (model_only && field.name == "model") {
+        if (field.values.size() != 1 || !identifier(field.values[0])) {
+          return fail(error, "model requires one identifier.", line_number);
+        }
+        field.values[0] = lower(field.values[0]);
+        parsed.fields.push_back(std::move(field));
+        *this = std::move(parsed);
+        return true;
+      }
       parsed.fields.push_back(std::move(field));
     }
   }

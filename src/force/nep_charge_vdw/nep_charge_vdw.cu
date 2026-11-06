@@ -285,20 +285,7 @@ NEP_Charge_VDW::NEP_Charge_VDW(
 
   // Training fixes alpha using the largest radial cutoff in the full model.
   // Removing inactive elements must not change this long-range model parameter.
-  float full_rc_radial = paramb.rc_radial;
-  const std::string original = get_original_nep_filename(file_potential);
-  if (original != file_potential) {
-    std::ifstream full_input(original);
-    if (!full_input.is_open()) {
-      const std::string error = "Cannot open original potential file " + original + ".";
-      PRINT_INPUT_ERROR(error.c_str());
-    }
-    NEP_Model_File full_model;
-    if (!full_model.read(full_input, error)) {
-      PRINT_INPUT_ERROR(error.c_str());
-    }
-    full_rc_radial = *std::max_element(full_model.rc_radial.begin(), full_model.rc_radial.end());
-  }
+  const float full_rc_radial = get_original_nep_radial_cutoff(file_potential, paramb.rc_radial);
 
   // Both models use the same fixed alpha for dispersion.
   charge_para.alpha = float(PI) / full_rc_radial;

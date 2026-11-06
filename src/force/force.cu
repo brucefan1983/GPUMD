@@ -45,9 +45,7 @@ The driver class calculating force and related quantities.
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/nep_io/nep_model_file.cuh"
 #include "utilities/nep_io/nep_file.cuh"
-#include "utilities/nep_io/nep_spin_model_file.cuh"
 #include "nep_spin/runtime.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
@@ -236,21 +234,22 @@ void Force::parse_potential(
 
   FILE* fid_potential = my_fopen(tokens[1].c_str(), "r");
   char potential_name[100];
-  int count = fscanf(fid_potential, "%s", potential_name);
+  int count = fscanf(fid_potential, "%99s", potential_name);
   if (count != 1) {
     PRINT_INPUT_ERROR("reading error for potential file.");
   }
   int num_types = get_number_of_types(fid_potential);
-  if (NEP_File::is_nep_header(potential_name) && NEP_Spin_Model_File::is_spin_model(tokens[1])) {
-    std::strcpy(potential_name, "nep_spin");
-  } else if (NEP_File::is_nep_header(potential_name)) {
-    NEP_Model_File model;
+  if (NEP_File::is_nep_header(potential_name)) {
     std::ifstream input(tokens[1]);
+    std::string model;
     std::string error;
-    if (!model.read(input, error)) {
+    if (!NEP_File::read_model_name(input, model, error)) {
       PRINT_INPUT_ERROR(error.c_str());
     }
-    std::strcpy(potential_name, model.name.c_str());
+    if (model.size() >= sizeof(potential_name)) {
+      PRINT_INPUT_ERROR("NEP model name is too long.");
+    }
+    std::strcpy(potential_name, model.c_str());
   }
   bool is_nep = false;
   std::unique_ptr<Potential> potential = create_potential(

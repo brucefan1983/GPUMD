@@ -84,12 +84,11 @@ bool is_nep_charge_potential(const std::string& potential_file_name)
   if (NEP_File::is_nep_header(tokens[0])) {
     input_potential.clear();
     input_potential.seekg(0);
-    NEP_File document;
+    std::string model;
     std::string error;
-    if (!document.read(input_potential, error)) {
+    if (!NEP_File::read_model_name(input_potential, model, error)) {
       PRINT_INPUT_ERROR(error.c_str());
     }
-    const std::string& model = document.find_field("model")->values[0];
     return model == "qnep1" || model == "qnep2" || model == "qnep3" || model == "qnep3_vdw";
   }
   return false;

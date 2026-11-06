@@ -333,8 +333,13 @@ bool NEP_Model_File::validate_md(std::string& error) const
 
 bool NEP_Model_File::read(std::istream& input, std::string& error)
 {
-  *this = NEP_Model_File();
   NEP_File document;
+  return read(input, document, error);
+}
+
+bool NEP_Model_File::read(std::istream& input, NEP_File& document, std::string& error)
+{
+  *this = NEP_Model_File();
   if (!document.read(input, error)) {
     return false;
   }

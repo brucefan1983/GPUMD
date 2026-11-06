@@ -18,6 +18,7 @@
 #include "nep_spin_model_file.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -33,6 +34,7 @@ struct CompactPotentialFile
 {
   std::string original;
   std::string compact;
+  float rc_radial;
 };
 
 static std::vector<CompactPotentialFile> compact_files;
@@ -154,13 +156,24 @@ static std::string get_compact_filename(const int file_index)
   return compact_filename;
 }
 
-static std::string make_compact_model_file(
-  const std::string& filename, const std::vector<std::string>& active_species, const int file_index)
+static bool make_compact_model_file(
+  const std::string& filename,
+  const std::vector<std::string>& active_species,
+  const int file_index,
+  CompactPotentialFile& file)
 {
   std::ifstream input(filename);
   NEP_File document;
+  NEP_Model_File model;
   std::string error;
-  if (!NEP_Model_File::read_and_compact(input, active_species, document, error)) {
+  if (!model.read(input, document, error)) {
+#ifdef GPUMD_WPE_ENABLED
+    return false;
+#else
+    PRINT_INPUT_ERROR(error.c_str());
+#endif
+  }
+  if (!model.compact(active_species, document, error)) {
     PRINT_INPUT_ERROR(error.c_str());
   }
   const std::string compact_filename = get_compact_filename(file_index);
@@ -175,7 +188,10 @@ static std::string make_compact_model_file(
     std::remove(compact_filename.c_str());
     PRINT_INPUT_ERROR("Cannot write the compact NEP potential file.");
   }
-  return compact_filename;
+  file.original = filename;
+  file.compact = compact_filename;
+  file.rc_radial = *std::max_element(model.rc_radial.begin(), model.rc_radial.end());
+  return true;
 }
 
 void prepare_compact_nep_files(
@@ -197,21 +213,6 @@ void prepare_compact_nep_files(
   if (!is_compactable_nep(first) || NEP_Spin_Model_File::is_spin_model(potential_files.back())) {
     return;
   }
-  for (const std::string& filename : potential_files) {
-    const std::vector<std::string> header = get_first_line(filename);
-    if (!header.empty() && NEP_File::is_nep_header(header[0])) {
-      std::ifstream input(filename);
-      NEP_Model_File model;
-      std::string error;
-      if (!model.read(input, error)) {
-#ifdef GPUMD_WPE_ENABLED
-        return;
-#else
-        PRINT_INPUT_ERROR(error.c_str());
-#endif
-      }
-    }
-  }
   std::vector<std::string> species_full = get_species(first);
   std::vector<int> required(species_full.size(), 0);
   for (int n = 0; n < static_cast<int>(atom_symbols.size()); ++n) {
@@ -231,25 +232,25 @@ void prepare_compact_nep_files(
     return;
   }
 
-  printf("Active atom types for this simulation:\n");
-  for (int n = 0; n < static_cast<int>(compact_species.size()); ++n) {
-    printf("    type %d = %s.\n", n, compact_species[n].c_str());
-  }
-  printf("    Atom type indices in run.in refer to the active atom types above.\n");
-
   for (int n = 0; n < static_cast<int>(potential_files.size()); ++n) {
     std::vector<std::string> tokens = get_first_line(potential_files[n]);
     if (!is_compactable_nep(tokens)) {
       continue;
     }
-    std::string compact = make_compact_model_file(potential_files[n], compact_species, n);
-    if (compact != potential_files[n]) {
-      CompactPotentialFile file;
-      file.original = potential_files[n];
-      file.compact = compact;
-      compact_files.push_back(file);
+    CompactPotentialFile file;
+    if (!make_compact_model_file(potential_files[n], compact_species, n, file)) {
+      remove_compact_nep_files();
+      compact_species.clear();
+      return;
     }
+    compact_files.push_back(file);
   }
+
+  printf("Active atom types for this simulation:\n");
+  for (int n = 0; n < static_cast<int>(compact_species.size()); ++n) {
+    printf("    type %d = %s.\n", n, compact_species[n].c_str());
+  }
+  printf("    Atom type indices in run.in refer to the active atom types above.\n");
 }
 
 void prepare_compact_nep_files(const std::vector<std::string>& atom_symbols)
@@ -268,15 +269,15 @@ std::string get_compact_nep_filename(const std::string& filename)
   return filename;
 }
 
-// Recover the source of a runtime-compacted model, or return the given filename.
-std::string get_original_nep_filename(const std::string& filename)
+// Long-range parameters must retain the cutoff of the full, uncompressed model.
+float get_original_nep_radial_cutoff(const std::string& filename, float fallback)
 {
   for (const auto& file : compact_files) {
     if (file.compact == filename) {
-      return file.original;
+      return file.rc_radial;
     }
   }
-  return filename;
+  return fallback;
 }
 
 std::string get_first_potential_filename(const RunInput& run_input)

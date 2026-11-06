@@ -68,12 +68,14 @@ public:
   std::vector<float> zbl_parameters;
 
   bool read(std::istream& input, std::string& error);
+  // Retain the validated file records when they are also needed for compaction.
+  bool read(std::istream& input, NEP_File& document, std::string& error);
   bool validate_md(std::string& error) const;
-  static bool read_and_compact(
-    std::istream& input,
+  // document must be the records returned by read() for this model.
+  bool compact(
     const std::vector<std::string>& active_species,
     NEP_File& document,
-    std::string& error);
+    std::string& error) const;
 
 private:
   bool parse(const NEP_File& document, std::string& error);
