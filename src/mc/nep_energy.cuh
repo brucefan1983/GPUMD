@@ -17,6 +17,7 @@
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/nep_utilities.cuh"
 
 class NEP_Energy
 {
@@ -47,7 +48,7 @@ public:
     int num_types_sq = 0;
     int num_c_radial = 0;
     int num_types = 0;
-    float q_scaler[140];
+    float q_scaler[MAX_DIM];
   };
 
   struct ANN {
