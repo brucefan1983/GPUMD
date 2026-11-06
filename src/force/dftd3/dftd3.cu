@@ -80,6 +80,69 @@ void __global__ find_dftd3_coordination_number_small_box(
   }
 }
 
+// Interpolate C6 between the reference pairs. The pair weight exp(-4 (d_i^2 + d_j^2)) factorises,
+// so the two atoms are normalised separately; each atom's squared CN distances are shifted by their
+// minimum first, so the normalising sums are >= 1 and cannot underflow. This gives the same C6 and
+// dC6/dCN_1 as summing the pair weights directly, but stays smooth at large CN (e.g. Na or Cu
+// next to sp2 carbon), where the float sum of the pair weights underflows.
+static __device__ __forceinline__ void find_c6_stable(
+  const float* g_c6_ref,
+  const int z1,
+  const int z2,
+  const int z12,
+  const float cn1,
+  const float cn2,
+  float& c6,
+  float& dc6)
+{
+  const int n1 = num_cn[z1];
+  const int n2 = num_cn[z2];
+  float d1[max_cn];
+  float w1[max_cn];
+  float w2[max_cn];
+  float m1 = 1.0e30f;
+  float m2 = 1.0e30f;
+  for (int i = 0; i < n1; ++i) {
+    d1[i] = cn1 - cn_ref[z1 * max_cn + i];
+    m1 = fminf(m1, d1[i] * d1[i]);
+  }
+  for (int j = 0; j < n2; ++j) {
+    const float d = cn2 - cn_ref[z2 * max_cn + j];
+    w2[j] = d * d;
+    m2 = fminf(m2, w2[j]);
+  }
+  float s1 = 0.0f;
+  float s2 = 0.0f;
+  for (int i = 0; i < n1; ++i) {
+    w1[i] = exp(-4.0f * (d1[i] * d1[i] - m1));
+    s1 += w1[i];
+  }
+  for (int j = 0; j < n2; ++j) {
+    w2[j] = exp(-4.0f * (w2[j] - m2));
+    s2 += w2[j];
+  }
+  float d1_mean = 0.0f;
+  for (int i = 0; i < n1; ++i) {
+    w1[i] /= s1; // s1 >= 1: the nearest reference contributes exp(0)
+    d1_mean += w1[i] * d1[i];
+  }
+  for (int j = 0; j < n2; ++j) {
+    w2[j] /= s2;
+  }
+  c6 = 0.0f;
+  dc6 = 0.0f;
+  for (int i = 0; i < n1; ++i) {
+    float c6_i = 0.0f;
+    for (int j = 0; j < n2; ++j) {
+      c6_i += w2[j] * ((z1 < z2) ? g_c6_ref[z12 * max_cn2 + i * max_cn + j]
+                                 : g_c6_ref[z12 * max_cn2 + j * max_cn + i]);
+    }
+    c6 += w1[i] * c6_i;
+    // d w_i / d CN_1 = -8 w_i (d_i - sum_k w_k d_k)
+    dc6 += w1[i] * (-8.0f) * (d1[i] - d1_mean) * c6_i;
+  }
+}
+
 #if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
 static __device__ __inline__ double atomicAdd(double* address, double val)
 {
@@ -142,34 +205,7 @@ void __global__ add_dftd3_force_small_box(
       if (num_cn_1 == 1 && num_cn_2 == 1) {
         c6 = g_c6_ref[z12 * max_cn2];
       } else {
-        float W = 0.0f;
-        float dW = 0.0f;
-        float Z = 0.0f;
-        float dZ = 0.0f;
-        for (int i = 0; i < num_cn_1; ++i) {
-          for (int j = 0; j < num_cn_2; ++j) {
-            float diff_i = g_cn[n1] - cn_ref[z1 * max_cn + i];
-            float diff_j = g_cn[n2] - cn_ref[z2 * max_cn + j];
-            float L_ij = exp(-4.0f * (diff_i * diff_i + diff_j * diff_j));
-            W += L_ij;
-            dW += L_ij * (-8.0f * diff_i);
-            float c6_ref_ij = (z1 < z2) ? g_c6_ref[z12 * max_cn2 + i * max_cn + j]
-                                        : g_c6_ref[z12 * max_cn2 + j * max_cn + i];
-            Z += c6_ref_ij * L_ij;
-            dZ += c6_ref_ij * L_ij * (-8.0f * diff_i);
-          }
-        }
-
-        if (W < 1.0e-30f) {
-          int i = num_cn_1 - 1;
-          int j = num_cn_2 - 1;
-          c6 = (z1 < z2) ? g_c6_ref[z12 * max_cn2 + i * max_cn + j]
-                         : g_c6_ref[z12 * max_cn2 + j * max_cn + i];
-        } else {
-          W = 1.0f / W;
-          c6 = Z * W;
-          dc6 = dZ * W - c6 * dW * W;
-        }
+        find_c6_stable(g_c6_ref, z1, z2, z12, g_cn[n1], g_cn[n2], c6, dc6);
       }
       c6 *= HartreeBohr6;
       dc6 *= HartreeBohr6;
@@ -638,34 +674,8 @@ __global__ void find_dftd3_force_large_box(
             if (num_cn_1 == 1 && num_cn_2 == 1) {
               c6 = g_c6_ref[z12 * max_cn2];
             } else {
-              float W = 0.0f;
-              float dW = 0.0f;
-              float Z = 0.0f;
-              float dZ = 0.0f;
-              for (int i = 0; i < num_cn_1; ++i) {
-                for (int j = 0; j < num_cn_2; ++j) {
-                  float diff_i = g_cn[n1] - cn_ref[atomic_number_1 * max_cn + i];
-                  float diff_j = g_cn[n2] - cn_ref[atomic_number_2 * max_cn + j];
-                  float L_ij = exp(-4.0f * (diff_i * diff_i + diff_j * diff_j));
-                  W += L_ij;
-                  dW += L_ij * (-8.0f * diff_i);
-                  float c6_ref_ij = (atomic_number_1 < atomic_number_2)
-                                      ? g_c6_ref[z12 * max_cn2 + i * max_cn + j]
-                                      : g_c6_ref[z12 * max_cn2 + j * max_cn + i];
-                  Z += c6_ref_ij * L_ij;
-                  dZ += c6_ref_ij * L_ij * (-8.0f * diff_i);
-                }
-              }
-              if (W < 1.0e-30f) {
-                int i = num_cn_1 - 1;
-                int j = num_cn_2 - 1;
-                c6 = (atomic_number_1 < atomic_number_2) ? g_c6_ref[z12 * max_cn2 + i * max_cn + j]
-                                                         : g_c6_ref[z12 * max_cn2 + j * max_cn + i];
-              } else {
-                W = 1.0f / W;
-                c6 = Z * W;
-                dc6 = dZ * W - c6 * dW * W;
-              }
+              find_c6_stable(
+                g_c6_ref, atomic_number_1, atomic_number_2, z12, g_cn[n1], g_cn[n2], c6, dc6);
             }
             c6 *= HartreeBohr6;
             dc6 *= HartreeBohr6;
