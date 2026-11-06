@@ -194,7 +194,7 @@ NEP_MULTIGPU::NEP_MULTIGPU(
   printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
   printf("    total number of parameters = %d.\n", annmb[0].num_para);
 
-  // Preserve the GPU parameter buffers; descriptor coefficients are already type-pair-major.
+  // Store ANN parameters, type-pair-major descriptor coefficients and scalers in one buffer.
   std::vector<float> parameters = model.parameters;
   parameters.insert(parameters.end(), model.q_scaler.begin(), model.q_scaler.end());
 
@@ -223,12 +223,8 @@ NEP_MULTIGPU::NEP_MULTIGPU(
 
     nep_data[gpu].parameters.resize(annmb[gpu].num_para + annmb[gpu].dim);
     nep_data[gpu].parameters.copy_from_host(parameters.data());
-    nep_data[gpu].descriptor_parameters_type_pair.resize(num_para_descriptor);
-    nep_data[gpu].descriptor_parameters_type_pair.copy_from_host(
-      model.parameters.data() + annmb[gpu].num_para_ann);
 
     update_potential(nep_data[gpu].parameters.data(), annmb[gpu]);
-    annmb[gpu].c_type_pair = nep_data[gpu].descriptor_parameters_type_pair.data();
     annmb[gpu].q_scaler = nep_data[gpu].parameters.data() + annmb[gpu].num_para;
     nep_data[gpu].energy_reference.resize(model.energy_reference.size());
     nep_data[gpu].energy_reference.copy_from_host(model.energy_reference.data());
@@ -308,7 +304,7 @@ void NEP_MULTIGPU::update_potential(float* parameters, ANN& ann)
   ann.b1 = pointer;
   pointer += 1;
 
-  ann.c = pointer;
+  ann.c_type_pair = pointer;
 }
 
 static __device__ void find_cell_id(

@@ -58,7 +58,6 @@ public:
     const float* b0[NUM_ELEMENTS];
     const float* w1[NUM_ELEMENTS];
     const float* b1;
-    const float* c;
     const float* c_type_pair;
     const float* q_scaler;
   };
@@ -79,7 +78,6 @@ private:
   struct Data {
     GPU_Vector<float> Fp;
     GPU_Vector<float> sum_fxyz;
-    GPU_Vector<float> descriptor_parameters_type_pair;
     GPU_Vector<int> NN_radial;
     GPU_Vector<int> NL_radial;
     GPU_Vector<int> NN_angular;

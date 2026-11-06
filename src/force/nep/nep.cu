@@ -199,16 +199,13 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
   printf("    total number of parameters = %d.\n", annmb.num_para);
 
-  // Preserve the GPU parameter buffers; descriptor coefficients are already type-pair-major.
+  // Store ANN parameters, type-pair-major descriptor coefficients and scalers in one buffer.
   std::vector<float> parameters = model.parameters;
   parameters.insert(parameters.end(), model.q_scaler.begin(), model.q_scaler.end());
 
   nep_data.parameters.resize(annmb.num_para + annmb.dim);
   nep_data.parameters.copy_from_host(parameters.data());
-  nep_data.descriptor_parameters_type_pair.resize(num_para_descriptor);
-  nep_data.descriptor_parameters_type_pair.copy_from_host(model.parameters.data() + annmb.num_para_ann);
   update_potential(nep_data.parameters.data(), annmb);
-  annmb.c_type_pair = nep_data.descriptor_parameters_type_pair.data();
   annmb.q_scaler = nep_data.parameters.data() + annmb.num_para;
   nep_data.energy_reference.resize(model.energy_reference.size());
   nep_data.energy_reference.copy_from_host(model.energy_reference.data());
@@ -258,7 +255,7 @@ void NEP::update_potential(float* parameters, ANN& ann)
   ann.b1 = pointer;
   pointer += 1;
 
-  ann.c = pointer;
+  ann.c_type_pair = pointer;
 }
 
 static __global__ void find_neighbor_list_large_box(

@@ -58,7 +58,6 @@ public:
     const float* b0[NUM_ELEMENTS];
     const float* w1[NUM_ELEMENTS];
     const float* b1;
-    const float* c;
     const float* c_type_pair;
     const float* w0_pol[10];
     const float* b0_pol[10];
@@ -85,7 +84,6 @@ private:
     GPU_Vector<float> f12z;
     GPU_Vector<float> Fp;
     GPU_Vector<float> sum_fxyz;
-    GPU_Vector<float> descriptor_parameters_type_pair;
     GPU_Vector<int> NN_radial;
     GPU_Vector<int> NL_radial;
     GPU_Vector<int> NN_angular;

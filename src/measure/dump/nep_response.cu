@@ -103,20 +103,16 @@ NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
   // Polarizability stores two complete ANNs before the descriptor coefficients.
   annmb_.num_para_ann = model.layout.number_of_variables_ann * model.layout.ann_count;
   annmb_.num_para = model.layout.number_of_variables;
-  const int num_para_descriptor = model.layout.number_of_variables_descriptor;
   paramb_.num_c_radial =
     paramb_.num_types_sq * (paramb_.n_max_radial + 1) * (paramb_.basis_size_radial + 1);
 
-  // Preserve the GPU parameter buffers; descriptor coefficients are already type-pair-major.
+  // Store ANN parameters, type-pair-major descriptor coefficients and scalers in one buffer.
   std::vector<float> parameters = model.parameters;
   parameters.insert(parameters.end(), model.q_scaler.begin(), model.q_scaler.end());
 
   data_.parameters.resize(annmb_.num_para + annmb_.dim);
   data_.parameters.copy_from_host(parameters.data());
-  data_.descriptor_parameters_type_pair.resize(num_para_descriptor);
-  data_.descriptor_parameters_type_pair.copy_from_host(model.parameters.data() + annmb_.num_para_ann);
   update_potential(data_.parameters.data());
-  annmb_.c_type_pair = data_.descriptor_parameters_type_pair.data();
   annmb_.q_scaler = data_.parameters.data() + annmb_.num_para;
 
   data_.f12x.resize(static_cast<size_t>(num_atoms_) * paramb_.MN_angular);
@@ -168,7 +164,7 @@ void NEP_Response::update_potential(float* parameters)
     pointer += 1;
   }
 
-  annmb_.c = pointer;
+  annmb_.c_type_pair = pointer;
 }
 
 static __global__ void initialize_properties(
