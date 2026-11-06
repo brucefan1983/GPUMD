@@ -28,6 +28,10 @@ Dump per-atom data to user-specified file(s) in the extended XYZ format
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
+#include <stdlib.h>
+#ifndef _WIN32
+#include <limits.h>
+#endif
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
 {
@@ -89,7 +93,26 @@ bool Dump_XYZ::rerun_requires_velocity() const
 
 bool Dump_XYZ::rerun_overwrites_input(const std::string& path) const
 {
-  return separated_ == 0 && split_frames_ == 0 && filename_ == path;
+  if (separated_ != 0 || split_frames_ > 0) return false;
+  if (filename_ == path) return true;
+
+#ifdef _WIN32
+  char output_path[_MAX_PATH];
+  char input_path[_MAX_PATH];
+  if (_fullpath(output_path, filename_.c_str(), _MAX_PATH) == nullptr ||
+      _fullpath(input_path, path.c_str(), _MAX_PATH) == nullptr) {
+    return false;
+  }
+  return _stricmp(output_path, input_path) == 0;
+#else
+  char output_path[PATH_MAX];
+  char input_path[PATH_MAX];
+  if (realpath(filename_.c_str(), output_path) == nullptr ||
+      realpath(path.c_str(), input_path) == nullptr) {
+    return false;
+  }
+  return std::strcmp(output_path, input_path) == 0;
+#endif
 }
 
 void Dump_XYZ::parse(
