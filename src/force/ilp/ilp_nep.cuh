@@ -17,6 +17,7 @@
 #include "force/potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/nep_utilities.cuh"
 #include <stdio.h>
 #include <cstdint>
 #include <vector>
@@ -145,7 +146,7 @@ public:
     int num_types_sq = 0;
     int num_c_radial = 0;
     int num_types = 0;
-    float q_scaler[140];
+    float q_scaler[MAX_DIM];
     int atomic_numbers[NUM_ELEMENTS];
   };
 
