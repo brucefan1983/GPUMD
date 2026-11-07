@@ -50,15 +50,15 @@ Currently, the following optional arguments are accepted:
        - Variable
        - Dimensions
        - Unit
-     * - ``position wrapped`` (default)
+     * - :attr:`position wrapped` (default)
        - ``coordinates`` (wrapped)
        - ``(frame, atom, spatial)``
        - Å
-     * - ``position unwrapped``
+     * - :attr:`position unwrapped`
        - ``coordinates`` (unwrapped)
        - ``(frame, atom, spatial)``
        - Å
-     * - ``position both``
+     * - :attr:`position both`
        - ``coordinates`` (wrapped) and ``unwrapped_coordinates`` (unwrapped)
        - ``(frame, atom, spatial)`` for each variable
        - Å
