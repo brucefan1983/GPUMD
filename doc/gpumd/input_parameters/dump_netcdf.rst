@@ -34,16 +34,13 @@ Currently, the following optional arguments are accepted:
 * :attr:`position <wrapped|unwrapped|both>`
 
   Select wrapped positions (``wrapped``, default), unwrapped positions (``unwrapped``), or both (``both``).
-  ``unwrapped`` writes only unwrapped positions in ``coordinates`` and adds ``position_mode=unwrapped`` to the global attributes.
-  ``both`` writes wrapped positions in ``coordinates`` and unwrapped positions in ``unwrapped_coordinates``.
-  Both coordinate variables have dimensions ``(frame, atom, spatial)`` and are written in Å.
+  With ``unwrapped``, the file has the global attribute ``position_mode=unwrapped``.
 
 * Per-atom quantities
 
-  Any number of the names below can be given, in any order, each adding one quantity to the
-  output.
-  The atom types and positions are always written, as the ``type`` and
-  ``coordinates`` variables.
+  The table below lists the coordinate modes and optional per-atom quantities.
+  Select one coordinate mode and add any optional quantities in any order.
+  Atom types and positions are always written as the ``type`` and ``coordinates`` variables.
 
   .. list-table::
      :header-rows: 1
@@ -53,6 +50,18 @@ Currently, the following optional arguments are accepted:
        - Variable
        - Dimensions
        - Unit
+     * - ``position wrapped`` (default)
+       - ``coordinates`` (wrapped)
+       - ``(frame, atom, spatial)``
+       - Å
+     * - ``position unwrapped``
+       - ``coordinates`` (unwrapped)
+       - ``(frame, atom, spatial)``
+       - Å
+     * - ``position both``
+       - ``coordinates`` (wrapped) and ``unwrapped_coordinates`` (unwrapped)
+       - ``(frame, atom, spatial)`` for each variable
+       - Å
      * - :attr:`velocity`
        - ``velocities``
        - ``(frame, atom, spatial)``
