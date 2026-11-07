@@ -70,6 +70,7 @@ private:
   int group_id_ = -1;
   int dump_interval_ = 1;
   int precision_ = 1; // 1 = single precision, 2 = double
+  bool use_unwrapped_position_ = false; // coordinates written in the pos columns
   DumpQuantities quantities;
   bool has_spin_ = false;
   bool has_mforce_ = false;

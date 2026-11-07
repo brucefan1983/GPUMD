@@ -13,6 +13,7 @@ import re
 
 import numpy as np
 import pytest
+from ase import Atoms
 from ase.build import bulk
 from ase.cell import Cell
 from ase.io import read
@@ -140,6 +141,102 @@ DUMP_COMMAND_CASE_NAMES = [
 def test_command_io(tmp_path, structure, model_path, model_type, gpumd_command, case_name):
     case = _build_case(case_name, len(structure))
     run_and_check(tmp_path, structure, model_path, model_type, gpumd_command, case)
+
+
+@pytest.mark.parametrize('triclinic', [False, True])
+@pytest.mark.parametrize('periodic_z', [False, True])
+@pytest.mark.parametrize('position_mode', ['unwrapped', 'both'])
+def test_dump_xyz_position_crosses_boundaries(
+        tmp_path, gpumd_command, triclinic, periodic_z, position_mode):
+    """Each coordinate mode must enable periodic tracking, also for selected groups."""
+    cell = np.diag([20.0, 20.0, 20.0])
+    if triclinic:
+        cell[1, 0] = 3.0
+        cell[2, :2] = [2.0, 4.0]
+    atoms = Atoms('C3', cell=cell, pbc=[True, True, periodic_z],
+                  scaled_positions=[[0.998, 0.35, 0.6], [0.6, 0.002, 0.4],
+                                    [0.3, 0.6, 0.998]])
+    # All pair distances exceed the model's 7 Angstrom cutoff, so motion is uniform.
+    velocity = np.diag([0.004, -0.004, 0.004]) @ cell
+    atoms.new_array('vel', velocity)  # model.xyz velocities are in Angstrom/fs
+    case = CommandIOCase(
+        name='dump_xyz_position_boundaries', skip_base_block=True,
+        groupings=[[[0, 2], [1]]],
+        run_in_lines=[
+            ('time_step', 1),
+            ('ensemble', 'nve'),
+            ('dump_xyz', [2, 'unwrapped.xyz', 'position', position_mode,
+                          'precision', 'double', 'velocity']),
+            ('dump_xyz', [2, 'group.xyz', 'velocity', 'group', 0, 0,
+                          'precision', 'double', 'position', position_mode]),
+            ('dump_xyz', [2, 'default.xyz', 'precision', 'double', 'velocity']),
+            ('dump_xyz', [2, 'wrapped.xyz', 'position', 'wrapped',
+                          'precision', 'double', 'velocity']),
+            ('run', 6),
+        ])
+    result = run_command_io_case(
+        tmp_path, atoms, MODELS_DIR / 'nep_C.txt', 'nep', gpumd_command, case)
+    assert result.returncode == 0, f'{result.stdout}\n{result.stderr}'
+    assert (tmp_path / 'default.xyz').read_bytes() == (tmp_path / 'wrapped.xyz').read_bytes()
+    properties = 'species:S:1:pos:R:3:vel:R:3'
+    if position_mode == 'both':
+        properties += ':unwrapped_position:R:3'
+    assert _comment_fields(tmp_path / 'unwrapped.xyz')['Properties'] == [properties]
+    frames = read(tmp_path / 'unwrapped.xyz', index=':')
+    groups = read(tmp_path / 'group.xyz', index=':')
+    wrapped = read(tmp_path / 'wrapped.xyz', index=':')
+    assert len(frames) == len(groups) == len(wrapped) == 3
+    for step, frame, group, folded in zip([2, 4, 6], frames, groups, wrapped):
+        expected = atoms.positions + step * velocity
+        unwrapped = frame.positions if position_mode == 'unwrapped' else frame.arrays['unwrapped_position']
+        np.testing.assert_allclose(unwrapped, expected, rtol=0, atol=1e-8)
+        np.testing.assert_allclose(frame.arrays['vel'], velocity, rtol=0, atol=1e-10)
+        if position_mode == 'unwrapped':
+            assert frame.info['position_mode'] == 'unwrapped'
+            assert 'unwrapped_position' not in frame.arrays
+        else:
+            np.testing.assert_array_equal(frame.positions, folded.positions)
+            np.testing.assert_array_equal(group.arrays['unwrapped_position'], unwrapped[[0, 2]])
+        np.testing.assert_array_equal(frame.pbc, atoms.pbc)
+        np.testing.assert_array_equal(group.positions, frame.positions[[0, 2]])
+        np.testing.assert_array_equal(group.arrays['vel'], frame.arrays['vel'][[0, 2]])
+        fractional = expected @ np.linalg.inv(cell)
+        fractional[:, atoms.pbc] %= 1.0
+        np.testing.assert_allclose(folded.positions, fractional @ cell, rtol=0, atol=1e-8)
+        assert 'position_mode' not in folded.info
+
+
+@pytest.mark.parametrize('precision', ['single', 'double'])
+def test_dump_xyz_both_matches_single_coordinate_modes(
+        tmp_path, structure, model_path, model_type, gpumd_command, precision):
+    """Both coordinate sets and velocities must retain the requested output precision."""
+    case = CommandIOCase(
+        name='dump_xyz_position_both',
+        run_in_lines=[
+            ('dump_xyz', [1, f'{mode}.xyz', 'position', mode, 'velocity', 'precision', precision])
+            for mode in ('wrapped', 'unwrapped', 'both')])
+    result = run_command_io_case(
+        tmp_path, structure, model_path, model_type, gpumd_command, case)
+    assert result.returncode == 0, f'{result.stdout}\n{result.stderr}'
+    wrapped_frames = read(tmp_path / 'wrapped.xyz', index=':')
+    only_frames = read(tmp_path / 'unwrapped.xyz', index=':')
+    both_frames = read(tmp_path / 'both.xyz', index=':')
+    assert len(wrapped_frames) == len(only_frames) == len(both_frames) == BASE_N_STEPS
+    for wrapped, only, both in zip(wrapped_frames, only_frames, both_frames):
+        np.testing.assert_array_equal(wrapped.positions, both.positions)
+        np.testing.assert_array_equal(only.positions, both.arrays['unwrapped_position'])
+        np.testing.assert_array_equal(wrapped.arrays['vel'], both.arrays['vel'])
+        np.testing.assert_array_equal(only.arrays['vel'], both.arrays['vel'])
+
+    assert _comment_fields(tmp_path / 'both.xyz')['Properties'] == [
+        'species:S:1:pos:R:3:vel:R:3:unwrapped_position:R:3']
+    rows = [line.split() for line in (tmp_path / 'both.xyz').read_text().splitlines()[2:2 + len(structure)]]
+    for columns in (slice(1, 4), slice(4, 7), slice(7, 10)):
+        digits = max(_significant_digits(token) for row in rows for token in row[columns])
+        if precision == 'single':
+            assert digits <= 9
+        else:
+            assert 9 < digits <= 17
 
 
 def test_dump_xyz_split_matches_unsplit_across_runs(
@@ -490,6 +587,13 @@ def test_deposit_rejects_a_numeric_species(tmp_path, gpumd_command):
 
 
 INVALID_DUMP_XYZ_ARGUMENTS = [
+    ([1, 'f.xyz', 'position'], "requires 'wrapped', 'unwrapped', or 'both'"),
+    ([1, 'f.xyz', 'position', 'invalid'], "requires 'wrapped', 'unwrapped', or 'both'"),
+    ([1, 'f.xyz', 'position', 'wrapped', 'position', 'unwrapped'], 'more than once'),
+    ([1, 'f.xyz', 'position', 'both', 'position', 'wrapped'], 'more than once'),
+    ([1, 'f.xyz', 'unwrapped_position'], "Use 'position both' instead"),
+    ([1, 'f.xyz', 'position', 'unwrapped', 'unwrapped_position'], "Use 'position both' instead"),
+    ([1, 'f.xyz', 'unwrapped_position', 'position', 'both'], "Use 'position both' instead"),
     ([1, 'f.xyz', 'forcee'], 'Unrecognized argument'),
     ([1, 'f.xyz', 'group', 0, 0, 'group', 0, 0], 'more than once'),
     ([1, 'f.xyz', 'precision', 'double', 'precision', 'single'], 'more than once'),
@@ -508,9 +612,8 @@ INVALID_DUMP_XYZ_ARGUMENTS = [
 @pytest.mark.parametrize('args, expected_message', INVALID_DUMP_XYZ_ARGUMENTS)
 def test_invalid_dump_xyz_arguments_are_rejected(
         tmp_path, structure, model_path, model_type, gpumd_command, args, expected_message):
-    """Every one of these used to be accepted, silently ignored, or reported with a message that
-    did not say what was wrong. The asserted substring matters as much as the exit code, since a
-    test that passes because gpumd died for an unrelated reason is worse than no test."""
+    """Invalid options must fail with a useful message. Check the message as well as the exit
+    code so that a failure for an unrelated reason cannot make the test pass."""
     case = CommandIOCase(
         name='dump_xyz_invalid', run_in_lines=[('dump_xyz', args)],
         expected_output_files=[], n_groups=1)
@@ -609,15 +712,17 @@ def test_dump_netcdf_appends_across_run_commands(
 
 
 @pytest.mark.filterwarnings('ignore:.*already contains files from an earlier calculation')
+@pytest.mark.parametrize('position_mode', ['wrapped', 'unwrapped', 'both'])
 def test_dump_netcdf_appends_across_executions(
-        tmp_path, structure, model_path, model_type, gpumd_command):
+        tmp_path, structure, model_path, model_type, gpumd_command, position_mode):
     """Rerunning gpumd in a directory that already holds the file extends it rather than replacing
     it, as dump_xyz does. The frames written the first time have to survive untouched, which is
     what separates appending from starting over."""
     netcdf4 = pytest.importorskip('netCDF4')
     case = CommandIOCase(
         name='dump_netcdf_rerun',
-        run_in_lines=[('dump_netcdf', [1, 'rerun.nc', 'velocity', 'precision', 'double'])],
+        run_in_lines=[('dump_netcdf', [1, 'rerun.nc', 'position', position_mode,
+                                     'velocity', 'precision', 'double'])],
         expected_output_files=['rerun.nc'])
 
     result = run_command_io_case(
@@ -789,6 +894,115 @@ def test_dump_netcdf_appending_to_a_file_with_a_per_atom_mass_is_rejected(
     assert result.returncode != 0, 'a file storing one mass per atom should be refused'
     assert 'per_atom_mass.nc' in output, output
     assert 'different mass layout' in output, output
+
+
+@pytest.mark.parametrize('triclinic', [False, True])
+@pytest.mark.parametrize('periodic_z', [False, True])
+@pytest.mark.parametrize('position_mode', ['unwrapped', 'both'])
+@pytest.mark.parametrize('precision, compression', [
+    ('single', ['none']), ('double', ['deflate', 1])])
+def test_dump_netcdf_position_crosses_boundaries(
+        tmp_path, gpumd_command, triclinic, periodic_z, position_mode, precision, compression):
+    """Check physical coordinates after crossings, cell rotation, grouping and appending."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    cell = np.diag([20.0, 20.0, 20.0])
+    if triclinic:
+        cell[1, 0] = 3.0
+        cell[2, :2] = [2.0, 4.0]
+    atoms = Atoms('C3', cell=cell, pbc=[True, True, periodic_z],
+                  scaled_positions=[[0.998, 0.35, 0.6], [0.6, 0.002, 0.4],
+                                    [0.3, 0.6, 0.998]])
+    if triclinic:
+        atoms.rotate(17.0, 'y', center=(0.0, 0.0, 0.0), rotate_cell=True)
+    cell = atoms.cell.array
+    velocity = np.diag([0.004, -0.004, 0.004]) @ cell
+    atoms.new_array('vel', velocity)
+    options = ['velocity', 'precision', precision, 'compression'] + compression
+    dumps = [
+        ('dump_netcdf', [2, 'selected.nc', 'position', position_mode] + options),
+        ('dump_netcdf', [2, 'group.nc', 'group', 0, 0, 'position', position_mode] + options),
+        ('dump_netcdf', [2, 'default.nc'] + options),
+        ('dump_netcdf', [2, 'wrapped.nc', 'position', 'wrapped'] + options),
+    ]
+    case = CommandIOCase(
+        name='dump_netcdf_position_boundaries', skip_base_block=True,
+        groupings=[[[0, 2], [1]]],
+        run_in_lines=[('time_step', 1), ('ensemble', 'nve')] + dumps +
+                     [('run', 6), ('ensemble', 'nve')] + dumps + [('run', 6)])
+    result = run_command_io_case(
+        tmp_path, atoms, MODELS_DIR / 'nep_C.txt', 'nep', gpumd_command, case)
+    _check_netcdf_result(result)
+
+    # AMBER uses the same lengths and angles in a standard cell orientation.
+    # Use the serialized input values, since the model writer rounds coordinates and velocities.
+    initial = read(tmp_path / 'model.xyz')
+    cell = initial.cell.array
+    velocity = initial.arrays['vel']
+    restricted_cell = Cell.fromcellpar(initial.cell.cellpar()).array
+    transform = np.linalg.inv(cell) @ restricted_cell
+    expected = initial.positions[None, :, :] + np.arange(2, 13, 2)[:, None, None] * velocity
+    fractional = expected @ np.linalg.inv(cell)
+    fractional[:, :, atoms.pbc] %= 1.0
+    wrapped = fractional @ restricted_cell
+    unwrapped = expected @ transform
+    tolerance = 2e-6 if precision == 'single' else 1e-8
+    with netcdf4.Dataset(tmp_path / 'selected.nc') as full, \
+            netcdf4.Dataset(tmp_path / 'group.nc') as group, \
+            netcdf4.Dataset(tmp_path / 'default.nc') as default, \
+            netcdf4.Dataset(tmp_path / 'wrapped.nc') as explicit:
+        coordinates = full.variables['coordinates']
+        assert coordinates.shape == (6, 3, 3)
+        assert coordinates.dtype == np.dtype('float32' if precision == 'single' else 'float64')
+        np.testing.assert_allclose(coordinates[:], unwrapped if position_mode == 'unwrapped'
+                                   else wrapped, rtol=0, atol=tolerance)
+        np.testing.assert_allclose(default.variables['coordinates'][:], wrapped, rtol=0, atol=tolerance)
+        np.testing.assert_array_equal(default.variables['coordinates'][:], explicit.variables['coordinates'][:])
+        np.testing.assert_allclose(full.variables['velocities'][:],
+                                   np.broadcast_to(velocity @ transform * 1000, (6, 3, 3)),
+                                   rtol=1e-7, atol=tolerance)
+        for name in ('coordinates', 'velocities'):
+            np.testing.assert_array_equal(group.variables[name][:], full.variables[name][:, [0, 2]])
+        if position_mode == 'unwrapped':
+            assert full.getncattr('position_mode') == group.getncattr('position_mode') == 'unwrapped'
+            assert 'unwrapped_coordinates' not in full.variables
+            assert 'unwrapped_coordinates' not in group.variables
+        else:
+            assert 'position_mode' not in full.ncattrs()
+            np.testing.assert_allclose(full.variables['unwrapped_coordinates'][:], unwrapped,
+                                       rtol=0, atol=tolerance)
+            np.testing.assert_array_equal(group.variables['unwrapped_coordinates'][:],
+                                          full.variables['unwrapped_coordinates'][:, [0, 2]])
+        if compression[0] == 'deflate':
+            assert coordinates.filters()['zlib']
+            assert coordinates.filters()['complevel'] == 1
+
+
+@pytest.mark.filterwarnings('ignore:.*already contains files from an earlier calculation')
+@pytest.mark.parametrize('first_mode, second_mode', [
+    ('wrapped', 'unwrapped'), ('unwrapped', 'wrapped'),
+    ('both', 'unwrapped'), ('unwrapped', 'both'),
+    ('wrapped', 'both'), ('both', 'wrapped')])
+def test_dump_netcdf_appending_with_changed_position_is_rejected(
+        tmp_path, structure, model_path, model_type, gpumd_command, first_mode, second_mode):
+    """Coordinate meaning cannot change halfway through an existing trajectory."""
+    netcdf4 = pytest.importorskip('netCDF4')
+    def run_mode(mode):
+        case = CommandIOCase(
+            name='dump_netcdf_position_append',
+            run_in_lines=[('dump_netcdf', [1, 'position.nc', 'position', mode])])
+        return run_command_io_case(
+            tmp_path, structure, model_path, model_type, gpumd_command, case)
+
+    _check_netcdf_result(run_mode(first_mode))
+    with netcdf4.Dataset(tmp_path / 'position.nc') as dataset:
+        original = dataset.variables['coordinates'][:].copy()
+    result = run_mode(second_mode)
+    output = result.stdout + result.stderr
+    assert result.returncode != 0
+    assert 'Cannot append to position.nc' in output
+    assert 'different position mode' in output or 'different set of quantities' in output
+    with netcdf4.Dataset(tmp_path / 'position.nc') as dataset:
+        np.testing.assert_array_equal(dataset.variables['coordinates'][:], original)
 
 
 def test_dump_netcdf_without_velocity(
@@ -987,14 +1201,14 @@ def test_dump_netcdf_rotates_general_cell(
     rotated_structure.set_cell(general_cell, scale_atoms=True)
     rotated_structure.rotate(17.0, 'y', center=(0.0, 0.0, 0.0), rotate_cell=True)
 
-    quantities = ['velocity', 'force', 'unwrapped_position', 'virial']
+    quantities = ['velocity', 'force', 'virial']
     if model_type != 'nep':
         quantities.append('bec')
     case = CommandIOCase(
         name='dump_netcdf_general_cell',
         run_in_lines=[
-            ('dump_xyz', [1, 'reference.xyz'] + quantities + ['precision', 'double']),
-            ('dump_netcdf', [1, 'general-cell.nc'] + quantities + ['precision', 'double']),
+            ('dump_xyz', [1, 'reference.xyz', 'position', 'both'] + quantities + ['precision', 'double']),
+            ('dump_netcdf', [1, 'general-cell.nc', 'position', 'both'] + quantities + ['precision', 'double']),
         ],
         expected_output_files=['reference.xyz', 'general-cell.nc'],
     )
@@ -1046,8 +1260,8 @@ def test_dump_netcdf_rotates_general_cell(
             err_msg=f'{name} does not follow the cell as R T R^T')
 
 
-# quantity keyword -> (variable, dimensions, units), as the documentation tabulates them. `bec`
-# is left out because it needs a charge model, and is covered on its own below.
+# Recorded quantity name -> (variable, dimensions, units). The unwrapped_position entry
+# comes from position both; bec needs a charge model and is covered separately.
 NETCDF_QUANTITY_LAYOUT = {
     'velocity': ('velocities', ('frame', 'atom', 'spatial'), 'angstrom/picosecond'),
     'force': ('forces', ('frame', 'atom', 'spatial'), 'kilocalorie/mole/angstrom'),
@@ -1065,14 +1279,14 @@ def test_dump_netcdf_quantity_layout(tmp_path, structure, model_path, model_type
     documentation promises, since that layout is the whole interface to the file. The group
     labels are fixed by model.xyz and carry no frame dimension."""
     netcdf4 = pytest.importorskip('netCDF4')
-    quantities = list(NETCDF_QUANTITY_LAYOUT)
+    quantities = [name for name in NETCDF_QUANTITY_LAYOUT if name != 'unwrapped_position']
     case = CommandIOCase(
         name='dump_netcdf_quantities',
         run_in_lines=[
-            ('dump_netcdf', [1, 'all.nc'] + quantities + ['precision', 'double']),
+            ('dump_netcdf', [1, 'all.nc', 'position', 'both'] + quantities + ['precision', 'double']),
             # the same set in the opposite order, to pin down that neither the file layout nor
             # the recorded quantity list follows the order the arguments came in
-            ('dump_netcdf', [1, 'reversed.nc'] + quantities[::-1] + ['precision', 'double']),
+            ('dump_netcdf', [1, 'reversed.nc'] + quantities[::-1] + ['precision', 'double', 'position', 'both']),
         ],
         expected_output_files=['all.nc', 'reversed.nc'], n_groups=2)
     result = run_command_io_case(
@@ -1093,7 +1307,7 @@ def test_dump_netcdf_quantity_layout(tmp_path, structure, model_path, model_type
         assert len(dataset.dimensions['grouping_method']) == 1
         assert len(dataset.dimensions['atom']) == len(structure)
         recorded = dataset.getncattr('gpumd_quantities')
-        assert sorted(recorded.split()) == sorted(quantities)
+        assert sorted(recorded.split()) == sorted(NETCDF_QUANTITY_LAYOUT)
 
     with netcdf4.Dataset(tmp_path / 'reversed.nc') as dataset:
         assert dataset.getncattr('gpumd_quantities') == recorded
@@ -1302,6 +1516,13 @@ def test_dump_netcdf_per_atom_virial_agrees_between_pppm_and_ewald(
 
 
 INVALID_DUMP_NETCDF_ARGUMENTS = [
+    ([1, 'f.nc', 'position'], "requires 'wrapped', 'unwrapped', or 'both'"),
+    ([1, 'f.nc', 'position', 'invalid'], "requires 'wrapped', 'unwrapped', or 'both'"),
+    ([1, 'f.nc', 'position', 'wrapped', 'position', 'unwrapped'], 'more than once'),
+    ([1, 'f.nc', 'position', 'both', 'position', 'wrapped'], 'more than once'),
+    ([1, 'f.nc', 'unwrapped_position'], "Use 'position both' instead"),
+    ([1, 'f.nc', 'position', 'unwrapped', 'unwrapped_position'], "Use 'position both' instead"),
+    ([1, 'f.nc', 'unwrapped_position', 'position', 'both'], "Use 'position both' instead"),
     ([1, 'f.nc', 'velocities'], 'Unrecognized argument'),
     ([1, 'f.nc', 'force', 'force'], 'more than once'),
     ([1, 'f.nc', 'group', 0, 0, 'group', 0, 0], 'more than once'),

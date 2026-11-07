@@ -41,7 +41,7 @@ def run_case(root, name, potential, model, commands, dump=True, single_gpu=False
     case.mkdir()
     (case/'nep.txt').write_text(potential)
     (case/'model.xyz').write_text(model)
-    suffix = ('ensemble nve\ntime_step 0\ndump_xyz 1 state.xyz precision double velocity force potential virial spin mforce spin_velocity unwrapped_position\nrun 1\n' if dump else '')
+    suffix = ('ensemble nve\ntime_step 0\ndump_xyz 1 state.xyz position both precision double velocity force potential virial spin mforce spin_velocity\nrun 1\n' if dump else '')
     (case/'run.in').write_text('potential nep.txt\n'+commands+suffix)
     env = os.environ.copy()
     if single_gpu and env.get('CUDA_VISIBLE_DEVICES'):
@@ -125,7 +125,7 @@ def validate(root):
         row=shifted[i].split(); row[1]=str(float(row[1])+40); row[2]=str(float(row[2])-20)
         shifted[i]=' '.join(row)
     for existing_images in (False,True):
-        prefix=('ensemble nve\ntime_step 0\ndump_xyz 1 before.xyz unwrapped_position\nrun 1\n'
+        prefix=('ensemble nve\ntime_step 0\ndump_xyz 1 before.xyz position both\nrun 1\n'
                 if existing_images else '')
         case,run=run_case(root,'joint_images_'+str(int(existing_images)),analytic_model(True),
                           '\n'.join(shifted)+'\n',prefix+'minimize spin_fire 1e-6 3000 1 0\n')

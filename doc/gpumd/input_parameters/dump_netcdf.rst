@@ -31,12 +31,16 @@ Currently, the following optional arguments are accepted:
   Both values must identify an existing, non-empty group.
   Without this option all atoms in the system are written.
 
+* :attr:`position <wrapped|unwrapped|both>`
+
+  Select wrapped positions (``wrapped``, default), unwrapped positions (``unwrapped``), or both (``both``).
+  With ``unwrapped``, the file has the global attribute ``position_mode=unwrapped``.
+
 * Per-atom quantities
 
-  Any number of the names below can be given, in any order, each adding one quantity to the
-  output.
-  The atom types and the wrapped positions are always written, as the ``type`` and
-  ``coordinates`` variables.
+  The table below lists the coordinate modes and optional per-atom quantities.
+  Select one coordinate mode and add any optional quantities in any order.
+  Atom types and positions are always written as the ``type`` and ``coordinates`` variables.
 
   .. list-table::
      :header-rows: 1
@@ -46,6 +50,18 @@ Currently, the following optional arguments are accepted:
        - Variable
        - Dimensions
        - Unit
+     * - :attr:`position wrapped` (default)
+       - ``coordinates`` (wrapped)
+       - ``(frame, atom, spatial)``
+       - Å
+     * - :attr:`position unwrapped`
+       - ``coordinates`` (unwrapped)
+       - ``(frame, atom, spatial)``
+       - Å
+     * - :attr:`position both`
+       - ``coordinates`` (wrapped) and ``unwrapped_coordinates`` (unwrapped)
+       - ``(frame, atom, spatial)`` for each variable
+       - Å
      * - :attr:`velocity`
        - ``velocities``
        - ``(frame, atom, spatial)``
@@ -54,10 +70,6 @@ Currently, the following optional arguments are accepted:
        - ``forces``
        - ``(frame, atom, spatial)``
        - kcal/mol/Å
-     * - :attr:`unwrapped_position`
-       - ``unwrapped_coordinates``
-       - ``(frame, atom, spatial)``
-       - Å
      * - :attr:`potential`
        - ``potential_energy``
        - ``(frame, atom)``
@@ -129,8 +141,7 @@ Requirements and specifications
 * The ``single`` option is good for saving space and is the default.
 * NetCDF output files can be read for example by `VMD <https://www.ks.uiuc.edu/Research/vmd/>`_ or `OVITO <https://ovito.org/>`_ for visualization.
 * The NetCDF files also contain atom types, cell lengths, and angles, which can be used in visualization and analysis software.
-* The atomic positions are always included in the output. For periodic MD, the wrapped
-  positions are written.
+* The atomic positions are always included in the output and are wrapped by default.
 * AMBER NetCDF represents a periodic cell using lengths and angles in a standard orientation.
   If the GPUMD cell has a different orientation, the output is rigidly transformed with the cell
   so that periodic geometry is preserved. Positions, velocities, forces and unwrapped positions
@@ -184,6 +195,17 @@ To dump group 0 from grouping method 1 with lossless deflate compression, one ca
 
 before the :ref:`run command <kw_run>`.
 
+Unwrapped positions
+^^^^^^^^^^^^^^^^^^^
+
+To write only unwrapped positions and velocities::
+
+  dump_netcdf 15 movie.nc position unwrapped velocity
+
+To write wrapped and unwrapped positions with velocities::
+
+  dump_netcdf 15 movie.nc position both velocity
+
 Forces and per-atom virials
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -218,7 +240,7 @@ Caveats
 * The output file has an appending behavior. Frames are added to an existing file of that name,
   whether it was written by an earlier run of the same GPUMD execution or by an earlier execution.
   A different filename creates a separate trajectory file.
-* The layout of a NetCDF file is fixed when the file is created, so the group, quantity, precision,
+* The layout of a NetCDF file is fixed when the file is created, so the position mode, group, quantity, precision,
   and compression settings must match those the existing file was written with. If they do not,
   GPUMD stops with an error naming the file. Remove or rename that file to start a new trajectory.
 * The ``time`` variable restarts at the beginning of every GPUMD execution, while ``frame`` keeps

@@ -12,13 +12,12 @@ Syntax
 
 .. code::
 
-   dump_xyz <interval> <filename> [group <grouping_method> <group_id>] [precision <single|double>] [split <frames_per_file>] {<property_1> <property_2> ...}
+   dump_xyz <interval> <filename> [group <grouping_method> <group_id>] [position <wrapped|unwrapped|both>] [precision <single|double>] [split <frames_per_file>] {<property_1> <property_2> ...}
 
 * :attr:`interval` is the output interval (number of steps) of the data.
 
-* :attr:`filename` is the output file.
-
-If it is ended by a star (*), the data for one frame will be output to one file, named by changing the star to the step number.
+* :attr:`filename` is the output file name.
+  If it ends with ``*``, one file is written per frame, replacing ``*`` with the step number within the current run.
 
 * The optional :attr:`split` parameter is the maximum number of frames written per XYZ file (a positive integer).
   For example, ``dump_xyz 100 trajectory.xyz split 10000`` writes 10000 frames to ``trajectory_0001.xyz``, then 10000 frames to ``trajectory_0002.xyz``, and so on.
@@ -26,19 +25,20 @@ If it is ended by a star (*), the data for one frame will be output to one file,
   The :attr:`split` option cannot be used with a filename ending in ``*``.
 
 * The :attr:`group` option restricts the output to the atoms in group :attr:`group_id` of grouping method :attr:`grouping_method`.
+  If it is omitted, data for the whole system will be output.
 
-If it is omitted, data for the whole system will be output.
+* The optional :attr:`position` parameter selects wrapped positions (``wrapped``, default), unwrapped positions (``unwrapped``), or both (``both``).
 
-* The :attr:`precision` option controls the number of significant digits written for every floating-point value.
+* The :attr:`precision` option controls the number of significant digits written for floating-point values, except the time field.
 
-:attr:`single` (the default) writes nine significant digits, which is enough to recover a single-precision value exactly.
-:attr:`double` writes 17 significant digits, which is enough to recover a double-precision value exactly.
+  :attr:`single` (the default) writes nine significant digits, which is enough to recover a single-precision value exactly.
+  :attr:`double` writes 17 significant digits, which is enough to recover a double-precision value exactly.
 
-* Then one can write the properties to be output, and the allowed properties include: :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, :attr:`charge`, :attr:`bec`, :attr:`group_labels`, :attr:`spin`, :attr:`mforce`, and :attr:`unwrapped_position`.
+* Optional per-atom properties are :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, :attr:`charge`, :attr:`bec`, :attr:`group_labels`, :attr:`spin`, :attr:`mforce`, and :attr:`spin_velocity`.
 
-The :attr:`group_labels` property writes one integer column per grouping method, holding the label of the group each atom belongs to.
+  The :attr:`group_labels` property writes one integer column per grouping method, holding the label of the group each atom belongs to.
 
-* The wrapped positions will always be included in the output.
+* Positions are always included and are wrapped by default.
 
 
 Examples
@@ -50,6 +50,12 @@ Examples
 
     # dump positions every 1000 steps, for the whole system:
     dump_xyz 1000 positions.xyz
+
+    # dump unwrapped positions and velocities:
+    dump_xyz 15 dump.xyz position unwrapped velocity
+
+    # dump wrapped and unwrapped positions, plus velocities:
+    dump_xyz 15 both.xyz position both velocity
 
     # dump many other quantities every 100 steps, for atoms in group 0 of grouping method 1:
     dump_xyz 100 properties.xyz group 1 0 mass velocity potential force virial
@@ -68,6 +74,7 @@ Caveats
   That means, its effect will not be passed from one run to the next.
 * With no ``split`` option or trailing ``*``, the output file has an appending behavior.
   With ``split``, each run creates new numbered files without overwriting existing chunks.
+  With a trailing ``*``, existing files with the same name are overwritten.
 * Different from many of the other keywords, this keyword is allowed to be invoked multiple times within one run.
 * For qNEP models, the charge values dumped out are predicted by the qNEP models.
   For other models, the charge values are those specified in :attr:`model.xyz` via :attr:`charge:R:1`.
