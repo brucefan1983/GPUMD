@@ -16,15 +16,18 @@ that commit before compiling; the pre-fix and patched builds were separate.
 
 ## Environment and source
 
-- Host: H100 node `gpu-10`, NVIDIA H100 PCIe, CUDA capability 9.0 (`sm_90`).
+All machine-specific paths below are generic placeholders. Substitute paths
+from the local build and test environment when reproducing commands.
+
+- Host: H100 compute node, NVIDIA H100 PCIe, CUDA capability 9.0 (`sm_90`).
 - CUDA: 12.8.61; GNU C++: 11.4.0.
 - PLUMED: official PLUMED 2.10.1 at
-  `/data/home/user/soft/Lammps+deepmd+plumed_newversion/installs/plumed-2.10.1-official`.
-- Source checkout: `/data/home/user/soft/GPUMD-rerun-latest`.
+  `/path/to/PLUMED_PREFIX`.
+- Source checkout: `/path/to/GPUMD_SOURCE`.
 - Branch and source commit before final acceptance builds: `feature/rerun`,
   `e5f1b4f6dc8072a29aaa13946755d07a6fd9b383`.
 - GPU tests ran from
-  `/data/home/user/PG/MD/GPUMD/950K/solid_left/Rerun_test/latest_e5f1b4f/`.
+  `/path/to/RERUN_TEST_ROOT/latest_e5f1b4f/`.
 - Reproducible executable artifacts are retained in that run directory's
   `build_artifacts/` folder, outside the source checkout.
 - The base under-test commit is
@@ -36,32 +39,32 @@ that commit before compiling; the pre-fix and patched builds were separate.
 Fresh CUDA build, after checking out e5 and confirming `git rev-parse HEAD`:
 
 ```bash
-cmake -S /data/home/user/soft/GPUMD-rerun-latest \
-  -B /data/home/user/soft/GPUMD-rerun-latest/build-rerun-v1-e5f1b4f-sm90 \
+cmake -S /path/to/GPUMD_SOURCE \
+  -B /path/to/GPUMD_SOURCE/build-rerun-v1-e5f1b4f-sm90 \
   -DCMAKE_CUDA_ARCHITECTURES=90 -DCMAKE_BUILD_TYPE=Release
-cmake --build /data/home/user/soft/GPUMD-rerun-latest/build-rerun-v1-e5f1b4f-sm90 \
+cmake --build /path/to/GPUMD_SOURCE/build-rerun-v1-e5f1b4f-sm90 \
   --target gpumd nep -j 12
 ```
 
-Status: **PASS**, Slurm job 128196. The separately generated PLUMED executable
+Status: **PASS**. The separately generated PLUMED executable
 was compiled from a clean worktree at the same e5 commit using the repository's
 documented Makefile configuration:
 
 ```bash
-cd /data/home/user/soft/GPUMD-rerun-latest-plumed-e5f1b4f-src/src
+cd /path/to/PLUMED_BUILD_SOURCE/src
 make gpumd -j12 CUDA_ARCH=-arch=sm_90 \
   CFLAGS="-std=c++14 -O3 -arch=sm_90 -DUSE_PLUMED" \
-  INC="-I./ -I/data/home/user/soft/Lammps+deepmd+plumed_newversion/installs/plumed-2.10.1-official/include" \
-  LDFLAGS="-L/data/home/user/soft/Lammps+deepmd+plumed_newversion/installs/plumed-2.10.1-official/lib -lplumed -lplumedKernel"
+  INC="-I./ -I/path/to/PLUMED_PREFIX/include" \
+  LDFLAGS="-L/path/to/PLUMED_PREFIX/lib -lplumed -lplumedKernel"
 ```
 
-Status: **PASS**, Slurm job 128197; `ldd` resolved both PLUMED libraries.
+Status: **PASS**; `ldd` resolved both PLUMED libraries.
 The CPU reader regression was compiled and run from the e5 checkout:
 
 ```bash
 g++ -std=c++14 -Isrc/main_gpumd \
-  tests_regression/rerun_reader_test.cpp -o /tmp/gpumd_rerun_reader_test
-/tmp/gpumd_rerun_reader_test
+  tests_regression/rerun_reader_test.cpp -o $TMPDIR/gpumd_rerun_reader_test
+$TMPDIR/gpumd_rerun_reader_test
 ```
 
 Status: **PASS**, exit 0.
@@ -71,8 +74,8 @@ Status: **PASS**, exit 0.
 | Check | Status | Result |
 |---|---|---|
 | Patched commit identity before build | PASS | Exact e5 SHA above; fresh sm_90 and PLUMED builds. |
-| CUDA `gpumd` and `nep` build | PASS | CUDA 12.8.61, H100 `sm_90`, job 128196. |
-| PLUMED-enabled build | PASS | PLUMED 2.10.1, job 128197; both runtime libraries resolve. |
+| CUDA `gpumd` and `nep` build | PASS | CUDA 12.8.61, H100 `sm_90`. |
+| PLUMED-enabled build | PASS | PLUMED 2.10.1; both runtime libraries resolve. |
 | CPU reader regression | PASS | Command above, exit 0. |
 | PLUMED structural CV, interval 1 | PASS | 100 CV rows; maximum independent distance error `4.3147198e-7 nm`; time error `3.47e-18 ps`; 100 `dump_xyz` frames and 100 thermo rows. |
 | PLUMED structural CV, interval 10 | PASS | 10 CV rows at expected output cadence; same maximum CV error; 100 XYZ and thermo outputs, independently scheduled. |
@@ -112,11 +115,11 @@ binary source commit `e5f1b4f` as an ancestor; the executable SHA-256 was
 Exact command, run from `tests_pytest/`:
 
 ```bash
-/data/home/user/soft/gpumd-pytest-e5/bin/python -m pytest -q \
-  --junitxml=/data/home/user/PG/MD/GPUMD/950K/solid_left/Rerun_test/latest_e5f1b4f/pytest_final.junit.xml
+/path/to/PYTEST_ENV/bin/python -m pytest -q \
+  --junitxml=/path/to/RERUN_TEST_ROOT/latest_e5f1b4f/pytest_final.junit.xml
 ```
 
-Slurm job 128229 completed successfully in 22 minutes 28 seconds (pytest
+The suite completed successfully in 22 minutes 28 seconds (pytest
 reported 22 minutes 20.83 seconds): **748 passed, 0 failed, 482 skipped,
 0 xfailed** (1,230 collected). JUnit independently reports 1,230 cases,
 0 failures, 0 errors, and 482 skipped. Since no test failed, there were no
@@ -127,8 +130,8 @@ The preinstalled pytest found in the local `pfd` environment was Python 3.10
 and lacked calorine and hypothesis; H100's existing conda environments had no
 pytest. The run therefore used an isolated, shared-filesystem Python 3.11
 environment with only the missing test packages installed. A first attempt
-used node-local `/tmp` and did not start the suite; job 128229 used the shared
-environment and is the reported run.
+used node-local temporary storage and did not start the suite; the reported
+run used the shared environment.
 
 ## Previously completed numerical and temperature checks
 
@@ -163,10 +166,8 @@ sbatch normal_run_compare.slurm
 sbatch run_tests_pytest_final.slurm
 ```
 
-Final acceptance job IDs: PLUMED 128210, selection/scheduling 128211,
-negative/path/lifecycle 128213, normal-run comparison 128216. Earlier e5
-energy and temperature jobs 128205 and 128206 also completed successfully.
-The complete `tests_pytest` suite passed in job 128229.
+PLUMED, selection/scheduling, negative/path/lifecycle, normal-run comparison,
+energy, temperature, and full `tests_pytest` runs all completed successfully.
 Outputs and raw logs are in the corresponding `energy_smoke`,
 `temperature_final`, `plumed_final`, `selection`, `final_acceptance`, and
 `normal_run_compare` subdirectories.

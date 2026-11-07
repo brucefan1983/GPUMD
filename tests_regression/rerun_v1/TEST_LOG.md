@@ -4,6 +4,10 @@ Date: 2026-11-06 (Asia/Shanghai)
 
 ## Test target
 
+Machine-specific paths are shown as placeholders such as
+`/path/to/GPUMD_SOURCE` and `$RERUN_TEST_ROOT`; replace them with paths in the
+environment used for reproduction.
+
 - Branch: `feature/rerun`.
 - Base implementation tested: `6f548c78baaad2f80b8d1bcbf8ccc88301515727`.
 - Production fix: `e5f1b4f6dc8072a29aaa13946755d07a6fd9b383`
@@ -21,9 +25,9 @@ Date: 2026-11-06 (Asia/Shanghai)
 
 | Test | Status | Result |
 |---|---|---|
-| CUDA build (`gpumd`, `nep`), architecture `sm_90` | PASS | Slurm job 128196; fresh build at the e5 source commit. |
-| PLUMED-enabled CUDA build, architecture `sm_90` | PASS | Slurm job 128197; PLUMED 2.10.1 libraries resolved with `ldd`. |
-| CPU Extended XYZ reader regression | PASS | `g++ -std=c++14 -Isrc/main_gpumd tests_regression/rerun_reader_test.cpp -o /tmp/gpumd_rerun_reader_test && /tmp/gpumd_rerun_reader_test`; exit 0. |
+| CUDA build (`gpumd`, `nep`), architecture `sm_90` | PASS | Fresh build at the e5 source commit. |
+| PLUMED-enabled CUDA build, architecture `sm_90` | PASS | PLUMED 2.10.1 libraries resolved with `ldd`. |
+| CPU Extended XYZ reader regression | PASS | `g++ -std=c++14 -Isrc/main_gpumd tests_regression/rerun_reader_test.cpp -o $TMPDIR/gpumd_rerun_reader_test && $TMPDIR/gpumd_rerun_reader_test`; exit 0. |
 
 ## Numerical and model behavior
 
@@ -88,7 +92,7 @@ python -m pytest -q --junitxml="$RERUN_TEST_ROOT/pytest_final.junit.xml"
 
 The command used an isolated shared-filesystem environment on the H100 compute
 node, with `src/gpumd` and `src/nep` temporarily resolving to the e5 binaries.
-Slurm job 128229 completed in 22m28s. **748 passed, 0 failed, 482 skipped,
+The suite completed in 22m28s. **748 passed, 0 failed, 482 skipped,
 0 xfailed** (1,230 collected). JUnit reported 0 failures and 0 errors. No test
 failed, so no parent-build failure attribution was needed.
 

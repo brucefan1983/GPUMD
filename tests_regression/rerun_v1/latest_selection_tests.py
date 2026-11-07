@@ -10,15 +10,15 @@ import sys
 from pathlib import Path
 
 
-ROOT = Path("/data/home/user/soft/GPUMD-rerun-latest")
+ROOT = Path("/path/to/GPUMD_SOURCE")
 GPUMD = Path(os.environ.get("RERUN_GPUMD", ROOT / "bin-rerun-v1-6f548c78-sm90/gpumd"))
 TEST_ROOT = Path(os.environ.get(
     "RERUN_TEST_ROOT",
-    "/data/home/user/PG/MD/GPUMD/950K/solid_left/Rerun_test/latest_6f548c78/selection_final3",
+    "/path/to/RERUN_TEST_ROOT/latest_6f548c78/selection_final3",
 ))
 SOURCE = Path(os.environ.get(
     "RERUN_TRAJECTORY",
-    "/data/home/user/PG/MD/GPUMD/950K/solid_left/Rerun_test/latest_6f548c78/energy_smoke/rerun_a/trajectory.xyz",
+    "/path/to/RERUN_TEST_ROOT/latest_6f548c78/energy_smoke/rerun_a/trajectory.xyz",
 ))
 MODEL = ROOT / "tests_regression/fixtures/systems/cu_grouped.xyz"
 POTENTIAL = ROOT / "potentials/eam/Cu_Zhou_2004.txt"

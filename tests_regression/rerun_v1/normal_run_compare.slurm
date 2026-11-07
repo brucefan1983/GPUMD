@@ -1,19 +1,18 @@
 #!/bin/bash
 #SBATCH --job-name=rerun-v1-normal-run
 #SBATCH --partition=gpu
-#SBATCH --nodelist=gpu-10
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --gpus-per-task=1
 #SBATCH --time=00:15:00
-#SBATCH --output=/data/home/user/PG/MD/GPUMD/950K/solid_left/Rerun_test/latest_e5f1b4f/normal_run_compare.slurm.out
-#SBATCH --error=/data/home/user/PG/MD/GPUMD/950K/solid_left/Rerun_test/latest_e5f1b4f/normal_run_compare.slurm.err
+#SBATCH --output=%x-%j.out
+#SBATCH --error=%x-%j.err
 set -euo pipefail
-source /data/home/user/soft/GPU_MetaD_5.9/env.sh
-source /data/home/user/miniconda3/etc/profile.d/conda.sh
+source /path/to/GPU_METAD_ENV
+source /path/to/CONDA_ROOT/etc/profile.d/conda.sh
 conda activate gpu-metad
-root=/data/home/user/soft/GPUMD-rerun-latest
-base=/data/home/user/PG/MD/GPUMD/950K/solid_left/Rerun_test/latest_e5f1b4f/normal_run_compare
+root=/path/to/GPUMD_SOURCE
+base=/path/to/RERUN_TEST_ROOT/latest_e5f1b4f/normal_run_compare
 model=$root/tests_regression/fixtures/systems/cu_grouped.xyz
 potential=$root/potentials/eam/Cu_Zhou_2004.txt
 mkdir -p "$base/fix" "$base/patched"

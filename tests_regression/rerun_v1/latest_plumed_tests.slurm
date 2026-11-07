@@ -1,27 +1,26 @@
 #!/bin/bash
 #SBATCH --job-name=rerun-v1-latest-plumed-test
 #SBATCH --partition=gpu
-#SBATCH --nodelist=gpu-10
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --gpus-per-task=1
 #SBATCH --time=00:25:00
-#SBATCH --output=/data/home/user/PG/MD/GPUMD/950K/solid_left/Rerun_test/latest_6f548c78/plumed.slurm.out
-#SBATCH --error=/data/home/user/PG/MD/GPUMD/950K/solid_left/Rerun_test/latest_6f548c78/plumed.slurm.err
+#SBATCH --output=%x-%j.out
+#SBATCH --error=%x-%j.err
 set -euo pipefail
 
-source /data/home/user/soft/GPU_MetaD_5.9/env.sh
-source /data/home/user/miniconda3/etc/profile.d/conda.sh
+source /path/to/GPU_METAD_ENV
+source /path/to/CONDA_ROOT/etc/profile.d/conda.sh
 conda activate gpu-metad
 
-root=/data/home/user/soft/GPUMD-rerun-latest
-plumed_root=/data/home/user/soft/GPUMD-rerun-latest-plumed-src
-plumed_prefix=/data/home/user/soft/Lammps+deepmd+plumed_newversion/installs/plumed-2.10.1-official
+root=/path/to/GPUMD_SOURCE
+plumed_root=/path/to/PLUMED_BUILD_SOURCE
+plumed_prefix=/path/to/PLUMED_PREFIX
 gpumd=$plumed_root/bin-rerun-v1-6f548c78-plumed/gpumd
 export PLUMED_KERNEL="$plumed_prefix/lib/libplumedKernel.so"
 export LD_LIBRARY_PATH="$plumed_prefix/lib:${LD_LIBRARY_PATH:-}"
-test_root=/data/home/user/PG/MD/GPUMD/950K/solid_left/Rerun_test/latest_6f548c78/plumed_final
-source_trajectory=/data/home/user/PG/MD/GPUMD/950K/solid_left/Rerun_test/latest_6f548c78/energy_smoke/rerun_a/trajectory.xyz
+test_root=/path/to/RERUN_TEST_ROOT/latest_6f548c78/plumed_final
+source_trajectory=/path/to/RERUN_TEST_ROOT/latest_6f548c78/energy_smoke/rerun_a/trajectory.xyz
 model=$root/tests_regression/fixtures/systems/cu_grouped.xyz
 potential=$root/potentials/eam/Cu_Zhou_2004.txt
 mkdir -p "$test_root/interval1" "$test_root/interval10" "$test_root/sparse"

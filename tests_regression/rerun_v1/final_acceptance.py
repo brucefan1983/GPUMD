@@ -7,11 +7,11 @@ import shutil
 import subprocess
 from pathlib import Path
 
-root = Path("/data/home/user/soft/GPUMD-rerun-latest")
-gpumd = Path("/data/home/user/PG/MD/GPUMD/950K/solid_left/Rerun_test/latest_e5f1b4f/build_artifacts/bin-rerun-v1-e5f1b4f-sm90/gpumd")
+root = Path("/path/to/GPUMD_SOURCE")
+gpumd = Path("/path/to/RERUN_TEST_ROOT/latest_e5f1b4f/build_artifacts/bin-rerun-v1-e5f1b4f-sm90/gpumd")
 potential = root / "potentials/eam/Cu_Zhou_2004.txt"
 model = root / "tests_regression/fixtures/systems/cu_grouped.xyz"
-base = Path("/data/home/user/PG/MD/GPUMD/950K/solid_left/Rerun_test/latest_e5f1b4f")
+base = Path("/path/to/RERUN_TEST_ROOT/latest_e5f1b4f")
 energy = base / "energy_smoke/rerun_a/trajectory.xyz"
 work = base / "final_acceptance"
 
