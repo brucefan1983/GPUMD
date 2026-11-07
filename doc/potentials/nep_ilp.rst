@@ -64,7 +64,6 @@ one for :term:`NEP` potential and the other for mapping :term:`NEP` potential to
 We have adopted the :term:`ILP` file format that is similar but not identical to that used by `lammps <https://docs.lammps.org/pair_ilp_graphene_hbn.html>`_.
 Each :term:`NEP` file must use the :ref:`nep.txt format <nep_txt>` with
 ``model nep``, one hidden layer, uniform cutoffs, and no ZBL.
-The ``q_112``, ``q_123``, ``q_233``, and ``q_134`` descriptor terms are not supported.
 Groups in ``model.xyz`` identify the layers for both the :term:`ILP` and :term:`NEP` potentials.
 
 In ``run.in`` file, the :attr:`potential` setting is as::

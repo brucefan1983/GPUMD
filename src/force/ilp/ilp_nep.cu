@@ -163,9 +163,6 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     if (model.has_multiple_cutoffs) {
       PRINT_INPUT_ERROR("ILP_NEP supports only uniform NEP cutoffs.");
     }
-    if (model.has_q_112 || model.has_q_123 || model.has_q_233 || model.has_q_134) {
-      PRINT_INPUT_ERROR("ILP_NEP does not support q_112, q_123, q_233 or q_134.");
-    }
     parambs[i].num_types = model.num_types;
 
     if (parambs[i].num_types == 1) {
@@ -225,11 +222,22 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     printf("    basis_size_angular = %d.\n", parambs[i].basis_size_angular);
 
     parambs[i].L_max = model.L_max;
-    parambs[i].num_L = parambs[i].L_max + model.has_q_222 + model.has_q_1111;
+    parambs[i].has_q_222 = model.has_q_222;
+    parambs[i].has_q_1111 = model.has_q_1111;
+    parambs[i].has_q_112 = model.has_q_112;
+    parambs[i].has_q_123 = model.has_q_123;
+    parambs[i].has_q_233 = model.has_q_233;
+    parambs[i].has_q_134 = model.has_q_134;
+    parambs[i].num_L = parambs[i].L_max + model.has_q_222 + model.has_q_1111 +
+                      model.has_q_112 + model.has_q_123 + model.has_q_233 + model.has_q_134;
     parambs[i].dim_angular = model.layout.dim_angular;
     printf("    l_max_3body = %d.\n", parambs[i].L_max);
-    printf("    l_max_4body = %d.\n", 2 * model.has_q_222);
-    printf("    l_max_5body = %d.\n", model.has_q_1111);
+    printf("    has_q_222 = %d.\n", parambs[i].has_q_222);
+    printf("    has_q_1111 = %d.\n", parambs[i].has_q_1111);
+    printf("    has_q_112 = %d.\n", parambs[i].has_q_112);
+    printf("    has_q_123 = %d.\n", parambs[i].has_q_123);
+    printf("    has_q_233 = %d.\n", parambs[i].has_q_233);
+    printf("    has_q_134 = %d.\n", parambs[i].has_q_134);
 
     annmbs[i].num_neurons1 = model.num_neurons1;
     annmbs[i].dim = model.layout.dim;
@@ -387,6 +395,12 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     memcpy(para_buf_w + NTS    , &(parambs[i].num_types_sq), SIZEOF_INT);
     memcpy(para_buf_w + NCR    , &(parambs[i].num_c_radial), SIZEOF_INT);
     memcpy(para_buf_w + NT     , &(parambs[i].num_types), SIZEOF_INT);
+    memcpy(para_buf_w + HAS_Q_222, &(parambs[i].has_q_222), SIZEOF_INT);
+    memcpy(para_buf_w + HAS_Q_1111, &(parambs[i].has_q_1111), SIZEOF_INT);
+    memcpy(para_buf_w + HAS_Q_112, &(parambs[i].has_q_112), SIZEOF_INT);
+    memcpy(para_buf_w + HAS_Q_123, &(parambs[i].has_q_123), SIZEOF_INT);
+    memcpy(para_buf_w + HAS_Q_233, &(parambs[i].has_q_233), SIZEOF_INT);
+    memcpy(para_buf_w + HAS_Q_134, &(parambs[i].has_q_134), SIZEOF_INT);
     para_buf_w += H_PAR_OFFSET;    // skip 2 pointers: PTRQS PTRAN
   }
 
@@ -2038,8 +2052,10 @@ static __global__ void find_descriptor(
         }
         accumulate_s(paramb_int[LMAX], d12, x12, y12, z12, gn12, s);
       }
-      // find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-      find_q(paramb_int[LMAX], paramb_int[NUML], paramb_int[NMAXA] + 1, n, s, q + (paramb_int[NMAXR] + 1));
+      find_q(
+        paramb_int[LMAX], paramb_int[HAS_Q_222], paramb_int[HAS_Q_1111],
+        paramb_int[HAS_Q_112], paramb_int[HAS_Q_123], paramb_int[HAS_Q_233],
+        paramb_int[HAS_Q_134], paramb_int[NMAXA] + 1, n, s, q + (paramb_int[NMAXR] + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
       }
@@ -2303,7 +2319,11 @@ static __global__ void find_partial_force_angular(
           gn12 += fn12[k] * c[c_index];
           gnp12 += fnp12[k] * c[c_index];
         }
-        accumulate_f12(paramb_int[LMAX], paramb_int[NUML], n, paramb_int[NMAXA] + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(
+          paramb_int[LMAX], paramb_int[HAS_Q_222], paramb_int[HAS_Q_1111],
+          paramb_int[HAS_Q_112], paramb_int[HAS_Q_123], paramb_int[HAS_Q_233],
+          paramb_int[HAS_Q_134], paramb_int[NUML], n, paramb_int[NMAXA] + 1,
+          d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
       g_f12x[index] = f12[0];
       g_f12y[index] = f12[1];
