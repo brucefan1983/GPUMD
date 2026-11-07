@@ -339,7 +339,6 @@ NEP_Extrapolation::NEP_Extrapolation(const char* file_potential, const Atom& ato
     PRINT_INPUT_ERROR(
       "compute_extrapolation supports model nep, nep_dipole or nep_polarizability.");
   }
-  is_polarizability_ = model.name == "nep_polarizability";
   paramb_.num_types = model.num_types;
 
   std::vector<int> mapped_type(num_atoms_);
@@ -379,9 +378,6 @@ NEP_Extrapolation::NEP_Extrapolation(const char* file_potential, const Atom& ato
   paramb_.has_q_123 = model.has_q_123;
   paramb_.has_q_233 = model.has_q_233;
   paramb_.has_q_134 = model.has_q_134;
-  paramb_.num_L = paramb_.L_max + model.has_q_222 + model.has_q_1111 + model.has_q_112 +
-                 model.has_q_123 + model.has_q_233 + model.has_q_134;
-  paramb_.dim_angular = model.layout.dim_angular;
 
   annmb_.num_neurons1 = model.num_neurons1;
   annmb_.dim = model.layout.dim;
@@ -429,18 +425,7 @@ void NEP_Extrapolation::update_potential(float* parameters)
     pointer += annmb_.num_neurons1;
   }
   annmb_.b1 = pointer;
-  pointer += 1;
-
-  if (is_polarizability_) {
-    for (int t = 0; t < paramb_.num_types; ++t) {
-      pointer += annmb_.num_neurons1 * annmb_.dim;
-      pointer += annmb_.num_neurons1;
-      pointer += annmb_.num_neurons1;
-    }
-    pointer += 1;
-  }
-
-  annmb_.c_type_pair = pointer;
+  annmb_.c_type_pair = parameters + annmb_.num_para_ann;
 }
 
 
