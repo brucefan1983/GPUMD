@@ -130,72 +130,7 @@ public:
 
   const GPU_Vector<int>& get_NL_radial_ptr();
 
-  // Whether the box needs the small-box path; also fills the expanded box for it.
-  static bool get_expanded_box(const double rc, const Box& box, ExpandedBox& ebox);
-
-protected:
-  // Reads the model only, without the workspace of NEP::compute() (neighbor lists,
-  // descriptors, partial forces), for derived classes that evaluate on their own
-  // workspaces. verbose = false skips the model information, e.g. for all but one of
-  // several copies of the same model.
-  NEP(const char* file_potential, const bool verbose);
-
-  // Large-box evaluation of atoms [N1, N2) of N atoms in two steps: the radial and
-  // angular neighbor lists from a global candidate list, then energy, force and virial.
-  // Box_View is a Box, or a Batch_Box for replicas concatenated into one system; the
-  // workspace and the stream are given so that several systems can be evaluated
-  // concurrently. Defined in nep_kernels.cuh.
-  template <typename Box_View>
-  void find_neighbor_lists_large_box(
-    const Box_View& box,
-    const int N,
-    const int N1,
-    const int N2,
-    const int* type,
-    const double* position,
-    const int* NN_global,
-    const int* NL_global,
-    NEP_Data& data,
-    gpuStream_t stream) const;
-
-  template <typename Box_View>
-  void compute_large_box_from_neighbor_lists(
-    const Box_View& box,
-    const int N,
-    const int N1,
-    const int N2,
-    const int* type,
-    const double* position,
-    double* potential,
-    double* force,
-    double* virial,
-    NEP_Data& data,
-    gpuStream_t stream);
-
-  // Small-box evaluation in the same two steps, using the expanded box.
-  void find_neighbor_lists_small_box(
-    const Box& box,
-    const ExpandedBox& expanded_box,
-    const int N,
-    const int N1,
-    const int N2,
-    const int* type,
-    const double* position,
-    Small_Box_Data& small_box,
-    gpuStream_t stream) const;
-
-  void compute_small_box_from_neighbor_lists(
-    const int N,
-    const int N1,
-    const int N2,
-    const int* type,
-    double* potential,
-    double* force,
-    double* virial,
-    NEP_Data& data,
-    Small_Box_Data& small_box,
-    gpuStream_t stream);
-
+private:
   ParaMB paramb;
   ANN annmb;
   ZBL zbl;
@@ -204,7 +139,6 @@ protected:
   NeighborManager neighbor_manager;
 
   void update_potential(float* parameters, ANN& ann);
-  void allocate_workspace(const int num_atoms);
 
   void compute_small_box(
     Box& box,

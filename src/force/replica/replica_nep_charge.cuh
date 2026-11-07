@@ -16,19 +16,19 @@
 /*----------------------------------------------------------------------------80
 Charge NEP (qNEP) for replica dynamics.
 
-One object per replica stream: its NEP_Charge state (descriptors, charges,
+One object per replica stream: its qNEP state (descriptors, charges,
 Ewald or PPPM mesh and FFT plans) is only used by that stream, and all of its
 device work runs on it. The candidate neighbor list is a Replica_Neighbor on
-the same stream instead of the NeighborManager of NEP_Charge.
+the same stream instead of the NeighborManager of the model.
 ------------------------------------------------------------------------------*/
 
 #pragma once
-#include "force/nep_charge/nep_charge.cuh"
 #include "replica_neighbor.cuh"
+#include "replica_nep_charge_model.cuh"
 
 class RunInput;
 
-class NEP_Charge_Replica : public NEP_Charge
+class NEP_Charge_Replica : public NEP_Charge_Replica_Model
 {
 public:
   NEP_Charge_Replica(

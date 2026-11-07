@@ -26,7 +26,7 @@ NEP_Charge_Replica::NEP_Charge_Replica(
   const RunInput& run_input,
   const gpuStream_t stream,
   const bool verbose)
-  : NEP_Charge(file_potential, num_atoms, run_input, verbose)
+  : NEP_Charge_Replica_Model(file_potential, num_atoms, run_input, verbose)
 {
   if (stream == nullptr)
     PRINT_INPUT_ERROR("Replica qNEP evaluation requires an explicit GPU stream.\n");

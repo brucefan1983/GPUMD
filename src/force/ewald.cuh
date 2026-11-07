@@ -33,10 +33,7 @@ public:
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& potential_per_atom);
-  // Stream of all device work; the default stream unless set.
-  void set_stream(gpuStream_t stream) { stream_ = stream; }
 private:
-    gpuStream_t stream_ = nullptr;
     int num_kpoints_max = 1;
     int num_kpoints = 1;
     float alpha = 0.5f; // 1 / (2 Angstrom)

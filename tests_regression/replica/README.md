@@ -1,6 +1,6 @@
 # Replica regression tests
 
-These 18 basic integration tests exercise replica dynamics, i.e. `gpumd` runs
+These 20 basic integration tests exercise replica dynamics, i.e. `gpumd` runs
 with a `multi_replica` command. They run independently of the parent directory's
 221-case GPUMD/NEP differential suite and do not require a historical executable.
 
@@ -34,7 +34,11 @@ The tests check:
 - qNEP Ewald/PPPM selection, inline comments, default solver, and restart validation,
   including a changed PPPM spacing;
 - two concurrent qNEP replicas on the large-box path (2000-atom PbTe supercell) with
-  Ewald and PPPM: a repeated run and a run split into resumed segments are identical;
+  Ewald and PPPM: a repeated run and a run split into resumed segments are identical
+  (with PPPM, whose charge spreading uses floating-point atomics, within `1e-6`);
+- the initial qNEP energy (Ewald and PPPM, small-box and large-box path) and the
+  initial NEP energy for a model.xyz with only some species of the model, both equal
+  to those of an ordinary `gpumd` run;
 - single-segment dephasing syntax and the retry limit;
 - rejection of the unsupported `verbose` and `verbose_output` options in both modes;
 - batched integration (forced with `GPUMD_REPLICA_BATCH=1`) reproducing the per-slot

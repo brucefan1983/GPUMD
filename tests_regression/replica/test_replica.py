@@ -403,6 +403,40 @@ class ReplicaRegression(unittest.TestCase):
                                     for run in (runs[0], other)]
                         self.assertEqual(accepted[0], accepted[1])
 
+    def test_qnep_matches_plain_gpumd(self):
+        # Replica dynamics has its own copy of qNEP, Ewald and PPPM. On the small-box and
+        # the large-box path, its initial potential energy equals that of an ordinary gpumd
+        # run (PPPM charge spreading uses floating-point atomics, hence the tolerance).
+        for solver in ("ewald", "pppm"):
+            for size in ("small", "large"):
+                with self.subTest(solver=solver, size=size):
+                    name = f"qnep_plain_{solver}_{size}"
+                    if size == "large":
+                        directory = self.prepare_large(name, charge=True)
+                    else:
+                        directory = self.prepare(name, charge=True)
+                    plain = self.root / f"{name}_plain"
+                    shutil.copytree(directory, plain)
+
+                    self.run_md(directory, "remd", 1, "replicas 2 exchange 1 temp 300 400",
+                                kspace=solver)
+                    row = data_rows(directory / "remd_thermo.out")[0]
+                    replica_energies = [float(row[2]), float(row[5])]
+
+                    # A zero time step keeps the positions: the energy is the initial one.
+                    (plain / "run.in").write_text(
+                        f"potential nep.txt\nkspace {solver}\nvelocity 300\nensemble nve\n"
+                        "time_step 0\ndump_thermo 1\nrun 1\n")
+                    result = subprocess.run(
+                        [str(BINARY)], cwd=plain, text=True, stdout=subprocess.PIPE,
+                        stderr=subprocess.STDOUT, timeout=120, env=ENV,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stdout)
+                    plain_energy = float(data_rows(plain / "thermo.out")[0][2])
+                    for energy in replica_energies:
+                        self.assertAlmostEqual(
+                            energy, plain_energy, delta=1e-6 * abs(plain_energy))
+
     def test_species_subset_matches_plain_gpumd(self):
         # For a model.xyz with only some species of a multi-element NEP, gpumd evaluates a
         # compact copy of the model with renumbered types. A replica run must use the same

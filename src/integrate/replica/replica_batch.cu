@@ -421,8 +421,6 @@ Replica_Batch::Replica_Batch(
   nep_.reset(new NEP_Replica(potential_file.c_str(), total, false));
   if (nep_->nep_model_type != 0)
     PRINT_INPUT_ERROR("Batched replicas only support energy NEP models.");
-  nep_->N1 = 0;
-  nep_->N2 = total;
   supported_ = !nep_->uses_small_box(box_);
   if (!supported_)
     return;

@@ -17,19 +17,17 @@
 Energy NEP for replica dynamics, see replica_nep.cuh.
 ------------------------------------------------------------------------------*/
 
-#include "force/nep/nep_kernels.cuh"
 #include "replica_nep.cuh"
+#include "replica_nep_kernels.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <fstream>
 
 NEP_Replica::NEP_Replica(const char* file_potential, const int num_atoms, const bool verbose)
-  : NEP(file_potential, verbose), num_atoms_(num_atoms)
+  : NEP_Replica_Model(file_potential, verbose), num_atoms_(num_atoms)
 {
   CHECK(gpuGetDevice(&device_id_));
-  N1 = 0;
-  N2 = num_atoms;
 }
 
 NEP_Replica::Workspace& NEP_Replica::get_workspace(const gpuStream_t stream)
@@ -47,7 +45,7 @@ NEP_Replica::Workspace& NEP_Replica::get_workspace(const gpuStream_t stream)
     return *iterator->second;
 
   std::unique_ptr<Workspace> workspace(new Workspace);
-  NEP_Data& data = workspace->data;
+  NEP_Replica_Data& data = workspace->data;
   const size_t N = num_atoms_;
   data.f12x.resize(N * paramb.MN_angular);
   data.f12y.resize(N * paramb.MN_angular);

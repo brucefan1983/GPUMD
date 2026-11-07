@@ -16,30 +16,28 @@
 /*----------------------------------------------------------------------------80
 Energy NEP for replica dynamics.
 
-The model (parameters, cutoffs, ZBL) and the kernels are those of NEP. What is
-added is the state needed to evaluate several replicas on one GPU at the same
-time: each stream has its own workspace (descriptors, neighbor lists, small-box
-data), and a batch of replicas concatenated into one system can be evaluated
-with one set of kernel launches.
+The model and the kernels are those of NEP_Replica_Model (a copy of NEP, see
+replica_nep_model.cuh). What is added is the state needed to evaluate several
+replicas on one GPU at the same time: each stream has its own workspace
+(descriptors, neighbor lists, small-box data), and a batch of replicas
+concatenated into one system can be evaluated with one set of kernel launches.
 ------------------------------------------------------------------------------*/
 
 #pragma once
-#include "force/nep/nep.cuh"
 #include "model/batch_box.cuh"
 #include "replica_neighbor.cuh"
+#include "replica_nep_model.cuh"
 #include "utilities/gpu_pinned_vector.cuh"
 #include <map>
 #include <memory>
 #include <mutex>
 
-class NEP_Replica : public NEP
+class NEP_Replica : public NEP_Replica_Model
 {
 public:
   // num_atoms is the number of atoms evaluated per stream (all replicas of a batch);
   // verbose prints the model information.
   NEP_Replica(const char* file_potential, const int num_atoms, const bool verbose);
-
-  using NEP::compute;
 
   // Allocates the workspace of a stream; compute() also does it on first use.
   void prepare_stream(gpuStream_t stream);
@@ -72,7 +70,7 @@ public:
 
 private:
   struct Workspace {
-    NEP_Data data;
+    NEP_Replica_Data data;
     Small_Box_Data small_box;
     ExpandedBox expanded_box;
     Replica_Neighbor neighbor;

@@ -14,24 +14,24 @@
 */
 
 /*----------------------------------------------------------------------------80
-Large-box NEP kernels and their launch sequence.
-
-The kernels are templated on the box view: a Box for one system, or a Batch_Box
-for replicas concatenated into one system (see model/batch_box.cuh), in which
-case each atom uses the box of its own replica. Both NEP and the replica force
-layer (force/replica) launch them, on the default stream or on a given stream.
+Large-box NEP kernels of replica dynamics and their launch sequence: a copy of
+the large-box kernels of force/nep/nep.cu, templated on the box view (a Box for
+one system, or a Batch_Box for replicas concatenated into one system, see
+model/batch_box.cuh, in which case each atom uses the box of its own replica)
+and launched on a given stream. Keep it in sync with force/nep/nep.cu by hand.
 ------------------------------------------------------------------------------*/
 
 #pragma once
 #include "model/batch_box.cuh"
-#include "nep.cuh"
+#include "replica_many_body.cuh"
+#include "replica_nep_model.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
 
 template <typename Box_View>
 static __global__ void find_neighbor_list_large_box(
-  NEP::ParaMB paramb,
+  NEP_Replica_Model::ParaMB paramb,
   const int N,
   const int N1,
   const int N2,
@@ -84,8 +84,8 @@ static __global__ void find_neighbor_list_large_box(
 
 template <typename Box_View>
 static __global__ void find_descriptor(
-  NEP::ParaMB paramb,
-  NEP::ANN annmb,
+  NEP_Replica_Model::ParaMB paramb,
+  NEP_Replica_Model::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -204,8 +204,8 @@ static __global__ void find_descriptor(
 
 template <typename Box_View>
 static __global__ void find_force_radial(
-  NEP::ParaMB paramb,
-  NEP::ANN annmb,
+  NEP_Replica_Model::ParaMB paramb,
+  NEP_Replica_Model::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -311,8 +311,8 @@ static __global__ void find_force_radial(
 
 template <typename Box_View>
 static __global__ void find_partial_force_angular(
-  NEP::ParaMB paramb,
-  NEP::ANN annmb,
+  NEP_Replica_Model::ParaMB paramb,
+  NEP_Replica_Model::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -404,9 +404,9 @@ static __global__ void find_partial_force_angular(
 
 template <typename Box_View>
 static __global__ void find_force_ZBL(
-  NEP::ParaMB paramb,
+  NEP_Replica_Model::ParaMB paramb,
   const int N,
-  const NEP::ZBL zbl,
+  const NEP_Replica_Model::ZBL zbl,
   const int N1,
   const int N2,
   const Box_View box,
@@ -518,7 +518,7 @@ static __global__ void find_force_ZBL(
 }
 
 template <typename Box_View>
-void NEP::find_neighbor_lists_large_box(
+void NEP_Replica_Model::find_neighbor_lists_large_box(
   const Box_View& box,
   const int N,
   const int N1,
@@ -527,7 +527,7 @@ void NEP::find_neighbor_lists_large_box(
   const double* position,
   const int* NN_global,
   const int* NL_global,
-  NEP_Data& data,
+  NEP_Replica_Data& data,
   gpuStream_t stream) const
 {
   const int BLOCK_SIZE = 64;
@@ -553,7 +553,7 @@ void NEP::find_neighbor_lists_large_box(
 }
 
 template <typename Box_View>
-void NEP::compute_large_box_from_neighbor_lists(
+void NEP_Replica_Model::compute_large_box_from_neighbor_lists(
   const Box_View& box,
   const int N,
   const int N1,
@@ -563,7 +563,7 @@ void NEP::compute_large_box_from_neighbor_lists(
   double* potential,
   double* force,
   double* virial,
-  NEP_Data& data,
+  NEP_Replica_Data& data,
   gpuStream_t stream)
 {
   const int BLOCK_SIZE = 64;
@@ -633,7 +633,7 @@ void NEP::compute_large_box_from_neighbor_lists(
     data.f12z.data());
   GPU_CHECK_KERNEL
 
-  find_properties_many_body(
+  find_properties_many_body_replica(
     box,
     N,
     N1,

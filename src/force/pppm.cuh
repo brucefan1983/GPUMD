@@ -40,10 +40,6 @@ public:
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& potential_per_atom);
-  // Stream of all device work, including the FFTs; the default stream unless set.
-  void set_stream(gpuStream_t stream);
-  // Whether the mesh and its error estimate are printed when the mesh is set up.
-  void set_verbose(const bool verbose) { verbose_ = verbose; }
   struct Para {
     int K0K1K2;             // total number of mesh points
     int K0K1;               // K[0] * K[1]
@@ -57,8 +53,6 @@ public:
     float two_pi_over_K[3]; // 2 * pi ./ K
   };
 private:
-  gpuStream_t stream_ = nullptr;
-  bool verbose_ = true;
   Para para = {};
   double mesh_spacing = 1.0;
   GPU_Vector<float> kx;

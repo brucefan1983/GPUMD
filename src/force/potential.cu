@@ -167,12 +167,11 @@ void Potential::find_properties_many_body(
   GPU_CHECK_KERNEL
 }
 
-template <typename Box_View>
 static __global__ void gpu_find_force_many_body(
   const int number_of_particles,
   const int N1,
   const int N2,
-  const Box_View box,
+  const Box box,
   const int* g_neighbor_number,
   const int* g_neighbor_list,
   const float* __restrict__ g_f12x,
@@ -213,7 +212,7 @@ static __global__ void gpu_find_force_many_body(
       double x12double = g_x[n2] - x1;
       double y12double = g_y[n2] - y1;
       double z12double = g_z[n2] - z1;
-      apply_mic(box_of(box, n1), x12double, y12double, z12double);
+      apply_mic(box, x12double, y12double, z12double);
       float x12 = float(x12double);
       float y12 = float(y12double);
       float z12 = float(z12double);
@@ -287,44 +286,6 @@ static __global__ void gpu_find_force_many_body(
   }
 }
 
-template <typename Box_View>
-static void launch_find_force_many_body(
-  const Box_View& box,
-  const int number_of_atoms,
-  const int N1,
-  const int N2,
-  const int* NN,
-  const int* NL,
-  const float* f12x,
-  const float* f12y,
-  const float* f12z,
-  const double* position_per_atom,
-  double* force_per_atom,
-  double* virial_per_atom,
-  gpuStream_t stream)
-{
-  int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
-
-  gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE, 0, stream>>>(
-    number_of_atoms,
-    N1,
-    N2,
-    box,
-    NN,
-    NL,
-    f12x,
-    f12y,
-    f12z,
-    position_per_atom,
-    position_per_atom + number_of_atoms,
-    position_per_atom + number_of_atoms * 2,
-    force_per_atom,
-    force_per_atom + number_of_atoms,
-    force_per_atom + 2 * number_of_atoms,
-    virial_per_atom);
-  GPU_CHECK_KERNEL
-}
-
 void Potential::find_properties_many_body(
   Box& box,
   const int* NN,
@@ -337,58 +298,24 @@ void Potential::find_properties_many_body(
   GPU_Vector<double>& virial_per_atom)
 {
   const int number_of_atoms = position_per_atom.size() / 3;
-  launch_find_force_many_body(
-    box,
+  int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
+
+  gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms,
     N1,
     N2,
+    box,
     NN,
     NL,
     f12x,
     f12y,
     f12z,
     position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + number_of_atoms * 2,
     force_per_atom.data(),
-    virial_per_atom.data(),
-    0);
-}
-
-void Potential::find_properties_many_body(
-  const Box& box,
-  const int number_of_atoms,
-  const int N1,
-  const int N2,
-  const int* NN,
-  const int* NL,
-  const float* f12x,
-  const float* f12y,
-  const float* f12z,
-  const double* position_per_atom,
-  double* force_per_atom,
-  double* virial_per_atom,
-  gpuStream_t stream)
-{
-  launch_find_force_many_body(
-    box, number_of_atoms, N1, N2, NN, NL, f12x, f12y, f12z,
-    position_per_atom, force_per_atom, virial_per_atom, stream);
-}
-
-void Potential::find_properties_many_body(
-  const Batch_Box& box,
-  const int number_of_atoms,
-  const int N1,
-  const int N2,
-  const int* NN,
-  const int* NL,
-  const float* f12x,
-  const float* f12y,
-  const float* f12z,
-  const double* position_per_atom,
-  double* force_per_atom,
-  double* virial_per_atom,
-  gpuStream_t stream)
-{
-  launch_find_force_many_body(
-    box, number_of_atoms, N1, N2, NN, NL, f12x, f12y, f12z,
-    position_per_atom, force_per_atom, virial_per_atom, stream);
+    force_per_atom.data() + number_of_atoms,
+    force_per_atom.data() + 2 * number_of_atoms,
+    virial_per_atom.data());
+  GPU_CHECK_KERNEL
 }
