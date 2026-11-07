@@ -52,7 +52,6 @@ public:
     int dim = 0;
     int num_neurons1 = 0;
     int num_para = 0;
-    int num_para_ann = 0;
     const float* w0[NUM_ELEMENTS];
     const float* b0[NUM_ELEMENTS];
     const float* w1[NUM_ELEMENTS];

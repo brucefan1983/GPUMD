@@ -139,9 +139,6 @@ void NEP_Energy::initialize(const char* file_potential)
   paramb.has_q_123 = model.has_q_123;
   paramb.has_q_233 = model.has_q_233;
   paramb.has_q_134 = model.has_q_134;
-  paramb.num_L = paramb.L_max + model.has_q_222 + model.has_q_1111 + model.has_q_112 +
-                 model.has_q_123 + model.has_q_233 + model.has_q_134;
-  paramb.dim_angular = model.layout.dim_angular;
   printf("    l_max_3body = %d.\n", paramb.L_max);
   printf("    has_q_222 = %d.\n", paramb.has_q_222);
   printf("    has_q_1111 = %d.\n", paramb.has_q_1111);

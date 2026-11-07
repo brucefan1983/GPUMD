@@ -97,8 +97,6 @@ NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
   annmb_.num_neurons1 = model.num_neurons1;
   annmb_.dim = model.layout.dim;
   paramb_.num_types_sq = paramb_.num_types * paramb_.num_types;
-  // Polarizability stores two complete ANNs before the descriptor coefficients.
-  annmb_.num_para_ann = model.layout.number_of_variables_ann * model.layout.ann_count;
   annmb_.num_para = model.layout.number_of_variables;
   paramb_.num_c_radial =
     paramb_.num_types_sq * (paramb_.n_max_radial + 1) * (paramb_.basis_size_radial + 1);
