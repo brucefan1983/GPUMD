@@ -80,7 +80,7 @@ Examples
     # unwrapped positions and velocities:
     dump_xyz 15 dump.xyz position unwrapped velocity
 
-    # both coordinate sets and velocities:
+    # wrapped and unwrapped coordinates, plus velocities:
     dump_xyz 15 both.xyz unwrapped_position velocity
 
     # group 0 of method 1:
