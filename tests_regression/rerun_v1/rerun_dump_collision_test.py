@@ -42,6 +42,8 @@ def execute(gpumd, work, model, potential, trajectory, dump, expect_success):
     after = digest(trajectory)
     if not expect_success and before != after:
         raise AssertionError("input trajectory changed after collision attempt")
+    if expect_success and before != after:
+        raise AssertionError("input trajectory changed during noncolliding output")
     if expect_success != (result.returncode == 0):
         raise AssertionError(
             f"unexpected exit status {result.returncode}; output: {result.stdout[-1200:]}"
@@ -75,6 +77,23 @@ def main():
             "dump_xyz 1 trajectory.xyz force potential virial", False,
         )
         print("PASS normal direct collision; input hash unchanged")
+
+        for name, output_path, create_alias in (
+            ("normal-dotdot", "nested/../trajectory.xyz", lambda work, traj: (work / "nested").mkdir()),
+            ("normal-symlink", "alias.xyz", lambda work, traj: (work / "alias.xyz").symlink_to(traj.name)),
+            ("normal-absolute", None, lambda work, traj: None),
+        ):
+            work = root / name
+            work.mkdir()
+            trajectory = work / "trajectory.xyz"
+            trajectory.write_text("".join(source_frame))
+            create_alias(work, trajectory)
+            configured_path = output_path or str(trajectory.resolve())
+            execute(
+                args.gpumd, work, args.model, args.potential, trajectory,
+                f"dump_xyz 1 {configured_path} force potential virial", False,
+            )
+            print(f"PASS normal {name} alias; input hash unchanged")
 
         # The per-frame suffix is the original timestep (step+1 in the
         # zero-based end_of_step interface).
@@ -117,6 +136,17 @@ def main():
         )
         print("PASS per-frame absolute symlink alias; input hash unchanged")
 
+        work = root / "per-frame-hardlink"
+        work.mkdir()
+        trajectory = work / "trajectory.xyz"
+        trajectory.write_text("".join(source_frame))
+        (work / f"frame{step}").hardlink_to(trajectory)
+        execute(
+            args.gpumd, work, args.model, args.potential, trajectory,
+            "dump_xyz 1 frame* force potential virial", False,
+        )
+        print("PASS per-frame hard-link alias; input hash unchanged")
+
         # split uses numbered names and deliberately advances past an existing
         # chunk. Confirm the input chunk is preserved and the next chunk works.
         work = root / "split-existing-input"
@@ -130,6 +160,19 @@ def main():
         if not (work / "trajectory_0002.xyz").exists():
             raise AssertionError("split dump did not generate its next noncolliding chunk")
         print("PASS split collision candidate skipped; next chunk written safely")
+
+        work = root / "split-symlink-input"
+        work.mkdir()
+        trajectory = work / "trajectory.xyz"
+        trajectory.write_text("".join(source_frame))
+        (work / "output_0001.xyz").symlink_to(trajectory.name)
+        execute(
+            args.gpumd, work, args.model, args.potential, trajectory,
+            "dump_xyz 1 output.xyz split 1 force potential virial", True,
+        )
+        if not (work / "output_0002.xyz").exists():
+            raise AssertionError("split dump did not skip an aliased chunk path")
+        print("PASS split symlink collision candidate skipped safely")
 
         # Verify successful output in all three modes.
         for name, dump, expected in (
