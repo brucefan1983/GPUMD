@@ -188,10 +188,6 @@ NEP_MULTIGPU::NEP_MULTIGPU(
   printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
   printf("    total number of parameters = %d.\n", annmb[0].num_para);
 
-  // Store ANN parameters, type-pair-major descriptor coefficients and scalers in one buffer.
-  std::vector<float> parameters = model.parameters;
-  parameters.insert(parameters.end(), model.q_scaler.begin(), model.q_scaler.end());
-
   if (zbl.flexible) {
     const int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
     for (int d = 0; d < 10 * num_type_zbl; ++d) {
@@ -215,8 +211,11 @@ NEP_MULTIGPU::NEP_MULTIGPU(
     CHECK(gpuSetDevice(gpu));
 #endif
 
+    // Store ANN parameters, type-pair-major descriptor coefficients and scalers in one buffer.
     nep_data[gpu].parameters.resize(annmb[gpu].num_para + annmb[gpu].dim);
-    nep_data[gpu].parameters.copy_from_host(parameters.data());
+    nep_data[gpu].parameters.copy_from_host(model.parameters.data(), model.parameters.size());
+    nep_data[gpu].parameters.copy_from_host(
+      model.q_scaler.data(), model.q_scaler.size(), annmb[gpu].num_para);
 
     update_potential(nep_data[gpu].parameters.data(), annmb[gpu]);
     annmb[gpu].q_scaler = nep_data[gpu].parameters.data() + annmb[gpu].num_para;

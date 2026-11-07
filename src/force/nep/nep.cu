@@ -194,11 +194,10 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   printf("    total number of parameters = %d.\n", annmb.num_para);
 
   // Store ANN parameters, type-pair-major descriptor coefficients and scalers in one buffer.
-  std::vector<float> parameters = model.parameters;
-  parameters.insert(parameters.end(), model.q_scaler.begin(), model.q_scaler.end());
-
   nep_data.parameters.resize(annmb.num_para + annmb.dim);
-  nep_data.parameters.copy_from_host(parameters.data());
+  nep_data.parameters.copy_from_host(model.parameters.data(), model.parameters.size());
+  nep_data.parameters.copy_from_host(
+    model.q_scaler.data(), model.q_scaler.size(), annmb.num_para);
   update_potential(nep_data.parameters.data(), annmb);
   annmb.q_scaler = nep_data.parameters.data() + annmb.num_para;
   nep_data.energy_reference.resize(model.energy_reference.size());

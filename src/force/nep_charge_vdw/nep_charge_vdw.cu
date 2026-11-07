@@ -273,10 +273,10 @@ NEP_Charge_VDW::NEP_Charge_VDW(
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
 
   // Native model files already store descriptor parameters in type-pair-major order.
-  std::vector<float> parameters = model.parameters;
-  parameters.insert(parameters.end(), model.q_scaler.begin(), model.q_scaler.end());
-  nep_data.parameters.resize(parameters.size());
-  nep_data.parameters.copy_from_host(parameters.data());
+  nep_data.parameters.resize(annmb.num_para + annmb.dim);
+  nep_data.parameters.copy_from_host(model.parameters.data(), model.parameters.size());
+  nep_data.parameters.copy_from_host(
+    model.q_scaler.data(), model.q_scaler.size(), annmb.num_para);
   update_potential(nep_data.parameters.data(), annmb);
   annmb.q_scaler = nep_data.parameters.data() + annmb.num_para;
   nep_data.energy_reference.resize(model.energy_reference.size());

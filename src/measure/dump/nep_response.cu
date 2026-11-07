@@ -104,11 +104,10 @@ NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
     paramb_.num_types_sq * (paramb_.n_max_radial + 1) * (paramb_.basis_size_radial + 1);
 
   // Store ANN parameters, type-pair-major descriptor coefficients and scalers in one buffer.
-  std::vector<float> parameters = model.parameters;
-  parameters.insert(parameters.end(), model.q_scaler.begin(), model.q_scaler.end());
-
   data_.parameters.resize(annmb_.num_para + annmb_.dim);
-  data_.parameters.copy_from_host(parameters.data());
+  data_.parameters.copy_from_host(model.parameters.data(), model.parameters.size());
+  data_.parameters.copy_from_host(
+    model.q_scaler.data(), model.q_scaler.size(), annmb_.num_para);
   update_potential(data_.parameters.data());
   annmb_.q_scaler = data_.parameters.data() + annmb_.num_para;
 

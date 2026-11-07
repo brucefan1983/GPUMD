@@ -1625,10 +1625,10 @@ void NEP_Spin::read_model(const char* file_potential)
                                  model_.angular_parameter_count + model_.spin_parameter_count +
                                  model_.spin_projection_parameter_count;
 
-  std::vector<float> parameters = file.parameters;
-  parameters.insert(parameters.end(), file.q_scaler.begin(), file.q_scaler.end());
-  data_.parameters.resize(parameters.size());
-  data_.parameters.copy_from_host(parameters.data());
+  data_.parameters.resize(file.parameters.size() + file.q_scaler.size());
+  data_.parameters.copy_from_host(file.parameters.data(), file.parameters.size());
+  data_.parameters.copy_from_host(
+    file.q_scaler.data(), file.q_scaler.size(), static_cast<int>(file.parameters.size()));
 
   const auto& energy_reference = model_.energy_reference;
   data_.energy_reference.resize(energy_reference.size());
