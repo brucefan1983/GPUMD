@@ -19,11 +19,11 @@ Some functions for dealing with text files. Written by Mikko Ervasti.
 
 #include "error.cuh"
 #include "utilities/nep_io/nep_file.cuh"
-#include "utilities/nep_io/nep_model_input.cuh"
 #include "read_file.cuh"
 #include <ctype.h>
 #include <errno.h>
 #include <cstring>
+#include <fstream>
 
 int is_valid_int(const char* s, int* result)
 {
@@ -71,8 +71,6 @@ int is_valid_real(const std::string& s, double* result)
 
 bool is_nep_charge_potential(const std::string& potential_file_name)
 {
-  bool is_nep_charge = false;
-
   std::ifstream input_potential(potential_file_name);
   if (!input_potential.is_open()) {
     PRINT_INPUT_ERROR("Cannot open potential file.");
@@ -83,28 +81,15 @@ bool is_nep_charge_potential(const std::string& potential_file_name)
   if (tokens.empty()) {
     PRINT_INPUT_ERROR("Empty potential file.");
   }
-  if (NEP_Model_Input::is_new_format(tokens[0])) {
+  if (NEP_File::is_nep_header(tokens[0])) {
     input_potential.clear();
     input_potential.seekg(0);
-    NEP_File document;
+    std::string model;
     std::string error;
-    if (!document.read(input_potential, error)) {
+    if (!NEP_File::read_model_name(input_potential, model, error)) {
       PRINT_INPUT_ERROR(error.c_str());
     }
-    const std::string& model = document.find_field("model")->values[0];
     return model == "qnep1" || model == "qnep2" || model == "qnep3" || model == "qnep3_vdw";
   }
-  if (tokens[0].size() >= 12) {
-    if (tokens[0].substr(0, 11) == "nep4_charge") {
-      is_nep_charge = true;
-    }
-  }
-  if (tokens[0].size() >= 16) {
-    if (tokens[0].substr(0, 15) == "nep4_zbl_charge") {
-      is_nep_charge = true;
-    }
-  }
-  input_potential.close();
-
-  return is_nep_charge;
+  return false;
 }

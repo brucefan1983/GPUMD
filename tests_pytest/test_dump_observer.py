@@ -20,6 +20,7 @@ from calorine.calculators import GPUNEP
 from calorine.gpumd import write_xyz
 
 from conftest import MODELS_DIR, REPO_ROOT, TOLERANCES, approx_tol
+from nep_model_helpers import write_scaled_nep_model
 
 pytestmark = pytest.mark.fast
 
@@ -95,15 +96,6 @@ CASES = {
 }
 
 
-def _write_scaled_model(path):
-    """Writes to path a copy of nep_C.txt with every parameter scaled by 1.05, a second model for
-    the same species."""
-    lines = MODEL_PATH.read_text().splitlines()
-    header_length = 6  # the lines from nep4 to ANN
-    parameters = [f'{float(line) * 1.05:.7e}' for line in lines[header_length:]]
-    path.write_text('\n'.join(lines[:header_length] + parameters) + '\n')
-
-
 def _run(directory, gpumd_command, case, number_of_potentials, with_observer):
     directory.mkdir()
     number_of_atoms = 8 * 2**3  # eight atoms in the cubic cell, repeated twice in each direction
@@ -111,7 +103,7 @@ def _run(directory, gpumd_command, case, number_of_potentials, with_observer):
     _write_diamond_cell(directory, 2, groupings=[groups])
     model_paths = [directory / MODEL_PATH.name, directory / 'nep_C_scaled.txt']
     shutil.copy(MODEL_PATH, model_paths[0])
-    _write_scaled_model(model_paths[1])
+    write_scaled_nep_model(MODEL_PATH, model_paths[1])
     model_paths = model_paths[:number_of_potentials]
     run_in = [f'potential {path.name}' for path in model_paths] + CASES[case]
     if with_observer:
@@ -246,7 +238,7 @@ def test_average_observer_holds_run_arrays(tmp_path, gpumd_command):
     the same step, and forces that include those of add_force."""
     _write_diamond_cell(tmp_path, 2, groupings=[ALTERNATING])
     scaled_model = tmp_path / 'nep_C_scaled.txt'
-    _write_scaled_model(scaled_model)
+    write_scaled_nep_model(MODEL_PATH, scaled_model)
     run_in = [f'potential {MODEL_PATH}', f'potential {scaled_model}'] + CASES['add_force']
     run_in += ['dump_thermo 5', 'dump_observer average 5 5 0 1', 'run 10']
     (tmp_path / 'run.in').write_text('\n'.join(run_in) + '\n')

@@ -30,7 +30,6 @@ struct NEP_Charge_Data {
   GPU_Vector<float> f12z; // 3-body or manybody partial forces
   GPU_Vector<float> Fp;
   GPU_Vector<float> sum_fxyz;
-  GPU_Vector<float> descriptor_parameters_type_pair;
   GPU_Vector<double> energy_reference;
   GPU_Vector<int> NN_radial;    // radial neighbor list
   GPU_Vector<int> NL_radial;    // radial neighbor list
@@ -96,7 +95,6 @@ public:
     const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
     const float* sqrt_epsilon_inf; // sqrt(epsilon_inf) related to BEC
     const float* b1;               // bias for the output layer
-    const float* c;
     const float* c_type_pair;
     const float* q_scaler;
     const double* energy_reference = nullptr;

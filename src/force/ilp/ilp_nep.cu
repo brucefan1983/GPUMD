@@ -29,7 +29,7 @@ Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
 #include "force/neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
-#include "utilities/nep_io/nep_model_input.cuh"
+#include "utilities/nep_io/nep_model_file.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <iostream>
@@ -147,26 +147,23 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     int count = fscanf(fid_nep_map, "%s", nep_file);
     PRINT_SCANF_ERROR(count, 1, "reading error for NEP filename");
 
-    NEP_Model_Input input(nep_file);
-
-    // nep4 1 C
-    std::vector<std::string> tokens = input.get_tokens();
-    if (tokens.size() < 3) {
-      std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
-      exit(1);
+    std::ifstream input(nep_file);
+    if (!input.is_open()) {
+      const std::string error = "Cannot open potential file " + std::string(nep_file) + ".";
+      PRINT_INPUT_ERROR(error.c_str());
     }
-    if (tokens[0] != "nep4") {
-      std::cout << tokens[0]
-                << " is an unsupported NEP model. We only support NEP4 models now."
-                << std::endl;
-      exit(1);
+    NEP_Model_File model;
+    std::string error;
+    if (!model.read(input, error) || !model.validate_md(error)) {
+      PRINT_INPUT_ERROR(error.c_str());
     }
-    parambs[i].num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
-    if (tokens.size() != 2 + parambs[i].num_types) {
-      std::cout << "The first line of nep.txt should have " << parambs[i].num_types << " atom symbols."
-                << std::endl;
-      exit(1);
+    if (model.name != "nep" || model.enable_zbl) {
+      PRINT_INPUT_ERROR("ILP_NEP requires model nep without ZBL.");
     }
+    if (model.has_multiple_cutoffs) {
+      PRINT_INPUT_ERROR("ILP_NEP supports only uniform NEP cutoffs.");
+    }
+    parambs[i].num_types = model.num_types;
 
     if (parambs[i].num_types == 1) {
       printf("Use the NEP%d potential with %d atom type.\n", parambs[i].version, parambs[i].num_types);
@@ -177,13 +174,13 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     for (int n = 0; n < parambs[i].num_types; ++n) {
       int atomic_number = 0;
       for (int m = 0; m < NUM_ELEMENTS; ++m) {
-        if (tokens[2 + n] == ELEMENTS[m]) {
+        if (model.elements[n] == ELEMENTS[m]) {
           atomic_number = m + 1;
           break;
         }
       }
       parambs[i].atomic_numbers[n] = atomic_number - 1;
-      printf("    type %d (%s with Z = %d).\n", n, tokens[2 + n].c_str(), atomic_number);
+      printf("    type %d (%s with Z = %d).\n", n, model.elements[n].c_str(), atomic_number);
 
       // update type map
       // for example: if ilp elements is C N B, element in nep 0 is C, elements in nep 1 are B N
@@ -192,151 +189,80 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
       //   nep 0 element     C(0)   null   null
       //   nep 1 element                          null  N(1)  B(0)
       for (int m = 0; m < num_types; ++m) {
-        if (tokens[2 + n] == ilp_elements[m]) {
+        if (model.elements[n] == ilp_elements[m]) {
           type_map_cpu[m + i * num_types] = n;
-          if (!input.energy_reference().empty()) {
-            reference[m + i * num_types] = input.energy_reference()[n];
-          }
+          reference[m + i * num_types] = model.energy_reference[n];
         }
       }
     }
 
-    // cutoff 4.2 3.7 80 47 1
-    tokens = input.get_tokens();
-    if (tokens.size() != 5 && tokens.size() != 8) {
-      std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular "
-                   "[radial_factor] [angular_factor] [zbl_factor].\n";
-      exit(1);
-    }
-    parambs[i].rc_radial = get_double_from_token(tokens[1], __FILE__, __LINE__);
-    parambs[i].rc_angular = get_double_from_token(tokens[2], __FILE__, __LINE__);
+    parambs[i].rc_radial = model.rc_radial[0];
+    parambs[i].rc_angular = model.rc_angular[0];
     printf("    radial cutoff = %g A.\n", parambs[i].rc_radial);
     printf("    angular cutoff = %g A.\n", parambs[i].rc_angular);
-    // save the max rc_radial, same to max rc
     max_nep_rc = max(max_nep_rc, parambs[i].rc_radial);
 
-    int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
-    int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
-    printf("    MN_radial = %d.\n", MN_radial);
-    if (MN_radial > 819) {
-      std::cout << "The maximum number of neighbors exceeds 819. Please reduce this value."
-                << std::endl;
-      exit(1);
-    }
-    parambs[i].MN_radial = int(ceil(MN_radial * 1.25));
-    parambs[i].MN_angular = int(ceil(MN_angular * 1.25));
+    printf("    MN_radial = %d.\n", model.max_radial);
+    parambs[i].MN_radial = int(ceil(model.max_radial * 1.25));
+    parambs[i].MN_angular = int(ceil(model.max_angular * 1.25));
     max_MN_radial = max(max_MN_radial, parambs[i].MN_radial);
     max_MN_angular = max(max_MN_angular, parambs[i].MN_angular);
     printf("    enlarged MN_radial = %d.\n", parambs[i].MN_radial);
     printf("    enlarged MN_angular = %d.\n", parambs[i].MN_angular);
 
-    if (tokens.size() == 8) {
-      parambs[i].typewise_cutoff_radial_factor = get_double_from_token(tokens[5], __FILE__, __LINE__);
-      parambs[i].typewise_cutoff_angular_factor = get_double_from_token(tokens[6], __FILE__, __LINE__);
-      if (parambs[i].typewise_cutoff_radial_factor > 0.0f) {
-        parambs[i].use_typewise_cutoff = true;
-      }
-    }
-
-    // n_max 10 8
-    tokens = input.get_tokens();
-    if (tokens.size() != 3) {
-      std::cout << "This line should be n_max n_max_radial n_max_angular." << std::endl;
-      exit(1);
-    }
-    parambs[i].n_max_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
-    parambs[i].n_max_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
+    parambs[i].n_max_radial = model.n_max_radial;
+    parambs[i].n_max_angular = model.n_max_angular;
     max_n_max_angular = max(max_n_max_angular, parambs[i].n_max_angular);
     printf("    n_max_radial = %d.\n", parambs[i].n_max_radial);
     printf("    n_max_angular = %d.\n", parambs[i].n_max_angular);
 
-    // basis_size 10 8
-    tokens = input.get_tokens();
-    if (tokens.size() != 3) {
-      std::cout << "This line should be basis_size basis_size_radial basis_size_angular."
-                << std::endl;
-      exit(1);
-    }
-    parambs[i].basis_size_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
-    parambs[i].basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
+    parambs[i].basis_size_radial = model.basis_size_radial;
+    parambs[i].basis_size_angular = model.basis_size_angular;
     printf("    basis_size_radial = %d.\n", parambs[i].basis_size_radial);
     printf("    basis_size_angular = %d.\n", parambs[i].basis_size_angular);
 
-    // l_max
-    tokens = input.get_tokens();
-    if (tokens.size() != 4) {
-      std::cout << "This line should be l_max l_max_3body l_max_4body l_max_5body." << std::endl;
-      exit(1);
-    }
-
-    parambs[i].L_max = get_int_from_token(tokens[1], __FILE__, __LINE__);
+    parambs[i].L_max = model.L_max;
+    parambs[i].has_q_222 = model.has_q_222;
+    parambs[i].has_q_1111 = model.has_q_1111;
+    parambs[i].has_q_112 = model.has_q_112;
+    parambs[i].has_q_123 = model.has_q_123;
+    parambs[i].has_q_233 = model.has_q_233;
+    parambs[i].has_q_134 = model.has_q_134;
+    parambs[i].num_L = parambs[i].L_max + model.has_q_222 + model.has_q_1111 +
+                      model.has_q_112 + model.has_q_123 + model.has_q_233 + model.has_q_134;
+    parambs[i].dim_angular = model.layout.dim_angular;
     printf("    l_max_3body = %d.\n", parambs[i].L_max);
-    parambs[i].num_L = parambs[i].L_max;
+    printf("    has_q_222 = %d.\n", parambs[i].has_q_222);
+    printf("    has_q_1111 = %d.\n", parambs[i].has_q_1111);
+    printf("    has_q_112 = %d.\n", parambs[i].has_q_112);
+    printf("    has_q_123 = %d.\n", parambs[i].has_q_123);
+    printf("    has_q_233 = %d.\n", parambs[i].has_q_233);
+    printf("    has_q_134 = %d.\n", parambs[i].has_q_134);
 
-    int L_max_4body = get_int_from_token(tokens[2], __FILE__, __LINE__);
-    int L_max_5body = get_int_from_token(tokens[3], __FILE__, __LINE__);
-    printf("    l_max_4body = %d.\n", L_max_4body);
-    printf("    l_max_5body = %d.\n", L_max_5body);
-    if (L_max_4body == 2) {
-      parambs[i].num_L += 1;
-    }
-    if (L_max_5body == 1) {
-      parambs[i].num_L += 1;
-    }
-
-    parambs[i].dim_angular = (parambs[i].n_max_angular + 1) * parambs[i].num_L;
-
-    // ANN
-    tokens = input.get_tokens();
-    if (tokens.size() != 3) {
-      std::cout << "This line should be ANN num_neurons 0." << std::endl;
-      exit(1);
-    }
-    annmbs[i].num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
-    annmbs[i].dim = (parambs[i].n_max_radial + 1) + parambs[i].dim_angular;
+    annmbs[i].num_neurons1 = model.num_neurons1;
+    annmbs[i].dim = model.layout.dim;
     nep_model_type = parambs[i].model_type;
     max_dim = max(max_dim, annmbs[i].dim);
     printf("    ANN = %d-%d-1.\n", annmbs[i].dim, annmbs[i].num_neurons1);
 
-    // calculated parameters:
     parambs[i].rcinv_radial = 1.0f / parambs[i].rc_radial;
     parambs[i].rcinv_angular = 1.0f / parambs[i].rc_angular;
     parambs[i].num_types_sq = parambs[i].num_types * parambs[i].num_types;
 
-    annmbs[i].num_para_ann =
-      (annmbs[i].dim + 2) * annmbs[i].num_neurons1 * parambs[i].num_types + 1;
+    annmbs[i].num_para_ann = model.layout.number_of_variables_ann;
+    annmbs[i].num_para = model.layout.number_of_variables;
+    const int num_para_descriptor = model.layout.number_of_variables_descriptor;
     printf("    number of neural network parameters = %d.\n", annmbs[i].num_para_ann);
-    int num_para_descriptor =
-      parambs[i].num_types_sq * ((parambs[i].n_max_radial + 1) * (parambs[i].basis_size_radial + 1) +
-                             (parambs[i].n_max_angular + 1) * (parambs[i].basis_size_angular + 1));
     printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
-    annmbs[i].num_para = annmbs[i].num_para_ann + num_para_descriptor;
     printf("    total number of parameters = %d.\n", annmbs[i].num_para);
 
     parambs[i].num_c_radial =
       parambs[i].num_types_sq * (parambs[i].n_max_radial + 1) * (parambs[i].basis_size_radial + 1);
 
-    // NN and descriptor parameters
-    std::vector<float> parameters(annmbs[i].num_para);
-    for (int n = 0; n < annmbs[i].num_para; ++n) {
-      tokens = input.get_tokens();
-      parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-    }
-    std::vector<float> descriptor_parameters = input.get_descriptor_parameters_type_pair(
-      parameters,
-      annmbs[i].num_para_ann,
-      parambs[i].num_types,
-      parambs[i].n_max_radial,
-      parambs[i].n_max_angular,
-      parambs[i].basis_size_radial,
-      parambs[i].basis_size_angular);
-    for (int n = 0; n < num_para_descriptor; ++n) {
-      parameters[annmbs[i].num_para_ann + n] = descriptor_parameters[n];
-    }
-    all_ann_para.push_back(parameters);
+    // Descriptor coefficients already use the type-pair-major layout required by ILP_NEP.
+    all_ann_para.push_back(model.parameters);
     for (int d = 0; d < annmbs[i].dim; ++d) {
-      tokens = input.get_tokens();
-      parambs[i].q_scaler[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
+      parambs[i].q_scaler[d] = model.q_scaler[d];
     }
 
   }
@@ -469,6 +395,12 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     memcpy(para_buf_w + NTS    , &(parambs[i].num_types_sq), SIZEOF_INT);
     memcpy(para_buf_w + NCR    , &(parambs[i].num_c_radial), SIZEOF_INT);
     memcpy(para_buf_w + NT     , &(parambs[i].num_types), SIZEOF_INT);
+    memcpy(para_buf_w + HAS_Q_222, &(parambs[i].has_q_222), SIZEOF_INT);
+    memcpy(para_buf_w + HAS_Q_1111, &(parambs[i].has_q_1111), SIZEOF_INT);
+    memcpy(para_buf_w + HAS_Q_112, &(parambs[i].has_q_112), SIZEOF_INT);
+    memcpy(para_buf_w + HAS_Q_123, &(parambs[i].has_q_123), SIZEOF_INT);
+    memcpy(para_buf_w + HAS_Q_233, &(parambs[i].has_q_233), SIZEOF_INT);
+    memcpy(para_buf_w + HAS_Q_134, &(parambs[i].has_q_134), SIZEOF_INT);
     para_buf_w += H_PAR_OFFSET;    // skip 2 pointers: PTRQS PTRAN
   }
 
@@ -2120,8 +2052,10 @@ static __global__ void find_descriptor(
         }
         accumulate_s(paramb_int[LMAX], d12, x12, y12, z12, gn12, s);
       }
-      // find_q(paramb.L_max, paramb.num_L, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-      find_q(paramb_int[LMAX], paramb_int[NUML], paramb_int[NMAXA] + 1, n, s, q + (paramb_int[NMAXR] + 1));
+      find_q(
+        paramb_int[LMAX], paramb_int[HAS_Q_222], paramb_int[HAS_Q_1111],
+        paramb_int[HAS_Q_112], paramb_int[HAS_Q_123], paramb_int[HAS_Q_233],
+        paramb_int[HAS_Q_134], paramb_int[NMAXA] + 1, n, s, q + (paramb_int[NMAXR] + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
       }
@@ -2385,7 +2319,11 @@ static __global__ void find_partial_force_angular(
           gn12 += fn12[k] * c[c_index];
           gnp12 += fnp12[k] * c[c_index];
         }
-        accumulate_f12(paramb_int[LMAX], paramb_int[NUML], n, paramb_int[NMAXA] + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(
+          paramb_int[LMAX], paramb_int[HAS_Q_222], paramb_int[HAS_Q_1111],
+          paramb_int[HAS_Q_112], paramb_int[HAS_Q_123], paramb_int[HAS_Q_233],
+          paramb_int[HAS_Q_134], paramb_int[NUML], n, paramb_int[NMAXA] + 1,
+          d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
       g_f12x[index] = f12[0];
       g_f12y[index] = f12[1];

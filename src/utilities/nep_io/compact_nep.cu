@@ -15,10 +15,10 @@
 #include "utilities/error.cuh"
 #include "nep_file.cuh"
 #include "nep_model_file.cuh"
-#include "nep_model_input.cuh"
 #include "nep_spin_model_file.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -34,6 +34,7 @@ struct CompactPotentialFile
 {
   std::string original;
   std::string compact;
+  float rc_radial;
 };
 
 static std::vector<CompactPotentialFile> compact_files;
@@ -63,7 +64,7 @@ static bool is_compactable_nep(const std::vector<std::string>& tokens)
   if (tokens.size() < 3) {
     return false;
   }
-  return tokens[0].substr(0, 4) == "nep4" || NEP_Model_Input::is_new_format(tokens[0]);
+  return NEP_File::is_nep_header(tokens[0]);
 }
 
 static std::vector<std::string> get_potential_files(const RunInput& run_input)
@@ -142,27 +143,6 @@ static void add_mc_species(
   }
 }
 
-static int triangular_pair_index(int type1, int type2, int num_types)
-{
-  if (type1 > type2) {
-    int temp = type1;
-    type1 = type2;
-    type2 = temp;
-  }
-  return type1 * num_types - type1 * (type1 - 1) / 2 + type2 - type1;
-}
-
-static void write_line(std::ofstream& output, const std::vector<std::string>& tokens)
-{
-  for (int n = 0; n < static_cast<int>(tokens.size()); ++n) {
-    if (n > 0) {
-      output << " ";
-    }
-    output << tokens[n];
-  }
-  output << "\n";
-}
-
 static std::string get_compact_filename(const int file_index)
 {
 #ifdef _WIN32
@@ -176,13 +156,24 @@ static std::string get_compact_filename(const int file_index)
   return compact_filename;
 }
 
-static std::string make_compact_model_file(
-  const std::string& filename, const std::vector<std::string>& active_species, const int file_index)
+static bool make_compact_model_file(
+  const std::string& filename,
+  const std::vector<std::string>& active_species,
+  const int file_index,
+  CompactPotentialFile& file)
 {
   std::ifstream input(filename);
   NEP_File document;
+  NEP_Model_File model;
   std::string error;
-  if (!NEP_Model_File::read_and_compact(input, active_species, document, error)) {
+  if (!model.read(input, document, error)) {
+#ifdef GPUMD_WPE_ENABLED
+    return false;
+#else
+    PRINT_INPUT_ERROR(error.c_str());
+#endif
+  }
+  if (!model.compact(active_species, document, error)) {
     PRINT_INPUT_ERROR(error.c_str());
   }
   const std::string compact_filename = get_compact_filename(file_index);
@@ -197,211 +188,10 @@ static std::string make_compact_model_file(
     std::remove(compact_filename.c_str());
     PRINT_INPUT_ERROR("Cannot write the compact NEP potential file.");
   }
-  return compact_filename;
-}
-
-static std::string make_compact_file(
-  const std::string& filename,
-  const std::vector<std::string>& active_species,
-  const int file_index)
-{
-  std::ifstream input(filename);
-  if (!input.is_open()) {
-    std::string error = "Cannot open potential file " + filename + ".";
-    PRINT_INPUT_ERROR(error.c_str());
-  }
-
-  std::vector<std::string> lines;
-  std::string line;
-  while (std::getline(input, line)) {
-    lines.push_back(line);
-  }
-  input.close();
-  if (lines.size() < 6) {
-    PRINT_INPUT_ERROR("The NEP potential file is incomplete.");
-  }
-
-  int line_index = 0;
-  std::vector<std::string> first = get_tokens(lines[line_index++]);
-  if (!is_compactable_nep(first)) {
-    return filename;
-  }
-  std::vector<std::string> species_full = get_species(first);
-  int num_types_full = species_full.size();
-  int num_types = active_species.size();
-  std::vector<int> active_to_full(num_types);
-  for (int n = 0; n < num_types; ++n) {
-    active_to_full[n] = find_species(species_full, active_species[n]);
-    if (active_to_full[n] < 0) {
-      std::string error =
-        "The active species " + active_species[n] + " is not supported by the potential.";
-      PRINT_INPUT_ERROR(error.c_str());
-    }
-  }
-
-  bool has_zbl = first[0].find("zbl") != std::string::npos;
-  bool is_charge = first[0].find("charge") != std::string::npos;
-  bool is_polarizability = first[0].find("polarizability") != std::string::npos;
-  bool is_temperature = first[0].find("temperature") != std::string::npos;
-
-  std::vector<std::string> zbl_line;
-  bool flexible_zbl = false;
-  if (has_zbl) {
-    zbl_line = get_tokens(lines[line_index++]);
-    if (zbl_line.size() < 3) {
-      PRINT_INPUT_ERROR("Invalid ZBL line in the NEP potential file.");
-    }
-    flexible_zbl =
-      get_double_from_token(zbl_line[1], __FILE__, __LINE__) == 0.0 &&
-      get_double_from_token(zbl_line[2], __FILE__, __LINE__) == 0.0;
-  }
-
-  std::vector<std::string> cutoff = get_tokens(lines[line_index++]);
-  std::vector<std::string> n_max = get_tokens(lines[line_index++]);
-  std::vector<std::string> basis_size = get_tokens(lines[line_index++]);
-  std::vector<std::string> l_max = get_tokens(lines[line_index++]);
-  std::vector<std::string> ann = get_tokens(lines[line_index++]);
-
-  int n_max_radial = get_int_from_token(n_max[1], __FILE__, __LINE__);
-  int n_max_angular = get_int_from_token(n_max[2], __FILE__, __LINE__);
-  int basis_size_radial = get_int_from_token(basis_size[1], __FILE__, __LINE__);
-  int basis_size_angular = get_int_from_token(basis_size[2], __FILE__, __LINE__);
-  int num_L = get_int_from_token(l_max[1], __FILE__, __LINE__);
-  for (int n = 2; n < static_cast<int>(l_max.size()); ++n) {
-    if (get_int_from_token(l_max[n], __FILE__, __LINE__) != 0) {
-      ++num_L;
-    }
-  }
-  int dim = n_max_radial + 1 + (n_max_angular + 1) * num_L;
-  if (is_temperature) {
-    ++dim;
-  }
-  int num_neurons = get_int_from_token(ann[1], __FILE__, __LINE__);
-
-  int ann_type_size;
-  int ann_global_size;
-  int ann_blocks = is_polarizability ? 2 : 1;
-  if (is_charge) {
-    ann_type_size = (dim + 3) * num_neurons;
-    ann_global_size = 2;
-  } else {
-    ann_type_size = (dim + 2) * num_neurons;
-    ann_global_size = 1;
-  }
-
-  int ann_block_size_full = num_types_full * ann_type_size + ann_global_size;
-  int ann_size_full = ann_blocks * ann_block_size_full;
-  int num_types_sq_full = num_types_full * num_types_full;
-  int num_radial_basis = (n_max_radial + 1) * (basis_size_radial + 1);
-  int num_angular_basis = (n_max_angular + 1) * (basis_size_angular + 1);
-  int num_c_radial_full = num_types_sq_full * num_radial_basis;
-  int num_c_angular_full = num_types_sq_full * num_angular_basis;
-  int parameter_count_full = ann_size_full + num_c_radial_full + num_c_angular_full + dim;
-  if (line_index + parameter_count_full > static_cast<int>(lines.size())) {
-    PRINT_INPUT_ERROR("Unexpected number of NEP parameters while creating the compact potential.");
-  }
-
-  std::string compact_filename = get_compact_filename(file_index);
-  std::ofstream output(compact_filename);
-  if (!output.is_open()) {
-    PRINT_INPUT_ERROR("Cannot create the compact NEP potential file.");
-  }
-
-  std::vector<std::string> compact_first;
-  compact_first.push_back(first[0]);
-  compact_first.push_back(std::to_string(num_types));
-  for (int n = 0; n < num_types; ++n) {
-    compact_first.push_back(active_species[n]);
-  }
-  write_line(output, compact_first);
-  if (has_zbl) {
-    write_line(output, zbl_line);
-  }
-
-  if (!is_charge && static_cast<int>(cutoff.size()) == num_types_full * 2 + 3) {
-    std::vector<std::string> compact_cutoff;
-    compact_cutoff.push_back(cutoff[0]);
-    for (int n = 0; n < num_types; ++n) {
-      int full_type = active_to_full[n];
-      compact_cutoff.push_back(cutoff[1 + full_type * 2]);
-      compact_cutoff.push_back(cutoff[2 + full_type * 2]);
-    }
-    compact_cutoff.push_back(cutoff[cutoff.size() - 2]);
-    compact_cutoff.push_back(cutoff[cutoff.size() - 1]);
-    write_line(output, compact_cutoff);
-  } else {
-    write_line(output, cutoff);
-  }
-  write_line(output, n_max);
-  write_line(output, basis_size);
-  write_line(output, l_max);
-  write_line(output, ann);
-
-  int parameter_start = line_index;
-  for (int block = 0; block < ann_blocks; ++block) {
-    int block_start = parameter_start + block * ann_block_size_full;
-    for (int n = 0; n < num_types; ++n) {
-      int type_start = block_start + active_to_full[n] * ann_type_size;
-      for (int m = 0; m < ann_type_size; ++m) {
-        output << lines[type_start + m] << "\n";
-      }
-    }
-    int global_start = block_start + num_types_full * ann_type_size;
-    for (int m = 0; m < ann_global_size; ++m) {
-      output << lines[global_start + m] << "\n";
-    }
-  }
-
-  int radial_start = parameter_start + ann_size_full;
-  for (int basis = 0; basis < num_radial_basis; ++basis) {
-    for (int t1 = 0; t1 < num_types; ++t1) {
-      for (int t2 = 0; t2 < num_types; ++t2) {
-        int pair = active_to_full[t1] * num_types_full + active_to_full[t2];
-        output << lines[radial_start + basis * num_types_sq_full + pair] << "\n";
-      }
-    }
-  }
-
-  int angular_start = radial_start + num_c_radial_full;
-  for (int basis = 0; basis < num_angular_basis; ++basis) {
-    for (int t1 = 0; t1 < num_types; ++t1) {
-      for (int t2 = 0; t2 < num_types; ++t2) {
-        int pair = active_to_full[t1] * num_types_full + active_to_full[t2];
-        output << lines[angular_start + basis * num_types_sq_full + pair] << "\n";
-      }
-    }
-  }
-
-  int scaler_start = angular_start + num_c_angular_full;
-  for (int n = 0; n < dim; ++n) {
-    output << lines[scaler_start + n] << "\n";
-  }
-
-  line_index = parameter_start + parameter_count_full;
-  if (flexible_zbl) {
-    int num_pairs_full = num_types_full * (num_types_full + 1) / 2;
-    int zbl_count_full = num_pairs_full * 10;
-    if (line_index + zbl_count_full > static_cast<int>(lines.size())) {
-      output.close();
-      std::remove(compact_filename.c_str());
-      PRINT_INPUT_ERROR("Unexpected number of flexible ZBL parameters.");
-    }
-    for (int t1 = 0; t1 < num_types; ++t1) {
-      for (int t2 = t1; t2 < num_types; ++t2) {
-        int pair = triangular_pair_index(active_to_full[t1], active_to_full[t2], num_types_full);
-        for (int n = 0; n < 10; ++n) {
-          output << lines[line_index + pair * 10 + n] << "\n";
-        }
-      }
-    }
-    line_index += zbl_count_full;
-  }
-
-  for (; line_index < static_cast<int>(lines.size()); ++line_index) {
-    output << lines[line_index] << "\n";
-  }
-  output.close();
-  return compact_filename;
+  file.original = filename;
+  file.compact = compact_filename;
+  file.rc_radial = *std::max_element(model.rc_radial.begin(), model.rc_radial.end());
+  return true;
 }
 
 void prepare_compact_nep_files(
@@ -423,21 +213,6 @@ void prepare_compact_nep_files(
   if (!is_compactable_nep(first) || NEP_Spin_Model_File::is_spin_model(potential_files.back())) {
     return;
   }
-  for (const std::string& filename : potential_files) {
-    const std::vector<std::string> header = get_first_line(filename);
-    if (!header.empty() && NEP_Model_Input::is_new_format(header[0])) {
-      std::ifstream input(filename);
-      NEP_Model_File model;
-      std::string error;
-      if (!model.read(input, error)) {
-#ifdef GPUMD_WPE_ENABLED
-        return;
-#else
-        PRINT_INPUT_ERROR(error.c_str());
-#endif
-      }
-    }
-  }
   std::vector<std::string> species_full = get_species(first);
   std::vector<int> required(species_full.size(), 0);
   for (int n = 0; n < static_cast<int>(atom_symbols.size()); ++n) {
@@ -457,27 +232,25 @@ void prepare_compact_nep_files(
     return;
   }
 
-  printf("Active atom types for this simulation:\n");
-  for (int n = 0; n < static_cast<int>(compact_species.size()); ++n) {
-    printf("    type %d = %s.\n", n, compact_species[n].c_str());
-  }
-  printf("    Atom type indices in run.in refer to the active atom types above.\n");
-
   for (int n = 0; n < static_cast<int>(potential_files.size()); ++n) {
     std::vector<std::string> tokens = get_first_line(potential_files[n]);
     if (!is_compactable_nep(tokens)) {
       continue;
     }
-    std::string compact = NEP_Model_Input::is_new_format(tokens[0])
-                            ? make_compact_model_file(potential_files[n], compact_species, n)
-                            : make_compact_file(potential_files[n], compact_species, n);
-    if (compact != potential_files[n]) {
-      CompactPotentialFile file;
-      file.original = potential_files[n];
-      file.compact = compact;
-      compact_files.push_back(file);
+    CompactPotentialFile file;
+    if (!make_compact_model_file(potential_files[n], compact_species, n, file)) {
+      remove_compact_nep_files();
+      compact_species.clear();
+      return;
     }
+    compact_files.push_back(file);
   }
+
+  printf("Active atom types for this simulation:\n");
+  for (int n = 0; n < static_cast<int>(compact_species.size()); ++n) {
+    printf("    type %d = %s.\n", n, compact_species[n].c_str());
+  }
+  printf("    Atom type indices in run.in refer to the active atom types above.\n");
 }
 
 void prepare_compact_nep_files(const std::vector<std::string>& atom_symbols)
@@ -496,15 +269,15 @@ std::string get_compact_nep_filename(const std::string& filename)
   return filename;
 }
 
-// Recover the source of a runtime-compacted model, or return the given filename.
-std::string get_original_nep_filename(const std::string& filename)
+// Long-range parameters must retain the cutoff of the full, uncompressed model.
+float get_original_nep_radial_cutoff(const std::string& filename, float fallback)
 {
   for (const auto& file : compact_files) {
     if (file.compact == filename) {
-      return file.original;
+      return file.rc_radial;
     }
   }
-  return filename;
+  return fallback;
 }
 
 std::string get_first_potential_filename(const RunInput& run_input)

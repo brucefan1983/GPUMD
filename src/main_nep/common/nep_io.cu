@@ -20,7 +20,6 @@
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_io/nep_model_file.cuh"
 #include <algorithm>
-#include <cctype>
 #include <cerrno>
 #include <cmath>
 #include <cstdlib>
@@ -32,18 +31,6 @@ static void read_nep_file(const std::string& filename, NEP_Model_File& model)
   if (!input.is_open()) {
     PRINT_INPUT_ERROR(("Failed to open " + filename + ".").c_str());
   }
-  std::string token;
-  input >> token;
-  for (char& c : token) {
-    c = std::tolower(static_cast<unsigned char>(c));
-  }
-  if (token != "nep") {
-    PRINT_INPUT_ERROR(
-      (filename + ": the nep executable accepts only the new NEP format. "
-                  "Legacy potential files remain supported by gpumd for MD.").c_str());
-  }
-  input.clear();
-  input.seekg(0);
   std::string error;
   if (!model.read(input, error)) {
     PRINT_INPUT_ERROR((filename + ": " + error).c_str());

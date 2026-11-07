@@ -62,8 +62,9 @@ File format
 This hybrid potential requires 3 kinds of files: one for :term:`ILP` potential, 
 one for :term:`NEP` potential and the other for mapping :term:`NEP` potential to groups in model file.
 We have adopted the :term:`ILP` file format that is similar but not identical to that used by `lammps <https://docs.lammps.org/pair_ilp_graphene_hbn.html>`_.
-The :term:`NEP` potential file is not required to modify, while to make the :term:`ILP` and :term:`NEP` potentials identify the layers, it's required to set some groups
-in ``model.xyz`` file.
+Each :term:`NEP` file must use the :ref:`nep.txt format <nep_txt>` with
+``model nep``, one hidden layer, uniform cutoffs, and no ZBL.
+Groups in ``model.xyz`` identify the layers for both the :term:`ILP` and :term:`NEP` potentials.
 
 In ``run.in`` file, the :attr:`potential` setting is as::
   
@@ -129,9 +130,11 @@ setting in ``run.in`` file is as::
   
   potential C.ilp map.nep
 
-Assume that the first line in ``C.nep`` is::
+Assume that ``C.nep`` begins with::
   
-  nep3 1 C 
+  nep 1 C
+  format_version 1
+  model nep
 
 and :attr:`group_method` 0 is used to identify the different layers. Then ``C.ilp``
 is required to set as::
@@ -170,13 +173,17 @@ The potential setting in ``run.in`` file is as::
   
   potential BNMoS.ilp map.nep
 
-Assume the first line in ``BN.nep`` is::
+Assume ``BN.nep`` begins with::
   
-  nep4 2 B N
+  nep 2 B N
+  format_version 1
+  model nep
 
-and in ``MoS.nep`` is::
+and ``MoS.nep`` begins with::
 
-  nep4 2 Mo S
+  nep 2 Mo S
+  format_version 1
+  model nep
 
 We also assume the :attr:`group_method` 0 is used to identify the different layers and 
 :attr:`group_method` 1 is used to identify the different sublayers for :term:`ILP`. In :attr:`group_method` 1, 

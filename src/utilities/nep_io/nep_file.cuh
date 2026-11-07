@@ -41,6 +41,9 @@ public:
   const Field* find_field(const std::string& name) const;
   const Block* find_block(const std::string& name) const;
 
+  static bool is_nep_header(const std::string& token);
+  // Query the model kind without reading parameter values; this does not validate the model.
+  static bool read_model_name(std::istream& input, std::string& name, std::string& error);
   static bool parse_size(const std::string& token, std::size_t& value);
   static bool parse_double(const std::string& token, double& value);
 
@@ -53,5 +56,6 @@ public:
     std::string& error) const;
 
 private:
+  bool read_impl(std::istream& input, std::string& error, bool model_only);
   bool validate(std::string& error);
 };

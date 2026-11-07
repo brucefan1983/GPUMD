@@ -8,7 +8,8 @@
 The :attr:`mc` keyword is used to carry out Monte Carlo (:term:`MC`) trial steps, usually in combination with a :term:`MD` simulation.
 Three :term:`MC` ensembles are supported, including the canonical, the semi-grand canonical (:term:`SGC`), and the variance-constrained semi-grand canonical (:term:`VCSGC`) [Sadigh2012a]_ [Sadigh2012b]_ ensemble.
 
-This keyword can only be used in combination with :term:`NEP` models.
+This keyword requires an ordinary energy NEP (``model nep``) in the
+:ref:`nep.txt format <nep_txt>`.
 
 Syntax
 ------

@@ -1,9 +1,13 @@
-nep4_temperature 1 F 
+nep 1 F
+format_version 1
+model nep_temperature
 cutoff 6 5 40 25
 n_max 4 4
 basis_size 8 8
 l_max 4 2 0
-ANN 10 0
+ann 10 0
+energy_reference 0
+@ parameters 421
   1.5108762e-05
  -8.6615610e-06
   4.4343811e-05
@@ -425,6 +429,7 @@ ANN 10 0
  -2.3098043e-01
  -8.9132267e-01
  -5.8599699e-01
+@ q_scaler 31
   5.9958488e-02
   5.9958488e-02
   5.9958488e-02
