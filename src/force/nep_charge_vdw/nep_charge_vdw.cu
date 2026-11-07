@@ -157,7 +157,7 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   }
   NEP_Model_File model;
   std::string error;
-  if (!model.read(input, error)) {
+  if (!model.read(input, error) || !model.validate_md(error)) {
     PRINT_INPUT_ERROR(error.c_str());
   }
   if (model.name != "nep_vdw" && model.name != "qnep3_vdw") {
@@ -165,9 +165,6 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   }
   paramb.has_charge = model.name == "qnep3_vdw";
   paramb.num_types = model.num_types;
-  if (paramb.num_types > NUM_ELEMENTS) {
-    PRINT_INPUT_ERROR("Too many atom types in the vdW NEP model.");
-  }
   printf(
     "Use the %s potential with %d atom type%s.\n",
     model.name.c_str(),
@@ -181,9 +178,6 @@ NEP_Charge_VDW::NEP_Charge_VDW(
         atomic_number = m + 1;
         break;
       }
-    }
-    if (atomic_number == 0) {
-      PRINT_INPUT_ERROR("vdW NEP models currently support elements from H to Pu.");
     }
     zbl.atomic_numbers[n] = atomic_number;
     annmb.c6_ref_sqrt[n] = c6_ref_sqrt[atomic_number - 1];
@@ -220,10 +214,8 @@ NEP_Charge_VDW::NEP_Charge_VDW(
       model.rc_radial[t],
       model.rc_angular[t]);
   }
-  if (
-    model.max_radial < 1 || model.max_angular < 1 || model.max_radial > 819 ||
-    model.max_angular > 819) {
-    PRINT_INPUT_ERROR("MD neighbor counts must be between 1 and 819.");
+  if (model.max_angular > 819) {
+    PRINT_INPUT_ERROR("MD angular neighbor count must not exceed 819.");
   }
   printf("    MN_radial = %d.\n", model.max_radial);
   printf("    MN_angular = %d.\n", model.max_angular);
