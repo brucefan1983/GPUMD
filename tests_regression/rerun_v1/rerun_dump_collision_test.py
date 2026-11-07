@@ -30,11 +30,18 @@ def frame_step(header, time_step):
     return round(float(time_match.group(1)) / time_step)
 
 
-def execute(gpumd, work, model, potential, trajectory, dump, expect_success):
+def execute(gpumd, work, model, potential, trajectory, dump, expect_success, with_plumed):
     shutil.copyfile(model, work / "model.xyz")
     before = digest(trajectory)
+    plumed_command = ""
+    if with_plumed:
+        (work / "plumed.dat").write_text(
+            "DISTANCE ATOMS=1,2 LABEL=d\nPRINT ARG=d STRIDE=1 FILE=COLVAR\n"
+        )
+        plumed_command = "plumed plumed.dat 1 0\n"
     (work / "run.in").write_text(
-        f"potential {potential}\ntime_step 0.2\n{dump}\nrerun {trajectory.name}\n"
+        f"potential {potential}\ntime_step 0.2\n{plumed_command}{dump}\n"
+        f"rerun {trajectory.name}\n"
     )
     result = subprocess.run(
         [str(gpumd)], cwd=work, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
@@ -51,6 +58,13 @@ def execute(gpumd, work, model, potential, trajectory, dump, expect_success):
     if not expect_success:
         if "must not overwrite the input trajectory" not in result.stdout:
             raise AssertionError("collision rejection diagnostic is missing")
+    elif with_plumed:
+        colvar = work / "COLVAR"
+        if not colvar.exists():
+            raise AssertionError("PLUMED did not create COLVAR")
+        rows = [line for line in colvar.read_text().splitlines() if line and not line.startswith("#")]
+        if len(rows) != 1:
+            raise AssertionError(f"expected one PLUMED row, found {len(rows)}")
     return result
 
 
@@ -60,6 +74,7 @@ def main():
     parser.add_argument("--trajectory", type=Path, required=True)
     parser.add_argument("--model", type=Path, required=True)
     parser.add_argument("--potential", type=Path, required=True)
+    parser.add_argument("--with-plumed", action="store_true")
     args = parser.parse_args()
     source_frame, _ = first_frame(args.trajectory)
     step = frame_step(source_frame[1], 0.2)
@@ -74,7 +89,7 @@ def main():
         trajectory.write_text("".join(source_frame))
         execute(
             args.gpumd, work, args.model, args.potential, trajectory,
-            "dump_xyz 1 trajectory.xyz force potential virial", False,
+            "dump_xyz 1 trajectory.xyz force potential virial", False, args.with_plumed,
         )
         print("PASS normal direct collision; input hash unchanged")
 
@@ -91,7 +106,7 @@ def main():
             configured_path = output_path or str(trajectory.resolve())
             execute(
                 args.gpumd, work, args.model, args.potential, trajectory,
-                f"dump_xyz 1 {configured_path} force potential virial", False,
+                f"dump_xyz 1 {configured_path} force potential virial", False, args.with_plumed,
             )
             print(f"PASS normal {name} alias; input hash unchanged")
 
@@ -103,7 +118,7 @@ def main():
         trajectory.write_text("".join(source_frame))
         execute(
             args.gpumd, work, args.model, args.potential, trajectory,
-            "dump_xyz 1 trajectory.xyz* force potential virial", False,
+            "dump_xyz 1 trajectory.xyz* force potential virial", False, args.with_plumed,
         )
         print("PASS per-frame direct collision; input hash unchanged")
 
@@ -119,7 +134,7 @@ def main():
         alias.symlink_to(Path("..") / "trajectory.xyz")
         execute(
             args.gpumd, work, args.model, args.potential, trajectory,
-            f"dump_xyz 1 alias/../alias/frame* force potential virial", False,
+            f"dump_xyz 1 alias/../alias/frame* force potential virial", False, args.with_plumed,
         )
         print("PASS per-frame symlink and relative alias; input hash unchanged")
 
@@ -132,7 +147,7 @@ def main():
         (alias_dir / f"frame{step}").symlink_to(Path("..") / "trajectory.xyz")
         execute(
             args.gpumd, work, args.model, args.potential, trajectory,
-            f"dump_xyz 1 {alias_dir.resolve()}/frame* force potential virial", False,
+            f"dump_xyz 1 {alias_dir.resolve()}/frame* force potential virial", False, args.with_plumed,
         )
         print("PASS per-frame absolute symlink alias; input hash unchanged")
 
@@ -143,7 +158,7 @@ def main():
         (work / f"frame{step}").hardlink_to(trajectory)
         execute(
             args.gpumd, work, args.model, args.potential, trajectory,
-            "dump_xyz 1 frame* force potential virial", False,
+            "dump_xyz 1 frame* force potential virial", False, args.with_plumed,
         )
         print("PASS per-frame hard-link alias; input hash unchanged")
 
@@ -155,7 +170,7 @@ def main():
         trajectory.write_text("".join(source_frame))
         execute(
             args.gpumd, work, args.model, args.potential, trajectory,
-            "dump_xyz 1 trajectory.xyz split 1 force potential virial", True,
+            "dump_xyz 1 trajectory.xyz split 1 force potential virial", True, args.with_plumed,
         )
         if not (work / "trajectory_0002.xyz").exists():
             raise AssertionError("split dump did not generate its next noncolliding chunk")
@@ -168,7 +183,7 @@ def main():
         (work / "output_0001.xyz").symlink_to(trajectory.name)
         execute(
             args.gpumd, work, args.model, args.potential, trajectory,
-            "dump_xyz 1 output.xyz split 1 force potential virial", True,
+            "dump_xyz 1 output.xyz split 1 force potential virial", True, args.with_plumed,
         )
         if not (work / "output_0002.xyz").exists():
             raise AssertionError("split dump did not skip an aliased chunk path")
@@ -184,7 +199,10 @@ def main():
             work.mkdir()
             trajectory = work / "trajectory.xyz"
             trajectory.write_text("".join(source_frame))
-            execute(args.gpumd, work, args.model, args.potential, trajectory, dump, True)
+            execute(
+                args.gpumd, work, args.model, args.potential, trajectory, dump, True,
+                args.with_plumed,
+            )
             if not (work / expected).exists():
                 raise AssertionError(f"expected noncolliding output {expected} was not created")
             print(f"PASS noncolliding {name} output")
