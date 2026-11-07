@@ -1,20 +1,23 @@
-# GPUMD `rerun` V1 final acceptance report
+# GPUMD `rerun` V1 validation report
 
-Date: 2026-11-06 (Asia/Shanghai)
+Date: 2026-11-07 (Asia/Shanghai)
 
-## Verdict
+## Current review follow-up
 
-**READY TO MERGE**, subject to normal code review. All requested final acceptance
-checks passed on the patched `feature/rerun` implementation
-`e5f1b4f6dc8072a29aaa13946755d07a6fd9b383`. No changes were made to `master`
-and nothing was pushed.
+An independent review identified that the previous input-collision guard did
+not cover dynamically generated `dump_xyz` filenames (`*` and `split N`). The
+failure was reproduced on the prior executable before the fix: per-frame
+output was accepted and changed the trajectory bytes. The new source-level
+guard and H100 regression results are recorded in the follow-up section at the
+end of this report. The historical V1 results below describe the earlier e5
+acceptance run.
 
 The tested fix rejects `dump_xyz` paths resolving to the input trajectory,
 including relative, absolute, parent-component, and symlink aliases. It is in
 the focused commit listed above. The clean source checkout was verified at
 that commit before compiling; the pre-fix and patched builds were separate.
 
-## Environment and source
+## Historical V1 environment and source (e5 acceptance)
 
 All machine-specific paths below are generic placeholders. Substitute paths
 from the local build and test environment when reproducing commands.
@@ -69,7 +72,7 @@ $TMPDIR/gpumd_rerun_reader_test
 
 Status: **PASS**, exit 0.
 
-## Final acceptance test matrix
+## Historical e5 acceptance test matrix
 
 | Check | Status | Result |
 |---|---|---|
@@ -102,7 +105,7 @@ frame order, original timestep-derived physical time, and the independent
 stateless structural action; MetaD/OPES stateful behavior is outside this
 acceptance set.
 
-## Existing `tests_pytest` suite
+## Historical e5 `tests_pytest` suite
 
 The full suite was run from the patched source checkout with the fresh e5
 `gpumd` and `nep` executables symlinked temporarily at the paths selected by
@@ -172,7 +175,7 @@ Outputs and raw logs are in the corresponding `energy_smoke`,
 `temperature_final`, `plumed_final`, `selection`, `final_acceptance`, and
 `normal_run_compare` subdirectories.
 
-## Fix and commit state
+## Historical e5 acceptance commit state
 
 - Production fix: `e5f1b4f6dc8072a29aaa13946755d07a6fd9b383` —
   `Reject rerun dump paths that alias input`.
@@ -180,12 +183,126 @@ Outputs and raw logs are in the corresponding `energy_smoke`,
   `feature/rerun` in the validation commit immediately following the fix
   commit; the final validation commit hash is recorded by repository HEAD.
 - Working tree is clean after the validation commit.
-- Nothing was pushed; `master` was not checked out or modified.
+- At that time, nothing was pushed and `master` was not checked out or modified.
 
-## Recommendation
+## Historical e5 recommendation
 
-**READY TO MERGE.** The patched commit passes the requested build, regression,
-numerical, PLUMED, trajectory selection/scheduling, negative-input,
-resource-lifecycle, path collision, normal-MD, and existing `tests_pytest`
-checks. Review the focused
-commits on `feature/rerun`; the branch has not been merged or pushed.
+**READY TO MERGE.** This was the historical e5 recommendation only; the
+current review-follow-up status is recorded below.
+
+## P1 independent-review follow-up
+
+### Root cause and patch
+
+Before the patch, Dump_XYZ::rerun_overwrites_input() returned false for
+per-frame (*) and split N modes. The H100 executable accepted a per-frame
+output whose generated filename was the input trajectory, returned success,
+and changed the trajectory bytes. Per-frame outputs use "w" and therefore
+truncated the file. Split output uses numbered filenames and skips existing
+paths, but lacked a final collision check immediately before opening a
+generated file.
+
+The minimal fix passes the trajectory path into the existing dump_xyz Measure
+action during pre_rerun(). Normal output is checked just before its open;
+per-frame and split modes check the actual generated filename before opening.
+Canonical path comparison covers relative, absolute, parent-component, and
+symlink aliases; filesystem identity comparison also covers hard links.
+Existing filename rules are unchanged, and the guard is inactive during
+normal MD run.
+
+Production fix:  b52f9bb6c37cdc52112d2a81eca6b4108b5667b9.
+The collision regression was expanded in 380f6a3f4f5fbe3005ac114b0650661942a7f2ef
+and its PLUMED structural-CV mode in
+58ea5c30614f257fcaee261a45caecbfaf9a0e5f.
+
+### Current source and builds
+
+- Tested production source: 380f6a3f4f5fbe3005ac114b0650661942a7f2ef
+  (the following test-driver commit changed tests only).
+- Device: NVIDIA H100 PCIe; CUDA 12.8.61; target sm_90.
+- PLUMED: official 2.10.1.
+- The source checkout was clean at the tested commit before both fresh builds.
+  CUDA and PLUMED outputs were built in new build directories/worktrees.
+
+Commands (environment-specific paths replaced by placeholders):
+
+~~~~sh
+cmake -S /path/to/GPUMD_SOURCE -B /path/to/TEST_ROOT/build-cmake-p1 \
+  -DCMAKE_CUDA_ARCHITECTURES=90 -DCMAKE_BUILD_TYPE=Release
+cmake --build /path/to/TEST_ROOT/build-cmake-p1 --target gpumd nep -j12
+
+cd /path/to/TEST_ROOT/plumed-src/src
+make gpumd -j12 CUDA_ARCH=-arch=sm_90 \
+  CFLAGS="-std=c++14 -O3 -arch=sm_90 -DUSE_PLUMED" \
+  INC="-I./ -I/path/to/PLUMED_PREFIX/include" \
+  LDFLAGS="-L/path/to/PLUMED_PREFIX/lib -lplumed -lplumedKernel"
+
+g++ -std=c++14 -Isrc/main_gpumd tests_regression/rerun_reader_test.cpp \
+  -o /tmp/gpumd_rerun_reader_test_p1
+/tmp/gpumd_rerun_reader_test_p1
+~~~~
+
+CUDA and PLUMED builds: **PASS**. CPU reader regression: **PASS**.
+For PLUMED runtime, PLUMED_KERNEL and LD_LIBRARY_PATH were set to the
+installed PLUMED 2.10.1 library directory.
+
+### Collision regression matrix
+
+The pre-fix reproduction used the previous e5 executable and failed as
+expected: per-frame collision returned 0 and the input SHA-256 changed. The
+post-fix driver was run on H100 with both fresh executables:
+
+| Case | Status | Result |
+|---|---|---|
+| Normal direct output collision | PASS | Rejected; input hash unchanged. |
+| Normal relative path with .. | PASS | Rejected; input hash unchanged. |
+| Normal symlink and absolute aliases | PASS | Rejected; input hash unchanged. |
+| Per-frame direct * collision | PASS | Rejected before opening; input hash unchanged. |
+| Per-frame symlink/.., absolute symlink, hard link | PASS | All rejected; input hash unchanged. |
+| Split output where _0001 is the input | PASS | Existing chunk skipped; input unchanged and _0002 written. |
+| Split output where _0001 symlinks to input | PASS | Aliased chunk skipped safely; input unchanged. |
+| Successful normal, per-frame, and split output | PASS | Expected output file created in every mode. |
+| PLUMED structural distance with successful reruns | PASS | One COLVAR row per one-frame replay. |
+| Normal GPUMD NVE run | PASS | Baseline and patched executables produced byte-identical two-step XYZ and thermo output. |
+
+Reproduction commands, run from the H100 test environment:
+
+~~~~sh
+python3 tests_regression/rerun_v1/rerun_dump_collision_test.py \
+  --gpumd /path/to/TEST_ROOT/build-cmake-p1/gpumd \
+  --trajectory /path/to/cu_trajectory.xyz \
+  --model tests_regression/fixtures/systems/cu_grouped.xyz \
+  --potential potentials/eam/Cu_Zhou_2004.txt
+
+python3 tests_regression/rerun_v1/rerun_dump_collision_test.py \
+  --gpumd /path/to/TEST_ROOT/build-plumed-p1/gpumd \
+  --trajectory /path/to/cu_trajectory.xyz \
+  --model tests_regression/fixtures/systems/cu_grouped.xyz \
+  --potential potentials/eam/Cu_Zhou_2004.txt --with-plumed
+~~~~
+
+### Full tests_pytest rerun
+
+The suite ran on H100 against the fresh sm_90 executable from the tested
+production source commit. It used an isolated Python 3.11 environment with
+pytest 9.2.0, calorine 4.1, hypothesis 6.170.14, ASE 3.29.0, and NumPy 2.4.4.
+The executable and NEP utility were temporarily linked into a separate clean
+worktree at the paths used by tests_pytest/conftest.py. Command, from
+tests_pytest/:
+
+~~~~sh
+python -m pytest -q --junitxml=/path/to/TEST_ROOT/pytest-p1.junit.xml
+~~~~
+
+Result: **748 passed, 0 failed, 482 skipped, 0 xfailed** (1,230 collected),
+completed in 11 minutes 51.10 seconds. JUnit reports 1,230 tests, 0 failures,
+0 errors, and 482 skipped.
+
+### Current disposition
+
+The vulnerability is fixed. Fresh CUDA and PLUMED builds, CPU reader,
+H100 collision tests, PLUMED structural-CV runtime checks, normal-MD byte
+comparison, and full pytest all pass. No changes were made to master. The
+follow-up commits are intended for the existing feature/rerun PR.
+
+**Current recommendation: READY TO MERGE.**

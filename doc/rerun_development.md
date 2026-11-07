@@ -1,8 +1,9 @@
-# GPUMD rerun: replay existing trajectories (experimental)
+# GPUMD rerun: replay existing trajectories
 
-**Implementation status:** the replay-mode Measure integration has been committed
-on `feature/rerun`, but a full CUDA compilation and numerical/PLUMED runtime
-test have NOT yet been completed. Do not use for production before validation.
+**Implementation status:** rerun V1 has completed CUDA, PLUMED, numerical,
+selection/scheduling, negative-input, repeated-command, path-collision, normal
+MD, and `tests_pytest` validation on an H100. The validation report contains
+the tested source commits, commands, status matrix, and numerical results.
 
 The replay loop reads one GPUMD Extended XYZ trajectory and uses its
 snapshots as the source of coordinates instead of calling the MD integrator.
@@ -120,7 +121,11 @@ per-frame velocity. Without atom IDs, XYZ line order must match `model.xyz`.
   dispatched during replay; other Measure actions are explicitly rejected.
 - Dump of `unwrapped_position` is not yet supported because the reader does
   not restore image flags from the trajectory.
-- Output and input XYZ file paths must differ (simple direct path comparison).
+- `dump_xyz` output is checked against the input trajectory before opening.
+  Normal output is checked during replay setup; per-frame (`*`) and split
+  output use their actual generated filenames. Relative/absolute aliases,
+  `..` components, symlinks, and hard links to the input are rejected. Split
+  output continues to skip already existing chunk names.
 - Missing velocity is never silently replaced with the initial random
   velocity when actual velocity-dependent outputs are requested.
 - Time-dependent PLUMED quantities rely on `Step` and the configured
@@ -143,8 +148,6 @@ temperature using GPUMD's existing `ensemble` command. The same temperature
 is supplied to PLUMED and Force. No MD integration is performed.
 - Temperature ramps and changing target temperatures are not represented
 by replay in this first version.
-- CUDA, actual GPUMD + PLUMED, and numerical consistency checks remain
-  unverified.
 
 ## Standalone reader/selector test
 
@@ -154,9 +157,22 @@ c++ -std=c++14 -Wall -Wextra -Werror -Isrc/main_gpumd \\
 /tmp/rerun_reader_test
 ```
 
-Validation plan: run a CUDA build with `USE_PLUMED` and NEP enabled, check
-PLUMED coordinate CVs from XYZ against the same frames in an ordinary run,
-compare force/energy/virial results with NEP reference calculations, test
-no-potential PLUMED-only replay, check dump intervals with sparse timesteps,
-test missing velocity rejection and verify repeated rerun then normal run
-preserves the original simulation state.
+## Input trajectory protection regression
+
+The collision regression driver accepts an executable, trajectory, model, and
+potential. It checks normal and per-frame (`*`) collision rejection, relative,
+absolute, `..`, symlink, and hard-link aliases, split filename selection, and
+successful noncolliding output. Add `--with-plumed` when using a PLUMED-enabled
+executable to exercise a structural distance CV and check COLVAR output too:
+
+```sh
+python3 tests_regression/rerun_v1/rerun_dump_collision_test.py \
+  --gpumd /path/to/gpumd \
+  --trajectory /path/to/trajectory.xyz \
+  --model tests_regression/fixtures/systems/cu_grouped.xyz \
+  --potential potentials/eam/Cu_Zhou_2004.txt \
+  --with-plumed
+```
+
+The complete V1 validation and the independent-review collision regression
+results are recorded in `tests_regression/rerun_v1/REPORT.md`.
