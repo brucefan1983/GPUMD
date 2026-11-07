@@ -240,11 +240,7 @@ int NEP_Spin_Model_File::spin_dimension(int channels, int l_max, int order, int 
 bool NEP_Spin_Model_File::is_spin_model(const std::string& filename)
 {
   std::ifstream input(filename);
-  NEP_File file;
+  std::string model;
   std::string error;
-  if (!file.read(input, error)) {
-    return false;
-  }
-  const NEP_File::Field* model = file.find_field("model");
-  return model && model->values.size() == 1 && model->values[0] == "nep_spin";
+  return NEP_File::read_model_name(input, model, error) && model == "nep_spin";
 }

@@ -125,7 +125,7 @@ void Dump_Polarizability::pre_run(
 
     nep_response_.reset(new NEP_Response(file_potential_.c_str(), atom));
     if (!nep_response_->is_polarizability()) {
-      PRINT_INPUT_ERROR("dump_polarizability requires a nep4_polarizability model.");
+      PRINT_INPUT_ERROR("dump_polarizability requires model nep_polarizability.");
     }
   }
 }

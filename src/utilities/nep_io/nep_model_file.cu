@@ -311,10 +311,35 @@ bool NEP_Model_File::read_parameters(
          read_block(document, "q_scaler", layout.dim, q_scaler, blocks, error);
 }
 
+bool NEP_Model_File::validate_md(std::string& error) const
+{
+  error.clear();
+  if (num_neurons2 != 0) {
+    error = "Native MD supports only one hidden layer.";
+    return false;
+  }
+  if (zbl_parameters.size() > 550) {
+    error = "Native MD supports flexible ZBL for at most 10 active elements.";
+    return false;
+  }
+  if (
+    max_radial < 1 || max_radial > 819 || max_angular < 1 ||
+    max_angular > std::numeric_limits<int>::max() / 2) {
+    error = "Invalid neighbor capacities for native MD.";
+    return false;
+  }
+  return true;
+}
+
 bool NEP_Model_File::read(std::istream& input, std::string& error)
 {
-  *this = NEP_Model_File();
   NEP_File document;
+  return read(input, document, error);
+}
+
+bool NEP_Model_File::read(std::istream& input, NEP_File& document, std::string& error)
+{
+  *this = NEP_Model_File();
   if (!document.read(input, error)) {
     return false;
   }

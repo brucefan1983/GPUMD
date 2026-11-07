@@ -474,9 +474,7 @@ void MC_Ensemble_SGC::compute(
     std::uniform_real_distribution<float> r2(0, 1);
     float random_number = r2(rng);
     double energy_change = energy_difference;
-    if (!nep_energy.energy_reference.empty()) {
-      energy_change += nep_energy.energy_reference[type_j] - nep_energy.energy_reference[type_i];
-    }
+    energy_change += nep_energy.energy_reference[type_j] - nep_energy.energy_reference[type_i];
     float probability = exp(-energy_change / (K_B * temperature));
 
     if (random_number < probability) {

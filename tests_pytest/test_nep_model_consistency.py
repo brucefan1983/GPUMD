@@ -233,7 +233,7 @@ DIPOLE_KEYWORDS = TENSOR_MODELS['dipole'][1]
 def write_tensor_prediction_inputs(directory, name):
     """The tensor model as nep.txt and one structure with its target as train.xyz."""
     model, _, structure, target = TENSOR_MODELS[name]
-    shutil.copy(MODELS_DIR / 'new_format' / model, directory / 'nep.txt')
+    shutil.copy(MODELS_DIR / model, directory / 'nep.txt')
     lines = (STRUCTURES_DIR / structure).read_text().splitlines()
     lines[1] = lines[1] + ' ' + target
     (directory / 'train.xyz').write_text('\n'.join(lines) + '\n')

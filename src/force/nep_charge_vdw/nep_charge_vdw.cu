@@ -157,7 +157,7 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   }
   NEP_Model_File model;
   std::string error;
-  if (!model.read(input, error)) {
+  if (!model.read(input, error) || !model.validate_md(error)) {
     PRINT_INPUT_ERROR(error.c_str());
   }
   if (model.name != "nep_vdw" && model.name != "qnep3_vdw") {
@@ -165,9 +165,6 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   }
   paramb.has_charge = model.name == "qnep3_vdw";
   paramb.num_types = model.num_types;
-  if (paramb.num_types > NUM_ELEMENTS) {
-    PRINT_INPUT_ERROR("Too many atom types in the vdW NEP model.");
-  }
   printf(
     "Use the %s potential with %d atom type%s.\n",
     model.name.c_str(),
@@ -181,9 +178,6 @@ NEP_Charge_VDW::NEP_Charge_VDW(
         atomic_number = m + 1;
         break;
       }
-    }
-    if (atomic_number == 0) {
-      PRINT_INPUT_ERROR("vdW NEP models currently support elements from H to Pu.");
     }
     zbl.atomic_numbers[n] = atomic_number;
     annmb.c6_ref_sqrt[n] = c6_ref_sqrt[atomic_number - 1];
@@ -220,10 +214,8 @@ NEP_Charge_VDW::NEP_Charge_VDW(
       model.rc_radial[t],
       model.rc_angular[t]);
   }
-  if (
-    model.max_radial < 1 || model.max_angular < 1 || model.max_radial > 819 ||
-    model.max_angular > 819) {
-    PRINT_INPUT_ERROR("MD neighbor counts must be between 1 and 819.");
+  if (model.max_angular > 819) {
+    PRINT_INPUT_ERROR("MD angular neighbor count must not exceed 819.");
   }
   printf("    MN_radial = %d.\n", model.max_radial);
   printf("    MN_angular = %d.\n", model.max_angular);
@@ -273,10 +265,10 @@ NEP_Charge_VDW::NEP_Charge_VDW(
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
 
   // Native model files already store descriptor parameters in type-pair-major order.
-  std::vector<float> parameters = model.parameters;
-  parameters.insert(parameters.end(), model.q_scaler.begin(), model.q_scaler.end());
-  nep_data.parameters.resize(parameters.size());
-  nep_data.parameters.copy_from_host(parameters.data());
+  nep_data.parameters.resize(annmb.num_para + annmb.dim);
+  nep_data.parameters.copy_from_host(model.parameters.data(), model.parameters.size());
+  nep_data.parameters.copy_from_host(
+    model.q_scaler.data(), model.q_scaler.size(), annmb.num_para);
   update_potential(nep_data.parameters.data(), annmb);
   annmb.q_scaler = nep_data.parameters.data() + annmb.num_para;
   nep_data.energy_reference.resize(model.energy_reference.size());
@@ -285,20 +277,7 @@ NEP_Charge_VDW::NEP_Charge_VDW(
 
   // Training fixes alpha using the largest radial cutoff in the full model.
   // Removing inactive elements must not change this long-range model parameter.
-  float full_rc_radial = paramb.rc_radial;
-  const std::string original = get_original_nep_filename(file_potential);
-  if (original != file_potential) {
-    std::ifstream full_input(original);
-    if (!full_input.is_open()) {
-      const std::string error = "Cannot open original potential file " + original + ".";
-      PRINT_INPUT_ERROR(error.c_str());
-    }
-    NEP_Model_File full_model;
-    if (!full_model.read(full_input, error)) {
-      PRINT_INPUT_ERROR(error.c_str());
-    }
-    full_rc_radial = *std::max_element(full_model.rc_radial.begin(), full_model.rc_radial.end());
-  }
+  const float full_rc_radial = get_original_nep_radial_cutoff(file_potential, paramb.rc_radial);
 
   // Both models use the same fixed alpha for dispersion.
   charge_para.alpha = float(PI) / full_rc_radial;
@@ -685,7 +664,7 @@ static __global__ void find_descriptor(
         C6_derivative);
     }
 
-    g_pe[n1] += double(F) + (annmb.energy_reference ? annmb.energy_reference[t1] : 0.0);
+    g_pe[n1] += double(F) + annmb.energy_reference[t1];
     const float SCALING_FACTOR = 0.1f;
     float C6_exp = annmb.c6_ref_sqrt[t1] * expf(C6 * SCALING_FACTOR);
     g_C6[n1] = C6_exp;

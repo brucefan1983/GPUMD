@@ -76,7 +76,6 @@ public:
     const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
     const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
     const float* b1;               // bias for the output layer
-    const float* c;
     const float* c_type_pair;
     const float* q_scaler;
     const double* energy_reference = nullptr;
@@ -100,7 +99,6 @@ public:
 private:
   struct Data {
     GPU_Vector<float> parameters;
-    GPU_Vector<float> descriptor_parameters_type_pair;
     GPU_Vector<float> descriptor;
     GPU_Vector<float> Fp;
     GPU_Vector<float> sum_fxyz;
@@ -110,7 +108,6 @@ private:
     GPU_Vector<double> energy_reference;
     GPU_Vector<int> spin_type_active;
     GPU_Vector<float> spin_cutoff_pair;
-    GPU_Vector<float> spin_projection_parameters;
     GPU_Vector<float> spin3_moments;
     GPU_Vector<int> NN_radial;
     GPU_Vector<int> NL_radial;

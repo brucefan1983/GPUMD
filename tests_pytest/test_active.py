@@ -16,6 +16,7 @@ from calorine.calculators import GPUNEP
 from calorine.gpumd import write_xyz
 
 from conftest import MODELS_DIR, REPO_ROOT, TOLERANCES, approx_tol
+from nep_model_helpers import write_scaled_nep_model
 
 pytestmark = pytest.mark.fast
 
@@ -33,16 +34,6 @@ NVE = ['velocity 300 seed 1', 'ensemble nve', 'time_step 1']
 ADD_FORCE = ['add_force 0 0 0.5 0 0', 'add_force 0 1 -0.5 0 0']
 # dump_thermo follows the keywords of a test and writes the thermo vector after they have run.
 RUN = ['dump_thermo 1', 'run 20']
-
-
-def _write_scaled_model(model_path, path, factor=1.05):
-    """Writes to path a copy of a NEP4 model with every parameter scaled by factor, a second model
-    for the same species."""
-    lines = model_path.read_text().splitlines()
-    header_length = 6  # the lines from nep4 to ANN
-    parameters = [f'{float(line) * factor:.7e}' for line in lines[header_length:]]
-    path.write_text('\n'.join(lines[:header_length] + parameters) + '\n')
-    return path
 
 
 def _rattled_diamond():
@@ -68,7 +59,7 @@ def _run(directory, gpumd_command, atoms, potentials, keywords, check=True):
 @pytest.fixture
 def models(tmp_path):
     """nep_C.txt and a copy with every parameter scaled by 1.05."""
-    return [MODEL_PATH, _write_scaled_model(MODEL_PATH, tmp_path / 'nep_C_scaled.txt')]
+    return [MODEL_PATH, write_scaled_nep_model(MODEL_PATH, tmp_path / 'nep_C_scaled.txt')]
 
 
 def _assert_main_potential(frame, gpumd_command):
@@ -169,7 +160,7 @@ def test_nan_uncertainty_writes_frame(tmp_path, gpumd_command):
     # The diamond cluster sits in a box of 30 Angstrom, beyond the cutoff of 7 Angstrom from it.
     atoms = Atoms('C', positions=[[18, 18, 18]], cell=[30, 30, 30], pbc=True) + _rattled_diamond()
     # The second model gives forces that are not finite for every atom with neighbors.
-    overflow = _write_scaled_model(MODEL_PATH, tmp_path / 'nep_C_overflow.txt', factor=1e30)
+    overflow = write_scaled_nep_model(MODEL_PATH, tmp_path / 'nep_C_overflow.txt', factor=1e30)
     _run(tmp_path, gpumd_command, atoms, [MODEL_PATH, overflow],
          NVE + ['active 1 0 0 1 1000', 'run 5'])
     frames = read(tmp_path / 'active.xyz', index=':')
@@ -197,7 +188,7 @@ def test_active_with_temperature_nep(tmp_path, gpumd_command):
     100 K per step."""
     fixtures = REPO_ROOT / 'tests_regression' / 'fixtures'
     model = fixtures / 'potentials' / 'temperature_F_nep.txt'
-    potentials = [model, _write_scaled_model(model, tmp_path / 'temperature_F_nep_scaled.txt')]
+    potentials = [model, write_scaled_nep_model(model, tmp_path / 'temperature_F_nep_scaled.txt')]
     keywords = ['velocity 300 seed 1', 'ensemble nvt_ber 300 600 100', 'time_step 1']
     for name, active in [('reference', []), ('checked', ['active 1 0 0 0 0'])]:
         (tmp_path / name).mkdir()

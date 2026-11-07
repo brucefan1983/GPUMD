@@ -1244,7 +1244,7 @@ void NEP_Spin::launch_spin3_descriptors_typed(
       spin.data(),
       data.NN_spin.data(),
       data.NL_spin.data(),
-      data.descriptor_parameters_type_pair.data(),
+      data.parameters.data() + model.ann_parameter_count,
       data.descriptor.data(),
       data.spin3_moments.data());
   contract_spin3_oc_descriptors<C><<<(N + block_size - 1) / block_size, block_size, 0, stream>>>(
@@ -1255,7 +1255,7 @@ void NEP_Spin::launch_spin3_descriptors_typed(
     type.data(),
     data.spin_type_active.data(),
     spin.data(),
-    data.spin_projection_parameters.data(),
+    data.parameters.data() + model.model_parameter_count - model.spin_projection_parameter_count,
     data.spin3_moments.data(),
     data.descriptor.data());
   GPU_CHECK_KERNEL
@@ -1358,8 +1358,8 @@ void NEP_Spin::launch_spin3_forces_typed(
       data.NN_spin.data(),
       data.NL_spin.data(),
       data.Fp.data(),
-      data.descriptor_parameters_type_pair.data(),
-      data.spin_projection_parameters.data(),
+      data.parameters.data() + model.ann_parameter_count,
+      data.parameters.data() + model.model_parameter_count - model.spin_projection_parameter_count,
       data.spin3_moments.data(),
       static_cast<int>(model.radial_parameter_count + model.angular_parameter_count),
       force.data(),
@@ -1625,28 +1625,10 @@ void NEP_Spin::read_model(const char* file_potential)
                                  model_.angular_parameter_count + model_.spin_parameter_count +
                                  model_.spin_projection_parameter_count;
 
-  std::vector<float> parameters = file.parameters;
-  parameters.insert(parameters.end(), file.q_scaler.begin(), file.q_scaler.end());
-  data_.parameters.resize(parameters.size());
-  data_.parameters.copy_from_host(parameters.data());
-
-  const std::size_t descriptor_offset = model_.ann_parameter_count;
-  const std::size_t ordinary_count = model_.radial_parameter_count + model_.angular_parameter_count;
-  // Current model blocks already use the runtime structural type-pair order.
-  std::vector<float> descriptor_parameters(
-    parameters.begin() + descriptor_offset,
-    parameters.begin() + descriptor_offset + ordinary_count + model_.spin_parameter_count);
-  data_.descriptor_parameters_type_pair.resize(descriptor_parameters.size());
-  data_.descriptor_parameters_type_pair.copy_from_host(descriptor_parameters.data());
-  if (model_.spin_projection_parameter_count > 0) {
-    const std::size_t projection_offset =
-      descriptor_offset + ordinary_count + model_.spin_parameter_count;
-    std::vector<float> projection_parameters(
-      parameters.begin() + projection_offset,
-      parameters.begin() + projection_offset + model_.spin_projection_parameter_count);
-    data_.spin_projection_parameters.resize(projection_parameters.size());
-    data_.spin_projection_parameters.copy_from_host(projection_parameters.data());
-  }
+  data_.parameters.resize(file.parameters.size() + file.q_scaler.size());
+  data_.parameters.copy_from_host(file.parameters.data(), file.parameters.size());
+  data_.parameters.copy_from_host(
+    file.q_scaler.data(), file.q_scaler.size(), static_cast<int>(file.parameters.size()));
 
   const auto& energy_reference = model_.energy_reference;
   data_.energy_reference.resize(energy_reference.size());
@@ -1693,7 +1675,7 @@ void NEP_Spin::read_model(const char* file_potential)
     pointer += model_.hidden_neurons;
   }
   ann_.b1 = pointer;
-  ann_.c_type_pair = data_.descriptor_parameters_type_pair.data();
+  ann_.c_type_pair = data_.parameters.data() + model_.ann_parameter_count;
   ann_.q_scaler = data_.parameters.data() + model_.model_parameter_count;
 
   const double enlarged = std::ceil(static_cast<double>(model_.max_neighbors_global) * 1.25);

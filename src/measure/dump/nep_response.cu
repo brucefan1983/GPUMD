@@ -22,7 +22,7 @@ NEP4 response models used by dipole and polarizability measurements.
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
-#include "utilities/nep_io/nep_model_input.cuh"
+#include "utilities/nep_io/nep_model_file.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
 #include <fstream>
@@ -34,37 +34,30 @@ NEP4 response models used by dipole and polarizability measurements.
 NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
   : num_atoms_(atom.number_of_atoms)
 {
-
-  NEP_Model_Input input(file_potential);
-
-  std::vector<std::string> tokens = input.get_tokens();
-  if (tokens.size() < 3) {
-    std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
-    exit(1);
+  std::ifstream input(file_potential);
+  if (!input.is_open()) {
+    const std::string error = "Cannot open potential file " + std::string(file_potential) + ".";
+    PRINT_INPUT_ERROR(error.c_str());
   }
-  if (tokens[0] == "nep4_dipole") {
+  NEP_Model_File model;
+  std::string error;
+  if (!model.read(input, error) || !model.validate_md(error)) {
+    PRINT_INPUT_ERROR(error.c_str());
+  }
+  if (model.name == "nep_dipole") {
     model_type_ = 1;
-  } else if (tokens[0] == "nep4_polarizability") {
+  } else if (model.name == "nep_polarizability") {
     model_type_ = 2;
   } else {
-    PRINT_INPUT_ERROR("NEP_Response only supports nep4_dipole and nep4_polarizability models.");
+    PRINT_INPUT_ERROR("NEP_Response requires model nep_dipole or nep_polarizability.");
   }
-  paramb_.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  if (tokens.size() != 2 + paramb_.num_types) {
-    std::cout << "The first line of nep.txt should have " << paramb_.num_types << " atom symbols."
-              << std::endl;
-    exit(1);
-  }
-
-  for (int t = 0; t < paramb_.num_types; ++t) {
-    atom_types_[t] = tokens[2 + t];
-  }
+  paramb_.num_types = model.num_types;
 
   std::vector<int> mapped_type(num_atoms_);
   for (int n = 0; n < num_atoms_; ++n) {
     mapped_type[n] = -1;
     for (int t = 0; t < paramb_.num_types; ++t) {
-      if (atom.cpu_atom_symbol[n] == atom_types_[t]) {
+      if (atom.cpu_atom_symbol[n] == model.elements[t]) {
         mapped_type[n] = t;
         break;
       }
@@ -76,147 +69,44 @@ NEP_Response::NEP_Response(const char* file_potential, const Atom& atom)
   type_.resize(num_atoms_);
   type_.copy_from_host(mapped_type.data());
 
-  // cutoff
-  tokens = input.get_tokens();
-  if (tokens.size() != 5 && tokens.size() != paramb_.num_types * 2 + 3) {
-    std::cout << "cutoff should have 4 or num_types * 2 + 2 parameters.\n";
-    exit(1);
-  }
-  if (tokens.size() == 5) {
-    paramb_.rc_radial[0] = get_double_from_token(tokens[1], __FILE__, __LINE__);
-    paramb_.rc_angular[0] = get_double_from_token(tokens[2], __FILE__, __LINE__);
-    for (int n = 0; n < paramb_.num_types; ++n) {
-      paramb_.rc_radial[n] = paramb_.rc_radial[0];
-      paramb_.rc_angular[n] = paramb_.rc_angular[0];
-    }
-  } else {
-    for (int n = 0; n < paramb_.num_types; ++n) {
-      paramb_.rc_radial[n] = get_double_from_token(tokens[1 + n * 2], __FILE__, __LINE__);
-      paramb_.rc_angular[n] = get_double_from_token(tokens[2 + n * 2], __FILE__, __LINE__);
-    }
-  }
   for (int n = 0; n < paramb_.num_types; ++n) {
+    paramb_.rc_radial[n] = model.rc_radial[n];
+    paramb_.rc_angular[n] = model.rc_angular[n];
     if (paramb_.rc_radial[n] > paramb_.rc_radial_max) {
       paramb_.rc_radial_max = paramb_.rc_radial[n];
     }
   }
+  paramb_.MN_radial = int(ceil(model.max_radial * 1.25));
+  paramb_.MN_angular = int(ceil(model.max_angular * 1.25));
 
-  int MN_radial = get_int_from_token(tokens[tokens.size() - 2], __FILE__, __LINE__);
-  int MN_angular = get_int_from_token(tokens[tokens.size() - 1], __FILE__, __LINE__);
-  if (MN_radial > 819) {
-    std::cout << "The maximum number of neighbors exceeds 819. Please reduce this value."
-              << std::endl;
-    exit(1);
-  }
-  paramb_.MN_radial = int(ceil(MN_radial * 1.25));
-  paramb_.MN_angular = int(ceil(MN_angular * 1.25));
+  paramb_.n_max_radial = model.n_max_radial;
+  paramb_.n_max_angular = model.n_max_angular;
+  paramb_.basis_size_radial = model.basis_size_radial;
+  paramb_.basis_size_angular = model.basis_size_angular;
+  paramb_.L_max = model.L_max;
+  paramb_.has_q_222 = 2 * model.has_q_222;
+  paramb_.has_q_1111 = model.has_q_1111;
+  paramb_.has_q_112 = model.has_q_112;
+  paramb_.has_q_123 = model.has_q_123;
+  paramb_.has_q_233 = model.has_q_233;
+  paramb_.has_q_134 = model.has_q_134;
+  paramb_.num_L = paramb_.L_max + model.has_q_222 + model.has_q_1111 + model.has_q_112 +
+                 model.has_q_123 + model.has_q_233 + model.has_q_134;
+  paramb_.dim_angular = model.layout.dim_angular;
 
-  // n_max
-  tokens = input.get_tokens();
-  if (tokens.size() != 3) {
-    std::cout << "This line should be n_max n_max_radial n_max_angular." << std::endl;
-    exit(1);
-  }
-  paramb_.n_max_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  paramb_.n_max_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
-
-  // basis_size
-  tokens = input.get_tokens();
-  if (tokens.size() != 3) {
-    std::cout << "This line should be basis_size basis_size_radial basis_size_angular."
-              << std::endl;
-    exit(1);
-  }
-  paramb_.basis_size_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  paramb_.basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
-
-  // l_max
-  tokens = input.get_tokens();
-  if (tokens.size() < 4) {
-    std::cout << "This line should be l_max l_max_3body has_q_222 has_q_1111 [has_q_112] [has_q_123] [has_q_233] [has_q_134]." << std::endl;
-    exit(1);
-  }
-
-  paramb_.L_max = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  paramb_.num_L = paramb_.L_max;
-
-  paramb_.has_q_222 = get_int_from_token(tokens[2], __FILE__, __LINE__);
-  paramb_.has_q_1111 = get_int_from_token(tokens[3], __FILE__, __LINE__);
-  if (tokens.size() >= 5) {
-    paramb_.has_q_112 = get_int_from_token(tokens[4], __FILE__, __LINE__);
-  }
-  if (tokens.size() >= 6) {
-    paramb_.has_q_123 = get_int_from_token(tokens[5], __FILE__, __LINE__);
-  }
-  if (tokens.size() >= 7) {
-    paramb_.has_q_233 = get_int_from_token(tokens[6], __FILE__, __LINE__);
-  }
-  if (tokens.size() >= 8) {
-    paramb_.has_q_134 = get_int_from_token(tokens[7], __FILE__, __LINE__);
-  }
-  if (paramb_.has_q_222) {
-    paramb_.num_L += 1;
-  }
-  if (paramb_.has_q_1111) {
-    paramb_.num_L += 1;
-  }
-  if (paramb_.has_q_112) {
-    paramb_.num_L += 1;
-  }
-  if (paramb_.has_q_123) {
-    paramb_.num_L += 1;
-  }
-  if (paramb_.has_q_233) {
-    paramb_.num_L += 1;
-  }
-  if (paramb_.has_q_134) {
-    paramb_.num_L += 1;
-  }
-
-  paramb_.dim_angular = (paramb_.n_max_angular + 1) * paramb_.num_L;
-
-  // ANN
-  tokens = input.get_tokens();
-  if (tokens.size() != 3) {
-    std::cout << "This line should be ANN num_neurons 0." << std::endl;
-    exit(1);
-  }
-  annmb_.num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  annmb_.dim = (paramb_.n_max_radial + 1) + paramb_.dim_angular;
-
+  annmb_.num_neurons1 = model.num_neurons1;
+  annmb_.dim = model.layout.dim;
   paramb_.num_types_sq = paramb_.num_types * paramb_.num_types;
-  annmb_.num_para_ann = (annmb_.dim + 2) * annmb_.num_neurons1 * paramb_.num_types + 1;
-  if (is_polarizability()) {
-    annmb_.num_para_ann *= 2;
-  }
-  int num_para_descriptor =
-    paramb_.num_types_sq * ((paramb_.n_max_radial + 1) * (paramb_.basis_size_radial + 1) +
-                            (paramb_.n_max_angular + 1) * (paramb_.basis_size_angular + 1));
-  annmb_.num_para = annmb_.num_para_ann + num_para_descriptor;
-
+  annmb_.num_para = model.layout.number_of_variables;
   paramb_.num_c_radial =
     paramb_.num_types_sq * (paramb_.n_max_radial + 1) * (paramb_.basis_size_radial + 1);
 
-  // NN and descriptor parameters
-  std::vector<float> parameters(annmb_.num_para + annmb_.dim);
-  for (int n = 0; n < annmb_.num_para + annmb_.dim; ++n) {
-    tokens = input.get_tokens();
-    parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-  }
-  std::vector<float> descriptor_parameters = input.get_descriptor_parameters_type_pair(
-    parameters,
-    annmb_.num_para_ann,
-    paramb_.num_types,
-    paramb_.n_max_radial,
-    paramb_.n_max_angular,
-    paramb_.basis_size_radial,
-    paramb_.basis_size_angular);
+  // Store ANN parameters, type-pair-major descriptor coefficients and scalers in one buffer.
   data_.parameters.resize(annmb_.num_para + annmb_.dim);
-  data_.parameters.copy_from_host(parameters.data());
-  data_.descriptor_parameters_type_pair.resize(num_para_descriptor);
-  data_.descriptor_parameters_type_pair.copy_from_host(descriptor_parameters.data());
+  data_.parameters.copy_from_host(model.parameters.data(), model.parameters.size());
+  data_.parameters.copy_from_host(
+    model.q_scaler.data(), model.q_scaler.size(), annmb_.num_para);
   update_potential(data_.parameters.data());
-  annmb_.c_type_pair = data_.descriptor_parameters_type_pair.data();
   annmb_.q_scaler = data_.parameters.data() + annmb_.num_para;
 
   data_.f12x.resize(static_cast<size_t>(num_atoms_) * paramb_.MN_angular);
@@ -268,7 +158,7 @@ void NEP_Response::update_potential(float* parameters)
     pointer += 1;
   }
 
-  annmb_.c = pointer;
+  annmb_.c_type_pair = pointer;
 }
 
 static __global__ void initialize_properties(

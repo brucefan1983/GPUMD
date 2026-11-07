@@ -18,7 +18,6 @@
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
-#include <string>
 
 class Atom;
 
@@ -53,12 +52,10 @@ public:
     int dim = 0;
     int num_neurons1 = 0;
     int num_para = 0;
-    int num_para_ann = 0;
     const float* w0[NUM_ELEMENTS];
     const float* b0[NUM_ELEMENTS];
     const float* w1[NUM_ELEMENTS];
     const float* b1;
-    const float* c;
     const float* c_type_pair;
     const float* w0_pol[10];
     const float* b0_pol[10];
@@ -85,7 +82,6 @@ private:
     GPU_Vector<float> f12z;
     GPU_Vector<float> Fp;
     GPU_Vector<float> sum_fxyz;
-    GPU_Vector<float> descriptor_parameters_type_pair;
     GPU_Vector<int> NN_radial;
     GPU_Vector<int> NL_radial;
     GPU_Vector<int> NN_angular;
@@ -111,7 +107,6 @@ private:
   GPU_Vector<double> virial_per_atom_;
   int model_type_ = 0; // 1=dipole, 2=polarizability
   int num_atoms_ = 0;
-  std::string atom_types_[NUM_ELEMENTS];
 
   void update_potential(float* parameters);
   void compute_large_box(Box& box, const GPU_Vector<double>& position);

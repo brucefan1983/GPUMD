@@ -1,9 +1,13 @@
-nep4 1 C 
+nep 1 C
+format_version 1
+model nep
 cutoff 7 4 358 71
 n_max 12 8
 basis_size 16 12
 l_max 4 2 1
-ANN 100 0
+ann 100 0
+energy_reference 0
+@ parameters 7239
   4.8461023e-01
   1.7284133e+00
   1.3659902e+00
@@ -7243,6 +7247,7 @@ ANN 100 0
  -1.9431880e+00
  -8.7143540e-01
   4.0056181e-01
+@ q_scaler 67
   1.6506680e-03
   1.6506680e-03
   1.6506680e-03
