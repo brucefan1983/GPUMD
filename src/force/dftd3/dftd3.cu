@@ -80,11 +80,6 @@ void __global__ find_dftd3_coordination_number_small_box(
   }
 }
 
-// Interpolate C6 between the reference pairs. The pair weight exp(-4 (d_i^2 + d_j^2)) factorises,
-// so the two atoms are normalised separately; each atom's squared CN distances are shifted by their
-// minimum first, so the normalising sums are >= 1 and cannot underflow. This gives the same C6 and
-// dC6/dCN_1 as summing the pair weights directly, but stays smooth at large CN (e.g. Na or Cu
-// next to sp2 carbon), where the float sum of the pair weights underflows.
 static __device__ __forceinline__ void find_c6_stable(
   const float* g_c6_ref,
   const int z1,
@@ -123,7 +118,7 @@ static __device__ __forceinline__ void find_c6_stable(
   }
   float d1_mean = 0.0f;
   for (int i = 0; i < n1; ++i) {
-    w1[i] /= s1; // s1 >= 1: the nearest reference contributes exp(0)
+    w1[i] /= s1;
     d1_mean += w1[i] * d1[i];
   }
   for (int j = 0; j < n2; ++j) {
@@ -138,7 +133,6 @@ static __device__ __forceinline__ void find_c6_stable(
                                  : g_c6_ref[z12 * max_cn2 + j * max_cn + i]);
     }
     c6 += w1[i] * c6_i;
-    // d w_i / d CN_1 = -8 w_i (d_i - sum_k w_k d_k)
     dc6 += w1[i] * (-8.0f) * (d1[i] - d1_mean) * c6_i;
   }
 }
