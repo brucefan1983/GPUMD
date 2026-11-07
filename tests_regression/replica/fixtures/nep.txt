@@ -1,9 +1,13 @@
-nep4 1 C
+nep 1 C
+format_version 1
+model nep
 cutoff 4 4 10 10
 n_max 0 0
 basis_size 0 0
-l_max 1 0 0
-ANN 1 0
+l_max 2 0 0
+ann 1 0
+energy_reference 0
+@ parameters 8
 0
 0
 0
@@ -11,5 +15,8 @@ ANN 1 0
 0
 0
 0
+0
+@ q_scaler 3
+1
 1
 1
