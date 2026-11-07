@@ -2122,7 +2122,7 @@ bool compute_nep_analytic_hessian(
   }
   const int radial_descriptor_count = model.paramb.n_max_radial + 1;
   const int angular_descriptor_stride = model.paramb.n_max_angular + 1;
-  if (angular_descriptor_stride >
+  if (model.paramb.num_L > 0 && angular_descriptor_stride >
       std::numeric_limits<int>::max() / model.paramb.num_L) {
     return false;
   }
@@ -2139,12 +2139,16 @@ bool compute_nep_analytic_hessian(
       expected_descriptor_count > std::numeric_limits<int>::max() / N ||
       N > std::numeric_limits<int>::max() / expected_descriptor_count ||
       N * expected_descriptor_count >
-        std::numeric_limits<int>::max() / expected_descriptor_count ||
-      N3 > std::numeric_limits<int>::max() / N3) {
+        std::numeric_limits<int>::max() / expected_descriptor_count) {
     printf(
       "NEP analytic Hessian: descriptor dimension mismatch "
       "(annmb.dim=%d, expected=%d).\n",
       model.annmb.dim, expected_descriptor_count);
+    return false;
+  }
+  // Only the dense kernels address a full (3N)^2 matrix using int indices.
+  if (sparse_pattern == nullptr && N3 > std::numeric_limits<int>::max() / N3) {
+    printf("NEP analytic Hessian: dense matrix exceeds supported index range.\n");
     return false;
   }
   const size_t expected_position_size = static_cast<size_t>(N3);
@@ -2275,6 +2279,15 @@ bool compute_nep_analytic_hessian(
     ? nep->small_box_data.NL_angular
     : nep->nep_data.NL_angular;
 
+  // Hessian kernels use int offsets into the neighbor lists, including in
+  // sparse mode where the dense matrix size no longer bounds N.
+  const size_t max_neighbor_entries = std::numeric_limits<int>::max();
+  if (radial_neighbor_list_gpu.size() > max_neighbor_entries ||
+      angular_neighbor_list_gpu.size() > max_neighbor_entries) {
+    printf("NEP analytic Hessian: neighbor lists exceed supported index range.\n");
+    return finish(false);
+  }
+
   // 2. Run the hessian-owned descriptor kernel to populate a module-local
   //    q cache.  We cannot rely on a side-channel write inside
   //    src/force/nep.cu's descriptor kernel because the hessian-only
@@ -2291,7 +2304,7 @@ bool compute_nep_analytic_hessian(
   if (use_expanded_box) {
     const size_t r12_plane_size = nep->small_box_data.r12.size() / 6;
     nep_hessian::find_descriptor_only_small_box<<<descriptor_grid, 64>>>(
-      model.paramb, model.annmb, N, 0, N,
+      model.paramb, model.annmb, static_cast<float>(force.get_temperature()), N, 0, N,
       radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
       angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
       atom.type.data(),
@@ -2304,7 +2317,7 @@ bool compute_nep_analytic_hessian(
       q_cache.q.data());
   } else {
     nep_hessian::find_descriptor_only<<<descriptor_grid, 64>>>(
-      model.paramb, model.annmb, N, 0, N, box,
+      model.paramb, model.annmb, static_cast<float>(force.get_temperature()), N, 0, N, box,
       radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
       angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
       atom.type.data(),

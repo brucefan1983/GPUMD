@@ -512,6 +512,9 @@ void write_matrix(
       output << (column ? " " : "") << matrix[row * N3 + column];
     output << "\n";
   }
+  output.close();
+  if (!output)
+    PRINT_INPUT_ERROR(("Failed to write Hessian output file: " + path).c_str());
 }
 
 void write_matrix_market(
@@ -1101,6 +1104,11 @@ void NEP_Hessian_Command::compute_analytic(
         sparse_atom_count > std::numeric_limits<int>::max() / 3 ||
         atom.position_per_atom.size() != static_cast<size_t>(3 * sparse_atom_count))
       PRINT_INPUT_ERROR("Sparse compute_hessian requires a valid, consistent system.");
+    // Phonon postprocessing expands sparse blocks and uses dense int indices.
+    const int sparse_dimension = 3 * sparse_atom_count;
+    if (phonon_mode_ != "none" &&
+        sparse_dimension > std::numeric_limits<int>::max() / sparse_dimension)
+      PRINT_INPUT_ERROR("Hessian phonon postprocessing exceeds the dense index range.");
     sparse_hessian::BlockPattern pattern;
     std::vector<double> sparse_values;
     std::vector<double> analytic_force;

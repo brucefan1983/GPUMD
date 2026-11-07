@@ -231,6 +231,10 @@ ordinary or temperature-dependent NEP4 variants, with an angular expansion of
   multiple-potential modes used by :ref:`dump_observer <kw_dump_observer>`;
 * model or configuration parameters outside the ranges checked by the provider.
 
+For temperature-dependent NEP models, the Hessian holds temperature fixed at
+the value currently used by the force evaluator, including any temperature
+ramp advanced by a preceding ``run`` command.
+
 If the analytic provider rejects the model or configuration, or fails the
 built-in symmetry and translation-sum validation, the command reports an error
 and terminates. Finite-difference fallback is not performed; use
@@ -373,7 +377,11 @@ quadratically with the number of atoms :math:`N`, since the full
 :math:`3N\times3N` matrix is stored. ``output_format sparse`` instead
 scales with the number of populated atom-pair blocks for Hessian-only
 calculations, but it is expanded to a dense matrix whenever phonons are
-requested. The quadratic memory requirement is especially important for
+requested. Dense output and phonon postprocessing require
+:math:`(3N)^2 \le 2^{31}-1` for their matrix indices; Hessian-only sparse
+output does not have this dense-matrix limit, but remains subject to the
+ANN, neighbor-list, and sparse-block index bounds.
+The quadratic memory requirement is especially important for
 ``phonon dispersion``, where the requested supercell must be large enough to
 satisfy the interaction-range condition above. The analytic mode computes the
 Hessian in a single pass and does not require additional force evaluations.
