@@ -16,9 +16,8 @@ Syntax
 
 * :attr:`interval` is the output interval (number of steps) of the data.
 
-* :attr:`filename` is the output file.
-
-If it is ended by a star (*), the data for one frame will be output to one file, named by changing the star to the step number.
+* :attr:`filename` is the output file name.
+  If it ends with ``*``, one file is written per frame, replacing ``*`` with the step number within the current run.
 
 * The optional :attr:`split` parameter is the maximum number of frames written per XYZ file (a positive integer).
   For example, ``dump_xyz 100 trajectory.xyz split 10000`` writes 10000 frames to ``trajectory_0001.xyz``, then 10000 frames to ``trajectory_0002.xyz``, and so on.
@@ -26,46 +25,20 @@ If it is ended by a star (*), the data for one frame will be output to one file,
   The :attr:`split` option cannot be used with a filename ending in ``*``.
 
 * The :attr:`group` option restricts the output to the atoms in group :attr:`group_id` of grouping method :attr:`grouping_method`.
+  If it is omitted, data for the whole system will be output.
 
-If it is omitted, data for the whole system will be output.
+* The optional :attr:`position` parameter selects wrapped positions (``wrapped``, default), unwrapped positions (``unwrapped``), or both (``both``).
 
-* The optional :attr:`position` parameter selects ``wrapped`` (default), ``unwrapped``, or ``both`` coordinate sets, as described below.
+* The :attr:`precision` option controls the number of significant digits written for floating-point values, except the time field.
 
-* The :attr:`precision` option controls the number of significant digits written for every floating-point value.
+  :attr:`single` (the default) writes nine significant digits, which is enough to recover a single-precision value exactly.
+  :attr:`double` writes 17 significant digits, which is enough to recover a double-precision value exactly.
 
-:attr:`single` (the default) writes nine significant digits, which is enough to recover a single-precision value exactly.
-:attr:`double` writes 17 significant digits, which is enough to recover a double-precision value exactly.
-This controls output precision, including positions and velocities; the MD calculation precision is unchanged.
+* Optional per-atom properties are :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, :attr:`charge`, :attr:`bec`, :attr:`group_labels`, :attr:`spin`, :attr:`mforce`, and :attr:`spin_velocity`.
 
-* Then one can write the properties to be output, and the allowed properties include: :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, :attr:`charge`, :attr:`bec`, :attr:`group_labels`, :attr:`spin`, and :attr:`mforce`.
-
-The :attr:`group_labels` property writes one integer column per grouping method, holding the label of the group each atom belongs to.
+  The :attr:`group_labels` property writes one integer column per grouping method, holding the label of the group each atom belongs to.
 
 * Positions are always included and are wrapped by default.
-
-
-Coordinate output
------------------
-
-.. list-table::
-   :header-rows: 1
-   :widths: 40 60
-
-   * - Coordinate option
-     - Coordinates written
-   * - None (default), or ``position wrapped``
-     - Wrapped coordinates in ``pos``.
-   * - ``position unwrapped``
-     - Only unwrapped coordinates, in ``pos``.
-   * - ``position both``
-     - Wrapped coordinates in ``pos``; unwrapped coordinates in ``unwrapped_position``.
-
-Use ``position unwrapped`` to save space by storing only one coordinate set.
-GPUMD marks these frames with ``position_mode=unwrapped`` in the header; this is not a ``run.in`` option.
-The standalone ``unwrapped_position`` input property is no longer accepted; use ``position both``.
-
-Unwrapped coordinates preserve continuity across periodic boundaries and may lie outside the simulation cell.
-This applies to orthogonal and triclinic cells. Nonperiodic directions are not wrapped.
 
 
 Examples
@@ -78,14 +51,11 @@ Examples
     # dump positions every 1000 steps, for the whole system:
     dump_xyz 1000 positions.xyz
 
-    # unwrapped positions and velocities:
-    dump_xyz 15 dump.xyz position unwrapped velocity precision double
+    # dump unwrapped positions and velocities:
+    dump_xyz 15 dump.xyz position unwrapped velocity
 
-    # wrapped and unwrapped coordinates, plus velocities:
+    # dump wrapped and unwrapped positions, plus velocities:
     dump_xyz 15 both.xyz position both velocity
-
-    # group 0 of method 1:
-    dump_xyz 15 group.xyz group 1 0 position unwrapped velocity
 
     # dump many other quantities every 100 steps, for atoms in group 0 of grouping method 1:
     dump_xyz 100 properties.xyz group 1 0 mass velocity potential force virial
@@ -104,6 +74,7 @@ Caveats
   That means, its effect will not be passed from one run to the next.
 * With no ``split`` option or trailing ``*``, the output file has an appending behavior.
   With ``split``, each run creates new numbered files without overwriting existing chunks.
+  With a trailing ``*``, existing files with the same name are overwritten.
 * Different from many of the other keywords, this keyword is allowed to be invoked multiple times within one run.
 * For qNEP models, the charge values dumped out are predicted by the qNEP models.
   For other models, the charge values are those specified in :attr:`model.xyz` via :attr:`charge:R:1`.
