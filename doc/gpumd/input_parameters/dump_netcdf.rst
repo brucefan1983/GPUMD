@@ -36,6 +36,7 @@ Currently, the following optional arguments are accepted:
   Select wrapped positions (``wrapped``, default), unwrapped positions (``unwrapped``), or both (``both``).
   ``unwrapped`` writes only unwrapped positions in ``coordinates`` and adds ``position_mode=unwrapped`` to the global attributes.
   ``both`` writes wrapped positions in ``coordinates`` and unwrapped positions in ``unwrapped_coordinates``.
+  Both coordinate variables have dimensions ``(frame, atom, spatial)`` and are written in Å.
 
 * Per-atom quantities
 
