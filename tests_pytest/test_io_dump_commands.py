@@ -145,9 +145,10 @@ def test_command_io(tmp_path, structure, model_path, model_type, gpumd_command, 
 
 @pytest.mark.parametrize('triclinic', [False, True])
 @pytest.mark.parametrize('periodic_z', [False, True])
-def test_dump_xyz_unwrapped_position_crosses_boundaries(
-        tmp_path, gpumd_command, triclinic, periodic_z):
-    """Three noninteracting atoms cross boundaries; no legacy output enables unwrapping."""
+@pytest.mark.parametrize('position_mode', ['unwrapped', 'both'])
+def test_dump_xyz_position_crosses_boundaries(
+        tmp_path, gpumd_command, triclinic, periodic_z, position_mode):
+    """Each coordinate mode must enable periodic tracking, also for selected groups."""
     cell = np.diag([20.0, 20.0, 20.0])
     if triclinic:
         cell[1, 0] = 3.0
@@ -164,10 +165,10 @@ def test_dump_xyz_unwrapped_position_crosses_boundaries(
         run_in_lines=[
             ('time_step', 1),
             ('ensemble', 'nve'),
-            ('dump_xyz', [2, 'unwrapped.xyz', 'position', 'unwrapped',
+            ('dump_xyz', [2, 'unwrapped.xyz', 'position', position_mode,
                           'precision', 'double', 'velocity']),
             ('dump_xyz', [2, 'group.xyz', 'velocity', 'group', 0, 0,
-                          'precision', 'double', 'position', 'unwrapped']),
+                          'precision', 'double', 'position', position_mode]),
             ('dump_xyz', [2, 'default.xyz', 'precision', 'double', 'velocity']),
             ('dump_xyz', [2, 'wrapped.xyz', 'position', 'wrapped',
                           'precision', 'double', 'velocity']),
@@ -177,18 +178,25 @@ def test_dump_xyz_unwrapped_position_crosses_boundaries(
         tmp_path, atoms, MODELS_DIR / 'nep_C.txt', 'nep', gpumd_command, case)
     assert result.returncode == 0, f'{result.stdout}\n{result.stderr}'
     assert (tmp_path / 'default.xyz').read_bytes() == (tmp_path / 'wrapped.xyz').read_bytes()
-    assert _comment_fields(tmp_path / 'unwrapped.xyz')['Properties'] == [
-        'species:S:1:pos:R:3:vel:R:3']
+    properties = 'species:S:1:pos:R:3:vel:R:3'
+    if position_mode == 'both':
+        properties += ':unwrapped_position:R:3'
+    assert _comment_fields(tmp_path / 'unwrapped.xyz')['Properties'] == [properties]
     frames = read(tmp_path / 'unwrapped.xyz', index=':')
     groups = read(tmp_path / 'group.xyz', index=':')
     wrapped = read(tmp_path / 'wrapped.xyz', index=':')
     assert len(frames) == len(groups) == len(wrapped) == 3
     for step, frame, group, folded in zip([2, 4, 6], frames, groups, wrapped):
         expected = atoms.positions + step * velocity
-        np.testing.assert_allclose(frame.positions, expected, rtol=0, atol=1e-8)
+        unwrapped = frame.positions if position_mode == 'unwrapped' else frame.arrays['unwrapped_position']
+        np.testing.assert_allclose(unwrapped, expected, rtol=0, atol=1e-8)
         np.testing.assert_allclose(frame.arrays['vel'], velocity, rtol=0, atol=1e-10)
-        assert frame.info['position_mode'] == 'unwrapped'
-        assert 'unwrapped_position' not in frame.arrays
+        if position_mode == 'unwrapped':
+            assert frame.info['position_mode'] == 'unwrapped'
+            assert 'unwrapped_position' not in frame.arrays
+        else:
+            np.testing.assert_array_equal(frame.positions, folded.positions)
+            np.testing.assert_array_equal(group.arrays['unwrapped_position'], unwrapped[[0, 2]])
         np.testing.assert_array_equal(frame.pbc, atoms.pbc)
         np.testing.assert_array_equal(group.positions, frame.positions[[0, 2]])
         np.testing.assert_array_equal(group.arrays['vel'], frame.arrays['vel'][[0, 2]])
@@ -198,24 +206,37 @@ def test_dump_xyz_unwrapped_position_crosses_boundaries(
         assert 'position_mode' not in folded.info
 
 
-def test_dump_xyz_position_matches_extra_unwrapped_property(
-        tmp_path, structure, model_path, model_type, gpumd_command):
-    """Selecting unwrapped pos reuses the existing values without duplicating columns."""
+@pytest.mark.parametrize('precision', ['single', 'double'])
+def test_dump_xyz_both_matches_single_coordinate_modes(
+        tmp_path, structure, model_path, model_type, gpumd_command, precision):
+    """Both coordinate sets and velocities must retain the requested output precision."""
     case = CommandIOCase(
-        name='dump_xyz_position_matches_extra',
+        name='dump_xyz_position_both',
         run_in_lines=[
-            ('dump_xyz', [1, 'only.xyz', 'position', 'unwrapped', 'velocity']),
-            ('dump_xyz', [1, 'both.xyz', 'unwrapped_position', 'velocity']),
-        ])
+            ('dump_xyz', [1, f'{mode}.xyz', 'position', mode, 'velocity', 'precision', precision])
+            for mode in ('wrapped', 'unwrapped', 'both')])
     result = run_command_io_case(
         tmp_path, structure, model_path, model_type, gpumd_command, case)
     assert result.returncode == 0, f'{result.stdout}\n{result.stderr}'
-    only_frames = read(tmp_path / 'only.xyz', index=':')
+    wrapped_frames = read(tmp_path / 'wrapped.xyz', index=':')
+    only_frames = read(tmp_path / 'unwrapped.xyz', index=':')
     both_frames = read(tmp_path / 'both.xyz', index=':')
-    assert len(only_frames) == len(both_frames) == BASE_N_STEPS
-    for only, both in zip(only_frames, both_frames):
+    assert len(wrapped_frames) == len(only_frames) == len(both_frames) == BASE_N_STEPS
+    for wrapped, only, both in zip(wrapped_frames, only_frames, both_frames):
+        np.testing.assert_array_equal(wrapped.positions, both.positions)
         np.testing.assert_array_equal(only.positions, both.arrays['unwrapped_position'])
+        np.testing.assert_array_equal(wrapped.arrays['vel'], both.arrays['vel'])
         np.testing.assert_array_equal(only.arrays['vel'], both.arrays['vel'])
+
+    assert _comment_fields(tmp_path / 'both.xyz')['Properties'] == [
+        'species:S:1:pos:R:3:vel:R:3:unwrapped_position:R:3']
+    rows = [line.split() for line in (tmp_path / 'both.xyz').read_text().splitlines()[2:2 + len(structure)]]
+    for columns in (slice(1, 4), slice(4, 7), slice(7, 10)):
+        digits = max(_significant_digits(token) for row in rows for token in row[columns])
+        if precision == 'single':
+            assert digits <= 9
+        else:
+            assert 9 < digits <= 17
 
 
 def test_dump_xyz_split_matches_unsplit_across_runs(
@@ -566,11 +587,13 @@ def test_deposit_rejects_a_numeric_species(tmp_path, gpumd_command):
 
 
 INVALID_DUMP_XYZ_ARGUMENTS = [
-    ([1, 'f.xyz', 'position'], "requires 'wrapped' or 'unwrapped'"),
-    ([1, 'f.xyz', 'position', 'invalid'], "requires 'wrapped' or 'unwrapped'"),
+    ([1, 'f.xyz', 'position'], "requires 'wrapped', 'unwrapped', or 'both'"),
+    ([1, 'f.xyz', 'position', 'invalid'], "requires 'wrapped', 'unwrapped', or 'both'"),
     ([1, 'f.xyz', 'position', 'wrapped', 'position', 'unwrapped'], 'more than once'),
-    ([1, 'f.xyz', 'position', 'unwrapped', 'unwrapped_position'], 'already writes'),
-    ([1, 'f.xyz', 'unwrapped_position', 'position', 'unwrapped'], 'already writes'),
+    ([1, 'f.xyz', 'position', 'both', 'position', 'wrapped'], 'more than once'),
+    ([1, 'f.xyz', 'unwrapped_position'], "Use 'position both' instead"),
+    ([1, 'f.xyz', 'position', 'unwrapped', 'unwrapped_position'], "Use 'position both' instead"),
+    ([1, 'f.xyz', 'unwrapped_position', 'position', 'both'], "Use 'position both' instead"),
     ([1, 'f.xyz', 'forcee'], 'Unrecognized argument'),
     ([1, 'f.xyz', 'group', 0, 0, 'group', 0, 0], 'more than once'),
     ([1, 'f.xyz', 'precision', 'double', 'precision', 'single'], 'more than once'),
@@ -1067,14 +1090,14 @@ def test_dump_netcdf_rotates_general_cell(
     rotated_structure.set_cell(general_cell, scale_atoms=True)
     rotated_structure.rotate(17.0, 'y', center=(0.0, 0.0, 0.0), rotate_cell=True)
 
-    quantities = ['velocity', 'force', 'unwrapped_position', 'virial']
+    quantities = ['velocity', 'force', 'virial']
     if model_type != 'nep':
         quantities.append('bec')
     case = CommandIOCase(
         name='dump_netcdf_general_cell',
         run_in_lines=[
-            ('dump_xyz', [1, 'reference.xyz'] + quantities + ['precision', 'double']),
-            ('dump_netcdf', [1, 'general-cell.nc'] + quantities + ['precision', 'double']),
+            ('dump_xyz', [1, 'reference.xyz', 'position', 'both'] + quantities + ['precision', 'double']),
+            ('dump_netcdf', [1, 'general-cell.nc', 'unwrapped_position'] + quantities + ['precision', 'double']),
         ],
         expected_output_files=['reference.xyz', 'general-cell.nc'],
     )

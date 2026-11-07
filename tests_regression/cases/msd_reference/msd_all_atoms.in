@@ -3,5 +3,5 @@ time_step 1
 velocity 300 seed 20260919
 ensemble nve
 compute_msd 1 5
-dump_xyz 1 all_atoms.xyz unwrapped_position
+dump_xyz 1 all_atoms.xyz position both
 run 30

@@ -3,5 +3,5 @@ time_step 1
 velocity 300 seed 20260919
 ensemble nve
 compute_msd 1 5 group 0 0
-dump_xyz 1 group_0.xyz group 0 0 unwrapped_position
+dump_xyz 1 group_0.xyz group 0 0 position both
 run 30

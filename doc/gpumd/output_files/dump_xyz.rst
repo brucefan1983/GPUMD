@@ -15,9 +15,10 @@ per frame and the star is replaced by the step number.
 Every frame contains the atomic species and positions, which are wrapped by default.
 With ``position unwrapped``, the ``pos:R:3`` columns contain unwrapped coordinates instead,
 and the frame header includes ``position_mode=unwrapped``.
+With ``position both``, ``pos`` contains wrapped coordinates and ``unwrapped_position:R:3`` contains unwrapped coordinates.
 The following per-atom quantities are included when the corresponding keyword is given:
 :attr:`mass`, :attr:`charge`, :attr:`bec`, :attr:`velocity`, :attr:`force`, :attr:`potential`,
-:attr:`unwrapped_position`, :attr:`virial`, and :attr:`group_labels`.
+:attr:`virial`, and :attr:`group_labels`.
 The comment line of each frame always carries the time, the periodic boundary flags, the cell,
 and the total energy, virial, and stress.
 

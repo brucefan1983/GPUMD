@@ -155,12 +155,15 @@ void Dump_XYZ::parse(
         PRINT_INPUT_ERROR("Option 'position' is specified more than once in dump_xyz.\n");
       }
       if (m + 1 >= num_param ||
-          (tokens[m + 1] != "wrapped" && tokens[m + 1] != "unwrapped")) {
-        PRINT_INPUT_ERROR("Option 'position' requires 'wrapped' or 'unwrapped' in dump_xyz.\n");
+          (tokens[m + 1] != "wrapped" && tokens[m + 1] != "unwrapped" &&
+           tokens[m + 1] != "both")) {
+        PRINT_INPUT_ERROR("Option 'position' requires 'wrapped', 'unwrapped', or 'both' in dump_xyz.\n");
       }
       use_unwrapped_position_ = tokens[++m] == "unwrapped";
+      quantities.has_unwrapped_position_ = tokens[m] == "both";
       position_seen = true;
-      printf("    %s positions.\n", tokens[m].c_str());
+      printf("    %s positions.\n",
+             quantities.has_unwrapped_position_ ? "wrapped and unwrapped" : tokens[m].c_str());
       continue;
     }
     if (tokens[m] == "precision") {
@@ -184,15 +187,12 @@ void Dump_XYZ::parse(
       printf("    split every %d frames.\n", split_frames_);
       continue;
     }
+    if (tokens[m] == "unwrapped_position") {
+      PRINT_INPUT_ERROR("Use 'position both' instead of 'unwrapped_position' in dump_xyz.\n");
+    }
     if (!parse_dump_quantity(tokens[m], quantities, is_nep_charge, groups, "dump_xyz")) {
       PRINT_INPUT_ERROR("Unrecognized argument in dump_xyz.\n");
     }
-  }
-
-  if (use_unwrapped_position_ && quantities.has_unwrapped_position_) {
-    PRINT_INPUT_ERROR(
-      "Option 'position unwrapped' already writes unwrapped positions; "
-      "do not also request 'unwrapped_position'.\n");
   }
 
   if (split_frames_ > 0 && separated_) {

@@ -12,7 +12,7 @@ Syntax
 
 .. code::
 
-   dump_xyz <interval> <filename> [group <grouping_method> <group_id>] [position <wrapped|unwrapped>] [precision <single|double>] [split <frames_per_file>] {<property_1> <property_2> ...}
+   dump_xyz <interval> <filename> [group <grouping_method> <group_id>] [position <wrapped|unwrapped|both>] [precision <single|double>] [split <frames_per_file>] {<property_1> <property_2> ...}
 
 * :attr:`interval` is the output interval (number of steps) of the data.
 
@@ -29,14 +29,15 @@ If it is ended by a star (*), the data for one frame will be output to one file,
 
 If it is omitted, data for the whole system will be output.
 
-* The optional :attr:`position` parameter selects ``wrapped`` (default) or ``unwrapped`` coordinates for the ``pos:R:3`` columns.
+* The optional :attr:`position` parameter selects ``wrapped`` (default), ``unwrapped``, or ``both`` coordinate sets, as described below.
 
 * The :attr:`precision` option controls the number of significant digits written for every floating-point value.
 
 :attr:`single` (the default) writes nine significant digits, which is enough to recover a single-precision value exactly.
 :attr:`double` writes 17 significant digits, which is enough to recover a double-precision value exactly.
+This controls output precision, including positions and velocities; the MD calculation precision is unchanged.
 
-* Then one can write the properties to be output, and the allowed properties include: :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, :attr:`charge`, :attr:`bec`, :attr:`group_labels`, :attr:`spin`, :attr:`mforce`, and :attr:`unwrapped_position`.
+* Then one can write the properties to be output, and the allowed properties include: :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, :attr:`charge`, :attr:`bec`, :attr:`group_labels`, :attr:`spin`, and :attr:`mforce`.
 
 The :attr:`group_labels` property writes one integer column per grouping method, holding the label of the group each atom belongs to.
 
@@ -56,12 +57,12 @@ Coordinate output
      - Wrapped coordinates in ``pos``.
    * - ``position unwrapped``
      - Only unwrapped coordinates, in ``pos``.
-   * - ``unwrapped_position``
+   * - ``position both``
      - Wrapped coordinates in ``pos``; unwrapped coordinates in ``unwrapped_position``.
 
 Use ``position unwrapped`` to save space by storing only one coordinate set.
 GPUMD marks these frames with ``position_mode=unwrapped`` in the header; this is not a ``run.in`` option.
-``position unwrapped`` and ``unwrapped_position`` cannot be combined.
+The standalone ``unwrapped_position`` input property is no longer accepted; use ``position both``.
 
 Unwrapped coordinates preserve continuity across periodic boundaries and may lie outside the simulation cell.
 This applies to orthogonal and triclinic cells. Nonperiodic directions are not wrapped.
@@ -78,10 +79,10 @@ Examples
     dump_xyz 1000 positions.xyz
 
     # unwrapped positions and velocities:
-    dump_xyz 15 dump.xyz position unwrapped velocity
+    dump_xyz 15 dump.xyz position unwrapped velocity precision double
 
     # wrapped and unwrapped coordinates, plus velocities:
-    dump_xyz 15 both.xyz unwrapped_position velocity
+    dump_xyz 15 both.xyz position both velocity
 
     # group 0 of method 1:
     dump_xyz 15 group.xyz group 1 0 position unwrapped velocity
