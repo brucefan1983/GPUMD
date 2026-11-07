@@ -29,6 +29,7 @@ Dump per-atom data to user-specified file(s) in the extended XYZ format
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <stdlib.h>
+#include <sys/stat.h>
 #ifndef _WIN32
 #include <limits.h>
 #endif
@@ -94,25 +95,37 @@ bool Dump_XYZ::rerun_requires_velocity() const
 bool Dump_XYZ::rerun_overwrites_input(const std::string& path) const
 {
   if (separated_ != 0 || split_frames_ > 0) return false;
-  if (filename_ == path) return true;
+  return rerun_output_overwrites_input(filename_, path);
+}
+
+bool Dump_XYZ::rerun_output_overwrites_input(
+  const std::string& output_path, const std::string& input_path) const
+{
+  if (output_path == input_path) return true;
 
 #ifdef _WIN32
-  char output_path[_MAX_PATH];
-  char input_path[_MAX_PATH];
-  if (_fullpath(output_path, filename_.c_str(), _MAX_PATH) == nullptr ||
-      _fullpath(input_path, path.c_str(), _MAX_PATH) == nullptr) {
+  char canonical_output_path[_MAX_PATH];
+  char canonical_input_path[_MAX_PATH];
+  if (_fullpath(canonical_output_path, output_path.c_str(), _MAX_PATH) == nullptr ||
+      _fullpath(canonical_input_path, input_path.c_str(), _MAX_PATH) == nullptr) {
     return false;
   }
-  return _stricmp(output_path, input_path) == 0;
+  if (_stricmp(canonical_output_path, canonical_input_path) == 0) return true;
 #else
-  char output_path[PATH_MAX];
-  char input_path[PATH_MAX];
-  if (realpath(filename_.c_str(), output_path) == nullptr ||
-      realpath(path.c_str(), input_path) == nullptr) {
-    return false;
+  char canonical_output_path[PATH_MAX];
+  char canonical_input_path[PATH_MAX];
+  if (realpath(output_path.c_str(), canonical_output_path) != nullptr &&
+      realpath(input_path.c_str(), canonical_input_path) != nullptr &&
+      std::strcmp(canonical_output_path, canonical_input_path) == 0) {
+    return true;
   }
-  return std::strcmp(output_path, input_path) == 0;
 #endif
+
+  struct stat output_info;
+  struct stat input_info;
+  return stat(output_path.c_str(), &output_info) == 0 &&
+    stat(input_path.c_str(), &input_info) == 0 &&
+    output_info.st_dev == input_info.st_dev && output_info.st_ino == input_info.st_ino;
 }
 
 void Dump_XYZ::parse(
@@ -238,6 +251,10 @@ void Dump_XYZ::pre_run(
     splitter_.reset(filename_, split_frames_);
     fid_ = nullptr;
   } else if (separated_ == 0) {
+    if (!rerun_input_path_.empty() &&
+        rerun_output_overwrites_input(filename_, rerun_input_path_)) {
+      PRINT_INPUT_ERROR("rerun dump_xyz output must not overwrite the input trajectory.");
+    }
     fid_ = my_fopen(filename_.c_str(), "a");
   }
 
@@ -459,12 +476,20 @@ void Dump_XYZ::end_of_step(
 
   if (separated_) {
     std::string filename = filename_ + std::to_string(step + 1);
+    if (!rerun_input_path_.empty() &&
+        rerun_output_overwrites_input(filename, rerun_input_path_)) {
+      PRINT_INPUT_ERROR("rerun dump_xyz output must not overwrite the input trajectory.");
+    }
     fid_ = my_fopen(filename.data(), "w");
   } else if (split_frames_ > 0 && splitter_.needs_new_file()) {
     if (fid_ != nullptr) {
       fclose(fid_);
     }
     const std::string filename = splitter_.next_filename();
+    if (!rerun_input_path_.empty() &&
+        rerun_output_overwrites_input(filename, rerun_input_path_)) {
+      PRINT_INPUT_ERROR("rerun dump_xyz output must not overwrite the input trajectory.");
+    }
     fid_ = my_fopen(filename.c_str(), "w");
   }
 

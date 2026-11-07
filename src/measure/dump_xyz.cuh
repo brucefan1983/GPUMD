@@ -37,6 +37,9 @@ public:
   void validate_rerun(bool has_potential) const;
   bool rerun_requires_velocity() const;
   bool rerun_overwrites_input(const std::string& path) const;
+  bool rerun_output_overwrites_input(
+    const std::string& output_path, const std::string& input_path) const;
+  void set_rerun_input_path(const std::string& path) { rerun_input_path_ = path; }
   void set_header_step(long long timestep) { header_step_ = timestep; }
 
   virtual void pre_run(
@@ -84,6 +87,7 @@ private:
   int split_frames_ = 0;
   XYZFrameSplitter splitter_;
   std::string filename_;
+  std::string rerun_input_path_;
   std::string fmt_;
   FILE* fid_ = nullptr;
 

@@ -128,9 +128,12 @@ void Measure::validate_rerun(bool has_potential) const
 
 void Measure::pre_rerun(
   const double time_step, const double temperature, Integrate& integrate, std::vector<Group>& group,
-  Atom& atom, Box& box, Force& force)
+  Atom& atom, Box& box, Force& force, const std::string& trajectory)
 {
   for (auto& action : actions_) {
+    if (action->action_name == "dump_xyz") {
+      static_cast<Dump_XYZ*>(action.get())->set_rerun_input_path(trajectory);
+    }
 #ifdef USE_PLUMED
     if (action->action_name == "plumed") {
       static_cast<PLUMED*>(action.get())->pre_rerun(time_step, temperature, atom);

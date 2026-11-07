@@ -503,7 +503,8 @@ void Run::parse_rerun(const std::vector<std::string>& tokens)
   long long previous_step = std::numeric_limits<long long>::min();
   try {
     gpumd_rerun::Frame frame;
-    measure.pre_rerun(time_step, simulation_temperature, integrate, group, atom, box, force);
+    measure.pre_rerun(
+      time_step, simulation_temperature, integrate, group, atom, box, force, tokens[1]);
     gpumd_rerun::Reader reader(tokens[1]);
     while (reader.next(frame)) {
       const long long step = gpumd_rerun::frame_step(frame, dt_fs);

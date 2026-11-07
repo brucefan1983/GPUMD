@@ -40,7 +40,7 @@ public:
 
   void pre_rerun(
     const double time_step, const double temperature, Integrate& integrate, std::vector<Group>& group,
-    Atom& atom, Box& box, Force& force);
+    Atom& atom, Box& box, Force& force, const std::string& trajectory);
   void rerun_frame(
     const long long timestep, const double time_natural,
     Integrate& integrate, std::vector<Group>& group, Atom& atom,
