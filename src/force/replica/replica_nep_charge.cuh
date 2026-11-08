@@ -18,8 +18,8 @@ Charge NEP (qNEP) for replica dynamics.
 
 One object per replica stream: its qNEP state (descriptors, charges,
 Ewald or PPPM mesh and FFT plans) is only used by that stream, and all of its
-device work runs on it. The candidate neighbor list is a Replica_Neighbor on
-the same stream instead of the NeighborManager of the model.
+device work runs on it. The candidate neighbor list of the large-box path is a
+Replica_Neighbor on the same stream.
 ------------------------------------------------------------------------------*/
 
 #pragma once

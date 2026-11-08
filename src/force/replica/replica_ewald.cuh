@@ -15,6 +15,7 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
+#include <vector>
 
 class Replica_Ewald
 {
@@ -47,5 +48,10 @@ private:
     GPU_Vector<float> G;
     GPU_Vector<float> S_real;
     GPU_Vector<float> S_imag;
+    // Host copies of the k-vectors, kept until their upload to the device has completed.
+    std::vector<float> cpu_kx;
+    std::vector<float> cpu_ky;
+    std::vector<float> cpu_kz;
+    std::vector<float> cpu_G;
     void find_k_and_G(const double* box);
 };

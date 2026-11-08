@@ -19,8 +19,6 @@ Charge NEP (qNEP) model of replica dynamics, a copy of NEP_Charge
 ------------------------------------------------------------------------------*/
 
 #pragma once
-#include "force/dftd3/dftd3.cuh"
-#include "force/neighbor.cuh"
 #include "force/potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -43,16 +41,9 @@ struct NEP_Charge_Replica_Data {
   GPU_Vector<float> parameters; // parameters to be optimized
   std::vector<int> cpu_NN_radial;
   std::vector<int> cpu_NN_angular;
-  GPU_Vector<float> kx;
-  GPU_Vector<float> ky;
-  GPU_Vector<float> kz;
-  GPU_Vector<float> G;
-  GPU_Vector<float> S_real;
-  GPU_Vector<float> S_imag;
   GPU_Vector<float> D_real;
   GPU_Vector<float> charge;
   GPU_Vector<float> charge_derivative;
-  GPU_Vector<float> bec;               // BEC
 };
 
 class NEP_Charge_Replica_Model : public Potential
@@ -133,7 +124,6 @@ public:
     float B;
   };
 
-  NEP_Charge_Replica_Model(const char* file_potential, const int num_atoms, const RunInput& run_input);
   virtual ~NEP_Charge_Replica_Model(void);
   virtual void compute(
     Box& box,
@@ -143,49 +133,40 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
 
-  const GPU_Vector<int>& get_NN_radial_ptr();
-
-  const GPU_Vector<int>& get_NL_radial_ptr();
-
-  GPU_Vector<float>& get_charge_reference();
-
-  GPU_Vector<float>& get_bec_reference();
-
   // Whether the box needs the small-box path; also fills the expanded box for it.
   static bool get_expanded_box(const double rc, const Box& box, ExpandedBox& ebox);
 
 protected:
-  // As above; verbose = false skips the model and PPPM mesh information, e.g. for all
-  // but one of several copies of the same model.
+  // verbose = false skips the model and PPPM mesh information, e.g. for all but one of
+  // several copies of the same model.
   NEP_Charge_Replica_Model(
     const char* file_potential,
     const int num_atoms,
     const RunInput& run_input,
     const bool verbose);
 
-  // Stream for all kernel launches; the default stream unless a derived class sets
-  // one (replica dynamics evaluates one qNEP per replica stream).
+  // Stream for all kernel launches, set by the derived class (replica dynamics evaluates
+  // one qNEP per replica stream).
   gpuStream_t stream_ = nullptr;
   int num_calls_large_box_ = 0;
   int num_calls_small_box_ = 0;
 
-  // Global (candidate) neighbor list for the large-box path.
+  // Global (candidate) neighbor list for the large-box path, provided by the derived class
+  // on its stream.
   virtual void update_candidate_neighbors(
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position_per_atom,
     const int*& NN,
-    const int*& NL);
+    const int*& NL) = 0;
 
   ParaMB paramb;
   ANN annmb;
   ZBL zbl;
   ExpandedBox ebox;
-  DFTD3 dftd3;
   Charge_Para charge_para;
   Replica_Ewald ewald;
   Replica_PPPM pppm;
-  NeighborManager neighbor_manager;
 
   void update_potential(float* parameters, ANN& ann);
 
@@ -207,11 +188,7 @@ protected:
 
   void find_k_and_G(const double* box);
 
-  bool need_bec = false;
-  void check_need_bec(const RunInput& run_input);
   bool use_pppm = true; // use PPPM by default
   double pppm_spacing;
   void check_ewald_pppm(const RunInput& run_input);
-  bool has_dftd3 = false;
-  void initialize_dftd3(const RunInput& run_input);
 };

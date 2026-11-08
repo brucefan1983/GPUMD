@@ -15,10 +15,12 @@
 
 /*----------------------------------------------------------------------------80
 Charge NEP (qNEP) model of replica dynamics: a copy of
-force/nep_charge/nep_charge.cu with all launches on a given stream and a
-replaceable candidate neighbor list, kept separate from NEP_Charge so that
-ordinary qNEP force evaluation is not affected by replica dynamics. Keep it in
-sync with force/nep_charge by hand.
+force/nep_charge/nep_charge.cu with all launches on a given stream and the
+candidate neighbor list provided by the derived class, kept separate from
+NEP_Charge so that ordinary qNEP force evaluation is not affected by replica
+dynamics. DFTD3, BEC and the per-atom PPPM virial are left out: a replica run
+accepts none of the commands that use them. Keep it in sync with
+force/nep_charge by hand.
 
 Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to
@@ -30,7 +32,6 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "replica_nep_charge_model.cuh"
 #include "replica_nep_charge_small_box.cuh"
 #include "utilities/common.cuh"
-#include "utilities/nep_io/compact_nep.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
@@ -81,102 +82,6 @@ void NEP_Charge_Replica_Model::check_ewald_pppm(const RunInput& run_input)
       }
     }
   }
-}
-
-void NEP_Charge_Replica_Model::check_need_bec(const RunInput& run_input)
-{
-  need_bec = false;
-  for (const auto& line : run_input.lines()) {
-    const std::vector<std::string>& tokens = line.tokens;
-    if (!tokens.empty()) {
-      if (tokens[0] == "compute_dpdt") {
-        need_bec = true;
-        break;
-      }
-
-      if (tokens[0] == "dump_xyz" || tokens[0] == "dump_netcdf") {
-        for (int n = 3; n < tokens.size(); ++n) {
-          if (tokens[n] == "bec") {
-            need_bec = true;
-            break;
-          }
-        }
-        if (need_bec) {
-          break;
-        }
-      }
-
-      if (tokens[0] == "add_efield") {
-        if (
-          tokens.size() == 4 || tokens.size() == 6 ||
-          ((tokens.size() == 5 || tokens.size() == 7) && tokens.back() == "bec")) {
-          need_bec = true;
-          break;
-        }
-      }
-    }
-  }
-}
-
-static bool check_need_peratom_virial(const RunInput& run_input)
-{
-  for (const auto& line : run_input.lines()) {
-    const std::vector<std::string>& tokens = line.tokens;
-    if (tokens.empty()) {
-      continue;
-    }
-    if (
-      tokens[0] == "compute_hac" || tokens[0] == "compute_hnemd" ||
-      tokens[0] == "compute_hnemdec" || tokens[0] == "compute_shc" ||
-      tokens[0] == "compute_gkma" || tokens[0] == "compute_hnema") {
-      return true;
-    }
-    if (tokens[0] == "compute") {
-      for (const auto& token : tokens) {
-        if (token == "virial" || token == "jp") {
-          return true;
-        }
-      }
-    }
-    if (tokens[0] == "dump_xyz" || tokens[0] == "dump_netcdf") {
-      for (const auto& token : tokens) {
-        if (token == "virial") {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
-}
-
-void NEP_Charge_Replica_Model::initialize_dftd3(const RunInput& run_input)
-{
-  has_dftd3 = false;
-  for (const auto& line : run_input.lines()) {
-    const std::vector<std::string>& tokens = line.tokens;
-    if (!tokens.empty() && tokens[0] == "dftd3") {
-      has_dftd3 = true;
-      if (tokens.size() != 4) {
-        std::cout << "dftd3 must have 3 parameters\n";
-        exit(1);
-      }
-      std::string xc_functional = tokens[1];
-      float rc_potential = get_double_from_token(tokens[2], __FILE__, __LINE__);
-      float rc_coordination_number = get_double_from_token(tokens[3], __FILE__, __LINE__);
-      dftd3.initialize(
-        xc_functional,
-        rc_potential,
-        rc_coordination_number,
-        get_first_potential_filename(run_input));
-      break;
-    }
-  }
-}
-
-NEP_Charge_Replica_Model::NEP_Charge_Replica_Model(
-  const char* file_potential, const int num_atoms, const RunInput& run_input)
-  : NEP_Charge_Replica_Model(file_potential, num_atoms, run_input, true)
-{
 }
 
 NEP_Charge_Replica_Model::NEP_Charge_Replica_Model(
@@ -315,9 +220,9 @@ NEP_Charge_Replica_Model::NEP_Charge_Replica_Model(
   // charge related parameters and data
   charge_para.alpha = float(PI) / paramb.rc_radial; // a good value
   check_ewald_pppm(run_input);
-  check_need_bec(run_input);
   if (use_pppm) {
-    pppm.initialize(charge_para.alpha, check_need_peratom_virial(run_input), pppm_spacing);
+    // Replica dynamics needs no per-atom virial (no heat-current or virial output).
+    pppm.initialize(charge_para.alpha, false, pppm_spacing);
     pppm.set_verbose(verbose);
   } else {
     ewald.initialize(charge_para.alpha);
@@ -329,9 +234,6 @@ NEP_Charge_Replica_Model::NEP_Charge_Replica_Model(
   nep_data.D_real.resize(num_atoms);
   nep_data.charge.resize(num_atoms);
   nep_data.charge_derivative.resize(num_atoms * annmb.dim);
-  if (need_bec) {
-    nep_data.bec.resize(num_atoms * 9);
-  }
 
   nep_data.f12x.resize(num_atoms * paramb.MN_angular);
   nep_data.f12y.resize(num_atoms * paramb.MN_angular);
@@ -345,9 +247,6 @@ NEP_Charge_Replica_Model::NEP_Charge_Replica_Model(
     num_atoms * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
-  neighbor_manager.initialize(rc, num_atoms, paramb.MN_radial);
-
-  initialize_dftd3(run_input);
 }
 
 NEP_Charge_Replica_Model::~NEP_Charge_Replica_Model(void)
@@ -613,234 +512,6 @@ static __global__ void zero_mean_D_real(const int N, float* g_D_real)
     int n = tid + batch * 1024;
     if (n < N) {
       g_D_real[n] -= mean_D;
-    }
-  }
-}
-
-static __global__ void find_bec_diagonal(const int N, const float* g_q, float* g_bec)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
-    g_bec[n1 + N * 0] = g_q[n1];
-    g_bec[n1 + N * 1] = 0.0f;
-    g_bec[n1 + N * 2] = 0.0f;
-    g_bec[n1 + N * 3] = 0.0f;
-    g_bec[n1 + N * 4] = g_q[n1];
-    g_bec[n1 + N * 5] = 0.0f;
-    g_bec[n1 + N * 6] = 0.0f;
-    g_bec[n1 + N * 7] = 0.0f;
-    g_bec[n1 + N * 8] = g_q[n1];
-  }
-}
-
-static __global__ void find_bec_radial(
-  const NEP_Charge_Replica_Model::ParaMB paramb,
-  const NEP_Charge_Replica_Model::ANN annmb,
-  const int N,
-  const int N1,
-  const int N2,
-  const Box box,
-  const int* g_NN,
-  const int* g_NL,
-  const int* g_type,
-  const double* g_x,
-  const double* g_y,
-  const double* g_z,
-  const float* g_charge_derivative,
-  float* g_bec)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 < N2) {
-    int t1 = g_type[n1];
-    double x1 = g_x[n1];
-    double y1 = g_y[n1];
-    double z1 = g_z[n1];
-    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int n2 = g_NL[n1 + N * i1];
-      int t2 = g_type[n2];
-      float x12 = g_x[n2] - x1;
-      float y12 = g_y[n2] - y1;
-      float z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      float r12[3] = {x12, y12, z12};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12inv = 1.0f / d12;
-      float fc12, fcp12;
-      float rc = paramb.rc_radial;
-      float rcinv = 1.0f / rc;
-      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
-      float fn12[MAX_NUM_N];
-      float fnp12[MAX_NUM_N];
-      float f12[3] = {0.0f};
-
-      find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
-      for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float gnp12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = get_c_index(
-            t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
-          gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
-        }
-        const float tmp12 = g_charge_derivative[n1 + n * N] * gnp12 * d12inv;
-        for (int d = 0; d < 3; ++d) {
-          f12[d] += tmp12 * r12[d];
-        }
-      }
-
-      float bec_xx = 0.5f* (r12[0] * f12[0]);
-      float bec_xy = 0.5f* (r12[0] * f12[1]);
-      float bec_xz = 0.5f* (r12[0] * f12[2]);
-      float bec_yx = 0.5f* (r12[1] * f12[0]);
-      float bec_yy = 0.5f* (r12[1] * f12[1]);
-      float bec_yz = 0.5f* (r12[1] * f12[2]);
-      float bec_zx = 0.5f* (r12[2] * f12[0]);
-      float bec_zy = 0.5f* (r12[2] * f12[1]);
-      float bec_zz = 0.5f* (r12[2] * f12[2]);
-
-      atomicAdd(&g_bec[n1], bec_xx);
-      atomicAdd(&g_bec[n1 + N], bec_xy);
-      atomicAdd(&g_bec[n1 + N * 2], bec_xz);
-      atomicAdd(&g_bec[n1 + N * 3], bec_yx);
-      atomicAdd(&g_bec[n1 + N * 4], bec_yy);
-      atomicAdd(&g_bec[n1 + N * 5], bec_yz);
-      atomicAdd(&g_bec[n1 + N * 6], bec_zx);
-      atomicAdd(&g_bec[n1 + N * 7], bec_zy);
-      atomicAdd(&g_bec[n1 + N * 8], bec_zz);
-
-      atomicAdd(&g_bec[n2], -bec_xx);
-      atomicAdd(&g_bec[n2 + N], -bec_xy);
-      atomicAdd(&g_bec[n2 + N * 2], -bec_xz);
-      atomicAdd(&g_bec[n2 + N * 3], -bec_yx);
-      atomicAdd(&g_bec[n2 + N * 4], -bec_yy);
-      atomicAdd(&g_bec[n2 + N * 5], -bec_yz);
-      atomicAdd(&g_bec[n2 + N * 6], -bec_zx);
-      atomicAdd(&g_bec[n2 + N * 7], -bec_zy);
-      atomicAdd(&g_bec[n2 + N * 8], -bec_zz);
-    }
-  }
-}
-
-static __global__ void find_bec_angular(
-  NEP_Charge_Replica_Model::ParaMB paramb,
-  NEP_Charge_Replica_Model::ANN annmb,
-  const int N,
-  const int N1,
-  const int N2,
-  const Box box,
-  const int* g_NN_angular,
-  const int* g_NL_angular,
-  const int* g_type,
-  const double* g_x,
-  const double* g_y,
-  const double* g_z,
-  const float* g_charge_derivative,
-  const float* g_sum_fxyz,
-  float* g_bec)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 < N2) {
-    float Fp[MAX_DIM_ANGULAR] = {0.0f};
-    float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
-    for (int d = 0; d < paramb.dim_angular; ++d) {
-      Fp[d] = g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1];
-    }
-    for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
-      for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        sum_fxyz[n * NUM_OF_ABC + abc] =
-          g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1];
-      }
-    }
-
-    int t1 = g_type[n1];
-    double x1 = g_x[n1];
-    double y1 = g_y[n1];
-    double z1 = g_z[n1];
-    for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
-      int n2 = g_NL_angular[n1 + N * i1];
-      float x12 = g_x[n2] - x1;
-      float y12 = g_y[n2] - y1;
-      float z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      float r12[3] = {x12, y12, z12};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float f12[3] = {0.0f};
-      float fc12, fcp12;
-      int t2 = g_type[n2];
-      float rc = paramb.rc_angular;
-      float rcinv = 1.0f / rc;
-      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
-
-      float fn12[MAX_NUM_N];
-      float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
-      for (int n = 0; n <= paramb.n_max_angular; ++n) {
-        float gn12 = 0.0f;
-        float gnp12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = get_c_index(
-            t1 * paramb.num_types + t2,
-            n,
-            k,
-            paramb.n_max_angular,
-            paramb.basis_size_angular,
-            paramb.num_c_radial);
-          gn12 += fn12[k] * annmb.c_type_pair[c_index];
-          gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
-        }
-        accumulate_f12(
-          paramb.L_max,
-          paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
-          paramb.num_L,
-          n,
-          paramb.n_max_angular + 1,
-          d12,
-          r12,
-          gn12,
-          gnp12,
-          Fp,
-          sum_fxyz,
-          f12);
-      }
-
-      float bec_xx = 0.5f* (r12[0] * f12[0]);
-      float bec_xy = 0.5f* (r12[0] * f12[1]);
-      float bec_xz = 0.5f* (r12[0] * f12[2]);
-      float bec_yx = 0.5f* (r12[1] * f12[0]);
-      float bec_yy = 0.5f* (r12[1] * f12[1]);
-      float bec_yz = 0.5f* (r12[1] * f12[2]);
-      float bec_zx = 0.5f* (r12[2] * f12[0]);
-      float bec_zy = 0.5f* (r12[2] * f12[1]);
-      float bec_zz = 0.5f* (r12[2] * f12[2]);
-
-      atomicAdd(&g_bec[n1], bec_xx);
-      atomicAdd(&g_bec[n1 + N], bec_xy);
-      atomicAdd(&g_bec[n1 + N * 2], bec_xz);
-      atomicAdd(&g_bec[n1 + N * 3], bec_yx);
-      atomicAdd(&g_bec[n1 + N * 4], bec_yy);
-      atomicAdd(&g_bec[n1 + N * 5], bec_yz);
-      atomicAdd(&g_bec[n1 + N * 6], bec_zx);
-      atomicAdd(&g_bec[n1 + N * 7], bec_zy);
-      atomicAdd(&g_bec[n1 + N * 8], bec_zz);
-
-      atomicAdd(&g_bec[n2], -bec_xx);
-      atomicAdd(&g_bec[n2 + N], -bec_xy);
-      atomicAdd(&g_bec[n2 + N * 2], -bec_xz);
-      atomicAdd(&g_bec[n2 + N * 3], -bec_yx);
-      atomicAdd(&g_bec[n2 + N * 4], -bec_yy);
-      atomicAdd(&g_bec[n2 + N * 5], -bec_yz);
-      atomicAdd(&g_bec[n2 + N * 6], -bec_zx);
-      atomicAdd(&g_bec[n2 + N * 7], -bec_zy);
-      atomicAdd(&g_bec[n2 + N * 8], -bec_zz);
-    }
-  }
-}
-
-static __global__ void scale_bec(const int N, const float* sqrt_epsilon_inf, float* g_bec)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
-    for (int d = 0; d < 9; ++d) {
-      g_bec[n1 + N * d] *= sqrt_epsilon_inf[0];
     }
   }
 }
@@ -1256,19 +927,6 @@ static __global__ void find_charge_self_energy(
   }
 }
 
-// large box fo MD applications
-void NEP_Charge_Replica_Model::update_candidate_neighbors(
-  Box& box,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position_per_atom,
-  const int*& NN,
-  const int*& NL)
-{
-  neighbor_manager.update(box, type, position_per_atom);
-  NN = neighbor_manager.get_candidate_NN().data();
-  NL = neighbor_manager.get_candidate_NL().data();
-}
-
 void NEP_Charge_Replica_Model::compute_large_box(
   Box& box,
   const GPU_Vector<int>& type,
@@ -1354,59 +1012,6 @@ void NEP_Charge_Replica_Model::compute_large_box(
   // enforce charge neutrality
   zero_total_charge<<<1, 1024, 0, stream_>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
-
-  if (need_bec) {
-    // get BEC (the diagonal part)
-    find_bec_diagonal<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      N,
-      nep_data.charge.data(),
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
-
-    // get BEC (radial descriptor part)
-    find_bec_radial<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      paramb,
-      annmb,
-      N,
-      N1,
-      N2,
-      box,
-      nep_data.NN_radial.data(),
-      nep_data.NL_radial.data(),
-      type.data(),
-      position_per_atom.data(),
-      position_per_atom.data() + N,
-      position_per_atom.data() + N * 2,
-      nep_data.charge_derivative.data(),
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
-
-    // get BEC (angular descriptor part)
-    find_bec_angular<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      paramb,
-      annmb,
-      N,
-      N1,
-      N2,
-      box,
-      nep_data.NN_angular.data(),
-      nep_data.NL_angular.data(),
-      type.data(),
-      position_per_atom.data(),
-      position_per_atom.data() + N,
-      position_per_atom.data() + N * 2,
-      nep_data.charge_derivative.data(),
-      nep_data.sum_fxyz.data(),
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
-
-    // scale q to q * sqrt(epsilon_inf)
-    scale_bec<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      N,
-      annmb.sqrt_epsilon_inf,
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
-  }
 
   if (use_pppm) {
     pppm.find_force(
@@ -1647,57 +1252,6 @@ void NEP_Charge_Replica_Model::compute_small_box(
   zero_total_charge<<<1, 1024, 0, stream_>>>(N, nep_data.charge.data());
   GPU_CHECK_KERNEL
 
-  if (need_bec) {
-    // get BEC (the diagonal part)
-    find_bec_diagonal<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      N,
-      nep_data.charge.data(),
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
-
-    // get BEC (radial descriptor part)
-    find_bec_radial_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      paramb,
-      annmb,
-      N,
-      N1,
-      N2,
-      small_box_data.NN_radial.data(),
-      small_box_data.NL_radial.data(),
-      type.data(),
-      small_box_data.r12.data(),
-      small_box_data.r12.data() + size_x12,
-      small_box_data.r12.data() + size_x12 * 2,
-      nep_data.charge_derivative.data(),
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
-
-    // get BEC (angular descriptor part)
-    find_bec_angular_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      paramb,
-      annmb,
-      N,
-      N1,
-      N2,
-      small_box_data.NN_angular.data(),
-      small_box_data.NL_angular.data(),
-      type.data(),
-      small_box_data.r12.data() + size_x12 * 3,
-      small_box_data.r12.data() + size_x12 * 4,
-      small_box_data.r12.data() + size_x12 * 5,
-      nep_data.charge_derivative.data(),
-      nep_data.sum_fxyz.data(),
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
-
-    // scale q to q * sqrt(epsilon_inf)
-    scale_bec<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
-      N,
-      annmb.sqrt_epsilon_inf,
-      nep_data.bec.data());
-    GPU_CHECK_KERNEL
-  }
-
   if (use_pppm) {
     pppm.find_force(
       N,
@@ -1917,16 +1471,4 @@ void NEP_Charge_Replica_Model::compute(
     compute_large_box(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   }
-  if (has_dftd3) {
-    dftd3.compute(
-      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
-  }
 }
-
-const GPU_Vector<int>& NEP_Charge_Replica_Model::get_NN_radial_ptr() { return nep_data.NN_radial; }
-
-const GPU_Vector<int>& NEP_Charge_Replica_Model::get_NL_radial_ptr() { return nep_data.NL_radial; }
-
-GPU_Vector<float>& NEP_Charge_Replica_Model::get_charge_reference() { return nep_data.charge; }
-
-GPU_Vector<float>& NEP_Charge_Replica_Model::get_bec_reference() { return nep_data.bec; }

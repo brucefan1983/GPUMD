@@ -54,7 +54,7 @@ static double gasdev(std::mt19937& rng, SVR_Gaussian_Cache& cache)
   }
 }
 
-inline double gasdev(std::mt19937& rng)
+static inline double gasdev(std::mt19937& rng)
 {
   return gasdev(rng, default_svr_gaussian_cache());
 }
@@ -153,7 +153,7 @@ static double resamplekin(
          2.0 * noise.gaussian * sqrt(kk * sigma / ndeg * (1.0 - factor) * factor);
 }
 
-inline double resamplekin(double kk, double sigma, int ndeg, double taut, std::mt19937& rng)
+static inline double resamplekin(double kk, double sigma, int ndeg, double taut, std::mt19937& rng)
 {
   return resamplekin(kk, sigma, ndeg, taut, rng, default_svr_gaussian_cache());
 }

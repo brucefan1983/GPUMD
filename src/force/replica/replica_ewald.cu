@@ -99,10 +99,13 @@ void Replica_Ewald::find_k_and_G(const double* box)
   int n3_max = alpha * two_pi * get_area(b1, b2) / volume_k;
   float ksq_max = two_pi * two_pi * alpha * alpha;
 
-  std::vector<float> cpu_kx;
-  std::vector<float> cpu_ky;
-  std::vector<float> cpu_kz;
-  std::vector<float> cpu_G;
+  // The host k-vectors and the device arrays may still be used by earlier work on stream_
+  // (the kernels of the previous step and the asynchronous upload below).
+  CHECK(gpuStreamSynchronize(stream_));
+  cpu_kx.clear();
+  cpu_ky.clear();
+  cpu_kz.clear();
+  cpu_G.clear();
 
   for (int n1 = 0; n1 <= n1_max; ++n1) {
     for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
@@ -126,11 +129,6 @@ void Replica_Ewald::find_k_and_G(const double* box)
 
   num_kpoints = int(cpu_kx.size());
 
-  // The k-vectors are copied (and possibly reallocated) while earlier work may still use them.
-  if (stream_ != nullptr) {
-    CHECK(gpuStreamSynchronize(stream_));
-  }
-
   if (num_kpoints > num_kpoints_max) {
     num_kpoints_max = num_kpoints;
     kx.resize(num_kpoints_max);
@@ -141,10 +139,12 @@ void Replica_Ewald::find_k_and_G(const double* box)
     S_imag.resize(num_kpoints_max);
   }
 
-  kx.copy_from_host(cpu_kx.data(), num_kpoints);
-  ky.copy_from_host(cpu_ky.data(), num_kpoints);
-  kz.copy_from_host(cpu_kz.data(), num_kpoints);
-  G.copy_from_host(cpu_G.data(), num_kpoints);
+  // Uploaded on stream_, ahead of the kernels that use them; the host vectors are members, so
+  // they outlive the copies.
+  kx.copy_from_host_async(cpu_kx.data(), num_kpoints, stream_);
+  ky.copy_from_host_async(cpu_ky.data(), num_kpoints, stream_);
+  kz.copy_from_host_async(cpu_kz.data(), num_kpoints, stream_);
+  G.copy_from_host_async(cpu_G.data(), num_kpoints, stream_);
 }
 
 static __global__ void find_structure_factor(
