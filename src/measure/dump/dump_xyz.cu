@@ -62,7 +62,7 @@ Dump_XYZ::Dump_XYZ(
 
   parse(tokens, groups);
 
-  if (quantities.has_unwrapped_position_) {
+  if (use_unwrapped_position_ || quantities.has_unwrapped_position_) {
     atom.enable_unwrapped_position();
   }
 
@@ -149,6 +149,14 @@ void Dump_XYZ::parse(
       group_seen = true;
       continue;
     }
+    if (tokens[m] == "unwrapped_position_only") {
+      if (use_unwrapped_position_) {
+        PRINT_INPUT_ERROR("Option 'unwrapped_position_only' is specified more than once in dump_xyz.\n");
+      }
+      use_unwrapped_position_ = true;
+      printf("    unwrapped positions only.\n");
+      continue;
+    }
     if (tokens[m] == "precision") {
       if (precision_seen) {
         PRINT_INPUT_ERROR("Option 'precision' is specified more than once in dump_xyz.\n");
@@ -173,6 +181,10 @@ void Dump_XYZ::parse(
     if (!parse_dump_quantity(tokens[m], quantities, is_nep_charge, groups, "dump_xyz")) {
       PRINT_INPUT_ERROR("Unrecognized argument in dump_xyz.\n");
     }
+  }
+
+  if (use_unwrapped_position_ && quantities.has_unwrapped_position_) {
+    PRINT_INPUT_ERROR("Options 'unwrapped_position' and 'unwrapped_position_only' are mutually exclusive in dump_xyz.\n");
   }
 
   if (split_frames_ > 0 && separated_) {
@@ -230,7 +242,7 @@ void Dump_XYZ::pre_run(
   if (quantities.has_potential_) {
     cpu_potential_per_atom_.resize(atom.number_of_atoms);
   }
-  if (quantities.has_unwrapped_position_) {
+  if (use_unwrapped_position_ || quantities.has_unwrapped_position_) {
     cpu_unwrapped_position_.resize(atom.number_of_atoms * 3);
   }
   if (quantities.has_virial_) {
@@ -357,6 +369,10 @@ void Dump_XYZ::output_line2(
     fprintf(fid_, ":group:I:%d", num_grouping_methods);
   }
 
+  if (use_unwrapped_position_) {
+    fprintf(fid_, " position_mode=unwrapped");
+  }
+
   // Over
   fprintf(fid_, "\n");
 }
@@ -418,7 +434,7 @@ void Dump_XYZ::end_of_step(
   if (quantities.has_potential_) {
     atom.potential_per_atom.copy_to_host(cpu_potential_per_atom_.data());
   }
-  if (quantities.has_unwrapped_position_) {
+  if (use_unwrapped_position_ || quantities.has_unwrapped_position_) {
     atom.unwrapped_position.copy_to_host(cpu_unwrapped_position_.data());
   }
   if (quantities.has_virial_) {
@@ -443,6 +459,8 @@ void Dump_XYZ::end_of_step(
   output_line2(global_time, box, groups, atom.cpu_atom_symbol, atom.virial_per_atom, thermo);
 
   // other lines
+  const auto& positions =
+    use_unwrapped_position_ ? cpu_unwrapped_position_ : atom.cpu_position_per_atom;
   for (int n = 0; n < number_of_atoms_to_dump; n++) {
 
     int m = n;
@@ -453,7 +471,7 @@ void Dump_XYZ::end_of_step(
 
     fprintf(fid_, "%s", atom.cpu_atom_symbol[m].c_str());
     for (int d = 0; d < 3; ++d) {
-      fprintf(fid_, fmt_.c_str(), atom.cpu_position_per_atom[m + atom.number_of_atoms * d]);
+      fprintf(fid_, fmt_.c_str(), positions[m + atom.number_of_atoms * d]);
     }
     if (quantities.has_mass_) {
       fprintf(fid_, fmt_.c_str(), atom.cpu_mass[m]);

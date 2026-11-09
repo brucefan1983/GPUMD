@@ -38,7 +38,9 @@ If it is omitted, data for the whole system will be output.
 
 The :attr:`group_labels` property writes one integer column per grouping method, holding the label of the group each atom belongs to.
 
-* The wrapped positions will always be included in the output.
+* The wrapped positions are included by default. The :attr:`unwrapped_position` property adds unwrapped positions.
+  Use :attr:`unwrapped_position_only` to write only unwrapped positions instead.
+  The :attr:`unwrapped_position` and :attr:`unwrapped_position_only` options are mutually exclusive.
 
 
 Examples
@@ -50,6 +52,9 @@ Examples
 
     # dump positions every 1000 steps, for the whole system:
     dump_xyz 1000 positions.xyz
+
+    # dump only unwrapped positions, plus velocities:
+    dump_xyz 15 dump.xyz unwrapped_position_only velocity
 
     # dump many other quantities every 100 steps, for atoms in group 0 of grouping method 1:
     dump_xyz 100 properties.xyz group 1 0 mass velocity potential force virial
