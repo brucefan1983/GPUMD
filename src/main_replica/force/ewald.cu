@@ -139,7 +139,9 @@ void Ewald::find_k_and_G(const double* box, const gpuStream_t stream)
   ky.copy_from_host_async(cpu_ky.data(), num_kpoints, stream);
   kz.copy_from_host_async(cpu_kz.data(), num_kpoints, stream);
   G.copy_from_host_async(cpu_G.data(), num_kpoints, stream);
-  CHECK(gpuStreamSynchronize(stream));
+  // The cpu_* vectors are pageable memory, and both CUDA and HIP finish reading a pageable
+  // source before the async copy returns, so the vectors may go out of scope here. A stream
+  // synchronization would serialize the replica streams that this thread interleaves.
 }
 
 static __global__ void find_structure_factor(
