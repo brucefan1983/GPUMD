@@ -9,6 +9,26 @@ Write some data (positions and optionally velocities and forces) into `beads_dum
 Each file thus contains the data for one bead.
 The comment line of each frame carries the time, the periodic boundary flags, and the cell.
 
+Syntax
+------
+
+.. code::
+
+   dump_beads <interval> <has_velocity> <has_force>
+
+* :attr:`interval` is a positive integer giving the output interval in MD steps.
+* :attr:`has_velocity` is an integer flag: 0 omits velocities, and a nonzero value includes them.
+* :attr:`has_force` is an integer flag: 0 omits forces, and a nonzero value includes them.
+
+Positions are always included. All three parameters are required.
+
+Example
+-------
+
+To write positions and velocities for every bead every 100 steps, use::
+
+   dump_beads 100 1 0
+
 Caveats
 -------
 

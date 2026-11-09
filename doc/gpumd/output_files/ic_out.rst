@@ -6,7 +6,7 @@
 ===========
 
 This file contains the ionic conductivity (:term:`IC`) based on mean-square displacement (:term:`MSD`).
-It is generated when invoking the :ref:`compute_msd keyword <kw_compute_ic>`.
+It is generated when invoking the :ref:`compute_ic keyword <kw_compute_ic>`.
 
 File format
 -----------
@@ -17,4 +17,4 @@ The data in this file are organized as follows:
 * column 3: IC (in units of mS/cm) in the :math:`y` direction
 * column 4: IC (in units of mS/cm) in the :math:`z` direction
 
-Only the element selected which in potential via the arguments of the :ref:`compute_msd_keyword <kw_compute_msd>` is included in this output.
+Only atoms of the type selected by the :attr:`type_iex` argument of :ref:`compute_ic <kw_compute_ic>` contribute to this output.

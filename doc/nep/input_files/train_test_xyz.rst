@@ -6,7 +6,8 @@
 ``train.xyz`` and ``test.xyz``
 ==============================
 
-The :attr:`train.xyz` file, which contains the training data for the construction of a :term:`NEP` model, and the :attr:`test.xyz` file, which contains the corresponding test data, both need to be provided in `extended xyz file format <https://github.com/libAtoms/extxyz>`_.
+The :attr:`train.xyz` file contains the training data for the construction of a :term:`NEP` model, while the optional :attr:`test.xyz` file contains the corresponding test data.
+Both files use `extended xyz file format <https://github.com/libAtoms/extxyz>`_.
 Each structure (or configuration or frame) occupies :math:`N+2` lines, where :math:`N` is the number of atoms in the structure.
 Grouped magnetic-response data use a separate :ref:`response.xyz <response_xyz>` file.
 
@@ -44,6 +45,11 @@ Essentially any keyword is allowed, but we only read the following ones:
   Positive and negative values represent stretched and compressed states, respectively.
   If both :attr:`virial` and :attr:`stress` are present the former is used.
 * :attr:`weight=relative_weight` is optional and gives the relative weight for the current structure in the total loss function.
+* :attr:`energy_weight=relative_weight` is optional and defaults to 1. It multiplies the squared energy error for the current structure, in addition to the weighting specified by :attr:`weight`.
+* :attr:`charge=total_charge` is optional for ``qnep1``, ``qnep2``, ``qnep3``, and ``qnep3_vdw`` models. It gives the total charge of the structure in units of elementary charge e and defaults to 0.
+* :attr:`temperature=temperature_value` is required for the ``nep_temperature`` model and gives the electronic temperature in kelvin.
+* :attr:`pbc="T T T"` or :attr:`pbc="F F F"` specifies fully periodic or fully nonperiodic boundaries for the long-range models ``qnep1``, ``qnep2``, ``qnep3``, ``nep_vdw``, and ``qnep3_vdw`` (see :ref:`model <kw_model>`).
+  The default is ``T T T``. Mixed periodic and nonperiodic directions are not supported for these models.
 * :attr:`name=label` is optional and gives the structure a label, by which :ref:`ediff.in <ediff_in>` refers to it.
   Labels are matched case-insensitively for the letters A to Z and must be unique within a file.
   A label must not begin with ``#``, ``+`` or ``-``, or contain whitespace or any of ``* / = " ' { }``, and a structure has at most one :attr:`name` field.
@@ -88,8 +94,8 @@ Units
 
 Tips
 ----
-* Periodic boundary conditions are always assumed for all directions in each configuration.
-  When the box thickness in a direction is smaller than twice of the radial cutoff distance, the code will internally replicate the box in that direction.
+* Long-range models use the boundary conditions specified by :attr:`pbc` as described above. Other models assume periodic boundary conditions in all directions.
+  For periodic configurations, when the box thickness in a direction is smaller than twice the radial cutoff distance, the code internally replicates the box in that direction.
 * The minimal number of atoms in a configuration is 1.
   The user is responsible for choosing a sensible reference energy when preparing the energy data.
   But this is not crucial as the absolute energies are not relevant in the present context.
