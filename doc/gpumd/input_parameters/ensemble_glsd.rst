@@ -56,11 +56,8 @@ Syntax and parameters
 ::
 
     ensemble nve_glsd damping <value> [gamma <value>] [stemp <-1|value>] [seed <value>]
-    ensemble nvt_glsd <T_1> <T_2> <T_coup> [lattice on|off] \
-             damping <value> [gamma <value>] [stemp <-1|0|value>] [seed <value>]
-    ensemble npt_glsd temp <T_1> <T_2> <pressure_terms> \
-             [tperiod <tau_temp>] [pperiod <tau_press>] \
-             damping <value> [gamma <value>] [stemp <-1|0|value>] [seed <value>]
+    ensemble nvt_glsd <T_1> <T_2> <T_coup> [lattice on|off] damping <value> [gamma <value>] [stemp <-1|0|value>] [seed <value>]
+    ensemble npt_glsd temp <T_1> <T_2> <pressure_terms> [tperiod <tau_temp>] [pperiod <tau_press>] damping <value> [gamma <value>] [stemp <-1|0|value>] [seed <value>]
 
 ``damping``
   Required, finite, non-negative and dimensionless. It is

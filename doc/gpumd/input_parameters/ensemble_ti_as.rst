@@ -44,7 +44,7 @@ The following code can help you calculate the Gibbs free energy:
     import numpy as np
     from ase.units import kB, GPa
     import yaml
-    from scipy.integrate import cumtrapz
+    from scipy.integrate import cumulative_trapezoid
 
     with open("ti_spring_300.yaml", "r") as f:
         y =  yaml.safe_load(f)
@@ -61,7 +61,7 @@ The following code can help you calculate the Gibbs free energy:
     V1 = forward["V"]
     V2 = backward["V"]
 
-    w = (cumtrapz(V1,p,initial=0) + cumtrapz(V2,p,initial=0))*0.5
+    w = (cumulative_trapezoid(V1,p,initial=0) + cumulative_trapezoid(V2,p,initial=0))*0.5
 
     G = G0 + w
     plt.plot(p/GPa, G, label="AS")

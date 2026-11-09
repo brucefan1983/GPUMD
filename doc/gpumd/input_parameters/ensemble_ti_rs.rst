@@ -42,7 +42,7 @@ The following code can help you calculate the Gibbs free energy:
     import numpy as np
     import matplotlib.pyplot as plt
     from pandas import read_csv
-    from scipy.integrate import cumtrapz
+    from scipy.integrate import cumulative_trapezoid
     from ase.units import kB
 
     # you need to run a ti_spring simulation at t_min
@@ -63,7 +63,7 @@ The following code can help you calculate the Gibbs free energy:
     H2 = backward["enthalpy"]
     T = T0/l
 
-    w = (cumtrapz(H1,l,initial=0) + cumtrapz(H2,l,initial=0))*0.5
+    w = (cumulative_trapezoid(H1,l,initial=0) + cumulative_trapezoid(H2,l,initial=0))*0.5
 
     G = (G0 + 1.5*kB*T0*np.log(l) + w)/l 
     plt.plot(T, G, label="RS")
