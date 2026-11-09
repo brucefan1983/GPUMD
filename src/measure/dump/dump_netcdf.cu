@@ -266,7 +266,7 @@ DUMP_NETCDF::DUMP_NETCDF(
 
   parse(tokens, groups);
 
-  if (quantities_.has_unwrapped_position_) {
+  if (use_unwrapped_position_ || quantities_.has_unwrapped_position_) {
     atom.enable_unwrapped_position();
   }
 
@@ -329,6 +329,12 @@ void DUMP_NETCDF::parse(
         PRINT_INPUT_ERROR("dump_netcdf cannot output an empty group.");
       }
       group_seen = true;
+    } else if (tokens[k] == "unwrapped_position_only") {
+      if (use_unwrapped_position_) {
+        PRINT_INPUT_ERROR("Option 'unwrapped_position_only' is specified more than once in dump_netcdf.\n");
+      }
+      use_unwrapped_position_ = true;
+      printf("    unwrapped positions only.\n");
     } else if (tokens[k] == "precision") {
       if (precision_seen) {
         PRINT_INPUT_ERROR("Option 'precision' is specified more than once in dump_netcdf.\n");
@@ -366,6 +372,10 @@ void DUMP_NETCDF::parse(
                  tokens[k], quantities_, is_nep_charge_, groups, "dump_netcdf")) {
       PRINT_INPUT_ERROR("Unrecognized argument in dump_netcdf.\n");
     }
+  }
+
+  if (use_unwrapped_position_ && quantities_.has_unwrapped_position_) {
+    PRINT_INPUT_ERROR("Options 'unwrapped_position' and 'unwrapped_position_only' are mutually exclusive in dump_netcdf.\n");
   }
 
   // A canonical listing of what was requested, independent of the order the arguments came in.
@@ -542,6 +552,9 @@ void DUMP_NETCDF::create_file(const std::vector<Group>& groups)
     nc_put_att_text(ncid, NC_GLOBAL, "programVersion", strlen(GPUMD_VERSION), GPUMD_VERSION));
   NC_CHECK(nc_put_att_text(ncid, NC_GLOBAL, "Conventions", 5, "AMBER"));
   NC_CHECK(nc_put_att_text(ncid, NC_GLOBAL, "ConventionVersion", 3, "1.0"));
+  if (use_unwrapped_position_) {
+    NC_CHECK(nc_put_att_text(ncid, NC_GLOBAL, "position_mode", 9, "unwrapped"));
+  }
   NC_CHECK(nc_put_att_int(ncid, NC_GLOBAL, "gpumd_grouping_method", NC_INT, 1, &grouping_method_));
   NC_CHECK(nc_put_att_int(ncid, NC_GLOBAL, "gpumd_group_id", NC_INT, 1, &group_id_));
   NC_CHECK(nc_put_att_text(
@@ -755,6 +768,21 @@ void DUMP_NETCDF::validate_file_definition()
     append_mismatch("precision");
   }
 
+  // Files without this attribute store wrapped positions in coordinates.
+  std::string previous_position_mode = "wrapped";
+  size_t mode_length = 0;
+  const int mode_status = nc_inq_attlen(ncid, NC_GLOBAL, "position_mode", &mode_length);
+  if (mode_status != NC_ENOTATT) {
+    NC_CHECK(mode_status);
+    previous_position_mode.resize(mode_length);
+    if (mode_length > 0) {
+      NC_CHECK(nc_get_att_text(ncid, NC_GLOBAL, "position_mode", &previous_position_mode[0]));
+    }
+  }
+  if (previous_position_mode != (use_unwrapped_position_ ? "unwrapped" : "wrapped")) {
+    append_mismatch("position mode");
+  }
+
   int previous_grouping_method;
   int previous_group_id;
   int previous_compression_level;
@@ -925,7 +953,8 @@ void DUMP_NETCDF::write(const double global_time, const Box& box, Atom& atom, Fo
 
   // Each quantity is staged, packed and written before the next one starts, which is what lets a
   // single staging buffer per element type serve all of them.
-  stage(atom.position_per_atom, 3, gather_double_, host_double_);
+  auto& positions = use_unwrapped_position_ ? atom.unwrapped_position : atom.position_per_atom;
+  stage(positions, 3, gather_double_, host_double_);
   pack_vector_by_precision(
     precision_,
     number_to_dump,

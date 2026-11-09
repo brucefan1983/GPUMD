@@ -12,7 +12,13 @@ fixed name.
 If the name given to :ref:`dump_xyz <kw_dump_xyz>` ends with a star (``*``), one file is written
 per frame and the star is replaced by the step number.
 
-Every frame contains the atomic species and the wrapped positions.
+Every frame contains the atomic species and positions.
+The ``pos:R:3`` columns contain wrapped positions by default.
+The :attr:`unwrapped_position` option keeps wrapped positions in ``pos:R:3`` and adds
+unwrapped positions in ``unwrapped_position:R:3``.
+The :attr:`unwrapped_position_only` option writes only unwrapped positions in ``pos:R:3``
+and adds ``position_mode=unwrapped`` to the frame header.
+
 The following per-atom quantities are included when the corresponding keyword is given:
 :attr:`mass`, :attr:`charge`, :attr:`bec`, :attr:`velocity`, :attr:`force`, :attr:`potential`,
 :attr:`unwrapped_position`, :attr:`virial`, and :attr:`group_labels`.
