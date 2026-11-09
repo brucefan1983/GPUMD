@@ -34,12 +34,13 @@ If it is omitted, data for the whole system will be output.
 :attr:`single` (the default) writes nine significant digits, which is enough to recover a single-precision value exactly.
 :attr:`double` writes 17 significant digits, which is enough to recover a double-precision value exactly.
 
-* Then one can write the properties to be output, and the allowed properties include: :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, :attr:`charge`, :attr:`bec`, :attr:`group_labels`, :attr:`spin`, :attr:`mforce`, and :attr:`unwrapped_position`.
+* Then one can write the properties to be output, and the allowed properties include: :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, :attr:`charge`, :attr:`bec`, :attr:`group_labels`, :attr:`spin`, :attr:`mforce`, :attr:`unwrapped_position`, and :attr:`unwrapped_position_only`.
 
 The :attr:`group_labels` property writes one integer column per grouping method, holding the label of the group each atom belongs to.
 
-* The wrapped positions are included by default. The :attr:`unwrapped_position` property adds unwrapped positions.
-  Use :attr:`unwrapped_position_only` to write only unwrapped positions instead.
+* The wrapped positions are included by default.
+  The :attr:`unwrapped_position` option writes both wrapped and unwrapped positions.
+  The :attr:`unwrapped_position_only` option writes only unwrapped positions.
   The :attr:`unwrapped_position` and :attr:`unwrapped_position_only` options are mutually exclusive.
 
 
@@ -52,6 +53,9 @@ Examples
 
     # dump positions every 1000 steps, for the whole system:
     dump_xyz 1000 positions.xyz
+
+    # dump wrapped and unwrapped positions, plus velocities:
+    dump_xyz 15 both.xyz unwrapped_position velocity
 
     # dump only unwrapped positions, plus velocities:
     dump_xyz 15 dump.xyz unwrapped_position_only velocity

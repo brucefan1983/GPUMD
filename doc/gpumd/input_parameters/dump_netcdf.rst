@@ -193,12 +193,20 @@ To dump group 0 from grouping method 1 with lossless deflate compression, one ca
 
 before the :ref:`run command <kw_run>`.
 
-Unwrapped positions only
-^^^^^^^^^^^^^^^^^^^^^^^^
+Unwrapped positions
+^^^^^^^^^^^^^^^^^^^
 
-To write only unwrapped positions and velocities::
+To dump both wrapped and unwrapped positions with velocities every 15 steps, one can add::
+
+  dump_netcdf 15 both.nc unwrapped_position velocity
+
+before the :ref:`run command <kw_run>`.
+
+To dump only unwrapped positions with velocities every 15 steps, one can add::
 
   dump_netcdf 15 movie.nc unwrapped_position_only velocity
+
+before the :ref:`run command <kw_run>`.
 
 Forces and per-atom virials
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
