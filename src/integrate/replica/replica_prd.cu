@@ -350,7 +350,7 @@ struct PRD_Slot_Data {
   Minimizer_FIRE_Replica minimizer;
   GPU_Vector<double> maximum_displacement_squared;
   GPU_Pinned_Vector<double> host_maximum_displacement_squared;
-  Minimization_Result quench_result;
+  Minimizer_FIRE_Replica::Result quench_result;
   double maximum_displacement = 0.0;
 };
 
@@ -360,7 +360,7 @@ struct Search_Result {
   int steps = 0;
   int coincident = 0;
   double maximum_displacement = 0.0;
-  Minimization_Result quench;
+  Minimizer_FIRE_Replica::Result quench;
 };
 
 enum class PRD_Phase { dephase, parallel, correlation };
@@ -748,7 +748,7 @@ void PRD_Driver::quench(const std::vector<int>& replica_ids)
     thread.join();
 
   for (const int replica_id : replica_ids) {
-    const Minimization_Result& result =
+    const Minimizer_FIRE_Replica::Result& result =
       slot_data_[replica_id]->quench_result;
     if (!result.converged) {
       const std::string message =

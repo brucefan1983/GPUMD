@@ -45,14 +45,6 @@ struct Replica_Slot;
 struct Replica_Batch_Statistics {
   long long advances = 0;
   long long steps = 0;
-  int longest_advance = 0;
-  long long partial_advances = 0;       // fewer active slots than on the device
-  long long noncontiguous_advances = 0; // active slots not one contiguous range
-  long long full_to_partial = 0;
-  long long partial_to_full = 0;
-  long long noise_chunks = 0;
-  long long noise_buffer_reuses = 0;    // chunks that waited to reuse a pinned buffer
-  long long partial_tail_chunks = 0;    // last chunk of an advance shorter than a full chunk
 };
 
 class Replica_Batch
@@ -77,8 +69,6 @@ public:
   // and host_thermo / potential_energy, as the per-slot path does.
   void advance(const std::vector<Replica_Slot*>& slots, int steps, double time_step);
 
-  // Called by the runtime before advance() with the shape of the active selection.
-  void note_selection(bool full, bool contiguous);
   const Replica_Batch_Statistics& statistics() const { return statistics_; }
 
 private:
@@ -88,7 +78,6 @@ private:
   int capacity_;
   int atoms_per_replica_;
   bool supported_ = false;
-  bool previous_full_ = true;
   Replica_Batch_Statistics statistics_;
   Box box_;
   std::unique_ptr<NEP_Replica> nep_;

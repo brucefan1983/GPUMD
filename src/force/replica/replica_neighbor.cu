@@ -29,7 +29,7 @@ namespace
 __host__ __device__ inline int replica_of(const Box&, const int) { return 0; }
 __host__ __device__ inline int replica_of(const Batch_Box& box, const int atom)
 {
-  return box.replica_of(atom);
+  return atom / box.atoms_per_replica;
 }
 
 template <typename Box_View>

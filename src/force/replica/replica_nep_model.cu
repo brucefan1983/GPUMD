@@ -59,17 +59,17 @@ NEP_Replica_Model::NEP_Replica_Model(const char* file_potential, const bool verb
   if (!model.read(input, error) || !model.validate_md(error)) {
     PRINT_INPUT_ERROR(error.c_str());
   }
-  if (model.name != "nep" && model.name != "nep_temperature") {
-    PRINT_INPUT_ERROR("NEP requires model nep or nep_temperature.");
+  if (model.name != "nep") {
+    PRINT_INPUT_ERROR("Replica dynamics supports energy NEP and qNEP models only.");
   }
-  paramb.model_type = model.name == "nep_temperature" ? 3 : 0;
   paramb.num_types = model.num_types;
-  nep_model_type = paramb.model_type;
 
   if (paramb.num_types == 1) {
-    if (verbose) printf("Use the NEP4 potential with %d atom type.\n", paramb.num_types);
+    if (verbose)
+      printf("Use the NEP4 potential with %d atom type.\n", paramb.num_types);
   } else {
-    if (verbose) printf("Use the NEP4 potential with %d atom types.\n", paramb.num_types);
+    if (verbose)
+      printf("Use the NEP4 potential with %d atom types.\n", paramb.num_types);
   }
   for (int n = 0; n < paramb.num_types; ++n) {
     int atomic_number = 0;
@@ -80,7 +80,9 @@ NEP_Replica_Model::NEP_Replica_Model(const char* file_potential, const bool verb
       }
     }
     zbl.atomic_numbers[n] = atomic_number;
-    if (verbose) printf("    type %d (%s with Z = %d).\n", n, model.elements[n].c_str(), zbl.atomic_numbers[n]);
+    if (verbose)
+      printf(
+        "    type %d (%s with Z = %d).\n", n, model.elements[n].c_str(), zbl.atomic_numbers[n]);
   }
 
   zbl.enabled = model.enable_zbl;
@@ -91,52 +93,66 @@ NEP_Replica_Model::NEP_Replica_Model(const char* file_potential, const bool verb
     zbl.rc_inner = model.zbl_rc_inner;
     zbl.rc_outer = model.zbl_rc_outer;
     if (zbl.flexible) {
-      if (verbose) printf("    has the flexible ZBL potential\n");
+      if (verbose)
+        printf("    has the flexible ZBL potential\n");
     } else if (paramb.use_typewise_cutoff_zbl) {
-      if (verbose) printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
-        paramb.typewise_cutoff_zbl_factor);
+      if (verbose)
+        printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
+          paramb.typewise_cutoff_zbl_factor);
     } else {
-      if (verbose) printf(
-        "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
-        zbl.rc_inner,
-        zbl.rc_outer);
+      if (verbose)
+        printf(
+          "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
+          zbl.rc_inner,
+          zbl.rc_outer);
     }
   }
 
   if (model.has_multiple_cutoffs) {
-    if (verbose) printf("    cutoff = \n");
+    if (verbose)
+      printf("    cutoff = \n");
   }
   for (int n = 0; n < paramb.num_types; ++n) {
     paramb.rc_radial[n] = model.rc_radial[n];
     paramb.rc_angular[n] = model.rc_angular[n];
     if (model.has_multiple_cutoffs) {
-      if (verbose) printf("    (%g A, %g A)\n", paramb.rc_radial[n], paramb.rc_angular[n]);
+      if (verbose)
+        printf("    (%g A, %g A)\n", paramb.rc_radial[n], paramb.rc_angular[n]);
     }
     if (paramb.rc_radial[n] > paramb.rc_radial_max) {
       paramb.rc_radial_max = paramb.rc_radial[n];
     }
   }
   if (!model.has_multiple_cutoffs) {
-    if (verbose) printf("    radial cutoff = %g A.\n", paramb.rc_radial[0]);
-    if (verbose) printf("    angular cutoff = %g A.\n", paramb.rc_angular[0]);
+    if (verbose)
+      printf("    radial cutoff = %g A.\n", paramb.rc_radial[0]);
+    if (verbose)
+      printf("    angular cutoff = %g A.\n", paramb.rc_angular[0]);
   }
-  paramb.rc_radial_max_inv = 1.0f / paramb.rc_radial_max;
 
-  if (verbose) printf("    MN_radial = %d.\n", model.max_radial);
-  if (verbose) printf("    MN_angular = %d.\n", model.max_angular);
+  if (verbose)
+    printf("    MN_radial = %d.\n", model.max_radial);
+  if (verbose)
+    printf("    MN_angular = %d.\n", model.max_angular);
   paramb.MN_radial = int(ceil(model.max_radial * 1.25));
   paramb.MN_angular = int(ceil(model.max_angular * 1.25));
-  if (verbose) printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
-  if (verbose) printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
+  if (verbose)
+    printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
+  if (verbose)
+    printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
   paramb.n_max_radial = model.n_max_radial;
   paramb.n_max_angular = model.n_max_angular;
   paramb.basis_size_radial = model.basis_size_radial;
   paramb.basis_size_angular = model.basis_size_angular;
-  if (verbose) printf("    n_max_radial = %d.\n", paramb.n_max_radial);
-  if (verbose) printf("    n_max_angular = %d.\n", paramb.n_max_angular);
-  if (verbose) printf("    basis_size_radial = %d.\n", paramb.basis_size_radial);
-  if (verbose) printf("    basis_size_angular = %d.\n", paramb.basis_size_angular);
+  if (verbose)
+    printf("    n_max_radial = %d.\n", paramb.n_max_radial);
+  if (verbose)
+    printf("    n_max_angular = %d.\n", paramb.n_max_angular);
+  if (verbose)
+    printf("    basis_size_radial = %d.\n", paramb.basis_size_radial);
+  if (verbose)
+    printf("    basis_size_angular = %d.\n", paramb.basis_size_angular);
 
   paramb.L_max = model.L_max;
   paramb.has_q_222 = 2 * model.has_q_222;
@@ -148,17 +164,25 @@ NEP_Replica_Model::NEP_Replica_Model(const char* file_potential, const bool verb
   paramb.num_L = paramb.L_max + model.has_q_222 + model.has_q_1111 + model.has_q_112 +
                  model.has_q_123 + model.has_q_233 + model.has_q_134;
   paramb.dim_angular = model.layout.dim_angular;
-  if (verbose) printf("    l_max_3body = %d.\n", paramb.L_max);
-  if (verbose) printf("    has_q_222 = %d.\n", paramb.has_q_222);
-  if (verbose) printf("    has_q_1111 = %d.\n", paramb.has_q_1111);
-  if (verbose) printf("    has_q_112 = %d.\n", paramb.has_q_112);
-  if (verbose) printf("    has_q_123 = %d.\n", paramb.has_q_123);
-  if (verbose) printf("    has_q_233 = %d.\n", paramb.has_q_233);
-  if (verbose) printf("    has_q_134 = %d.\n", paramb.has_q_134);
+  if (verbose)
+    printf("    l_max_3body = %d.\n", paramb.L_max);
+  if (verbose)
+    printf("    has_q_222 = %d.\n", paramb.has_q_222);
+  if (verbose)
+    printf("    has_q_1111 = %d.\n", paramb.has_q_1111);
+  if (verbose)
+    printf("    has_q_112 = %d.\n", paramb.has_q_112);
+  if (verbose)
+    printf("    has_q_123 = %d.\n", paramb.has_q_123);
+  if (verbose)
+    printf("    has_q_233 = %d.\n", paramb.has_q_233);
+  if (verbose)
+    printf("    has_q_134 = %d.\n", paramb.has_q_134);
 
   annmb.num_neurons1 = model.num_neurons1;
   annmb.dim = model.layout.dim;
-  if (verbose) printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
+  if (verbose)
+    printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
 
   rc = paramb.rc_radial_max;
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
@@ -167,9 +191,12 @@ NEP_Replica_Model::NEP_Replica_Model(const char* file_potential, const bool verb
   annmb.num_para_ann = model.layout.number_of_variables_ann;
   annmb.num_para = model.layout.number_of_variables;
   const int num_para_descriptor = model.layout.number_of_variables_descriptor;
-  if (verbose) printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
-  if (verbose) printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
-  if (verbose) printf("    total number of parameters = %d.\n", annmb.num_para);
+  if (verbose)
+    printf("    number of neural network parameters = %d.\n", annmb.num_para_ann);
+  if (verbose)
+    printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
+  if (verbose)
+    printf("    total number of parameters = %d.\n", annmb.num_para);
 
   // Store ANN parameters, type-pair-major descriptor coefficients and scalers in one buffer.
   nep_data.parameters.resize(annmb.num_para + annmb.dim);

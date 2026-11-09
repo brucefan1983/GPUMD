@@ -28,7 +28,7 @@ sorted, so a list built at another step gives the same NEP neighbor lists.
 ------------------------------------------------------------------------------*/
 
 #pragma once
-#include "model/batch_box.cuh"
+#include "batch_box.cuh"
 #include "model/box.cuh"
 #include "utilities/gpu_scan.cuh"
 #include "utilities/gpu_vector.cuh"

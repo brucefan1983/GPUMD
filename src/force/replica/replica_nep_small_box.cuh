@@ -373,7 +373,7 @@ static __global__ void find_force_angular_small_box(
     }
     for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        sum_fxyz[n * NUM_OF_ABC + abc] = 
+        sum_fxyz[n * NUM_OF_ABC + abc] =
           g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1];
       }
     }

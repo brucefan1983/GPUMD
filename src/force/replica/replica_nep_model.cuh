@@ -50,9 +50,7 @@ public:
   struct ParaMB {
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_zbl_factor = 0.0f;
-    int model_type = 0; // 0=potential, 3=temperature-dependent free energy
     float rc_radial_max = 0.0f;
-    float rc_radial_max_inv = 0.0f;
     float rc_radial[NUM_ELEMENTS];  // radial cutoff
     float rc_angular[NUM_ELEMENTS]; // angular cutoff
     int MN_radial = 200;
@@ -113,7 +111,6 @@ public:
   };
 
   double rc = 0.0;         // largest cutoff
-  int nep_model_type = 0;  // 0 for potential, 3 for temperature-dependent free energy
 
   // Reads the model; verbose prints the model information.
   NEP_Replica_Model(const char* file_potential, const bool verbose);

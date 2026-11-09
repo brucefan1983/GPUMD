@@ -51,16 +51,12 @@ class NEP_Charge_Replica_Model : public Potential
 public:
   using Potential::compute;
 
-  NEP_Charge_Replica_Data nep_data;
-
   struct ParaMB {
     int charge_mode = 0;
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_zbl_factor = 0.0f;
     float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff
-    float rcinv_radial = 0.0f;  // inverse of the radial cutoff
-    float rcinv_angular = 0.0f; // inverse of the angular cutoff
     int MN_radial = 200;
     int MN_angular = 100;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
@@ -89,7 +85,6 @@ public:
     const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
     const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
     const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
-    const float* sqrt_epsilon_inf; // sqrt(epsilon_inf) related to BEC
     const float* b1;               // bias for the output layer
     const float* c_type_pair;
     const float* q_scaler;
@@ -114,10 +109,9 @@ public:
     GPU_Vector<int> NN_angular;
     GPU_Vector<int> NL_angular;
     GPU_Vector<float> r12;
-  } small_box_data;
+  };
 
   struct Charge_Para {
-    int num_kpoints_max = 1;
     float alpha = 0.5f; // 1 / (2 Angstrom)
     float two_alpha_over_sqrt_pi = 0.564189583547756f;
     float A;
@@ -186,9 +180,11 @@ protected:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
 
-  void find_k_and_G(const double* box);
-
   bool use_pppm = true; // use PPPM by default
   double pppm_spacing;
   void check_ewald_pppm(const RunInput& run_input);
+
+private:
+  NEP_Charge_Replica_Data nep_data;
+  Small_Box_Data small_box_data;
 };

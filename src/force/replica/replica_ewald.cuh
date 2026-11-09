@@ -36,22 +36,23 @@ public:
     GPU_Vector<double>& potential_per_atom);
   // Stream of all device work; the default stream unless set.
   void set_stream(gpuStream_t stream) { stream_ = stream; }
+
 private:
-    gpuStream_t stream_ = nullptr;
-    int num_kpoints_max = 1;
-    int num_kpoints = 1;
-    float alpha = 0.5f; // 1 / (2 Angstrom)
-    float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
-    GPU_Vector<float> kx;
-    GPU_Vector<float> ky;
-    GPU_Vector<float> kz;
-    GPU_Vector<float> G;
-    GPU_Vector<float> S_real;
-    GPU_Vector<float> S_imag;
-    // Host copies of the k-vectors, kept until their upload to the device has completed.
-    std::vector<float> cpu_kx;
-    std::vector<float> cpu_ky;
-    std::vector<float> cpu_kz;
-    std::vector<float> cpu_G;
-    void find_k_and_G(const double* box);
+  gpuStream_t stream_ = nullptr;
+  int num_kpoints_max = 1;
+  int num_kpoints = 1;
+  float alpha = 0.5f;        // 1 / (2 Angstrom)
+  float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
+  GPU_Vector<float> kx;
+  GPU_Vector<float> ky;
+  GPU_Vector<float> kz;
+  GPU_Vector<float> G;
+  GPU_Vector<float> S_real;
+  GPU_Vector<float> S_imag;
+  // Host copies of the k-vectors, kept until their upload to the device has completed.
+  std::vector<float> cpu_kx;
+  std::vector<float> cpu_ky;
+  std::vector<float> cpu_kz;
+  std::vector<float> cpu_G;
+  void find_k_and_G(const double* box);
 };

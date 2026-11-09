@@ -75,14 +75,39 @@ __global__ void gpu_sum(const int size, const double* input, double* result)
     *result = data[0];
 }
 
+// The largest square of the input values, reduced as in Minimizer::calculate_force_square_max.
+__global__ void gpu_max_square(const int size, const double* input, double* result)
+{
+  const int number_of_patches = (size - 1) / 1024 + 1;
+  const int tid = threadIdx.x;
+  __shared__ double data[1024];
+  data[tid] = 0.0;
+  for (int patch = 0; patch < number_of_patches; ++patch) {
+    const int n = tid + patch * 1024;
+    if (n < size) {
+      const double square = input[n] * input[n];
+      if (square > data[tid])
+        data[tid] = square;
+    }
+  }
+  __syncthreads();
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      if (data[tid + offset] > data[tid])
+        data[tid] = data[tid + offset];
+    }
+    __syncthreads();
+  }
+  if (tid == 0)
+    *result = data[0];
+}
+
 } // namespace
 
 Minimizer_FIRE_Replica::Minimizer_FIRE_Replica(
   const int number_of_atoms, const int number_of_steps, const double force_tolerance)
   : Minimizer(-1, 0, number_of_atoms, number_of_steps, force_tolerance),
     velocity_(static_cast<size_t>(number_of_atoms) * 3),
-    temp1_(static_cast<size_t>(number_of_atoms) * 3),
-    temp2_(static_cast<size_t>(number_of_atoms) * 3),
     pair_product_(static_cast<size_t>(number_of_atoms) * 3),
     scalar_result_(1),
     host_scalar_(1, 0.0)
@@ -103,6 +128,26 @@ double Minimizer_FIRE_Replica::dot(
     size, first.data(), second.data(), pair_product_.data());
   gpu_sum<<<1, 1024, 0, stream>>>(size, pair_product_.data(), scalar_result_.data());
   GPU_CHECK_KERNEL
+  return scalar_to_host(stream);
+}
+
+double Minimizer_FIRE_Replica::sum(const GPU_Vector<double>& input, const gpuStream_t stream)
+{
+  gpu_sum<<<1, 1024, 0, stream>>>(int(input.size()), input.data(), scalar_result_.data());
+  GPU_CHECK_KERNEL
+  return scalar_to_host(stream);
+}
+
+double Minimizer_FIRE_Replica::max_square(
+  const GPU_Vector<double>& input, const gpuStream_t stream)
+{
+  gpu_max_square<<<1, 1024, 0, stream>>>(int(input.size()), input.data(), scalar_result_.data());
+  GPU_CHECK_KERNEL
+  return scalar_to_host(stream);
+}
+
+double Minimizer_FIRE_Replica::scalar_to_host(const gpuStream_t stream)
+{
   scalar_result_.copy_to_host_async(host_scalar_.data(), stream);
   CHECK(gpuStreamSynchronize(stream));
   return host_scalar_[0];
@@ -132,13 +177,16 @@ void Minimizer_FIRE_Replica::vector_sum(
   GPU_CHECK_KERNEL
 }
 
-Minimization_Result Minimizer_FIRE_Replica::compute(
+Minimizer_FIRE_Replica::Result Minimizer_FIRE_Replica::compute(
   Replica_Force& force, Box& box, Atom& atom, const gpuStream_t stream, const bool verbose)
 {
   if (stream == nullptr)
     PRINT_INPUT_ERROR("A replica quench requires an explicit GPU stream.");
   GPU_Vector<double>& position_per_atom = atom.position_per_atom;
-  Minimization_Result result;
+  // The 3N work buffers of the base class.
+  GPU_Vector<double>& temp1 = position_per_atom_temp_;
+  GPU_Vector<double>& temp2 = force_per_atom_temp_;
+  Result result;
   double dt = dt_0;
   double alpha = alpha_start;
   int number_of_positive_steps = 0;
@@ -157,10 +205,8 @@ Minimization_Result Minimizer_FIRE_Replica::compute(
       atom.force_per_atom,
       atom.virial_per_atom,
       stream);
-    calculate_force_square_max(atom.force_per_atom, stream);
-    calculate_total_potential(atom.potential_per_atom, stream);
-    result.force_max = std::sqrt(cpu_force_square_max_[0]);
-    result.total_potential = cpu_total_potential_[0];
+    result.force_max = std::sqrt(max_square(atom.force_per_atom, stream));
+    result.total_potential = sum(atom.potential_per_atom, stream);
     result.steps = step;
     if (!std::isfinite(result.force_max) || !std::isfinite(result.total_potential))
       PRINT_INPUT_ERROR("FIRE minimization encountered a non-finite value.");
@@ -192,8 +238,8 @@ Minimization_Result Minimizer_FIRE_Replica::compute(
       if (next_dt > dt_min)
         dt = next_dt;
       alpha = alpha_start;
-      scalar_multiply(-0.5 * dt, velocity_, temp1_, stream);
-      vector_sum(position_per_atom, temp1_, position_per_atom, stream);
+      scalar_multiply(-0.5 * dt, velocity_, temp1, stream);
+      vector_sum(position_per_atom, temp1, position_per_atom, stream);
       velocity_.fill_async(0.0, stream);
       number_of_positive_steps = 0;
     }
@@ -207,13 +253,13 @@ Minimization_Result Minimizer_FIRE_Replica::compute(
     }
     const double force_modulus = std::sqrt(force_squared);
     const double velocity_modulus = std::sqrt(std::max(0.0, velocity_squared));
-    scalar_multiply(dt / m, atom.force_per_atom, temp2_, stream);
-    vector_sum(velocity_, temp2_, velocity_, stream);
-    scalar_multiply(1.0 - alpha, velocity_, temp1_, stream);
-    scalar_multiply(alpha * velocity_modulus / force_modulus, atom.force_per_atom, temp2_, stream);
-    vector_sum(temp1_, temp2_, velocity_, stream);
-    scalar_multiply(dt, velocity_, temp1_, stream);
-    vector_sum(position_per_atom, temp1_, position_per_atom, stream);
+    scalar_multiply(dt / m, atom.force_per_atom, temp2, stream);
+    vector_sum(velocity_, temp2, velocity_, stream);
+    scalar_multiply(1.0 - alpha, velocity_, temp1, stream);
+    scalar_multiply(alpha * velocity_modulus / force_modulus, atom.force_per_atom, temp2, stream);
+    vector_sum(temp1, temp2, velocity_, stream);
+    scalar_multiply(dt, velocity_, temp1, stream);
+    vector_sum(position_per_atom, temp1, position_per_atom, stream);
     result.steps = step + 1;
   }
   CHECK(gpuStreamSynchronize(stream));

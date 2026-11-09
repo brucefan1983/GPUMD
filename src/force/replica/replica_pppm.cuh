@@ -27,8 +27,8 @@ class Replica_PPPM
 public:
   Replica_PPPM();
   ~Replica_PPPM();
-  void initialize(
-    const float alpha_input, const bool need_peratom_virial_input, const double mesh_spacing_input);
+  // Forces, the total virial and the potential; no per-atom virial.
+  void initialize(const float alpha_input, const double mesh_spacing_input);
   void find_force(
     const int N,
     const int N1,
@@ -56,6 +56,7 @@ public:
     float b[3][3];          // b-vectors in reciprocal space
     float two_pi_over_K[3]; // 2 * pi ./ K
   };
+
 private:
   gpuStream_t stream_ = nullptr;
   bool verbose_ = true;
@@ -72,13 +73,8 @@ private:
   GPU_Vector<gpufftComplex> mesh_z;
   gpufftHandle plan;
   bool plan_initialized = false;
-  bool plan_virial_initialized = false;
   void destroy_plans();
   void allocate_memory();
   void find_para(const int N, const Box& box);
   void print_mesh(const int N1, const int N2, const Box& box, const GPU_Vector<float>& charge);
-
-  bool need_peratom_virial = false;
-  GPU_Vector<gpufftComplex> mesh_virial;
-  gpufftHandle plan_virial;
 };

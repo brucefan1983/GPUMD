@@ -16,7 +16,7 @@
 #include "replica_batch.cuh"
 #include "replica_common.cuh"
 #include "force/replica/replica_nep.cuh"
-#include "model/batch_box.cuh"
+#include "force/replica/batch_box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -419,8 +419,6 @@ Replica_Batch::Replica_Batch(
   box_.set_is_orthogonal();
   const int total = capacity_ * atoms_per_replica_;
   nep_.reset(new NEP_Replica(potential_file.c_str(), total, false));
-  if (nep_->nep_model_type != 0)
-    PRINT_INPUT_ERROR("Batched replicas only support energy NEP models.");
   supported_ = !nep_->uses_small_box(box_);
   if (!supported_)
     return;
@@ -462,20 +460,6 @@ Replica_Batch::~Replica_Batch()
   CHECK(gpuSetDevice(device_id_));
   if (stream_.valid())
     stream_.synchronize();
-}
-
-void Replica_Batch::note_selection(const bool full, const bool contiguous)
-{
-  if (!full) {
-    ++statistics_.partial_advances;
-    if (!contiguous)
-      ++statistics_.noncontiguous_advances;
-  }
-  if (previous_full_ && !full)
-    ++statistics_.full_to_partial;
-  if (!previous_full_ && full)
-    ++statistics_.partial_to_full;
-  previous_full_ = full;
 }
 
 void Replica_Batch::gather(const std::vector<Replica_Slot*>& slots, const int stride)
@@ -526,7 +510,6 @@ void Replica_Batch::advance(
 
   ++statistics_.advances;
   statistics_.steps += steps;
-  statistics_.longest_advance = std::max(statistics_.longest_advance, steps);
 
   const int N = atoms_per_replica_;
   const int total = replicas * N;
@@ -562,13 +545,8 @@ void Replica_Batch::advance(
   for (int chunk = 0; done < steps; ++chunk) {
     const int b = chunk % 2;
     const int count = std::min(chunk_steps_, steps - done);
-    ++statistics_.noise_chunks;
-    if (chunk >= 2) {
+    if (chunk >= 2)
       chunk_done_[b].synchronize(); // host_noise_[b] is reused
-      ++statistics_.noise_buffer_reuses;
-    }
-    if (chunk > 0 && count < chunk_steps_)
-      ++statistics_.partial_tail_chunks;
     double* host_noise = host_noise_[b].data();
     for (int s = 0; s < count; ++s) {
       for (int i = 0; i < replicas; ++i) {

@@ -24,7 +24,7 @@ concatenated into one system can be evaluated with one set of kernel launches.
 ------------------------------------------------------------------------------*/
 
 #pragma once
-#include "model/batch_box.cuh"
+#include "batch_box.cuh"
 #include "replica_neighbor.cuh"
 #include "replica_nep_model.cuh"
 #include "utilities/gpu_pinned_vector.cuh"

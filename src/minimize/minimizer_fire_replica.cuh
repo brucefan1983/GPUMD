@@ -21,10 +21,11 @@ that replicas on one GPU can be quenched concurrently, and it returns whether
 it converged, the number of steps and the final energy, which decide the
 state of the replica.
 
-It derives from Minimizer and shares its reductions, but not the FIRE loop of
-Minimizer_FIRE, which runs on the default stream with Force. The loop here is a
-separate implementation with the same FIRE update; dt and alpha restart at every
-quench, and the result is returned. Sharing the loop is left for later.
+It derives from Minimizer for its parameters and work buffers. The FIRE loop
+is a separate implementation from that of Minimizer_FIRE, which runs on the
+default stream with Force: it has the same FIRE update and its own reductions
+on the stream; dt and alpha restart at every quench, and the result is
+returned.
 ------------------------------------------------------------------------------*/
 
 #pragma once
@@ -34,16 +35,16 @@ quench, and the result is returned. Sharing the loop is left for later.
 
 class Replica_Force;
 
-struct Minimization_Result {
-  bool converged = false;
-  int steps = 0;
-  double total_potential = 0.0;
-  double force_max = 0.0;
-};
-
 class Minimizer_FIRE_Replica : public Minimizer
 {
 public:
+  struct Result {
+    bool converged = false;
+    int steps = 0;
+    double total_potential = 0.0;
+    double force_max = 0.0;
+  };
+
   Minimizer_FIRE_Replica(
     const int number_of_atoms, const int number_of_steps, const double force_tolerance);
 
@@ -55,7 +56,7 @@ public:
     GPU_Vector<double>& position_per_atom,
     std::vector<Group>& group) override;
 
-  Minimization_Result compute(
+  Result compute(
     Replica_Force& force, Box& box, Atom& atom, const gpuStream_t stream, const bool verbose);
 
 private:
@@ -69,14 +70,15 @@ private:
   const int N_min = 20;
   const double m = 5; // The mass of atoms. Doesn't matter in minimization.
   GPU_Vector<double> velocity_;
-  GPU_Vector<double> temp1_;
-  GPU_Vector<double> temp2_;
   GPU_Vector<double> pair_product_;
   GPU_Vector<double> scalar_result_;
   GPU_Pinned_Vector<double> host_scalar_;
 
   double dot(
     const GPU_Vector<double>& first, const GPU_Vector<double>& second, gpuStream_t stream);
+  double sum(const GPU_Vector<double>& input, gpuStream_t stream);
+  double max_square(const GPU_Vector<double>& input, gpuStream_t stream);
+  double scalar_to_host(gpuStream_t stream);
   void scalar_multiply(
     const double factor, const GPU_Vector<double>& input, GPU_Vector<double>& output,
     gpuStream_t stream);

@@ -61,12 +61,6 @@ protected:
 
   void calculate_force_square_max(const GPU_Vector<double>& force_per_atom);
 
-  // As above, on a given stream; the results are on the host when they return.
-  void calculate_total_potential(
-    const GPU_Vector<double>& potential_per_atom, const gpuStream_t stream);
-  void calculate_force_square_max(
-    const GPU_Vector<double>& force_per_atom, const gpuStream_t stream);
-
   int fixed_group_ = -1;
   int fixed_grouping_method_ = 0;
   int number_of_steps_ = 1000;

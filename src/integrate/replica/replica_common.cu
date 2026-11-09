@@ -296,7 +296,6 @@ Replica_Runtime::~Replica_Runtime()
 {
   stop_workers();
   report_batches();
-  dump_state();
   devices_.clear();
 }
 
@@ -311,53 +310,9 @@ void Replica_Runtime::report_batches() const
     const Replica_Batch_Statistics& s = device->batch->statistics();
     total.advances += s.advances;
     total.steps += s.steps;
-    total.longest_advance = std::max(total.longest_advance, s.longest_advance);
-    total.partial_advances += s.partial_advances;
-    total.noncontiguous_advances += s.noncontiguous_advances;
-    total.full_to_partial += s.full_to_partial;
-    total.partial_to_full += s.partial_to_full;
-    total.noise_chunks += s.noise_chunks;
-    total.noise_buffer_reuses += s.noise_buffer_reuses;
-    total.partial_tail_chunks += s.partial_tail_chunks;
   }
-  printf(
-    "Batched integration: %lld advances, %lld steps, longest advance %d steps; "
-    "%lld partial (%lld non-contiguous), %lld full->partial, %lld partial->full; "
-    "%lld noise chunks, %lld buffer reuses, %lld short tail chunks.\n",
-    total.advances, total.steps, total.longest_advance,
-    total.partial_advances, total.noncontiguous_advances,
-    total.full_to_partial, total.partial_to_full,
-    total.noise_chunks, total.noise_buffer_reuses, total.partial_tail_chunks);
+  printf("Batched integration: %lld advances, %lld steps.\n", total.advances, total.steps);
   fflush(stdout);
-}
-
-// Testing aid: GPUMD_REPLICA_STATE_DUMP=<prefix> writes, at the end of the run,
-// <prefix>_replica_<id>.bin with the raw doubles of position[3N], velocity[3N],
-// force[3N], potential[N] and virial[9N] of every replica.
-void Replica_Runtime::dump_state() const
-{
-  const char* prefix = std::getenv("GPUMD_REPLICA_STATE_DUMP");
-  if (prefix == nullptr || prefix[0] == '\0')
-    return;
-  for (const Replica_Slot* slot : replica_slots_) {
-    CHECK(gpuSetDevice(slot->device_id));
-    slot->stream.synchronize();
-    const int N = slot->atom.number_of_atoms;
-    std::vector<double> buffer(static_cast<size_t>(N) * 19);
-    double* p = buffer.data();
-    CHECK(gpuMemcpy(p, slot->atom.position_per_atom.data(), sizeof(double) * 3 * N, gpuMemcpyDeviceToHost));
-    CHECK(gpuMemcpy(p + 3 * N, slot->atom.velocity_per_atom.data(), sizeof(double) * 3 * N, gpuMemcpyDeviceToHost));
-    CHECK(gpuMemcpy(p + 6 * N, slot->atom.force_per_atom.data(), sizeof(double) * 3 * N, gpuMemcpyDeviceToHost));
-    CHECK(gpuMemcpy(p + 9 * N, slot->atom.potential_per_atom.data(), sizeof(double) * N, gpuMemcpyDeviceToHost));
-    CHECK(gpuMemcpy(p + 10 * N, slot->atom.virial_per_atom.data(), sizeof(double) * 9 * N, gpuMemcpyDeviceToHost));
-    const std::string name =
-      std::string(prefix) + "_replica_" + std::to_string(slot->replica_id) + ".bin";
-    FILE* file = fopen(name.c_str(), "wb");
-    if (file == nullptr)
-      PRINT_INPUT_ERROR("Cannot open the replica state dump file.");
-    fwrite(buffer.data(), sizeof(double), buffer.size(), file);
-    fclose(file);
-  }
 }
 
 void Replica_Runtime::clone_source_state(Replica_Slot& slot) const
@@ -413,17 +368,6 @@ void Replica_Runtime::compute_force(Device_Context& device, Replica_Slot& slot)
   slot.complete.record(slot.stream);
   slot.complete.synchronize();
   slot.potential_energy = slot.host_thermo[1];
-}
-
-void Replica_Runtime::compute_force(Replica_Slot& slot)
-{
-  for (auto& device : devices_) {
-    if (device->device_id == slot.device_id) {
-      compute_force(*device, slot);
-      return;
-    }
-  }
-  PRINT_INPUT_ERROR("Replica slot is not assigned to an active GPU.");
 }
 
 Replica_Force& Replica_Runtime::force(Replica_Slot& slot)
@@ -605,21 +549,12 @@ void Replica_Runtime::advance_device(
   if (device.batch) {
     std::vector<Replica_Slot*> batch_slots;
     batch_slots.reserve(device.slots.size());
-    int first = -1;
-    int last = -1;
     for (size_t local_slot = 0; local_slot < device.slots.size(); ++local_slot) {
-      if (active_slots[local_slot]) {
+      if (active_slots[local_slot])
         batch_slots.push_back(device.slots[local_slot].get());
-        if (first < 0)
-          first = static_cast<int>(local_slot);
-        last = static_cast<int>(local_slot);
-      }
     }
     if (batch_slots.empty())
       return;
-    device.batch->note_selection(
-      batch_slots.size() == device.slots.size(),
-      last - first + 1 == static_cast<int>(batch_slots.size()));
     device.batch->advance(batch_slots, steps, time_step_);
     return;
   }

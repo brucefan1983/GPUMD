@@ -157,13 +157,11 @@ public:
 
   // Batched integration (one concatenated system per GPU) is chosen in initialize: on when a GPU
   // holds at least two replicas and at most 20000 atoms in total.
-  bool batched() const { return batch_active_; }
   void initialize(int replicas, int replicas_per_gpu, const Slot_Initializer& initialize_slot);
   void start_workers();
   void stop_workers();
   void advance_all(int steps);
   void advance_selected(const std::vector<int>& replica_ids, int steps);
-  void compute_force(Replica_Slot& slot);
   void compute_forces_all();
   void compute_forces_selected(const std::vector<int>& replica_ids);
   Replica_Force& force(Replica_Slot& slot);
@@ -186,7 +184,6 @@ private:
   void initialize_device_force(Device_Context& device);
   void initialize_batches();
   void report_batches() const;
-  void dump_state() const;
   void compute_force(Device_Context& device, Replica_Slot& slot);
   void worker_loop(Device_Context& device);
   void advance_device(

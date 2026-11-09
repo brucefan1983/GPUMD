@@ -29,8 +29,6 @@
 #define gpuMemcpy hipMemcpy
 #define gpuMemcpyAsync hipMemcpyAsync
 #define gpuMemcpy2DAsync hipMemcpy2DAsync
-#define gpuMemcpyPeer hipMemcpyPeer
-#define gpuMemcpyPeerAsync hipMemcpyPeerAsync
 #define gpuMemcpyFromSymbol hipMemcpyFromSymbol
 #define gpuMemcpyToSymbol hipMemcpyToSymbol
 #define gpuGetSymbolAddress hipGetSymbolAddress
@@ -39,7 +37,6 @@
 #define gpuMemcpyHostToHost hipMemcpyHostToHost
 #define gpuMemcpyDeviceToDevice hipMemcpyDeviceToDevice
 #define gpuMemset hipMemset
-#define gpuMemsetAsync hipMemsetAsync
 
 // error handling
 #define gpuError_t hipError_t
@@ -66,12 +63,10 @@
 #define gpuStreamSynchronize hipStreamSynchronize
 #define gpuStreamWaitEvent hipStreamWaitEvent
 #define gpuStreamQuery hipStreamQuery
-#define gpuStreamDefault hipStreamDefault
 #define gpuStreamNonBlocking hipStreamNonBlocking
 
 // event
 #define gpuEvent_t hipEvent_t
-#define gpuEventCreate hipEventCreate
 #define gpuEventCreateWithFlags hipEventCreateWithFlags
 #define gpuEventDestroy hipEventDestroy
 #define gpuEventRecord hipEventRecord
@@ -95,7 +90,6 @@
 #define gpublasDgemvBatched hipblasDgemvBatched
 #define gpublasDestroy hipblasDestroy
 #define gpublasCreate hipblasCreate
-#define gpublasSetStream hipblasSetStream
 #define GPUBLAS_SIDE_LEFT HIPBLAS_SIDE_LEFT
 #define GPUBLAS_OP_N HIPBLAS_OP_N
 #define GPUBLAS_OP_T HIPBLAS_OP_T
@@ -105,7 +99,6 @@
 #define gpusolverDnHandle_t hipsolverDnHandle_t
 #define gpusolverDnCreate hipsolverDnCreate
 #define gpusolverDnDestroy hipsolverDnDestroy
-#define gpusolverDnSetStream hipsolverDnSetStream
 #define gpusolverEigMode_t hipsolverEigMode_t
 #define gpusolverFillMode_t hipsolverFillMode_t
 #define GPUSOLVER_EIG_MODE_NOVECTOR HIPSOLVER_EIG_MODE_NOVECTOR
@@ -127,7 +120,7 @@
 #define gpufftHandle hipfftHandle
 #define gpufftComplex hipfftComplex
 #define gpufftExecC2C hipfftExecC2C
-#define gpufftPlan3d hipfftPlan3d
+#define gpufftPlan3d hipfftPlan3d 
 #define gpufftPlanMany hipfftPlanMany
 #define gpufftDestroy hipfftDestroy
 #define gpufftSetStream hipfftSetStream
@@ -148,8 +141,6 @@
 #define gpuMemcpy cudaMemcpy
 #define gpuMemcpyAsync cudaMemcpyAsync
 #define gpuMemcpy2DAsync cudaMemcpy2DAsync
-#define gpuMemcpyPeer cudaMemcpyPeer
-#define gpuMemcpyPeerAsync cudaMemcpyPeerAsync
 #define gpuMemcpyFromSymbol cudaMemcpyFromSymbol
 #define gpuMemcpyToSymbol cudaMemcpyToSymbol
 #define gpuGetSymbolAddress cudaGetSymbolAddress
@@ -158,7 +149,6 @@
 #define gpuMemcpyHostToHost cudaMemcpyHostToHost
 #define gpuMemcpyDeviceToDevice cudaMemcpyDeviceToDevice
 #define gpuMemset cudaMemset
-#define gpuMemsetAsync cudaMemsetAsync
 
 // error handling
 #define gpuError_t cudaError_t
@@ -185,12 +175,10 @@
 #define gpuStreamSynchronize cudaStreamSynchronize
 #define gpuStreamWaitEvent cudaStreamWaitEvent
 #define gpuStreamQuery cudaStreamQuery
-#define gpuStreamDefault cudaStreamDefault
 #define gpuStreamNonBlocking cudaStreamNonBlocking
 
 // event
 #define gpuEvent_t cudaEvent_t
-#define gpuEventCreate cudaEventCreate
 #define gpuEventCreateWithFlags cudaEventCreateWithFlags
 #define gpuEventDestroy cudaEventDestroy
 #define gpuEventRecord cudaEventRecord
@@ -217,7 +205,6 @@
 #endif
 #define gpublasDestroy cublasDestroy
 #define gpublasCreate cublasCreate
-#define gpublasSetStream cublasSetStream
 #define GPUBLAS_SIDE_LEFT CUBLAS_SIDE_LEFT
 #define GPUBLAS_OP_N CUBLAS_OP_N
 #define GPUBLAS_OP_T CUBLAS_OP_T
@@ -227,7 +214,6 @@
 #define gpusolverDnHandle_t cusolverDnHandle_t
 #define gpusolverDnCreate cusolverDnCreate
 #define gpusolverDnDestroy cusolverDnDestroy
-#define gpusolverDnSetStream cusolverDnSetStream
 #define gpusolverEigMode_t cusolverEigMode_t
 #define gpusolverFillMode_t cublasFillMode_t // why cublas?
 #define GPUSOLVER_EIG_MODE_NOVECTOR CUSOLVER_EIG_MODE_NOVECTOR
@@ -249,7 +235,7 @@
 #define gpufftHandle cufftHandle
 #define gpufftComplex cufftComplex
 #define gpufftExecC2C cufftExecC2C
-#define gpufftPlan3d cufftPlan3d
+#define gpufftPlan3d cufftPlan3d 
 #define gpufftPlanMany cufftPlanMany
 #define gpufftDestroy cufftDestroy
 #define gpufftSetStream cufftSetStream

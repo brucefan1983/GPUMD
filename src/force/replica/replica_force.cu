@@ -119,8 +119,6 @@ void Replica_Force::initialize(
   }
   energy_nep_.reset(
     new NEP_Replica(potential_file.c_str(), number_of_atoms, verbose));
-  if (energy_nep_->nep_model_type != 0)
-    PRINT_INPUT_ERROR("Replica dynamics supports energy NEP and qNEP models only.\n");
   model_type_ = Model_Type::energy_nep;
 }
 

@@ -17,12 +17,11 @@
 Large-box NEP kernels of replica dynamics and their launch sequence: a copy of
 the large-box kernels of force/nep/nep.cu, templated on the box view (a Box for
 one system, or a Batch_Box for replicas concatenated into one system, see
-model/batch_box.cuh, in which case each atom uses the box of its own replica)
-and launched on a given stream. Keep it in sync with force/nep/nep.cu by hand.
+batch_box.cuh) and launched on a given stream. Keep it in sync with force/nep/nep.cu by hand.
 ------------------------------------------------------------------------------*/
 
 #pragma once
-#include "model/batch_box.cuh"
+#include "batch_box.cuh"
 #include "replica_many_body.cuh"
 #include "replica_nep_model.cuh"
 #include "utilities/common.cuh"

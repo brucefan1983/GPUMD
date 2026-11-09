@@ -22,7 +22,7 @@ Keep it in sync with force/potential.cu by hand.
 ------------------------------------------------------------------------------*/
 
 #pragma once
-#include "model/batch_box.cuh"
+#include "batch_box.cuh"
 #include "model/box.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
