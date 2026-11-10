@@ -3,7 +3,9 @@
 # 1) Set HIP_ARCH to your GPU architecture, e.g.
 #    make -f makefile.hip HIP_ARCH=gfx1100
 #    (defaults to gfx90a).
-# 2) Do not remove -DUSE_HIP.
+# 2) Do not remove -DUSE_HIP or -ffp-contract=on. A CFLAGS=...
+#    override on the command line replaces the whole line (and
+#    is passed to gpumd_replica), so keep both flags in it.
 # 3) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
 #    and remove it otherwise.
 ###########################################################
@@ -17,9 +19,10 @@ HIP_ARCH ?= gfx90a
 # Leave the C++ standard at the compiler default (C++17): rocThrust/rocPRIM
 # (pulled in by thrust::exclusive_scan in neighbor.cu etc.) require C++17 and
 # hipcc defaults to it, so do not pin -std lower.
-# -ffp-contract=on fuses multiply-adds only within an expression, as nvcc does
-# by default; hipcc's default (fast) also fuses across statements, which makes
-# the per-slot and batched replica NEP kernels round differently.
+# -ffp-contract=on fuses multiply-adds only within one source expression, so
+# every instantiation of the same code forms the same FMAs. hipcc's default
+# (fast) also fuses across statements after inlining, which makes the per-slot
+# and batched replica NEP kernels round differently.
 CFLAGS = -O3 --offload-arch=$(HIP_ARCH) -DUSE_HIP -ffp-contract=on
 INC = -I./
 LDFLAGS = 
