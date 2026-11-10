@@ -51,6 +51,33 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
   "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
+static __device__ __forceinline__ void find_cn_weights(
+  const int N, const int n1, const int z1, const float cn1, float* g_cn_w, float* g_cn_dw)
+{
+  const int n = num_cn[z1];
+  float d1[max_cn];
+  float w1[max_cn];
+  float m1 = 1.0e30f;
+  for (int i = 0; i < n; ++i) {
+    d1[i] = cn1 - cn_ref[z1 * max_cn + i];
+    m1 = fminf(m1, d1[i] * d1[i]);
+  }
+  float s1 = 0.0f;
+  for (int i = 0; i < n; ++i) {
+    w1[i] = exp(-4.0f * (d1[i] * d1[i] - m1));
+    s1 += w1[i];
+  }
+  float d1_mean = 0.0f;
+  for (int i = 0; i < n; ++i) {
+    w1[i] /= s1;
+    d1_mean += w1[i] * d1[i];
+  }
+  for (int i = 0; i < n; ++i) {
+    g_cn_w[i * N + n1] = w1[i];
+    g_cn_dw[i * N + n1] = w1[i] * (-8.0f) * (d1[i] - d1_mean);
+  }
+}
+
 void __global__ find_dftd3_coordination_number_small_box(
   DFTD3::DFTD3_Para dftd3_para,
   const int N,
@@ -60,7 +87,8 @@ void __global__ find_dftd3_coordination_number_small_box(
   const float* g_x12,
   const float* g_y12,
   const float* g_z12,
-  float* g_cn)
+  float* g_cn_w,
+  float* g_cn_dw)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
@@ -76,64 +104,39 @@ void __global__ find_dftd3_coordination_number_small_box(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       cn_temp += 1.0f / (exp(-16.0f * ((R_cov_1 + R_cov_2) / d12 - 1.0f)) + 1.0f);
     }
-    g_cn[n1] = cn_temp;
+    find_cn_weights(N, n1, z1, cn_temp, g_cn_w, g_cn_dw);
   }
 }
 
-static __device__ __forceinline__ void find_c6_stable(
+static __device__ __forceinline__ void find_c6_cached(
   const float* g_c6_ref,
+  const int N,
+  const int n2,
   const int z1,
   const int z2,
   const int z12,
-  const float cn1,
-  const float cn2,
+  const float* w1,
+  const float* dw1,
+  const float* g_cn_w,
   float& c6,
   float& dc6)
 {
-  const int n1 = num_cn[z1];
-  const int n2 = num_cn[z2];
-  float d1[max_cn];
-  float w1[max_cn];
+  const int num_cn_1 = num_cn[z1];
+  const int num_cn_2 = num_cn[z2];
   float w2[max_cn];
-  float m1 = 1.0e30f;
-  float m2 = 1.0e30f;
-  for (int i = 0; i < n1; ++i) {
-    d1[i] = cn1 - cn_ref[z1 * max_cn + i];
-    m1 = fminf(m1, d1[i] * d1[i]);
-  }
-  for (int j = 0; j < n2; ++j) {
-    const float d = cn2 - cn_ref[z2 * max_cn + j];
-    w2[j] = d * d;
-    m2 = fminf(m2, w2[j]);
-  }
-  float s1 = 0.0f;
-  float s2 = 0.0f;
-  for (int i = 0; i < n1; ++i) {
-    w1[i] = exp(-4.0f * (d1[i] * d1[i] - m1));
-    s1 += w1[i];
-  }
-  for (int j = 0; j < n2; ++j) {
-    w2[j] = exp(-4.0f * (w2[j] - m2));
-    s2 += w2[j];
-  }
-  float d1_mean = 0.0f;
-  for (int i = 0; i < n1; ++i) {
-    w1[i] /= s1;
-    d1_mean += w1[i] * d1[i];
-  }
-  for (int j = 0; j < n2; ++j) {
-    w2[j] /= s2;
+  for (int j = 0; j < num_cn_2; ++j) {
+    w2[j] = g_cn_w[j * N + n2];
   }
   c6 = 0.0f;
   dc6 = 0.0f;
-  for (int i = 0; i < n1; ++i) {
+  for (int i = 0; i < num_cn_1; ++i) {
     float c6_i = 0.0f;
-    for (int j = 0; j < n2; ++j) {
+    for (int j = 0; j < num_cn_2; ++j) {
       c6_i += w2[j] * ((z1 < z2) ? g_c6_ref[z12 * max_cn2 + i * max_cn + j]
                                  : g_c6_ref[z12 * max_cn2 + j * max_cn + i]);
     }
     c6 += w1[i] * c6_i;
-    dc6 += w1[i] * (-8.0f) * (d1[i] - d1_mean) * c6_i;
+    dc6 += dw1[i] * c6_i;
   }
 }
 
@@ -159,7 +162,8 @@ void __global__ add_dftd3_force_small_box(
   const int* g_NL_radial,
   const int* g_type,
   const float* g_c6_ref,
-  const float* g_cn,
+  const float* g_cn_w,
+  const float* g_cn_dw,
   const float* g_x12,
   const float* g_y12,
   const float* g_z12,
@@ -175,6 +179,12 @@ void __global__ add_dftd3_force_small_box(
   if (n1 < N) {
     int z1 = dftd3_para.atomic_number[g_type[n1]];
     int num_cn_1 = num_cn[z1];
+    float w1[max_cn];
+    float dw1[max_cn];
+    for (int i = 0; i < num_cn_1; ++i) {
+      w1[i] = g_cn_w[i * N + n1];
+      dw1[i] = g_cn_dw[i * N + n1];
+    }
     float dc6_sum = 0.0f;
     float dc8_sum = 0.0f;
     float s_potential = 0.0f;
@@ -199,7 +209,7 @@ void __global__ add_dftd3_force_small_box(
       if (num_cn_1 == 1 && num_cn_2 == 1) {
         c6 = g_c6_ref[z12 * max_cn2];
       } else {
-        find_c6_stable(g_c6_ref, z1, z2, z12, g_cn[n1], g_cn[n2], c6, dc6);
+        find_c6_cached(g_c6_ref, N, n2, z1, z2, z12, w1, dw1, g_cn_w, c6, dc6);
       }
       c6 *= HartreeBohr6;
       dc6 *= HartreeBohr6;
@@ -521,7 +531,8 @@ __global__ void find_dftd3_coordination_number_large_box(
   const double* g_x,
   const double* g_y,
   const double* g_z,
-  float* g_cn)
+  float* g_cn_w,
+  float* g_cn_dw)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 >= N) {
@@ -571,7 +582,7 @@ __global__ void find_dftd3_coordination_number_large_box(
       }
     }
   }
-  g_cn[n1] = cn_temp;
+  find_cn_weights(N, n1, atomic_number_1, cn_temp, g_cn_w, g_cn_dw);
 }
 
 __global__ void find_dftd3_force_large_box(
@@ -587,7 +598,8 @@ __global__ void find_dftd3_force_large_box(
   const int* g_cell_count_sum,
   const int* g_cell_contents,
   const float* g_c6_ref,
-  const float* g_cn,
+  const float* g_cn_w,
+  const float* g_cn_dw,
   const double* g_x,
   const double* g_y,
   const double* g_z,
@@ -605,6 +617,12 @@ __global__ void find_dftd3_force_large_box(
   }
   int atomic_number_1 = dftd3_para.atomic_number[g_type[n1]];
   int num_cn_1 = num_cn[atomic_number_1];
+  float w1[max_cn];
+  float dw1[max_cn];
+  for (int i = 0; i < num_cn_1; ++i) {
+    w1[i] = g_cn_w[i * N + n1];
+    dw1[i] = g_cn_dw[i * N + n1];
+  }
   float dc6_sum = 0.0f;
   float dc8_sum = 0.0f;
   float s_pe = 0.0f;
@@ -668,8 +686,8 @@ __global__ void find_dftd3_force_large_box(
             if (num_cn_1 == 1 && num_cn_2 == 1) {
               c6 = g_c6_ref[z12 * max_cn2];
             } else {
-              find_c6_stable(
-                g_c6_ref, atomic_number_1, atomic_number_2, z12, g_cn[n1], g_cn[n2], c6, dc6);
+              find_c6_cached(
+                g_c6_ref, N, n2, atomic_number_1, atomic_number_2, z12, w1, dw1, g_cn_w, c6, dc6);
             }
             c6 *= HartreeBohr6;
             dc6 *= HartreeBohr6;
@@ -868,7 +886,8 @@ void DFTD3::compute_small_box(
   const int N = type.size();
   const int size_x12 = N * MN;
   if (NN_radial.size() == 0) {
-    cn.resize(N);
+    cn_w.resize(N * max_cn);
+    cn_dw.resize(N * max_cn);
     dc6_sum.resize(N);
     dc8_sum.resize(N);
 
@@ -909,7 +928,8 @@ void DFTD3::compute_small_box(
     r12.data() + size_x12 * 3,
     r12.data() + size_x12 * 4,
     r12.data() + size_x12 * 5,
-    cn.data());
+    cn_w.data(),
+    cn_dw.data());
   GPU_CHECK_KERNEL
 
   add_dftd3_force_small_box<<<(N - 1) / 64 + 1, 64>>>(
@@ -919,7 +939,8 @@ void DFTD3::compute_small_box(
     NL_radial.data(),
     type.data(),
     c6_ref.data(),
-    cn.data(),
+    cn_w.data(),
+    cn_dw.data(),
     r12.data(),
     r12.data() + size_x12,
     r12.data() + size_x12 * 2,
@@ -960,7 +981,8 @@ void DFTD3::compute_large_box(
 {
   const int N = type.size();
   if (cell_contents_radial.size() == 0) {
-    cn.resize(N);
+    cn_w.resize(N * max_cn);
+    cn_dw.resize(N * max_cn);
     dc6_sum.resize(N);
     dc8_sum.resize(N);
     cell_count_radial.resize(N);
@@ -1008,7 +1030,8 @@ void DFTD3::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    cn.data());
+    cn_w.data(),
+    cn_dw.data());
   GPU_CHECK_KERNEL
 
   find_dftd3_force_large_box<<<(N - 1) / 64 + 1, 64>>>(
@@ -1024,7 +1047,8 @@ void DFTD3::compute_large_box(
     cell_count_sum_radial.data(),
     cell_contents_radial.data(),
     c6_ref.data(),
-    cn.data(),
+    cn_w.data(),
+    cn_dw.data(),
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
