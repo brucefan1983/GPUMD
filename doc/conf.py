@@ -6,6 +6,9 @@ import sys
 import re
 import sphinx_rtd_theme
 import subprocess
+from collections import Counter
+from docutils import nodes
+from pybtex.database import parse_file
 
 project = 'GPUMD'
 author = 'The GPUMD developer team'
@@ -101,3 +104,21 @@ texinfo_documents = [
 html_css_files = [
     'custom.css',
 ]
+
+
+def add_publication_counts(app, doctree):
+    if app.env.docname != 'publications':
+        return
+    bibfile = os.path.join(app.srcdir, 'publications.bib')
+    app.env.note_dependency(bibfile)
+    counts = Counter(entry.fields.get('year') for entry in parse_file(bibfile).entries.values())
+    for title in doctree.findall(nodes.title):
+        year = title.astext()
+        if re.fullmatch(r'\d{4}', year):
+            count = counts[year]
+            label = 'publication' if count == 1 else 'publications'
+            title += nodes.Text(f' ({count} {label})')
+
+
+def setup(app):
+    app.connect('doctree-read', add_publication_counts, priority=400)
