@@ -8,6 +8,8 @@ Restart files
 At normal completion, REMD writes ``remd_restart.meta`` and ``remd_replica_<index>_restart.xyz`` for every replica.
 PRD writes ``prd_restart.meta``, ``prd_replica_<index>_restart.xyz``, and ``prd_basin_restart.xyz``.
 Keep the complete set: it stores atomic states, method state, and random-number-generator states.
+The replica xyz files store velocities twice: ``vel`` in Angstrom/fs and ``vel_natural`` in GPUMD's internal unit.
+A resume reads ``vel_natural``, so a run split into resumed segments continues the uninterrupted trajectory exactly.
 
 Example
 -------
@@ -24,6 +26,7 @@ Caveats
 -------
 
 * Restart files with an incompatible format are rejected.
+  Replica xyz files without ``vel_natural`` are accepted; their ``vel`` values are converted, which can differ in the last bit.
 * ``run.in``, ``model.xyz``, and the potential file are still required.
   Preserve atom count, species, masses, box, potential content, replica count, time step, thermostat, and method parameters.
 * REMD resume cannot request positive ``equilibrate``.

@@ -19,7 +19,7 @@ tensor under an orthogonal rotation is the congruence transform M_after = rot @ 
 forces alpha' = R alpha R^T; cross-validated against tests/gpumd/dump_polarizability/
 test_dump_polarizability.py's existing, calorine-confirmed column<->matrix mapping -- both
 agree). Checked that GPUMD's dipole/polarizability response calculation
-(src/measure/nep_response.cu and nep_response_small_box.cuh) is built from
+(src/measure/dump/nep_response.cu and nep_response_small_box.cuh) is built from
 minimum-image-convention pairwise displacement vectors, not a raw absolute-position sum, so it is
 not vulnerable to the periodic "polarization quantum" discontinuity -- rotating+wrapping a
 periodic cell is safe here, same as for ordinary forces/virial.

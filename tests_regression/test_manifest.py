@@ -208,11 +208,11 @@ def test_manifest_accounts_for_every_case_input():
 def test_package_fixture_hashes_are_pinned():
     expected = {
         "fixtures/potentials/temperature_F_nep.txt":
-            "261e236885f88b785d832123ce8d7d3a8dbb220dec962ebbec26654ca481ee0b",
+            "1c3340be87cd5f001ace48870c00fcb66e71d227998940451128e134e9dec8c4",
         "fixtures/systems/temperature_F_512.xyz":
             "44a76a943b6e1c419706e0f0b257200d38319194c80a60c589da977f7620b57c",
         "fixtures/potentials/C_2022_NEP4_MODIFIED.txt":
-            "7319c9a7c21aa4cc66ba66c91cf4d4540dade2a28acab90f2529b39c26bbd459",
+            "c906656f8ca18e848b413792a6d2aeec3fc51b6b5cd79dcfded1dbb500379234",
         "fixtures/potentials/neighbor_alias_lj.txt":
             "d058a4054474f8cc1daa260942e05e53b53654f0339bde6f72d2af331eba2a09",
         "fixtures/systems/neighbor_alias_aliased.xyz":

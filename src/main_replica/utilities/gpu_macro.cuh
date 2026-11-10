@@ -28,6 +28,7 @@
 #define gpuFreeHost hipHostFree
 #define gpuMemcpy hipMemcpy
 #define gpuMemcpyAsync hipMemcpyAsync
+#define gpuMemcpy2DAsync hipMemcpy2DAsync
 #define gpuMemcpyPeer hipMemcpyPeer
 #define gpuMemcpyPeerAsync hipMemcpyPeerAsync
 #define gpuMemcpyFromSymbol hipMemcpyFromSymbol
@@ -146,6 +147,7 @@
 #define gpuFreeHost cudaFreeHost
 #define gpuMemcpy cudaMemcpy
 #define gpuMemcpyAsync cudaMemcpyAsync
+#define gpuMemcpy2DAsync cudaMemcpy2DAsync
 #define gpuMemcpyPeer cudaMemcpyPeer
 #define gpuMemcpyPeerAsync cudaMemcpyPeerAsync
 #define gpuMemcpyFromSymbol cudaMemcpyFromSymbol

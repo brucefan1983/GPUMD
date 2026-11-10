@@ -17,6 +17,7 @@
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/nep_utilities.cuh"
 
 class NEP_Energy
 {
@@ -34,20 +35,18 @@ public:
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
     int n_max_angular = 0; // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;         // l = 0, 1, 2, ..., L_max
-    int dim_angular;
     int has_q_222 = 0;
     int has_q_1111 = 0;
     int has_q_112 = 0;
     int has_q_123 = 0;
     int has_q_233 = 0;
     int has_q_134 = 0;
-    int num_L;
     int basis_size_radial = 8;
     int basis_size_angular = 8;
     int num_types_sq = 0;
     int num_c_radial = 0;
     int num_types = 0;
-    float q_scaler[140];
+    float q_scaler[MAX_DIM];
   };
 
   struct ANN {

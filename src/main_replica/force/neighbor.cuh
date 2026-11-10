@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "model/batch_box.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -204,6 +205,15 @@ public:
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& NN_local,
     GPU_Vector<int>& NL_local);
+  // Global neighbor list of a batch of replicas stored as one system of
+  // number_of_atoms atoms. Each atom only sees atoms of its own replica: the
+  // cell list keeps one set of cells per replica. box.box must be the shared box.
+  void find_neighbor_global_batched(
+    const double rc,
+    Batch_Box& box,
+    const int number_of_atoms,
+    const double* position_per_atom,
+    const gpuStream_t stream);
 
 private:
   double skin = 1.0;              // skin distance

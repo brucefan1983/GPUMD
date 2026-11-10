@@ -5,7 +5,7 @@
 :attr:`dump_dipole`
 ===================
 
-Predicts the dipole for the current configuration of atoms during MD using a separate `nep4_dipole` model.
+Predicts the dipole for the current configuration of atoms during MD using a separate ``nep_dipole`` model.
 The response model is read by this keyword and is independent of the potential used to run the MD.
 
 Syntax
@@ -17,7 +17,7 @@ Syntax
 
 :attr:`interval` parameter is a positive integer giving the output interval (number of steps) for evaluating and writing the dipole.
 
-:attr:`nep_file` is the name of the `nep4_dipole` potential file used to predict the dipole.
+:attr:`nep_file` is a :ref:`NEP model file <nep_txt>` with ``model nep_dipole``.
 
 Examples
 --------

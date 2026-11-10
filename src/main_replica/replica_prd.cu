@@ -44,6 +44,7 @@ defined by FIRE quenches and an atom-displacement event criterion.
 
 namespace
 {
+using replica::RESTART_XYZ_PROPERTIES;
 using replica::Replica_Runtime;
 using replica::Replica_Slot;
 using replica::Replica_State;
@@ -52,11 +53,14 @@ using replica::file_has_content;
 using replica::hash_file;
 using replica::is_supported_charge_nep_name;
 using replica::is_supported_replica_nep_name;
+using replica::parse_restart_xyz_properties;
 using replica::parse_scalar;
 using replica::read_potential_name;
+using replica::read_restart_xyz_velocity;
 using replica::trim_left;
 using replica::validate_xyz_box;
 using replica::values_match;
+using replica::write_restart_xyz_velocity;
 
 constexpr const char* event_output_marker =
   "# GPUMD PRD event output format 1";
@@ -1145,25 +1149,22 @@ void PRD_Driver::write_restart_xyz(Replica_Slot& slot) const
     slot.box.cpu_h[8]);
   fprintf(
     file,
-    "Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3 "
+    "Properties=%s "
     "replica_mode=prd replica=%d dynamics_step=%lld clock_step=%lld\n",
+    RESTART_XYZ_PROPERTIES,
     slot.replica_id,
     global_dynamics_step(),
     clock_);
   for (int atom = 0; atom < number_of_atoms; ++atom) {
     fprintf(
       file,
-      "%s %.17g %.17g %.17g %.17g %.17g %.17g %.17g\n",
+      "%s %.17g %.17g %.17g %.17g",
       source_atom_.cpu_atom_symbol[atom].c_str(),
       slot.atom.cpu_position_per_atom[atom],
       slot.atom.cpu_position_per_atom[atom + number_of_atoms],
       slot.atom.cpu_position_per_atom[atom + 2 * number_of_atoms],
-      source_atom_.cpu_mass[atom],
-      slot.atom.cpu_velocity_per_atom[atom] / TIME_UNIT_CONVERSION,
-      slot.atom.cpu_velocity_per_atom[atom + number_of_atoms] /
-        TIME_UNIT_CONVERSION,
-      slot.atom.cpu_velocity_per_atom[atom + 2 * number_of_atoms] /
-        TIME_UNIT_CONVERSION);
+      source_atom_.cpu_mass[atom]);
+    write_restart_xyz_velocity(file, slot.atom.cpu_velocity_per_atom, atom);
   }
   fclose(file);
 }
@@ -1295,13 +1296,14 @@ void PRD_Driver::read_restart_xyz(Replica_Slot& slot)
   int file_replica = -1;
   long long dynamics_step = -1;
   long long clock_step = -1;
+  bool natural_velocity = false;
   if (!extract_token_value(comment, "replica_mode", value) ||
       value != "prd" ||
       !extract_token_value(comment, "replica", value) ||
       !parse_scalar(value, file_replica) ||
       file_replica != slot.replica_id ||
       !extract_token_value(comment, "Properties", value) ||
-      value != "species:S:1:pos:R:3:mass:R:1:vel:R:3" ||
+      !parse_restart_xyz_properties(value, natural_velocity) ||
       !extract_token_value(comment, "dynamics_step", value) ||
       !parse_scalar(value, dynamics_step) ||
       dynamics_step != completed_dynamics_steps_ ||
@@ -1315,10 +1317,9 @@ void PRD_Driver::read_restart_xyz(Replica_Slot& slot)
     double mass = 0.0;
     if (!(input >> symbol >> slot.atom.cpu_position_per_atom[atom] >>
           slot.atom.cpu_position_per_atom[atom + n] >>
-          slot.atom.cpu_position_per_atom[atom + 2 * n] >> mass >>
-          slot.atom.cpu_velocity_per_atom[atom] >>
-          slot.atom.cpu_velocity_per_atom[atom + n] >>
-          slot.atom.cpu_velocity_per_atom[atom + 2 * n]))
+          slot.atom.cpu_position_per_atom[atom + 2 * n] >> mass) ||
+        !read_restart_xyz_velocity(
+          input, natural_velocity, slot.atom.cpu_velocity_per_atom, atom))
       PRINT_INPUT_ERROR("PRD restart xyz atom data is incomplete.");
     if (symbol != source_atom_.cpu_atom_symbol[atom] ||
         !values_match(mass, source_atom_.cpu_mass[atom]))
@@ -1330,7 +1331,6 @@ void PRD_Driver::read_restart_xyz(Replica_Slot& slot)
           !std::isfinite(slot.atom.cpu_velocity_per_atom[index]))
         PRINT_INPUT_ERROR(
           "PRD restart xyz contains a non-finite atom value.");
-      slot.atom.cpu_velocity_per_atom[index] *= TIME_UNIT_CONVERSION;
     }
   }
 }

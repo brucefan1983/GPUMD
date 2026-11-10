@@ -21,38 +21,36 @@ The driver class calculating force and related quantities.
 #ifdef USE_NNAP
 #include "nnap.cuh"
 #endif
-#include "adp.cuh"
-#include "eam.cuh"
-#include "eam_alloy.cuh"
+#include "force/eam/adp.cuh"
+#include "force/eam/eam.cuh"
+#include "force/eam/eam_alloy.cuh"
 #include "fcp.cuh"
 #include "force.cuh"
 #include "model/atom.cuh"
 #ifdef GPUMD_WPE_ENABLED
 #include "wpe_adapter.cuh"
 #endif
-#include "ilp_nep.cuh"
-#include "ilp_tmd_sw.cuh"
-#include "ilp_tersoff.cuh"
+#include "force/ilp/ilp_nep.cuh"
+#include "force/ilp/ilp_tmd_sw.cuh"
+#include "force/ilp/ilp_tersoff.cuh"
 #include "lj.cuh"
-#include "nep.cuh"
-#include "nep_multigpu.cuh"
-#include "nep_charge.cuh"
+#include "force/nep/nep.cuh"
+#include "force/nep/nep_multigpu.cuh"
+#include "force/nep_charge/nep_charge.cuh"
 #include "nep_charge_vdw/nep_charge_vdw.cuh"
 #include "potential.cuh"
-#include "tersoff1988.cuh"
-#include "tersoff1989.cuh"
-#include "tersoff_mini.cuh"
+#include "force/tersoff/tersoff1988.cuh"
+#include "force/tersoff/tersoff1989.cuh"
+#include "force/tersoff/tersoff_mini.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/nep_model_file.cuh"
-#include "utilities/nep_model_input.cuh"
-#include "utilities/nep_spin_model_file.cuh"
+#include "utilities/nep_io/nep_file.cuh"
 #include "nep_spin/runtime.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include <cstring>
-#include <sstream>
+#include <fstream>
 #include <vector>
 
 Force::Force(void) {}
@@ -127,18 +125,12 @@ std::unique_ptr<Potential> Force::create_potential(
     potential = spin_runtime_->create_potential(tokens, number_of_atoms);
     is_nep = true;
   } else if (
-    strcmp(potential_name, "nep4_charge1") == 0 ||
-    strcmp(potential_name, "nep4_charge2") == 0 ||
-    strcmp(potential_name, "nep4_charge3") == 0 ||
-    strcmp(potential_name, "nep4_zbl_charge1") == 0 ||
-    strcmp(potential_name, "nep4_zbl_charge2") == 0 ||
-    strcmp(potential_name, "nep4_zbl_charge3") == 0) {
+    strcmp(potential_name, "qnep1") == 0 || strcmp(potential_name, "qnep2") == 0 ||
+    strcmp(potential_name, "qnep3") == 0) {
     potential.reset(new NEP_Charge(tokens[1].c_str(), number_of_atoms, run_input));
     is_nep = true;
   } else if (
-    strcmp(potential_name, "nep4") == 0 || strcmp(potential_name, "nep4_zbl") == 0 ||
-    strcmp(potential_name, "nep4_temperature") == 0 ||
-    strcmp(potential_name, "nep4_zbl_temperature") == 0) {
+    strcmp(potential_name, "nep") == 0 || strcmp(potential_name, "nep_temperature") == 0) {
     int num_gpus;
     CHECK(gpuGetDeviceCount(&num_gpus));
 #ifdef ZHEYONG
@@ -242,31 +234,22 @@ void Force::parse_potential(
 
   FILE* fid_potential = my_fopen(tokens[1].c_str(), "r");
   char potential_name[100];
-  int count = fscanf(fid_potential, "%s", potential_name);
+  int count = fscanf(fid_potential, "%99s", potential_name);
   if (count != 1) {
     PRINT_INPUT_ERROR("reading error for potential file.");
   }
   int num_types = get_number_of_types(fid_potential);
-  if (NEP_Model_Input::is_new_format(potential_name) && NEP_Spin_Model_File::is_spin_model(tokens[1])) {
-    std::strcpy(potential_name, "nep_spin");
-  } else if (NEP_Model_Input::is_new_format(potential_name)) {
-    NEP_Model_File model;
+  if (NEP_File::is_nep_header(potential_name)) {
     std::ifstream input(tokens[1]);
+    std::string model;
     std::string error;
-    if (!model.read(input, error)) {
+    if (!NEP_File::read_model_name(input, model, error)) {
       PRINT_INPUT_ERROR(error.c_str());
     }
-    // New MD models can read the native format; retain the adapter for existing models.
-    std::string tag = model.name;
-    if (tag != "nep_vdw" && tag != "qnep3_vdw") {
-      std::string md_input;
-      if (!model.get_md_input(md_input, error)) {
-        PRINT_INPUT_ERROR(error.c_str());
-      }
-      std::istringstream header(md_input);
-      header >> tag;
+    if (model.size() >= sizeof(potential_name)) {
+      PRINT_INPUT_ERROR("NEP model name is too long.");
     }
-    std::strcpy(potential_name, tag.c_str());
+    std::strcpy(potential_name, model.c_str());
   }
   bool is_nep = false;
   std::unique_ptr<Potential> potential = create_potential(

@@ -7,7 +7,7 @@ preserved as an opt-in developer utility because it once caught a real bug in ca
 charge-model force formula (charge neutrality shifts predicted charges by -mean(charge), but the
 corresponding dE/dQ term wasn't shifted to match, breaking the force chain rule for qNEP
 charge_mode 1/2) -- fixed in calorine commit bf5cac1 by mirroring GPUMD's own zero_mean_D_real
-(src/force/nep_charge.cu:608-635).
+(src/force/nep_charge/nep_charge.cu:608-635).
 
 Run directly: python3 scripts/compare_gpunep_cpunep.py
 """

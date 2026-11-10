@@ -22,6 +22,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 #include "neighbor.cuh"
 #include "nep.cuh"
+#include "model/batch_box.cuh"
 #include "nep_small_box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -502,12 +503,13 @@ void NEP::update_potential(float* parameters, ANN& ann)
   ann.c = pointer;
 }
 
+template <typename Box_View>
 static __global__ void find_neighbor_list_large_box(
   NEP::ParaMB paramb,
   const int N,
   const int N1,
   const int N2,
-  const Box box,
+  const Box_View box,
   const int* g_type,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
@@ -536,7 +538,7 @@ static __global__ void find_neighbor_list_large_box(
     float x12 = g_x[n2] - x1;
     float y12 = g_y[n2] - y1;
     float z12 = g_z[n2] - z1;
-    apply_mic(box, x12, y12, z12);
+    apply_mic(box_of(box, n1), x12, y12, z12);
     float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
     int t2 = g_type[n2];
     float rc_radial = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
@@ -554,13 +556,14 @@ static __global__ void find_neighbor_list_large_box(
   g_NN_angular[n1] = count_angular;
 }
 
+template <typename Box_View>
 static __global__ void find_descriptor(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
   const int N,
   const int N1,
   const int N2,
-  const Box box,
+  const Box_View box,
   const int* g_NN,
   const int* g_NL,
   const int* g_NN_angular,
@@ -592,7 +595,7 @@ static __global__ void find_descriptor(
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
       float z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
+      apply_mic(box_of(box, n1), x12, y12, z12);
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       int t2 = g_type[n2];
@@ -622,7 +625,7 @@ static __global__ void find_descriptor(
         float x12 = g_x[n2] - x1;
         float y12 = g_y[n2] - y1;
         float z12 = g_z[n2] - z1;
-        apply_mic(box, x12, y12, z12);
+        apply_mic(box_of(box, n1), x12, y12, z12);
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         int t2 = g_type[n2];
@@ -727,13 +730,14 @@ static __global__ void find_descriptor(
   }
 }
 
+template <typename Box_View>
 static __global__ void find_force_radial(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
   const int N,
   const int N1,
   const int N2,
-  const Box box,
+  const Box_View box,
   const int* g_NN,
   const int* g_NL,
   const int* __restrict__ g_type,
@@ -771,7 +775,7 @@ static __global__ void find_force_radial(
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
       float z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
+      apply_mic(box_of(box, n1), x12, y12, z12);
       float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
@@ -840,13 +844,14 @@ static __global__ void find_force_radial(
   }
 }
 
+template <typename Box_View>
 static __global__ void find_partial_force_angular(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
   const int N,
   const int N1,
   const int N2,
-  const Box box,
+  const Box_View box,
   const int* g_NN_angular,
   const int* g_NL_angular,
   const int* __restrict__ g_type,
@@ -884,7 +889,7 @@ static __global__ void find_partial_force_angular(
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
       float z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
+      apply_mic(box_of(box, n1), x12, y12, z12);
       float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float f12[3] = {0.0f};
@@ -929,13 +934,14 @@ static __global__ void find_partial_force_angular(
   }
 }
 
+template <typename Box_View>
 static __global__ void find_force_ZBL(
   NEP::ParaMB paramb,
   const int N,
   const NEP::ZBL zbl,
   const int N1,
   const int N2,
-  const Box box,
+  const Box_View box,
   const int* g_NN,
   const int* g_NL,
   const int* __restrict__ g_type,
@@ -974,7 +980,7 @@ static __global__ void find_force_ZBL(
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
       float z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
+      apply_mic(box_of(box, n1), x12, y12, z12);
       float r12[3] = {x12, y12, z12};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
@@ -2057,5 +2063,108 @@ void NEP::compute(
         workspace.cpu_NN_radial.data(), workspace.cpu_NN_angular.data()},
       workspace.state.large_box_calls,
       stream);
+  }
+}
+
+bool NEP::uses_small_box(const Box& box) const
+{
+  ExpandedBox unused;
+  Box copy = box;
+  copy.set_is_orthogonal();
+  return get_expanded_box(paramb.rc_radial_max, copy, unused);
+}
+
+void NEP::compute_batched(
+  Batch_Box& box,
+  const int N,
+  const int* type,
+  const double* position,
+  double* potential,
+  double* force,
+  double* virial,
+  const gpuStream_t stream)
+{
+  validate_stream(stream);
+  if (N <= 0 || N > num_atoms_)
+    PRINT_INPUT_ERROR("The batched NEP workspace is smaller than the batch.\n");
+  box.box.set_is_orthogonal();
+  if (uses_small_box(box.box))
+    PRINT_INPUT_ERROR("Batched NEP evaluation does not support small boxes yet.\n");
+
+  Stream_Workspace& workspace = get_stream_workspace(stream);
+  std::lock_guard<std::mutex> lock(workspace.submission_mutex);
+  NEP_Data& data = workspace.data;
+  Neighbor& neighbor_list = workspace.neighbor;
+
+  const int BLOCK_SIZE = 64;
+  const int grid_size = (N - 1) / BLOCK_SIZE + 1;
+  const double* x = position;
+  const double* y = position + N;
+  const double* z = position + N * 2;
+
+  neighbor_list.find_neighbor_global_batched(rc, box, N, position, stream);
+
+  find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
+    paramb, N, 0, N, box, type, x, y, z,
+    neighbor_list.NN.data(), neighbor_list.NL.data(),
+    data.NN_radial.data(), data.NL_radial.data(),
+    data.NN_angular.data(), data.NL_angular.data());
+  GPU_CHECK_KERNEL
+
+  const int call_index = workspace.state.large_box_calls++;
+  if (call_index % 1000 == 0) {
+    CHECK(gpuMemcpyAsync(workspace.cpu_NN_radial.data(), data.NN_radial.data(),
+      sizeof(int) * N, gpuMemcpyDeviceToHost, stream));
+    CHECK(gpuMemcpyAsync(workspace.cpu_NN_angular.data(), data.NN_angular.data(),
+      sizeof(int) * N, gpuMemcpyDeviceToHost, stream));
+    CHECK(gpuStreamSynchronize(stream));
+    int radial_actual = 0;
+    int angular_actual = 0;
+    for (int atom = 0; atom < N; ++atom) {
+      radial_actual = std::max(radial_actual, workspace.cpu_NN_radial.data()[atom]);
+      angular_actual = std::max(angular_actual, workspace.cpu_NN_angular.data()[atom]);
+    }
+    std::lock_guard<std::mutex> log_lock(neighbor_log_mutex_);
+    std::ofstream output("neighbor.out", std::ios_base::app);
+    output << "Neighbor info at step " << call_index << " (batch of "
+           << N / box.atoms_per_replica << " replicas): "
+           << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
+           << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual
+           << ")." << std::endl;
+  }
+
+  find_descriptor<<<grid_size, BLOCK_SIZE, 0, stream>>>(
+    paramb, annmb, N, 0, N, box,
+    data.NN_radial.data(), data.NL_radial.data(),
+    data.NN_angular.data(), data.NL_angular.data(),
+    type, x, y, z, false, potential, data.Fp.data(), virial,
+    data.sum_fxyz.data(), false, nullptr, 0);
+  GPU_CHECK_KERNEL
+
+  find_force_radial<<<grid_size, BLOCK_SIZE, 0, stream>>>(
+    paramb, annmb, N, 0, N, box,
+    data.NN_radial.data(), data.NL_radial.data(),
+    type, x, y, z, data.Fp.data(), false,
+    force, force + N, force + N * 2, virial);
+  GPU_CHECK_KERNEL
+
+  find_partial_force_angular<<<grid_size, BLOCK_SIZE, 0, stream>>>(
+    paramb, annmb, N, 0, N, box,
+    data.NN_angular.data(), data.NL_angular.data(),
+    type, x, y, z, data.Fp.data(), data.sum_fxyz.data(),
+    data.f12x.data(), data.f12y.data(), data.f12z.data());
+  GPU_CHECK_KERNEL
+
+  find_properties_many_body(
+    box, N, data.NN_angular.data(), data.NL_angular.data(),
+    data.f12x.data(), data.f12y.data(), data.f12z.data(), false,
+    position, force, virial, stream);
+
+  if (zbl.enabled) {
+    find_force_ZBL<<<grid_size, BLOCK_SIZE, 0, stream>>>(
+      paramb, N, zbl, 0, N, box,
+      data.NN_angular.data(), data.NL_angular.data(),
+      type, x, y, z, force, force + N, force + N * 2, virial, potential);
+    GPU_CHECK_KERNEL
   }
 }

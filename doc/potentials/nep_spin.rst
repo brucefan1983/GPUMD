@@ -644,8 +644,8 @@ copy this file to ``model.xyz`` and use the same potential to resume.
 The :ref:`add_mfield keyword <kw_add_mfield>` applies a magnetic induction in
 tesla to a group or fractional-coordinate region. Magnetic force is
 :math:`-\partial E/\partial \mathbf{s}` in eV/Bohr magneton; it is evaluated
-although spins are fixed. Spin dynamics and spin velocities are not part of
-this runtime interface.
+although spins are fixed. For spin dynamics, see :ref:`SIB <kw_ensemble_sib>`,
+:ref:`TSPIN <kw_ensemble_tspin>`, and :ref:`GLSD <kw_ensemble_glsd>`.
 
 Multi-GPU execution uses every visible GPU in a single process. Use
 ``potential nep.txt x`` (or ``y``/``z``) to select the spatial partition

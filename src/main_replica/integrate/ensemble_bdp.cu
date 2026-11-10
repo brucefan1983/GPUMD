@@ -146,6 +146,13 @@ void Ensemble_BDP::integrate_nvt_bdp_2(
   scale_velocity_global(factor, velocity_per_atom);
 }
 
+void Ensemble_BDP::draw_svr_noise(const int ndeg, double& gaussian, double& sum_of_squares)
+{
+  const SVR_Noise noise = draw_resamplekin_noise(ndeg, rng, gaussian_cache);
+  gaussian = noise.gaussian;
+  sum_of_squares = noise.sum_of_squares;
+}
+
 static __global__ void gpu_resamplekin_and_scale(
   const int number_of_atoms,
   const int ndeg,

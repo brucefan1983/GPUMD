@@ -22,6 +22,16 @@ Syntax
 * ``equilibrate``: independent NVT steps before exchanges begin; default 0.
   These steps do not count toward ``run``.
 * ``resume``: :ref:`restart prefix <replica_restart>`; cannot be combined with positive ``equilibrate``.
+Batched integration
+-------------------
+
+When a GPU holds at least two replicas and at most 20000 atoms in total (replicas times atoms per
+replica), its replicas are integrated as one concatenated system, with one kernel launch per stage
+and step instead of one per replica. This is faster for many small replicas; for larger systems the
+replicas are integrated one by one. Results are the same either way. Batching needs an energy NEP
+model whose box uses the large-box path; otherwise the replicas are integrated one by one. The
+choice is printed at the start of the run (``batched integration: on`` or ``off`` with the reason),
+and a line of batch statistics is printed at the end.
 
 Example
 -------

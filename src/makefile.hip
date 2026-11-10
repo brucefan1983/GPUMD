@@ -32,17 +32,20 @@ SOURCES_GPUMD =                   \
 	$(wildcard minimize/*.cu)     \
 	$(wildcard phonon/*.cu)       \
 	$(wildcard integrate/*.cu)    \
-	$(wildcard integrate/spin/*.cu) \
+	$(wildcard integrate/*/*.cu) \
 	$(wildcard mc/*.cu)           \
 	$(wildcard force/*.cu)        \
 	$(wildcard force/*/*.cu)      \
 	$(wildcard measure/*.cu)      \
+	$(wildcard measure/*/*.cu)      \
 	$(wildcard model/*.cu)        \
-	$(wildcard utilities/*.cu)
+	$(wildcard utilities/*.cu)   \
+	$(wildcard utilities/*/*.cu)
 SOURCES_NEP =                     \
 	$(wildcard main_nep/*.cu)     \
 	$(wildcard main_nep/*/*.cu)   \
-	$(wildcard utilities/*.cu)
+	$(wildcard utilities/*.cu)   \
+	$(wildcard utilities/*/*.cu)
 
 SOURCES_TB =                      \
 	$(wildcard main_tb/*.cu)      \
@@ -63,20 +66,22 @@ OBJ_TB = $(SOURCES_TB:.cu=.o)
 ###########################################################
 HEADERS =                         \
 	$(wildcard utilities/*.cuh)   \
+	$(wildcard utilities/*/*.cuh) \
 	$(wildcard main_gpumd/*.cuh)  \
 	$(wildcard integrate/*.cuh)   \
-	$(wildcard integrate/spin/*.cuh) \
+	$(wildcard integrate/*/*.cuh) \
 	$(wildcard mc/*.cuh)          \
 	$(wildcard minimize/*.cuh)    \
 	$(wildcard force/*.cuh)       \
 	$(wildcard force/*/*.cuh)     \
 	$(wildcard measure/*.cuh)     \
+	$(wildcard measure/*/*.cuh)     \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
 	$(wildcard main_nep/*.cuh)    \
 	$(wildcard main_nep/*/*.cuh)
 
-HEADERS_TB = $(wildcard main_tb/*.cuh) $(wildcard utilities/*.cuh)
+HEADERS_TB = $(wildcard main_tb/*.cuh) $(wildcard utilities/*.cuh) $(wildcard utilities/*/*.cuh)
 
 
 ###########################################################

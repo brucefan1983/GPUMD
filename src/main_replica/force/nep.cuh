@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "model/batch_box.cuh"
 #include "neighbor.cuh"
 #include "potential.cuh"
 #include "utilities/common.cuh"
@@ -158,6 +159,22 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial,
     gpuStream_t stream);
+
+  // A batch of replicas stored as one system of number_of_atoms atoms (SoA arrays
+  // with stride number_of_atoms). The instance must have been constructed with at
+  // least number_of_atoms atoms. Only boxes that use the large-box path are supported.
+  void compute_batched(
+    Batch_Box& box,
+    int number_of_atoms,
+    const int* type,
+    const double* position,
+    double* potential,
+    double* force,
+    double* virial,
+    gpuStream_t stream);
+
+  // Whether GPUMD would use the small-box (expanded-cell) path for this box.
+  bool uses_small_box(const Box& box) const;
 
 private:
   ParaMB paramb;
