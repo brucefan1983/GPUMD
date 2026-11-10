@@ -20,10 +20,12 @@
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_pinned_vector.cuh"
 #include "utilities/gpu_stream.cuh"
 #include <condition_variable>
 #include <cstdio>
+#include <fstream>
 #include <istream>
 #include <functional>
 #include <memory>
@@ -90,6 +92,97 @@ bool parse_scalar(const std::string& text, T& value)
   std::string trailing;
   return (input >> value) && !(input >> trailing);
 }
+
+// Input handling shared by the REMD and PRD drivers. `mode` ("REMD" or "PRD") starts the error
+// messages.
+
+// replicas N [replicas_per_gpu] of multi_replica, with command[i] = "replicas".
+void parse_replicas_option(
+  const std::vector<std::string>& command,
+  size_t& i,
+  int minimum_replicas,
+  const char* mode,
+  int& replicas,
+  int& replicas_per_gpu);
+// dump_xyz -1 group interval filename [velocity], the velocity only if allowed.
+void parse_dump_xyz(
+  const std::vector<std::string>& dump_command,
+  const char* mode,
+  bool allow_velocity,
+  int& dump_interval,
+  std::string& dump_prefix,
+  bool& dump_velocity);
+unsigned int draw_internal_seed();
+// One NEP or qNEP potential; kspace_method becomes "none" for NEP. Returns the file hash.
+unsigned long long validate_potential(
+  const std::vector<std::vector<std::string>>& potential_commands,
+  const Box& box,
+  const char* mode,
+  std::string& kspace_method);
+// ensemble nvt_bdp T1 T2 tau_T
+void parse_nvt_bdp(
+  const std::vector<std::string>& ensemble_command,
+  const char* mode,
+  double& temperature_1,
+  double& temperature_2,
+  double& temperature_coupling);
+// The default is ceil(replicas / GPUs).
+int resolve_replicas_per_gpu(int replicas, int replicas_per_gpu, const char* mode);
+void initialize_thermostat_rng(
+  Replica_Slot& slot,
+  bool resume,
+  const std::string& restart_state,
+  unsigned int internal_seed,
+  const char* mode);
+
+// Output files: append when resuming, otherwise start a new file. `fresh` tells whether the file
+// is new, in which case the marker line has been written and the caller adds its header.
+void validate_append_marker(const std::string& filename, const char* marker, const char* mode);
+FILE* open_output_file(const std::string& filename, bool resume, const char* marker, bool& fresh);
+
+// pbc="..." Lattice="..." of an extended xyz comment line, each followed by a space.
+void write_xyz_box(FILE* file, const Box& box, int precision);
+// A replica restart xyz with the positions and velocities of the slot; `fields` follow
+// Properties on the comment line.
+void write_restart_xyz(
+  const std::string& filename,
+  Replica_Slot& slot,
+  const Atom& source_atom,
+  const std::string& fields);
+// Checks the atom count and the box of a restart xyz and returns its comment line.
+std::string read_restart_xyz_header(
+  std::ifstream& input,
+  const std::string& filename,
+  const Atom& source_atom,
+  const Box& source_box,
+  const char* what);
+// The atoms of a replica restart xyz, into atom.cpu_position_per_atom and cpu_velocity_per_atom.
+void read_restart_xyz_atoms(
+  std::istream& input,
+  const std::string& comment,
+  const Atom& source_atom,
+  Atom& atom,
+  const char* mode);
+
+// Restart metadata: keys in the order in which the drivers write them.
+void read_restart_metadata_header(
+  std::istream& input, const char* mode, const char* mode_key, int format_version);
+void read_restart_key(std::istream& input, const char* mode, const char* expected_key);
+template <typename T>
+void read_restart_value(std::istream& input, const char* mode, const char* expected_key, T& value)
+{
+  read_restart_key(input, mode, expected_key);
+  if (!(input >> value)) {
+    const std::string message =
+      std::string(mode) + " restart value of " + expected_key + " is invalid.";
+    PRINT_INPUT_ERROR(message.c_str());
+  }
+}
+// The rest of the line after the key, without surrounding white space.
+std::string read_restart_line(std::istream& input, const char* mode, const char* expected_key);
+// bdp_rng lines of replicas 0 to replicas - 1, then the end of the file.
+void read_restart_bdp_states(
+  std::istream& input, const char* mode, int replicas, std::vector<std::string>& states);
 
 class Replica_State
 {

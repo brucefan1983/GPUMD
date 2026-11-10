@@ -18,11 +18,13 @@
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/read_file.cuh"
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <limits>
 
 namespace replica
 {
@@ -172,6 +174,311 @@ bool read_restart_xyz_velocity(
   for (int d = 0; d < 3; ++d)
     velocity[atom + d * n] = velocity_in_fs[d] * TIME_UNIT_CONVERSION;
   return true;
+}
+
+namespace
+{
+
+void mode_error(const char* mode, const std::string& text)
+{
+  const std::string message = std::string(mode) + " " + text;
+  PRINT_INPUT_ERROR(message.c_str());
+}
+
+} // namespace
+
+void parse_replicas_option(
+  const std::vector<std::string>& command,
+  size_t& i,
+  const int minimum_replicas,
+  const char* mode,
+  int& replicas,
+  int& replicas_per_gpu)
+{
+  if (++i >= command.size() || !is_valid_int(command[i].c_str(), &replicas) ||
+      replicas < minimum_replicas)
+    mode_error(
+      mode, "replicas should be an integer of at least " + std::to_string(minimum_replicas) + ".");
+  ++i;
+  int value = 0;
+  if (i < command.size() && is_valid_int(command[i].c_str(), &value)) {
+    if (value <= 0)
+      mode_error(mode, "replicas_per_gpu should be positive.");
+    replicas_per_gpu = value;
+    ++i;
+  }
+}
+
+void parse_dump_xyz(
+  const std::vector<std::string>& dump_command,
+  const char* mode,
+  const bool allow_velocity,
+  int& dump_interval,
+  std::string& dump_prefix,
+  bool& dump_velocity)
+{
+  if (dump_command.size() < 5 || dump_command[0] != "dump_xyz")
+    mode_error(mode, "dump_xyz command is invalid.");
+  int grouping_method = 0;
+  int group_id = 0;
+  if (!is_valid_int(dump_command[1].c_str(), &grouping_method) || grouping_method != -1 ||
+      !is_valid_int(dump_command[2].c_str(), &group_id))
+    mode_error(mode, "dump_xyz requires grouping_method -1.");
+  if (!is_valid_int(dump_command[3].c_str(), &dump_interval) || dump_interval <= 0)
+    mode_error(mode, "dump_xyz interval should be positive.");
+  dump_prefix = dump_command[4];
+  if (dump_prefix.empty() || dump_prefix.back() == '*')
+    mode_error(mode, "dump_xyz does not support an empty or '*' filename.");
+  dump_velocity = false;
+  for (size_t i = 5; i < dump_command.size(); ++i) {
+    if (allow_velocity && dump_command[i] == "velocity")
+      dump_velocity = true;
+    else
+      mode_error(
+        mode,
+        allow_velocity ? "dump_xyz supports positions and optional velocity only."
+                       : "dump_xyz supports positions only.");
+  }
+}
+
+unsigned int draw_internal_seed()
+{
+  const unsigned int seed = static_cast<unsigned int>(rand());
+  return seed == 0 ? 1 : seed;
+}
+
+unsigned long long validate_potential(
+  const std::vector<std::vector<std::string>>& potential_commands,
+  const Box& box,
+  const char* mode,
+  std::string& kspace_method)
+{
+  if (potential_commands.size() != 1 || potential_commands[0].size() != 2)
+    mode_error(mode, "currently requires exactly one standard NEP potential command.");
+  if (is_nep_charge_potential(potential_commands[0][1])) {
+    if (!box.pbc_x || !box.pbc_y || !box.pbc_z)
+      mode_error(
+        "qNEP", std::string(mode) + " requires periodic boundaries in all directions.");
+  } else {
+    kspace_method = "none";
+  }
+  return hash_file(potential_commands[0][1]);
+}
+
+void parse_nvt_bdp(
+  const std::vector<std::string>& ensemble_command,
+  const char* mode,
+  double& temperature_1,
+  double& temperature_2,
+  double& temperature_coupling)
+{
+  if (ensemble_command.size() != 5 || ensemble_command[0] != "ensemble" ||
+      ensemble_command[1] != "nvt_bdp" ||
+      !is_valid_real(ensemble_command[2].c_str(), &temperature_1) ||
+      !is_valid_real(ensemble_command[3].c_str(), &temperature_2) || temperature_1 <= 0.0 ||
+      temperature_2 <= 0.0 ||
+      !is_valid_real(ensemble_command[4].c_str(), &temperature_coupling) ||
+      temperature_coupling < 1.0)
+    mode_error(mode, "requires ensemble nvt_bdp T1 T2 tau_T with T1, T2 > 0 and tau_T >= 1.");
+}
+
+int resolve_replicas_per_gpu(const int replicas, const int replicas_per_gpu, const char* mode)
+{
+  int number_of_devices = 0;
+  CHECK(gpuGetDeviceCount(&number_of_devices));
+  if (number_of_devices <= 0)
+    mode_error(mode, "found no GPU device.");
+  const int result =
+    replicas_per_gpu > 0 ? replicas_per_gpu : (replicas + number_of_devices - 1) / number_of_devices;
+  if (result * number_of_devices < replicas)
+    mode_error(mode, "replicas_per_gpu is too small for the visible GPUs.");
+  return result;
+}
+
+void initialize_thermostat_rng(
+  Replica_Slot& slot,
+  const bool resume,
+  const std::string& restart_state,
+  const unsigned int internal_seed,
+  const char* mode)
+{
+  if (resume) {
+    if (!slot.thermostat->import_rng_state(restart_state))
+      mode_error(mode, "restart has an invalid nvt_bdp RNG state.");
+  } else {
+    slot.thermostat->seed_rng(internal_seed + 130363U * (slot.replica_id + 1U) + 17U);
+  }
+}
+
+void validate_append_marker(const std::string& filename, const char* marker, const char* mode)
+{
+  if (!file_has_content(filename))
+    return;
+  std::ifstream input(filename);
+  std::string first_line;
+  if (!std::getline(input, first_line) || first_line != marker)
+    mode_error(
+      mode,
+      "cannot append to " + filename +
+        " because its output format is incompatible. Move or remove the existing file "
+        "before resuming.");
+}
+
+FILE* open_output_file(
+  const std::string& filename, const bool resume, const char* marker, bool& fresh)
+{
+  fresh = !(resume && file_has_content(filename));
+  FILE* file = my_fopen(filename.c_str(), resume ? "a" : "w");
+  if (fresh)
+    fprintf(file, "%s\n", marker);
+  return file;
+}
+
+void write_xyz_box(FILE* file, const Box& box, const int precision)
+{
+  fprintf(
+    file, "pbc=\"%c %c %c\" ", box.pbc_x ? 'T' : 'F', box.pbc_y ? 'T' : 'F', box.pbc_z ? 'T' : 'F');
+  fprintf(file, "Lattice=\"");
+  const int transpose[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
+  for (int i = 0; i < 9; ++i)
+    fprintf(file, i == 0 ? "%.*g" : " %.*g", precision, box.cpu_h[transpose[i]]);
+  fprintf(file, "\" ");
+}
+
+void write_restart_xyz(
+  const std::string& filename,
+  Replica_Slot& slot,
+  const Atom& source_atom,
+  const std::string& fields)
+{
+  CHECK(gpuSetDevice(slot.device_id));
+  slot.stream.synchronize();
+  slot.atom.position_per_atom.copy_to_host(slot.atom.cpu_position_per_atom.data());
+  slot.atom.velocity_per_atom.copy_to_host(slot.atom.cpu_velocity_per_atom.data());
+
+  FILE* file = my_fopen(filename.c_str(), "w");
+  const int number_of_atoms = slot.atom.number_of_atoms;
+  fprintf(file, "%d\n", number_of_atoms);
+  write_xyz_box(file, slot.box, 17);
+  fprintf(file, "Properties=%s %s\n", RESTART_XYZ_PROPERTIES, fields.c_str());
+  for (int atom = 0; atom < number_of_atoms; ++atom) {
+    fprintf(
+      file,
+      "%s %.17g %.17g %.17g %.17g",
+      source_atom.cpu_atom_symbol[atom].c_str(),
+      slot.atom.cpu_position_per_atom[atom],
+      slot.atom.cpu_position_per_atom[atom + number_of_atoms],
+      slot.atom.cpu_position_per_atom[atom + 2 * number_of_atoms],
+      source_atom.cpu_mass[atom]);
+    write_restart_xyz_velocity(file, slot.atom.cpu_velocity_per_atom, atom);
+  }
+  fclose(file);
+}
+
+std::string read_restart_xyz_header(
+  std::ifstream& input,
+  const std::string& filename,
+  const Atom& source_atom,
+  const Box& source_box,
+  const char* what)
+{
+  if (!input.is_open())
+    mode_error(what, "restart: cannot open " + filename + ".");
+  int number_of_atoms = 0;
+  if (!(input >> number_of_atoms) || number_of_atoms != source_atom.number_of_atoms)
+    mode_error(what, "restart atom count does not match model.xyz.");
+  input.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+  std::string comment;
+  if (!std::getline(input, comment))
+    mode_error(what, "restart xyz has no comment line.");
+  validate_xyz_box(comment, source_box, what);
+  return comment;
+}
+
+void read_restart_xyz_atoms(
+  std::istream& input,
+  const std::string& comment,
+  const Atom& source_atom,
+  Atom& atom,
+  const char* mode)
+{
+  std::string properties;
+  bool natural_velocity = false;
+  if (!extract_token_value(comment, "Properties", properties) ||
+      !parse_restart_xyz_properties(properties, natural_velocity))
+    mode_error(mode, "restart xyz Properties are invalid.");
+  const int n = source_atom.number_of_atoms;
+  for (int i = 0; i < n; ++i) {
+    std::string symbol;
+    double mass = 0.0;
+    if (!(input >> symbol >> atom.cpu_position_per_atom[i] >>
+          atom.cpu_position_per_atom[i + n] >> atom.cpu_position_per_atom[i + 2 * n] >> mass) ||
+        !read_restart_xyz_velocity(input, natural_velocity, atom.cpu_velocity_per_atom, i))
+      mode_error(mode, "restart xyz atom data is incomplete.");
+    if (symbol != source_atom.cpu_atom_symbol[i] || !values_match(mass, source_atom.cpu_mass[i]))
+      mode_error(mode, "restart xyz species or mass does not match model.xyz.");
+    for (int d = 0; d < 3; ++d) {
+      if (!std::isfinite(atom.cpu_position_per_atom[i + d * n]) ||
+          !std::isfinite(atom.cpu_velocity_per_atom[i + d * n]))
+        mode_error(mode, "restart xyz contains a non-finite atom value.");
+    }
+  }
+}
+
+void read_restart_metadata_header(
+  std::istream& input, const char* mode, const char* mode_key, const int format_version)
+{
+  std::string header;
+  if (!std::getline(input, header) ||
+      header != "# GPUMD " + std::string(mode) + " restart metadata")
+    mode_error(mode, "restart metadata has an invalid header.");
+  int version = 0;
+  read_restart_value(input, mode, "format_version", version);
+  if (version != format_version)
+    mode_error("Unsupported", std::string(mode) + " restart format_version.");
+  std::string stored_mode;
+  read_restart_value(input, mode, "mode", stored_mode);
+  if (stored_mode != mode_key)
+    mode_error(mode, "restart mode is invalid.");
+}
+
+void read_restart_key(std::istream& input, const char* mode, const char* expected_key)
+{
+  std::string key;
+  if (!(input >> key) || key != expected_key)
+    mode_error(mode, "restart key " + std::string(expected_key) + " is invalid or missing.");
+}
+
+std::string read_restart_line(std::istream& input, const char* mode, const char* expected_key)
+{
+  read_restart_key(input, mode, expected_key);
+  std::string value;
+  std::getline(input, value);
+  value = trim_left(value);
+  while (!value.empty() && (value.back() == ' ' || value.back() == '\r'))
+    value.pop_back();
+  if (value.empty())
+    mode_error(mode, "restart value of " + std::string(expected_key) + " is empty.");
+  return value;
+}
+
+void read_restart_bdp_states(
+  std::istream& input, const char* mode, const int replicas, std::vector<std::string>& states)
+{
+  states.resize(replicas);
+  for (int replica = 0; replica < replicas; ++replica) {
+    int stored_replica = -1;
+    read_restart_key(input, mode, "bdp_rng");
+    if (!(input >> stored_replica) || stored_replica != replica)
+      mode_error(mode, "restart bdp_rng replica id is invalid.");
+    std::getline(input, states[replica]);
+    states[replica] = trim_left(states[replica]);
+    if (states[replica].empty())
+      mode_error(mode, "restart bdp_rng state is empty.");
+  }
+  std::string extra;
+  if (input >> extra)
+    mode_error(mode, "restart metadata has unexpected trailing data.");
 }
 
 Replica_Slot::Replica_Slot(const int replica_id, const int device_id)

@@ -45,73 +45,11 @@ defined by FIRE quenches and an atom-displacement event criterion.
 
 namespace
 {
-using replica::RESTART_XYZ_PROPERTIES;
-using replica::Replica_Runtime;
-using replica::Replica_Slot;
-using replica::Replica_State;
-using replica::extract_token_value;
-using replica::file_has_content;
-using replica::hash_file;
-using replica::parse_restart_xyz_properties;
-using replica::parse_scalar;
-using replica::read_restart_xyz_velocity;
-using replica::trim_left;
-using replica::validate_xyz_box;
-using replica::values_match;
-using replica::write_restart_xyz_velocity;
+using namespace replica;
 
 constexpr const char* event_output_marker =
   "# GPUMD PRD event output format 1";
 constexpr int restart_format_version = 6;
-
-void validate_append_event_file(const std::string& filename)
-{
-  if (!file_has_content(filename))
-    return;
-  std::ifstream input(filename);
-  std::string first_line;
-  if (!std::getline(input, first_line) ||
-      first_line != event_output_marker) {
-    const std::string message =
-      "PRD cannot append to " + filename +
-      " because its output format is incompatible.";
-    PRINT_INPUT_ERROR(message.c_str());
-  }
-}
-
-template <typename T>
-void read_restart_value(
-  std::ifstream& input, const char* expected_key, T& value)
-{
-  std::string key;
-  if (!(input >> key >> value) || key != expected_key) {
-    const std::string message =
-      "Invalid or missing PRD restart key " +
-      std::string(expected_key) + ".";
-    PRINT_INPUT_ERROR(message.c_str());
-  }
-}
-
-std::string read_restart_line(
-  std::ifstream& input, const char* expected_key)
-{
-  std::string key;
-  std::string value;
-  if (!(input >> key) || key != expected_key) {
-    const std::string message =
-      "Invalid or missing PRD restart key " +
-      std::string(expected_key) + ".";
-    PRINT_INPUT_ERROR(message.c_str());
-  }
-  std::getline(input, value);
-  value = trim_left(value);
-  if (value.empty()) {
-    const std::string message =
-      "Empty PRD restart value for " + std::string(expected_key) + ".";
-    PRINT_INPUT_ERROR(message.c_str());
-  }
-  return value;
-}
 
 void validate_append_trajectory_file(
   const std::string& filename, const int number_of_atoms)
@@ -146,7 +84,6 @@ struct PRD_Config {
   double quench_force_tolerance = 1.0e-4;
   bool resume = false;
   bool dump_xyz = false;
-  int dump_interval = 0;
   std::string resume_prefix;
   std::string dump_prefix;
   unsigned int internal_seed = 1;
@@ -165,20 +102,7 @@ void PRD_Config::parse(
     PRINT_INPUT_ERROR("Invalid multi_replica prd command.");
   for (size_t i = 2; i < command.size();) {
     if (command[i] == "replicas") {
-      if (++i >= command.size() ||
-          !is_valid_int(command[i].c_str(), &replicas) || replicas <= 0)
-        PRINT_INPUT_ERROR("PRD replicas should be a positive integer.");
-      ++i;
-      if (i < command.size()) {
-        int value = 0;
-        if (is_valid_int(command[i].c_str(), &value)) {
-          if (value <= 0)
-            PRINT_INPUT_ERROR(
-              "PRD replicas_per_gpu should be positive.");
-          replicas_per_gpu = value;
-          ++i;
-        }
-      }
+      parse_replicas_option(command, i, 1, "PRD", replicas, replicas_per_gpu);
     } else if (
       command[i] == "event" || command[i] == "event_interval") {
       if (++i >= command.size() ||
@@ -251,31 +175,13 @@ void PRD_Config::parse(
       "PRD requires replicas, event, dephase, correlate, and distance.");
 
   if (!dump_command.empty()) {
-    if (dump_command.size() < 5 || dump_command[0] != "dump_xyz")
-      PRINT_INPUT_ERROR("Invalid PRD dump_xyz command.");
-    int grouping_method = 0;
-    int group_id = 0;
-    if (!is_valid_int(dump_command[1].c_str(), &grouping_method) ||
-        grouping_method != -1 ||
-        !is_valid_int(dump_command[2].c_str(), &group_id))
-      PRINT_INPUT_ERROR("PRD dump_xyz requires grouping_method -1.");
-    if (!is_valid_int(
-          dump_command[3].c_str(), &dump_interval) ||
-        dump_interval <= 0)
-      PRINT_INPUT_ERROR("PRD dump_xyz interval should be positive.");
-    dump_prefix = dump_command[4];
-    if (dump_prefix.empty() || dump_prefix.back() == '*')
-      PRINT_INPUT_ERROR(
-        "PRD dump_xyz does not support an empty or '*' filename.");
-    if (dump_command.size() != 5)
-      PRINT_INPUT_ERROR(
-        "PRD dump_xyz supports quenched positions only.");
+    // The interval is ignored: the event trajectory has the quenched basins.
+    int dump_interval = 0;
+    bool dump_velocity = false;
+    parse_dump_xyz(dump_command, "PRD", false, dump_interval, dump_prefix, dump_velocity);
     dump_xyz = true;
   }
-
-  internal_seed = static_cast<unsigned int>(rand());
-  if (internal_seed == 0)
-    internal_seed = 1;
+  internal_seed = draw_internal_seed();
 }
 
 static __device__ void apply_prd_mic(
@@ -514,56 +420,22 @@ void PRD_Driver::validate_input()
     PRINT_INPUT_ERROR(
       "PRD event distance should be less than half the shortest "
       "periodic box thickness.");
-  if (potential_commands_.size() != 1 ||
-      potential_commands_[0].size() != 2)
-    PRINT_INPUT_ERROR(
-      "PRD currently requires exactly one standard NEP potential command.");
-  const bool is_charge_nep = is_nep_charge_potential(potential_commands_[0][1]);
-  if (is_charge_nep && (!source_box_.pbc_x || !source_box_.pbc_y || !source_box_.pbc_z))
-    PRINT_INPUT_ERROR("qNEP PRD requires periodic boundaries in all directions.");
-  if (!is_charge_nep)
-    kspace_method_ = "none";
-  potential_hash_ = hash_file(potential_commands_[0][1]);
-
+  potential_hash_ = validate_potential(potential_commands_, source_box_, "PRD", kspace_method_);
   double final_temperature = 0.0;
-  if (
-    ensemble_command_.size() != 5 ||
-    ensemble_command_[0] != "ensemble" ||
-    ensemble_command_[1] != "nvt_bdp" ||
-    !is_valid_real(ensemble_command_[2].c_str(), &temperature_) ||
-    !is_valid_real(
-      ensemble_command_[3].c_str(), &final_temperature) ||
-    temperature_ <= 0.0 || final_temperature <= 0.0 ||
-    !values_match(temperature_, final_temperature) ||
-    !is_valid_real(
-      ensemble_command_[4].c_str(), &temperature_coupling_) ||
-    temperature_coupling_ < 1.0)
-    PRINT_INPUT_ERROR(
-      "PRD requires ensemble nvt_bdp T T tau with fixed positive T.");
-
-  int number_of_devices = 0;
-  CHECK(gpuGetDeviceCount(&number_of_devices));
-  if (number_of_devices <= 0)
-    PRINT_INPUT_ERROR("No GPU device is available for PRD.");
-  if (config_.replicas_per_gpu == 0) {
-    config_.replicas_per_gpu =
-      (config_.replicas + number_of_devices - 1) / number_of_devices;
-  }
-  if (
-    config_.replicas_per_gpu * number_of_devices <
-    config_.replicas)
-    PRINT_INPUT_ERROR(
-      "PRD replicas_per_gpu is too small for the visible GPUs.");
+  parse_nvt_bdp(ensemble_command_, "PRD", temperature_, final_temperature, temperature_coupling_);
+  if (!values_match(temperature_, final_temperature))
+    PRINT_INPUT_ERROR("PRD requires a fixed temperature: ensemble nvt_bdp T T tau_T.");
+  config_.replicas_per_gpu =
+    resolve_replicas_per_gpu(config_.replicas, config_.replicas_per_gpu, "PRD");
 
   const size_t position_size =
     static_cast<size_t>(source_atom_.number_of_atoms) * 3;
   basin_position_.resize(position_size);
   hot_position_.resize(position_size);
   slot_data_.resize(config_.replicas);
-  restart_bdp_states_.resize(config_.replicas);
   if (config_.resume) {
     read_restart_metadata();
-    validate_append_event_file("prd_events.out");
+    validate_append_marker("prd_events.out", event_output_marker, "PRD");
     if (config_.dump_xyz) {
       validate_append_trajectory_file(
         config_.dump_prefix, source_atom_.number_of_atoms);
@@ -646,17 +518,14 @@ void PRD_Driver::initialize_slot(Replica_Slot& slot)
   // freshly sampled velocities and velocities restored from a restart.
   slot.stream.synchronize();
 
-  slot.target_temperature = temperature_;
   slot.thermostat.reset(new Ensemble_BDP_Replica(temperature_, temperature_coupling_));
   slot.thermostat->removed_degrees_of_freedom = 3;
-  if (config_.resume) {
-    if (!slot.thermostat->import_rng_state(
-          restart_bdp_states_[slot.replica_id]))
-      PRINT_INPUT_ERROR("Invalid nvt_bdp RNG state in the PRD restart.");
-  } else {
-    slot.thermostat->seed_rng(
-      config_.internal_seed + 130363U * (slot.replica_id + 1U) + 17U);
-  }
+  initialize_thermostat_rng(
+    slot,
+    config_.resume,
+    config_.resume ? restart_bdp_states_[slot.replica_id] : std::string(),
+    config_.internal_seed,
+    "PRD");
 
   slot_data_[slot.replica_id].reset(new PRD_Slot_Data(
     slot,
@@ -675,12 +544,9 @@ void PRD_Driver::initialize_runtime()
 
 void PRD_Driver::open_output()
 {
-  const bool append_events =
-    config_.resume && file_has_content("prd_events.out");
-  event_file_ = my_fopen(
-    "prd_events.out", config_.resume ? "a" : "w");
-  if (!append_events) {
-    fprintf(event_file_, "%s\n", event_output_marker);
+  bool new_events = false;
+  event_file_ = open_output_file("prd_events.out", config_.resume, event_output_marker, new_events);
+  if (new_events) {
     fprintf(
       event_file_,
       "# dynamics_step clock_step physical_time_fs event correlated "
@@ -1017,25 +883,8 @@ void PRD_Driver::write_event_trajectory(
     correlated ? 1 : 0,
     replica_id,
     replica_id < 0 ? 1 : 0);
-  fprintf(
-    trajectory_file_,
-    "pbc=\"%c %c %c\" ",
-    source_box_.pbc_x ? 'T' : 'F',
-    source_box_.pbc_y ? 'T' : 'F',
-    source_box_.pbc_z ? 'T' : 'F');
-  fprintf(
-    trajectory_file_,
-    "Lattice=\"%.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g\" "
-    "Properties=species:S:1:pos:R:3\n",
-    source_box_.cpu_h[0],
-    source_box_.cpu_h[3],
-    source_box_.cpu_h[6],
-    source_box_.cpu_h[1],
-    source_box_.cpu_h[4],
-    source_box_.cpu_h[7],
-    source_box_.cpu_h[2],
-    source_box_.cpu_h[5],
-    source_box_.cpu_h[8]);
+  write_xyz_box(trajectory_file_, source_box_, 17);
+  fprintf(trajectory_file_, "Properties=species:S:1:pos:R:3\n");
   for (int atom = 0; atom < number_of_atoms; ++atom) {
     fprintf(
       trajectory_file_,
@@ -1088,56 +937,19 @@ void PRD_Driver::finish_correlation()
 
 void PRD_Driver::write_restart_xyz(Replica_Slot& slot) const
 {
-  CHECK(gpuSetDevice(slot.device_id));
-  slot.stream.synchronize();
-  slot.atom.position_per_atom.copy_to_host(
-    slot.atom.cpu_position_per_atom.data());
-  slot.atom.velocity_per_atom.copy_to_host(
-    slot.atom.cpu_velocity_per_atom.data());
-
-  const std::string filename =
-    "prd_replica_" + std::to_string(slot.replica_id) + "_restart.xyz";
-  FILE* file = my_fopen(filename.c_str(), "w");
-  const int number_of_atoms = slot.atom.number_of_atoms;
-  fprintf(file, "%d\n", number_of_atoms);
-  fprintf(
-    file,
-    "pbc=\"%c %c %c\" ",
-    slot.box.pbc_x ? 'T' : 'F',
-    slot.box.pbc_y ? 'T' : 'F',
-    slot.box.pbc_z ? 'T' : 'F');
-  fprintf(
-    file,
-    "Lattice=\"%.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g\" ",
-    slot.box.cpu_h[0],
-    slot.box.cpu_h[3],
-    slot.box.cpu_h[6],
-    slot.box.cpu_h[1],
-    slot.box.cpu_h[4],
-    slot.box.cpu_h[7],
-    slot.box.cpu_h[2],
-    slot.box.cpu_h[5],
-    slot.box.cpu_h[8]);
-  fprintf(
-    file,
-    "Properties=%s "
-    "replica_mode=prd replica=%d dynamics_step=%lld clock_step=%lld\n",
-    RESTART_XYZ_PROPERTIES,
+  char fields[128];
+  snprintf(
+    fields,
+    sizeof(fields),
+    "replica_mode=prd replica=%d dynamics_step=%lld clock_step=%lld",
     slot.replica_id,
     global_dynamics_step(),
     clock_);
-  for (int atom = 0; atom < number_of_atoms; ++atom) {
-    fprintf(
-      file,
-      "%s %.17g %.17g %.17g %.17g",
-      source_atom_.cpu_atom_symbol[atom].c_str(),
-      slot.atom.cpu_position_per_atom[atom],
-      slot.atom.cpu_position_per_atom[atom + number_of_atoms],
-      slot.atom.cpu_position_per_atom[atom + 2 * number_of_atoms],
-      source_atom_.cpu_mass[atom]);
-    write_restart_xyz_velocity(file, slot.atom.cpu_velocity_per_atom, atom);
-  }
-  fclose(file);
+  replica::write_restart_xyz(
+    "prd_replica_" + std::to_string(slot.replica_id) + "_restart.xyz",
+    slot,
+    source_atom_,
+    fields);
 }
 
 void PRD_Driver::write_restart_basin() const
@@ -1145,24 +957,7 @@ void PRD_Driver::write_restart_basin() const
   FILE* file = my_fopen("prd_basin_restart.xyz", "w");
   const int number_of_atoms = source_atom_.number_of_atoms;
   fprintf(file, "%d\n", number_of_atoms);
-  fprintf(
-    file,
-    "pbc=\"%c %c %c\" ",
-    source_box_.pbc_x ? 'T' : 'F',
-    source_box_.pbc_y ? 'T' : 'F',
-    source_box_.pbc_z ? 'T' : 'F');
-  fprintf(
-    file,
-    "Lattice=\"%.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g %.17g\" ",
-    source_box_.cpu_h[0],
-    source_box_.cpu_h[3],
-    source_box_.cpu_h[6],
-    source_box_.cpu_h[1],
-    source_box_.cpu_h[4],
-    source_box_.cpu_h[7],
-    source_box_.cpu_h[2],
-    source_box_.cpu_h[5],
-    source_box_.cpu_h[8]);
+  write_xyz_box(file, source_box_, 17);
   fprintf(
     file,
     "Properties=species:S:1:pos:R:3:mass:R:1 replica_mode=prd_basin "
@@ -1247,83 +1042,31 @@ void PRD_Driver::write_restart()
 void PRD_Driver::read_restart_xyz(Replica_Slot& slot)
 {
   const std::string filename =
-    config_.resume_prefix + "_replica_" +
-    std::to_string(slot.replica_id) + "_restart.xyz";
+    config_.resume_prefix + "_replica_" + std::to_string(slot.replica_id) + "_restart.xyz";
   std::ifstream input(filename);
-  if (!input.is_open())
-    PRINT_INPUT_ERROR("Cannot open a PRD replica restart xyz file.");
-  int number_of_atoms = 0;
-  if (!(input >> number_of_atoms) ||
-      number_of_atoms != source_atom_.number_of_atoms)
-    PRINT_INPUT_ERROR(
-      "PRD restart atom count does not match model.xyz.");
-  input.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-  std::string comment;
-  if (!std::getline(input, comment))
-    PRINT_INPUT_ERROR("Cannot read the PRD restart xyz comment line.");
-  validate_xyz_box(comment, source_box_, "PRD");
-
+  const std::string comment =
+    read_restart_xyz_header(input, filename, source_atom_, source_box_, "PRD");
   std::string value;
   int file_replica = -1;
   long long dynamics_step = -1;
   long long clock_step = -1;
-  bool natural_velocity = false;
-  if (!extract_token_value(comment, "replica_mode", value) ||
-      value != "prd" ||
+  if (!extract_token_value(comment, "replica_mode", value) || value != "prd" ||
       !extract_token_value(comment, "replica", value) ||
-      !parse_scalar(value, file_replica) ||
-      file_replica != slot.replica_id ||
-      !extract_token_value(comment, "Properties", value) ||
-      !parse_restart_xyz_properties(value, natural_velocity) ||
+      !parse_scalar(value, file_replica) || file_replica != slot.replica_id ||
       !extract_token_value(comment, "dynamics_step", value) ||
-      !parse_scalar(value, dynamics_step) ||
-      dynamics_step != completed_dynamics_steps_ ||
+      !parse_scalar(value, dynamics_step) || dynamics_step != completed_dynamics_steps_ ||
       !extract_token_value(comment, "clock_step", value) ||
       !parse_scalar(value, clock_step) || clock_step != clock_)
     PRINT_INPUT_ERROR("PRD restart xyz metadata is invalid.");
-
-  const int n = source_atom_.number_of_atoms;
-  for (int atom = 0; atom < n; ++atom) {
-    std::string symbol;
-    double mass = 0.0;
-    if (!(input >> symbol >> slot.atom.cpu_position_per_atom[atom] >>
-          slot.atom.cpu_position_per_atom[atom + n] >>
-          slot.atom.cpu_position_per_atom[atom + 2 * n] >> mass) ||
-        !read_restart_xyz_velocity(
-          input, natural_velocity, slot.atom.cpu_velocity_per_atom, atom))
-      PRINT_INPUT_ERROR("PRD restart xyz atom data is incomplete.");
-    if (symbol != source_atom_.cpu_atom_symbol[atom] ||
-        !values_match(mass, source_atom_.cpu_mass[atom]))
-      PRINT_INPUT_ERROR(
-        "PRD restart xyz species or mass does not match model.xyz.");
-    for (int dimension = 0; dimension < 3; ++dimension) {
-      const int index = atom + dimension * n;
-      if (!std::isfinite(slot.atom.cpu_position_per_atom[index]) ||
-          !std::isfinite(slot.atom.cpu_velocity_per_atom[index]))
-        PRINT_INPUT_ERROR(
-          "PRD restart xyz contains a non-finite atom value.");
-    }
-  }
+  read_restart_xyz_atoms(input, comment, source_atom_, slot.atom, "PRD");
 }
 
 void PRD_Driver::read_restart_basin()
 {
-  const std::string filename =
-    config_.resume_prefix + "_basin_restart.xyz";
+  const std::string filename = config_.resume_prefix + "_basin_restart.xyz";
   std::ifstream input(filename);
-  if (!input.is_open())
-    PRINT_INPUT_ERROR("Cannot open the PRD basin restart xyz file.");
-  int number_of_atoms = 0;
-  if (!(input >> number_of_atoms) ||
-      number_of_atoms != source_atom_.number_of_atoms)
-    PRINT_INPUT_ERROR(
-      "PRD basin restart atom count does not match model.xyz.");
-  input.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-  std::string comment;
-  if (!std::getline(input, comment))
-    PRINT_INPUT_ERROR(
-      "Cannot read the PRD basin restart xyz comment line.");
-  validate_xyz_box(comment, source_box_, "PRD basin");
+  const std::string comment =
+    read_restart_xyz_header(input, filename, source_atom_, source_box_, "PRD basin");
 
   std::string value;
   long long dynamics_step = -1;
@@ -1366,37 +1109,25 @@ void PRD_Driver::read_restart_metadata()
   std::ifstream input(filename);
   if (!input.is_open())
     PRINT_INPUT_ERROR("Cannot open the PRD restart metadata file.");
-  std::string header;
-  if (!std::getline(input, header) ||
-      header != "# GPUMD PRD restart metadata")
-    PRINT_INPUT_ERROR("Invalid PRD restart metadata header.");
-
-  int version = 0;
-  read_restart_value(input, "format_version", version);
-  if (version != restart_format_version)
-    PRINT_INPUT_ERROR("Unsupported PRD restart format_version.");
-  std::string mode;
-  read_restart_value(input, "mode", mode);
-  if (mode != "prd")
-    PRINT_INPUT_ERROR("PRD restart mode is invalid.");
+  read_restart_metadata_header(input, "PRD", "prd", restart_format_version);
   int replicas = 0;
-  read_restart_value(input, "replicas", replicas);
+  read_restart_value(input, "PRD", "replicas", replicas);
   if (replicas != config_.replicas)
     PRINT_INPUT_ERROR("PRD restart replicas do not match the input.");
 
   read_restart_value(
-    input, "completed_dynamics_steps", completed_dynamics_steps_);
-  read_restart_value(input, "clock", clock_);
-  read_restart_value(input, "event_number", event_number_);
+    input, "PRD", "completed_dynamics_steps", completed_dynamics_steps_);
+  read_restart_value(input, "PRD", "clock", clock_);
+  read_restart_value(input, "PRD", "event_number", event_number_);
   read_restart_value(
-    input, "dephase_rejections", dephase_rejections_);
+    input, "PRD", "dephase_rejections", dephase_rejections_);
   if (
     completed_dynamics_steps_ < 0 || clock_ < completed_dynamics_steps_ ||
     event_number_ < 0 || dephase_rejections_ < 0)
     PRINT_INPUT_ERROR("PRD restart counters are invalid.");
 
   std::string stored_phase;
-  read_restart_value(input, "phase", stored_phase);
+  read_restart_value(input, "PRD", "phase", stored_phase);
   if (stored_phase == "dephase")
     phase_ = PRD_Phase::dephase;
   else if (stored_phase == "parallel")
@@ -1406,79 +1137,60 @@ void PRD_Driver::read_restart_metadata()
   else
     PRINT_INPUT_ERROR("PRD restart phase is invalid.");
   read_restart_value(
-    input, "correlation_winner", correlation_winner_);
+    input, "PRD", "correlation_winner", correlation_winner_);
   read_restart_value(
-    input, "correlation_quiet_steps", correlation_quiet_steps_);
+    input, "PRD", "correlation_quiet_steps", correlation_quiet_steps_);
 
   double value = 0.0;
-  read_restart_value(input, "time_step", value);
+  read_restart_value(input, "PRD", "time_step", value);
   if (!values_match(value, time_step_))
     PRINT_INPUT_ERROR("PRD restart time_step does not match the input.");
-  read_restart_value(input, "temperature", value);
+  read_restart_value(input, "PRD", "temperature", value);
   if (!values_match(value, temperature_))
     PRINT_INPUT_ERROR("PRD restart temperature does not match the input.");
-  read_restart_value(input, "temperature_coupling", value);
+  read_restart_value(input, "PRD", "temperature_coupling", value);
   if (!values_match(value, temperature_coupling_))
     PRINT_INPUT_ERROR(
       "PRD restart nvt_bdp coupling does not match the input.");
   unsigned long long stored_hash = 0;
-  read_restart_value(input, "potential_hash", stored_hash);
+  read_restart_value(input, "PRD", "potential_hash", stored_hash);
   if (stored_hash != potential_hash_)
     PRINT_INPUT_ERROR("PRD restart potential file does not match the input.");
   // The method, followed by the PPPM spacing when it is given in run.in.
-  std::string stored_kspace = read_restart_line(input, "kspace");
-  while (!stored_kspace.empty() && (stored_kspace.back() == ' ' || stored_kspace.back() == '\r'))
-    stored_kspace.pop_back();
-  if (stored_kspace != kspace_method_)
+  if (read_restart_line(input, "PRD", "kspace") != kspace_method_)
     PRINT_INPUT_ERROR("PRD restart kspace does not match the input.");
 
   int integer_value = 0;
-  read_restart_value(input, "event_interval", integer_value);
+  read_restart_value(input, "PRD", "event_interval", integer_value);
   if (integer_value != config_.event_interval)
     PRINT_INPUT_ERROR("PRD restart event_interval does not match the input.");
-  read_restart_value(input, "dephase_steps", integer_value);
+  read_restart_value(input, "PRD", "dephase_steps", integer_value);
   if (integer_value != config_.dephase_steps)
     PRINT_INPUT_ERROR("PRD restart dephase_steps does not match the input.");
-  read_restart_value(input, "correlation_steps", integer_value);
+  read_restart_value(input, "PRD", "correlation_steps", integer_value);
   if (integer_value != config_.correlation_steps)
     PRINT_INPUT_ERROR(
       "PRD restart correlation_steps does not match the input.");
-  read_restart_value(input, "event_distance", value);
+  read_restart_value(input, "PRD", "event_distance", value);
   if (!values_match(value, config_.event_distance))
     PRINT_INPUT_ERROR("PRD restart event_distance does not match the input.");
-  read_restart_value(input, "quench_force_tolerance", value);
+  read_restart_value(input, "PRD", "quench_force_tolerance", value);
   if (!values_match(value, config_.quench_force_tolerance))
     PRINT_INPUT_ERROR(
       "PRD restart quench_force_tolerance does not match the input.");
-  read_restart_value(input, "quench_steps", integer_value);
+  read_restart_value(input, "PRD", "quench_steps", integer_value);
   if (integer_value != config_.quench_steps)
     PRINT_INPUT_ERROR("PRD restart quench_steps does not match the input.");
-  read_restart_value(input, "max_dephase_retries", integer_value);
+  read_restart_value(input, "PRD", "max_dephase_retries", integer_value);
   if (integer_value != config_.maximum_dephase_retries)
     PRINT_INPUT_ERROR(
       "PRD restart max_dephase_retries does not match the input.");
 
   std::string trailing;
-  std::istringstream dephase_state(
-    read_restart_line(input, "dephase_rng"));
+  std::istringstream dephase_state(read_restart_line(input, "PRD", "dephase_rng"));
   if (!(dephase_state >> dephase_rng_) || dephase_state >> trailing)
     PRINT_INPUT_ERROR("PRD restart dephase_rng is invalid.");
-
-  for (int replica = 0; replica < config_.replicas; ++replica) {
-    std::string key;
-    int stored_replica = -1;
-    if (!(input >> key >> stored_replica) || key != "bdp_rng" ||
-        stored_replica != replica)
-      PRINT_INPUT_ERROR("PRD restart bdp_rng replica id is invalid.");
-    std::getline(input, restart_bdp_states_[replica]);
-    restart_bdp_states_[replica] =
-      trim_left(restart_bdp_states_[replica]);
-    if (restart_bdp_states_[replica].empty())
-      PRINT_INPUT_ERROR("PRD restart bdp_rng state is empty.");
-  }
-  std::string extra;
-  if (input >> extra)
-    PRINT_INPUT_ERROR("PRD restart metadata has unexpected trailing data.");
+  read_restart_bdp_states(input, "PRD", config_.replicas, restart_bdp_states_);
 
   if (phase_ == PRD_Phase::correlation) {
     if (
