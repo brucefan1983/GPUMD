@@ -5,8 +5,9 @@
 ``ic.out``
 ===========
 
-This file contains the ionic conductivity (:term:`IC`) based on mean-square displacement (:term:`MSD`).
+This file contains the Nernst--Einstein estimate of the ionic conductivity (:term:`IC`) based on the self mean-square displacement (:term:`MSD`).
 It is generated when invoking the :ref:`compute_ic keyword <kw_compute_ic>`.
+The definition and the omission of correlations between different ions are explained on that keyword's page.
 
 File format
 -----------

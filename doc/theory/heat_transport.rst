@@ -301,11 +301,14 @@ In the case of heat flux :math:`\boldsymbol{J}_{q}` as dissipative flux, for the
 .. math::
 
    \boldsymbol{F}_{i}^{\alpha,\rm ext}
-   =( \mathbf{S}_{i}^{\alpha}
-   -\frac{m_{\alpha}}{M}\mathbf{S}
-   +k_BT\frac{M_{tot}-Nm_{\alpha}}{M_{tot}N}\mathbf{I})\cdot \boldsymbol{F}_{\rm e} 
+   =\left( \mathbf{S}_{i}^{\alpha}
+   -\frac{m_{\alpha}}{M_{\rm tot}}\mathbf{S}
+   +k_BT\left(1-\frac{Nm_{\alpha}}{M_{\rm tot}}\right)\mathbf{I}\right)^{\mathsf{T}}\cdot \boldsymbol{F}_{\rm e}
 
-where :math:`\mathbf{S}_{i}^{\alpha}=E_{i}^{\alpha}\mathbf{I}+\mathbf{W}_{i}^{\alpha}`, :math:`\mathbf{S}=\sum_{\beta=1}^{M}\sum_{i=1}^{N_{\beta}}\mathbf{S}_{i}^{\beta}`, :math:`M_{tot}` is the total mass of the system, :math:`N` is the atom number of the system. Any physical quantity :math:`A(t)` is related to driving force by correlation function:
+where :math:`\mathbf{S}_{i}^{\alpha}=E_{i}^{\alpha}\mathbf{I}+\mathbf{W}_{i}^{\alpha}` and :math:`\mathbf{S}=\sum_{\beta=1}^{M}\sum_{i=1}^{N_{\beta}}\mathbf{S}_{i}^{\beta}`.
+Here, :math:`m_{\alpha}` is the mass of one atom of component :math:`\alpha`, :math:`M_{\rm tot}=\sum_{\beta=1}^{M}N_{\beta}m_{\beta}` is the total mass, and :math:`N` is the total number of atoms.
+The transpose is required by the virial convention :math:`\boldsymbol{J}_i^{\rm pot}=\mathbf{W}_i\cdot\boldsymbol{v}_i`; the per-atom virial need not be symmetric.
+Any physical quantity :math:`A(t)` is related to driving force by correlation function:
 
 .. math::
 
