@@ -87,7 +87,6 @@ void __global__ find_dftd3_coordination_number_small_box(
   const float* g_x12,
   const float* g_y12,
   const float* g_z12,
-  float* g_cn,
   float* g_cn_w,
   float* g_cn_dw)
 {
@@ -105,7 +104,6 @@ void __global__ find_dftd3_coordination_number_small_box(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       cn_temp += 1.0f / (exp(-16.0f * ((R_cov_1 + R_cov_2) / d12 - 1.0f)) + 1.0f);
     }
-    g_cn[n1] = cn_temp;
     find_cn_weights(N, n1, z1, cn_temp, g_cn_w, g_cn_dw);
   }
 }
@@ -533,7 +531,6 @@ __global__ void find_dftd3_coordination_number_large_box(
   const double* g_x,
   const double* g_y,
   const double* g_z,
-  float* g_cn,
   float* g_cn_w,
   float* g_cn_dw)
 {
@@ -585,7 +582,6 @@ __global__ void find_dftd3_coordination_number_large_box(
       }
     }
   }
-  g_cn[n1] = cn_temp;
   find_cn_weights(N, n1, atomic_number_1, cn_temp, g_cn_w, g_cn_dw);
 }
 
@@ -890,7 +886,6 @@ void DFTD3::compute_small_box(
   const int N = type.size();
   const int size_x12 = N * MN;
   if (NN_radial.size() == 0) {
-    cn.resize(N);
     cn_w.resize(N * max_cn);
     cn_dw.resize(N * max_cn);
     dc6_sum.resize(N);
@@ -933,7 +928,6 @@ void DFTD3::compute_small_box(
     r12.data() + size_x12 * 3,
     r12.data() + size_x12 * 4,
     r12.data() + size_x12 * 5,
-    cn.data(),
     cn_w.data(),
     cn_dw.data());
   GPU_CHECK_KERNEL
@@ -987,7 +981,6 @@ void DFTD3::compute_large_box(
 {
   const int N = type.size();
   if (cell_contents_radial.size() == 0) {
-    cn.resize(N);
     cn_w.resize(N * max_cn);
     cn_dw.resize(N * max_cn);
     dc6_sum.resize(N);
@@ -1037,7 +1030,6 @@ void DFTD3::compute_large_box(
     position_per_atom.data(),
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
-    cn.data(),
     cn_w.data(),
     cn_dw.data());
   GPU_CHECK_KERNEL
