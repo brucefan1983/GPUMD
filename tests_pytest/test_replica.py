@@ -91,10 +91,10 @@ class ReplicaRegression(unittest.TestCase):
             shutil.copyfile(ROOT / f"examples/{potential}/nep.txt", directory / "nep.txt")
         return directory
 
-    def prepare_large(self, name, charge=False):
-        """2x2x2 supercell of the PbTe example (2000 atoms, triclinic, thickness about
-        38 A) so that the NEP or qNEP model uses the large-box path, which batched
-        integration requires."""
+    def prepare_large(self, name, charge=False, repeat=2):
+        """repeat x repeat x repeat supercell of the PbTe example (2000 atoms for repeat 2,
+        triclinic, thickness about 38 A) so that the NEP or qNEP model uses the large-box
+        path, which batched integration requires."""
         directory = self.root / name
         directory.mkdir()
         lines = (ROOT / "examples/gpumd_static_qnep/model.xyz").read_text().splitlines()
@@ -102,14 +102,14 @@ class ReplicaRegression(unittest.TestCase):
         lattice = [float(v) for v in lines[1].split('Lattice="')[1].split('"')[0].split()]
         a, b, c = lattice[0:3], lattice[3:6], lattice[6:9]
         atoms = []
-        for i in range(2):
-            for j in range(2):
-                for k in range(2):
+        for i in range(repeat):
+            for j in range(repeat):
+                for k in range(repeat):
                     shift = [i * a[d] + j * b[d] + k * c[d] for d in range(3)]
                     for row in lines[2:2 + number]:
                         tokens = row.split()
                         atoms.append((tokens[0], [float(tokens[1 + d]) + shift[d] for d in range(3)]))
-        header = " ".join(f"{2 * v!r}" for v in lattice)
+        header = " ".join(f"{repeat * v!r}" for v in lattice)
         with open(directory / "model.xyz", "w") as output:
             output.write(f"{len(atoms)}\n")
             output.write(f'pbc="T T T" Lattice="{header}" Properties=species:S:1:pos:R:3\n')
@@ -296,15 +296,20 @@ class ReplicaRegression(unittest.TestCase):
         self.check_batched_matches_per_slot("prd")
 
     def test_batch_choice(self):
-        # On when one GPU holds at least two replicas and at most 20000 atoms in total.
+        # On when one GPU holds at least two replicas and either at most 5000 atoms per
+        # replica or at most 30000 atoms in total.
+        on = "on (one concatenated system per GPU)"
         cases = [
-            ("on", 4, None, "on (one concatenated system per GPU)"),
-            ("off_atoms", 12, None, "off (24000 atoms per GPU > 20000)"),
-            ("off_forced", 4, 0, "off (GPUMD_REPLICA_BATCH=0)"),
+            ("on", 2, 4, None, on),
+            ("on_small_replicas", 2, 16, None, on),  # 2000 atoms, 32000 in total
+            ("on_total", 3, 4, None, on),  # 6750 atoms, 27000 in total
+            ("off_atoms", 3, 5, None,
+             "off (6750 atoms per replica > 5000 and 33750 atoms per GPU > 30000)"),
+            ("off_forced", 2, 4, 0, "off (GPUMD_REPLICA_BATCH=0)"),
         ]
-        for name, replicas, batch, message in cases:
+        for name, repeat, replicas, batch, message in cases:
             with self.subTest(name=name):
-                directory = self.prepare_large(f"batch_choice_{name}")
+                directory = self.prepare_large(f"batch_choice_{name}", repeat=repeat)
                 options = f"replicas {replicas} exchange 10 temp 300 400"
                 result = self.run_md(directory, "remd", 10, options, batch=batch)
                 self.assertIn("batched integration: " + message, result.stdout)

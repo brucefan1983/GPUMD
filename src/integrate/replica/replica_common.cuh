@@ -249,7 +249,8 @@ public:
   Replica_Runtime& operator=(const Replica_Runtime&) = delete;
 
   // Batched integration (one concatenated system per GPU) is chosen in initialize: on when a GPU
-  // holds at least two replicas and at most 20000 atoms in total.
+  // holds at least two replicas and either at most 5000 atoms per replica or at most 30000 atoms in
+  // total.
   void initialize(int replicas, int replicas_per_gpu, const Slot_Initializer& initialize_slot);
   void start_workers();
   void stop_workers();

@@ -737,10 +737,13 @@ void Replica_Runtime::initialize(
   fflush(stdout);
 }
 
-// Batched integration pays off while the GPU is mostly waiting for kernel launches. Measured on
-// RTX 4090 and RTX 5090, it is faster up to about 20000 atoms per GPU (all replicas together) and
-// 5-20% slower above that. GPUMD_REPLICA_BATCH=0 or 1 overrides the choice, e.g. for tests.
-constexpr long long max_batched_atoms_per_gpu = 20000;
+// Batched integration pays off while the per-replica path is limited by kernel launches. Measured
+// on an RTX 4090 (Cu, NEP, 55 to 32000 atoms per replica, 2 to 64 replicas), it is faster for any
+// number of replicas up to about 5000 atoms per replica, and for larger replicas while the GPU holds
+// at most about 30000 atoms in total; otherwise it is up to 20% slower. GPUMD_REPLICA_BATCH=0 or 1
+// overrides the choice, e.g. for tests.
+constexpr long long max_batched_atoms_per_replica = 5000;
+constexpr long long max_batched_atoms_per_gpu = 30000;
 
 void Replica_Runtime::initialize_batches()
 {
@@ -762,9 +765,15 @@ void Replica_Runtime::initialize_batches()
       printf("    batched integration: off (one replica per GPU).\n");
       return;
     }
-    if (atoms_per_device > max_batched_atoms_per_gpu) {
+    const long long atoms_per_replica = source_atom_.number_of_atoms;
+    if (
+      atoms_per_replica > max_batched_atoms_per_replica &&
+      atoms_per_device > max_batched_atoms_per_gpu) {
       printf(
-        "    batched integration: off (%lld atoms per GPU > %lld).\n",
+        "    batched integration: off (%lld atoms per replica > %lld and %lld atoms per GPU > "
+        "%lld).\n",
+        atoms_per_replica,
+        max_batched_atoms_per_replica,
         atoms_per_device,
         max_batched_atoms_per_gpu);
       return;
