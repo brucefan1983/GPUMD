@@ -25,6 +25,7 @@ by replica dynamics; keep it in sync with force/nep by hand.
 
 #pragma once
 #include "model/box.cuh"
+#include "replica_nep_common.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -97,26 +98,13 @@ public:
     int num_types;
   };
 
-  struct ExpandedBox {
-    int num_cells[3];
-    float h[18];
-  };
-
-  struct Small_Box_Data {
-    GPU_Vector<int> NN_radial;
-    GPU_Vector<int> NL_radial;
-    GPU_Vector<int> NN_angular;
-    GPU_Vector<int> NL_angular;
-    GPU_Vector<float> r12;
-  };
+  using ExpandedBox = Replica_Expanded_Box;
+  using Small_Box_Data = Replica_Small_Box_Data;
 
   double rc = 0.0;         // largest cutoff
 
   // Reads the model; verbose prints the model information.
   NEP_Replica_Model(const char* file_potential, const bool verbose);
-
-  // Whether the box needs the small-box path; also fills the expanded box for it.
-  static bool get_expanded_box(const double rc, const Box& box, ExpandedBox& ebox);
 
 protected:
   // Large-box evaluation of atoms [N1, N2) of N atoms in two steps: the radial and

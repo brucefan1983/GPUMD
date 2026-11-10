@@ -39,14 +39,6 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include <string>
 #include <vector>
 
-const std::string ELEMENTS[NUM_ELEMENTS] = {
-  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
-  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge",
-  "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
-  "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd",
-  "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
-  "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
-
 NEP_Replica_Model::NEP_Replica_Model(const char* file_potential, const bool verbose)
 {
   std::ifstream input(file_potential);
@@ -72,14 +64,7 @@ NEP_Replica_Model::NEP_Replica_Model(const char* file_potential, const bool verb
       printf("Use the NEP4 potential with %d atom types.\n", paramb.num_types);
   }
   for (int n = 0; n < paramb.num_types; ++n) {
-    int atomic_number = 0;
-    for (int m = 0; m < NUM_ELEMENTS; ++m) {
-      if (model.elements[n] == ELEMENTS[m]) {
-        atomic_number = m + 1;
-        break;
-      }
-    }
-    zbl.atomic_numbers[n] = atomic_number;
+    zbl.atomic_numbers[n] = atomic_number(model.elements[n]);
     if (verbose)
       printf(
         "    type %d (%s with Z = %d).\n", n, model.elements[n].c_str(), zbl.atomic_numbers[n]);
@@ -249,8 +234,7 @@ void NEP_Replica_Model::find_neighbor_lists_small_box(
   const int BLOCK_SIZE = 64;
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  const int big_neighbor_size = 2000;
-  const int size_x12 = N * big_neighbor_size;
+  const int size_x12 = N * REPLICA_SMALL_BOX_NEIGHBORS;
 
   find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
@@ -291,8 +275,7 @@ void NEP_Replica_Model::compute_small_box_from_neighbor_lists(
   const int BLOCK_SIZE = 64;
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  const int big_neighbor_size = 2000;
-  const int size_x12 = N * big_neighbor_size;
+  const int size_x12 = N * REPLICA_SMALL_BOX_NEIGHBORS;
 
   find_descriptor_small_box<<<grid_size, BLOCK_SIZE, 0, stream>>>(
     paramb,
@@ -377,65 +360,3 @@ void NEP_Replica_Model::compute_small_box_from_neighbor_lists(
     GPU_CHECK_KERNEL
   }
 }
-
-bool NEP_Replica_Model::get_expanded_box(const double rc, const Box& box, NEP_Replica_Model::ExpandedBox& ebox)
-{
-  double volume = box.get_volume();
-  double thickness_x = volume / box.get_area(0);
-  double thickness_y = volume / box.get_area(1);
-  double thickness_z = volume / box.get_area(2);
-  ebox.num_cells[0] = box.pbc_x ? int(ceil(2.0 * rc / thickness_x)) : 1;
-  ebox.num_cells[1] = box.pbc_y ? int(ceil(2.0 * rc / thickness_y)) : 1;
-  ebox.num_cells[2] = box.pbc_z ? int(ceil(2.0 * rc / thickness_z)) : 1;
-
-  bool is_small_box = false;
-  if (box.pbc_x && thickness_x <= 2.5 * (rc + 1.0)) {
-    is_small_box = true;
-  }
-  if (box.pbc_y && thickness_y <= 2.5 * (rc + 1.0)) {
-    is_small_box = true;
-  }
-  if (box.pbc_z && thickness_z <= 2.5 * (rc + 1.0)) {
-    is_small_box = true;
-  }
-
-  if (is_small_box) {
-    if (thickness_x > 10 * rc || thickness_y > 10 * rc || thickness_z > 10 * rc) {
-      std::cout << "Error:\n"
-                << "    The box has\n"
-                << "        a thickness < 2.5 radial cutoffs in a periodic direction.\n"
-                << "        and a thickness > 10 radial cutoffs in another direction.\n"
-                << "    Please increase the periodic direction(s).\n";
-      exit(1);
-    }
-
-    ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
-    ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
-    ebox.h[6] = box.cpu_h[6] * ebox.num_cells[0];
-    ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
-    ebox.h[4] = box.cpu_h[4] * ebox.num_cells[1];
-    ebox.h[7] = box.cpu_h[7] * ebox.num_cells[1];
-    ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
-    ebox.h[5] = box.cpu_h[5] * ebox.num_cells[2];
-    ebox.h[8] = box.cpu_h[8] * ebox.num_cells[2];
-
-    ebox.h[9] = ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7];
-    ebox.h[10] = ebox.h[2] * ebox.h[7] - ebox.h[1] * ebox.h[8];
-    ebox.h[11] = ebox.h[1] * ebox.h[5] - ebox.h[2] * ebox.h[4];
-    ebox.h[12] = ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8];
-    ebox.h[13] = ebox.h[0] * ebox.h[8] - ebox.h[2] * ebox.h[6];
-    ebox.h[14] = ebox.h[2] * ebox.h[3] - ebox.h[0] * ebox.h[5];
-    ebox.h[15] = ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6];
-    ebox.h[16] = ebox.h[1] * ebox.h[6] - ebox.h[0] * ebox.h[7];
-    ebox.h[17] = ebox.h[0] * ebox.h[4] - ebox.h[1] * ebox.h[3];
-    double det = ebox.h[0] * (ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7]) +
-                 ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
-                 ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
-    for (int n = 9; n < 18; n++) {
-      ebox.h[n] /= det;
-    }
-  }
-
-  return is_small_box;
-}
-

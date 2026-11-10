@@ -95,20 +95,14 @@ void NEP_Replica::report_neighbors(
   NN_radial.copy_to_host_async(workspace.cpu_NN_radial.data(), number_of_atoms, stream);
   NN_angular.copy_to_host_async(workspace.cpu_NN_angular.data(), number_of_atoms, stream);
   CHECK(gpuStreamSynchronize(stream));
-  int radial_actual = 0;
-  int angular_actual = 0;
-  for (int n = 0; n < number_of_atoms; ++n) {
-    radial_actual = std::max(radial_actual, workspace.cpu_NN_radial[n]);
-    angular_actual = std::max(angular_actual, workspace.cpu_NN_angular[n]);
-  }
-  std::lock_guard<std::mutex> lock(log_mutex_);
-  std::ofstream output("neighbor.out", std::ios_base::app);
-  output << "Neighbor info at step " << call_index;
-  if (number_of_replicas > 1)
-    output << " (batch of " << number_of_replicas << " replicas)";
-  output << ": radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
-         << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
-         << std::endl;
+  write_neighbor_info(
+    call_index,
+    number_of_replicas,
+    paramb.MN_radial,
+    paramb.MN_angular,
+    workspace.cpu_NN_radial.data(),
+    workspace.cpu_NN_angular.data(),
+    number_of_atoms);
 }
 
 void NEP_Replica::compute(
@@ -130,15 +124,7 @@ void NEP_Replica::compute(
 
   if (get_expanded_box(paramb.rc_radial_max, stream_box, workspace.expanded_box)) {
     Small_Box_Data& small_box = workspace.small_box;
-    if (small_box.NN_radial.size() != N) {
-      const int big_neighbor_size = 2000;
-      const size_t size_x12 = static_cast<size_t>(N) * big_neighbor_size;
-      small_box.NN_radial.resize(N);
-      small_box.NL_radial.resize(size_x12);
-      small_box.NN_angular.resize(N);
-      small_box.NL_angular.resize(size_x12);
-      small_box.r12.resize(size_x12 * 6);
-    }
+    small_box.resize(N);
     find_neighbor_lists_small_box(
       stream_box, workspace.expanded_box, N, 0, N, type.data(), position.data(), small_box,
       stream);

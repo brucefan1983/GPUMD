@@ -84,7 +84,6 @@ private:
   int device_id_ = -1;
   std::map<gpuStream_t, std::unique_ptr<Workspace>> workspaces_;
   std::mutex workspaces_mutex_;
-  std::mutex log_mutex_;
 
   Workspace& get_workspace(gpuStream_t stream);
   void report_neighbors(

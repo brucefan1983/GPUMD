@@ -46,14 +46,6 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include <string>
 #include <vector>
 
-const std::string ELEMENTS[NUM_ELEMENTS] = {
-  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
-  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge",
-  "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh", "Pd", "Ag", "Cd",
-  "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd",
-  "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
-  "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
-
 void NEP_Charge_Replica_Model::check_ewald_pppm(const RunInput& run_input)
 {
   // With alpha = pi / rc_radial, the default spacing keeps alpha * spacing at or below pi / 6.
@@ -122,14 +114,7 @@ NEP_Charge_Replica_Model::NEP_Charge_Replica_Model(
   }
 
   for (int n = 0; n < paramb.num_types; ++n) {
-    int atomic_number = 0;
-    for (int m = 0; m < NUM_ELEMENTS; ++m) {
-      if (model.elements[n] == ELEMENTS[m]) {
-        atomic_number = m + 1;
-        break;
-      }
-    }
-    zbl.atomic_numbers[n] = atomic_number;
+    zbl.atomic_numbers[n] = atomic_number(model.elements[n]);
     if (verbose)
       printf(
         "    type %d (%s with Z = %d).\n", n, model.elements[n].c_str(), zbl.atomic_numbers[n]);
@@ -984,28 +969,17 @@ void NEP_Charge_Replica_Model::compute_large_box(
   GPU_CHECK_KERNEL
 
   if (num_calls_large_box_++ % 1000 == 0) {
-    const int num_calls = num_calls_large_box_;
-    if (stream_ != nullptr) {
-      CHECK(gpuStreamSynchronize(stream_));
-    }
+    CHECK(gpuStreamSynchronize(stream_));
     nep_data.NN_radial.copy_to_host(nep_data.cpu_NN_radial.data());
     nep_data.NN_angular.copy_to_host(nep_data.cpu_NN_angular.data());
-    int radial_actual = 0;
-    int angular_actual = 0;
-    for (int n = 0; n < N; ++n) {
-      if (radial_actual < nep_data.cpu_NN_radial[n]) {
-        radial_actual = nep_data.cpu_NN_radial[n];
-      }
-      if (angular_actual < nep_data.cpu_NN_angular[n]) {
-        angular_actual = nep_data.cpu_NN_angular[n];
-      }
-    }
-    std::ofstream output_file("neighbor.out", std::ios_base::app);
-    output_file << "Neighbor info at step " << num_calls - 1 << ": "
-                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
-                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
-                << std::endl;
-    output_file.close();
+    write_neighbor_info(
+      num_calls_large_box_ - 1,
+      1,
+      paramb.MN_radial,
+      paramb.MN_angular,
+      nep_data.cpu_NN_radial.data(),
+      nep_data.cpu_NN_angular.data(),
+      N);
   }
 
   find_descriptor<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
@@ -1192,8 +1166,7 @@ void NEP_Charge_Replica_Model::compute_small_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  const int big_neighbor_size = 2000;
-  const int size_x12 = type.size() * big_neighbor_size;
+  const int size_x12 = N * REPLICA_SMALL_BOX_NEIGHBORS;
 
   find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
     paramb,
@@ -1219,30 +1192,19 @@ void NEP_Charge_Replica_Model::compute_small_box(
   GPU_CHECK_KERNEL
 
   if (num_calls_small_box_++ % 1000 == 0) {
-    const int num_calls = num_calls_small_box_;
-    if (stream_ != nullptr) {
-      CHECK(gpuStreamSynchronize(stream_));
-    }
-    std::vector<int> cpu_NN_radial(type.size());
-    std::vector<int> cpu_NN_angular(type.size());
+    CHECK(gpuStreamSynchronize(stream_));
+    std::vector<int> cpu_NN_radial(N);
+    std::vector<int> cpu_NN_angular(N);
     small_box_data.NN_radial.copy_to_host(cpu_NN_radial.data());
     small_box_data.NN_angular.copy_to_host(cpu_NN_angular.data());
-    int radial_actual = 0;
-    int angular_actual = 0;
-    for (int n = 0; n < N; ++n) {
-      if (radial_actual < cpu_NN_radial[n]) {
-        radial_actual = cpu_NN_radial[n];
-      }
-      if (angular_actual < cpu_NN_angular[n]) {
-        angular_actual = cpu_NN_angular[n];
-      }
-    }
-    std::ofstream output_file("neighbor.out", std::ios_base::app);
-    output_file << "Neighbor info at step " << num_calls - 1 << ": "
-                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
-                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
-                << std::endl;
-    output_file.close();
+    write_neighbor_info(
+      num_calls_small_box_ - 1,
+      1,
+      paramb.MN_radial,
+      paramb.MN_angular,
+      cpu_NN_radial.data(),
+      cpu_NN_angular.data(),
+      N);
   }
 
   find_descriptor_small_box<<<grid_size, BLOCK_SIZE, 0, stream_>>>(
@@ -1400,67 +1362,6 @@ void NEP_Charge_Replica_Model::compute_small_box(
   }
 }
 
-bool NEP_Charge_Replica_Model::get_expanded_box(const double rc, const Box& box, NEP_Charge_Replica_Model::ExpandedBox& ebox)
-{
-  double volume = box.get_volume();
-  double thickness_x = volume / box.get_area(0);
-  double thickness_y = volume / box.get_area(1);
-  double thickness_z = volume / box.get_area(2);
-  ebox.num_cells[0] = box.pbc_x ? int(ceil(2.0 * rc / thickness_x)) : 1;
-  ebox.num_cells[1] = box.pbc_y ? int(ceil(2.0 * rc / thickness_y)) : 1;
-  ebox.num_cells[2] = box.pbc_z ? int(ceil(2.0 * rc / thickness_z)) : 1;
-
-  bool is_small_box = false;
-  if (box.pbc_x && thickness_x <= 2.5 * (rc + 1.0)) {
-    is_small_box = true;
-  }
-  if (box.pbc_y && thickness_y <= 2.5 * (rc + 1.0)) {
-    is_small_box = true;
-  }
-  if (box.pbc_z && thickness_z <= 2.5 * (rc + 1.0)) {
-    is_small_box = true;
-  }
-
-  if (is_small_box) {
-    if (thickness_x > 10 * rc || thickness_y > 10 * rc || thickness_z > 10 * rc) {
-      std::cout << "Error:\n"
-                << "    The box has\n"
-                << "        a thickness < 2.5 radial cutoffs in a periodic direction.\n"
-                << "        and a thickness > 10 radial cutoffs in another direction.\n"
-                << "    Please increase the periodic direction(s).\n";
-      exit(1);
-    }
-
-    ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
-    ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
-    ebox.h[6] = box.cpu_h[6] * ebox.num_cells[0];
-    ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
-    ebox.h[4] = box.cpu_h[4] * ebox.num_cells[1];
-    ebox.h[7] = box.cpu_h[7] * ebox.num_cells[1];
-    ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
-    ebox.h[5] = box.cpu_h[5] * ebox.num_cells[2];
-    ebox.h[8] = box.cpu_h[8] * ebox.num_cells[2];
-
-    ebox.h[9] = ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7];
-    ebox.h[10] = ebox.h[2] * ebox.h[7] - ebox.h[1] * ebox.h[8];
-    ebox.h[11] = ebox.h[1] * ebox.h[5] - ebox.h[2] * ebox.h[4];
-    ebox.h[12] = ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8];
-    ebox.h[13] = ebox.h[0] * ebox.h[8] - ebox.h[2] * ebox.h[6];
-    ebox.h[14] = ebox.h[2] * ebox.h[3] - ebox.h[0] * ebox.h[5];
-    ebox.h[15] = ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6];
-    ebox.h[16] = ebox.h[1] * ebox.h[6] - ebox.h[0] * ebox.h[7];
-    ebox.h[17] = ebox.h[0] * ebox.h[4] - ebox.h[1] * ebox.h[3];
-    double det = ebox.h[0] * (ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7]) +
-                 ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
-                 ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
-    for (int n = 9; n < 18; n++) {
-      ebox.h[n] /= det;
-    }
-  }
-
-  return is_small_box;
-}
-
 void NEP_Charge_Replica_Model::compute(
   Box& box,
   const GPU_Vector<int>& type,
@@ -1469,24 +1370,9 @@ void NEP_Charge_Replica_Model::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  if (!box.pbc_x || !box.pbc_y || !box.pbc_z) {
-    PRINT_INPUT_ERROR("Cannot use non-periodic boundaries for qNEP models.");
-  }
-
-  const bool is_small_box = get_expanded_box(paramb.rc_radial, box, ebox);
-  if (is_small_box) {
-    // update small_box_data
-    const int current_num_atoms = type.size();
-    if (small_box_data.NN_radial.size() != current_num_atoms) {
-      const int big_neighbor_size = 2000;
-      const int size_x12 = current_num_atoms * big_neighbor_size;
-
-      small_box_data.NN_radial.resize(current_num_atoms);
-      small_box_data.NL_radial.resize(size_x12);
-      small_box_data.NN_angular.resize(current_num_atoms);
-      small_box_data.NL_angular.resize(size_x12);
-      small_box_data.r12.resize(size_x12 * 6);
-    }
+  // The replica drivers accept qNEP only with periodic boundaries in all directions.
+  if (get_expanded_box(paramb.rc_radial, box, ebox)) {
+    small_box_data.resize(type.size());
     compute_small_box(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   } else {
