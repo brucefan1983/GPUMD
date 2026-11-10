@@ -1,7 +1,7 @@
 """Basic single-GPU integration tests for replica dynamics (multi_replica in gpumd).
 
-Run directly with python3 tests_regression/replica/test_replica.py.
-Set GPUMD to select the gpumd executable; see README.md in this directory.
+Run with pytest from tests_pytest/, or directly with python3 tests_pytest/test_replica.py.
+Set GPUMD to select another gpumd executable; see "Replica dynamics" in README.md.
 """
 
 import os
@@ -11,9 +11,12 @@ import subprocess
 import tempfile
 import unittest
 
+import pytest
 
-ROOT = Path(__file__).resolve().parents[2]
-FIXTURES = Path(__file__).resolve().parent / "fixtures"
+pytestmark = pytest.mark.slow
+
+ROOT = Path(__file__).resolve().parents[1]
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "replica"
 BINARY = Path(os.environ.get("GPUMD", ROOT / "src/gpumd")).resolve()
 WORKDIR = os.environ.get("REPLICA_TEST_WORKDIR")
 ENV = dict(os.environ)
@@ -53,10 +56,6 @@ def events(directory):
     return data_rows(directory / "prd_events.out")
 
 
-@unittest.skipUnless(
-    __name__ == "__main__" or "GPUMD" in os.environ,
-    "GPU tests: run this script directly or set GPUMD",
-)
 class ReplicaRegression(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

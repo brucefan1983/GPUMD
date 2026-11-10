@@ -3,7 +3,7 @@
 Both executables use the current PPPM input and mesh contracts. There is no
 pinned pre-PPPM baseline and no expected difference between the two roles.
 Use identical compiler, architecture and feature flags; both executables must
-use `-DDEBUG`. The separate replica dynamics suite is outside this package.
+use `-DDEBUG`.
 
 The `pppm` focused suite is a subset of `full`.
 
