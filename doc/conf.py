@@ -8,6 +8,7 @@ import sphinx_rtd_theme
 import subprocess
 from collections import Counter
 from docutils import nodes
+from sphinx import addnodes
 from pybtex.database import parse_file
 
 project = 'GPUMD'
@@ -120,5 +121,14 @@ def add_publication_counts(app, doctree):
             title += nodes.Text(f' ({count} {label})')
 
 
+def remove_latex_empty_chapters(app, doctree, docname):
+    if app.builder.format != 'latex':
+        return
+    for node in list(doctree.findall(addnodes.start_of_file)):
+        if node['docname'] in ('bibliography', 'genindex'):
+            node.parent.remove(node)
+
+
 def setup(app):
     app.connect('doctree-read', add_publication_counts, priority=400)
+    app.connect('doctree-resolved', remove_latex_empty_chapters)
