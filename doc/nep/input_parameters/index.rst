@@ -43,7 +43,6 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
    output_descriptor
    fine_tune
    import_q_scaler
-   charge_mode
    flip_charge
    spin_version
    spin_compress

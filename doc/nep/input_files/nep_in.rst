@@ -46,8 +46,6 @@ Keywords
      - force weights for different atom types
    * - :ref:`model <kw_model>`
      - select the model for training or prediction
-   * - :ref:`charge_mode <kw_charge_mode>`
-     - legacy charge-model selection (deprecated)
    * - :ref:`flip_charge <kw_flip_charge>`
      - reverse charge-output weights when restarting charge-model training
    * - :ref:`prediction <kw_prediction>`

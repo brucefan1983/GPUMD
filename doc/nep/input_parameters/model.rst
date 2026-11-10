@@ -41,23 +41,14 @@ keyword is given, the default is ``nep``.
 ``qnep3`` uses the same parameter layout as ``qnep2``, but adds the
 self-energy correction to the long-range charge energy.
 
-Specify ``model`` at most once. It cannot be combined with ``charge_mode``,
-even if its value is zero.
-This rule is independent of keyword order.
+Specify ``model`` at most once.
 
 For ``model nep_spin``, :ref:`spin_version <kw_spin_version>` may still be
 specified and defaults to ``1``. It is an error to combine ``spin_version``
 with any other explicit ``model``.
 
-The legacy :ref:`charge_mode keyword <kw_charge_mode>` remains supported and
-prints a deprecation warning with the equivalent ``model`` selection. Using ``spin_version``
-without ``model`` also remains supported with a warning; ``spin_version``
-itself remains the spin descriptor version setting.
-
-To migrate ``charge_mode 2 1``, use::
-
-  model qnep2
-  flip_charge 1
+Using ``spin_version`` without ``model`` also remains supported with a warning;
+``spin_version`` itself remains the spin descriptor version setting.
 
 See :ref:`flip_charge <kw_flip_charge>` for the restart option.
 
@@ -67,6 +58,7 @@ Long-range models
 -----------------
 
 The models ``qnep1``, ``qnep2``, and ``qnep3`` [Fan2026]_ predict environment-dependent atomic charges in addition to the local NEP energy.
+The ``qnep1`` and ``qnep2`` models follow the approaches of Song et al. [Song2024b]_ and Cheng [Cheng2025]_, respectively.
 For periodic systems, their electrostatic contributions are
 
 .. math::
@@ -90,6 +82,7 @@ Use the energy, force, and optional virial or stress labels described in :ref:`t
 Atomic charge and dispersion-coefficient labels are not required.
 For the charge models, ``charge=`` specifies the total charge of each structure in units of e and defaults to zero.
 Optional ``bec:R:9`` labels provide target Born effective charges.
+Fitting Born effective charges is usually appropriate for a single material in a single phase, since a constant high-frequency dielectric constant is assumed for the whole training dataset.
 The weights of the total-charge and Born-effective-charge loss terms are set by :ref:`lambda_q <kw_lambda_q>` and :ref:`lambda_z <kw_lambda_z>`, respectively.
 
 Boundary conditions and MD use
