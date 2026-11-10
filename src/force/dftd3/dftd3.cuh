@@ -36,6 +36,8 @@ public:
   float rc_radial = 15.0;
   float rc_angular = 10.0;
   GPU_Vector<float> cn;
+  GPU_Vector<float> cn_w;
+  GPU_Vector<float> cn_dw;
   GPU_Vector<float> c6_ref;
   GPU_Vector<float> dc6_sum;
   GPU_Vector<float> dc8_sum;
