@@ -20,8 +20,7 @@ input error. Version 1 uses the order/compression descriptor described in
 :ref:`nep_spin`; :ref:`spin_order <kw_spin_order>` independently selects its
 contraction order.
 
-Spin training requires ``version 4`` and one hidden layer. Legacy inputs
-may use ``model_type 0``, but must not combine it with the ``model`` keyword.
+Spin training requires ``version 4`` and one hidden layer.
 ``version`` identifies the NEP architecture; ``spin_version`` identifies the
 magnetic descriptor and parameter-layout contract. The resulting ``nep.txt``
 contains ``model nep_spin`` and ``spin_version 1``. Prediction, scaler import,

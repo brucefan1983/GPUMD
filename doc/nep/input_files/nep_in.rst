@@ -26,7 +26,7 @@ All other keywords have default values.
 
 Use :ref:`model <kw_model>` to select the model family, for example
 ``model qnep2`` or ``model qnep3_vdw``. Omitting all model selectors selects
-ordinary ``nep``. Legacy selectors remain supported with deprecation warnings.
+ordinary ``nep``.
 
 Keywords
 --------
@@ -46,8 +46,6 @@ Keywords
      - force weights for different atom types
    * - :ref:`model <kw_model>`
      - select the model for training or prediction
-   * - :ref:`model_type <kw_model_type>`
-     - legacy model selection (deprecated)
    * - :ref:`charge_mode <kw_charge_mode>`
      - legacy charge-model selection (deprecated)
    * - :ref:`flip_charge <kw_flip_charge>`

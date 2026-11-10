@@ -35,7 +35,7 @@ Each combination is balanced in the number of atoms of each type, so that any un
 
 ``nep`` stops with an input error if :attr:`ediff.in` is missing or if none of its combinations has all its structures in :attr:`train.xyz`.
 Without the keyword, an :attr:`ediff.in` file is ignored.
-The keyword is only available for potential models and is an input error together with :attr:`model_type 1` or :attr:`model_type 2`, also in prediction mode.
+The keyword is only available for potential models and is an input error together with ``model nep_dipole`` or ``model nep_polarizability``, also in prediction mode.
 In prediction mode of a potential model, the keyword has no effect.
 
 When the term is active, :ref:`loss.out <loss_out>` has two additional columns, :attr:`rmse_ediff_train` and :attr:`rmse_ediff_test`.
