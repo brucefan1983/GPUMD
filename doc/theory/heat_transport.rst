@@ -364,11 +364,13 @@ The onsager matrix is arranged as:
    & \Lambda_{(M-1)(M-1)}
    \end{array}
 
-The thermal conductivity could be derived from onsager matrix: 
+For an isotropic system or a decoupled Cartesian direction, the thermal conductivity follows from the Onsager matrix in the independent-current basis :math:`(q,1,\ldots,M-1)`:
 
 .. math::
 
    \kappa=\frac{1}{T^{2}(\Lambda^{-1})_{00}}
+
+The :ref:`onsager.out documentation <onsager_out>` explains how to assemble this matrix from separate driving calculations, convert the output units, and handle the general tensor case.
 
 * The :ref:`compute_hnemdec <kw_compute_hnemdec>` keyword should be used to add the driving force and calculate the thermal conductivity.
 * The computed results are saved to the :ref:`onsager.out <onsager_out>` file.

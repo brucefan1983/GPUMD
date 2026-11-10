@@ -19,7 +19,8 @@ Syntax
 In the case of zero, heat flux is equivalent to dissipative flux, with driving force :math:`F_e` in the units of Å\ :sup:`-1`.
 For a non zero positive integer such as :math:`i`, a momentum flux of the :math:`ith` element is produced as dissipative flux, with driving force :math:`F_e` in the units of eV/Å. For a compacted multi-element NEP potential, the element order is the active atom type list printed at initialization; otherwise, it is the order in the first line of nep.txt.
 
-:attr:`output_interval` is the interval to output the onsager coefficients.
+:attr:`output_interval` is the number of MD steps per output block.
+Each row contains coefficients averaged over that block.
 
 :attr:`Fe_x` is the :math:`x` direction component of the external driving force :math:`F_e`.
 
@@ -58,3 +59,6 @@ Example 2
    compute_hnemdec 2 1000 0 0.00001 0
 
 The external driving force is diffusive driving force that will produced a momentum flux of the second element as dissipative flux and has a magnitude of :math:`10^{-5}` eV/Å. The force is applied along the :math:`y` direction.
+
+To obtain the thermal conductivity, combine a thermal-driving calculation with diffusive-driving calculations for :math:`M-1` independent components at the same thermodynamic state.
+See :ref:`onsager.out <onsager_out>` for matrix assembly, unit conversion, and a binary-system example.
