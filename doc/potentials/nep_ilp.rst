@@ -12,6 +12,8 @@ for interlayer interactions to simulate van der Waals materials.
 Now this hybrid potential supports to simulate homo- and heterostructures based on 
 graphene, :math:`h`-BN and transition metal dichalcogenides (TMDs) layered materials.
 
+.. _ilp_potential_form:
+
 Potential form
 --------------
 
