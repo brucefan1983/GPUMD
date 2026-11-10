@@ -17,7 +17,10 @@ HIP_ARCH ?= gfx90a
 # Leave the C++ standard at the compiler default (C++17): rocThrust/rocPRIM
 # (pulled in by thrust::exclusive_scan in neighbor.cu etc.) require C++17 and
 # hipcc defaults to it, so do not pin -std lower.
-CFLAGS = -O3 --offload-arch=$(HIP_ARCH) -DUSE_HIP
+# -ffp-contract=on fuses multiply-adds only within an expression, as nvcc does
+# by default; hipcc's default (fast) also fuses across statements, which makes
+# the per-slot and batched replica NEP kernels round differently.
+CFLAGS = -O3 --offload-arch=$(HIP_ARCH) -DUSE_HIP -ffp-contract=on
 INC = -I./
 LDFLAGS = 
 LIBS = -lhipblas -lhipsolver -lhipfft
