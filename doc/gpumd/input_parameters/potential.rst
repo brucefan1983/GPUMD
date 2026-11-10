@@ -46,8 +46,8 @@ triclinic box. If the direction is omitted, GPUMD selects it automatically,
 normally along the thickest direction of the box.
 
 The optional partition direction applies only to the multi-GPU implementation
-of standard NEP, temperature-dependent NEP, and ``nep_spin`` models. Charge NEP models
-currently use the single-GPU implementation in ``gpumd``.
+of standard NEP, temperature-dependent NEP, and ``nep_spin`` models. Charge and vdW NEP models
+currently use the single-GPU implementation in ``gpumd``; see :ref:`Long-range models <nep_long_range_models>` for their boundary conditions and usage.
 
 Example
 -------
