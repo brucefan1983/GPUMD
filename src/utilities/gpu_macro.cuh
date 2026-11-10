@@ -41,7 +41,6 @@
 // error handling
 #define gpuError_t hipError_t
 #define gpuSuccess hipSuccess
-#define gpuErrorNotReady hipErrorNotReady
 #define gpuGetErrorString hipGetErrorString
 #define gpuGetLastError hipGetLastError
 
@@ -62,7 +61,6 @@
 #define gpuStreamDestroy hipStreamDestroy
 #define gpuStreamSynchronize hipStreamSynchronize
 #define gpuStreamWaitEvent hipStreamWaitEvent
-#define gpuStreamQuery hipStreamQuery
 #define gpuStreamNonBlocking hipStreamNonBlocking
 
 // event
@@ -71,9 +69,6 @@
 #define gpuEventDestroy hipEventDestroy
 #define gpuEventRecord hipEventRecord
 #define gpuEventSynchronize hipEventSynchronize
-#define gpuEventQuery hipEventQuery
-#define gpuEventElapsedTime hipEventElapsedTime
-#define gpuEventDefault hipEventDefault
 #define gpuEventDisableTiming hipEventDisableTiming
 
 // random numbers
@@ -153,7 +148,6 @@
 // error handling
 #define gpuError_t cudaError_t
 #define gpuSuccess cudaSuccess
-#define gpuErrorNotReady cudaErrorNotReady
 #define gpuGetErrorString cudaGetErrorString
 #define gpuGetLastError cudaGetLastError
 
@@ -174,7 +168,6 @@
 #define gpuStreamDestroy cudaStreamDestroy
 #define gpuStreamSynchronize cudaStreamSynchronize
 #define gpuStreamWaitEvent cudaStreamWaitEvent
-#define gpuStreamQuery cudaStreamQuery
 #define gpuStreamNonBlocking cudaStreamNonBlocking
 
 // event
@@ -183,9 +176,6 @@
 #define gpuEventDestroy cudaEventDestroy
 #define gpuEventRecord cudaEventRecord
 #define gpuEventSynchronize cudaEventSynchronize
-#define gpuEventQuery cudaEventQuery
-#define gpuEventElapsedTime cudaEventElapsedTime
-#define gpuEventDefault cudaEventDefault
 #define gpuEventDisableTiming cudaEventDisableTiming
 
 // random numbers

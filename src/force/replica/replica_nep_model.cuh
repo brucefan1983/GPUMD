@@ -29,7 +29,6 @@ by replica dynamics; keep it in sync with force/nep by hand.
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
-#include <vector>
 
 struct NEP_Replica_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces

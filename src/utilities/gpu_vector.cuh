@@ -140,12 +140,6 @@ public:
     CHECK(gpuMemcpyAsync(data_, h_data, sizeof(T) * size, gpuMemcpyHostToDevice, stream));
   }
 
-  void copy_from_host_async(
-    const T* h_data, const size_t size, const int offset, const gpuStream_t stream)
-  {
-    CHECK(gpuMemcpyAsync(data_ + offset, h_data, sizeof(T) * size, gpuMemcpyHostToDevice, stream));
-  }
-
   // copy data from device with the default size
   void copy_from_device(const T* d_data)
   {
@@ -163,11 +157,6 @@ public:
   void copy_from_device_async(const T* d_data, const gpuStream_t stream)
   {
     CHECK(gpuMemcpyAsync(data_, d_data, memory_, gpuMemcpyDeviceToDevice, stream));
-  }
-
-  void copy_from_device_async(const T* d_data, const size_t size, const gpuStream_t stream)
-  {
-    CHECK(gpuMemcpyAsync(data_, d_data, sizeof(T) * size, gpuMemcpyDeviceToDevice, stream));
   }
 
   // copy data to host with the default size
@@ -201,12 +190,6 @@ public:
     CHECK(gpuMemcpyAsync(h_data, data_, sizeof(T) * size, gpuMemcpyDeviceToHost, stream));
   }
 
-  void copy_to_host_async(
-    T* h_data, const size_t size, const int offset, const gpuStream_t stream)
-  {
-    CHECK(gpuMemcpyAsync(h_data, data_ + offset, sizeof(T) * size, gpuMemcpyDeviceToHost, stream));
-  }
-
   // copy data to device with the default size
   void copy_to_device(T* d_data)
   {
@@ -224,11 +207,6 @@ public:
   void copy_to_device_async(T* d_data, const gpuStream_t stream)
   {
     CHECK(gpuMemcpyAsync(d_data, data_, memory_, gpuMemcpyDeviceToDevice, stream));
-  }
-
-  void copy_to_device_async(T* d_data, const size_t size, const gpuStream_t stream)
-  {
-    CHECK(gpuMemcpyAsync(d_data, data_, sizeof(T) * size, gpuMemcpyDeviceToDevice, stream));
   }
 
   // give "value" to each element

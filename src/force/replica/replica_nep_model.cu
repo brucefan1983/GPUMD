@@ -33,11 +33,8 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/nep_io/nep_model_file.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <cmath>
-#include <cstddef>
 #include <fstream>
-#include <iostream>
 #include <string>
-#include <vector>
 
 NEP_Replica_Model::NEP_Replica_Model(const char* file_potential, const bool verbose)
 {

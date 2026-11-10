@@ -21,8 +21,6 @@ Energy NEP for replica dynamics, see replica_nep.cuh.
 #include "replica_nep_kernels.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <algorithm>
-#include <fstream>
 
 NEP_Replica::NEP_Replica(const char* file_potential, const int num_atoms, const bool verbose)
   : NEP_Replica_Model(file_potential, verbose), num_atoms_(num_atoms)

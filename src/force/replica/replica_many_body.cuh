@@ -81,7 +81,6 @@ static __global__ void replica_find_force_many_body(
       float f12x = g_f12x[index];
       float f12y = g_f12y[index];
       float f12z = g_f12z[index];
-      // int offset = 0;
 
       int l = 0;
       int r = g_neighbor_number[n2];
@@ -98,12 +97,6 @@ static __global__ void replica_find_force_many_body(
           break;
         }
       }
-      // for (int k = 0; k < neighbor_number_2; ++k) {
-      //   if (n1 == g_neighbor_list[n2 + number_of_particles * k]) {
-      //     offset = k;
-      //     break;
-      //   }
-      // }
       index = ((l + r) >> 1) * number_of_particles + n2;
       float f21x = g_f12x[index];
       float f21y = g_f12y[index];

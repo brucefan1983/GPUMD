@@ -646,7 +646,6 @@ void NEP_Replica_Model::compute_large_box_from_neighbor_lists(
     force,
     virial,
     stream);
-  GPU_CHECK_KERNEL
 
   if (zbl.enabled) {
     find_force_ZBL<<<grid_size, BLOCK_SIZE, 0, stream>>>(

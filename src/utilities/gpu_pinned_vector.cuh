@@ -87,7 +87,6 @@ public:
   T& operator[](const size_t index) { return data_[index]; }
   const T& operator[](const size_t index) const { return data_[index]; }
 
-  bool empty() const { return size_ == 0; }
   size_t size() const { return size_; }
   T const* data() const { return data_; }
   T* data() { return data_; }

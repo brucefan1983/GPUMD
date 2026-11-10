@@ -54,10 +54,7 @@ class GPU_Event
 public:
   GPU_Event() = default;
 
-  explicit GPU_Event(const int device_id, const bool enable_timing = false)
-  {
-    create(device_id, enable_timing);
-  }
+  explicit GPU_Event(const int device_id) { create(device_id); }
 
   ~GPU_Event() { destroy(); }
 
@@ -83,12 +80,11 @@ public:
     return *this;
   }
 
-  void create(const int device_id, const bool enable_timing = false)
+  void create(const int device_id)
   {
     destroy();
     gpu_detail::Device_Guard guard(device_id);
-    const unsigned int flags = enable_timing ? gpuEventDefault : gpuEventDisableTiming;
-    CHECK(gpuEventCreateWithFlags(&event_, flags));
+    CHECK(gpuEventCreateWithFlags(&event_, gpuEventDisableTiming));
     device_id_ = device_id;
   }
 
@@ -116,28 +112,6 @@ public:
     CHECK(gpuEventSynchronize(event_));
   }
 
-  bool ready() const
-  {
-    gpu_detail::Device_Guard guard(device_id_);
-    const gpuError_t status = gpuEventQuery(event_);
-    if (status == gpuSuccess)
-      return true;
-    if (status == gpuErrorNotReady)
-      return false;
-    CHECK(status);
-    return false;
-  }
-
-  float elapsed_time_since(const GPU_Event& start) const
-  {
-    gpu_detail::Device_Guard guard(device_id_);
-    float milliseconds = 0.0f;
-    CHECK(gpuEventElapsedTime(&milliseconds, start.event_, event_));
-    return milliseconds;
-  }
-
-  bool valid() const { return event_ != nullptr; }
-  int device_id() const { return device_id_; }
   gpuEvent_t get() const { return event_; }
 
 private:
@@ -150,11 +124,7 @@ class GPU_Stream
 public:
   GPU_Stream() = default;
 
-  explicit GPU_Stream(
-    const int device_id, const unsigned int flags = gpuStreamNonBlocking)
-  {
-    create(device_id, flags);
-  }
+  explicit GPU_Stream(const int device_id) { create(device_id); }
 
   ~GPU_Stream() { destroy(); }
 
@@ -180,11 +150,11 @@ public:
     return *this;
   }
 
-  void create(const int device_id, const unsigned int flags = gpuStreamNonBlocking)
+  void create(const int device_id)
   {
     destroy();
     gpu_detail::Device_Guard guard(device_id);
-    CHECK(gpuStreamCreateWithFlags(&stream_, flags));
+    CHECK(gpuStreamCreateWithFlags(&stream_, gpuStreamNonBlocking));
     device_id_ = device_id;
   }
 
@@ -210,20 +180,7 @@ public:
     CHECK(gpuStreamWaitEvent(stream_, event.get(), 0));
   }
 
-  bool ready() const
-  {
-    gpu_detail::Device_Guard guard(device_id_);
-    const gpuError_t status = gpuStreamQuery(stream_);
-    if (status == gpuSuccess)
-      return true;
-    if (status == gpuErrorNotReady)
-      return false;
-    CHECK(status);
-    return false;
-  }
-
   bool valid() const { return stream_ != nullptr; }
-  int device_id() const { return device_id_; }
   gpuStream_t get() const { return stream_; }
 
 private:

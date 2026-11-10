@@ -27,7 +27,6 @@ Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
 ------------------------------------------------------------------------------*/
 
-#include "force/neighbor.cuh"
 #include "replica_many_body.cuh"
 #include "replica_nep_charge_model.cuh"
 #include "replica_nep_charge_small_box.cuh"
@@ -38,9 +37,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/nep_io/nep_model_file.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
-#include <chrono>
 #include <cmath>
-#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -1128,7 +1125,6 @@ void NEP_Charge_Replica_Model::compute_large_box(
     force_per_atom.data(),
     virial_per_atom.data(),
     stream_);
-  GPU_CHECK_KERNEL
 
   if (zbl.enabled) {
     find_force_ZBL<<<grid_size, BLOCK_SIZE, 0, stream_>>>(

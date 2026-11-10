@@ -32,9 +32,7 @@ defined by FIRE quenches and an atom-displacement event criterion.
 #include <chrono>
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
 #include <fstream>
-#include <iomanip>
 #include <limits>
 #include <memory>
 #include <random>

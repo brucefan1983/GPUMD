@@ -22,7 +22,6 @@ force/ewald.cu with all launches on a given stream. Keep it in sync by hand.
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cmath>
-#include <vector>
 
 Replica_Ewald::Replica_Ewald()
 {

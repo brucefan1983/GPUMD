@@ -31,10 +31,7 @@ potential model. Independent replica states on that GPU use separate streams.
 #include <chrono>
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
 #include <fstream>
-#include <iomanip>
-#include <limits>
 #include <random>
 #include <sstream>
 #include <string>
