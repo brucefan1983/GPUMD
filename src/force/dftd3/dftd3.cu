@@ -959,7 +959,7 @@ void DFTD3::compute_large_box(
   GPU_Vector<double>& virial_per_atom)
 {
   const int N = type.size();
-  if (cn.size() == 0) {
+  if (cell_contents_radial.size() == 0) {
     cn.resize(N);
     dc6_sum.resize(N);
     dc8_sum.resize(N);
