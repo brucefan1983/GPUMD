@@ -93,8 +93,15 @@ and
 
 In the angular descriptor components, :math:`g_n(r_{ij})` have similar forms but with :math:`N_\mathrm{bas}^\mathrm{R}` changed to :math:`N_\mathrm{bas}^\mathrm{A}` and with :math:`r_\mathrm{c}^\mathrm{R}` changed to :math:`r_\mathrm{c}^\mathrm{A}`.
 
+.. _nep_model_dimensions:
+
 Model dimensions
 ================
+
+The counts below apply to the standard energy NEP model (``model nep``) with the single hidden layer described above.
+Let :math:`N_\mathrm{4b}` denote the number of enabled four-body invariants among :math:`q_{222}`, :math:`q_{112}`, :math:`q_{123}`, :math:`q_{233}`, and :math:`q_{134}`.
+Let :math:`N_\mathrm{5b}` be 1 if :math:`q_{1111}` is enabled and 0 otherwise.
+These invariants are selected using the :ref:`l_max keyword <kw_l_max>`.
 
 .. list-table::
    :header-rows: 1
@@ -110,17 +117,19 @@ Model dimensions
    * - 3-body angular descriptor components
      - :math:`(n_\mathrm{max}^\mathrm{A}+1) l_\mathrm{max}^\mathrm{3b}`
    * - 4-body angular descriptor components
-     - :math:`(n_\mathrm{max}^\mathrm{A}+1)` or zero (if not used)
+     - :math:`(n_\mathrm{max}^\mathrm{A}+1)N_\mathrm{4b}`
    * - 5-body angular descriptor components
-     - :math:`(n_\mathrm{max}^\mathrm{A}+1)` or zero (if not used)
+     - :math:`(n_\mathrm{max}^\mathrm{A}+1)N_\mathrm{5b}`
    * - descriptor components
-     - :math:`N_\mathrm{des}` is the sum of the above numbers of descriptor components
+     - :math:`N_\mathrm{des}=(n_\mathrm{max}^\mathrm{R}+1)+(n_\mathrm{max}^\mathrm{A}+1)(l_\mathrm{max}^\mathrm{3b}+N_\mathrm{4b}+N_\mathrm{5b})`
    * - trainable parameters :math:`c_{nk}^{ij}` in the descriptor
      - :math:`N_\mathrm{typ}^2 [(n_\mathrm{max}^\mathrm{R}+1)(N_\mathrm{bas}^\mathrm{R}+1)+(n_\mathrm{max}^\mathrm{A}+1)(N_\mathrm{bas}^\mathrm{A}+1)]`
    * - trainable :term:`NN` parameters
      - :math:`N_\mathrm{nn} = (N_\mathrm{des} +2) N_\mathrm{neu} N_\mathrm{typ}+1`
 
 The total number of trainable parameters is the sum of the number of trainable descriptor parameters and the number of :term:`NN` parameters :math:`N_\mathrm{nn}`.
+
+For example, ``n_max 6 6`` and ``l_max 4 1`` give :math:`N_\mathrm{4b}=1`, :math:`N_\mathrm{5b}=0`, and :math:`N_\mathrm{des}=7+7(4+1)=42`.
 
 
 .. _nep_loss_function:
