@@ -654,6 +654,8 @@ void PRD_Driver::initialize_slot(Replica_Slot& slot)
   if (config_.resume)
     read_restart_xyz(slot);
   allocate_memory_gpu(slot.group, slot.atom, slot.thermo);
+  // The force zero fill above runs on the default stream, not slot.stream.
+  CHECK(gpuDeviceSynchronize());
   if (!config_.resume) {
     Velocity::generate_canonical(
       temperature_,
