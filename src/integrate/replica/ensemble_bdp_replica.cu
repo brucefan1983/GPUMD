@@ -19,6 +19,7 @@ The nvt_bdp thermostat of one replica, see ensemble_bdp_replica.cuh.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_bdp_replica.cuh"
+#include "replica_thermo_kernels.cuh"
 #include "integrate/svr_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -28,83 +29,6 @@ The nvt_bdp thermostat of one replica, see ensemble_bdp_replica.cuh.
 
 namespace
 {
-
-__global__ void gpu_find_thermo(
-  const int N,
-  const int degrees_of_freedom,
-  const double volume,
-  const double* g_mass,
-  const double* g_potential,
-  const double* g_vx,
-  const double* g_vy,
-  const double* g_vz,
-  const double* g_sxx,
-  const double* g_syy,
-  const double* g_szz,
-  const double* g_sxy,
-  const double* g_sxz,
-  const double* g_syz,
-  double* g_thermo)
-{
-  //<<<8, 1024>>>: block b computes thermo[b]
-  const int tid = threadIdx.x;
-  const int bid = blockIdx.x;
-  const int number_of_patches = (N - 1) / 1024 + 1;
-  __shared__ double s_data[1024];
-  s_data[tid] = 0.0;
-
-  for (int patch = 0; patch < number_of_patches; ++patch) {
-    const int n = tid + patch * 1024;
-    if (n < N) {
-      const double mass = g_mass[n];
-      const double vx = g_vx[n];
-      const double vy = g_vy[n];
-      const double vz = g_vz[n];
-      switch (bid) {
-        case 0:
-          s_data[tid] += (vx * vx + vy * vy + vz * vz) * mass;
-          break;
-        case 1:
-          s_data[tid] += g_potential[n];
-          break;
-        case 2:
-          s_data[tid] += g_sxx[n] + vx * vx * mass;
-          break;
-        case 3:
-          s_data[tid] += g_syy[n] + vy * vy * mass;
-          break;
-        case 4:
-          s_data[tid] += g_szz[n] + vz * vz * mass;
-          break;
-        case 5:
-          s_data[tid] += g_sxy[n] + vx * vy * mass;
-          break;
-        case 6:
-          s_data[tid] += g_sxz[n] + vx * vz * mass;
-          break;
-        default:
-          s_data[tid] += g_syz[n] + vy * vz * mass;
-          break;
-      }
-    }
-  }
-  __syncthreads();
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_data[tid] += s_data[tid + offset];
-    }
-    __syncthreads();
-  }
-  if (tid == 0) {
-    if (bid == 0) {
-      g_thermo[0] = s_data[0] / (degrees_of_freedom * K_B);
-    } else if (bid == 1) {
-      g_thermo[1] = s_data[0];
-    } else {
-      g_thermo[bid] = s_data[0] / volume;
-    }
-  }
-}
 
 // The rescaling of resamplekin() with the kinetic energy read on the device.
 __global__ void gpu_resamplekin_and_scale(
@@ -122,16 +46,8 @@ __global__ void gpu_resamplekin_and_scale(
   const int atom = blockIdx.x * blockDim.x + threadIdx.x;
   if (atom >= number_of_atoms)
     return;
-  const double kinetic_energy = thermo[0] * ndeg * K_B * 0.5;
-  const double target_kinetic_energy = ndeg * K_B * temperature * 0.5;
-  const double coupling = temperature_coupling > 0.1 ? exp(-1.0 / temperature_coupling) : 0.0;
-  const double new_kinetic_energy =
-    kinetic_energy +
-    (1.0 - coupling) *
-      (target_kinetic_energy * (sum_of_squares + gaussian * gaussian) / ndeg - kinetic_energy) +
-    2.0 * gaussian *
-      sqrt(kinetic_energy * target_kinetic_energy / ndeg * (1.0 - coupling) * coupling);
-  const double factor = sqrt(new_kinetic_energy / kinetic_energy);
+  const double factor = svr_velocity_factor(
+    thermo[0], ndeg, temperature, temperature_coupling, gaussian, sum_of_squares);
   velocity_x[atom] *= factor;
   velocity_y[atom] *= factor;
   velocity_z[atom] *= factor;
@@ -214,23 +130,15 @@ void Ensemble_BDP_Replica::find_thermo(
   const double volume, const Atom& atom, GPU_Vector<double>& thermo, const gpuStream_t stream)
 {
   const int N = atom.number_of_atoms;
-  const double* v = atom.velocity_per_atom.data();
-  const double* s = atom.virial_per_atom.data();
-  gpu_find_thermo<<<8, 1024, 0, stream>>>(
+  gpu_find_thermo_replicas<<<8, 1024, 0, stream>>>(
+    N,
     N,
     get_degrees_of_freedom(N),
     volume,
     atom.mass.data(),
     atom.potential_per_atom.data(),
-    v,
-    v + N,
-    v + N * 2,
-    s,
-    s + N,
-    s + N * 2,
-    s + N * 3,
-    s + N * 4,
-    s + N * 5,
+    atom.velocity_per_atom.data(),
+    atom.virial_per_atom.data(),
     thermo.data());
   GPU_CHECK_KERNEL
 }

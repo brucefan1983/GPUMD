@@ -20,7 +20,7 @@ potential model. Independent replica states on that GPU use separate streams.
 
 #include "replica.cuh"
 #include "replica_common.cuh"
-#include "replica_velocity.cuh"
+#include "main_gpumd/velocity.cuh"
 #include "model/read_xyz.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -454,15 +454,16 @@ void REMD_Driver::initialize_slot(Replica_Slot& slot)
     read_restart_xyz(slot);
 
   allocate_memory_gpu(slot.group, slot.atom, slot.thermo);
-  if (config_.resume) {
-    slot.atom.velocity_per_atom.copy_from_host(slot.atom.cpu_velocity_per_atom.data());
-  } else {
-    Replica_Velocity velocity;
-    velocity.initialize(
+  if (!config_.resume) {
+    Velocity velocity;
+    velocity.initialize_cpu(
+      false,
       config_.temperatures[slot.replica_id],
       slot.atom,
+      true,
       static_cast<int>(config_.internal_seed + 104729U * (slot.replica_id + 1U)));
   }
+  slot.atom.velocity_per_atom.copy_from_host(slot.atom.cpu_velocity_per_atom.data());
 
   slot.thermostat.reset(new Ensemble_BDP_Replica(
     config_.temperatures[replica_to_temperature_[slot.replica_id]], temperature_coupling_));

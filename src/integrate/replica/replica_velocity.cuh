@@ -17,8 +17,6 @@
 
 #include <vector>
 
-class Atom;
-
 class Replica_Velocity
 {
 public:
@@ -28,20 +26,4 @@ public:
     const std::vector<double>& mass,
     std::vector<double>& velocity,
     unsigned int seed);
-
-  void initialize(const double initial_temperature, Atom& atom, int seed);
-
-private:
-  void correct_velocity(
-    const int N,
-    const std::vector<double>& cpu_mass,
-    const std::vector<double>& cpu_position_per_atom,
-    std::vector<double>& cpu_velocity_per_atom);
-
-  void scale(
-    const double initial_temperature,
-    const std::vector<double>& cpu_mass,
-    double* cpu_vx,
-    double* cpu_vy,
-    double* cpu_vz);
 };

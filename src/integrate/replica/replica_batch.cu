@@ -15,6 +15,7 @@
 
 #include "replica_batch.cuh"
 #include "replica_common.cuh"
+#include "replica_thermo_kernels.cuh"
 #include "force/replica/replica_nep.cuh"
 #include "force/replica/batch_box.cuh"
 #include "utilities/common.cuh"
@@ -131,212 +132,8 @@ __global__ void gpu_prepare_force_batched(
     virial[n + component * number_of_atoms] = 0.0;
 }
 
-// Batched copy of gpu_find_thermo_instant_temperature (integrate/ensemble.cu):
-// g_thermo[r * 8 + 0..7] = T, U, s_xx, s_yy, s_zz, s_xy, s_xz, s_yz of replica r.
-static __global__ void gpu_find_thermo_batched(
-  const int N,
-  const int degrees_of_freedom,
-  const double T,
-  const double volume,
-  const double* g_mass,
-  const double* g_potential,
-  const double* g_vx,
-  const double* g_vy,
-  const double* g_vz,
-  const double* g_sxx,
-  const double* g_syy,
-  const double* g_szz,
-  const double* g_sxy,
-  const double* g_sxz,
-  const double* g_syz,
-  double* g_thermo)
-{
-  //<<<dim3(8, replicas), 1024>>>: blockIdx.x = quantity, blockIdx.y = replica
-  int tid = threadIdx.x;
-  int bid = blockIdx.x;
-  const int replica_offset = blockIdx.y * N;
-  int patch, n;
-  int number_of_patches = (N - 1) / 1024 + 1;
-  double mass, vx, vy, vz;
-  __shared__ double s_data[1024];
-  s_data[tid] = 0.0;
-
-  switch (bid) {
-    // temperature
-    case 0:
-      for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
-        if (n < N) {
-          mass = g_mass[replica_offset + n];
-          vx = g_vx[replica_offset + n];
-          vy = g_vy[replica_offset + n];
-          vz = g_vz[replica_offset + n];
-          s_data[tid] += (vx * vx + vy * vy + vz * vz) * mass;
-        }
-      }
-      __syncthreads();
-      for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-        if (tid < offset) {
-          s_data[tid] += s_data[tid + offset];
-        }
-        __syncthreads();
-      }
-      if (tid == 0) {
-        g_thermo[blockIdx.y * 8 + 0] = s_data[0] / (degrees_of_freedom * K_B);
-      }
-      break;
-      // potential energy
-    case 1:
-      for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
-        if (n < N) {
-          s_data[tid] += g_potential[replica_offset + n];
-        }
-      }
-      __syncthreads();
-      for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-        if (tid < offset) {
-          s_data[tid] += s_data[tid + offset];
-        }
-        __syncthreads();
-      }
-      if (tid == 0)
-        g_thermo[blockIdx.y * 8 + 1] = s_data[0];
-      break;
-      // sxx
-    case 2:
-      for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
-        if (n < N) {
-          mass = g_mass[replica_offset + n];
-          vx = g_vx[replica_offset + n];
-          s_data[tid] += g_sxx[replica_offset + n] + vx * vx * mass;
-        }
-      }
-      __syncthreads();
-      for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-        if (tid < offset) {
-          s_data[tid] += s_data[tid + offset];
-        }
-        __syncthreads();
-      }
-      if (tid == 0) {
-        g_thermo[blockIdx.y * 8 + 2] = s_data[0] / volume;
-      }
-      break;
-      // syy
-    case 3:
-      for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
-        if (n < N) {
-          mass = g_mass[replica_offset + n];
-          vy = g_vy[replica_offset + n];
-          s_data[tid] += g_syy[replica_offset + n] + vy * vy * mass;
-        }
-      }
-      __syncthreads();
-      for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-        if (tid < offset) {
-          s_data[tid] += s_data[tid + offset];
-        }
-        __syncthreads();
-      }
-      if (tid == 0) {
-        g_thermo[blockIdx.y * 8 + 3] = s_data[0] / volume;
-      }
-      break;
-      // szz
-    case 4:
-      for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
-        if (n < N) {
-          mass = g_mass[replica_offset + n];
-          vz = g_vz[replica_offset + n];
-          s_data[tid] += g_szz[replica_offset + n] + vz * vz * mass;
-        }
-      }
-      __syncthreads();
-      for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-        if (tid < offset) {
-          s_data[tid] += s_data[tid + offset];
-        }
-        __syncthreads();
-      }
-      if (tid == 0) {
-        g_thermo[blockIdx.y * 8 + 4] = s_data[0] / volume;
-      }
-      break;
-      // sxy
-    case 5:
-      for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
-        if (n < N) {
-          mass = g_mass[replica_offset + n];
-          vx = g_vx[replica_offset + n];
-          vy = g_vy[replica_offset + n];
-          s_data[tid] += g_sxy[replica_offset + n] + vx * vy * mass;
-        }
-      }
-      __syncthreads();
-      for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-        if (tid < offset) {
-          s_data[tid] += s_data[tid + offset];
-        }
-        __syncthreads();
-      }
-      if (tid == 0) {
-        g_thermo[blockIdx.y * 8 + 5] = s_data[0] / volume;
-      }
-      break;
-      // sxz
-    case 6:
-      for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
-        if (n < N) {
-          mass = g_mass[replica_offset + n];
-          vx = g_vx[replica_offset + n];
-          vz = g_vz[replica_offset + n];
-          s_data[tid] += g_sxz[replica_offset + n] + vx * vz * mass;
-        }
-      }
-      __syncthreads();
-      for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-        if (tid < offset) {
-          s_data[tid] += s_data[tid + offset];
-        }
-        __syncthreads();
-      }
-      if (tid == 0) {
-        g_thermo[blockIdx.y * 8 + 6] = s_data[0] / volume;
-      }
-      break;
-      // syz
-    case 7:
-      for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
-        if (n < N) {
-          mass = g_mass[replica_offset + n];
-          vz = g_vz[replica_offset + n];
-          vy = g_vy[replica_offset + n];
-          s_data[tid] += g_syz[replica_offset + n] + vy * vz * mass;
-        }
-      }
-      __syncthreads();
-      for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-        if (tid < offset) {
-          s_data[tid] += s_data[tid + offset];
-        }
-        __syncthreads();
-      }
-      if (tid == 0) {
-        g_thermo[blockIdx.y * 8 + 7] = s_data[0] / volume;
-      }
-      break;
-  }
-}
-
-// Same arithmetic as gpu_resamplekin_and_scale in integrate/ensemble_bdp.cu, with
-// per-replica target temperature, noise and thermo.
+// gpu_resamplekin_and_scale of ensemble_bdp_replica.cu with per-replica target
+// temperature, noise and thermo.
 __global__ void gpu_resamplekin_and_scale_batched(
   const int number_of_atoms,
   const int atoms_per_replica,
@@ -353,23 +150,13 @@ __global__ void gpu_resamplekin_and_scale_batched(
   if (atom >= number_of_atoms)
     return;
   const int replica = atom / atoms_per_replica;
-  const double temperature = target_temperature[replica];
-  const double gaussian = noise[replica * 2];
-  const double sum_of_squares = noise[replica * 2 + 1];
-
-  const double kinetic_energy = thermo[replica * 8] * ndeg * K_B * 0.5;
-  const double target_kinetic_energy = ndeg * K_B * temperature * 0.5;
-  const double coupling =
-    temperature_coupling > 0.1 ? exp(-1.0 / temperature_coupling) : 0.0;
-  const double new_kinetic_energy =
-    kinetic_energy +
-    (1.0 - coupling) *
-      (target_kinetic_energy * (sum_of_squares + gaussian * gaussian) / ndeg -
-       kinetic_energy) +
-    2.0 * gaussian *
-      sqrt(
-        kinetic_energy * target_kinetic_energy / ndeg * (1.0 - coupling) * coupling);
-  const double factor = sqrt(new_kinetic_energy / kinetic_energy);
+  const double factor = svr_velocity_factor(
+    thermo[replica * 8],
+    ndeg,
+    target_temperature[replica],
+    temperature_coupling,
+    noise[replica * 2],
+    noise[replica * 2 + 1]);
   velocity_x[atom] *= factor;
   velocity_y[atom] *= factor;
   velocity_z[atom] *= factor;
@@ -578,12 +365,9 @@ void Replica_Batch::advance(
         velocity_.data(), velocity_.data() + total, velocity_.data() + total * 2,
         force_.data(), force_.data() + total, force_.data() + total * 2);
       GPU_CHECK_KERNEL
-      gpu_find_thermo_batched<<<dim3(8, replicas), 1024, 0, stream_.get()>>>(
-        N, ndeg, 0.0, volume, mass_.data(), potential_.data(),
-        velocity_.data(), velocity_.data() + total, velocity_.data() + total * 2,
-        virial_.data(), virial_.data() + total, virial_.data() + total * 2,
-        virial_.data() + total * 3, virial_.data() + total * 4, virial_.data() + total * 5,
-        thermo_.data());
+      gpu_find_thermo_replicas<<<dim3(8, replicas), 1024, 0, stream_.get()>>>(
+        N, total, ndeg, volume, mass_.data(), potential_.data(), velocity_.data(),
+        virial_.data(), thermo_.data());
       GPU_CHECK_KERNEL
       gpu_resamplekin_and_scale_batched<<<blocks, threads, 0, stream_.get()>>>(
         total, N, ndeg, coupling, target_temperature_.data(),
