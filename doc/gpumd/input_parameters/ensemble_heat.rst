@@ -4,8 +4,9 @@
 ====================================
 
 The :attr:`ensemble` keyword is used to set up an integration method (an integrator).
-The integrators described on this page provide methods for studying thermal transport via classical :term:`MD` simulations.
-Background information pertaining to the methods referred to on this page can be found :ref:`here <green_kubo_method>`.
+The local source and sink thermostats described on this page are used for :ref:`nonequilibrium thermal transport <nemd>`.
+For equilibrium and homogeneous nonequilibrium calculations, see :ref:`compute_hac <kw_compute_hac>` and :ref:`compute_hnemd <kw_compute_hnemd>`, respectively.
+The two-temperature-model variants are described in :ref:`TTM integrators <kw_ensemble_ttm>`.
 
 
 Syntax
