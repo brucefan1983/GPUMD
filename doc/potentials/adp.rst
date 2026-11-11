@@ -105,7 +105,7 @@ Each element section contains:
 
 **Pair potential section**:
 
-For all element pairs :math:`(i, j)` with :math:`i \geq j` (upper triangular, since :math:`\phi_{ij} = \phi_{ji}`):
+For all element pairs :math:`(i, j)` with :math:`i \geq j` (lower triangular, since :math:`\phi_{ij} = \phi_{ji}`):
 
 - :attr:`Nr` values: Pair potential :math:`\phi_{ij}(r)`
 
@@ -120,7 +120,7 @@ For all element pairs :math:`(i, j)` with :math:`i \geq j`:
 - :attr:`Nr` values: Dipole function :math:`u_{ij}(r)`
 
   * Tabulated as :math:`u(r)` (NOT scaled by distance)
-  * Units: electron density·Angstrom
+  * Units: eV\ :math:`^{1/2}`/Å
   * Same ordering as pair potentials
 
 **Quadrupole function section**:
@@ -130,9 +130,10 @@ For all element pairs :math:`(i, j)` with :math:`i \geq j`:
 - :attr:`Nr` values: Quadrupole function :math:`w_{ij}(r)`
 
   * Tabulated as :math:`w(r)` (NOT scaled by distance)  
-  * Units: electron density·Angstrom²
+  * Units: eV\ :math:`^{1/2}`/Å²
   * Same ordering as pair potentials
 
+These units follow from the energy expression: :math:`\mu` and :math:`\lambda` have units of eV\ :math:`^{1/2}`, so their squared contributions have units of energy.
 
 Table format
 -------------

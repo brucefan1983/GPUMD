@@ -17,3 +17,5 @@ The last 6 columns give the corresponding target stress components.
 For a structure without target virial or stress, a target value of -1e6 will be output to remind the user about this.
 
 The stress values are in units of GPa.
+Both predicted and target values use :math:`\mathbf{W}/V`, with diagonal components positive under compression, and contain no kinetic contribution.
+This is opposite in sign to the :math:`-\mathbf{W}/V` convention for the ``stress`` field in :ref:`train.xyz and test.xyz <train_test_xyz>`.

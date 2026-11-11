@@ -1,3 +1,4 @@
+.. _installation:
 .. index:: Installation
 
 Installation
@@ -16,17 +17,17 @@ Prerequisites
 
    .. tab:: Make
 
-      To compile (and run) :program:`GPUMD` one requires an Nvidia GPU card with compute capability no less than 3.5 and CUDA toolkit 9.0 or newer.
-      On Linux systems, one also needs a C++ compiler supporting at least the C++11 standard.
+      To compile and run :program:`GPUMD` on NVIDIA GPUs, use a CUDA toolkit and driver that support the target GPU.
+      On Linux systems, the default makefile uses C++14; the host compiler must support this standard and be compatible with the selected CUDA toolkit.
       On Windows systems, one also needs the ``cl.exe`` compiler from Microsoft Visual Studio and a `64-bit version of make.exe <http://www.equation.com/servlet/equation.cmd?fa=make>`_.
 
       Alternatively, :program:`GPUMD` can be built for AMD GPUs through ROCm/HIP (see :ref:`Building for AMD GPUs <build_amd_hip>` below); this requires a ROCm installation.
 
    .. tab:: CMake (pre-release)
 
-      To compile (and run) :program:`GPUMD` one requires an Nvidia GPU card and CUDA toolkit.
-      On Linux systems, one also needs a C++ compiler supporting the C++17 standard.
-      On Windows systems, one also needs the ``cl.exe`` compiler from Microsoft Visual Studio and CMake 3.24 or newer.
+      CMake 3.24 or newer is required on all platforms.
+      Use an NVIDIA GPU, a compatible CUDA toolkit and driver, and a host compiler that supports C++17.
+      On Windows systems, the host compiler is ``cl.exe`` from Microsoft Visual Studio.
 
 .. _compilation:
 .. _build_gpumd_replica:
@@ -38,8 +39,15 @@ Compilation
 
    .. tab:: Make
 
-      In the ``src`` directory run ``make``, which generates three executables: ``nep``, ``gpumd``, and ``gpumd_replica``.
-      Please check the comments in the beginning of the makefile for some compiling options.
+      In the ``src`` directory run ``make``, which generates four executables: ``nep``, ``gpumd``, ``gpumd_replica``, and ``tb``.
+      To build only the MD executable, run ``make gpumd``.
+      Set ``CUDA_ARCH`` to an architecture supported by both your GPU and CUDA toolkit, for example::
+
+        make CUDA_ARCH=-arch=sm_89
+
+      This example targets an RTX 4090. The makefile defaults to ``sm_60``; CUDA 13.0 removed offline compilation support for Pascal GPUs, including ``sm_60``.
+      See the `CUDA release notes <https://docs.nvidia.com/cuda/archive/13.0.0/cuda-toolkit-release-notes/index.html>`_ for architecture compatibility.
+      Check the comments at the beginning of the makefile for additional options.
 
    .. tab:: CMake (pre-release)
 
@@ -47,10 +55,13 @@ Compilation
 
       .. code-block:: bash
 
-        cmake -S . -B build
+        cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
         cmake --build build --config Release --parallel
 
-      The executables (``gpumd`` and ``nep``) will be placed in the ``build`` directory.
+      The default targets are ``gpumd``, ``nep``, and ``tb``.
+      With a single-configuration generator, the executables are placed in ``build``; with Visual Studio, they are normally in ``build/Release``.
+      ``CMAKE_BUILD_TYPE=Release`` selects optimization for single-configuration generators such as Unix Makefiles and Ninja; ``--config Release`` selects the configuration for generators such as Visual Studio.
+      Use the Make build for ``gpumd_replica``, which is not currently a CMake target.
       Omit ``--parallel`` to fall back to serial compilation.
 
       To target a specific GPU architecture, add ``-D`` at configure time:
@@ -59,6 +70,9 @@ Compilation
 
         -D CMAKE_CUDA_ARCHITECTURES=value   # 80, 90, ... (default native)
 
+
+When changing compiler flags, GPU architecture, or optional library support in a Make build, run ``make clean`` before rebuilding.
+The optional-library examples below append flags after the existing variable definitions in ``src/makefile``.
 
 .. _build_amd_hip:
 
@@ -130,7 +144,7 @@ See the `implementation paper <https://doi.org/10.1016/j.cpc.2025.109994/>`_ for
 
       .. code-block:: bash
 
-        cmake --build build --target gnep
+        cmake --build build --config Release --target gnep
 
 The usage of the ``gnep`` executable is similar to that of the ``nep`` executable.
 The major difference is that training hyperparameters are written in ``gnep.in`` instead of ``nep.in``
@@ -247,15 +261,15 @@ The setup instructions are below:
 
   .. code:: make
 
-     CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_NETCDF
+     CFLAGS += -DUSE_NETCDF
 
   In addition to that line the makefile must also be updated to the following:
 
   .. code:: make
 
-     INC = -I<path>/include -I./
-     LDFLAGS = -L<path>/lib -Xlinker=-rpath -Xlinker=<path>/lib
-     LIBS = -lcublas -lcusolver -lcufft -lnetcdf
+     INC += -I<path>/include
+     LDFLAGS += -L<path>/lib -Xlinker=-rpath -Xlinker=<path>/lib
+     LIBS += -lnetcdf
 
   where :attr:`<path>` should be replaced with the installation path for NetCDF
   (defined in :attr:`--prefix` of the ``./configure`` command). The ``-L`` option
@@ -308,14 +322,15 @@ The setup instructions are below:
 
   .. code:: make
 
-     CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_PLUMED
+     CFLAGS += -DUSE_PLUMED
 
   In addition to that line the makefile must also be updated to the following:
 
   .. code:: make
 
-     INC = -I<path>/include -I./
-     LDFLAGS = -L<path>/lib -lplumed -lplumedKernel
+     INC += -I<path>/include
+     LDFLAGS += -L<path>/lib
+     LIBS += -lplumed -lplumedKernel
 
   where :attr:`<path>` should be replaced with the installation path for PLUMED (defined in :attr:`--prefix` of the ``./configure`` command).
 * Follow the remaining :program:`GPUMD` installation instructions
@@ -329,253 +344,79 @@ Following these steps will enable the :ref:`plumed keyword <kw_plumed>`.
 DP potential support
 ====================
 
-Program introduction
---------------------
-This is the beginning of :program:`GPUMD` support for other machine learned interatomic potentials.
+The DP interface uses the DeePMD-kit C++ library and is enabled at compile time with ``USE_DEEPMD``.
 
 Supported model formats
-~~~~~~~~~~~~~~~~~~~~~~~
-- ``.pb``: TensorFlow backend, generated by ``dp --tf freeze``
-- ``.pth``: PyTorch TorchScript backend (DPA2/DPA3), generated by ``dp --pt freeze``
-- ``.pt2``: PyTorch AOTInductor backend (DPA4), generated by ``dp --pt freeze``
+-----------------------
 
-.. note::
-   The DeePMD-kit C++ API auto-detects the backend from the file extension.
-   No changes to ``run.in`` are needed when switching between backends.
+* ``.pb``: TensorFlow backend.
+* ``.pth``: PyTorch TorchScript backend.
+* ``.pt2``: PyTorch AOTInductor backend.
 
-Installation dependencies
-~~~~~~~~~~~~~~~~~~~~~~~~~
-- You must ensure that the new version of DP is installed and can run normally. This program contains DP-related dependencies.
-- The installation environment requirements of GPUMD itself must be met.
+The installed DeePMD-kit version and backend must support the model being used.
+Follow the `model-freezing instructions <https://docs.deepmodeling.com/projects/deepmd/en/stable/freeze/freeze.html>`_ for that version to produce the appropriate file.
+The DeePMD-kit C++ API selects the backend from the model file.
 
-Installation details
---------------------
-Use the instance in AutoDL for testing. If one need testing use AutoDL, please contact Ke Xu (twtdq@qq.com).
+Install the DeePMD-kit C++ interface
+------------------------------------
 
-And we have created an image in `AutoDL <https://www.autodl.com/>`_ that can run GPUMD-DP directly, which can be shared with the account that provides the user ID. Then, you will not require the following process and can be used directly.
-
-GPUMD-DP installation (Offline version)
----------------------------------------
-
-DP installation (Offline version)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Use the latest version of DP installation steps::
-
-    >> $ # Copy data and unzip files.
-    >> $ cd /root/autodl-tmp/
-    >> $ wget https://mirror.nju.edu.cn/github-release/deepmodeling/deepmd-kit/v3.0.0/deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.0 -O deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.0
-    >> $ wget https://mirror.nju.edu.cn/github-release/deepmodeling/deepmd-kit/v3.0.0/deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.1 -O deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.1
-    >> $ cat deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.0 deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.1 > deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh
-    >> $ # rm deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.0 deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh.1 # Please use with caution "rm"
-    >> $ sh deepmd-kit-3.0.0-cuda126-Linux-x86_64.sh -p /root/autodl-tmp/deepmd-kit -u # Just keep pressing Enter/yes.
-    >> $ source /root/autodl-tmp/deepmd-kit/bin/activate /root/autodl-tmp/deepmd-kit
-    >> $ dp -h
-
-After running according to the above steps, using ``dp -h`` can successfully display no errors.
-
-GPUMD-DP installation
-~~~~~~~~~~~~~~~~~~~~~
-
-The GitHub link is `Here <https://github.com/Kick-H/GPUMD/tree/7af5267f4d8ba720830c154f11634a1942b66b08>`_.
-::
-
-    >> $ wget https://codeload.github.com/Kick-H/GPUMD/zip/7af5267f4d8ba720830c154f11634a1942b66b08
-    >> $ cd ${GPUMD}/src-v0.1
-
-Modify ``makefile`` as follows:
-
-- Line 19 is changed from ``CUDA_ARCH=-arch=sm_60`` to ``CUDA_ARCH=-arch=sm_89`` (for RTX 4090). Modify according to the corresponding graphics card model.
-- Line 25 is changed from ``INC = -I./`` to ``INC = -I./ -I/root/miniconda3/deepmd-kit/source/build/path_to_install/include/deepmd``
-- Line 27 is changed from ``LIBS = -lcublas -lcusolver`` to ``LIBS = -lcublas -lcusolver -L/root/miniconda3/deepmd-kit/source/build/path_to_install/lib -ldeepmd_cc``
-
-Then run the following installation command::
-
-    >> $ sudo echo "export LD_LIBRARY_PATH=/root/miniconda3/deepmd-kit/source/build/path_to_install/lib:$LD_LIBRARY_PATH" >> /root/.bashrc
-    >> $ source /root/.bashrc
-    >> $ make gpumd -j
-
-Running tests
-~~~~~~~~~~~~~
-::
-
-    >> $ cd /root/miniconda3/GPUMD-bu0/tests/dp
-    >> $ ../../src/gpumd
-
-GPUMD-DP installation (Online version)
---------------------------------------
-
-Introduction
-~~~~~~~~~~~~
-This is to use the online method to install the `GPUMD-DP` version, you need to connect the machine to the Internet and use github and other websites.
-
-Conda environment
-~~~~~~~~~~~~~~~~~
-Create a new conda environment with Python and activate it::
-
-    >> $ conda create -n tf-gpu2  python=3.9
-    >> $ conda install -c conda-forge cudatoolkit=11.8
-    >> $ pip install --upgrade tensorflow
-
-Download deep-kit and install
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Download DP source code and compile the source files following DP docs. Here are the cmake commands::
-
-    >> $ git clone https://github.com/deepmodeling/deepmd-kit.git
-    >> $ cd deepmd-kit/source
-    >> $ mkdir build && cd build
-    >> $ cmake -DENABLE_TENSORFLOW=TRUE -DUSE_CUDA_TOOLKIT=TRUE -DCMAKE_INSTALL_PREFIX=`path_to_install` -DUSE_TF_PYTHON_LIBS=TRUE ../
-    >> $ make -j && make install
-
-We just need the DP C++ interface, so we don't source all DP environment. The libraries will be installed in ``path_to_install``.
-
-Configure the GPUMD makefile
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The GitHub link is `Here <https://github.com/Kick-H/GPUMD/tree/7af5267f4d8ba720830c154f11634a1942b66b08>`_.
-::
-
-    >> $ wget https://codeload.github.com/Kick-H/GPUMD/zip/7af5267f4d8ba720830c154f11634a1942b66b08
-    >> $ cd ${GPUMD}/src
-    >> $ vi makefile
-
-Configure the makefile of GPUMD. The DP code is included by macro definition ``USE_DEEPMD``. So add it to ``CFLAGS``:
-
-``CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_DEEPMD``
-
-Then link the DP C++ libraries. Add the following two lines to update the include and link paths and compile GPUMD:
-
-``INC += -Ipath_to_install/include/deepmd``
-
-``LDFLAGS += -Lpath_to_install/lib -ldeepmd_cc``
-
-Then, you can install it using the following command::
-
-    >> $ make gpumd -j
-
-
-GPUMD-DP with PyTorch backend
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-DeePMD-kit C++ interface installation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-The PyTorch backend requires the DeePMD-kit C++ interface libraries (``libdeepmd_cc``, ``libdeepmd_c``) and PyTorch (LibTorch). Two installation methods are available:
-
-**Method 1: pip install (recommended)**
-
-Install DeePMD-kit with PyTorch support::
-
-    >> $ pip install deepmd-kit[torch]
-
-After installation, the C++ interface files are located under the Python package directory::
-
-    >> $ python -c "import deepmd; print(deepmd.__path__[0] + '/lib')"
-    # Output example: /path/to/python/site-packages/deepmd/lib
-    # Contains: include/deepmd/*.h, libdeepmd_cc.so, libdeepmd_c.so
-
-LibTorch libraries are bundled with PyTorch::
-
-    >> $ python -c "import torch; print(torch.__path__[0] + '/lib')"
-    # Contains: libtorch.so, libtorch_cpu.so, libc10.so, libtorch_cuda.so, etc.
-
-Verify the installation::
-
-    >> $ dp --version
-    >> $ python -c "import torch; print(torch.__version__, torch.cuda.is_available())"
-
-**Method 2: Build from source**
-
-Clone and compile the DeePMD-kit C++ interface with PyTorch backend enabled::
-
-    >> $ git clone https://github.com/deepmodeling/deepmd-kit.git
-    >> $ cd deepmd-kit/source
-    >> $ mkdir build && cd build
-    >> $ cmake -DENABLE_PYTORCH=TRUE \
-              -DUSE_CUDA_TOOLKIT=TRUE \
-              -DCMAKE_INSTALL_PREFIX=/path/to/install \
-              ../
-    >> $ make -j$(nproc) && make install
-
-The installed files will be at::
-
-    /path/to/install/include/deepmd/   # Header files
-    /path/to/install/lib/              # libdeepmd_cc.so, libdeepmd_c.so
-
-.. note::
-   Method 1 is sufficient for most users. Method 2 is needed only if you require a custom build
-   (e.g., specific CUDA version, debug symbols, or a development branch of DeePMD-kit).
+Install DeePMD-kit with the backend and GPU support required by your model, following its `installation documentation <https://docs.deepmodeling.com/projects/deepmd/en/stable/install/install-from-source.html#install-the-c-interface>`_.
+The GPUMD interface includes ``DeepPot.h`` and links to ``libdeepmd_cc``.
+Check that both the headers and the C++ library are installed; a working ``dp`` command alone does not verify their availability.
+Use a C++ compiler and ABI compatible with the installed DeePMD-kit library.
 
 Compile GPUMD
-^^^^^^^^^^^^^
+-------------
 
-With the C++ interface installed, configure the GPUMD makefile. Enable DP support with ``-DUSE_DEEPMD``:
+Use the ``src`` directory of the current `GPUMD repository <https://github.com/brucefan1983/GPUMD>`_.
+For a Linux installation with headers in ``<path>/include/deepmd`` and libraries in ``<path>/lib``, append the following after the existing flag definitions in ``src/makefile``:
 
-``CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -DUSE_DEEPMD``
+.. code:: make
 
-Link against the DeePMD-kit C interface and PyTorch/LibTorch libraries::
+   CFLAGS += -DUSE_DEEPMD
+   INC += -I<path>/include/deepmd
+   LDFLAGS += -L<path>/lib -Xlinker=-rpath -Xlinker=<path>/lib
+   LIBS += -ldeepmd_cc
 
-    INC += -I$(shell python -c "import deepmd; print(deepmd.__path__[0])")/lib/include/deepmd
-    LDFLAGS += -ldeepmd_cc -ldeepmd_c
-    LDFLAGS += $(shell python -c "import torch; print(' '.join(['-L'+p for p in torch.__path__] + ['-L'+p+'/lib' for p in torch.__path__]))")
-    LDFLAGS += -ltorch -ltorch_cpu -lc10
+Replace ``<path>`` with the DeePMD-kit installation prefix.
+If using a Python wheel, set the include and library paths to the actual locations supplied by that package.
+Keep the existing CUDA libraries in ``LIBS``. Adding ``-ldeepmd_cc`` to ``LIBS`` places it after the object files in the link command.
+The `DeePMD-kit C++ interface documentation <https://docs.deepmodeling.com/projects/deepmd/en/stable/inference/cxx.html>`_ describes backend and runtime library requirements.
 
-For GPU support, also link CUDA-related torch libraries::
+From ``src``, rebuild with the selected GPU architecture, for example:
 
-    LDFLAGS += -ltorch_cuda -lc10_cuda
+.. code:: bash
 
-Then compile::
+   make clean
+   make gpumd -j CUDA_ARCH=-arch=sm_89
 
-    >> $ make gpumd -j
+This example targets an RTX 4090. If backend dependencies are installed in another directory, add that directory to the runtime library search path before running GPUMD, for example:
 
-Freeze a PyTorch model
-^^^^^^^^^^^^^^^^^^^^^^
+.. code:: bash
 
-To obtain a frozen model for the PyTorch backend::
-
-    >> $ dp --pt freeze -o frozen_model.pth   # DPA2/DPA3 -> .pth
-    >> $ dp --pt freeze -o frozen_model.pth   # DPA4 -> produces .pt2 automatically
-
-For pre-trained universal models (e.g., DPA-2.3.1 from AIS Square), download from https://aissquare.com and freeze as above.
-
-The type map can be extracted from the frozen model::
-
-    >> $ python -c "from deepmd.infer import DeepPot; print(' '.join(DeepPot('frozen_model.pt2').get_type_map()))"
+   export LD_LIBRARY_PATH=/path/to/backend/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
 
 Run GPUMD
-~~~~~~~~~
+---------
 
-When running GPUMD, if an error occurs stating that the DP libraries could not be found, add the library path temporarily with::
+The interface requires a setting file and a frozen DP model file.
+The setting file lists the number of atom types and their chemical symbols in exactly the same order as the model type map.
+For example, ``dp_settings.txt`` for a model with type map ``O H`` contains::
 
-    LD_LIBRARY_PATH=path_to_install/lib:$LD_LIBRARY_PATH
+   dp 2 O H
 
-Or add the environment permanently to the ``~/.bashrc``::
+Select one model in ``run.in``, for example::
 
-    >> $ sudo echo "export LD_LIBRARY_PATH=/root/miniconda3/deepmd-kit/source/build/path_to_install/lib:$LD_LIBRARY_PATH" >> ~/.bashrc
-    >> $ source ~/.bashrc
+   potential dp_settings.txt frozen_model.pb
 
-Run Test
-~~~~~~~~
+For another backend, replace the model filename with the corresponding ``.pth`` or ``.pt2`` file.
+The model type map can be inspected with DeePMD-kit, for example:
 
-This DP interface requires two files: a setting file and a DP potential file. The setting file specifies the number of atom types and their names. For example, the ``dp_settings.txt`` for a water system::
+.. code:: bash
 
-    dp 2 O H
+   python -c "from deepmd.infer import DeepPot; print(DeepPot('frozen_model.pb').get_type_map())"
 
-Use in ``run.in``::
-
-    potential dp_settings.txt frozen_model.pb    # TensorFlow backend
-    potential dp_settings.txt frozen_model.pth   # PyTorch TorchScript (DPA2/DPA3)
-    potential dp_settings.txt frozen_model.pt2   # PyTorch AOTInductor (DPA4)
-
-Notice
-~~~~~~
-The type list in the setting file and the potential file must be the same.
-
-Example
-~~~~~~~
-* Some water simulations using the ``DP`` model in ``GPUMD``: https://github.com/brucefan1983/GPUMD/discussions
-
-References
-~~~~~~~~~~
-* DeePMD-kit: https://github.com/deepmodeling/deepmd-kit
+Run the compiled ``gpumd`` executable from the directory containing ``run.in`` and ``model.xyz``.
 
 .. _use_nnap_in_gpumd:
 .. index::
@@ -674,39 +515,35 @@ Configure and compile GPUMD-NNAP
 
       .. code:: make
 
-        CFLAGS = -std=c++14 -O3 -arch=sm_60 -DUSE_NNAP -DJVM_CLASS_PATH=\"-Djava.class.path=$(JSE_JAR_PATH)\"
+        CFLAGS += -DUSE_NNAP -DJVM_CLASS_PATH=\"-Djava.class.path=$(JSE_JAR_PATH)\"
 
       Add the JVM header paths by modifying ``INC``:
 
       .. code:: make
 
-        INC = -I./ \
-              -I$(JVM_INCLUDE) \
-              -I$(JVM_INCLUDE)/linux
+        INC += -I$(JVM_INCLUDE) -I$(JVM_INCLUDE)/linux
 
       Here ``$(JVM_INCLUDE)/linux`` corresponds to Linux; for other systems, replace it with the corresponding platform directory.
 
-      Add the JVM library path and runtime path by modifying ``LIBS``:
+      Add the JVM library search paths and library:
 
       .. code:: make
 
-        LIBS = -lcublas -lcusolver -lcufft \
-               -L$(JVM_LLIB_DIR) -ljvm \
-               -Xlinker -rpath -Xlinker $(JVM_LLIB_DIR)
+        LDFLAGS += -L$(JVM_LLIB_DIR) -Xlinker -rpath -Xlinker $(JVM_LLIB_DIR)
+        LIBS += -ljvm
 
       Here, ``JSE_JAR_PATH``, ``JVM_INCLUDE``, and ``JVM_LLIB_DIR`` should be
       replaced by the actual paths obtained from the jse commands above, or exported
       as environment variables before running ``make``.
 
-      Compile the executable files:
+      Rebuild the MD executable from the ``src`` directory:
 
       .. code:: bash
 
-        make -j
-        ls gpumd nep
+        make clean
+        make gpumd -j
 
-      If the compilation is successful, the executables ``gpumd`` and ``nep`` should
-      be generated.
+      If compilation is successful, the ``gpumd`` executable is generated.
 
    .. tab:: CMake (pre-release)
 

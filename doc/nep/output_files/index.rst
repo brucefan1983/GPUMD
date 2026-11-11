@@ -5,9 +5,11 @@ Output files
 ============
 
 The ``nep`` executable produces several output files.
-The :ref:`loss.out file <loss_out>` is written in "append mode", while all other files are continuously overwritten.
+The :ref:`loss.out file <loss_out>` is written in "append mode". Prediction files, ``nep.txt``, and ``nep.restart`` are overwritten when updated.
 
-The contents of the :ref:`energy_train.out <energy_out>`, :ref:`force_train.out <force_out_nep>`, :ref:`mforce_train.out <mforce_out_nep>`, :ref:`virial_train.out <virial_out>`, :ref:`stress_train.out <stress_out>`, :ref:`dipole_train.out <nep_dipole_out>`, and :ref:`polarizability_train.out <nep_polarizability_out>` files are updated every 1000 steps, while the contents of the other output files are updated every 100 steps.
+During training, the ``*_train.out`` prediction files are updated every 1000 generations.
+The :ref:`loss.out <loss_out>` file and corresponding console output, :ref:`nep.txt <nep_txt>`, :ref:`nep.restart <nep_restart>`, and ``*_test.out`` prediction files are updated at the interval set by :ref:`output_interval <kw_output_interval>` (100 generations by default).
+Test-set prediction files are written only when ``test.xyz`` is provided, and the available prediction files depend on the selected model.
 
 The :ref:`nep.txt <nep_txt>` and :ref:`nep.restart <nep_restart>` files contain named records.
 The :ref:`loss.out file <loss_out>` contains comment headers followed by numerical rows.

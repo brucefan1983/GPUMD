@@ -89,7 +89,7 @@ Assume we have the following ``model.xyz`` file:
 .. code::
 
    10
-   pbc="T F F" lattice="4 0 0 0 1 0 0 0 1" properties=species:S:1:pos:R:3:group:I:3
+   pbc="T F F" lattice="10 0 0 0 1 0 0 0 1" properties=species:S:1:pos:R:3:group:I:3
    C  0 0 0 0 0 0
    Si 1 0 0 0 1 0
    C  2 0 0 0 2 0
@@ -105,7 +105,7 @@ This means
 
 * There are 10 atoms.
 * Use periodic boundary conditions in the :math:`x` direction and free boundary conditions in the other directions.
-* The box lengths in the three directions are respectively 4 Å, 1 Å, and 1 Å.
+* The box lengths in the three directions are respectively 10 Å, 1 Å, and 1 Å.
 * There are 5 carbon atoms and 5 silicon atoms. The default masses will be used for the atoms (as there are no specific values given in the input file).
 * The 10 atoms are located along a line in the :math:`x` direction with equal spacing, from 0 Å to 9 Å. 
 * There is no velocity data in this file.

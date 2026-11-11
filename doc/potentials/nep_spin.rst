@@ -600,16 +600,6 @@ See :ref:`spin_version <kw_spin_version>` and the neighboring ``spin_*`` keyword
 pages for descriptor configuration. See :ref:`train_test_xyz` for ordinary
 training labels and :ref:`response_xyz` for grouped-response input.
 
-Training specialization
------------------------
-
-With ``nep_compile 1``, training specializes both the structural NEP kernels
-and the magnetic density, descriptor contraction and force kernels for the
-selected Spin layout. The magnetic kernels share their formulas with the
-native path. If runtime compilation is unavailable, native kernels remain
-available. Compilation adds startup time, so very short runs may be slower;
-``nep_compile 0`` disables specialization. Prediction uses the native path.
-
 .. _nep_spin_runtime:
 
 Fixed-spin molecular dynamics

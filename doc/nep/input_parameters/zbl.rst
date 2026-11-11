@@ -26,8 +26,8 @@ ZBL contributes to energy, force, and virial, but not magnetic force or torque.
 
 Permissible values are 1 Å :math:`\leq r_\mathrm{c}^\mathrm{ZBL-outer} \leq` 4 Å.
 
-Only ordinary NEP (``model nep``, including its default and equivalent legacy
-selection) supports flexible ZBL parameters. To use them, enable this keyword
+Only ordinary NEP (``model nep``, including its default selection) supports
+flexible ZBL parameters. To use them, enable this keyword
 and provide a ``zbl.in`` file in the working directory; the :attr:`<cutoff>`
 parameter is still needed but will not be used. Other models reject flexible
 ZBL. Without this keyword, a ``zbl.in`` file is ignored. In prediction mode,

@@ -33,6 +33,8 @@ There are 18 columns in this output file, each containing the values of a quanti
      \boldsymbol{b} &= b_x \boldsymbol{e}_x + b_y \boldsymbol{e}_y + b_z \boldsymbol{e}_z \\
      \boldsymbol{c} &= c_x \boldsymbol{e}_x + c_y \boldsymbol{e}_y + c_z \boldsymbol{e}_z
 
+For classical MD, the pressure tensor includes both virial and kinetic contributions, with diagonal components positive under compression.
+
 Caveats
 -------
 

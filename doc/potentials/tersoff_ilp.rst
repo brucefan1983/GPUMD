@@ -5,43 +5,14 @@
 Hybrid Tersoff+ILP potential
 ============================
 
-The hybrid Tersoff + :term:`ILP` potential in :program:`GPUMD` combines the Tersoff (1988) potential [Tersoff1988]_ for intralyer interactions and the interlayer potential (:term:`ILP`) [Ouyang2018]_ [Ouyang2020]_  for interlayer interactions to simulate homo- and heterostructures based on graphene and :math:`h`-BN layered materials.
+The hybrid Tersoff + :term:`ILP` potential in :program:`GPUMD` combines the Tersoff (1988) potential [Tersoff1988]_ for intralayer interactions and the interlayer potential (:term:`ILP`) [Ouyang2018]_ [Ouyang2020]_  for interlayer interactions to simulate homo- and heterostructures based on graphene and :math:`h`-BN layered materials.
 The Tersoff term of this hybrid potential uses the same implementation as :ref:`Tersoff (1988) potential <tersoff_1988>`.
 
 Potential form
 --------------
 
-The site potential of :term:`ILP` can be written as:
-
-.. math::
-   
-   U_i^{\mathrm{ILP}}=  \mathrm{Tap}(r_{ij}) \left[U^{\mathrm{att}}(r_{ij})+U^{\mathrm{rep}}(r_{ij}, \boldsymbol{n}_i, \boldsymbol{n}_j)\right]
-
-The function :math:`\mathrm{Tap}(r_{ij})` is a cutoff function and takes the following form in the intermediate region:
-
-.. math::
-
-   \mathrm{Tap}(r_{ij})=20{\left(\frac{r_{ij}}{R_{\mathrm{cut}}}\right)}^7-
-   70{\left(\frac{r_{ij}}{R_{\mathrm{cut}}}\right)}^6+84{\left(\frac{r_{ij}}{R_{\mathrm{cut}}}\right)}^5-
-   35{\left(\frac{r_{ij}}{R_{\mathrm{cut}}}\right)}^4+1
-
-The repulsive term and the attractive term take the following forms:
-
-.. math::
-
-   U^{\mathrm{att}}(r_{ij})&=-\frac{1}{1+e^{-d_{ij}\left[r_{ij}/(S_{\mathrm{R},ij}\cdot r_{ij}^{\mathrm{eff}})-1\right]}}\frac{C_{6,ij}}{r_{ij}^{6}}.
-   
-   U^{\mathrm{rep}}(r_{ij}, \boldsymbol{n}_i, \boldsymbol{n}_j)&=e^{\alpha_{ij}\left(1-\frac{\gamma_{ij}}{\beta_{ij}}\right)} \left\{\epsilon_{ij}+C_{ij}\left[e^{-{(\frac{\rho_{ij}}{\gamma_{ij}})}^2}+e^{-{\left(\frac{\rho_{ji}}{\gamma_{ij}}\right)}^2}\right]\right\}.
-
-where :math:`\boldsymbol n_i` and :math:`\boldsymbol n_j` are normal vectors of atom :math:`i` and :math:`j`,
-:math:`\rho_{ij}` and :math:`\rho_{ji}` are the lateral interatomic distance, which can be expressed as:
-
-.. math::
-
-   \rho_{ij}^{2}&= r_{ij}^2-{(\boldsymbol r_{ij} \cdot \boldsymbol n_i)}^2\\
-   \rho_{ji}^{2}&= r_{ij}^2-{(\boldsymbol r_{ij} \cdot \boldsymbol n_j)}^2
-
-Other variables are all fitting parameters.
+The ILP energy, taper function, and parameter definitions are given in :ref:`ILP potential form <ilp_potential_form>`.
+The ILP contribution acts between atoms in different layers.
 
 The site potential of Tersoff can be written as:
 

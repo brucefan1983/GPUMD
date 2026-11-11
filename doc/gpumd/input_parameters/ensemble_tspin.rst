@@ -25,17 +25,11 @@ Syntax
 
 For fixed-cell NVT dynamics, use::
 
-    ensemble nvt_tspin <T_1> <T_2> <T_coup> \
-             [lattice on|off] \
-             [mass_factor <value> | mass_factor <element> <value> ...] \
-             [seed <value>]
+    ensemble nvt_tspin <T_1> <T_2> <T_coup> [lattice on|off] [mass_factor <value> | mass_factor <element> <value> ...] [seed <value>]
 
 For pressure-controlled NPT dynamics, use::
 
-    ensemble npt_tspin temp <T_1> <T_2> <pressure_terms> \
-             [tperiod <tau_temp>] [pperiod <tau_press>] \
-             [mass_factor <value> | mass_factor <element> <value> ...] \
-             [seed <value>]
+    ensemble npt_tspin temp <T_1> <T_2> <pressure_terms> [tperiod <tau_temp>] [pperiod <tau_press>] [mass_factor <value> | mass_factor <element> <value> ...] [seed <value>]
 
 The ``npt_tspin`` options through ``pperiod`` have the same syntax, meaning,
 and defaults as ``npt_mttk``. The pressure terms can be ``iso``, ``aniso``,
@@ -52,19 +46,16 @@ Run fixed-cell spin--lattice dynamics at 300 K::
 Keep atomic positions and lattice velocities fixed and propagate only the
 spin coordinates::
 
-    ensemble nvt_tspin 300 300 100 lattice off \
-             mass_factor 0.001 seed 12345
+    ensemble nvt_tspin 300 300 100 lattice off mass_factor 0.001 seed 12345
 
 For a Fe--Ge structure, propagate Fe spins with a coefficient of ``0.001``
 and keep Ge spins fixed::
 
-    ensemble nvt_tspin 300 300 100 \
-             mass_factor Fe 0.001 Ge 0 seed 12345
+    ensemble nvt_tspin 300 300 100 mass_factor Fe 0.001 Ge 0 seed 12345
 
 Run isotropic pressure-controlled spin--lattice dynamics at 300 K and 0 GPa::
 
-    ensemble npt_tspin temp 300 300 iso 0 0 \
-             tperiod 100 pperiod 1000 mass_factor 0.001 seed 12345
+    ensemble npt_tspin temp 300 300 iso 0 0 tperiod 100 pperiod 1000 mass_factor 0.001 seed 12345
 
 In both examples, ``mass_factor`` is a spin-mass coefficient. It does not
 replace or change the lattice atomic masses.

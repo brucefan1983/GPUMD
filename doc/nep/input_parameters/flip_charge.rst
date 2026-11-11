@@ -18,6 +18,4 @@ This option is supported for ``qnep1``, ``qnep2``, ``qnep3``, and ``qnep3_vdw``.
   model qnep2
   flip_charge 1
 
-The optional second parameter of the legacy :ref:`charge_mode <kw_charge_mode>`
-keyword retains the same meaning. Do not specify both that parameter and
-``flip_charge``, or repeat the ``flip_charge`` keyword.
+Specify ``flip_charge`` at most once.

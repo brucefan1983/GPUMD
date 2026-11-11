@@ -18,7 +18,7 @@ The ARDF is defined as
    
    g (r, \theta) = \frac{n (r, \theta)}{\rho 2 r^2 \Delta r \Delta \theta},
 
-where :math:`n (r, \theta)` is the number of pairs of atoms at a distance :math:`(r-\Delta r/2, r+\Delta r/2]` and an angle :math:`(\theta-\Delta \theta/2, \theta+\Delta \theta/2]` from each other, :math:`\rho` is the number density, :math:`r` is the distance between the atoms, :math:`\theta` is the angle between the atoms, :math:`\Delta r` is the bin width in distance, and :math:`\Delta \theta` is the bin width in angle.
+where :math:`n (r, \theta)` is the number of pairs of atoms at a distance :math:`(r-\Delta r/2, r+\Delta r/2]` and an angle :math:`(\theta-\Delta \theta/2, \theta+\Delta \theta/2]` from each other, :math:`\rho` is the number density, :math:`r` is the distance between the atoms, :math:`\theta` is the azimuthal angle of the interatomic displacement in the :math:`xy` plane measured from the positive :math:`x` axis, :math:`\Delta r` is the bin width in distance, and :math:`\Delta \theta` is the bin width in angle.
 
 Syntax
 ------
@@ -27,7 +27,7 @@ This keyword is used as follows::
 
   compute_angular_rdf <cutoff> <r_num_bins> <angular_num_bins> <interval> [atom <i1> <i2> atom <i3> <i4> ...]
 
-This means that the ARDF calculations will be performed every :attr:`interval` steps, with :attr:`r_num_bins` data points evenly distributed from 0 to :attr:`cutoff` (in units of Ångstrom) in terms of the distance between atom pairs, and :attr:`angular_num_bins` data points evenly distributed from -Pi/2 to Pi/2 in terms of the angle.
+This means that the ARDF calculations will be performed every :attr:`interval` steps, with :attr:`r_num_bins` radial bins spanning 0 to :attr:`cutoff` (in units of Ångstrom), and :attr:`angular_num_bins` angular bins spanning :math:`-\pi` to :math:`\pi` (in radians). The output coordinates are the bin centers.
 
 Without the optional parameters, only the total :term:`ARDF` will be calculated.
 

@@ -17,59 +17,86 @@ keyword is given, the default is ``nep``.
 
    * - Name
      - Model
-     - Equivalent legacy selection
    * - ``nep``
      - Standard energy NEP
-     - ``model_type 0`` (or no selector)
    * - ``nep_dipole``
      - TNEP dipole
-     - ``model_type 1``
    * - ``nep_polarizability``
      - TNEP polarizability
-     - ``model_type 2``
    * - ``nep_temperature``
      - Temperature-dependent NEP
-     - ``model_type 3``
    * - ``nep_spin``
      - Spin-dependent energy NEP
-     - ``spin_version 1``
    * - ``qnep1``
-     - qNEP mode 1
-     - ``charge_mode 1``
+     - Charge NEP with real- and reciprocal-space electrostatics
    * - ``qnep2``
-     - qNEP mode 2
-     - ``charge_mode 2``
+     - Charge NEP with reciprocal-space electrostatics
    * - ``qnep3``
      - qNEP mode 2 with charge self-energy correction
-     - None
    * - ``nep_vdw``
      - NEP with learned long-range vdW
-     - ``vdw 1``
    * - ``qnep3_vdw``
-     - qNEP with charge self-energy excluded and learned long-range vdW
-     - ``charge_vdw 1``
+     - qNEP mode 3 with learned long-range vdW
 
-The new keyword selects the same implementations as the legacy inputs;
-in particular, the definitions of ``qnep1`` and ``qnep2`` are unchanged.
 ``qnep3`` uses the same parameter layout as ``qnep2``, but adds the
 self-energy correction to the long-range charge energy.
 
-Specify ``model`` at most once. It cannot be combined with ``model_type``,
-``charge_mode``, ``vdw``, or ``charge_vdw``, even if a legacy value is zero.
-This rule is independent of keyword order.
+Specify ``model`` at most once.
 
 For ``model nep_spin``, :ref:`spin_version <kw_spin_version>` may still be
 specified and defaults to ``1``. It is an error to combine ``spin_version``
 with any other explicit ``model``.
 
-Legacy model-selection keywords remain supported and print a deprecation
-warning with the equivalent ``model`` selection. Using ``spin_version``
-without ``model`` also remains supported with a warning; ``spin_version``
-itself remains the spin descriptor version setting.
-
-To migrate ``charge_mode 2 1``, use::
-
-  model qnep2
-  flip_charge 1
+Using ``spin_version`` without ``model`` also remains supported with a warning;
+``spin_version`` itself remains the spin descriptor version setting.
 
 See :ref:`flip_charge <kw_flip_charge>` for the restart option.
+
+.. _nep_long_range_models:
+
+Long-range models
+-----------------
+
+The models ``qnep1``, ``qnep2``, and ``qnep3`` [Fan2026]_ predict environment-dependent atomic charges in addition to the local NEP energy.
+The ``qnep1`` and ``qnep2`` models follow the approaches of Song et al. [Song2024b]_ and Cheng [Cheng2025]_, respectively.
+For periodic systems, their electrostatic contributions are
+
+.. math::
+
+   E_{\mathrm{el}}^{\mathrm{qnep1}} &= E_{\mathrm{real}}+E_{\mathrm{k}}+E_{\mathrm{self}},\\
+   E_{\mathrm{el}}^{\mathrm{qnep2}} &= E_{\mathrm{k}},\\
+   E_{\mathrm{el}}^{\mathrm{qnep3}} &= E_{\mathrm{k}}+E_{\mathrm{self}}.
+
+Here, :math:`E_{\mathrm{real}}` and :math:`E_{\mathrm{k}}` are the real- and reciprocal-space Ewald terms.
+The correction :math:`E_{\mathrm{self}}=-k_{\mathrm e}\alpha\sum_i q_i^2/\sqrt{\pi}` removes the charge self interaction, where :math:`k_{\mathrm e}` is the Coulomb prefactor and :math:`\alpha` is the Ewald splitting parameter.
+In ``qnep2`` and ``qnep3``, the local NEP energy represents the remaining short-range interactions.
+
+The ``nep_vdw`` model predicts environment-dependent dispersion coefficients and adds the long-range part of the attractive :math:`r^{-6}` interaction.
+For periodic systems, this part is evaluated in reciprocal space with its self interaction removed; the local NEP energy describes the short-range interactions.
+The ``qnep3_vdw`` model combines this dispersion contribution with the charge contribution used by ``qnep3``.
+
+Training data
+^^^^^^^^^^^^^
+
+Use the energy, force, and optional virial or stress labels described in :ref:`train.xyz and test.xyz <train_test_xyz>`.
+Atomic charge and dispersion-coefficient labels are not required.
+For the charge models, ``charge=`` specifies the total charge of each structure in units of e and defaults to zero.
+Optional ``bec:R:9`` labels provide target Born effective charges.
+Fitting Born effective charges is usually appropriate for a single material in a single phase, since a constant high-frequency dielectric constant is assumed for the whole training dataset.
+The weights of the total-charge and Born-effective-charge loss terms are set by :ref:`lambda_q <kw_lambda_q>` and :ref:`lambda_z <kw_lambda_z>`, respectively.
+
+Boundary conditions and MD use
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For training and prediction with ``nep``, all five long-range models support fully periodic (``pbc="T T T"``) and fully nonperiodic (``pbc="F F F"``) structures.
+The default is fully periodic; mixed boundary conditions are not supported.
+For nonperiodic structures, the long-range contribution is evaluated by direct summation without periodic images.
+
+For MD with ``gpumd``, these models require periodic boundaries in all three directions and use a single GPU.
+The charge models enforce zero total charge during MD.
+Load the trained model in ``run.in`` using the :ref:`potential keyword <kw_potential>`::
+
+  potential nep.txt
+
+The model is selected from the contents of ``nep.txt``.
+The :ref:`kspace keyword <kw_kspace>` selects PPPM (the default) or Ewald summation for the reciprocal-space charge and dispersion contributions.
