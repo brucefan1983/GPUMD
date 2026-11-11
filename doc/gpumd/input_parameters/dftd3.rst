@@ -6,11 +6,13 @@
 =============
 
 This keyword is used to add the DFT-D3 dispersion correction to NEP.
-It has no effect when any other potential is used.
+It must not be combined with ``nep_spin``, ``nep_vdw``, or ``qnep3_vdw`` models.
 For theoretical background on DFT-D3, see [Grimme2010]_ and [Grimme2011]_.
 
 Syntax
 ------
+
+The syntax is::
 
   dftd3 <functional> <potential_cutoff> <coordination_number_cutoff>
 

@@ -6,6 +6,7 @@
 ==============
 
 This keyword enables one to specify the radial (:math:`r_\mathrm{c}^\mathrm{R}`) and angular (:math:`r_\mathrm{c}^\mathrm{A}`) cutoffs of the :term:`NEP` model.
+Set the :ref:`type keyword <kw_type>` before this keyword.
 One syntax is::
 
   cutoff <radial_cutoff> <angular_cutoff>

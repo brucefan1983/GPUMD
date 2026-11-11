@@ -1,11 +1,11 @@
 .. _loss_out:
 .. index::
-   single: loss.txt (output file)
+   single: loss.out (output file)
 
 ``loss.out``
 ============
 
-This files contains the terms that enter the :ref:`loss function <nep_loss_function>`, written every :ref:`output_interval <kw_output_interval>` generations (100 by default).
+This file contains the terms that enter the :ref:`loss function <nep_loss_function>`, written every :ref:`output_interval <kw_output_interval>` generations (100 by default).
 
 File format
 -----------

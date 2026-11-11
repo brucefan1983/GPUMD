@@ -17,7 +17,7 @@ Syntax
    compute_shc <sample_interval> <Nc> <transport_direction> <num_omega> <max_omega> [{<optional_arg>}]
 
 :attr:`sample_interval` is the sampling interval (number of steps) between two correlation steps.
-This parameter must be an integer that is :math:`\geq 1` and :math:`\leq 10`. 
+This parameter must be an integer that is :math:`\geq 1` and :math:`\leq 50`.
 
 :attr:`Nc` is the total number of correlation steps.
 This parameter must be an integer that is :math:`\geq 100` and :math:`\leq 1000`. 

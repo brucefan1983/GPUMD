@@ -46,4 +46,5 @@ Using a specific grouping method::
 Caveats
 -------
 * One cannot use NPT when using this keyword. Only ``nvt_ber``, ``nvt_nhc``, ``nvt_bdp``, and ``heat_lan`` ensembles are supported.
-* When both :ref:`fix <kw_fix>` and :attr:`move` are used, they must use the same grouping method.
+* A :ref:`fix <kw_fix>` command is required in the same run. The fixed and moving groups must be different and must use the same grouping method.
+* This keyword only affects the run it belongs to. Repeat both :attr:`move` and :ref:`fix <kw_fix>` before each subsequent run that needs them.

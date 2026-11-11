@@ -19,7 +19,8 @@ All other lines need to be of the following form::
   
   keyword parameter_1 parameter_2 ...
  
-Keywords can appear in any order with the exception of the :ref:`type_weight keyword <kw_type_weight>`, which cannot appear before the :ref:`type keyword <kw_type>`. 
+Put the mandatory :ref:`type keyword <kw_type>` first.
+It must precede :ref:`cutoff <kw_cutoff>` and :ref:`type_weight <kw_type_weight>`, as well as :ref:`spin_cutoff <kw_spin_cutoff>` when training a Spin model.
 
 The :ref:`type keyword <kw_type>` does not have default parameters and *must* be set.
 All other keywords have default values.
@@ -73,7 +74,7 @@ Keywords
    * - :ref:`cutoff <kw_cutoff>`
      - radial (:math:`r_\mathrm{c}^\mathrm{R}`) and angular (:math:`r_\mathrm{c}^\mathrm{A}`) cutoffs
    * - :ref:`n_max <kw_n_max>`
-     - size of radial (:math:`n_\mathrm{max}^\mathrm{R}`) and angular (:math:`n_\mathrm{max}^\mathrm{A}`) basis
+     - radial-function index limits for radial and angular descriptors
    * - :ref:`basis_size <kw_basis_size>`
      - number of radial (:math:`N_\mathrm{bas}^\mathrm{R}`) and angular (:math:`N_\mathrm{bas}^\mathrm{A}`) basis functions
    * - :ref:`l_max <kw_l_max>`
@@ -107,7 +108,7 @@ Keywords
    * - :ref:`lambda_d <kw_lambda_d>`
      - weight of energy-difference loss term, with the combinations in ``ediff.in``
    * - :ref:`atomic_v <kw_atomic_v>`
-     - fit atomic or global virial
+     - fit atomic or global dipole/polarizability targets
    * - :ref:`lambda_shear <kw_lambda_shear>`
      - extra weight of shear-virial loss terms
    * - :ref:`force_delta <kw_force_delta>`
