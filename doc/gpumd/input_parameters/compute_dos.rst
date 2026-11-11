@@ -9,7 +9,7 @@ This keyword computes the phonon density of states (:term:`PDOS`) using the mass
 The output is normalized such that the integral of the :term:`PDOS` over all frequencies equals :math:`3N`, where :math:`N` is the number of atoms.
 If this keyword appears in a run, the mass-weighted :term:`VAC` function will be computed and directly used to compute the :term:`PDOS`.
 
-The results of these calculations will be written to :ref:`mvac.out <mvac_out>` (for the mass-normalized :term:`VAC` function) and :ref:`dos.out <dos_out>` (for the :term:`DOS`).
+The results of these calculations will be written to :ref:`mvac.out <mvac_out>` (for the normalized mass-weighted :term:`VAC` function) and :ref:`dos.out <dos_out>` (for the :term:`DOS`).
 
 
 Syntax

@@ -6,7 +6,7 @@
 ===================
 
 This keyword computes the self-diffusion coefficient (:term:`SDC`) from the mean-square displacement (:term:`MSD`) function.
-If this keyword appears in a run, the :term:`MSD` function will be computed and the :term:`SDC` is also calculated as a time derivative of it.
+If this keyword appears in a run, the :term:`MSD` function will be computed and each Cartesian component of the :term:`SDC` is calculated as one half of the time derivative of the corresponding :term:`MSD` component.
 The results will be written to :ref:`msd.out output file <msd_out>`.
 
 Syntax
@@ -17,8 +17,8 @@ For this keyword, the command looks like::
 
 with parameters defined as
 
-* :attr:`sample_interval`: Sampling interval of the position data
-* :attr:`Nc`: Maximum number of correlation steps
+* :attr:`sample_interval`: Positive integer giving the number of time steps between position samples
+* :attr:`Nc`: Positive integer giving the number of correlation points, including zero correlation time
 
 The optional arguments can be given in any order. Each option can be specified at most once.
 The available options are described below.
@@ -40,7 +40,13 @@ This keyword saves the internal :term:`MSD` and :term:`SDC` computed so far duri
 The file will have a name formatted as ``msd_step[step].out``. 
 The parameters are:
 
-* :attr:`save_every <interval>`, where :attr:`interval` is a positive integer giving the number of steps between saving a copy. Note that the copy can only be written at most every :attr:`sample_interval` steps. Furthermore, the first ``msd_step[step].out`` file will be written after :attr:`Nc` times :attr:`sample_interval` steps. Subsequent files will be written every :attr:`interval`.
+* :attr:`save_every <interval>`, where :attr:`interval` is a positive integer specifying the requested saving interval in MD time steps.
+
+A copy is written only on a step that is a multiple of both :attr:`sample_interval` and :attr:`interval`, after at least :attr:`Nc` position samples have been collected.
+The first copy is therefore written at the first such step at or after ``Nc * sample_interval``.
+Choose :attr:`interval` to be a multiple of :attr:`sample_interval` to obtain the requested spacing between saved copies.
+Step numbers are counted from the beginning of the current run.
+Each copy contains the averages accumulated so far; saving does not reset the accumulation.
 
 
 Examples
@@ -54,10 +60,13 @@ This means that you
 
 * want to calculate the :term:`MSD`
 * the position data will be recorded every 5 steps
-* the maximum number of correlation steps is 200
+* there are 200 correlation points, including zero correlation time
 * you would like to compute only over group 1 in group method 1.
 
 
 To compute the :term:`MSD` for all groups in group method 1 and save a copy of the :term:`MSD` every 100 000 steps, one can write::
 
   compute_msd 5 200 all_groups 1 save_every 100000
+
+In this example, sufficient position samples are available at step 1000, but the first intermediate file is ``msd_step100000.out`` at step 100000.
+The final results are also appended to ``msd.out`` at the end of the run.

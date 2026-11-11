@@ -181,7 +181,7 @@ Actions
      - No
      - No
    * - :ref:`compute_dpdt <kw_compute_dpdt>`
-     - Compute the time derivative of the polarization
+     - Compute the time derivative of the total dipole moment
      - No
      - No
    * - :ref:`compute_gkma <kw_compute_gkma>`
