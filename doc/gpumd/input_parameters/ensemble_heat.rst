@@ -18,7 +18,7 @@ The full command is::
 
   ensemble heat_nhc <T> <T_coup> <delta_T> <label_source> <label_sink>
 
-The target temperatures in the source region with label :attr:`<label_source>` and the sink region with label :attr:`<label_sink>` are :attr:`<T>+<delta_T>` and :attr:`<T>-<delta_T>`, respectively.
+The target temperatures in the source region with label :attr:`<label_source>` and the sink region with label :attr:`<label_sink>` are :code:`<T> + <delta_T>` and :code:`<T> - <delta_T>`, respectively.
 Therefore, the temperature difference between the two regions is two times :attr:`<delta_T>`.
 In the command above, the parameter :attr:`<T_coup>` has the same meaning as in the case of :attr:`nvt_nhc`.
 Both :attr:`<label_source>` and :attr:`<label_sink>` refer to the 0-th grouping method.

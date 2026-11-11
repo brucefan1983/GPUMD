@@ -10,6 +10,8 @@ This keyword sets the Spin3 cutoff distance in Å::
   spin_cutoff <cutoff>
   spin_cutoff <cutoff_type_1> ... <cutoff_type_N>
 
+Set the :ref:`type keyword <kw_type>` before this keyword.
+
 Use either one positive value, which is broadcast to all atom types, or exactly
 one positive value for every type in the order declared by :ref:`type
 <kw_type>`. If this keyword is absent, the largest ordinary radial
