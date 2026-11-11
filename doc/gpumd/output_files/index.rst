@@ -99,7 +99,7 @@ Output files
      - Append
    * - :ref:`dpdt.out <dpdt_out>`
      - :ref:`compute_dpdt <kw_compute_dpdt>`
-     - time derivative of the polarizability and its time integration
+     - Total dipole-moment derivative and its time integral
      - Append
    * - :ref:`sdc.out <sdc_out>`
      - :ref:`compute_sdc <kw_compute_sdc>`
@@ -123,7 +123,7 @@ Output files
      - Overwrite
    * - :ref:`omega2.out <omega2_out>`
      - :ref:`compute_phonon <kw_compute_phonon>`
-     - Phonon frequency squared :math:`\omega^2(\boldsymbol{k})` for the input :math:`\boldsymbol{k}`-points
+     - Phonon angular frequency squared :math:`\omega^2(\boldsymbol{k})` for the input :math:`\boldsymbol{k}`-points
      - Overwrite
    * - :ref:`viscosity.out <viscosity_out>`
      - :ref:`compute_viscosity <kw_compute_viscosity>`
