@@ -11,4 +11,4 @@ The syntax is::
   lambda_1 <weight>
 
 Here, :attr:`<weight>` represents :math:`\lambda_1`, which can be set to any non-negative values. 
-The default value is :math:`\lambda_1 = \sqrt{N}/1000`, where :math:`N` is the total number of training parameters.
+The default value is :math:`\lambda_1 = \sqrt{N_\mathrm{par}/N_\mathrm{typ}}/1000`, where :math:`N_\mathrm{par}` is the total number of training parameters and :math:`N_\mathrm{typ}` is the number of atom types.

@@ -14,4 +14,7 @@ The data in this file are organized as follows:
 
 * column 1: radius (in units of Å)
 * column 2: The (:term:`RDF`) for the whole system
-* column 3 and more: The (:term:`RDF`) for specific atom pairs if specified
+* column 3 and more: Partial RDFs for all distinct element pairs, including same-element pairs.
+
+The header starts with ``#radius total`` and lists the element pairs in column order.
+Each run appends a new header and data block to the file.
