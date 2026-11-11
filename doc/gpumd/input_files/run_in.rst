@@ -19,23 +19,32 @@ All other lines should be of the form:
 
 The overall structure of a ``run.in`` file is as follows:
 
-* First, set up the potential model using the :ref:`potential <kw_potential>` keyword.
-  * Multiple NEP potentials may be used using the :ref:`dump_observer <kw_dump_observer>` keyword. These NEP potentials may either be used to evaluate energy, forces and virials along the trajectory, or averaged together to run the MD on an average PES. 
+* If the model needs replication, put :ref:`replicate <kw_replicate>` first.
+* Set up the potential model using the :ref:`potential <kw_potential>` keyword.
+  Multiple NEP potentials can be used with :ref:`dump_observer <kw_dump_observer>` to evaluate energies, forces and virials along the trajectory, or to run MD using their average potential energy surface.
 * Then, if needed, use the :ref:`minimize <kw_minimize>` keyword to minimize the energy of the whole system.
 * Then one can use the following keywords to carry out static calculations:
 
   * Use the :ref:`compute_cohesive <kw_compute_cohesive>` keyword to compute the cohesive energy curve.
   * Use the :ref:`compute_elastic <kw_compute_elastic>` keyword to compute the elastic constants.
   * Use the :ref:`compute_phonon <kw_compute_phonon>` keyword to compute the phonon dispersions.
-* Then, if one wants to carry out :term:`MD` simulations, one has to set up the initial velocities using the :ref:`velocity <kw_velocity>` keyword and carry out a number of :term:`MD` runs as follows:
+* For :term:`MD`, velocities in ``model.xyz`` are used when present.
+  Otherwise, use :ref:`velocity <kw_velocity>` to choose the initial temperature; the default is 300 K if the keyword is omitted.
+  Then carry out one or more runs as follows:
 
   * Specify an integrator using the :ref:`ensemble <kw_ensemble>` keyword and optionally add keywords to further control the evolution and measurement processes. 
   * Use the :ref:`run <kw_run>` keyword to run a number of :term:`MD` steps according to the above settings. 
-  * The last two steps can be repeated.
+  * Repeat these two steps for each subsequent run, using the current atomic positions, velocities and simulation cell.
+
+For an example with separate equilibration and production stages, see :ref:`multiple runs <multiple_runs>`.
+For continuing from a saved configuration, see :ref:`restart.xyz <restart_xyz>`.
 
 The following tables provide an overview of the different keywords.
 A complete list can also be found :ref:`here <gpumd_input_parameters>`.
 The last two columns indicate whether the command is executed immediately (*Exec.*) and whether it is propagated from one ``run`` command to the next (*Prop.*).
+For a non-propagating setting, repeat the command before each run that needs it.
+For an immediately executed command, *N/A* means that there is no per-run setting to propagate; its effect on the model, such as a changed cell or loaded potential, remains in place.
+For :ref:`time_step <kw_time_step>`, the current step size propagates, but the optional maximum-displacement limit must be specified again.
 
 Simulation setup
 ================
