@@ -18,3 +18,6 @@ Value  Mode
 0      fit global tensor (default)
 1      fit atomic tensor
 =====  ===========================
+
+See :ref:`train.xyz and test.xyz <train_test_xyz>` for the required global and atomic labels.
+The output row counts and normalization for the two modes are described under :ref:`dipole_*.out <nep_dipole_out>` and :ref:`polarizability_*.out <nep_polarizability_out>`.

@@ -30,6 +30,28 @@ If the first parameter is :attr:`heat_bdp`, it is similar to the case of :attr:`
 :attr:`heat_lan`
 ^^^^^^^^^^^^^^^^
 If the first parameter is :attr:`heat_lan`, it is similar to the case of :attr:`heat_nhc`, but using the :ref:`Langevin method <langevin_thermostat>`.
+The source and sink can be specified using static groups::
+
+  ensemble heat_lan <T> <T_coup> <delta_T> <label_source> <label_sink>
+
+Alternatively, they can be specified using spatial regions::
+
+  ensemble heat_lan <T> <T_coup> <delta_T> {source_bounds} {sink_bounds}
+
+Each brace-enclosed placeholder represents six numbers, entered without braces:
+``a_min a_max b_min b_max c_min c_max``.
+They are fractional-coordinate bounds along the three cell vectors.
+Each pair must satisfy :math:`0 \leq s_\mathrm{min} < s_\mathrm{max} \leq 1`, and the source and sink regions must not overlap.
+The lower bounds are included and the upper bounds are excluded.
+Region membership is determined from the current atomic positions during integration, so atoms can enter and leave the heat baths.
+
+The temperatures are :code:`<T> + <delta_T>` and :code:`<T> - <delta_T>` for the source and sink, respectively.
+:attr:`<T_coup>` is the temperature coupling time in units of the time step.
+For example::
+
+  ensemble heat_lan 300 100 10 0 0.1 0 1 0 1 0.5 0.6 0 1 0 1
+
+This places the 310 K source at :math:`0 \leq s_a < 0.1` and the 290 K sink at :math:`0.5 \leq s_a < 0.6`, spanning the full cell along the other two fractional coordinates.
 
 :attr:`ttm`
 ^^^^^^^^^^^
