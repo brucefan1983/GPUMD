@@ -59,8 +59,20 @@ Essentially any keyword is allowed, but we only read the following ones:
 Line 3 and forward
 ^^^^^^^^^^^^^^^^^^
 
-Each line must contain the same number of items, which are determined by the ``property`` keyword on line 2.
+Each line must contain the same number of items, which are determined by the ``properties`` keyword on line 2.
 The meaning of the grouping methods is illustrated by the example below.
+
+.. _grouping_methods:
+
+Grouping methods
+----------------
+
+``group:I:M`` supplies one group label per atom for each of :math:`M` independent grouping methods, numbered from 0 to :math:`M-1` in column order.
+Within each method, every atom belongs to the group identified by its label, which must be an integer from 0 to :math:`N-1`.
+The method number selects a partition of the atoms; the group label selects one group within that partition.
+
+These labels remain attached to the atoms as they move; group membership is not recalculated from their current positions.
+If the ``group`` property is omitted, no grouping methods are defined.
 
 Units
 -----
