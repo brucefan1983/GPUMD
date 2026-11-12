@@ -1,11 +1,12 @@
+.. _kw_multi_replica_prd:
 .. _replica_prd:
 .. index::
-   single: multi_replica prd (keyword in replica run.in)
+   single: multi_replica prd (keyword in run.in)
 
-:attr:`!multi_replica prd`
-==========================
+:attr:`multi_replica` (PRD)
+===========================
 
-This command selects parallel replica dynamics (PRD) [Voter1998]_.
+The ``prd`` mode of :ref:`multi_replica <kw_multi_replica>` selects parallel replica dynamics (PRD) [Voter1998]_.
 The discrete-time clock update follows [Aristoff2014]_; see :ref:`replica_prd_events`.
 
 Syntax
@@ -29,17 +30,8 @@ Syntax
   Unconverged quenches stop the run.
 * ``max_dephase_retries``: positive limit on dephasing trial rounds, including the first attempt; default 1000.
 * ``resume``: :ref:`restart prefix <replica_restart>`.
-Batched integration
--------------------
 
-When a GPU holds at least two replicas and either at most 5000 atoms per replica or at most 30000
-atoms in total (replicas times atoms per replica), its replicas are integrated as one concatenated
-system, with one kernel launch per stage and step instead of one per replica. This is faster for
-many small replicas; otherwise the replicas are integrated one by one. Results are the same either way. Batching needs an energy NEP
-model whose box uses the large-box path; otherwise the replicas are integrated one by one. The
-choice is printed at the start of the run (``batched integration: on`` or ``off`` with the reason),
-and a line of batch statistics is printed at the end. Batching covers the MD steps of dephasing,
-parallel dynamics and correlation; FIRE quenches remain per replica.
+See :ref:`kw_multi_replica` for supported input commands, GPU allocation, and :ref:`replica_batched_integration`.
 
 Example
 -------

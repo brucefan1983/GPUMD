@@ -1,11 +1,12 @@
+.. _kw_multi_replica_remd:
 .. _replica_remd:
 .. index::
-   single: multi_replica remd (keyword in replica run.in)
+   single: multi_replica remd (keyword in run.in)
 
-:attr:`!multi_replica remd`
-===========================
+:attr:`multi_replica` (REMD)
+============================
 
-This command selects temperature replica-exchange molecular dynamics (REMD) [Sugita1999]_.
+The ``remd`` mode of :ref:`multi_replica <kw_multi_replica>` selects temperature replica-exchange molecular dynamics (REMD) [Sugita1999]_.
 
 Syntax
 ------
@@ -22,16 +23,8 @@ Syntax
 * ``equilibrate``: independent NVT steps before exchanges begin; default 0.
   These steps do not count toward ``run``.
 * ``resume``: :ref:`restart prefix <replica_restart>`; cannot be combined with positive ``equilibrate``.
-Batched integration
--------------------
 
-When a GPU holds at least two replicas and either at most 5000 atoms per replica or at most 30000
-atoms in total (replicas times atoms per replica), its replicas are integrated as one concatenated
-system, with one kernel launch per stage and step instead of one per replica. This is faster for
-many small replicas; otherwise the replicas are integrated one by one. Results are the same either way. Batching needs an energy NEP
-model whose box uses the large-box path; otherwise the replicas are integrated one by one. The
-choice is printed at the start of the run (``batched integration: on`` or ``off`` with the reason),
-and a line of batch statistics is printed at the end.
+See :ref:`kw_multi_replica` for supported input commands, GPU allocation, and :ref:`replica_batched_integration`.
 
 Example
 -------
@@ -40,7 +33,7 @@ Example
 
   multi_replica remd replicas 8 exchange 1000 temp 300 450 equilibrate 200000
 
-A complete input is shown in :ref:`replica_run_in`.
+A complete input is shown in the :ref:`multi_replica example <replica_run_in>`.
 
 Caveats
 -------

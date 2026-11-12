@@ -1,9 +1,9 @@
 .. _replica_temperatures:
 .. index::
-   single: replica dynamics input files; temperatures
+   single: gpumd input files; replica temperatures
 
-Temperature file
-================
+Replica temperature file
+========================
 
 REMD can read a temperature ladder using ``temp <filename>`` in :ref:`replica_remd`.
 The file must contain exactly one positive temperature in K per replica, in strictly increasing order.

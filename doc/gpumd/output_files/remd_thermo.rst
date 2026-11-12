@@ -1,6 +1,6 @@
 .. _replica_remd_thermo:
 .. index::
-   single: replica dynamics output files; remd_thermo
+   single: gpumd output files; remd_thermo.out
 
 ``remd_thermo.out``
 ===================

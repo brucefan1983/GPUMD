@@ -1,6 +1,6 @@
 .. _replica_remd_ladder:
 .. index::
-   single: replica dynamics output files; remd_ladder
+   single: gpumd output files; remd_ladder.out
 
 ``remd_ladder.out``
 ===================

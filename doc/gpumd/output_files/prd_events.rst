@@ -1,6 +1,6 @@
 .. _replica_prd_events:
 .. index::
-   single: replica dynamics output files; prd_events
+   single: gpumd output files; prd_events.out
 
 ``prd_events.out``
 ==================

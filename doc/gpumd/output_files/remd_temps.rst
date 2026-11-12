@@ -1,6 +1,6 @@
 .. _replica_remd_temps:
 .. index::
-   single: replica dynamics output files; remd_temps
+   single: gpumd output files; remd_temps.in
 
 ``remd_temps.in``
 =================

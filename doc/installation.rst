@@ -60,7 +60,6 @@ Compilation
       The default targets are ``gpumd``, ``nep``, and ``tb``.
       With a single-configuration generator, the executables are placed in ``build``; with Visual Studio, they are normally in ``build/Release``.
       ``CMAKE_BUILD_TYPE=Release`` selects optimization for single-configuration generators such as Unix Makefiles and Ninja; ``--config Release`` selects the configuration for generators such as Visual Studio.
-      Use the Make build for ``gpumd_replica``, which is not currently a CMake target.
       Omit ``--parallel`` to fall back to serial compilation.
 
       To target a specific GPU architecture, add ``-D`` at configure time:
@@ -115,7 +114,8 @@ For example::
 
   CUDA_VISIBLE_DEVICES=0,1 ./gpumd
 
-Charge NEP models currently use the single-GPU implementation in ``gpumd``.
+For ordinary MD, charge NEP models currently use the single-GPU implementation in ``gpumd``.
+For replica dynamics, :ref:`multi_replica <kw_multi_replica>` assigns complete replicas of an energy NEP or charge NEP system to the visible GPUs.
 On managed clusters, request GPUs through the scheduler and use the device
 visibility configured by the scheduler.
 

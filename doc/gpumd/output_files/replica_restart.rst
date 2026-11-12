@@ -1,9 +1,9 @@
 .. _replica_restart:
 .. index::
-   single: replica dynamics output files; restart
+   single: gpumd output files; replica restart files
 
-Restart files
-=============
+Replica restart files
+=====================
 
 At normal completion, REMD writes ``remd_restart.meta`` and ``remd_replica_<index>_restart.xyz`` for every replica.
 PRD writes ``prd_restart.meta``, ``prd_replica_<index>_restart.xyz``, and ``prd_basin_restart.xyz``.
