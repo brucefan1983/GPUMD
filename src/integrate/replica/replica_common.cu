@@ -719,6 +719,9 @@ void Replica_Runtime::initialize(
     std::unique_ptr<Replica_Slot> slot(new Replica_Slot(replica_id, device.device_id));
     clone_source_state(*slot);
     initialize_slot(*slot);
+    // Public atom allocation enqueues initialization on the default stream.
+    // Complete it before computing forces on the slot's non-blocking stream.
+    CHECK(gpuStreamSynchronize(nullptr));
     compute_force(device, *slot);
     replica_slots_[replica_id] = slot.get();
     device.slots.push_back(std::move(slot));

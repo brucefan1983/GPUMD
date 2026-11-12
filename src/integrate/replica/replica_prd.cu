@@ -298,7 +298,6 @@ private:
   std::string kspace_method_;
   Atom& source_atom_;
   Box& source_box_;
-  std::vector<Group>& source_group_;
   double time_step_;
   int number_of_steps_;
   double temperature_ = 0.0;
@@ -365,7 +364,6 @@ PRD_Driver::PRD_Driver(
   , kspace_method_(input.kspace_method)
   , source_atom_(source_atom)
   , source_box_(source_box)
-  , source_group_(source_group)
   , time_step_(input.time_step)
   , number_of_steps_(input.number_of_steps)
   , runtime_(
