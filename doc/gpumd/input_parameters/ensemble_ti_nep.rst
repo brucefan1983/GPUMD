@@ -27,8 +27,10 @@ The parameters can be specified as follows::
 - :attr:`<equilibrium_time>`: The number timesteps to equilibrate the system at :math:`\lambda=0` and at :math:`\lambda=1`.
 - :attr:`<switch_time>`: The number timesteps to vary lambda from 0 to 1 (and from 1 to 0).
 
-If you do not specify :attr:`<equilibrium_time>` and :attr:`<switch_time>`, they will be automatically set in a 1:4 ratio.
-If you specify them, you must specify both, and the number of steps in the :ref:`run keyword <kw_run>` should be 2 × (:attr:`<equilibrium_time>` + :attr:`<switch_time>`).
+Specify both ``tequil`` and ``tswitch``, or omit both.
+``tequil`` must be a non-negative integer and ``tswitch`` a positive integer.
+When omitted, they are set to ``floor(0.1 * N)`` and ``floor(0.4 * N)``, respectively, where ``N`` is the number of run steps; the resulting ``tswitch`` must still be positive.
+The run must contain at least ``2 * (tequil + tswitch)`` steps.
 
 Exactly two NEP potentials are needed in the :attr:`run.in` file.
 The first one is NEP1 (:math:`\lambda=0`) and the second one is NEP2 (:math:`\lambda=1`).
