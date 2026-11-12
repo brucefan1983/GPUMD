@@ -5,7 +5,9 @@
 :attr:`change_box`
 ==================
 
-This keyword is used to change the simulation box. The box variables and the atom positions are changed according to the following equations:
+This keyword changes the simulation box and atomic positions immediately when it is read from ``run.in``.
+For gradual deformation during a run, use :ref:`deform <kw_deform>`.
+The box variables and the atom positions are changed according to the following equations:
 
 .. math::
 
@@ -55,7 +57,8 @@ This keyword is used to change the simulation box. The box variables and the ato
    \end{array}
    \right).
 
-The deformation matrix :math:`\mu_{\alpha\beta}` will be specified by the parameters of this keyword, as we detail below.
+The deformation matrix :math:`\mu_{\alpha\beta}` is specified by the parameters below.
+The transformation preserves the fractional atomic coordinates; atomic velocities are unchanged.
 
 Syntax
 ------
@@ -132,3 +135,16 @@ we have
    \epsilon_{zx} & \epsilon_{zy} & \frac{c_z^{\rm old} + \delta_{zz}}{c_z^{\rm old}} \\
    \end{array}
    \right)
+
+Here, :math:`\epsilon_{yx}=\epsilon_{xy}`, :math:`\epsilon_{zx}=\epsilon_{xz}`, and :math:`\epsilon_{zy}=\epsilon_{yz}`: each shear input sets both corresponding off-diagonal elements of :math:`\mu`.
+These inputs are dimensionless. In the small-strain limit, the engineering shear strain is :math:`\gamma_{\alpha\beta}=2\epsilon_{\alpha\beta}` for :math:`\alpha\ne\beta`.
+The diagonal inputs :math:`\delta_{xx}`, :math:`\delta_{yy}`, and :math:`\delta_{zz}` are lengths in Ångstrom.
+
+Example
+-------
+
+For an orthogonal box with :math:`a_x=100` Å, the command::
+
+  change_box 1 0 0
+
+increases the x box length to 101 Å and scales the x coordinates by 1.01, while leaving the y and z box lengths and coordinates unchanged.

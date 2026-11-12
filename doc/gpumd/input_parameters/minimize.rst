@@ -6,6 +6,8 @@
 ================
 
 This keyword is used to minimize the energy of the system.
+Minimization is performed immediately when this command is read from ``run.in`` and does not require a :ref:`run <kw_run>` command.
+Subsequent commands use the resulting atomic positions and simulation cell.
 Currently, the fast inertial relaxation engine (FIRE) [Bitzek2006]_ [Guénolé2020]_ method and the steepest descent (SD) method have been implemented.
 
 
@@ -72,7 +74,7 @@ means that one wants to optimize box using hydrostatic strain during the energy 
 
 Example 5
 ^^^^^^^^^
-If you want to output the optimized structure, use `dump_xyz` in the `nve` ensemble like the following command::
+To write the optimized structure, follow minimization with a single NVE step at zero time step::
 
   minimize fire 1.0e-5 1000 1
 
@@ -80,6 +82,9 @@ If you want to output the optimized structure, use `dump_xyz` in the `nve` ensem
   time_step   0
   dump_xyz    1 relaxed.xyz
   run         1
+
+This writes the structure without advancing the atomic positions.
+Before a subsequent MD run, restore a suitable positive :ref:`time step <kw_time_step>` and specify the :ref:`ensemble <kw_ensemble>` and output commands for that run.
 
 Caveats
 -------

@@ -7,6 +7,7 @@
 
 This keyword is used to continuously deform the simulation box during a run.
 It can be used for tensile, compressive, and shear deformation.
+For an immediate change of the box and atomic positions, use :ref:`change_box <kw_change_box>`.
 
 Syntax
 ------
@@ -44,7 +45,9 @@ The available components are
   xx yy zz xy xz yz
 
 Each rate specifies the increment of the corresponding GPUMD box-matrix component per simulation step, in units of Ångstrom/step. Positive and negative values can be used.
+With the cell vectors written as columns, :math:`\mathbf{h}=[\mathbf{a},\mathbf{b},\mathbf{c}]`, the components ``xx``, ``yy``, ``zz``, ``xy``, ``xz``, and ``yz`` refer to :math:`a_x`, :math:`b_y`, :math:`c_z`, :math:`b_x`, :math:`c_x`, and :math:`c_y`, respectively.
 The components :attr:`xy`, :attr:`xz`, and :attr:`yz` are geometric box/tilt components and are not symmetric Voigt shear-strain components.
+For example, ``deform xy 0.00001`` adds :math:`10^{-5}` Å to :math:`b_x` per MD step; this is a length increment rather than the dimensionless shear input of ``change_box``.
 Each component can only be specified once in a :attr:`deform` command.
 
 Examples
@@ -79,6 +82,7 @@ Multiple box components can be deformed simultaneously. For example::
 Compatibility and caveats
 -------------------------
 
+* This keyword applies only to the current :ref:`run <kw_run>`. Repeat it before each subsequent run that requires deformation; the cell reached at the end of a run is retained.
 * :attr:`deform` can be used with NVE and the standard NVT ensembles.
 * With NPT-Berendsen or NPT-SCR, isotropic pressure control cannot be combined with :attr:`deform`.
 * With 3 target pressure components, only diagonal :attr:`xx`, :attr:`yy`, and :attr:`zz` deformation is allowed, and the box must be orthogonal.
