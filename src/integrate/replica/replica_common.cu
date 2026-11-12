@@ -140,12 +140,13 @@ void validate_xyz_box(
   }
 }
 
-const char RESTART_XYZ_PROPERTIES[] = "species:S:1:pos:R:3:mass:R:1:vel:R:3:vel_natural:R:3";
+const char RESTART_XYZ_PROPERTIES[] = "species:S:1:pos:R:3:mass:R:1:vel:R:3";
 
 bool parse_restart_xyz_properties(const std::string& properties, bool& natural_velocity)
 {
-  natural_velocity = properties == RESTART_XYZ_PROPERTIES;
-  return natural_velocity || properties == "species:S:1:pos:R:3:mass:R:1:vel:R:3";
+  // Older checkpoints also stored velocities in the internal unit.
+  natural_velocity = properties == "species:S:1:pos:R:3:mass:R:1:vel:R:3:vel_natural:R:3";
+  return natural_velocity || properties == RESTART_XYZ_PROPERTIES;
 }
 
 void write_restart_xyz_velocity(FILE* file, const std::vector<double>& velocity, const int atom)
@@ -153,13 +154,10 @@ void write_restart_xyz_velocity(FILE* file, const std::vector<double>& velocity,
   const size_t n = velocity.size() / 3;
   fprintf(
     file,
-    " %.17g %.17g %.17g %.17g %.17g %.17g\n",
+    " %.17g %.17g %.17g\n",
     velocity[atom] / TIME_UNIT_CONVERSION,
     velocity[atom + n] / TIME_UNIT_CONVERSION,
-    velocity[atom + 2 * n] / TIME_UNIT_CONVERSION,
-    velocity[atom],
-    velocity[atom + n],
-    velocity[atom + 2 * n]);
+    velocity[atom + 2 * n] / TIME_UNIT_CONVERSION);
 }
 
 bool read_restart_xyz_velocity(

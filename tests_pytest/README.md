@@ -96,14 +96,17 @@ The tests check:
 - alternating neighbor pairs, accepted swaps, and label mappings for 4/8 replicas;
 - initial PRD correlation, unaccelerated correlation exits, discrete event clocks,
   and the lowest-index winner for simultaneous exits;
-- uninterrupted versus split continuation from the same checkpoint, including
-  every replica's thermostat RNG state;
+- continuation of REMD temperature mappings and exchange schedules between exchanges,
+  with batching forced off and on, and restoration of PRD phases and physical clocks;
+- the standard restart velocity layout and older files with `vel_natural`, both
+  restoring known velocities and writing the standard layout on completion;
 - rejection of unsupported restart versions and changed exchange/dephasing settings;
 - qNEP Ewald/PPPM selection, inline comments, default solver, and restart validation,
   including a changed PPPM spacing;
 - two concurrent qNEP replicas on the large-box path (2000-atom PbTe supercell) with
-  Ewald and PPPM: a repeated run and a run split into resumed segments are identical
-  (with PPPM, whose charge spreading uses floating-point atomics, within `1e-6`);
+  Ewald and PPPM: repeated runs from the same checkpoint agree (with PPPM, whose charge
+  spreading uses floating-point atomics, within `1e-6`), and split continuation
+  preserves valid checkpoint states and step counts;
 - the initial qNEP energy (Ewald and PPPM, small-box and large-box path) and the
   initial NEP energy for a model.xyz with only some species of the model, both equal
   to those of an ordinary `gpumd` run;
@@ -112,16 +115,16 @@ The tests check:
 - batched integration (forced with `GPUMD_REPLICA_BATCH=1`) reproducing the per-slot
   path (`GPUMD_REPLICA_BATCH=0`) bit for bit for REMD and PRD, on a 2000-atom triclinic
   PbTe supercell that uses the large-box NEP path;
-- the automatic batching choice (on for 4 x 2000 atoms, off for 12 x 2000 atoms or when
-  forced off) and rejection of a `batch` keyword in `run.in`;
-- an uninterrupted REMD run and the same run split into two resumed segments giving
-  identical restart files and exchange records, with batching forced off and on.
+- the automatic batching choice across replica sizes and total atom counts, the
+  forced-off setting, and rejection of a `batch` keyword in `run.in`.
 
 The four-carbon fixture in `fixtures/replica/` has a zero-energy NEP and is used to obtain
 predictable exchange and event-clock behavior. It is not a physical model. Force-bearing
-NEP/qNEP tests reuse the tracked PbTe examples. Restart metadata is compared
-exactly. Restart atom coordinates, masses, and velocities use an absolute
-tolerance of `1e-10` for text serialization and velocity-unit roundoff.
+NEP/qNEP tests reuse the tracked PbTe examples. Continuation tests check restored states,
+step counts, and method behavior; they do not require a segmented run to reproduce an
+uninterrupted trajectory, exchange outcomes, or event times. RNG states are saved and
+restored, but this does not establish a bitwise restart guarantee. Batch comparisons
+start from the same checkpoint and retain their bitwise checks.
 
 Tests run in isolated temporary directories and normally delete them afterwards.
 Set `REPLICA_TEST_WORKDIR` to retain test directories, including outputs and

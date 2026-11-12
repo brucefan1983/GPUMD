@@ -8,8 +8,11 @@ Replica restart files
 At normal completion, REMD writes ``remd_restart.meta`` and ``remd_replica_<index>_restart.xyz`` for every replica.
 PRD writes ``prd_restart.meta``, ``prd_replica_<index>_restart.xyz``, and ``prd_basin_restart.xyz``.
 Keep the complete set: it stores atomic states, method state, and random-number-generator states.
-The replica xyz files store velocities twice: ``vel`` in Angstrom/fs and ``vel_natural`` in GPUMD's internal unit.
-A resume reads ``vel_natural``, so a run split into resumed segments continues the uninterrupted trajectory exactly.
+The replica xyz files store positions in Angstrom, masses in unified atomic mass units, and velocities (``vel``) in Angstrom/fs, with 17 significant digits.
+REMD restores its temperature assignments and exchange schedule.
+PRD restores its basin reference, running phase, correlation progress, and physical clock.
+Random-number-generator states are also restored, but a resumed run is not guaranteed to reproduce an uninterrupted trajectory bit for bit.
+Exchange outcomes and event times can differ.
 
 Example
 -------
@@ -26,7 +29,7 @@ Caveats
 -------
 
 * Restart files with an incompatible format are rejected.
-  Replica xyz files without ``vel_natural`` are accepted; their ``vel`` values are converted, which can differ in the last bit.
+  Older replica xyz files containing an additional ``vel_natural`` property are accepted; that property supplies the velocities in GPUMD's internal unit.
 * ``run.in``, ``model.xyz``, and the potential file are still required.
   Preserve atom count, species, masses, box, potential content, replica count, time step, thermostat, and method parameters.
   For charge NEP models, also keep the ``kspace`` command: the method and an explicit PPPM spacing are stored and must match.
@@ -34,3 +37,5 @@ Caveats
 * REMD resume cannot request positive ``equilibrate``.
 * Restarts are written at normal completion, not periodically.
   Appended diagnostics and trajectories should correspond to the saved checkpoint.
+* PRD checks for events at the end of each block.
+  Ending a run can shorten the last block and add an event check, so splitting a run can change event times even without numerical roundoff.

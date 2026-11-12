@@ -4,8 +4,10 @@ Run with pytest from tests_pytest/, or directly with python3 tests_pytest/test_r
 Set GPUMD to select another gpumd executable; see "Replica dynamics" in README.md.
 """
 
+import math
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import tempfile
@@ -137,19 +139,43 @@ class ReplicaRegression(unittest.TestCase):
     def restart_files(self, directory, mode):
         return sorted(path.name for path in directory.glob(f"{mode}_*restart*"))
 
-    def assert_restart_xyz_equal(self, first, second):
-        a, b = first.read_text().splitlines(), second.read_text().splitlines()
-        self.assertEqual(a[:2], b[:2])
-        self.assertEqual(len(a), int(a[0]) + 2)
-        self.assertEqual(len(a), len(b))
-        for row_a, row_b in zip(a[2:], b[2:]):
-            tokens_a, tokens_b = row_a.split(), row_b.split()
-            self.assertEqual(len(tokens_a), 11)
-            self.assertEqual(len(tokens_b), 11)
-            self.assertEqual(tokens_a[0], tokens_b[0])
-            for x, y in zip(tokens_a[1:], tokens_b[1:]):
-                # Text restarts and velocity unit conversions introduce roundoff.
-                self.assertAlmostEqual(float(x), float(y), delta=1e-10)
+    def assert_restart_state(self, directory, mode, steps):
+        state = metadata(directory, mode)
+        step_key = "completed_steps" if mode == "remd" else "completed_dynamics_steps"
+        self.assertEqual(int(state[step_key]), steps)
+        replicas = int(state["replicas"])
+        if mode == "remd":
+            mapping = list(map(int, state["replica_to_temperature"].split()))
+            inverse = list(map(int, state["temperature_to_replica"].split()))
+            self.assertEqual(sorted(mapping), list(range(replicas)))
+            self.assertEqual(sorted(inverse), list(range(replicas)))
+            self.assertEqual([inverse[label] for label in mapping], list(range(replicas)))
+            self.assertEqual(int(state["exchange_count"]), steps // int(state["exchange_interval"]))
+            temperatures = list(map(float, state["temperatures"].split()))
+        else:
+            self.assertGreaterEqual(int(state["clock"]), steps)
+            self.assertIn(state["phase"], ("dephase", "parallel", "correlation"))
+        for replica in range(replicas):
+            lines = (directory / f"{mode}_replica_{replica}_restart.xyz").read_text().splitlines()
+            self.assertEqual(len(lines), int(lines[0]) + 2)
+            fields = dict(field.split("=", 1) for field in shlex.split(lines[1]))
+            self.assertEqual(fields["Properties"], "species:S:1:pos:R:3:mass:R:1:vel:R:3")
+            self.assertEqual(fields["replica_mode"], mode)
+            self.assertEqual(int(fields["replica"]), replica)
+            if mode == "remd":
+                self.assertEqual(int(fields["restart_step"]), steps)
+                self.assertEqual(int(fields["temperature_label"]), mapping[replica])
+                self.assertEqual(float(fields["target_temperature"]), temperatures[mapping[replica]])
+                self.assertTrue(math.isfinite(float(fields["potential_energy"])))
+            else:
+                self.assertEqual(int(fields["dynamics_step"]), steps)
+                self.assertEqual(int(fields["clock_step"]), int(state["clock"]))
+            for row in lines[2:]:
+                values = row.split()
+                self.assertEqual(len(values), 8)
+                self.assertTrue(all(math.isfinite(float(value)) for value in values[1:]))
+                self.assertGreater(float(values[4]), 0)
+        return state
 
     def run_md(self, directory, mode, steps, options, kspace="", resume=False,
                coupling=100, expected_error=None, batch=None):
@@ -242,8 +268,7 @@ class ReplicaRegression(unittest.TestCase):
                     for replica, speed in enumerate(speeds):
                         path = directory / f"prd_replica_{replica}_restart.xyz"
                         header = path.read_text().splitlines()[:2]
-                        # Hand-written velocities in A/fs only, i.e. the layout without vel_natural.
-                        header[1] = header[1].replace(":vel_natural:R:3", "")
+                        # Set known velocities in A/fs.
                         # Equal and opposite velocities preserve zero COM
                         # momentum, with a known 0.15 A displacement crossing.
                         velocities = [speed, -speed, 0, 0]
@@ -317,20 +342,24 @@ class ReplicaRegression(unittest.TestCase):
         self.run_md(directory, "remd", 10, "replicas 4 exchange 10 temp 300 400 batch 1",
                     expected_error="Unknown multi_replica option.")
 
-    def test_split_resume_is_exact(self):
-        # A run split into two resumed segments must equal the uninterrupted run.
+    def test_remd_resume_preserves_schedule(self):
+        # A checkpoint between exchanges must retain the mapping and global schedule.
         options = self.BATCH_OPTIONS["remd"]
         start = self.prepare_large("split_start")
         self.run_md(start, "remd", 20, options)
+        initial = self.assert_restart_state(start, "remd", 20)
         for batch in (0, 1):
             with self.subTest(batch=batch):
-                whole = self.copy_restart(start, f"whole_{batch}", "remd")
-                self.run_md(whole, "remd", 40, options, resume=True, batch=batch)
                 split = self.copy_restart(start, f"split_{batch}", "remd")
                 self.run_md(split, "remd", 15, options, resume=True, batch=batch)
+                self.assert_restart_state(split, "remd", 35)
+                first = data_rows(split / "remd_temperature_status.out")[0]
+                self.assertEqual(first, ["20"] + initial["replica_to_temperature"].split())
+                self.assertEqual({int(row[0]) for row in data_rows(split / "remd_exchange.out")}, {30})
                 self.run_md(split, "remd", 25, options, resume=True, batch=batch)
-                names = self.restart_files(whole, "remd") + ["remd_exchange.out"]
-                self.assert_files_identical(whole, split, names)
+                self.assert_restart_state(split, "remd", 60)
+                self.assertEqual({int(row[0]) for row in data_rows(split / "remd_exchange.out")},
+                                 {30, 40, 50, 60})
 
     def test_qnep_comments_and_restart_solver_validation(self):
         for mode in ("remd", "prd"):
@@ -375,12 +404,11 @@ class ReplicaRegression(unittest.TestCase):
                 largest = max(largest, abs(float(x) - float(y)))
         self.assertLess(largest, tolerance, f"{first.name}: largest difference {largest}")
 
-    def test_qnep_large_box_split_resume(self):
+    def test_qnep_large_box_concurrent_resume(self):
         # Two qNEP replicas on one GPU use the large-box path concurrently, each on its own
-        # stream. With Ewald, a repeated run and a run split into resumed segments are
-        # identical. PPPM spreads charges onto its mesh with floating-point atomics, so
-        # repeated evaluations differ in the last bits, as in ordinary gpumd runs; there the
-        # runs must agree closely, which an evaluation reading unfinished data would not.
+        # stream. Compare repeated runs from the same checkpoint to catch stream races.
+        # PPPM charge spreading uses floating-point atomics, so allow roundoff there.
+        # Split continuation checks the saved state, without requiring the same trajectory.
         options = "replicas 2 exchange 5 temp 300 400"
         for solver in ("ewald", "pppm"):
             with self.subTest(solver=solver):
@@ -390,22 +418,24 @@ class ReplicaRegression(unittest.TestCase):
                 for name in ("whole", "again"):
                     whole = self.copy_restart(start, f"qnep_large_{solver}_{name}", "remd")
                     self.run_md(whole, "remd", 10, options, kspace=solver, resume=True)
+                    self.assert_restart_state(whole, "remd", 15)
                     runs.append(whole)
                 split = self.copy_restart(start, f"qnep_large_{solver}_split", "remd")
                 self.run_md(split, "remd", 4, options, kspace=solver, resume=True)
+                self.assert_restart_state(split, "remd", 9)
                 self.run_md(split, "remd", 6, options, kspace=solver, resume=True)
+                self.assert_restart_state(split, "remd", 15)
                 names = self.restart_files(runs[0], "remd")
-                for other in (runs[1], split):
-                    if solver == "ewald":
-                        self.assert_files_identical(runs[0], other, names + ["remd_exchange.out"])
-                    else:
-                        for name in names:
-                            if name.endswith(".xyz"):
-                                self.assert_restart_xyz_close(
-                                    runs[0] / name, other / name, tolerance=1e-6)
-                        accepted = [[row[-1] for row in data_rows(run / "remd_exchange.out")]
-                                    for run in (runs[0], other)]
-                        self.assertEqual(accepted[0], accepted[1])
+                if solver == "ewald":
+                    self.assert_files_identical(runs[0], runs[1], names + ["remd_exchange.out"])
+                else:
+                    for name in names:
+                        if name.endswith(".xyz"):
+                            self.assert_restart_xyz_close(
+                                runs[0] / name, runs[1] / name, tolerance=1e-6)
+                    accepted = [[row[-1] for row in data_rows(run / "remd_exchange.out")]
+                                for run in runs]
+                    self.assertEqual(accepted[0], accepted[1])
 
     def test_qnep_matches_plain_gpumd(self):
         # Replica dynamics has its own copy of qNEP, Ewald and PPPM. On the small-box and
@@ -488,24 +518,42 @@ class ReplicaRegression(unittest.TestCase):
                                 expected_error=f"{mode.upper()} restart kspace does not match")
                 self.assertEqual((directory / f"{mode}_restart.meta").read_bytes(), before)
 
-    def test_split_runs_preserve_state(self):
+    def test_restart_velocity_layouts(self):
         for mode in ("remd", "prd"):
-            with self.subTest(mode=mode):
-                directory = self.prepare(mode)
-                options = ("replicas 2 exchange 3 temp 300 400" if mode == "remd" else
-                           "replicas 2 event 2 dephase 2 correlate 5 distance 0.5 quench 0.001 2000")
-                self.run_md(directory, mode, 2, options)
-                split = self.root / f"{mode}_split"
-                shutil.copytree(directory, split)
-                self.run_md(directory, mode, 8, options, resume=True)
-                self.run_md(split, mode, 4, options, resume=True)
-                self.run_md(split, mode, 4, options, resume=True)
-                self.assertEqual(metadata(directory, mode), metadata(split, mode))
-                for replica in range(2):
-                    filename = f"{mode}_replica_{replica}_restart.xyz"
-                    self.assert_restart_xyz_equal(directory / filename, split / filename)
+            start = self.prepare(f"{mode}_velocity_start", free=True)
+            options = ("replicas 2 exchange 10 temp 300 400" if mode == "remd" else
+                       "replicas 2 event 2 dephase 0 correlate 0 distance 1")
+            self.run_md(start, mode, 1, options, coupling=1e20)
+            self.assert_restart_state(start, mode, 1)
+            for natural in (False, True):
+                with self.subTest(mode=mode, natural_velocity=natural):
+                    directory = self.copy_restart(start, f"{mode}_velocity_{natural}", mode)
+                    positions = []
+                    for replica in range(2):
+                        path = directory / f"{mode}_replica_{replica}_restart.xyz"
+                        lines = path.read_text().splitlines()
+                        positions.append([float(row.split()[1]) for row in lines[2:]])
+                        if natural:
+                            lines[1] = lines[1].replace("vel:R:3", "vel:R:3:vel_natural:R:3")
+                        for atom, speed in enumerate((0.01, -0.01, 0, 0)):
+                            fields = lines[atom + 2].split()[:5]
+                            if natural:
+                                # The displayed vel is deliberately zero: older files must
+                                # use vel_natural. 0.1018051 internal units = 0.01 A/fs.
+                                fields += ["0", "0", "0", repr(speed * 10.18051), "0", "0"]
+                            else:
+                                fields += [repr(speed), "0", "0"]
+                            lines[atom + 2] = " ".join(fields)
+                        path.write_text("\n".join(lines) + "\n")
+                    self.run_md(directory, mode, 1, options, resume=True, coupling=1e20)
+                    self.assert_restart_state(directory, mode, 2)
+                    for replica in range(2):
+                        rows = (directory / f"{mode}_replica_{replica}_restart.xyz").read_text().splitlines()[2:]
+                        for atom, speed in enumerate((0.01, -0.01, 0, 0)):
+                            self.assertAlmostEqual(float(rows[atom].split()[1]),
+                                                   positions[replica][atom] + speed, delta=1e-12)
 
-    def test_legacy_restart_is_rejected(self):
+    def test_incompatible_restart_version_is_rejected(self):
         for mode in ("remd", "prd"):
             with self.subTest(mode=mode):
                 directory = self.prepare(mode, free=True)

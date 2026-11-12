@@ -75,10 +75,8 @@ bool extract_token_value(
 void validate_xyz_box(
   const std::string& comment, const Box& reference, const char* mode);
 
-// Replica restart xyz files store each velocity twice: vel in A/fs for other
-// tools and vel_natural in GPUMD's internal unit. Converting A/fs back is not
-// exact in the last bit, which would make a resumed run leave the trajectory
-// of the uninterrupted one. Files without vel_natural are still accepted.
+// Replica restart xyz files store velocities as vel in A/fs. Older files with
+// an additional vel_natural property are accepted, using that internal-unit value.
 extern const char RESTART_XYZ_PROPERTIES[];
 bool parse_restart_xyz_properties(const std::string& properties, bool& natural_velocity);
 void write_restart_xyz_velocity(FILE* file, const std::vector<double>& velocity, int atom);
