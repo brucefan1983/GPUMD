@@ -292,7 +292,7 @@ void MODAL_ANALYSIS::compute_heat(
     mvx.data(),
     stride,
     &beta,
-    xdotx.data(),
+    xdot.data(),
     stride);
   gpublasSgemv(
     ma_handle,
@@ -304,8 +304,8 @@ void MODAL_ANALYSIS::compute_heat(
     num_modes,
     mvy.data(),
     stride,
-    &beta,
-    xdoty.data(),
+    &alpha,
+    xdot.data(),
     stride);
   gpublasSgemv(
     ma_handle,
@@ -317,8 +317,8 @@ void MODAL_ANALYSIS::compute_heat(
     num_modes,
     mvz.data(),
     stride,
-    &beta,
-    xdotz.data(),
+    &alpha,
+    xdot.data(),
     stride);
 
   // Calculate intermediate value
@@ -377,7 +377,7 @@ void MODAL_ANALYSIS::compute_heat(
     3,
     jmx.data(),
     num_modes,
-    xdotx.data(),
+    xdot.data(),
     stride,
     jmx.data(),
     num_modes);
@@ -388,7 +388,7 @@ void MODAL_ANALYSIS::compute_heat(
     3,
     jmy.data(),
     num_modes,
-    xdoty.data(),
+    xdot.data(),
     stride,
     jmy.data(),
     num_modes);
@@ -399,7 +399,7 @@ void MODAL_ANALYSIS::compute_heat(
     3,
     jmz.data(),
     num_modes,
-    xdotz.data(),
+    xdot.data(),
     stride,
     jmz.data(),
     num_modes);
@@ -527,9 +527,7 @@ void MODAL_ANALYSIS::pre_run(
   mvz.resize(num_participating, Memory_Type::managed);
 
   // Allocate modal velocities
-  xdotx.resize(num_modes, Memory_Type::managed);
-  xdoty.resize(num_modes, Memory_Type::managed);
-  xdotz.resize(num_modes, Memory_Type::managed);
+  xdot.resize(num_modes, Memory_Type::managed);
 
   // Allocate modal measured quantities
   size_t jmxyz_size = num_modes * 3;
