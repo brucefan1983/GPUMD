@@ -19,7 +19,10 @@ The parameters can be specified as follows::
 - :attr:`<sigmasqrd>` and :attr:`<p>`: Specify the TI settings. Implemented values for :attr:`<p>` are ``1``, ``25``, ``50``, ``75``, ``100``.
 - :attr:`<pressure>`: Although this is an NVT ensemble, you can assign a pressure value to help GPUMD compute the Gibbs free energy. It does not affect the simulation process.
 
-If you do not specify :attr:`<equilibrium_time>` and :attr:`<switch_time>`, they will be automatically set in a 1:4 ratio.
+Specify both ``tequil`` and ``tswitch``, or omit both.
+``tequil`` must be a non-negative integer and ``tswitch`` a positive integer.
+When omitted, they are set to ``floor(0.1 * N)`` and ``floor(0.4 * N)``, respectively, where ``N`` is the number of run steps; the resulting ``tswitch`` must still be positive.
+The run must contain at least ``2 * (tequil + tswitch)`` steps.
 
 Example
 -------

@@ -20,6 +20,7 @@ neighbor list.
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <algorithm>
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
 #include <cstring>
@@ -347,7 +348,7 @@ void find_neighbor(
   GPU_CHECK_KERNEL
 
   const int MN = NL.size() / NN.size();
-  gpu_sort_neighbor_list<<<N, min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
+  gpu_sort_neighbor_list<<<N, std::min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
   GPU_CHECK_KERNEL
 }
 
@@ -503,11 +504,11 @@ void find_neighbor_ilp(
   GPU_CHECK_KERNEL
 
   const int MN = NL.size() / NN.size();
-  gpu_sort_neighbor_list<<<N, min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
+  gpu_sort_neighbor_list<<<N, std::min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
   GPU_CHECK_KERNEL
 
   const int big_ilp_MN = big_ilp_NL.size() / big_ilp_NN.size();
-  gpu_sort_neighbor_list<<<N, min(1024, big_ilp_MN), big_ilp_MN * sizeof(int)>>>(
+  gpu_sort_neighbor_list<<<N, std::min(1024, big_ilp_MN), big_ilp_MN * sizeof(int)>>>(
     N, big_ilp_NN.data(), big_ilp_NL.data());
   GPU_CHECK_KERNEL
 }
@@ -647,7 +648,7 @@ void find_neighbor_SW(
   GPU_CHECK_KERNEL
 
   const int MN = NL.size() / NN.size();
-  gpu_sort_neighbor_list<<<N, min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
+  gpu_sort_neighbor_list<<<N, std::min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
   GPU_CHECK_KERNEL
 }
 

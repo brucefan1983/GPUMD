@@ -60,9 +60,7 @@ public:
   GPU_Vector<float> eigz;
 
   // modal velocities
-  GPU_Vector<float> xdotx;
-  GPU_Vector<float> xdoty;
-  GPU_Vector<float> xdotz;
+  GPU_Vector<float> xdot;
 
   // precalculated mass values
   GPU_Vector<float> sqrtmass;

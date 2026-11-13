@@ -114,6 +114,8 @@ Ensemble_TI_RS::Ensemble_TI_RS(const std::vector<std::string>& tokens)
       auto_switch = false;
       if (!is_valid_int(tokens[i + 1], &t_switch))
         PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
+      if (t_switch < 2)
+        PRINT_INPUT_ERROR("tswitch must be at least 2.");
       i += 2;
     } else if (tokens[i] == "tequil") {
       if (i + 1 >= num_params)
@@ -121,15 +123,15 @@ Ensemble_TI_RS::Ensemble_TI_RS(const std::vector<std::string>& tokens)
       auto_switch = false;
       if (!is_valid_int(tokens[i + 1], &t_equil))
         PRINT_INPUT_ERROR("Wrong inputs for t_equil keyword.");
+      if (t_equil < 0)
+        PRINT_INPUT_ERROR("tequil must be non-negative.");
       i += 2;
     } else {
       PRINT_INPUT_ERROR("Wrong input parameters.");
     }
   }
-  if ((t_switch < 0 && t_equil > 0) || (t_switch > 0 && t_equil < 0)) {
-    PRINT_INPUT_ERROR(
-      "Error: Please specify either both t_switch and t_equil, or neither (to let the program "
-      "auto-determine)");
+  if (!auto_switch && (t_switch < 0 || t_equil < 0)) {
+    PRINT_INPUT_ERROR("Specify both tswitch and tequil, or omit both.");
   }
   // print summary
   if (!(use_barostat && use_thermostat))
@@ -170,8 +172,15 @@ void Ensemble_TI_RS::init(
   if (auto_switch) {
     t_switch = (int)(number_of_steps * 0.4);
     t_equil = (int)(number_of_steps * 0.1);
-  } else
-    printf("    The number of steps should be set to %d!\n", 2 * (t_switch));
+  }
+  if (t_switch < 2) {
+    PRINT_INPUT_ERROR("tswitch must be at least 2; increase the run length in automatic mode.");
+  }
+  if (t_equil > number_of_steps / 2 || t_switch > number_of_steps / 2 - t_equil) {
+    PRINT_INPUT_ERROR("run must be at least 2 * (tequil + tswitch) steps for TI.");
+  }
+  if (!auto_switch)
+    printf("    The number of steps should be set to %d!\n", 2 * (t_equil + t_switch));
   printf(
     "Nonequilibrium thermodynamic integration: t_switch is %d timestep, t_equil is %d timesteps.\n",
     t_switch,
@@ -282,7 +291,7 @@ void Ensemble_TI_RS::find_lambda(
     lambda = switch_func(t * r_switch);
     dlambda = dswitch_func(t * r_switch);
     need_output = true;
-  } else if ((t >= t_equil + t_switch) && (t <= (t_equil + 2 * t_switch))) {
+  } else if ((t >= t_equil + t_switch) && (t < (t_equil + 2 * t_switch))) {
     lambda = switch_func(1.0 - (t - t_switch - t_equil) * r_switch);
     dlambda = -dswitch_func(1.0 - (t - t_switch - t_equil) * r_switch);
     need_output = true;
@@ -320,5 +329,5 @@ double Ensemble_TI_RS::switch_func(double t) { return 1 / (1 + t * (1 / lambda_f
 double Ensemble_TI_RS::dswitch_func(double t)
 {
   double a = 1 / lambda_f - 1;
-  return -(a / pow((1 + a * t), 2.0)) / t_switch;
+  return -(a / pow((1 + a * t), 2.0)) / (t_switch - 1);
 }

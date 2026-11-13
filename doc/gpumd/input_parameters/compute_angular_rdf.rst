@@ -12,13 +12,40 @@ The results will be written to the :ref:`angular_rdf.out <angular_rdf_out>` file
 Mathematical details
 --------------------
 
-The ARDF is defined as
+Let :math:`H(r,\theta)` count ordered center-neighbor pairs of distinct atoms in a radial-angular bin.
+The total ARDF is
 
 .. math::
-   
-   g (r, \theta) = \frac{n (r, \theta)}{\rho 2 r^2 \Delta r \Delta \theta},
 
-where :math:`n (r, \theta)` is the number of pairs of atoms at a distance :math:`(r-\Delta r/2, r+\Delta r/2]` and an angle :math:`(\theta-\Delta \theta/2, \theta+\Delta \theta/2]` from each other, :math:`\rho` is the number density, :math:`r` is the distance between the atoms, :math:`\theta` is the azimuthal angle of the interatomic displacement in the :math:`xy` plane measured from the positive :math:`x` axis, :math:`\Delta r` is the bin width in distance, and :math:`\Delta \theta` is the bin width in angle.
+   g(r,\theta)=\frac{H(r,\theta)}{N\rho\,\Delta V(r,\theta)},
+   \qquad \rho=\frac{N}{V},
+
+where :math:`N` is the number of atoms and :math:`V` is the simulation-cell volume.
+Equivalently, the numerator can be written as the mean number of neighbors per center, :math:`n(r,\theta)=H(r,\theta)/N`, with denominator :math:`\rho\Delta V`.
+
+The radial coordinate :math:`r` is the full three-dimensional interatomic distance.
+The angular coordinate is the azimuth :math:`\theta=\operatorname{atan2}(y_j-y_i,x_j-x_i)` of the minimum-image displacement, measured from the positive :math:`x` axis in the :math:`xy` plane.
+For radial bin edges :math:`r_-,r_+` and angular bin width :math:`\Delta\theta`, the exact bin volume used by the code is
+
+.. math::
+
+   \Delta V=\frac{4\pi}{3}(r_+^3-r_-^3)\frac{\Delta\theta}{2\pi}.
+
+For narrow radial bins this approaches :math:`2r^2\Delta r\Delta\theta`.
+Both radial and angular bins exclude their lower edge and include their upper edge.
+The output coordinates are the bin centers.
+
+For a requested pair of types :math:`a,b`, the partial ARDF is
+
+.. math::
+
+   g_{ab}(r,\theta)=\frac{H_{ab}(r,\theta)}{N_a\rho_b\,\Delta V},
+   \qquad \rho_b=\frac{N_b}{V}.
+
+Here, :math:`H_{ab}` counts displacements directed from type :math:`a` to type :math:`b`.
+For different types, reversing the requested type order reverses the displacement direction and shifts its azimuth by :math:`\pi` modulo :math:`2\pi`.
+For the same type, both directions of each pair are included; self pairs are excluded.
+The reported distributions average the individually normalized sampled configurations.
 
 Syntax
 ------

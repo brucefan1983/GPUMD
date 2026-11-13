@@ -12,13 +12,17 @@ The parameters can be specified as follows::
 
     ensemble ti_rs temp <tmin> <tmax> tperiod <tau_temperature> <pressure_control> <pressure> pperiod <tau_pressure> tswitch <switch_time> tequil <equilibrium_time>
 
-- :attr:`<tmin>` and :attr:`<tmax>`: The temperature range of the RS simulation.
-- :attr:`<pressure_control>` and :attr:`<pressure>`: The pressure of RS simulation. Please refer to MTTK ensemble for more information.
+- :attr:`<tmin>` and :attr:`<tmax>`: The initial and final physical temperatures of the forward path, in kelvin.
+- :attr:`<pressure_control>` and :attr:`<pressure>`: The pressure-control mode and the physical pressure in GPa. Please refer to MTTK ensemble for more information.
 - :attr:`<tau_temperature>` and :attr:`<tau_pressure>`: These parameters are optional. Please refer to MTTK ensemble for more information.
-- :attr:`<equilibrium_time>`: The number timesteps to equilibrate the system.
-- :attr:`<switch_time>`: The number timesteps to vary lambda.
+- :attr:`<equilibrium_time>`: The number of MD steps in each equilibration stage; a non-negative integer.
+- :attr:`<switch_time>`: The number of MD steps in each switching stage, including both endpoints; an integer of at least 2.
 
-If you do not specify :attr:`<equilibrium_time>` and :attr:`<switch_time>`, they will be automatically set in a 1:4 ratio.
+Specify both ``tequil`` and ``tswitch``, or omit both.
+When omitted, they are set to ``floor(0.1 * N)`` and ``floor(0.4 * N)``, respectively, where ``N`` is the number of run steps; the resulting ``tswitch`` must still be at least 2.
+The path consists of initial equilibration, forward switching, equilibration at the other endpoint, and backward switching.
+The run must contain at least ``2 * (tequil + tswitch)`` steps.
+Any remaining steps keep the final target and do not add switching data.
 
 Example
 -------
@@ -26,15 +30,21 @@ Example
 .. code-block:: rst
 
     ensemble ti_rs temp 300 3000 aniso 10 tswitch 10000 tequil 1000
+    run 22000
 
-This command switch lambda for 10000 timesteps.
+This run equilibrates for 1000 steps at :math:`\lambda=1`, switches to :math:`\lambda=300/3000=0.1` in 10000 steps, equilibrates there for 1000 steps, and switches back to 1 in 10000 steps.
+The thermostat temperature remains 300 K; the corresponding physical temperature is :math:`T=300/\lambda`.
 
 Output file
 -----------
 
-This command will produce a csv file. The columns are lambda, dlambda, and enthalpy (eV/atom).
+``ti_rs.csv`` contains ``2 * tswitch`` rows after the header: the forward path followed by the backward path.
+The columns are ``lambda``, ``dlambda`` (the derivative of lambda with respect to the MD step index), and ``enthalpy`` (the unscaled potential energy plus the physical pressure times volume, per atom, in eV/atom).
+Equilibration steps are not written. Each subsequent TI_RS run overwrites this file.
 
-The following code can help you calculate the Gibbs free energy:
+The following example uses ``ti_spring.yaml`` from a reference calculation at the same initial temperature and pressure.
+Copy that file into the working directory before running the script.
+The reference Gibbs free energy and the resulting curve are in eV/atom.
 
 .. code-block:: python
 
@@ -45,22 +55,23 @@ The following code can help you calculate the Gibbs free energy:
     from scipy.integrate import cumulative_trapezoid
     from ase.units import kB
 
-    # you need to run a ti_spring simulation at t_min
-    with open("ti_spring_300.yaml", "r") as f:
+    with open("ti_spring.yaml", "r") as f:
         y =  yaml.safe_load(f)
 
     T0 = y["T"]
     G0 = y["G"]
 
     rs = read_csv("ti_rs.csv")
-    n = int(len(rs)/2)
-    forward = rs[:n]
-    backward = rs[n:][::-1]
-    backward.reset_index(inplace=True)
-    dl = forward["dlambda"]
-    l = forward["lambda"]
-    H1 = forward["enthalpy"]
-    H2 = backward["enthalpy"]
+    n = 10000  # tswitch in the example above
+    if len(rs) != 2*n:
+        raise ValueError("Expected two complete switching paths.")
+    forward = rs.iloc[:n]
+    backward = rs.iloc[n:].iloc[::-1]
+    if not np.allclose(forward["lambda"], backward["lambda"], rtol=2e-6, atol=1e-10):
+        raise ValueError("Forward and backward grids do not match.")
+    l = forward["lambda"].to_numpy()
+    H1 = forward["enthalpy"].to_numpy()
+    H2 = backward["enthalpy"].to_numpy()
     T = T0/l
 
     w = (cumulative_trapezoid(H1,l,initial=0) + cumulative_trapezoid(H2,l,initial=0))*0.5

@@ -46,7 +46,7 @@ static __global__ void gpu_find_adf_global(
   const double* __restrict__ x,
   const double* __restrict__ y,
   const double* __restrict__ z,
-  int* adf,
+  unsigned long long* adf,
   const int adf_bins,
   double rc_min,
   double rc_max)
@@ -72,7 +72,7 @@ static __global__ void gpu_find_adf_global(
       apply_mic(box, xij, yij, zij);
       const double dij_sq = xij * xij + yij * yij + zij * zij;
 
-      if (dij_sq >= rc_min_sq && dij_sq < rc_max_sq) {
+      if (dij_sq > 0.0 && dij_sq >= rc_min_sq && dij_sq < rc_max_sq) {
         for (int kk = jj + 1; kk < i_neigh; kk++) {
           const int k = NL[i + kk * N];
           double xik = x[k] - x1;
@@ -80,14 +80,14 @@ static __global__ void gpu_find_adf_global(
           double zik = z[k] - z1;
           apply_mic(box, xik, yik, zik);
           const double dik_sq = xik * xik + yik * yik + zik * zik;
-          if (dik_sq >= rc_min_sq && dik_sq < rc_max_sq) {
+          if (dik_sq > 0.0 && dik_sq >= rc_min_sq && dik_sq < rc_max_sq) {
             const double cos_theta = (xij * xik + yij * yik + zij * zik) / sqrt(dij_sq * dik_sq);
-            const double theta = acos(cos_theta) * 180.0 / My_PI;
+            const double theta = acos(fmax(-1.0, fmin(1.0, cos_theta))) * 180.0 / My_PI;
             const int bin = static_cast<int>(floor(theta * delta_theta_inv));
             if (bin > adf_bins - 1) {
-              atomicAdd(&adf[adf_bins - 1], 1);
+              atomicAdd(&adf[adf_bins - 1], 1ULL);
             } else {
-              atomicAdd(&adf[bin], 1);
+              atomicAdd(&adf[bin], 1ULL);
             }
           }
         }
@@ -104,7 +104,7 @@ static __global__ void gpu_find_adf_local(
   const double* __restrict__ x,
   const double* __restrict__ y,
   const double* __restrict__ z,
-  int* adf,
+  unsigned long long* adf,
   const int Ntriples,
   const int adf_bins,
   const int* type,
@@ -130,6 +130,8 @@ static __global__ void gpu_find_adf_local(
     for (int m = 0; m < Ntriples; m++) {
       if (i_type == itype[m]) {
         const bool same_jk_type = (jtype[m] == ktype[m]);
+        const bool same_jk_selection = same_jk_type && rc_min_j[m] == rc_min_k[m] &&
+                                       rc_max_j[m] == rc_max_k[m];
         for (int jj = 0; jj < i_neigh; jj++) {
           const int j = NL[i + jj * N];
           const int j_type = type[j];
@@ -140,26 +142,38 @@ static __global__ void gpu_find_adf_local(
             apply_mic(box, xij, yij, zij);
             const double dij_sq = xij * xij + yij * yij + zij * zij;
 
-            if (dij_sq >= rc_min_j[m] * rc_min_j[m] && dij_sq < rc_max_j[m] * rc_max_j[m]) {
-              const int kk_start = same_jk_type ? (jj + 1) : 0;
+            if (
+              dij_sq > 0.0 && dij_sq >= rc_min_j[m] * rc_min_j[m] &&
+              dij_sq < rc_max_j[m] * rc_max_j[m]) {
+              const int kk_start = same_jk_selection ? (jj + 1) : 0;
               for (int kk = kk_start; kk < i_neigh; kk++) {
                 const int k = NL[i + kk * N];
                 const int k_type = type[k];
-                if (k_type == ktype[m]) {
+                if (k != j && k_type == ktype[m]) {
                   double xik = x[k] - x1;
                   double yik = y[k] - y1;
                   double zik = z[k] - z1;
                   apply_mic(box, xik, yik, zik);
                   const double dik_sq = xik * xik + yik * yik + zik * zik;
-                  if (dik_sq >= rc_min_k[m] * rc_min_k[m] && dik_sq < rc_max_k[m] * rc_max_k[m]) {
+                  if (
+                    dik_sq > 0.0 && dik_sq >= rc_min_k[m] * rc_min_k[m] &&
+                    dik_sq < rc_max_k[m] * rc_max_k[m]) {
+                    if (
+                      same_jk_type && kk < jj &&
+                      dij_sq >= rc_min_k[m] * rc_min_k[m] &&
+                      dij_sq < rc_max_k[m] * rc_max_k[m] &&
+                      dik_sq >= rc_min_j[m] * rc_min_j[m] &&
+                      dik_sq < rc_max_j[m] * rc_max_j[m]) {
+                      continue;
+                    }
                     const double cos_theta =
                       (xij * xik + yij * yik + zij * zik) / sqrt(dij_sq * dik_sq);
-                    const double theta = acos(cos_theta) * 180.0 / My_PI;
+                    const double theta = acos(fmax(-1.0, fmin(1.0, cos_theta))) * 180.0 / My_PI;
                     const int bin = static_cast<int>(floor(theta * delta_theta_inv));
                     if (bin > adf_bins - 1) {
-                      atomicAdd(&adf[m * adf_bins + adf_bins - 1], 1);
+                      atomicAdd(&adf[m * adf_bins + adf_bins - 1], 1ULL);
                     } else {
-                      atomicAdd(&adf[m * adf_bins + bin], 1);
+                      atomicAdd(&adf[m * adf_bins + bin], 1ULL);
                     }
                   }
                 }
@@ -309,7 +323,7 @@ void ADF::end_of_step(
     GPU_CHECK_KERNEL
   }
 
-  CHECK(gpuMemcpy(adf.data(), adf_gpu.data(), sizeof(int) * adf.size(), gpuMemcpyDeviceToHost));
+  adf_gpu.copy_to_host(adf.data());
   CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
   const double delta = 180.0 / adf_bins_;
@@ -326,7 +340,7 @@ void ADF::end_of_step(
   for (int i = 0; i < adf_bins_; i++) {
     fprintf(fid, "%g ", angle[i]);
     if (global_) {
-      int total = std::accumulate(adf.begin(), adf.end(), 0);
+      const unsigned long long total = std::accumulate(adf.begin(), adf.end(), 0ULL);
       if (total > 0) {
         fprintf(fid, "%g\n", adf[i] / (total * delta * 1.0));
       } else {
@@ -335,7 +349,7 @@ void ADF::end_of_step(
     } else {
       auto start = adf.begin();
       for (int m = 0; m < num_triples_; m++) {
-        int total = std::accumulate(start, start + adf_bins_, 0);
+        const unsigned long long total = std::accumulate(start, start + adf_bins_, 0ULL);
         if (total > 0) {
           fprintf(fid, "%g ", adf[adf_bins_ * m + i] / (total * delta * 1.0));
         } else {

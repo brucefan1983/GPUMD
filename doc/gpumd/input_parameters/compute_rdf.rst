@@ -18,15 +18,25 @@ The :term:`RDF` is proportional to the relative probability of finding atomic pa
    
    g (r) = \frac{V}{N^2}\frac{dN(r, dr)}{4\pi r^2 dr},
 
-where :math:`dN (r, dr)` represents the number of particle pairs with distances between :math:`r` and :math:`r + dr`, :math:`V` is the volume of the system, and :math:`N` is the total number of particles in the system. 
+where :math:`dN(r,dr)` counts ordered center-neighbor pairs of distinct atoms in the radial interval, :math:`V` is the volume of the system, and :math:`N` is the total number of particles in the system.
 
-It is also possible to calculate the :term:`RDF` between different element types. In a system with :math:`N_a` atoms of type :math:`a` and :math:`N_b` atoms of type :math:`b`,  :math:`g_{ab}(r)` and :math:`g_{ba}(r)` is defined as
+Thus each unordered geometric pair contributes twice to the total count.
+Self pairs are excluded, while the normalization uses :math:`N^2`.
+
+It is also possible to calculate the :term:`RDF` between different element types. In a system with :math:`N_a` atoms of type :math:`a` and :math:`N_b` atoms of type :math:`b`,  :math:`g_{ab}(r)` and :math:`g_{ba}(r)` are defined as
 
 .. math::
    
    g_{ab}(r) = g_{ba}(r) = \frac{V}{N_a N_b} \frac{dN_{ab}(r, dr)}{4\pi r^2 dr},
 
-where :math:`dN_{ab}(r, dr) = dN_{ba}(r, dr)` is the number of :math:`(a, b)` particle pairs with distances between :math:`r` and :math:`r + dr`. 
+Here, :math:`dN_{ab}` counts ordered pairs with the center of type :math:`a` and the neighbor of type :math:`b`.
+For different types, each geometric :math:`a`-:math:`b` pair contributes once to :math:`dN_{ab}` and once to :math:`dN_{ba}`.
+For the same type, both directions are included in :math:`dN_{aa}`, and the denominator is :math:`N_a^2`; self pairs remain excluded.
+
+In the discrete histogram, :math:`\Delta r=\mathtt{cutoff}/\mathtt{num\_bins}` and the output radius is the bin center :math:`r_b=(b+1/2)\Delta r`.
+Pairs with :math:`b\Delta r < r \le (b+1)\Delta r` enter bin :math:`b`, including the outer cutoff in the last bin.
+The normalization uses the shell-volume approximation :math:`4\pi r_b^2\Delta r`.
+Each sampled configuration is normalized using its own volume, and the reported RDF is the arithmetic mean over the samples.
 
 Syntax
 ------

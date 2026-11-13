@@ -205,30 +205,48 @@ Modal analysis methods
 A system with :math:`N` atoms will have :math:`3N` vibrational modes.
 Using lattice dynamics, the vibrational modes (or eigenmodes) of the system can be found.
 The heat flux can be decomposed into contributions from each vibrational mode and the thermal conductivity can be written in terms of those contributions [Lv2016]_.
-To calculate the modal heat current in GPUMD, the velocities must first be decomposed into their modal contributions:
+To calculate the modal heat current, project the atomic velocities onto the real, orthonormal eigenvectors of the mass-weighted dynamical matrix:
 
 .. math::
 
-   \boldsymbol{v}_i (t) = \frac{1}{\sqrt{m_i}} \sum_{n}  \boldsymbol{e}_{i,n} \cdot \boldsymbol{\dot{X}}_n(t)  
+   \dot{X}_n(t) = \sum_i \sqrt{m_i}\,\boldsymbol{e}_{i,n}\cdot\boldsymbol{v}_i(t).
 
-Here,
-:math:`\boldsymbol{\dot{X}}_n` is the normal mode coordinates of the velocity of mode :math:`n`
-:math:`m_i` is the mass of atom :math:`i`
-:math:`\boldsymbol{e}_{i,n}` is the eigenvector that gives the magnitude and direction of mode :math:`n` for atom :math:`i`
-:math:`\boldsymbol{v}_i` is the velocity of atom :math:`i`
-
-The heat current can be rewritten in terms of the modal velocity to be:
+Here, :math:`m_i` is the mass of atom :math:`i`, :math:`\boldsymbol{v}_i` is its velocity, and :math:`\boldsymbol{e}_{i,n}` is the three-component part of eigenvector :math:`n` belonging to atom :math:`i`.
+The normal-mode velocity :math:`\dot{X}_n` is a scalar; its projection includes all three Cartesian components.
+The contribution of mode :math:`n` to the atomic velocity and the reconstruction using all :math:`3N` modes are
 
 .. math::
-   
-   \boldsymbol{J}^{\text{pot}} = \sum_{i} \mathbf{W}_i  \cdot \left[ \frac{1}{\sqrt{m_i}} \sum_{n}  \boldsymbol{e}_{i,n} \cdot \boldsymbol{\dot{X}}_n(t) \right]
-   = \sum_{n} \left(\sum_{i} \frac{1}{\sqrt{m_i}} \mathbf{W}_i  \cdot \boldsymbol{e}_{i,n} \right) \cdot \boldsymbol{\dot{X}}_n(t)
 
-This means that the modal heat current can be written as:
+   \boldsymbol{v}_{i,n}(t) = \frac{\boldsymbol{e}_{i,n}}{\sqrt{m_i}}\dot{X}_n(t),
+   \qquad
+   \boldsymbol{v}_i(t) = \sum_n \boldsymbol{v}_{i,n}(t).
+
+Using the per-atom virial tensor :math:`\mathbf{W}_i`, the potential part of the heat current becomes
 
 .. math::
-   
-   \boldsymbol{J}^{\text{pot}}_n = \left(\sum_{i} \frac{1}{\sqrt{m_i}} \mathbf{W}_i  \cdot \boldsymbol{e}_{i,n} \right) \cdot \boldsymbol{\dot{X}}_n(t)
+
+   \boldsymbol{J}^{\text{pot}}(t)
+   = \sum_i \mathbf{W}_i(t)\cdot\boldsymbol{v}_i(t)
+   = \sum_n \boldsymbol{J}^{\text{pot}}_n(t),
+
+where the modal heat current is
+
+.. math::
+
+   \boldsymbol{J}^{\text{pot}}_n(t)
+   = \left(\sum_i \frac{\mathbf{W}_i(t)\cdot\boldsymbol{e}_{i,n}}{\sqrt{m_i}}\right)\dot{X}_n(t).
+
+The in-plane and out-of-plane contributions use the :math:`x,y` and :math:`z` components, respectively, of the reconstructed modal velocity :math:`\boldsymbol{v}_{i,n}`.
+Both use the same scalar :math:`\dot{X}_n`.
+For example,
+
+.. math::
+
+   J_n^{x,\mathrm{in}}
+   = \sum_i \left(W_i^{xx}v_{i,n}^{x}+W_i^{xy}v_{i,n}^{y}\right),
+   \qquad
+   J_n^{x,\mathrm{out}}
+   = \sum_i W_i^{xz}v_{i,n}^{z}.
 
 This modal heat current can be used to extend the capabilities of the :term:`EMD` and :term:`HNEMD` methods.
 The extended methods are called Green-Kubo modal analysis (:term:`GKMA`) [Lv2016]_ and homogeneous non-equilibrium modal analysis (:term:`HNEMA`) [Gabourie2021]_.

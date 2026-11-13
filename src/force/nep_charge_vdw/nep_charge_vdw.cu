@@ -120,7 +120,7 @@ static bool check_need_peratom_virial(const RunInput& run_input)
     if (
       tokens[0] == "compute_hac" || tokens[0] == "compute_hnemd" ||
       tokens[0] == "compute_hnemdec" || tokens[0] == "compute_shc" || tokens[0] == "compute_gkma" ||
-      tokens[0] == "compute_hnema") {
+      tokens[0] == "compute_hnema" || tokens[0] == "dump_shock_nemd") {
       return true;
     }
     if (tokens[0] == "compute") {
