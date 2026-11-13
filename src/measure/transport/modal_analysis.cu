@@ -424,7 +424,7 @@ void MODAL_ANALYSIS::setN(const std::vector<int>& cpu_type_size)
   for (int n = 0; n < atom_begin; ++n) {
     N1 += cpu_type_size[n];
   }
-  for (int n = atom_begin; n <= atom_end; ++n) {
+  for (int n = 0; n <= atom_end; ++n) {
     N2 += cpu_type_size[n];
   }
 
