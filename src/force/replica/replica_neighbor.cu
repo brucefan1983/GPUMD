@@ -304,6 +304,18 @@ void Replica_Neighbor::update_list(
   if (N <= 0 || N > capacity)
     PRINT_INPUT_ERROR("The replica neighbor list is smaller than the system.");
 
+  for (int i = 0; i < 9; ++i) {
+    if (cell_box.cpu_h[i] != last_box_[i])
+      valid_ = false;
+    last_box_[i] = cell_box.cpu_h[i];
+  }
+  const int pbc[3] = {cell_box.pbc_x, cell_box.pbc_y, cell_box.pbc_z};
+  for (int i = 0; i < 3; ++i) {
+    if (pbc[i] != last_pbc_[i])
+      valid_ = false;
+    last_pbc_[i] = pbc[i];
+  }
+
   const double rc_neighbor = rc + skin_;
   const double rc_cell_list = 0.5 * rc_neighbor;
   const double rc_inv_cell_list = 2.0 / rc_neighbor;
