@@ -46,7 +46,7 @@ static __global__ void gpu_find_adf_global(
   const double* __restrict__ x,
   const double* __restrict__ y,
   const double* __restrict__ z,
-  int* adf,
+  unsigned long long* adf,
   const int adf_bins,
   double rc_min,
   double rc_max)
@@ -85,9 +85,9 @@ static __global__ void gpu_find_adf_global(
             const double theta = acos(fmax(-1.0, fmin(1.0, cos_theta))) * 180.0 / My_PI;
             const int bin = static_cast<int>(floor(theta * delta_theta_inv));
             if (bin > adf_bins - 1) {
-              atomicAdd(&adf[adf_bins - 1], 1);
+              atomicAdd(&adf[adf_bins - 1], 1ULL);
             } else {
-              atomicAdd(&adf[bin], 1);
+              atomicAdd(&adf[bin], 1ULL);
             }
           }
         }
@@ -104,7 +104,7 @@ static __global__ void gpu_find_adf_local(
   const double* __restrict__ x,
   const double* __restrict__ y,
   const double* __restrict__ z,
-  int* adf,
+  unsigned long long* adf,
   const int Ntriples,
   const int adf_bins,
   const int* type,
@@ -171,9 +171,9 @@ static __global__ void gpu_find_adf_local(
                     const double theta = acos(fmax(-1.0, fmin(1.0, cos_theta))) * 180.0 / My_PI;
                     const int bin = static_cast<int>(floor(theta * delta_theta_inv));
                     if (bin > adf_bins - 1) {
-                      atomicAdd(&adf[m * adf_bins + adf_bins - 1], 1);
+                      atomicAdd(&adf[m * adf_bins + adf_bins - 1], 1ULL);
                     } else {
-                      atomicAdd(&adf[m * adf_bins + bin], 1);
+                      atomicAdd(&adf[m * adf_bins + bin], 1ULL);
                     }
                   }
                 }
@@ -323,7 +323,7 @@ void ADF::end_of_step(
     GPU_CHECK_KERNEL
   }
 
-  CHECK(gpuMemcpy(adf.data(), adf_gpu.data(), sizeof(int) * adf.size(), gpuMemcpyDeviceToHost));
+  adf_gpu.copy_to_host(adf.data());
   CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
 
   const double delta = 180.0 / adf_bins_;
@@ -340,7 +340,7 @@ void ADF::end_of_step(
   for (int i = 0; i < adf_bins_; i++) {
     fprintf(fid, "%g ", angle[i]);
     if (global_) {
-      int total = std::accumulate(adf.begin(), adf.end(), 0);
+      const unsigned long long total = std::accumulate(adf.begin(), adf.end(), 0ULL);
       if (total > 0) {
         fprintf(fid, "%g\n", adf[i] / (total * delta * 1.0));
       } else {
@@ -349,7 +349,7 @@ void ADF::end_of_step(
     } else {
       auto start = adf.begin();
       for (int m = 0; m < num_triples_; m++) {
-        int total = std::accumulate(start, start + adf_bins_, 0);
+        const unsigned long long total = std::accumulate(start, start + adf_bins_, 0ULL);
         if (total > 0) {
           fprintf(fid, "%g ", adf[adf_bins_ * m + i] / (total * delta * 1.0));
         } else {
