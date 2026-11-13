@@ -21,6 +21,7 @@ Global neighbor list for replica dynamics, see replica_neighbor.cuh.
 #include "replica_neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <algorithm>
 
 namespace
 {
@@ -377,7 +378,7 @@ void Replica_Neighbor::update_list(
 
   // the list capacity per atom is fixed by initialize()
   const int MN = NL.size() / NN.size();
-  gpu_sort_neighbor_list_if_rebuilt<<<N, min(1024, MN), MN * sizeof(int), stream>>>(
+  gpu_sort_neighbor_list_if_rebuilt<<<N, std::min(1024, MN), MN * sizeof(int), stream>>>(
     rebuild_.data(), N, NN.data(), NL.data());
   GPU_CHECK_KERNEL
 

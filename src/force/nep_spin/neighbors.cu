@@ -195,7 +195,7 @@ void NEP_Spin::Neighbors::find_neighbor_global(
     PRINT_INPUT_ERROR(
       "NEP-spin neighbor capacity is insufficient; increase the model neighbor capacity.");
   }
-  gpu_sort_neighbor_list<<<n, min(1024, capacity_), capacity_ * sizeof(int)>>>(
+  gpu_sort_neighbor_list<<<n, std::min(1024, capacity_), capacity_ * sizeof(int)>>>(
     n, NN.data(), NL.data());
   GPU_CHECK_KERNEL
   CHECK(gpuMemcpy(

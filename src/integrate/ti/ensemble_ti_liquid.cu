@@ -21,7 +21,7 @@
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
-#include <math.h>
+#include <cmath>
 #include <unordered_map>
 #include <vector>
 
@@ -1205,7 +1205,7 @@ void Ensemble_TI_Liquid::compute2(
     const double pe = ti_values[1];
     const int N = atoms.number_of_atoms;
     fprintf(output_file, "%e,%e,%e,%e\n", lambda, dlambda, pe / N, eUF / N);
-    E_diff += 0.5 * (pe - eUF) * abs(dlambda) / N;
+    E_diff += 0.5 * (pe - eUF) * std::abs(dlambda) / N;
   }
 }
 

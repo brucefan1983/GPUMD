@@ -34,6 +34,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include <cmath>
 #include <cstring>
 
 #define NUM_OF_HEAT_COMPONENTS 5
@@ -482,19 +483,19 @@ void MODAL_ANALYSIS::pre_run(
     float om2;
     for (int i = 0; i < num_modes; i++) {
       eigfile.read((char*)(&om2), sizeof(float));
-      f[i] = copysign(sqrt(abs(om2)) / (2.0 * PI), om2);
+      f[i] = copysign(sqrt(std::abs(om2)) / (2.0 * PI), om2);
     }
     double fmax, fmin; // freq are in ascending order in file
     int shift;
     const double epsilon = 1.e-6;
-    fmax = (floor(abs(f[num_modes - 1]) / f_bin_size) + 1) * f_bin_size;
-    fmin = floor(abs(f[0]) / f_bin_size) * f_bin_size;
-    shift = floor(abs(fmin) / f_bin_size + epsilon);
+    fmax = (floor(std::abs(f[num_modes - 1]) / f_bin_size) + 1) * f_bin_size;
+    fmin = floor(std::abs(f[0]) / f_bin_size) * f_bin_size;
+    shift = floor(std::abs(fmin) / f_bin_size + epsilon);
     num_bins = floor((fmax - fmin) / f_bin_size + epsilon);
 
     bin_count.resize(num_bins, 0, Memory_Type::managed);
     for (int i = 0; i < num_modes; i++)
-      bin_count[int(abs(f[i] / f_bin_size)) - shift]++;
+      bin_count[int(std::abs(f[i] / f_bin_size)) - shift]++;
 
   } else {
     num_bins = (int)ceil((double)num_modes / (double)bin_size);

@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -49,7 +50,7 @@ static void change_box(const Parameters& para, Structure& structure)
   float b[3] = {structure.box_original[1], structure.box_original[4], structure.box_original[7]};
   float c[3] = {structure.box_original[2], structure.box_original[5], structure.box_original[8]};
   float det = get_det(structure.box_original);
-  structure.volume = abs(det);
+  structure.volume = std::abs(det);
   structure.num_cell[0] = int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(b, c))));
   structure.num_cell[1] = int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(c, a))));
   structure.num_cell[2] = int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(a, b))));
@@ -223,7 +224,7 @@ static void read_one_structure(
     const std::string stress_string = "stress=";
     if (tokens[n].substr(0, stress_string.length()) == stress_string) {
       has_stress = true;
-      float volume = abs(get_det(structure.box_original));
+      float volume = std::abs(get_det(structure.box_original));
       const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
       for (int m = 0; m < 9; ++m) {
         virials_from_stress[reduced_index[m]] = get_double_from_token(
@@ -240,7 +241,7 @@ static void read_one_structure(
     // assert stresses and virials are consistent
     const float tol = 1e-3;
     for (int m = 0; m < 6; ++m) {
-      if (abs(structure.virial[m] - virials_from_stress[m]) > tol) {
+      if (std::abs(structure.virial[m] - virials_from_stress[m]) > tol) {
         if (para.prediction == 0) {
           PRINT_INPUT_ERROR("Virials and stresses for structure are inconsistent!");
         }

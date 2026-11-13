@@ -15,6 +15,7 @@
 
 #include "ensemble_ti_spring.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cmath>
 
 namespace
 {
@@ -408,7 +409,7 @@ void Ensemble_TI_Spring::find_lambda(
       dlambda,
       pe / atom.number_of_atoms,
       espring / atom.number_of_atoms);
-    E_diff += 0.5 * (pe - espring) * abs(dlambda) / atom.number_of_atoms;
+    E_diff += 0.5 * (pe - espring) * std::abs(dlambda) / atom.number_of_atoms;
   }
 }
 
