@@ -138,3 +138,14 @@ REPLICA_TEST_WORKDIR=/tmp/replica-checks \
 A missing executable, unavailable GPU, process timeout (120 seconds per run),
 or failed assertion fails the test. The suite does not modify CI and
 does not cover multiple GPUs, long-time sampling accuracy, or performance.
+
+Temperature-pressure REMD is covered by `test_remd_tp.py`, using the same `GPUMD`
+executable and working-directory settings. Run it directly with
+`python3 tests_pytest/test_remd_tp.py`. It checks exchange rules, independent
+boxes, coupled directions, current-pressure measurements, basic continuation,
+compact model types, large-box energies after deformation, and invalid inputs.
+Set `REPLICA_SAMPLING=1` to include the longer ideal-gas volume/kinetic distribution
+test. `REPLICA_SAMPLING_STEPS` can change its length (at least 1000000 steps).
+CPU-only algorithm and checkpoint tests run without CUDA or pytest:
+`python3 tests_pytest/test_remd_tp_host.py`. Their GPU operations are test doubles;
+only the GPU suite checks asynchronous execution.

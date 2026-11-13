@@ -346,6 +346,12 @@ Bibliography
    | Phys. Rev. M **7**, 043801 (2023)
    | DOI: `10.1103/PhysRevMaterials.7.043801 <https://doi.org/10.1103/PhysRevMaterials.7.043801>`_
 
+.. [Okabe2001]
+   | Tsuneyasu Okabe, Masaaki Kawata, Yuko Okamoto, and Masuhiro Mikami
+   | *Replica-exchange Monte Carlo method for the isobaric–isothermal ensemble*
+   | Chemical Physics Letters **335**, 435–439 (2001)
+   | DOI: `10.1016/S0009-2614(01)00055-0 <https://doi.org/10.1016/S0009-2614(01)00055-0>`_
+
 .. [Ouyang2018]
    | Wengen Ouyang, Davide Mandelli, Michael Urbakh, and Oded Hod
    | *Nanoserpents: graphene nanoribbon motion on two-dimensional hexagonal materials*

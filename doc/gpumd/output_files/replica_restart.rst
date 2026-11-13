@@ -6,6 +6,7 @@ Replica restart files
 =====================
 
 At normal completion, REMD writes ``remd_restart.meta`` and ``remd_replica_<index>_restart.xyz`` for every replica.
+REMD-TP writes ``remd_tp_restart.meta`` and ``remd_tp_replica_<index>_restart.xyz``, including each replica’s current box and temperature–pressure assignment.
 PRD writes ``prd_restart.meta``, ``prd_replica_<index>_restart.xyz``, and ``prd_basin_restart.xyz``.
 Keep the complete set: it stores atomic states, method state, and random-number-generator states.
 The replica xyz files store positions in Angstrom, masses in unified atomic mass units, and velocities (``vel``) in Angstrom/fs, with 17 significant digits.
