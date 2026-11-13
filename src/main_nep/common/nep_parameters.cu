@@ -322,6 +322,9 @@ void NEP_Parameters::parse_force_delta(const char** param, int num_param)
   if (!is_valid_real(param[1], &force_delta_tmp)) {
     PRINT_INPUT_ERROR("force_delta should be a number.\n");
   }
+  if (force_delta_tmp < 0.0) {
+    PRINT_INPUT_ERROR("force_delta should be non-negative.\n");
+  }
   force_delta = force_delta_tmp;
 }
 

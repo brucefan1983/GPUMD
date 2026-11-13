@@ -323,6 +323,9 @@ void Spin_Parameters::parse_spin_cutoff(const char** param, int num_param)
     PRINT_INPUT_ERROR("Duplicate spin_cutoff keyword.\n");
   }
   is_spin_cutoff_set = true;
+  if (!is_type_set) {
+    PRINT_INPUT_ERROR("Please set type before setting spin_cutoff.\n");
+  }
   if (num_types <= 0 || (num_param != 2 && num_param != num_types + 1)) {
     PRINT_INPUT_ERROR("spin_cutoff should have one positive number or one per atom type.\n");
   }
