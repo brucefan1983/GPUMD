@@ -7,6 +7,8 @@
 
 Write per-atom data into user-specified file(s) in `extended XYZ format <https://github.com/libAtoms/extxyz>`_.
 
+Runs using :ref:`multi_replica <kw_multi_replica>` use the :ref:`replica trajectory syntax <replica_kw_dump_xyz>` instead of the ordinary MD syntax below.
+
 Syntax
 ------
 

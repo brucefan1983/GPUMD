@@ -50,6 +50,9 @@ public:
     Force& force) override;
 
 protected:
+  // For derived classes that set the thermostat parameters themselves.
+  Ensemble_BDP() = default;
+
   std::mt19937 rng;
   void initialize_rng();
 

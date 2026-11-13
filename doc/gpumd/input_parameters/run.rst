@@ -7,6 +7,9 @@
 
 Run a number of :term:`MD` steps according to the settings specified for the current run.
 
+With :ref:`multi_replica <kw_multi_replica>`, specify one ``run`` command at the end of ``run.in``.
+See :ref:`replica_kw_run` for how steps are counted in REMD, PRD, and resumed runs.
+
 Syntax
 ------
 This keyword requires a positive integer giving the number of MD steps to run::
@@ -25,7 +28,7 @@ To run one million steps, just write::
 Multiple runs
 -------------
 
-Successive runs in the same ``run.in`` continue from the current positions, velocities and simulation cell.
+For ordinary MD, successive runs in the same ``run.in`` continue from the current positions, velocities and simulation cell.
 The potential model remains loaded, and the current :ref:`time step <kw_time_step>` is retained unless changed.
 Specify exactly one :ref:`ensemble <kw_ensemble>` before each run.
 Repeat the required measurement, output and control commands, such as ``dump_thermo``, ``compute_rdf``, ``fix`` and ``deform``, before each run that uses them.
