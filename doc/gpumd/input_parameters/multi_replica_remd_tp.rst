@@ -102,10 +102,3 @@ Caveats
 * On restart, PBC, atom properties, conditions and all metadata must match. The restored box must be orthogonal with positive finite lengths; uncoupled lengths must match ``model.xyz``, while coupled lengths are restored from the checkpoint.
 * Pressure spacing must match volume fluctuations: neighbouring pressures should satisfy :math:`\Delta P\,\sigma_V \lesssim k_BT`.
 * Too small ``bulk_modulus`` or ``tau_p`` makes the barostat unstable; the run stops if a box length changes by more than 5% in one update.
-
-Implementation credits
-----------------------
-
-The REMD-TP feature was proposed and primarily implemented by Jiuyang Shi.
-Wenhao Luo ported the implementation into the ``gpumd`` ``multi_replica`` runtime
-and adapted the integration, tests, and documentation.
