@@ -123,13 +123,7 @@ HEADERS_TB = $(wildcard main_tb/*.cuh) $(wildcard utilities/*.cuh) $(wildcard ut
 ###########################################################
 # executables
 ###########################################################
-all: gpumd nep gpumd_replica tb
-
-.PHONY: all gpumd_replica clean_replica clean
-
-# Keep replica objects separate and share the selected compiler and architecture.
-gpumd_replica:
-	$(MAKE) -C main_replica CC="$(CC)" CUDA_ARCH="$(CUDA_ARCH)"
+all: gpumd nep tb
 
 gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
@@ -213,10 +207,7 @@ endif
 ###########################################################
 # clean up
 ###########################################################
-clean_replica:
-	$(MAKE) -C main_replica clean
-
-clean: clean_replica
+clean:
 ifdef OS
 	del /s *.obj *.exp *.lib *.exe
 else

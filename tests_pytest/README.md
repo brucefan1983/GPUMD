@@ -65,3 +65,76 @@ fixtures/
 ```
 
 `fixtures/sanitizer_inputs/` is generated on demand via `--dump-fixtures` above, not checked in.
+
+## Replica dynamics
+
+`test_replica.py` holds 20 integration tests of replica dynamics, i.e. `gpumd` runs with a
+`multi_replica` command, marked `slow`. They need only the Python standard library and `pytest`
+(the packages above are needed because pytest loads `conftest.py`):
+
+```bash
+pytest test_replica.py -q
+```
+
+The file can also be run directly, without `conftest.py`, from the repository root:
+
+```bash
+python3 tests_pytest/test_replica.py
+```
+
+Both DEBUG and release builds are supported; fixed initial seeds are not required. The tests
+use the first device selected by `CUDA_VISIBLE_DEVICES`, or device `0` if that variable is unset;
+multiple replicas share that GPU. `GPUMD` selects another executable:
+
+```bash
+GPUMD=/path/to/gpumd CUDA_VISIBLE_DEVICES=1 pytest test_replica.py -q
+```
+
+The tests check:
+
+- exchange attempts at every interval for two replicas;
+- alternating neighbor pairs, accepted swaps, and label mappings for 4/8 replicas;
+- initial PRD correlation, unaccelerated correlation exits, discrete event clocks,
+  and the lowest-index winner for simultaneous exits;
+- continuation of REMD temperature mappings and exchange schedules between exchanges,
+  with batching forced off and on, and restoration of PRD phases and physical clocks;
+- the standard restart velocity layout and older files with `vel_natural`, both
+  restoring known velocities and writing the standard layout on completion;
+- rejection of unsupported restart versions and changed exchange/dephasing settings;
+- qNEP Ewald/PPPM selection, inline comments, default solver, and restart validation,
+  including a changed PPPM spacing;
+- two concurrent qNEP replicas on the large-box path (2000-atom PbTe supercell) with
+  Ewald and PPPM: repeated runs from the same checkpoint agree (with PPPM, whose charge
+  spreading uses floating-point atomics, within `1e-6`), and split continuation
+  preserves valid checkpoint states and step counts;
+- the initial qNEP energy (Ewald and PPPM, small-box and large-box path) and the
+  initial NEP energy for a model.xyz with only some species of the model, both equal
+  to those of an ordinary `gpumd` run;
+- single-segment dephasing syntax and the retry limit;
+- rejection of the unsupported `verbose` and `verbose_output` options in both modes;
+- batched integration (forced with `GPUMD_REPLICA_BATCH=1`) reproducing the per-slot
+  path (`GPUMD_REPLICA_BATCH=0`) bit for bit for REMD and PRD, on a 2000-atom triclinic
+  PbTe supercell that uses the large-box NEP path;
+- the automatic batching choice across replica sizes and total atom counts, the
+  forced-off setting, and rejection of a `batch` keyword in `run.in`.
+
+The four-carbon fixture in `fixtures/replica/` has a zero-energy NEP and is used to obtain
+predictable exchange and event-clock behavior. It is not a physical model. Force-bearing
+NEP/qNEP tests reuse the tracked PbTe examples. Continuation tests check restored states,
+step counts, and method behavior; they do not require a segmented run to reproduce an
+uninterrupted trajectory, exchange outcomes, or event times. RNG states are saved and
+restored, but this does not establish a bitwise restart guarantee. Batch comparisons
+start from the same checkpoint and retain their bitwise checks.
+
+Tests run in isolated temporary directories and normally delete them afterwards.
+Set `REPLICA_TEST_WORKDIR` to retain test directories, including outputs and
+the last `run.in` and `run.log` for each case:
+
+```bash
+REPLICA_TEST_WORKDIR=/tmp/replica-checks \
+  python3 tests_pytest/test_replica.py
+```
+
+A missing executable, unavailable GPU, process timeout (120 seconds per run),
+or failed assertion fails the test. The suite does not modify CI and
+does not cover multiple GPUs, long-time sampling accuracy, or performance.

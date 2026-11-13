@@ -44,6 +44,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    add_mfield
    add_spring
    deposit
+   multi_replica
    electron_stop
    fix
    kspace

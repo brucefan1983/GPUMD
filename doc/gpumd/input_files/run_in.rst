@@ -7,7 +7,7 @@ Simulation protocol (``run.in``)
 ********************************
 
 The ``run.in`` file is used to define the simulation protocol.
-The code will execute the commands in this file one by one.
+For ordinary MD, the code executes the commands in this file one by one.
 If the code encounters an invalid command in this file on start-up, it will report an error message and terminate.
 In this input file, blank lines and lines starting with ``#`` are ignored.
 One can thus write comments after ``#``.
@@ -17,7 +17,11 @@ All other lines should be of the form:
 
    keyword parameter_1 parameter_2 ...
 
-The overall structure of a ``run.in`` file is as follows:
+For replica-exchange molecular dynamics (REMD) or parallel replica dynamics (PRD), include a :ref:`multi_replica <kw_multi_replica>` command.
+That mode accepts a :ref:`restricted set of input commands <replica_input_parameters>` and requires a single final ``run`` command;
+see the :ref:`complete example <replica_run_in>`.
+
+The overall structure of an ordinary MD ``run.in`` file is as follows:
 
 * If the model needs replication, put :ref:`replicate <kw_replicate>` first.
 * Set up the potential model using the :ref:`potential <kw_potential>` keyword.
@@ -122,6 +126,10 @@ Simulation setup
      - Add atoms periodically during a deposition run
      - No
      - No
+   * - :ref:`multi_replica <kw_multi_replica>`
+     - Select REMD or PRD for the input file
+     - No
+     - N/A
    * - :ref:`electron_stop <kw_electron_stop>`
      - Apply electronic stopping forces to high-energy atoms
      - No
