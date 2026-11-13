@@ -119,6 +119,8 @@ Keywords
      - population size used in the :term:`SNES` algorithm [Schaul2011]_
    * - :ref:`generation <kw_generation>`
      - number of generations used by the :term:`SNES` algorithm [Schaul2011]_
+   * - :ref:`seed <kw_seed>`
+     - random seed for the :term:`SNES` algorithm
    * - :ref:`save_potential <kw_save_potential>`
      - periodically save model checkpoints and, optionally, restart checkpoints
    * - :ref:`output_interval <kw_output_interval>`

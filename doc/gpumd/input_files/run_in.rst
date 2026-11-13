@@ -165,6 +165,10 @@ Actions
      - Perform an energy minimization
      - Yes
      - N/A
+   * - :ref:`minimize spin_fire <spin_fire_minimize>`
+     - Minimize magnetic moments, optionally together with atomic positions and cell strain
+     - Yes
+     - N/A
    * - :ref:`run <kw_run>`
      - Run a number of :term:`MD` steps
      - Yes
