@@ -28,6 +28,8 @@ python tests_pytest/validate_spin_glsd_runtime.py --binary "$GPUMD_COMMAND" --ou
 
 The GLSD command checks analytic zero/constant-field trajectories, deterministic
 radial relaxation, physical-state restart, fresh per-run noise seeding, and 1/2/4 GPU parity.
+The bundled-model comparisons use a 0.01 fs timestep and require convergence
+within 100 midpoint corrections; default-cap behavior is checked separately.
 It does not establish equilibrium sampling of an arbitrary trained potential.
 
 For deterministic spin/lattice timestep convergence on one GPU:

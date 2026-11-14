@@ -159,15 +159,22 @@ def main():
         assert np.sum(s['potential']) < np.sum(np.tanh(.1*np.sum(initial**2,axis=1)))
     assert errors[0]/errors[1]>3.5 and errors[1]/errors[2]>3,errors
     record('onsite_convergence',{'errors':errors})
+    # These fixtures are numerical oracles, not calibrated dynamical models.
+    # Compare decompositions with converged midpoint solves at a short timestep.
+    bundled_dt = .01
+    # Keep physical bath periods at 10 fs and 100 fs as the timestep changes.
+    tperiod, pperiod = 10 / bundled_dt, 100 / bundled_dt
     # Bundled model: spin-only, coupled lattice and pressure endpoints.
     for name,ens,steps in [
         ('Fe0',f'nve_glsd {damping(10)} stemp -1 seed 731',200),
-        ('FeT',f'nvt_glsd 300 300 100 lattice off {damping(10)} seed 731',200),
-        ('coupled',f'nvt_glsd 300 300 100 lattice on {damping(10)} seed 731',100),
-        ('npt',f'npt_glsd temp 300 300 iso 0 0 tperiod 100 pperiod 1000 {damping(10)} seed 731',20)]:
+        ('FeT',f'nvt_glsd 300 300 {tperiod:g} lattice off {damping(10)} seed 731',200),
+        ('coupled',f'nvt_glsd 300 300 {tperiod:g} lattice on {damping(10)} seed 731',100),
+        ('npt',f'npt_glsd temp 300 300 iso 0 0 tperiod {tperiod:g} pperiod {pperiod:g} {damping(10)} seed 731',20)]:
         states=[]
+        ens += ' midpoint_tol 1e-7 midpoint_max_iter 100'
         for g in layouts:
-            case,s=run(f'{name}-g{g}',g,ens,steps,field=field)
+            case,s=run(f'{name}-g{g}',g,ens,steps,bundled_dt,field=field)
+            assert 'steps accepted at iteration cap before convergence: 0 of' in (case/'run.log').read_text(), case
             states.append(s)
             _,endpoint=run(f'{name}-endpoint-g{g}',g,'nve',1,0,
                            xyz_in=case/'restart.xyz',field=field)
