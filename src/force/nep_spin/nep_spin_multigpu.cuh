@@ -49,7 +49,10 @@ public:
     GPU_Vector<double>&,
     GPU_Vector<double>&,
     GPU_Vector<double>&);
-  const std::vector<int>& spin_types() const override { return domains_[0]->potential->spin_types(); }
+  const std::vector<int>& spin_types() const override
+  {
+    return domains_[0]->potential->spin_types();
+  }
 
 private:
   struct Domain {

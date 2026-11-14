@@ -26,8 +26,6 @@ Contributors:
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <algorithm>
-#include <chrono>
-#include <cstdlib>
 #include <cmath>
 #include <limits>
 
@@ -80,7 +78,9 @@ static __global__ void collect_stats(
     for (int c = 0; c < 3; ++c) {
       const int j = c * n + i;
       const double g = gradient[j] - gr * unit[c], v = velocity[j] - vr * unit[c];
-      if (!isfinite(spin[j]) || !isfinite(force[j]) || !isfinite(gradient[j]) || !isfinite(velocity[j]))
+      if (
+        !isfinite(spin[j]) || !isfinite(force[j]) || !isfinite(gradient[j]) ||
+        !isfinite(velocity[j]))
         invalid = 1;
       gi2 += g * g;
       physical2 += fixed ? gradient[j] * gradient[j] : force[j] * force[j];
@@ -107,7 +107,7 @@ static __global__ void collect_stats(
     if (t < offset) {
       for (int k = 0; k < NUM_STATS; ++k)
         sums[k][t] = (k >= 4 && k < 7) ? fmax(sums[k][t], sums[k][t + offset])
-                                      : sums[k][t] + sums[k][t + offset];
+                                       : sums[k][t] + sums[k][t + offset];
     }
     __syncthreads();
   }
@@ -115,7 +115,6 @@ static __global__ void collect_stats(
     for (int k = 0; k < NUM_STATS; ++k)
       result[k * gridDim.x + blockIdx.x] = sums[k][0];
 }
-
 
 // Atomic force/velocity statistics and the full (possibly nonsymmetric) virial.
 static __global__ void collect_lattice_stats(
@@ -165,17 +164,17 @@ static __global__ void collect_lattice_stats(
       result[k * gridDim.x + blockIdx.x] = sums[k][0];
 }
 
-
 // Partial statistics are field-major. Maxima/invalid flags retain their exact operation.
-template<int Count, int FirstMax, int EndMax>
-static __global__ void reduce_partials(int count, const double* partial, double* result) {
+template <int Count, int FirstMax, int EndMax>
+static __global__ void reduce_partials(int count, const double* partial, double* result)
+{
   __shared__ double sums[Count][BLOCK];
   const int t = threadIdx.x;
   for (int k = 0; k < Count; ++k) {
     double value = 0;
     for (int i = t; i < count; i += BLOCK)
       value = (k >= FirstMax && k < EndMax) ? fmax(value, partial[k * count + i])
-                                           : value + partial[k * count + i];
+                                            : value + partial[k * count + i];
     sums[k][t] = value;
   }
   __syncthreads();
@@ -183,11 +182,12 @@ static __global__ void reduce_partials(int count, const double* partial, double*
     if (t < offset)
       for (int k = 0; k < Count; ++k)
         sums[k][t] = (k >= FirstMax && k < EndMax) ? fmax(sums[k][t], sums[k][t + offset])
-                                                : sums[k][t] + sums[k][t + offset];
+                                                   : sums[k][t] + sums[k][t + offset];
     __syncthreads();
   }
   if (t == 0)
-    for (int k = 0; k < Count; ++k) result[k] = sums[k][0];
+    for (int k = 0; k < Count; ++k)
+      result[k] = sums[k][0];
 }
 
 __global__ void initialize_radius(int n, const double* spin, double* radius)
@@ -228,8 +228,8 @@ __global__ void project_force(
       gradient[j] = radius[i] > 0 ? force[j] - spin[j] * sg / s2 : 0.0;
       velocity[j] = radius[i] > 0 ? velocity[j] - spin[j] * sv / s2 : 0.0;
     } else {
-      const double unit = magnitude > 0 ? spin[j] / magnitude
-                                       : (b2 > 0 ? force[j] / sqrt(b2) : (c == 0 ? 1.0 : 0.0));
+      const double unit =
+        magnitude > 0 ? spin[j] / magnitude : (b2 > 0 ? force[j] / sqrt(b2) : (c == 0 ? 1.0 : 0.0));
       const double radial = magnitude > 0 ? sg / magnitude : sqrt(b2);
       // Pack the unit-direction gradient rho*B_t and the magnitude gradient B_r.
       gradient[j] = magnitude * (force[j] - radial * unit) + radial * unit;
@@ -398,14 +398,6 @@ Minimizer_Spin_FIRE::Minimizer_Spin_FIRE(
 void Minimizer_Spin_FIRE::compute(
   Force& force, Box& box, Atom& atom, GPU_Vector<double>& position, std::vector<Group>& group)
 {
-  using Clock = std::chrono::steady_clock;
-  const bool profile = std::getenv("GPUMD_PROFILE_SPIN") != nullptr;
-  const auto begin = profile ? Clock::now() : Clock::time_point{};
-  auto milliseconds = [](Clock::time_point start) {
-    return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
-  };
-  double spin_stats_ms = 0, lattice_stats_ms = 0;
-  int statistics_calls = 0;
   CHECK(gpuSetDevice(0));
   const int n = number_of_atoms_, blocks = (n + BLOCK - 1) / BLOCK;
   if (n <= 0 || atom.spin_per_atom.size() != 3 * n || atom.mforce_per_atom.size() != 3 * n)
@@ -420,7 +412,8 @@ void Minimizer_Spin_FIRE::compute(
   GPU_Vector<double> stats_partial, lattice_partial;
   if (stats_blocks > 1) {
     stats_partial.resize(NUM_STATS * stats_blocks);
-    if (relax_atoms_) lattice_partial.resize(15 * stats_blocks);
+    if (relax_atoms_)
+      lattice_partial.resize(15 * stats_blocks);
   }
   GPU_Vector<double> radius(n), gradient(3 * n), velocity(3 * n, 0.0), saved(3 * n),
     stats_gpu(NUM_STATS);
@@ -484,7 +477,6 @@ void Minimizer_Spin_FIRE::compute(
   };
   double spin_stats[3] = {}, mechanical_g2 = 0, mechanical_v2 = 0;
   auto measure = [&]() {
-    auto start = profile ? Clock::now() : Clock::time_point{};
     collect_stats<<<stats_blocks, BLOCK>>>(
       fixed_magnitude_,
       n,
@@ -497,19 +489,14 @@ void Minimizer_Spin_FIRE::compute(
       stats_blocks > 1 ? stats_partial.data() : stats_gpu.data());
     GPU_CHECK_KERNEL
     if (stats_blocks > 1) {
-      reduce_partials<NUM_STATS, 4, 7><<<1, BLOCK>>>(
-        stats_blocks, stats_partial.data(), stats_gpu.data());
+      reduce_partials<NUM_STATS, 4, 7>
+        <<<1, BLOCK>>>(stats_blocks, stats_partial.data(), stats_gpu.data());
       GPU_CHECK_KERNEL
     }
     stats_gpu.copy_to_host(stats);
     for (int k = 0; k < 3; ++k) {
       spin_stats[k] = stats[k + 1];
       stats[k + 1] += stats[k + 7];
-    }
-    if (profile) {
-      spin_stats_ms += milliseconds(start);
-      ++statistics_calls;
-      start = Clock::now();
     }
     if (relax_atoms_) {
       collect_lattice_stats<<<stats_blocks, BLOCK>>>(
@@ -522,14 +509,13 @@ void Minimizer_Spin_FIRE::compute(
         stats_blocks > 1 ? lattice_partial.data() : lattice_stats_gpu.data());
       GPU_CHECK_KERNEL
       if (stats_blocks > 1) {
-        reduce_partials<15, 3, 6><<<1, BLOCK>>>(
-          stats_blocks, lattice_partial.data(), lattice_stats_gpu.data());
+        reduce_partials<15, 3, 6>
+          <<<1, BLOCK>>>(stats_blocks, lattice_partial.data(), lattice_stats_gpu.data());
         GPU_CHECK_KERNEL
       }
       lattice_stats_gpu.copy_to_host(lattice_stats);
       mechanical_g2 = lattice_stats[0];
       mechanical_v2 = lattice_stats[1];
-      if (profile) lattice_stats_ms += milliseconds(start);
       for (double value : lattice_stats)
         if (!std::isfinite(value))
           stats[5] = 1;
@@ -629,9 +615,6 @@ void Minimizer_Spin_FIRE::compute(
       stagnation = "time_step_floor";
       break;
     }
-    const auto step_begin = profile ? Clock::now() : Clock::time_point{};
-    const double spin_before = spin_stats_ms, lattice_before = lattice_stats_ms;
-    const int calls_before = statistics_calls;
     atom.spin_per_atom.copy_to_device(saved.data());
     if (relax_atoms_)
       lattice_position.copy_to_device(saved_position.data());
@@ -748,11 +731,6 @@ void Minimizer_Spin_FIRE::compute(
     }
     if (steps % interval == 0)
       report(steps, dt);
-    if (profile)
-      printf("spin_fire_profile step %d wall_ms %.6f spin_stats_ms %.6f lattice_stats_ms %.6f stats_calls %d residual %.17e dt %.17e g2 %.17e v2 %.17e power %.17e change %.17e\n",
-             steps, milliseconds(step_begin), spin_stats_ms - spin_before,
-             lattice_stats_ms - lattice_before, statistics_calls - calls_before,
-             current_residual, dt, stats[1], stats[2], stats[3], stats[6]);
     if (current_residual <= 1) {
       reason = "converged";
       break;
@@ -791,7 +769,4 @@ void Minimizer_Spin_FIRE::compute(
   // are not FIRE's fictitious velocities and remain unchanged.
   atom.cpu_spin_per_atom.resize(3 * n);
   atom.spin_per_atom.copy_to_host(atom.cpu_spin_per_atom.data());
-  if (profile)
-    printf("spin_fire_profile total steps %d total_ms %.6f spin_stats_ms %.6f lattice_stats_ms %.6f stats_calls %d\n",
-           steps, milliseconds(begin), spin_stats_ms, lattice_stats_ms, statistics_calls);
 }

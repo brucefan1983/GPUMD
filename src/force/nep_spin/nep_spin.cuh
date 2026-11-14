@@ -46,8 +46,11 @@ public:
   void request_force_snapshot(Spin_Force_Snapshot& target) { snapshot_ = &target; }
 
 protected:
-  void save_force_snapshot(const GPU_Vector<double>& force, const GPU_Vector<double>& mforce,
-                           const GPU_Vector<double>& energy, const GPU_Vector<double>& virial)
+  void save_force_snapshot(
+    const GPU_Vector<double>& force,
+    const GPU_Vector<double>& mforce,
+    const GPU_Vector<double>& energy,
+    const GPU_Vector<double>& virial)
   {
     if (snapshot_) {
       snapshot_->force.copy_from_device(force.data());

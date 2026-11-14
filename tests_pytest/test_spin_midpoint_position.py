@@ -1,5 +1,6 @@
 """Run the production midpoint kernel on the host with GPU indexing stubbed."""
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 
@@ -8,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_midpoint_wraps_all_images(tmp_path):
     step = (ROOT/'src/integrate/spin/step.cu').read_text()
-    kernel = step.split('__global__ void midpoint_position(', 1)[1].split('// Save each Action', 1)[0]
+    kernel = re.split(r'__global__\s+void\s+midpoint_position\s*\(', step, maxsplit=1)[1].split('// Save each Action', 1)[0]
     box = (ROOT/'src/model/box.cu').read_text()
     inverse = 'void Box::get_inverse(' + box.split('void Box::get_inverse(', 1)[1].split('\nbool Box::get_num_bins', 1)[0]
     # Only get_inverse is needed; following Box definitions are excluded.

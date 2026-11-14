@@ -21,8 +21,8 @@ Contributors:
 */
 
 #pragma once
-#include "integrate/ensemble.cuh"
 #include "force/nep_spin/nep_spin.cuh"
+#include "integrate/ensemble.cuh"
 #include "model/box.cuh"
 #include <memory>
 #include <string>
@@ -69,5 +69,6 @@ private:
   Box start_box_;
   GPU_Vector<double> start_position_, endpoint_position_;
   GPU_Vector<int> endpoint_images_;
-  void refresh_endpoint(double, Force&, Box&, Atom&, const std::vector<Group>&, GPU_Vector<double>&);
+  void
+  refresh_endpoint(double, Force&, Box&, Atom&, const std::vector<Group>&, GPU_Vector<double>&);
 };

@@ -20,31 +20,32 @@ Contributors:
   Chengbing Chen: 1747193328@qq.com
 */
 
-#include "spin_ensemble.cuh"
 #include "glsd.cuh"
 #include "integrator.cuh"
+#include "spin_ensemble.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cmath>
 
 namespace
 {
-__global__ void midpoint_position(
-  int n, Box box, const double* start, const double* endpoint, double* midpoint)
+__global__ void
+midpoint_position(int n, Box box, const double* start, const double* endpoint, double* midpoint)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i >= n) return;
+  if (i >= n)
+    return;
   double r[3], s[3];
   for (int d = 0; d < 3; ++d)
     r[d] = 0.5 * (start[d * n + i] + endpoint[d * n + i]);
   for (int d = 0; d < 3; ++d)
-    s[d] = box.cpu_h[9 + 3*d] * r[0] + box.cpu_h[10 + 3*d] * r[1] +
-           box.cpu_h[11 + 3*d] * r[2];
+    s[d] =
+      box.cpu_h[9 + 3 * d] * r[0] + box.cpu_h[10 + 3 * d] * r[1] + box.cpu_h[11 + 3 * d] * r[2];
   const int pbc[3] = {box.pbc_x, box.pbc_y, box.pbc_z};
   // Force's public PBC pass only removes one image; discard all midpoint images here.
   for (int d = 0; d < 3; ++d) {
     const double image = pbc[d] ? floor(s[d]) : 0.0;
     for (int k = 0; k < 3; ++k)
-      r[k] -= box.cpu_h[3*k + d] * image;
+      r[k] -= box.cpu_h[3 * k + d] * image;
   }
   for (int d = 0; d < 3; ++d)
     midpoint[d * n + i] = r[d];
@@ -53,11 +54,20 @@ __global__ void midpoint_position(
 // Save each Action increment once at the predictor spin. Strip its Zeeman
 // energy here so it can be evaluated at each corrected spin.
 __global__ void capture_modifiers(
-  int n, const double* spin, const double* force, const double* field,
-  const double* energy, const double* virial, double* df, double* db, double* de, double* dv)
+  int n,
+  const double* spin,
+  const double* force,
+  const double* field,
+  const double* energy,
+  const double* virial,
+  double* df,
+  double* db,
+  double* de,
+  double* dv)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i >= n) return;
+  if (i >= n)
+    return;
   de[i] = energy[i] - de[i];
   for (int d = 0; d < 3; ++d) {
     const int k = d * n + i;
@@ -101,7 +111,11 @@ __global__ void restore_modifiers(
 } // namespace
 
 void Spin_Ensemble::refresh_endpoint(
-  double dt, Force& force, Box& box, Atom& atom, const std::vector<Group>& group,
+  double dt,
+  Force& force,
+  Box& box,
+  Atom& atom,
+  const std::vector<Group>& group,
   GPU_Vector<double>& thermo)
 {
   // Reuse each Action's already sampled increment. Replaying post_force would
@@ -109,9 +123,16 @@ void Spin_Ensemble::refresh_endpoint(
   // or fractional region; the corrector preserves membership under cell scaling.
   const int n = atom.number_of_atoms;
   capture_modifiers<<<(n + 127) / 128, 128>>>(
-    n, atom.spin_per_atom.data(), atom.force_per_atom.data(), atom.mforce_per_atom.data(),
-    atom.potential_per_atom.data(), atom.virial_per_atom.data(), modifiers_.force.data(),
-    modifiers_.mforce.data(), modifiers_.energy.data(), modifiers_.virial.data());
+    n,
+    atom.spin_per_atom.data(),
+    atom.force_per_atom.data(),
+    atom.mforce_per_atom.data(),
+    atom.potential_per_atom.data(),
+    atom.virial_per_atom.data(),
+    modifiers_.force.data(),
+    modifiers_.mforce.data(),
+    modifiers_.energy.data(),
+    modifiers_.virial.data());
   GPU_CHECK_KERNEL
   if (use_spin_sib)
     spin_integrator->compute2(dt, atom);
@@ -141,7 +162,10 @@ void Spin_Ensemble::refresh_endpoint(
     box.set_is_orthogonal();
     // Interpolate continuously, then wrap completely in the midpoint cell before force evaluation.
     midpoint_position<<<(n + 127) / 128, 128>>>(
-      n, box, start_position_.data(), atom.unwrapped_position.data(),
+      n,
+      box,
+      start_position_.data(),
+      atom.unwrapped_position.data(),
       atom.position_per_atom.data());
     GPU_CHECK_KERNEL
     atom.position_image.fill(0);

@@ -28,44 +28,7 @@ python tests_pytest/validate_spin_glsd_runtime.py --binary "$GPUMD_COMMAND" --ou
 
 The GLSD command checks analytic zero/constant-field trajectories, deterministic
 radial relaxation, physical-state restart, fresh per-run noise seeding, and 1/2/4 GPU parity.
-The bundled-model comparisons use a 0.01 fs timestep and require convergence
-within 100 midpoint corrections; default-cap behavior is checked separately.
 It does not establish equilibrium sampling of an arbitrary trained potential.
-
-For deterministic spin/lattice timestep convergence on one GPU:
-
-```sh
-python tests_pytest/validate_spin_glsd_coupled.py --binary "$GPUMD_COMMAND" --output "$RESULTS/glsd-coupled"
-python -m pytest --noconftest -q tests_pytest/test_mttk_chain.py
-python -m pytest --noconftest -q tests_pytest/test_nhc_stability.py
-```
-
-The coupled check keeps the model, initial state, elapsed time and physical
-thermostat/barostat periods fixed while halving the timestep. It checks position,
-velocity and spin errors for weak and finite NHC coupling, plus the cell for
-triclinic MTTK, and verifies continuity across a periodic crossing. The MTTK
-temperature-chain check compares production stepping with independent host RK4.
-An optional `--reference /path/to/previous/gpumd` supplies a negative control;
-both executables must support the same model format.
-
-The common NHC integrator is unchanged from upstream and uses four RESPA
-substeps. Its host RK4 check uses a 0.5 fs timestep and coupling times
-of 100 steps for four atoms and 500 steps for 5,575,680 atoms. A shorter coupling
-time can still destabilize a large reservoir with a large temperature mismatch;
-the fixed-four integrator does not increase substeps automatically.
-
-For accumulated periodic images on one GPU:
-
-```sh
-python tests_pytest/validate_spin_glsd_images.py --binary "$GPUMD_COMMAND" --output "$RESULTS/glsd-images"
-python -m pytest --noconftest -q tests_pytest/test_spin_midpoint_position.py
-```
-
-Five ordinary NVE steps accumulate independent positive and negative images.
-The following GLSD steps must match a control restarted from the same wrapped
-positions, velocities and spins, for both orthogonal and triclinic cells.
-An optional `--reference /path/to/previous/gpumd` verifies the old orthogonal
-image-history failure. The host test also covers deforming cells and partial PBC.
 
 Use [runtime validation](spin_runtime_validation.md) for the fixed-spin and
 ordinary full regression commands, and [training validation](spin_validation.md)

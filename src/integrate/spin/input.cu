@@ -246,17 +246,20 @@ Spin_Ensemble::Spin_Ensemble(
         PRINT_INPUT_ERROR(
           "mobility is not supported; GLSD uses dimensionless damping = hbar * gamma_s_prime.");
       } else if (strcmp(param[index], "midpoint_tol") == 0) {
-        if (!use_spin_glsd || has_midpoint_tol ||
-            !is_valid_real(param[index + 1], &spin_glsd_midpoint_tol) ||
-            !std::isfinite(spin_glsd_midpoint_tol) || spin_glsd_midpoint_tol <= 0.0) {
+        if (
+          !use_spin_glsd || has_midpoint_tol ||
+          !is_valid_real(param[index + 1], &spin_glsd_midpoint_tol) ||
+          !std::isfinite(spin_glsd_midpoint_tol) || spin_glsd_midpoint_tol <= 0.0) {
           PRINT_INPUT_ERROR("GLSD midpoint_tol must be finite and > 0, and cannot be repeated.");
         }
         has_midpoint_tol = true;
       } else if (strcmp(param[index], "midpoint_max_iter") == 0) {
-        if (!use_spin_glsd || has_midpoint_max_iter ||
-            !is_valid_int(param[index + 1], &spin_glsd_midpoint_max_iter) ||
-            spin_glsd_midpoint_max_iter <= 0) {
-          PRINT_INPUT_ERROR("GLSD midpoint_max_iter must be a positive integer and cannot be repeated.");
+        if (
+          !use_spin_glsd || has_midpoint_max_iter ||
+          !is_valid_int(param[index + 1], &spin_glsd_midpoint_max_iter) ||
+          spin_glsd_midpoint_max_iter <= 0) {
+          PRINT_INPUT_ERROR(
+            "GLSD midpoint_max_iter must be a positive integer and cannot be repeated.");
         }
         has_midpoint_max_iter = true;
       } else if (strcmp(param[index], "alpha") == 0) {
@@ -357,8 +360,10 @@ Spin_Ensemble::Spin_Ensemble(
   } else {
     if (use_spin_glsd) {
       printf("Integrate variable-magnitude spins with Ma-Dudarev GLSD (implicit midpoint).\n");
-      printf("    midpoint_tol = %.17g, midpoint_max_iter = %d.\n",
-             spin_glsd_midpoint_tol, spin_glsd_midpoint_max_iter);
+      printf(
+        "    midpoint_tol = %.17g, midpoint_max_iter = %d.\n",
+        spin_glsd_midpoint_tol,
+        spin_glsd_midpoint_max_iter);
       printf("    damping = %.17g (dimensionless hbar * gamma_s_prime).\n", spin_glsd_damping);
       printf(
         "    converted mobility = %.17g muB^2/(eV ps); Cartesian Boltzmann measure.\n",

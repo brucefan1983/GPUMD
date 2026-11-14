@@ -83,10 +83,10 @@ static __global__ void gpu_glsd_midpoint(
   // Solve the linear spin dependence exactly; only H(S_mid) needs fixed-point iteration.
   for (int d = 0; d < 3; ++d) {
     const int k = d * n + i, a = (d + 1) % 3, b = (d + 2) % 3;
-    const double value =
-      ((1.0 - q2) * s[d] + 2.0 * (q[a] * s[b] - q[b] * s[a]) + 2.0 * q[d] * qs +
-       xi[d] + q[a] * xi[b] - q[b] * xi[a] + q[d] * qxi) / (1.0 + q2) +
-      dt * mobility * field[k];
+    const double value = ((1.0 - q2) * s[d] + 2.0 * (q[a] * s[b] - q[b] * s[a]) + 2.0 * q[d] * qs +
+                          xi[d] + q[a] * xi[b] - q[b] * xi[a] + q[d] * qxi) /
+                           (1.0 + q2) +
+                         dt * mobility * field[k];
     const double midpoint = 0.5 * (start[k] + value);
     if (!isfinite(value))
       atomicMax(status, 2);
@@ -221,10 +221,13 @@ void Spin_GLSD::finish_step(Atom& atom)
 void Spin_GLSD::report_iterations() const
 {
   if (step_ > 0) {
-    printf("GLSD midpoint iterations per step: mean %.3f, max %d.\n",
-           total_iterations_ / static_cast<double>(step_), max_iterations_);
-    printf("GLSD midpoint steps accepted at iteration cap before convergence: %llu of %llu.\n",
-           static_cast<unsigned long long>(unconverged_steps_),
-           static_cast<unsigned long long>(step_));
+    printf(
+      "GLSD midpoint iterations per step: mean %.3f, max %d.\n",
+      total_iterations_ / static_cast<double>(step_),
+      max_iterations_);
+    printf(
+      "GLSD midpoint steps accepted at iteration cap before convergence: %llu of %llu.\n",
+      static_cast<unsigned long long>(unconverged_steps_),
+      static_cast<unsigned long long>(step_));
   }
 }
