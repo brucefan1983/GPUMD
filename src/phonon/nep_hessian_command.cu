@@ -16,9 +16,10 @@
 #include "nep_analytic_hessian.cuh"
 #include "nep_hessian_model.cuh"
 #include "force/force.cuh"
+#include "force/nep/nep_multigpu.cuh"
 #include "model/atom.cuh"
 #include "utilities/error.cuh"
-#include "utilities/read_file.cuh"
+#include "utilities/run_input.cuh"
 #include <cerrno>
 #include <climits>
 #include <cmath>
@@ -191,6 +192,30 @@ std::string json_escape(const std::string& value)
   return result;
 }
 
+void check_output_paths(
+  const std::vector<std::string>& requested_outputs, const RunInput& run_input,
+  const std::string& actual_potential)
+{
+  std::vector<std::string> inputs = {"model.xyz", "run.in", actual_potential};
+  for (const auto& line : run_input.lines()) {
+    if (line.tokens.empty() || line.tokens[0] != "potential") continue;
+    for (size_t i = 1; i < line.tokens.size(); ++i)
+      if (regular_file(line.tokens[i])) inputs.push_back(line.tokens[i]);
+  }
+  std::vector<std::string> outputs;
+  for (const auto& path : requested_outputs)
+    if (!path.empty()) outputs.push_back(path);
+  for (size_t i = 0; i < outputs.size(); ++i) {
+    canonical_output_path(outputs[i]);
+    for (const auto& input : inputs)
+      if (same_file(outputs[i], input))
+        PRINT_INPUT_ERROR(("Hessian outputs must differ from input paths: " + outputs[i]).c_str());
+    for (size_t j = 0; j < i; ++j)
+      if (same_file(outputs[i], outputs[j]))
+        PRINT_INPUT_ERROR(("Hessian output paths must differ: " + outputs[i]).c_str());
+  }
+}
+
 void write_matrix(
   const std::string& path, const std::vector<double>& matrix, int N,
   const std::string& result_kind)
@@ -219,7 +244,7 @@ void write_matrix(
 void write_matrix_market(
   const std::string& path,
   const sparse_hessian::BlockPattern& pattern,
-  const std::vector<double>& values)
+  const std::vector<double>& values, const std::string& result_kind)
 {
   if (values.size() != pattern.value_count())
     PRINT_INPUT_ERROR("Sparse Hessian output has inconsistent dimensions.");
@@ -231,6 +256,7 @@ void write_matrix_market(
     PRINT_INPUT_ERROR(("Cannot open Hessian output file: " + path).c_str());
   const int dimension = 3 * pattern.atoms;
   output << "%%MatrixMarket matrix coordinate real general\n"
+         << "% result=" << result_kind << "\n"
          << "% coordinate_order=soa\n"
          << "% definition=minus_force_jacobian\n"
          << "% unit=eV/A^2\n"
@@ -287,8 +313,9 @@ struct OutputPaths
 void write_metadata(
   const std::string& path, Box& box, Atom& atom,
   const nep_hessian::Diagnostics& raw_diagnostics,
-  const nep_hessian::Diagnostics& sym_diagnostics,
-  const std::string& method,
+  const nep_hessian::Diagnostics* sym_diagnostics,
+  const std::string& storage_format, bool passed, const std::string& error,
+  bool temperature_dependent, double model_temperature,
   double potential_energy, const std::vector<double>& cartesian_force,
   const OutputPaths& outputs)
 {
@@ -299,7 +326,7 @@ void write_metadata(
   output << std::setprecision(17);
 
   output << "{\n";
-  output << "  \"schema_version\": 4,\n";
+  output << "  \"schema_version\": 5,\n";
   output << "  \"system\": {\n";
   output << "    \"N\": " << N << ",\n";
   output << "    \"atom_order\": [";
@@ -330,15 +357,22 @@ void write_metadata(
 
   output << "  \"matrix\": {\n";
   output << "    \"coordinate_order\": \"soa\",\n";
-  output << "    \"matrix_order\": \"row_major\",\n";
+  output << "    \"matrix_order\": \""
+         << (storage_format == "sparse" ? "coordinate" : "row_major") << "\",\n";
   output << "    \"definition\": \"minus_force_jacobian\",\n";
   output << "    \"unit\": \"eV/A^2\",\n";
-  output << "    \"method\": \"" << json_escape(method) << "\"\n";
+  output << "    \"storage_format\": \"" << storage_format << "\",\n";
+  output << "    \"method\": \"analytic\"\n";
   output << "  },\n";
 
   output << "  \"analytic\": {\n";
   output << "    \"status\": "
-         << (method == "analytic" ? "\"success\"" : "null") << ",\n";
+         << (passed ? "\"success\"" : "\"failed_validation\"") << ",\n";
+  output << "    \"failure_reason\": " << nullable_string(error) << ",\n";
+  output << "    \"model_temperature_K\": ";
+  if (temperature_dependent) output << model_temperature;
+  else output << "null";
+  output << ",\n";
   output << "    \"potential_energy_eV\": " << potential_energy << ",\n";
   output << "    \"force_soa\": [";
   for (size_t i = 0; i < cartesian_force.size(); ++i) {
@@ -355,7 +389,8 @@ void write_metadata(
   write_diagnostics(output, raw_diagnostics);
   output << ",\n    \"symmetrized\":";
   output << "\n";
-  write_diagnostics(output, sym_diagnostics);
+  if (sym_diagnostics) write_diagnostics(output, *sym_diagnostics);
+  else output << "null";
   output << "\n  },\n";
 
   output << "  \"outputs\": {\n";
@@ -430,73 +465,74 @@ void NEP_Hessian_Command::parse(const std::vector<std::string>& tokens)
     PRINT_INPUT_ERROR(
       "compute_hessian parameters must be given as key-value pairs.");
   }
-  if (output_format_ == "sparse" &&
-      (!raw_output_.empty() || !metadata_output_.empty()))
-    PRINT_INPUT_ERROR(
-      "sparse output currently supports the analytic matrix and optional structure snapshot; raw_output and metadata are unavailable.");
-  {
-    std::vector<std::string> outputs;
-    for (const auto& path : {output_, raw_output_, metadata_output_, structure_output_})
-      if (!path.empty()) outputs.push_back(path);
-    std::vector<std::string> inputs = {"model.xyz", "run.in"};
-    std::ifstream run_input("run.in");
-    std::string line;
-    while (std::getline(run_input, line)) {
-      const auto tokens = get_tokens(line);
-      if (tokens.empty() || tokens[0] != "potential") continue;
-      for (size_t i = 1; i < tokens.size(); ++i) {
-        if (regular_file(tokens[i]))
-          inputs.push_back(tokens[i]);
-      }
-    }
-    for (size_t i = 0; i < outputs.size(); ++i) {
-      canonical_output_path(outputs[i]);
-      for (const auto& input : inputs)
-        if (same_file(outputs[i], input))
-          PRINT_INPUT_ERROR(("Hessian outputs (including structure_output) must differ from input paths: " + outputs[i]).c_str());
-      for (size_t j = 0; j < i; ++j)
-        if (same_file(outputs[i], outputs[j]))
-          PRINT_INPUT_ERROR(("Hessian output paths (including structure_output) must differ: " + outputs[i]).c_str());
-    }
-  }
 }
 
 void NEP_Hessian_Command::compute(
-  Force& force, Box& box, Atom& atom, const std::string& potential_filename)
+  Force& force, Box& box, Atom& atom, const std::string& potential_filename,
+  const RunInput& run_input)
 {
   if (force.get_number_of_potentials() != 1)
     PRINT_INPUT_ERROR("compute_hessian requires exactly one potential.");
+  auto& potential = force.get_potential(0);
+  if (dynamic_cast<NEP_MULTIGPU*>(&potential))
+    PRINT_INPUT_ERROR("compute_hessian does not support NEP_MULTIGPU; use single-GPU NEP.");
+  auto* nep = dynamic_cast<NEP*>(&potential);
+  if (!nep)
+    PRINT_INPUT_ERROR("compute_hessian requires the single-GPU NEP implementation; this potential implementation is unsupported.");
+  if (nep->nep_model_type != 0 && nep->nep_model_type != 3)
+    PRINT_INPUT_ERROR("compute_hessian supports only ordinary and temperature-dependent NEP models.");
+  if (nep->ilp_flag != 0)
+    PRINT_INPUT_ERROR("compute_hessian does not support NEP with ILP.");
+  if (run_input.contains("dftd3"))
+    PRINT_INPUT_ERROR("compute_hessian does not support the DFT-D3 dispersion correction.");
   if (potential_filename.empty())
     PRINT_INPUT_ERROR("compute_hessian could not locate the potential file.");
-
-  NEP_Hessian_Model model;
-  model.initialize(potential_filename.c_str());
   const int N = atom.number_of_atoms;
   if (N <= 0 || N > std::numeric_limits<int>::max() / 3 ||
       atom.position_per_atom.size() != static_cast<size_t>(3) * N)
     PRINT_INPUT_ERROR("compute_hessian requires a valid, consistent system.");
-  std::vector<double> position(static_cast<size_t>(3) * N);
-  atom.position_per_atom.copy_to_host(position.data());
-  for (double value : position)
-    if (!std::isfinite(value))
-      PRINT_INPUT_ERROR("compute_hessian found a non-finite coordinate.");
-
-  sparse_hessian::BlockPattern pattern;
   const bool sparse = output_format_ == "sparse";
+  if (!sparse && 3 * N > std::numeric_limits<int>::max() / (3 * N))
+    PRINT_INPUT_ERROR("Analytic Hessian dense matrix exceeds supported index range.");
+  check_output_paths({output_, raw_output_, metadata_output_, structure_output_},
+    run_input, potential_filename);
+
+  NEP_Hessian_Model model;
+  model.initialize(potential_filename.c_str());
+  const bool temperature_dependent = nep->nep_model_type == 3;
+  // The descriptor kernels receive the same float temperature as ordinary NEP.
+  const double model_temperature = static_cast<float>(force.get_temperature());
+  if (temperature_dependent)
+    printf("Analytic Hessian model temperature: %.17g K.\n", model_temperature);
+  sparse_hessian::BlockPattern pattern;
   std::vector<double> matrix, analytic_force;
   nep_hessian::Diagnostics raw_diagnostics;
   double potential_energy = 0.0;
-  if (!compute_nep_analytic_hessian(
-        force, model, box, atom, position, N, matrix, analytic_force,
-        potential_energy, raw_diagnostics, sparse ? &pattern : nullptr)) {
-    PRINT_INPUT_ERROR("Analytic Hessian is unsupported or failed validation.");
+  std::string error;
+  const bool passed = compute_nep_analytic_hessian(
+    force, model, box, atom, matrix, analytic_force,
+    potential_energy, raw_diagnostics, error, sparse ? &pattern : nullptr);
+  if (!passed && (matrix.empty() || !raw_diagnostics.finite))
+    PRINT_INPUT_ERROR(error.c_str());
+
+  // Finite raw matrices remain useful when symmetry/translation checks fail.
+  // Only explicitly requested diagnostic files are written on this path.
+  if (!raw_output_.empty()) {
+    const std::string kind = passed ? "analytic_raw" : "analytic_raw_failed_validation";
+    if (sparse) write_matrix_market(raw_output_, pattern, matrix, kind);
+    else write_matrix(raw_output_, matrix, N, kind);
+  }
+  if (!passed) {
+    if (!metadata_output_.empty())
+      write_metadata(metadata_output_, box, atom, raw_diagnostics, nullptr,
+        output_format_, false, error, temperature_dependent, model_temperature,
+        potential_energy, analytic_force, {"", raw_output_});
+    PRINT_INPUT_ERROR(error.c_str());
   }
   if (sparse) {
     pattern.symmetrize(matrix);
-    write_matrix_market(output_, pattern, matrix);
+    write_matrix_market(output_, pattern, matrix, "analytic_symmetrized");
   } else {
-    if (!raw_output_.empty()) write_matrix(raw_output_, matrix, N, "analytic_raw");
-    // Preserve raw diagnostics and any requested raw file, then reuse storage.
     const size_t dimension = static_cast<size_t>(3) * N;
     for (size_t row = 0; row < dimension; ++row)
       for (size_t column = row + 1; column < dimension; ++column) {
@@ -507,12 +543,16 @@ void NEP_Hessian_Command::compute(
       }
     write_matrix(output_, matrix, N, "analytic_symmetrized");
   }
-  if (!structure_output_.empty())
+  if (!structure_output_.empty()) {
+    std::vector<double> position(atom.position_per_atom.size());
+    atom.position_per_atom.copy_to_host(position.data());
     write_structure_snapshot(structure_output_, force, box, atom, position, analytic_force);
+  }
   if (!metadata_output_.empty()) {
-    const auto sym_diagnostics = nep_hessian::inspect(matrix, N);
-    write_metadata(metadata_output_, box, atom, raw_diagnostics, sym_diagnostics,
-      "analytic", potential_energy, analytic_force, {output_, raw_output_});
+    const auto sym_diagnostics = nep_hessian::inspect(matrix, N, sparse ? &pattern : nullptr);
+    write_metadata(metadata_output_, box, atom, raw_diagnostics, &sym_diagnostics,
+      output_format_, true, "", temperature_dependent, model_temperature,
+      potential_energy, analytic_force, {output_, raw_output_});
   }
   printf("Analytic Hessian: N=%d format=%s raw_asymmetry_max=%.12g "
          "raw_translation_max=%.12g.\n", N, output_format_.c_str(),

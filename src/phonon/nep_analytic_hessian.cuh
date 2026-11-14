@@ -29,7 +29,8 @@ axis * N + atom.  Atom-major ordering is an export-layer concern only.
 The current implementation covers radial, angular, radial-angular ANN cross,
 and NEP ZBL terms, including periodic images in small boxes. Angular derivatives
 are prepared once per center-neighbor-n tuple and reused by staged pair and
-radial-angular kernels. Unsupported model classes return false.
+radial-angular kernels. Failures return false with a specific error.
+Finite matrices failing numerical diagnostics remain available to the caller.
 
 This module is analytic only: there is no finite-difference fallback here.
 The run-input dispatcher rejects configurations with DFT-D3 enabled.
@@ -39,6 +40,7 @@ The run-input dispatcher rejects configurations with DFT-D3 enabled.
 #include "utilities/gpu_vector.cuh"
 #include "nep_hessian_diagnostics.cuh"
 #include <vector>
+#include <string>
 
 class Force;
 class Box;
@@ -50,10 +52,9 @@ bool compute_nep_analytic_hessian(
   NEP_Hessian_Model& model,
   Box& box,
   Atom& atom,
-  const std::vector<double>& position_soa, // 3 * N, component * N + atom
-  int N,
   std::vector<double>& hessian_soa,        // 3N x 3N, row-major SoA
   std::vector<double>& force_soa,          // 3N, component * N + atom
   double& pe_out,
   nep_hessian::Diagnostics& diagnostics,
+  std::string& error,
   sparse_hessian::BlockPattern* sparse_pattern = nullptr);

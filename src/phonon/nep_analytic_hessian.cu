@@ -1689,6 +1689,8 @@ public:
            copy_to_device(position_host_.data(), position_.first, position_.second);
   }
 
+  const std::vector<double>& positions() const { return position_host_; }
+
 private:
   using DeviceArray = std::pair<double*, size_t>;
 
@@ -1742,30 +1744,28 @@ bool compute_nep_analytic_hessian(
   NEP_Hessian_Model& model,
   Box& box,
   Atom& atom,
-  const std::vector<double>& position_soa,
-  int N,
   std::vector<double>& hessian_out,
   std::vector<double>& force_out,
   double& pe_out,
   nep_hessian::Diagnostics& diagnostics,
+  std::string& error,
   sparse_hessian::BlockPattern* sparse_pattern)
 {
+  error.clear();
   hessian_out.clear();
   force_out.clear();
   pe_out = 0.0;
-  if (N <= 0 || N > std::numeric_limits<int>::max() / 3 ||
-      atom.number_of_atoms != N)
-    return false;
+  const int N = atom.number_of_atoms;
+  auto fail = [&](const char* reason) { error = reason; return false; };
+  if (N <= 0 || N > std::numeric_limits<int>::max() / 3)
+    return fail("Analytic Hessian: atom count exceeds supported index range.");
   const int N3 = 3 * N;
-  if (position_soa.size() != static_cast<size_t>(N3)) {
-    printf("NEP analytic Hessian: explicit position array size is invalid.\n");
-    return false;
-  }
-
-  if (force.get_number_of_potentials() != 1) return false;
+  if (force.get_number_of_potentials() != 1)
+    return fail("Analytic Hessian requires exactly one potential.");
   auto* nep = dynamic_cast<NEP*>(&force.get_potential(0));
-  if (nep == nullptr || nep->nep_model_type < 0 || nep->nep_model_type > 3 ||
-      nep->ilp_flag != 0) return false;
+  if (nep == nullptr || (nep->nep_model_type != 0 && nep->nep_model_type != 3) ||
+      nep->ilp_flag != 0)
+    return fail("Analytic Hessian requires ordinary single-GPU NEP or temperature NEP without ILP.");
   const bool use_expanded_box = model_requires_expanded_box(model, box);
   if (model.paramb.L_max < 0 || model.paramb.L_max > 8 ||
       (model.paramb.L_max + 1) * (model.paramb.L_max + 1) - 1 >
@@ -1773,7 +1773,7 @@ bool compute_nep_analytic_hessian(
     printf(
       "NEP analytic Hessian: unsupported L_max=%d (supported range is 0..8).\n",
       model.paramb.L_max);
-    return false;
+    return fail("Unsupported analytic Hessian angular expansion (L_max).");
   }
   if (model.paramb.n_max_radial < 0 ||
       model.paramb.n_max_radial + 1 > MAX_NUM_N ||
@@ -1781,19 +1781,19 @@ bool compute_nep_analytic_hessian(
       model.paramb.n_max_angular + 1 > MAX_NUM_N ||
       model.paramb.num_L < 0 ||
       model.paramb.num_L > MAX_ANGULAR_DESCRIPTORS) {
-    return false;
+    return fail("Analytic Hessian descriptor orders exceed kernel limits.");
   }
   const int radial_descriptor_count = model.paramb.n_max_radial + 1;
   const int angular_descriptor_stride = model.paramb.n_max_angular + 1;
   if (model.paramb.num_L > 0 && angular_descriptor_stride >
       std::numeric_limits<int>::max() / model.paramb.num_L) {
-    return false;
+    return fail("Analytic Hessian angular descriptor count exceeds index range.");
   }
   const int angular_descriptor_count =
     model.paramb.num_L * angular_descriptor_stride;
   if (radial_descriptor_count >
       std::numeric_limits<int>::max() - angular_descriptor_count) {
-    return false;
+    return fail("Analytic Hessian descriptor count exceeds index range.");
   }
   const int expected_descriptor_count = radial_descriptor_count +
     angular_descriptor_count + (nep->nep_model_type == 3 ? 1 : 0);
@@ -1807,12 +1807,12 @@ bool compute_nep_analytic_hessian(
       "NEP analytic Hessian: descriptor dimension mismatch "
       "(annmb.dim=%d, expected=%d).\n",
       model.annmb.dim, expected_descriptor_count);
-    return false;
+    return fail("Analytic Hessian descriptor dimensions are inconsistent or exceed kernel index limits.");
   }
   // Only the dense kernels address a full (3N)^2 matrix using int indices.
   if (sparse_pattern == nullptr && N3 > std::numeric_limits<int>::max() / N3) {
     printf("NEP analytic Hessian: dense matrix exceeds supported index range.\n");
-    return false;
+    return fail("Analytic Hessian dense matrix exceeds supported index range.");
   }
   const size_t expected_position_size = static_cast<size_t>(N3);
   const size_t expected_atom_size = static_cast<size_t>(N);
@@ -1822,21 +1822,13 @@ bool compute_nep_analytic_hessian(
       atom.virial_per_atom.size() != 9 * expected_atom_size ||
       atom.type.size() != expected_atom_size) {
     printf("NEP analytic Hessian: Atom array dimensions are inconsistent.\n");
-    return false;
-  }
-
-  for (int index = 0; index < N3; ++index) {
-    if (!std::isfinite(position_soa[index])) {
-      printf(
-        "NEP analytic Hessian: requested position %d is non-finite.\n", index);
-      return false;
-    }
+    return fail("Analytic Hessian Atom array dimensions are inconsistent.");
   }
 
   AtomStateBackup atom_backup(atom);
   if (!atom_backup.save()) {
     printf("NEP analytic Hessian: failed to save Atom state.\n");
-    return false;
+    return fail("Analytic Hessian failed to save Atom state.");
   }
 
   auto finish = [&](bool success) {
@@ -1857,24 +1849,20 @@ bool compute_nep_analytic_hessian(
       }
     }
     state_restored = atom_backup.restore() && state_restored;
-    if (!state_restored || !success) {
+    if (!state_restored) {
       hessian_out.clear();
       force_out.clear();
       pe_out = 0.0;
-      return false;
+      return fail("Analytic Hessian failed to restore Atom state or refresh force caches.");
     }
-    return true;
+    return success;
   };
 
-  const gpuError_t position_upload_error = gpuMemcpy(
-    atom.position_per_atom.data(), position_soa.data(),
-    N3 * sizeof(double), gpuMemcpyHostToDevice);
-  if (position_upload_error != gpuSuccess) {
-    fprintf(
-      stderr, "NEP analytic Hessian: failed to upload explicit position: %s.\n",
-      gpuGetErrorString(position_upload_error));
-    return finish(false);
-  }
+  // The only supported geometry is Atom's current state. No upload is needed.
+  for (const double coordinate : atom_backup.positions())
+    if (!std::isfinite(coordinate)) {
+      return fail("Analytic Hessian found a non-finite coordinate.");
+    }
 
   // 1. Run normal NEP force computation to get Fp, sum_fxyz, forces
   std::vector<Group> empty_groups;
@@ -1902,6 +1890,7 @@ bool compute_nep_analytic_hessian(
   if (radial_neighbor_list_gpu.size() > max_neighbor_entries ||
       angular_neighbor_list_gpu.size() > max_neighbor_entries) {
     printf("NEP analytic Hessian: neighbor lists exceed supported index range.\n");
+    error = "Analytic Hessian neighbor lists exceed supported index range.";
     return finish(false);
   }
 
@@ -1916,17 +1905,20 @@ bool compute_nep_analytic_hessian(
       radial_neighbor_list_gpu.size() % static_cast<size_t>(N) != 0 ||
       angular_neighbor_list_gpu.size() % static_cast<size_t>(N) != 0) {
     printf("NEP analytic Hessian: neighbor-list dimensions are invalid.\n");
+    error = "Analytic Hessian neighbor-list dimensions are invalid.";
     return finish(false);
   }
   if (use_expanded_box) {
     if (nep->small_box_data.r12.size() % 6 != 0) {
       printf("NEP analytic Hessian: expanded-box displacement cache is invalid.\n");
+      error = "Analytic Hessian expanded-box displacement cache is invalid.";
       return finish(false);
     }
     const size_t r12_plane_size = nep->small_box_data.r12.size() / 6;
     if (r12_plane_size < radial_neighbor_list_gpu.size() ||
         r12_plane_size < angular_neighbor_list_gpu.size()) {
       printf("NEP analytic Hessian: expanded-box displacement cache is too small.\n");
+      error = "Analytic Hessian expanded-box displacement cache is too small.";
       return finish(false);
     }
     radial_r12_x = nep->small_box_data.r12.data();
@@ -1954,6 +1946,7 @@ bool compute_nep_analytic_hessian(
         "NEP analytic Hessian: invalid radial neighbor count=%d "
         "for atom=%d (capacity=%zu).\n",
         radial_count, atom_index, radial_neighbor_capacity);
+      error = "Analytic Hessian radial neighbor count exceeds capacity.";
       return finish(false);
     }
     const int count = angular_neighbor_counts[atom_index];
@@ -1962,6 +1955,7 @@ bool compute_nep_analytic_hessian(
         "NEP analytic Hessian: invalid angular neighbor count=%d "
         "for atom=%d (capacity=%zu).\n",
         count, atom_index, angular_neighbor_capacity);
+      error = "Analytic Hessian angular neighbor count exceeds capacity.";
       return finish(false);
     }
     max_angular_neighbors = std::max(max_angular_neighbors, count);
@@ -2206,6 +2200,13 @@ bool compute_nep_analytic_hessian(
       "symmetry_frobenius=%.12g translation=%.12g.\n",
       diagnostics.finite, diagnostics.asymmetry_max_relative,
       diagnostics.asymmetry_frobenius_relative, diagnostics.translation_relative);
+    error = "Analytic Hessian matrix failed numerical diagnostics:";
+    if (!diagnostics.finite) error += " non-finite matrix;";
+    if (diagnostics.asymmetry_frobenius_relative > 1.0e-6 ||
+        diagnostics.asymmetry_max_relative > 1.0e-5)
+      error += " symmetry tolerance exceeded;";
+    if (diagnostics.translation_relative > 1.0e-5)
+      error += " translation tolerance exceeded;";
     return finish(false);
   }
   return finish(true);

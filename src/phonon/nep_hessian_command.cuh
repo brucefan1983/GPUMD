@@ -15,6 +15,7 @@
 class Atom;
 class Box;
 class Force;
+class RunInput;
 
 class NEP_Hessian_Command
 {
@@ -22,7 +23,7 @@ public:
   void parse(const std::vector<std::string>& tokens);
   void compute(
     Force& force, Box& box, Atom& atom,
-    const std::string& potential_filename);
+    const std::string& potential_filename, const RunInput& run_input);
 
 private:
   std::string output_ = "hessian.out";

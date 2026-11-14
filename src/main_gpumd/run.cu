@@ -342,7 +342,7 @@ void Run::parse_one_keyword(
     }
     NEP_Hessian_Command hessian;
     hessian.parse(tokens);
-    hessian.compute(force, box, atom, first_potential_filename_);
+    hessian.compute(force, box, atom, first_potential_filename_, run_input);
   } else if (tokens[0] == "compute_cohesive") {
     Cohesive cohesive;
     cohesive.parse(tokens, 0);

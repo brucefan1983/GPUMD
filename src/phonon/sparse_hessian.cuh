@@ -63,38 +63,47 @@ inline BlockPattern build_pattern_from_neighbors(
 {
   if (atoms <= 0 || radial_counts.size() != static_cast<size_t>(atoms) ||
       angular_counts.size() != static_cast<size_t>(atoms) ||
-      radial_list.size() < static_cast<size_t>(atoms) * radial_capacity ||
-      angular_list.size() < static_cast<size_t>(atoms) * angular_capacity)
+      radial_capacity > radial_list.size() / static_cast<size_t>(atoms) ||
+      angular_capacity > angular_list.size() / static_cast<size_t>(atoms))
     PRINT_INPUT_ERROR("invalid sparse Hessian neighbor lists");
-  std::vector<std::vector<int>> rows(atoms);
+  // Store each unique environment once and map atoms back to its centers.
+  // Row assembly below uses reusable marks rather than retaining repeated
+  // copies of every environment in every row.
+  std::vector<std::vector<int>> environments(atoms), centers_for_atom(atoms);
   for (int center = 0; center < atoms; ++center) {
-    std::vector<int> environment{center};
+    auto& environment = environments[center];
+    environment.push_back(center);
     const int radial_count = radial_counts[center];
     const int angular_count = angular_counts[center];
     if (radial_count < 0 || static_cast<size_t>(radial_count) > radial_capacity ||
         angular_count < 0 || static_cast<size_t>(angular_count) > angular_capacity)
       PRINT_INPUT_ERROR("invalid sparse Hessian neighbor count");
     for (int slot = 0; slot < radial_count; ++slot)
-      environment.push_back(radial_list[center + atoms * slot]);
+      environment.push_back(radial_list[center + static_cast<size_t>(atoms) * slot]);
     for (int slot = 0; slot < angular_count; ++slot)
-      environment.push_back(angular_list[center + atoms * slot]);
+      environment.push_back(angular_list[center + static_cast<size_t>(atoms) * slot]);
     for (const int atom : environment)
       if (atom < 0 || atom >= atoms)
         PRINT_INPUT_ERROR("sparse Hessian neighbor index is out of range");
     std::sort(environment.begin(), environment.end());
     environment.erase(std::unique(environment.begin(), environment.end()), environment.end());
     for (const int atom : environment)
-      rows[atom].insert(rows[atom].end(), environment.begin(), environment.end());
+      centers_for_atom[atom].push_back(center);
   }
   BlockPattern result;
   result.atoms = atoms;
   result.row_offsets.reserve(static_cast<size_t>(atoms) + 1);
   result.row_offsets.push_back(0);
+  std::vector<int> marks(atoms, -1), row;
   for (int atom = 0; atom < atoms; ++atom) {
-    auto& row = rows[atom];
-    row.push_back(atom);
+    row.clear();
+    for (const int center : centers_for_atom[atom])
+      for (const int other : environments[center])
+        if (marks[other] != atom) {
+          marks[other] = atom;
+          row.push_back(other);
+        }
     std::sort(row.begin(), row.end());
-    row.erase(std::unique(row.begin(), row.end()), row.end());
     if (row.empty())
       PRINT_INPUT_ERROR("invalid sparse Hessian CSR row");
     result.columns.insert(result.columns.end(), row.begin(), row.end());

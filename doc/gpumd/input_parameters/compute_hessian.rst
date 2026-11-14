@@ -28,13 +28,12 @@ must follow the :ref:`potential <kw_potential>` definition.
    sparsity pattern built from the NEP neighbor environments.
 
 ``raw_output``
-   Optional dense text matrix before symmetrization. Unavailable with
-   ``output_format sparse``.
+   Optional matrix before symmetrization, using the selected output format.
 
 ``metadata``
    Optional JSON file with system information, analytic energy and forces,
-   and matrix diagnostics before and after symmetrization. Unavailable with
-   ``output_format sparse``.
+   and matrix diagnostics before and after symmetrization. Available with
+   both dense and sparse storage.
 
 ``structure_output``
    Optional extended XYZ snapshot of the evaluated positions, masses, and
@@ -102,7 +101,9 @@ Supported models and temperature
 --------------------------------
 
 The command uses the same ``NEP_Model_File`` reader and validation as the
-NEP force evaluator. It accepts the current versioned model format with
+NEP force evaluator. The active potential must use the single-GPU NEP
+implementation; ``NEP_MULTIGPU`` and ILP combinations are rejected before
+loading Hessian parameters. It accepts the current versioned model format with
 ``model nep`` or ``model nep_temperature``, including universal, typewise,
 and flexible ZBL settings accepted by that reader. Descriptor coefficients
 use the native type-pair layout, including models compacted to the species
@@ -137,12 +138,18 @@ The raw matrix must be finite and satisfy these relative checks:
 * largest absolute Cartesian translation sum divided by the largest
   absolute matrix entry: at most :math:`10^{-5}`.
 
-Failed checks terminate the command. These structural checks do not replace
-comparison with an independently evaluated force Jacobian.
+Failed checks terminate the command. If the raw matrix is finite but fails
+symmetry or translation checks, explicitly requested ``raw_output`` and
+``metadata`` files are written with ``failed_validation`` status before
+termination. The normal matrix and structure outputs are not written in this
+case; metadata records no normal matrix output or symmetrized diagnostics.
+These structural checks do not replace comparison with an independently
+evaluated force Jacobian.
 
-Metadata schema version 4 records the cell, periodicity, atom types and order,
-matrix conventions, energy, forces, output paths, and raw/symmetrized matrix
-diagnostics. Git information and input-file hashes are intentionally left
+Metadata schema version 5 records the cell, periodicity, atom types and order,
+matrix conventions and storage format, energy, forces, actual model temperature
+(for temperature-dependent NEP), validation status, output paths, and
+raw/symmetrized matrix diagnostics. Git information and input-file hashes are intentionally left
 to external provenance or validation tools.
 
 Examples
