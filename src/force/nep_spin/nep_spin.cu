@@ -1961,7 +1961,7 @@ void NEP_Spin::compute(
         potential.data());
       GPU_CHECK_KERNEL
     }
-    save_force_snapshot(force, mforce);
+    save_force_snapshot(force, mforce, potential, virial);
     return;
   }
 
@@ -2177,16 +2177,5 @@ void NEP_Spin::compute(
       potential.data());
     GPU_CHECK_KERNEL
   }
-  save_force_snapshot(force, mforce);
-}
-
-void NEP_Spin::save_force_snapshot(
-  const GPU_Vector<double>& force, const GPU_Vector<double>& mforce)
-{
-  if (force_snapshot_) {
-    force_snapshot_->copy_from_device(force.data());
-    mforce_snapshot_->copy_from_device(mforce.data());
-    force_snapshot_ = nullptr;
-    mforce_snapshot_ = nullptr;
-  }
+  save_force_snapshot(force, mforce, potential, virial);
 }

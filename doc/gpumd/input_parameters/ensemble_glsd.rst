@@ -14,7 +14,7 @@
 GLSD evolves both direction and magnitude of ``spin:R:3`` magnetic moments.
 It implements the generalized Langevin equation of Ma and Dudarev,
 Phys. Rev. B **86**, 054416 (2012), Eqs. (18)--(19) and (33), with a stochastic
-Heun discretization. It requires a Spin potential and uses its existing
+implicit-midpoint discretization. It requires a Spin potential and uses its existing
 magnetic force, atomic force and virial interfaces.
 For fixed-magnitude dynamics use :ref:`SIB <kw_ensemble_sib>`.
 
@@ -55,9 +55,9 @@ Syntax and parameters
 
 ::
 
-    ensemble nve_glsd damping <value> [gamma <value>] [stemp <-1|value>] [seed <value>]
-    ensemble nvt_glsd <T_1> <T_2> <T_coup> [lattice on|off] damping <value> [gamma <value>] [stemp <-1|0|value>] [seed <value>]
-    ensemble npt_glsd temp <T_1> <T_2> <pressure_terms> [tperiod <tau_temp>] [pperiod <tau_press>] damping <value> [gamma <value>] [stemp <-1|0|value>] [seed <value>]
+    ensemble nve_glsd damping <value> [gamma <value>] [stemp <-1|value>] [seed <value>] [midpoint_tol <value>] [midpoint_max_iter <N>]
+    ensemble nvt_glsd <T_1> <T_2> <T_coup> [lattice on|off] damping <value> [gamma <value>] [stemp <-1|0|value>] [seed <value>] [midpoint_tol <value>] [midpoint_max_iter <N>]
+    ensemble npt_glsd temp <T_1> <T_2> <pressure_terms> [tperiod <tau_temp>] [pperiod <tau_press>] damping <value> [gamma <value>] [stemp <-1|0|value>] [seed <value>] [midpoint_tol <value>] [midpoint_max_iter <N>]
 
 ``damping``
   Required, finite, non-negative and dimensionless. It is
@@ -88,6 +88,23 @@ Syntax and parameters
 
 ``seed``
   Positive integer; default ``12345``. Keys the counter-based Gaussian stream.
+
+``midpoint_tol``
+  Finite positive midpoint convergence tolerance; default ``1e-7``.
+  Each component must change by at most ``midpoint_tol * (1 + abs(S_mid))``.
+  A smaller value tightens self-consistency but can stall at the potential's
+  float-precision noise floor. A larger value accepts a less accurate implicit step.
+
+``midpoint_max_iter``
+  Positive integer; default ``4``. Maximum midpoint corrections per step.
+  The solve stops early when converged; otherwise it accepts the last finite
+  update at this limit. The end-of-run log counts steps accepted before
+  convergence. Increase the limit or reduce the timestep when greater
+  self-consistency is needed. Both midpoint options apply only to GLSD.
+
+For example, to cap the work at 20 corrections while retaining the default tolerance::
+
+    ensemble nve_glsd damping 0 stemp -1 midpoint_tol 1e-7 midpoint_max_iter 20
 
 ``lattice``
   Only for ``nvt_glsd``, defaults to ``on``. ``off`` fixes positions and
@@ -170,9 +187,9 @@ this isotropic GLSD model is insufficient. Relabeling alpha or adding a default
 would not resolve that physical limitation.
 
 For each candidate, check timestep convergence separately from parameter
-sensitivity. In the simple radial harmonic model the explicit-Heun stability
-condition is :math:`\lambda\kappa\Delta t<2` (time in ps), but accuracy needs
-smaller steps and precession or other coupled modes may impose tighter limits.
+sensitivity. Implicit midpoint is stable for the linear radial harmonic
+equation, but the nonlinear field iteration still requires a sufficiently small
+timestep to converge. Accuracy and other coupled modes impose additional limits.
 Without kinetic data, users can study equilibrated static statistics under the
 stated assumptions, or report a mobility sensitivity study; the potential
 alone cannot justify quantitative relaxation times.
@@ -232,7 +249,7 @@ and :math:`\eta=(m_0/g_L)^2\gamma_s`.
 Keep the resulting mobility constant; recomputing it from the instantaneous
 moment would change the model and require a different noise treatment.
 
-Heun is the numerical discretization chosen here, not a claim to reproduce
+Implicit midpoint is the numerical discretization chosen here, not a claim to reproduce
 the paper's particular numerical implementation. The paper's illustrative
 Heisenberg--Landau Hamiltonian, fitted Fe coefficients and temperature
 estimator involving energy Hessians are not added to GPUMD: the supplied
@@ -301,22 +318,40 @@ Each step uses one Gaussian vector :math:`\boldsymbol\xi_i` with covariance
 
 .. math::
 
-   \mathbf S^*=\mathbf S_n+\Delta t\,\mathbf a_n+\boldsymbol\xi,\qquad
-   \mathbf S_{n+1}=\mathbf S_n+
-       \frac{\Delta t}{2}(\mathbf a_n+\mathbf a^*)+\boldsymbol\xi.
+   \overline{\mathbf S}=\frac{\mathbf S_n+\mathbf S_{n+1}}{2},\qquad
+   \mathbf S_{n+1}=\mathbf S_n+\Delta t\,
+       \mathbf a(\overline{\mathbf S})+\boldsymbol\xi.
 
-The first force is cached at the starting endpoint. After the lattice first
-half-step and spin predictor, the potential and external field are recomputed
-at the predictor. The lattice second half-step and spin corrector follow,
-then a full endpoint evaluation refreshes energy, force, virial and magnetic
-force. Stateful mechanical modifiers are sampled once, as in SIB. There are
-two potential evaluations per step after initialization. Heun is second order
-for smooth deterministic drift, and strong order one for additive noise. It
-is explicit and conditionally stable. A radial harmonic well requires
-:math:`\lambda k\Delta t<2`; accuracy generally needs a much smaller step.
-Undamped precession has finite-step norm drift with Heun, unlike Cayley SIB.
-Use timestep convergence and SIB when exact fixed-length preservation
-is required.
+The starting field supplies a midpoint predictor. The field is then recomputed
+at successive midpoint spin states until self-consistency or the iteration cap. For a given field,
+the linear precession term is solved analytically with a Cayley transform;
+the nonlinear dependence of the field on all spins is iterated. Convergence
+requires each midpoint component to change by at most
+:math:`\epsilon(1+|\overline S_{ia}|)`, where ``midpoint_tol`` sets
+:math:`\epsilon` (default :math:`10^{-7}`). At ``midpoint_max_iter`` corrections
+(default 4), the last finite update is accepted even if not converged.
+Non-finite iterates still stop the run with an error. The number of potential
+evaluations depends on convergence and the iteration cap.
+With fixed positions, :math:`k` corrections require :math:`k+1` potential
+evaluations per step (midpoint fields plus the final endpoint). With an active
+lattice driver there is one additional field refresh after its second half-step.
+The end-of-run log reports the mean and maximum correction counts per step,
+and the number of steps accepted at the cap before convergence.
+
+For zero damping and noise, the Cayley update preserves each moment length
+to floating-point accuracy without renormalization. This does not imply exact
+energy conservation for an arbitrary nonlinear NEP Hamiltonian. Check energy
+error and timestep convergence independently. With a self-consistent field,
+implicit midpoint is second order for smooth deterministic spin dynamics at
+fixed positions, and strong order one for additive noise.
+
+The existing lattice driver is retained: its first half-step precedes the spin
+predictor, and its second half-step precedes the nonlinear spin solve. During
+the solve, positions and cell are held at the resulting lattice state; this is
+not a joint implicit-midpoint solve for spin, lattice and cell. A final endpoint
+evaluation refreshes energy, atomic force, virial and magnetic force. External
+magnetic increments are retained during iteration, and stateful mechanical
+modifiers are sampled once, as in SIB.
 
 Noise, equilibrium measure and limits
 -------------------------------------
@@ -326,7 +361,7 @@ Independent Cartesian Wiener increments obey
 The diffusion coefficient is :math:`D=\lambda k_BT`, with
 :math:`k_B=8.617343\,10^{-5}` eV/K. Noise is additive: Ito and Stratonovich
 interpretations coincide in Cartesian coordinates. The same increment is
-reused in predictor and corrector, never redrawn or counted twice.
+reused in the predictor and every midpoint iteration, never redrawn or counted twice.
 
 For a smooth, confining, time-independent energy at constant temperature,
 the continuum invariant measure is

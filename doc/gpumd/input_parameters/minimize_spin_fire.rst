@@ -11,7 +11,7 @@ For a Spin potential, use::
   minimize spin_fire <tolerance> <maximal_number_of_steps> <variable_magnitude> [<fixed_atoms> [<box_change> [<hydrostatic_strain>]]]
 
 * ``variable_magnitude = 0`` preserves each atom's initial spin magnitude;
-  ``1`` optimizes all three Cartesian spin components. Zero spins remain zero
+  ``1`` optimizes spin directions and magnitudes. Zero spins remain zero
   in mode ``0`` and can grow in mode ``1``.
 * ``fixed_atoms`` defaults to ``1``: atomic positions and the cell stay fixed,
   and only spins are optimized. Set it to ``0`` to enable atomic relaxation.
@@ -112,9 +112,19 @@ step size and velocity resets. Energy is diagnostic; a constant energy offset
 does not change the optimization. Non-finite trials restore spins, positions,
 cell, and endpoint properties before retrying with a smaller step.
 
-Fixed-magnitude spins use spherical updates with parallel transport of fictitious
-velocities; variable-magnitude spins use Cartesian updates. Each spin move is
-limited to 0.1 radians or 0.1 muB. Joint runs also limit each non-affine atomic
+Spin directions use spherical updates with parallel transport of fictitious
+velocities. Variable-magnitude runs optimize the magnitude :math:`\rho` and unit
+direction :math:`\mathbf e` separately, using gradients
+:math:`B_r=\mathbf e\cdot\mathbf B` and
+:math:`\mathbf g_e=\rho(\mathbf B-B_r\mathbf e)`.
+Angular, radial, and mechanical coordinates use separate velocity norms during
+FIRE mixing. A zero moment can grow along its local field; a radial crossing
+reflects the direction and angular velocity without pinning the moment at zero.
+Convergence is measured using physical magnetic forces in eV/muB.
+
+Spin rotations are limited to 0.1 radians and magnitude increments to 0.1 muB.
+The fictitious step starts at 0.1 and is capped at 1.0 for spin-only runs and 0.2
+for joint runs. Joint runs also limit each non-affine atomic
 move to 0.1 angstrom and the Frobenius norm of each cell deformation increment to
 0.01. Cell coordinates use the initial cube-root volume as a length scale, as
 in ordinary cell FIRE. Cell deformation acts on both the cell and atomic

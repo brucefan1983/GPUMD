@@ -35,7 +35,34 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include <string>
 #include <vector>
 
-class NEP_Spin : public Potential
+struct Spin_Force_Snapshot {
+  GPU_Vector<double> force, mforce, energy, virial;
+};
+
+class Spin_Potential : public Potential
+{
+public:
+  virtual const std::vector<int>& spin_types() const = 0;
+  void request_force_snapshot(Spin_Force_Snapshot& target) { snapshot_ = &target; }
+
+protected:
+  void save_force_snapshot(const GPU_Vector<double>& force, const GPU_Vector<double>& mforce,
+                           const GPU_Vector<double>& energy, const GPU_Vector<double>& virial)
+  {
+    if (snapshot_) {
+      snapshot_->force.copy_from_device(force.data());
+      snapshot_->mforce.copy_from_device(mforce.data());
+      snapshot_->energy.copy_from_device(energy.data());
+      snapshot_->virial.copy_from_device(virial.data());
+      snapshot_ = nullptr;
+    }
+  }
+
+private:
+  Spin_Force_Snapshot* snapshot_ = nullptr;
+};
+
+class NEP_Spin : public Spin_Potential
 {
 public:
   // Model-specific parameter types passed by value to CUDA kernels.
@@ -196,20 +223,9 @@ public:
   void resize_domain(int num_atoms);
   void invalidate_neighbors() { neighbor_.invalidate(); }
 
-  // The caller owns the buffers until the next compute completes. Only that
-  // evaluation is captured; later endpoint evaluations leave the buffers intact.
-  void request_force_snapshot(GPU_Vector<double>& force, GPU_Vector<double>& mforce)
-  {
-    force_snapshot_ = &force;
-    mforce_snapshot_ = &mforce;
-  }
-
-  const std::vector<int>& spin_types() const { return model_.spin_type_active; }
+  const std::vector<int>& spin_types() const override { return model_.spin_type_active; }
 
 private:
-  GPU_Vector<double>* force_snapshot_ = nullptr;
-  GPU_Vector<double>* mforce_snapshot_ = nullptr;
-  void save_force_snapshot(const GPU_Vector<double>&, const GPU_Vector<double>&);
   Model model_;
   Data data_;
   class Neighbors
