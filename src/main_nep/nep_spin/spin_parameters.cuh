@@ -10,9 +10,9 @@ class Spin_Parameters : public NEP_Energy_Parameters
 {
 public:
   explicit Spin_Parameters(const ParameterInput& input);
-  int spin_compress = 2, spin_order = 3, spin_soc = 1;
-  int spin_basis_size[2] = {8, 0};
-  int spin_l_max[3] = {2, 0, 0};
+  int spin_compress = 3, spin_order = 2, spin_soc = 1;
+  int spin_basis_size = 0;
+  int spin_l_max = 2;
   float spin_cutoff = 8.0f;
   float lambda_m = 1.0f, lambda_tau = 0.0f, lambda_spin_response = 0.0f;
   float lambda_m_parallel = 0.0f, lambda_m_perp = 0.0f;
@@ -20,7 +20,7 @@ public:
   bool is_spin_type_set = false;
   bool spin_restart = false;
   int dim_struct = 0, dim_spin = 0;
-  int number_of_variables_descriptor_spin = 0, number_of_variables_spin_projection = 0;
+  int number_of_variables_spin_projection = 0;
   std::vector<int> spin_type_active;
   std::vector<float> spin_cutoff_by_type;
   GPU_Vector<float> q_scaler_square_sum[16];

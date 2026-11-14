@@ -6,13 +6,18 @@
 #pragma once
 #include "main_nep/dataset.cuh"
 #include "spin_parameters.cuh"
+#include "main_nep/xyz_reader.cuh"
 struct Spin_Data {
   struct Labels {
     int has_mforce = 0, has_spin_response_metadata = 0, has_spin_response = 0;
     double spin_response_coordinate = 0.0;
     std::string spin_response_probe, spin_response_group;
-    std::vector<float> sx, sy, sz, mfx, mfy, mfz;
+    std::vector<double> sx, sy, sz;
+    std::vector<float> mfx, mfy, mfz;
     std::vector<float> spin_tangent_x, spin_tangent_y, spin_tangent_z;
+  };
+  struct FrameInput : Labels {
+    XYZ_Geometry geometry;
   };
   int max_NN_spin = 0;
   std::vector<Labels> labels;
@@ -23,7 +28,7 @@ struct Spin_Data {
   std::vector<int> has_mforce_cpu;
   // Per-frame loss counts, fixed with labels and the active mask at construction.
   std::vector<int> active_count_cpu, torque_active_count_cpu;
-  void construct(Spin_Parameters&, Dataset&, const std::vector<Labels>&);
+  void construct(Spin_Parameters&, Dataset&, const std::vector<FrameInput>&);
   std::vector<float> get_rmse_mforce(Spin_Parameters&, Dataset&, bool, int);
   std::vector<float> get_rmse_mforce_parallel(Spin_Parameters&, Dataset&, bool, int);
   std::vector<float> get_rmse_mforce_perp(Spin_Parameters&, Dataset&, bool, int);

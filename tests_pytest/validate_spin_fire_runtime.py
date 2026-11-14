@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LGPL-3.0-or-later
 """Spin FIRE analytic and endpoint regression, without third-party packages."""
-from spin_analytic_model import analytic_model, structure
+from spin_analytic_model import REFERENCE_MODEL, analytic_model, structure
 import argparse
 import json
 import math
@@ -11,7 +11,7 @@ import re
 import subprocess
 import tempfile
 
-FIXTURE = Path(__file__).parent / 'fixtures' / 'nep_spin3'
+from spin_fixtures import FIXTURE
 GPUMD = Path(os.environ.get('GPUMD_COMMAND', Path(__file__).parents[1] / 'src/gpumd')).resolve()
 
 
@@ -133,8 +133,8 @@ def validate(root):
 
     # First-step oracle from independently dumped force, magnetic force and
     # nonsymmetric virial. At zero initial fictitious velocity, FIRE mixing
-    # leaves v=dt*g; this checks simultaneous Cartesian and affine updates.
-    potential=(FIXTURE/'nep_spin_o3c2_uniform.nep').read_text()
+    # checks the spin, Cartesian position and affine cell updates.
+    potential=REFERENCE_MODEL.read_text()
     skew=structure().replace('20 0 0 0 20 0 0 0 20','20 0 0 2 20 0 0 1 20')
     case,run=run_case(root,'joint_reference',potential,skew,'')
     assert run.returncode==0,run.stderr

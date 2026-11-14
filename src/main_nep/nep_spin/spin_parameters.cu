@@ -13,12 +13,14 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
+#include "force/nep_spin/spin_layout.cuh"
 Spin_Parameters::Spin_Parameters(const ParameterInput& input)
 {
   if (input.model_type != 0 || input.charge_mode || input.vdw || input.charge_vdw) {
     PRINT_INPUT_ERROR("Spin NEP only supports a NEP4 potential model without charge/vdW.");
   }
   read(input);
+  if (!is_spin_basis_size_set) spin_basis_size = basis_size_angular;
   if (!is_spin_cutoff_set) {
     spin_cutoff = rc_radial_max;
     spin_cutoff_by_type.assign(num_types, spin_cutoff);
@@ -28,18 +30,18 @@ Spin_Parameters::Spin_Parameters(const ParameterInput& input)
   dim_struct = dim;
   calculate_spin_dimensions();
   calculate_nep_model_parameters(*this, dim_spin, 0, 1, 1);
-  number_of_variables_descriptor_spin =
-    num_types * num_types * spin_compress * (spin_basis_size[0] + 1);
-  number_of_variables_spin_projection = 4 * spin_compress * spin_compress;
-  number_of_variables_descriptor +=
-    number_of_variables_descriptor_spin + number_of_variables_spin_projection;
+  nep_spin::Layout layout(spin_compress, spin_l_max, spin_order, spin_soc);
+  number_of_variables_spin_projection = layout.parameter_count(n_max_angular + 1);
+  number_of_variables_descriptor += number_of_variables_spin_projection;
+  printf("Spin layout: %d paths, %d tensor components, %d output columns.\n",
+         layout.path_count, layout.components * spin_compress, layout.dimension);
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
   model_name = "nep_spin";
   set_regularization_defaults();
   initialize_spin_checkpoint();
-  report_inputs(input, "Spin3 potential", nullptr);
+  report_inputs(input, "NEP-spin potential", nullptr);
   printf(
-    "Spin3 O%d/C%d: %d structural + %d magnetic descriptors, %d parameters.\n",
+    "Spin O%d/C%d: %d structural + %d magnetic descriptors, %d parameters.\n",
     spin_order,
     spin_compress,
     dim_struct,
@@ -56,7 +58,7 @@ void Spin_Parameters::report_model_inputs() const
     spin_order,
     spin_compress,
     spin_soc);
-  printf("    spin_basis_size = %d, spin_l_max = %d.\n", spin_basis_size[0], spin_l_max[0]);
+  printf("    spin_l_max = %d.\n", spin_l_max);
   if (split_mforce_loss) {
     printf(
       "    lambda_m_parallel = %g, lambda_m_perp = %g (independent RMSE terms).\n",
@@ -129,7 +131,7 @@ void Spin_Parameters::validate_spin_parameters()
     PRINT_INPUT_ERROR("Spin NEP only supports a NEP4 potential model.\n");
   }
   if (has_multiple_cutoffs) {
-    PRINT_INPUT_ERROR("Spin3 does not support charge/vdW or type-dependent structural cutoffs.\n");
+    PRINT_INPUT_ERROR("NEP-spin does not support charge/vdW or type-dependent structural cutoffs.\n");
   }
   if (spin_cutoff > rc_radial_max) {
     PRINT_INPUT_ERROR("spin_cutoff must not exceed the NEP radial cutoff.\n");
@@ -141,14 +143,19 @@ void Spin_Parameters::validate_spin_parameters()
     PRINT_INPUT_ERROR("Spin NEP fine_tune is not supported until the "
                       "species-transfer checkpoint reader is implemented.\n");
   }
+  if (const char* message = NEP_Spin_Model_File::angular_rank_error(L_max, has_q_123, has_q_233, has_q_134))
+    PRINT_INPUT_ERROR(message);
+  if (spin_basis_size != basis_size_angular) {
+    PRINT_INPUT_ERROR("spin_basis_size must be equal to the structural angular basis_size.\n");
+  }
   if (
-    spin_compress < 1 || spin_compress > 9 || spin_basis_size[0] != 8 || spin_basis_size[1] != 0 ||
-    spin_l_max[0] < 0 || spin_l_max[0] > 2 || spin_l_max[1] != 0 || spin_l_max[2] != 0 ||
-    spin_order < 1 || spin_order > 3 || (spin_soc != 0 && spin_soc != 1) || spin_cutoff <= 0.0f) {
-    PRINT_INPUT_ERROR("Unsupported unified Spin NEP O/C shape in nep.in.\n");
+    spin_compress < 1 || spin_compress > 9 ||
+    spin_l_max < 0 || spin_l_max > 4 ||
+    spin_order < 1 || spin_order > 4 || (spin_soc != 0 && spin_soc != 1) || spin_cutoff <= 0.0f) {
+    PRINT_INPUT_ERROR("Unsupported Spin NEP shape in nep.in.\n");
   }
 #ifdef USE_CJ
-  PRINT_INPUT_ERROR("Spin3 requires pair-dependent descriptor coefficients (no USE_CJ).\n");
+  PRINT_INPUT_ERROR("NEP-spin requires pair-dependent descriptor coefficients (no USE_CJ).\n");
 #endif
 
   auto resolve_active_types =
@@ -170,11 +177,7 @@ void Spin_Parameters::validate_spin_parameters()
 
 void Spin_Parameters::calculate_spin_dimensions()
 {
-  dim_spin =
-    NEP_Spin_Model_File::spin_dimension(spin_compress, spin_l_max[0], spin_order, spin_soc);
-  if (dim_spin > 96) {
-    PRINT_INPUT_ERROR("Number of spin descriptors should not exceed 96.\n");
-  }
+  dim_spin = nep_spin::Layout(spin_compress, spin_l_max, spin_order, spin_soc).dimension;
   dim = dim_struct + dim_spin;
   if (dim > NEP_Spin_Model_File::MAX_DIM_SPIN) {
     PRINT_INPUT_ERROR(
@@ -274,8 +277,8 @@ void Spin_Parameters::parse_spin_order(const char** param, int num_param)
     PRINT_INPUT_ERROR("Duplicate spin_order keyword.\n");
   }
   is_spin_order_set = true;
-  if (num_param != 2 || !is_valid_int(param[1], &spin_order) || spin_order < 1 || spin_order > 3) {
-    PRINT_INPUT_ERROR("spin_order should be an integer from 1 to 3.\n");
+  if (num_param != 2 || !is_valid_int(param[1], &spin_order) || spin_order < 1 || spin_order > 4) {
+    PRINT_INPUT_ERROR("spin_order should be an integer from 1 to 4.\n");
   }
 }
 
@@ -296,11 +299,8 @@ void Spin_Parameters::parse_spin_basis_size(const char** param, int num_param)
     PRINT_INPUT_ERROR("Duplicate spin_basis_size keyword.\n");
   }
   is_spin_basis_size_set = true;
-  if (
-    num_param != 3 || !is_valid_int(param[1], &spin_basis_size[0]) ||
-    !is_valid_int(param[2], &spin_basis_size[1]) || spin_basis_size[0] < 0 ||
-    spin_basis_size[1] < 0) {
-    PRINT_INPUT_ERROR("spin_basis_size should have two non-negative integers.\n");
+  if (num_param != 2 || !is_valid_int(param[1], &spin_basis_size) || spin_basis_size < 0) {
+    PRINT_INPUT_ERROR("spin_basis_size requires one non-negative integer.\n");
   }
 }
 
@@ -310,10 +310,8 @@ void Spin_Parameters::parse_spin_l_max(const char** param, int num_param)
     PRINT_INPUT_ERROR("Duplicate spin_l_max keyword.\n");
   }
   is_spin_l_max_set = true;
-  if (
-    num_param != 4 || !is_valid_int(param[1], &spin_l_max[0]) ||
-    !is_valid_int(param[2], &spin_l_max[1]) || !is_valid_int(param[3], &spin_l_max[2])) {
-    PRINT_INPUT_ERROR("spin_l_max should have three integers.\n");
+  if (num_param != 2 || !is_valid_int(param[1], &spin_l_max) || spin_l_max < 0 || spin_l_max > 4) {
+    PRINT_INPUT_ERROR("spin_l_max requires one integer from 0 to 4.\n");
   }
 }
 
@@ -327,16 +325,16 @@ void Spin_Parameters::parse_spin_cutoff(const char** param, int num_param)
     PRINT_INPUT_ERROR("Please set type before setting spin_cutoff.\n");
   }
   if (num_types <= 0 || (num_param != 2 && num_param != num_types + 1)) {
-    PRINT_INPUT_ERROR("spin_cutoff should have one positive number or one per atom type.\n");
+    PRINT_INPUT_ERROR("spin_cutoff should have one value >= 3 A or one per atom type.\n");
   }
   spin_cutoff_by_type.resize(num_types);
   for (int type = 0; type < num_types; ++type) {
     double cutoff = 0.0;
     const int value_index = num_param == 2 ? 1 : type + 1;
     if (
-      !is_valid_real(param[value_index], &cutoff) || !std::isfinite(cutoff) || cutoff <= 0.0 ||
+      !is_valid_real(param[value_index], &cutoff) || !std::isfinite(cutoff) || cutoff < 3.0 ||
       cutoff > std::numeric_limits<float>::max()) {
-      PRINT_INPUT_ERROR("spin_cutoff values must be finite positive numbers within float range.\n");
+      PRINT_INPUT_ERROR("spin_cutoff values must be finite numbers >= 3 A within float range.\n");
     }
     spin_cutoff_by_type[type] = static_cast<float>(cutoff);
   }

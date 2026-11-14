@@ -3,30 +3,34 @@
    single: spin_compress (keyword in nep.in)
 
 :attr:`spin_compress`
-======================
+=======================
 
-This keyword sets the shared latent radial rank of the spin descriptor.
+Set the number of learned radial channels.
 
 Syntax
 ------
 
 ::
 
-  spin_compress <count>
+  spin_compress C
 
 Parameters
 ----------
 
-The default is 2 and the input range is 1--9. The symbol :math:`C` denotes
-this value in :ref:`nep_spin`. Each channel is a learned combination of the
-radial basis, and all contraction families reuses the same :math:`C`
-channels. It therefore controls descriptor rank and cost; it does not select
-a fixed list of Hamiltonian terms.
+The default is 3 and the range is 1--9. A learned matrix mixes the structural
+angular radial channels into :math:`C` spin channels. All combinations of
+``spin_compress 1--9``, ``spin_l_max 0--4``, ``spin_order 1--4`` and
+``spin_soc 0/1`` are supported. They require at most 236 magnetic coordinates
+(``C=9, L=4, order=4, spin_soc=0``). Together with the existing maximum of
+103 structural coordinates, the total limit is 339. The structural angular
+limit remains 90; the training input and model reader enforce the same limits.
 
-For ``spin_version 1``, the spin descriptor must not exceed 96 components, and
-the combined structural plus spin descriptor must not exceed 199 components.
-The exact count also depends on :ref:`spin_order <kw_spin_order>`,
-:ref:`spin_l_max <kw_spin_l_max>`, and :ref:`spin_soc <kw_spin_soc>`.
+Models with at most 199 total coordinates keep the smaller ANN workspace;
+only larger models use the expanded workspace. The model format and parameter
+ordering are unchanged.
+
+For ``spin_l_max 2`` and ``spin_order 2``, SOC gives :math:`1+11C` spin
+coordinates; non-SOC gives :math:`1+10C`. See :ref:`nep_spin_dimensions`.
 
 Output
 ------
@@ -36,16 +40,11 @@ None.
 Examples
 --------
 
-For example, the commonly used order-3, :math:`l_\mathrm{max}=2`, SOC-enabled
-shape has 55 magnetic coordinates with::
+::
 
-  spin_compress 2
-
-Together with the default structural descriptors, this default NEP-spin descriptor has
-97 total coordinates and satisfies both dimension limits. Use the formulas in
-:ref:`nep_spin_dimensions` before increasing this value.
+  spin_compress 3
 
 Notes
 -----
 
-None.
+See :ref:`nep_spin` for the descriptor definition and model contract.

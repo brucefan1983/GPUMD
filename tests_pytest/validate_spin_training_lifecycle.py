@@ -6,7 +6,7 @@ import re
 import tempfile
 from pathlib import Path
 
-import validate_main_nep_spin3_training as base
+import validate_spin_training as base
 
 CONFIG = base.NEP_IN + "nep_compile 0\nseed 20261021\n"
 NO_MASKS = re.sub(r"^spin_type.*\n", "", CONFIG, flags=re.M)
@@ -62,6 +62,13 @@ def strip_labels(xyz, frames):
         for a in range(start+2, start+6):
             lines[a] = " ".join(lines[a].split()[:-3])
     return "\n".join(lines) + "\n"
+
+
+def scalers(model):
+    lines = model.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith("@ q_scaler "))
+    count = int(lines[start].split()[2])
+    return [float(line) for line in lines[start+1:start+1+count]]
 
 
 def validate_inactive_input(root, config, model, restart):
@@ -144,8 +151,8 @@ def validate(root):
         predict(root / (name + "_import_reload"), (imported / "nep.txt").read_text())
         if name == "fe_only":
             execute(root / "unsupported_version", NO_MASKS + "prediction 1\n",
-                    model=model.replace("spin_version 1\n", "spin_version 2\n"),
-                    error="Unsupported spin_version")
+                    model=model.replace("spin_version 1\n", "spin_version 3\n"),
+                    error="invalid integer in 'spin_version'")
             execute(root / "conflicting_dof", NO_MASKS + "spin_type Ge\n",
                     model=model, restart=frozen, error="spin_type in nep.in conflicts")
             report["inactive_input"] = validate_inactive_input(root / "inactive_input", config, model, frozen)

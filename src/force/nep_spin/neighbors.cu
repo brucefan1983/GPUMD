@@ -93,9 +93,9 @@ static __global__ void find_spin_neighbors(
             const int n2 = cell_contents[num_atoms_previous_cells + m];
             if (n2 >= N1 && n2 < N2 && n1 != n2) {
 
-              float x12 = x[n2] - x1;
-              float y12 = y[n2] - y1;
-              float z12 = z[n2] - z1;
+              double x12 = x[n2] - x1;
+              double y12 = y[n2] - y1;
+              double z12 = z[n2] - z1;
               apply_mic(box, x12, y12, z12);
               const float d2 = x12 * x12 + y12 * y12 + z12 * z12;
 

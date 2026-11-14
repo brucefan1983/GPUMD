@@ -24,6 +24,8 @@ Chengbing Chen, 1747193328@qq.com
 #include "nep_spin_multigpu.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <algorithm>
+#include <chrono>
+#include <cstdlib>
 #include <future>
 #include <limits>
 #include <thrust/execution_policy.h>
@@ -398,6 +400,13 @@ void NEP_Spin_MultiGPU::compute(
   GPU_Vector<double>& virial,
   GPU_Vector<double>& mforce)
 {
+  using Clock = std::chrono::steady_clock;
+  const bool profile = std::getenv("GPUMD_PROFILE_SPIN") != nullptr;
+  const auto begin = profile ? Clock::now() : Clock::time_point{};
+  auto milliseconds = [](Clock::time_point start) {
+    return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
+  };
+  std::vector<double> phase(profile ? 3 * devices_ : 0, 0.0);
   CHECK(gpuSetDevice(0));
   const int n = type.size();
   if (n != atoms_ || position.size() != size_t(n) * 3 || spin.size() != size_t(n) * 3)
@@ -484,10 +493,12 @@ void NEP_Spin_MultiGPU::compute(
     std::copy(box.cpu_h, box.cpu_h + 9, partition_box_);
     partition_valid_ = true;
   }
+  const double partition_ms = profile ? milliseconds(begin) : 0;
   for (int gpu = 0; gpu < devices_; ++gpu) {
     Domain& dom = *domains_[gpu];
     if (!dom.owned)
       continue;
+    const auto start = profile ? Clock::now() : Clock::time_point{};
     CHECK(gpuSetDevice(gpu));
     dom.resize(dom.size);
     CHECK(gpuSetDevice(0));
@@ -517,12 +528,15 @@ void NEP_Spin_MultiGPU::compute(
     transfer(
       dom.position.data(), gpu, packed_position_.data(), 0, size_t(dom.size) * 3 * sizeof(double));
     transfer(dom.spin.data(), gpu, packed_spin_.data(), 0, size_t(dom.size) * 3 * sizeof(double));
+    if (profile) phase[gpu] = milliseconds(start);
   }
+  const auto compute_begin = profile ? Clock::now() : Clock::time_point{};
   std::vector<std::future<void>> workers;
   for (int gpu = 0; gpu < devices_; ++gpu) {
     if (!domains_[gpu]->owned)
       continue;
     workers.emplace_back(std::async(std::launch::async, [&, gpu] {
+      const auto start = profile ? Clock::now() : Clock::time_point{};
       CHECK(gpuSetDevice(gpu));
       Domain& dom = *domains_[gpu];
       dom.energy.fill(0.0);
@@ -535,15 +549,18 @@ void NEP_Spin_MultiGPU::compute(
       dom.potential->compute(
         local_box, dom.type, dom.position, dom.spin, dom.energy, dom.force, dom.virial, dom.mforce);
       CHECK(gpuDeviceSynchronize());
+      if (profile) phase[devices_ + gpu] = milliseconds(start);
     }));
   }
   for (auto& worker : workers)
     worker.get();
+  const double compute_ms = profile ? milliseconds(compute_begin) : 0;
   CHECK(gpuSetDevice(0));
   for (int gpu = 0; gpu < devices_; ++gpu) {
     const Domain& dom = *domains_[gpu];
     if (!dom.owned)
       continue;
+    const auto start = profile ? Clock::now() : Clock::time_point{};
     if (collected_.size() != (size_t(dom.owned) * 16)) {
       collected_.resize(size_t(dom.owned) * 16);
     }
@@ -574,6 +591,17 @@ void NEP_Spin_MultiGPU::compute(
       mforce.data());
     GPU_CHECK_KERNEL
     CHECK(gpuDeviceSynchronize());
+    if (profile) phase[2 * devices_ + gpu] = milliseconds(start);
+  }
+  if (profile) {
+    // Wall times follow the existing synchronization, without adding profiling barriers.
+    printf("spin_mgpu_profile atoms %d repartition %d partition_ms %.6f compute_wall_ms %.6f total_ms %.6f",
+           n, int(repartition), partition_ms, compute_ms, milliseconds(begin));
+    for (int gpu = 0; gpu < devices_; ++gpu)
+      printf(" gpu%d_owned %d gpu%d_size %d gpu%d_pack_ms %.6f gpu%d_compute_ms %.6f gpu%d_collect_ms %.6f",
+             gpu, domains_[gpu]->owned, gpu, domains_[gpu]->size,
+             gpu, phase[gpu], gpu, phase[devices_ + gpu], gpu, phase[2 * devices_ + gpu]);
+    printf("\n");
   }
   save_force_snapshot(force, mforce);
 }

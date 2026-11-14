@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import re
 import tempfile
-import validate_main_nep_spin3_training as base
+import validate_spin_training as base
 from validate_spin_training_lifecycle import scalers, metadata
 
 # The first generation initializes scalers; subsequent generations evaluate loss.
@@ -41,7 +41,10 @@ def main():
         changed=rows.copy();changed[8]=changed[8].replace('Fe 1.0','Fe 1.5')
         case('moving',response='\n'.join(changed)+'\n',error='atomic positions')
         case('group-leak',test=base.response_xyz(),error='response_group leakage')
-        case('frame-leak',test=re.sub(r' response_probe=rotation response_group=scan-a response_coordinate=\S+','',base.response_xyz()),error='Response frame leakage')
+        test_frames = re.sub(r' response_probe=rotation response_group=scan-a response_coordinate=\S+', '', base.response_xyz())
+        case('frame-leak', test=test_frames, error='Response frame leakage')
+        case('signed-zero-leak', test=test_frames.replace('Lattice="24 0', 'Lattice="24 -0'),
+             error='Response frame leakage')
         disabled=CONFIG.replace('lambda_spin_response 0.3','lambda_spin_response 0')
         off=case('off',disabled,response=None)
         ignored=case('ignored',disabled,response='not xyz at all')

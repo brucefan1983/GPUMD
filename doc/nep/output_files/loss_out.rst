@@ -91,6 +91,10 @@ Only structures containing magnetic-force labels contribute to these two
 terms. The grouped magnetic-response loss, when enabled, contributes to
 :attr:`total` but currently has no separate output column.
 
+Spin training prints all real-valued loss columns with five digits after the
+decimal point, in both ``loss.out`` and standard output. The generation remains
+an integer; column names and ordering are unchanged.
+
 With :ref:`independent magnetic losses <kw_lambda_m_parallel>`, four additional
 columns precede any energy-difference columns::
 

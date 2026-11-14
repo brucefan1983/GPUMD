@@ -75,16 +75,14 @@ Keywords
      - select the spin descriptor version for ``model nep_spin``
    * - :ref:`spin_cutoff <kw_spin_cutoff>`
      - one spin cutoff or one cutoff per element, bounded by the NEP radial cutoff
-   * - :ref:`spin_basis_size <kw_spin_basis_size>`
-     - magnetic radial basis index followed by a reserved second value fixed at zero
    * - :ref:`spin_l_max <kw_spin_l_max>`
      - maximum spatial tensor rank used by the spin descriptor
    * - :ref:`spin_compress <kw_spin_compress>`
      - number of shared compressed radial channels
    * - :ref:`spin_order <kw_spin_order>`
-     - highest magnetic contraction level supplied to the neural network
+     - maximum polynomial degree of primitive spin inputs
    * - :ref:`spin_soc <kw_spin_soc>`
-     - enable joint spin--space rotation-invariant magnetic channels
+     - enable joint spin--space rotation-invariant spin channels
    * - :ref:`spin_type <kw_spin_type>`
      - atom types with independent spin degrees of freedom
    * - :ref:`use_typewise_cutoff_zbl <kw_use_typewise_cutoff_zbl>`
@@ -94,7 +92,7 @@ Keywords
    * - :ref:`n_max <kw_n_max>`
      - radial-function index limits for radial and angular descriptors
    * - :ref:`basis_size <kw_basis_size>`
-     - radial (:math:`N_\mathrm{bas}^\mathrm{R}`) and angular (:math:`N_\mathrm{bas}^\mathrm{A}`) basis sizes
+     - maximum radial (:math:`N_\mathrm{bas}^\mathrm{R}`) and angular (:math:`N_\mathrm{bas}^\mathrm{A}`) basis indices
    * - :ref:`l_max <kw_l_max>`
      - expansion order for angular terms
    * - :ref:`neuron <kw_neuron>`

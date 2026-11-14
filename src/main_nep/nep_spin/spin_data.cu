@@ -3,7 +3,6 @@
     This file is part of GPUMD and is distributed under LGPLv3 or later.
 */
 
-#include "main_nep/mic.cuh"
 #include "spin_data.cuh"
 #include "utilities/error.cuh"
 #include <algorithm>
@@ -17,11 +16,11 @@ static __global__ void gpu_find_spin_neighbors(
   const int* Na_sum,
   const float rc_spin,
   const float* __restrict__ g_box,
-  const float* __restrict__ g_box_original,
+  const double* __restrict__ g_box_original,
   const int* __restrict__ g_num_cell,
-  const float* x,
-  const float* y,
-  const float* z,
+  const double* x,
+  const double* y,
+  const double* z,
   const int plane_size,
   int* NN_spin,
   int* NL_spin,
@@ -30,10 +29,10 @@ static __global__ void gpu_find_spin_neighbors(
   const int N1 = Na_sum[blockIdx.x];
   const int N2 = N1 + Na[blockIdx.x];
   const float* box = g_box + 18 * blockIdx.x;
-  const float* box_original = g_box_original + 9 * blockIdx.x;
+  const double* box_original = g_box_original + 9 * blockIdx.x;
   const int* num_cell = g_num_cell + 3 * blockIdx.x;
   for (int n1 = N1 + threadIdx.x; n1 < N2; n1 += blockDim.x) {
-    const float x1 = x[n1], y1 = y[n1], z1 = z[n1];
+    const double x1 = x[n1], y1 = y[n1], z1 = z[n1];
     int count = 0;
     for (int n2 = N1; n2 < N2; ++n2) {
       for (int ia = 0; ia < num_cell[0]; ++ia) {
@@ -41,20 +40,26 @@ static __global__ void gpu_find_spin_neighbors(
           for (int ic = 0; ic < num_cell[2]; ++ic) {
             if (ia == 0 && ib == 0 && ic == 0 && n1 == n2)
               continue;
-            float dx = box_original[0] * ia + box_original[1] * ib + box_original[2] * ic;
-            float dy = box_original[3] * ia + box_original[4] * ib + box_original[5] * ic;
-            float dz = box_original[6] * ia + box_original[7] * ib + box_original[8] * ic;
-            float x12 = x[n2] + dx - x1;
-            float y12 = y[n2] + dy - y1;
-            float z12 = z[n2] + dz - z1;
-            dev_apply_mic(box, x12, y12, z12);
+            const double x12_image = box_original[0]*ia + box_original[1]*ib + box_original[2]*ic;
+            const double y12_image = box_original[3]*ia + box_original[4]*ib + box_original[5]*ic;
+            const double z12_image = box_original[6]*ia + box_original[7]*ib + box_original[8]*ic;
+            double x12 = x[n2] + x12_image - x1;
+            double y12 = y[n2] + y12_image - y1;
+            double z12 = z[n2] + z12_image - z1;
+            // The inverse selects the image; form its Cartesian displacement from the input cell.
+            const double sx = num_cell[0]*nearbyint(box[9]*x12 + box[10]*y12 + box[11]*z12);
+            const double sy = num_cell[1]*nearbyint(box[12]*x12 + box[13]*y12 + box[14]*z12);
+            const double sz = num_cell[2]*nearbyint(box[15]*x12 + box[16]*y12 + box[17]*z12);
+            x12 -= box_original[0]*sx + box_original[1]*sy + box_original[2]*sz;
+            y12 -= box_original[3]*sx + box_original[4]*sy + box_original[5]*sz;
+            z12 -= box_original[6]*sx + box_original[7]*sy + box_original[8]*sz;
             if (x12 * x12 + y12 * y12 + z12 * z12 < rc_spin * rc_spin) {
               if (Store) {
                 const int index = n1 + N * count;
                 NL_spin[index] = n2;
                 r12_spin[index] = x12;
-                r12_spin[plane_size + index] = y12;
-                r12_spin[2 * plane_size + index] = z12;
+                r12_spin[size_t(plane_size) + index] = y12;
+                r12_spin[2 * size_t(plane_size) + index] = z12;
               }
               ++count;
             }
@@ -66,11 +71,11 @@ static __global__ void gpu_find_spin_neighbors(
   }
 }
 
-void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::vector<Labels>& input)
+void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::vector<FrameInput>& input)
 {
   const int N = dataset.N, Nc = dataset.Nc;
   labels.reserve(Nc);
-  std::vector<double> position(3 * N), moments(3 * N);
+  std::vector<double> position(3 * N), moments(3 * N), cells(9 * Nc);
   mforce_ref_cpu.resize(3 * N);
   mforce_cpu.resize(3 * N);
   has_mforce_cpu.resize(Nc);
@@ -78,7 +83,9 @@ void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::ve
   torque_active_count_cpu.assign(Nc, 0);
   for (int n = 0; n < Nc; ++n) {
     const auto& structure = dataset.structures[n];
-    labels.push_back(input.at(structure.index_in_file));
+    const auto& frame = input.at(structure.index_in_file);
+    std::copy(frame.geometry.cell.begin(), frame.geometry.cell.end(), cells.data() + 9*n);
+    labels.push_back(frame);
     const auto& label = labels.back();
     has_mforce_cpu[n] = label.has_mforce;
     for (int a = 0; a < structure.num_atom; ++a) {
@@ -92,9 +99,7 @@ void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::ve
           ++torque_active_count_cpu[n];
       }
       const int i = dataset.Na_sum_cpu[n] + a;
-      position[i] = structure.x[a];
-      position[N + i] = structure.y[a];
-      position[2 * N + i] = structure.z[a];
+      for (int d = 0; d < 3; ++d) position[d*N+i] = frame.geometry.position[a][d];
       moments[i] = label.sx[a];
       moments[N + i] = label.sy[a];
       moments[2 * N + i] = label.sz[a];
@@ -115,6 +120,8 @@ void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::ve
   has_mforce_gpu.copy_from_host(has_mforce_cpu.data());
   spin_type_active_gpu.resize(para.num_types);
   spin_type_active_gpu.copy_from_host(para.spin_type_active.data());
+  GPU_Vector<double> cell_gpu(cells.size());
+  cell_gpu.copy_from_host(cells.data());
   NN_spin.resize(N);
   gpu_find_spin_neighbors<false><<<Nc, 256>>>(
     N,
@@ -122,11 +129,11 @@ void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::ve
     dataset.Na_sum.data(),
     para.spin_cutoff,
     dataset.box.data(),
-    dataset.box_original.data(),
+    cell_gpu.data(),
     dataset.num_cell.data(),
-    dataset.r.data(),
-    dataset.r.data() + N,
-    dataset.r.data() + 2 * N,
+    r_spin.data(),
+    r_spin.data() + N,
+    r_spin.data() + 2 * N,
     0,
     NN_spin.data(),
     nullptr,
@@ -147,11 +154,11 @@ void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::ve
     dataset.Na_sum.data(),
     para.spin_cutoff,
     dataset.box.data(),
-    dataset.box_original.data(),
+    cell_gpu.data(),
     dataset.num_cell.data(),
-    dataset.r.data(),
-    dataset.r.data() + N,
-    dataset.r.data() + 2 * N,
+    r_spin.data(),
+    r_spin.data() + N,
+    r_spin.data() + 2 * N,
     static_cast<int>(slots),
     NN_spin.data(),
     NL_spin.data(),

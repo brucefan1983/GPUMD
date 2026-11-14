@@ -51,7 +51,7 @@ void NEP_Spin_Model::finalize_q_scaler()
                           : static_cast<float>(std::sqrt(
                               global_square_sum[d] / static_cast<double>(global_count[d])));
       if (!std::isfinite(rms)) {
-        PRINT_INPUT_ERROR("Cannot initialize Spin3 q_scaler from non-finite RMS.\n");
+        PRINT_INPUT_ERROR("Cannot initialize NEP-spin q_scaler from non-finite RMS.\n");
       }
       para.q_scaler_cpu[d] = 1.0f / std::max(1.0f, std::max(range, rms));
       if (range <= resolution && rms <= resolution) {
@@ -67,7 +67,7 @@ void NEP_Spin_Model::finalize_q_scaler()
   }
   if (unresolved_channels > 0) {
     printf(
-      "Spin3 q_scaler kept at 1 for %d numerically unresolved "
+      "NEP-spin q_scaler kept at 1 for %d numerically unresolved "
       "descriptor channel(s).\n",
       unresolved_channels);
   }

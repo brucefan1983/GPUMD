@@ -12,25 +12,15 @@
 #include <algorithm>
 
 #include "spin_training_kernels.cuh"
-#include <sstream>
+#include "force/nep_spin/spin_kernels.cuh"
+#include "spin_compile.cuh"
 
 void NEP_Spin_Model::initialize_spin(Spin_Parameters& para, int N, int device_count)
 {
   spin_compress_ = para.spin_compress;
-  spin_basis_size_ = para.spin_basis_size[0];
-  spin_l_max_ = para.spin_l_max[0];
-  spin_order_ = para.spin_order;
-  spin_soc_ = para.spin_soc;
   struct_dim_ = para.dim_struct;
-  spin_coefficient_offset_ =
-    para.number_of_variables_descriptor - para.number_of_variables_descriptor_spin;
-  spin_coefficient_offset_ -= para.number_of_variables_spin_projection;
-  spin_projection_offset_ = spin_coefficient_offset_ + para.number_of_variables_descriptor_spin;
+  spin_projection_offset_ = para.number_of_variables_descriptor - para.number_of_variables_spin_projection;
   num_types_ = para.num_types;
-  spin_cutoff_ = para.spin_cutoff;
-
-  polynomial_layout_ = make_spin_polynomial_layout<Spin_Polynomial_Layout>(
-    spin_compress_, spin_l_max_, spin_order_, spin_soc_);
 
   for (int device_id = 0; device_id < device_count; ++device_id) {
     CHECK(gpuSetDevice(device_id));
@@ -46,98 +36,81 @@ void NEP_Spin_Model::initialize_spin(Spin_Parameters& para, int N, int device_co
     }
     data.spin_cutoff_pair.resize(spin_cutoff_pair.size());
     data.spin_cutoff_pair.copy_from_host(spin_cutoff_pair.data(), spin_cutoff_pair.size());
-    data.spin3_moments.resize(N * polynomial_layout_.moment_count);
+    data.spin_layout.initialize(para.spin_compress, para.spin_l_max, para.spin_order, para.spin_soc);
+    if (nep_spin::needs_wide_forward(para.spin_soc, para.spin_l_max, para.spin_order)) {
+      data.wide_spin_descriptors.resize(size_t(N)*para.dim_spin);
+      data.wide_radial.resize(size_t(num_types_)*num_types_*spin_compress_*(para.basis_size_angular+1));
+    }
+    data.spin_moments.resize(size_t(N) * data.spin_layout.view.channels * data.spin_layout.view.components);
+
     data.force.resize(3 * N);
     data.mforce.resize(3 * N);
     data.virial.resize(9 * N);
   }
 }
 
-void NEP_Spin_Model::find_additional_descriptors(Spin_Parameters&, Dataset& dataset, int device_id)
+void NEP_Spin_Model::find_additional_descriptors(Spin_Parameters& para, Dataset& dataset, int device_id)
 {
   auto& data = spin_data_[device_id];
   auto& magnetic_data = magnetic(dataset);
   const int plane_size = dataset.N * magnetic_data.max_NN_spin;
   const float* projection = annmb[device_id].c + spin_projection_offset_;
-#define LAUNCH_SPIN3_DESCRIPTOR(C)                                                                 \
-  launch_spin3_descriptor<C>(                                                                      \
-    polynomial_layout_,                                                                            \
-    dataset.N,                                                                                     \
-    struct_dim_,                                                                                   \
-    num_types_,                                                                                    \
-    spin_basis_size_,                                                                              \
-    spin_cutoff_,                                                                                  \
-    data.spin_cutoff_pair.data(),                                                                  \
-    dataset.type.data(),                                                                           \
-    data.spin_type_active.data(),                                                                  \
-    magnetic_data.r_spin.data(),                                                                   \
-    magnetic_data.spin.data(),                                                                     \
-    magnetic_data.NN_spin.data(),                                                                  \
-    magnetic_data.NL_spin.data(),                                                                  \
-    magnetic_data.r12_spin.data(),                                                                 \
-    plane_size,                                                                                    \
-    annmb[device_id].c,                                                                            \
-    spin_coefficient_offset_,                                                                      \
-    projection,                                                                                    \
-    data.spin3_moments.data(),                                                                     \
-    nep_data[device_id].descriptors.data())
-  if (spin_descriptor_jit_) {
-    spin_descriptor_jit_(
-      polynomial_layout_,
-      dataset.N,
-      struct_dim_,
-      num_types_,
-      spin_basis_size_,
-      spin_cutoff_,
-      data.spin_cutoff_pair.data(),
-      dataset.type.data(),
-      data.spin_type_active.data(),
-      magnetic_data.r_spin.data(),
-      magnetic_data.spin.data(),
-      magnetic_data.NN_spin.data(),
-      magnetic_data.NL_spin.data(),
-      magnetic_data.r12_spin.data(),
-      plane_size,
-      annmb[device_id].c,
-      spin_coefficient_offset_,
-      projection,
-      data.spin3_moments.data(),
-      nep_data[device_id].descriptors.data());
+  const int count = num_types_ * num_types_ * spin_compress_ * (para.basis_size_angular + 1);
+  const size_t edge_count = spin_descriptor_jit_ && para.spin_l_max == 2 && para.spin_order == 2 ?
+    size_t(2) * spin_compress_ * plane_size : 0;
+  auto contract = [&](auto* radial) {
+    nep_spin::contract_radial<<<(count + 127) / 128, 128>>>(
+      count, spin_compress_, para.n_max_angular, para.basis_size_angular,
+      annmb[device_id].c + paramb.num_c_radial, projection, radial);
+    GPU_CHECK_KERNEL
+  };
+  if (data.wide_radial.size()) {
+    contract(data.wide_radial.data());
   } else {
-    switch (spin_compress_) {
-      case 1:
-        LAUNCH_SPIN3_DESCRIPTOR(1);
-        break;
-      case 2:
-        LAUNCH_SPIN3_DESCRIPTOR(2);
-        break;
-      case 3:
-        LAUNCH_SPIN3_DESCRIPTOR(3);
-        break;
-      case 4:
-        LAUNCH_SPIN3_DESCRIPTOR(4);
-        break;
-      case 5:
-        LAUNCH_SPIN3_DESCRIPTOR(5);
-        break;
-      case 6:
-        LAUNCH_SPIN3_DESCRIPTOR(6);
-        break;
-      case 7:
-        LAUNCH_SPIN3_DESCRIPTOR(7);
-        break;
-      case 8:
-        LAUNCH_SPIN3_DESCRIPTOR(8);
-        break;
-      case 9:
-        LAUNCH_SPIN3_DESCRIPTOR(9);
-        break;
-      default:
-        PRINT_INPUT_ERROR("spin_compress should be an integer from 1 to 9.");
-        break;
-    }
+    if (data.radial_coefficients.size() < size_t(count) + edge_count)
+      data.radial_coefficients.resize(size_t(count) + edge_count);
+    contract(data.radial_coefficients.data());
   }
-#undef LAUNCH_SPIN3_DESCRIPTOR
+  if (!spin_descriptor_jit_) {
+    auto launch = [&](auto layout, auto* radial, auto* output, int offset) {
+      nep_spin::descriptors<<<(dataset.N * spin_compress_ + 63) / 64, 64>>>(
+        layout, dataset.N, offset, num_types_, para.n_max_angular,
+        para.basis_size_angular, Box{}, dataset.type.data(), data.spin_type_active.data(),
+        magnetic_data.r_spin.data(), magnetic_data.spin.data(), magnetic_data.NN_spin.data(),
+        magnetic_data.NL_spin.data(), magnetic_data.r12_spin.data(), plane_size,
+        data.spin_cutoff_pair.data(), radial,
+        projection, data.spin_moments.data(), output);
+    };
+    float* q = nep_data[device_id].descriptors.data();
+    if (data.wide_spin_descriptors.size())
+      launch(nep_spin::WideLayout(data.spin_layout.view), data.wide_radial.data(), data.wide_spin_descriptors.data(), 0);
+    else
+      nep_spin::launch_runtime_layout(data.spin_layout.view, [&](auto layout) {
+        launch(layout, data.radial_coefficients.data(), q, struct_dim_);
+      });
+    GPU_CHECK_KERNEL
+    return;
+  }
+
+  spin_descriptor_jit_(
+    dataset.N,
+    struct_dim_,
+    data.spin_cutoff_pair.data(),
+    dataset.type.data(),
+    data.spin_type_active.data(),
+    magnetic_data.r_spin.data(),
+    magnetic_data.spin.data(),
+    magnetic_data.NN_spin.data(),
+    magnetic_data.NL_spin.data(),
+    magnetic_data.r12_spin.data(),
+    plane_size,
+    data.radial_coefficients.size() ? data.radial_coefficients.data() : nullptr,
+    projection,
+    data.spin_moments.data(),
+    nep_data[device_id].descriptors.data(),
+    data.wide_spin_descriptors.size() ? data.wide_spin_descriptors.data() : nullptr,
+    data.wide_radial.size() ? data.wide_radial.data() : nullptr);
+
 }
 
 void NEP_Spin_Model::initialize_additional_outputs(Dataset& dataset, int device_id)
@@ -150,7 +123,7 @@ void NEP_Spin_Model::initialize_additional_outputs(Dataset& dataset, int device_
   magnetic_data.mforce.fill(0.0f);
 }
 
-void NEP_Spin_Model::find_additional_force(Spin_Parameters&, Dataset& dataset, int device_id)
+void NEP_Spin_Model::find_additional_force(Spin_Parameters& para, Dataset& dataset, int device_id)
 {
   auto& data = spin_data_[device_id];
   auto& magnetic_data = magnetic(dataset);
@@ -158,94 +131,51 @@ void NEP_Spin_Model::find_additional_force(Spin_Parameters&, Dataset& dataset, i
   const int grid_size = (dataset.N + block_size - 1) / block_size;
   const int plane_size = dataset.N * magnetic_data.max_NN_spin;
   const float* projection = annmb[device_id].c + spin_projection_offset_;
-#define LAUNCH_SPIN3_FORCE(C)                                                                      \
-  launch_spin3_force<C>(                                                                           \
-    polynomial_layout_,                                                                            \
-    dataset.N,                                                                                     \
-    struct_dim_,                                                                                   \
-    num_types_,                                                                                    \
-    spin_basis_size_,                                                                              \
-    spin_cutoff_,                                                                                  \
-    data.spin_cutoff_pair.data(),                                                                  \
-    dataset.type.data(),                                                                           \
-    data.spin_type_active.data(),                                                                  \
-    magnetic_data.r_spin.data(),                                                                   \
-    magnetic_data.spin.data(),                                                                     \
-    magnetic_data.NN_spin.data(),                                                                  \
-    magnetic_data.NL_spin.data(),                                                                  \
-    magnetic_data.r12_spin.data(),                                                                 \
-    plane_size,                                                                                    \
-    nep_data[device_id].Fp.data(),                                                                 \
-    annmb[device_id].c,                                                                            \
-    spin_coefficient_offset_,                                                                      \
-    projection,                                                                                    \
-    data.spin3_moments.data(),                                                                     \
-    data.force.data(),                                                                             \
-    data.mforce.data(),                                                                            \
-    data.virial.data())
-  if (spin_force_jit_) {
-    spin_force_jit_(
-      polynomial_layout_,
-      dataset.N,
-      struct_dim_,
-      num_types_,
-      spin_basis_size_,
-      spin_cutoff_,
-      data.spin_cutoff_pair.data(),
-      dataset.type.data(),
-      data.spin_type_active.data(),
-      magnetic_data.r_spin.data(),
-      magnetic_data.spin.data(),
-      magnetic_data.NN_spin.data(),
-      magnetic_data.NL_spin.data(),
-      magnetic_data.r12_spin.data(),
-      plane_size,
-      nep_data[device_id].Fp.data(),
-      annmb[device_id].c,
-      spin_coefficient_offset_,
-      projection,
-      data.spin3_moments.data(),
-      data.force.data(),
-      data.mforce.data(),
-      data.virial.data());
-  } else {
-    switch (spin_compress_) {
-      case 1:
-        LAUNCH_SPIN3_FORCE(1);
-        break;
-      case 2:
-        LAUNCH_SPIN3_FORCE(2);
-        break;
-      case 3:
-        LAUNCH_SPIN3_FORCE(3);
-        break;
-      case 4:
-        LAUNCH_SPIN3_FORCE(4);
-        break;
-      case 5:
-        LAUNCH_SPIN3_FORCE(5);
-        break;
-      case 6:
-        LAUNCH_SPIN3_FORCE(6);
-        break;
-      case 7:
-        LAUNCH_SPIN3_FORCE(7);
-        break;
-      case 8:
-        LAUNCH_SPIN3_FORCE(8);
-        break;
-      case 9:
-        LAUNCH_SPIN3_FORCE(9);
-        break;
-      default:
-        PRINT_INPUT_ERROR("spin_compress should be an integer from 1 to 9.");
-        break;
-    }
+  if (!spin_force_jit_) {
+    auto launch = [&](auto layout, auto* radial) {
+      nep_spin::forces<<<(dataset.N * spin_compress_ + 63) / 64, 64>>>(
+        layout, dataset.N, struct_dim_, num_types_, para.n_max_angular,
+        para.basis_size_angular, Box{}, dataset.type.data(), data.spin_type_active.data(),
+        magnetic_data.r_spin.data(), magnetic_data.spin.data(), magnetic_data.NN_spin.data(),
+        magnetic_data.NL_spin.data(), magnetic_data.r12_spin.data(), plane_size,
+        data.spin_cutoff_pair.data(), radial,
+        projection, data.spin_moments.data(), nep_data[device_id].Fp.data(), data.force.data(),
+        data.mforce.data(), data.virial.data(), true);
+    };
+    if (data.wide_radial.size())
+      launch(nep_spin::WideLayout(data.spin_layout.view), data.wide_radial.data());
+    else
+      nep_spin::launch_runtime_layout(data.spin_layout.view, [&](auto layout) {
+        launch(layout, data.radial_coefficients.data());
+      });
+    add_spin_training_outputs<<<grid_size, block_size>>>(dataset.N, data.force.data(),
+      data.mforce.data(), data.virial.data(), dataset.force.data(),
+      magnetic_data.mforce.data(), dataset.virial.data());
+    GPU_CHECK_KERNEL
+    return;
   }
-#undef LAUNCH_SPIN3_FORCE
 
-  mask_inactive_spin_mforce_training<<<grid_size, block_size>>>(
-    dataset.N, dataset.N, dataset.type.data(), data.spin_type_active.data(), data.mforce.data());
+  spin_force_jit_(
+    dataset.N,
+    struct_dim_,
+    data.spin_cutoff_pair.data(),
+    dataset.type.data(),
+    data.spin_type_active.data(),
+    magnetic_data.r_spin.data(),
+    magnetic_data.spin.data(),
+    magnetic_data.NN_spin.data(),
+    magnetic_data.NL_spin.data(),
+    magnetic_data.r12_spin.data(),
+    plane_size,
+    nep_data[device_id].Fp.data(),
+    data.radial_coefficients.size() ? data.radial_coefficients.data() : nullptr,
+    projection,
+    data.spin_moments.data(),
+    data.force.data(),
+    data.mforce.data(),
+    data.virial.data(),
+    data.wide_radial.size() ? data.wide_radial.data() : nullptr);
+
   add_spin_training_outputs<<<grid_size, block_size>>>(
     dataset.N,
     data.force.data(),
@@ -262,77 +192,27 @@ void NEP_Spin_Model::initialize_spin_compiled(const Spin_Parameters& para)
   spin_descriptor_jit_ = nullptr;
   spin_force_jit_ = nullptr;
   compiled_spin_.reset();
-  if (!para.nep_compile || para.prediction != 0)
-    return;
-  const auto layout = make_spin_polynomial_layout<Spin_Polynomial_Layout>(
-    para.spin_compress, para.spin_l_max[0], para.spin_order, para.spin_soc);
+  if (!para.nep_compile) return;
+  const nep_spin::Layout layout(para.spin_compress, para.spin_l_max, para.spin_order, para.spin_soc);
   auto config = make_nep_compile_config(para);
-  config.model_name = "Spin layout";
+  config.model_name = "Spin";
   config.source_file = "main_nep/nep_spin/spin_specialized.cu";
-  std::ostringstream constants;
-  constants << "#define NEP_SPIN_LAYOUT_JIT 1\nstruct SpinConstantLayout {\n";
-  constants << "  enum : int { channels = " << layout.channels << " };\n";
-  constants << "  enum : int { pair_count = " << layout.pair_count << " };\n";
-  constants << "  enum : int { density_stride = " << layout.density_stride << " };\n";
-  constants << "  enum : int { moment_count = " << layout.moment_count << " };\n";
-  constants << "  enum : int { local_s2 = " << layout.local_s2 << " };\n";
-  constants << "  enum : int { edge_l0_dot = " << layout.edge_l0_dot << " };\n";
-  constants << "  enum : int { edge_l0_neighbor_s2 = " << layout.edge_l0_neighbor_s2 << " };\n";
-  constants << "  enum : int { edge_l2_pair = " << layout.edge_l2_pair << " };\n";
-  constants << "  enum : int { center_l2_environment = " << layout.center_l2_environment << " };\n";
-  constants << "  enum : int { edge_l0_dot2 = " << layout.edge_l0_dot2 << " };\n";
-  constants << "  enum : int { density_l0_self = " << layout.density_l0_self << " };\n";
-  constants << "  enum : int { density_l1_longitudinal_self = "
-            << layout.density_l1_longitudinal_self << " };\n";
-  constants << "  enum : int { density_l1_axial_self = " << layout.density_l1_axial_self << " };\n";
-  constants << "  enum : int { density_l1_stf_self = " << layout.density_l1_stf_self << " };\n";
-  constants << "  enum : int { density_l1_product_self = " << layout.density_l1_product_self
-            << " };\n";
-  constants << "  enum : int { density_l2_product_self = " << layout.density_l2_product_self
-            << " };\n";
-  constants << "  enum : int { density_l0_dot_response = " << layout.density_l0_dot_response
-            << " };\n";
-  constants << "  enum : int { correlation_same_edge = " << layout.correlation_same_edge << " };\n";
-  constants << "  enum : int { correlation_distinct_neighbor = "
-            << layout.correlation_distinct_neighbor << " };\n";
-  constants << "  enum : int { correlation_distinct_l1 = " << layout.correlation_distinct_l1
-            << " };\n";
-  constants << "  enum : int { correlation_distinct_l2 = " << layout.correlation_distinct_l2
-            << " };\n";
-  constants << "  enum : int { angular_l1_moment_offset = " << layout.angular_l1_moment_offset
-            << " };\n";
-  constants << "  enum : int { angular_l2_moment_offset = " << layout.angular_l2_moment_offset
-            << " };\n";
-  constants << "  enum : int { coupling_l11_axial = " << layout.coupling_l11_axial << " };\n";
-  constants << "  enum : int { edge_l11_axial = " << layout.edge_l11_axial << " };\n";
-  constants << "  enum : int { coupling_l22_axial = " << layout.coupling_l22_axial << " };\n";
-  constants << "  enum : int { edge_l22_axial = " << layout.edge_l22_axial << " };\n";
-  constants << "  enum : int { edge_l0_moment_gate = " << layout.edge_l0_moment_gate << " };\n";
-  constants << "  enum : int { coupling_l11_dot_response = " << layout.coupling_l11_dot_response
-            << " };\n";
-  constants << "  enum : int { coupling_l111_p_m_x = " << layout.coupling_l111_p_m_x << " };\n";
-  constants << "  enum : int { coupling_l22_dot_response = " << layout.coupling_l22_dot_response
-            << " };\n";
-  constants << "  enum : int { coupling_l111_p_qs_x = " << layout.coupling_l111_p_qs_x << " };\n";
-  constants << "  enum : int { coupling_l112_edge_response = " << layout.coupling_l112_edge_response
-            << " };\n";
-  constants << "  enum : int { coupling_l111_bulk = " << layout.coupling_l111_bulk << " };\n";
-  constants << "  enum : int { descriptor_dim = " << layout.descriptor_dim << " };\n";
-  constants << "};\n";
-  config.extra_config = constants.str();
+  config.extra_config = nep_spin::compile_layout(layout, para.spin_soc);
+  if (nep_spin::needs_wide_forward(para.spin_soc, layout.lmax, layout.order))
+    config.extra_config += "#define NEP_SPIN_WIDE_FORWARD\n";
   compiled_spin_.reset(new NEP_Compile(config));
   if (
     !compiled_spin_->is_valid() ||
-    !compiled_spin_->load_symbol("nep_spin_launch_descriptor", spin_descriptor_jit_) ||
-    !compiled_spin_->load_symbol("nep_spin_launch_force", spin_force_jit_)) {
+    !compiled_spin_->load_symbol("nep_spin_launch_descriptor_v2", spin_descriptor_jit_) ||
+    !compiled_spin_->load_symbol("nep_spin_launch_force_v2", spin_force_jit_)) {
     spin_descriptor_jit_ = nullptr;
     spin_force_jit_ = nullptr;
     compiled_spin_.reset();
   } else {
     printf(
-      "Spin layout JIT ready: C=%d L=%d order=%d SOC=%d.\n",
+      "Spin aggregate JIT ready: C=%d L=%d order=%d SOC=%d.\n",
       para.spin_compress,
-      para.spin_l_max[0],
+      para.spin_l_max,
       para.spin_order,
       para.spin_soc);
   }

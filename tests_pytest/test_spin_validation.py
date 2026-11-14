@@ -1,7 +1,7 @@
 """CPU guards for the numerical validation machinery."""
 import pytest
 
-from validate_main_nep_spin3_training import maximum_error, parity_tolerance
+from validate_spin_training import maximum_error, parity_tolerance
 
 
 @pytest.mark.parametrize("comparison", [maximum_error, parity_tolerance])

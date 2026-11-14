@@ -545,76 +545,49 @@ The model tables in Section 4.1 determine the number of outputs, global paramete
 
 ### 5.1 Spin-dependent models: `model nep_spin`
 
-For `model nep_spin`, `spin_version` identifies the magnetic descriptor and
-parameter layout, independently of `format_version`. Its only supported value
-is the literal token `1`. The following fields supplement the common
-energy-model fields; all are required except `spin_type`.
+Spin models use `spin_version 1`, independently of `format_version`.
+The following fields supplement the common energy-model fields:
 
-| Field | Version-1 meaning |
+| Field | Meaning |
 |---|---|
-| `spin_version 1` | Magnetic descriptor and parameter-layout version |
-| `spin_basis_size 8` | Fixed maximum magnetic radial basis index; nine basis functions |
-| `spin_l_max L` | Magnetic angular rank, `L` in `0..2` |
-| `spin_compress C` | Number of compressed radial channels, `C` in `1..9` |
-| `spin_order <order>` | Contraction order in `1..3` |
-| `spin_soc <flag>` | Joint spin/spatial channels: `0` or `1` |
-| `spin_cutoff ...` | One cutoff, or `T` cutoffs in element order, in angstroms; each must satisfy `0 < cutoff <= rc_radial`; pair cutoff is their arithmetic mean |
-| `spin_projection_size P` | Number of projection coefficients; must equal `4*C*C` |
-| `spin_scaler 1` | Per-component scaling is present in `q_scaler` |
-| `spin_type <elements...>` | Optional nonempty subset with independent spin degrees of freedom; defaults to all elements |
+| `spin_version 1` | Descriptor and parameter layout |
+| `spin_basis_size K` | Must equal structural angular `basis_size` |
+| `spin_l_max L` | Maximum spatial/spin rank in `0..4` |
+| `spin_compress C` | Learned radial channels in `1..9` |
+| `spin_order S` | Primitive polynomial degree in `1..4` |
+| `spin_soc flag` | Independent rotations (`0`) or joint rotations (`1`) |
+| `spin_cutoff ...` | One value or one per type; at least 3 Å and no larger than radial cutoff; pair cutoff is the arithmetic mean |
+| `spin_scaler 1` | Per-component scaling in `q_scaler` |
+| `spin_type ...` | Optional nonempty subset with independent spins; defaults to all types |
 
-Entries in `spin_type` must be distinct elements from the first line. This
-selection does not change the element order or the sizes of parameter arrays.
-For descriptor definitions and units, see
-[the Spin potential documentation](../../doc/potentials/nep_spin.rst).
+All atom types are energy centers. Every combination of the declared magnetic
+ranges is supported. The limits are 90 structural angular, 103 structural,
+236 magnetic and 339 total descriptor components. The magnetic maximum is
+reached at C=9, L=4, S=4 without SOC. Models with at most 199 total components
+retain the compact ANN workspace. One hidden layer is required.
+Universal ZBL and the shared elemental energy reference are supported.
 
-Version 1 requires one hidden layer (`ann N1 0`, `1 <= N1 <= 120`) and uniform
-structural cutoffs with `3 <= rc_angular <= rc_radial <= 100`. Structural
-indices satisfy `0 <= nr <= 12`, `0 <= na <= 8`, `0 <= br <= 16`,
-`0 <= ba <= 12`, and `2 <= L_max <= 8`. The model reader accepts at most
-90 structural angular components, 96 magnetic components, and 199 total
-descriptor components. `energy_reference` and optional universal `zbl` use
-the shared syntax; flexible ZBL and the `zbl_parameters` block are unsupported.
-
-#### Parameter and scaler layout
-
-Let `D = D_struct + D_spin`, where `D_struct` is the dimension in Section 4.1
-without extra inputs. `D_spin` is determined by `spin_compress`, `spin_l_max`,
-`spin_order`, and `spin_soc`, as implemented by `NEP_Spin_Model_File::spin_dimension`
-in [nep_spin_model_file.cu](../../src/utilities/nep_io/nep_spin_model_file.cu).
-With `O = G = S = 1` in Section 4.1, the parameter vector is:
+The parameter vector uses C-order arrays:
 
 ```text
-ANN parameters and common energy-output bias
-structural radial coefficients   [T, T, nr + 1, br + 1]
-structural angular coefficients  [T, T, na + 1, ba + 1]
-magnetic radial coefficients    [C, 9, T, T]
-magnetic projection coefficients [4, C, C]
+per-type ANN parameters and common output bias
+structural radial coefficients   [T, T, nr+1, br+1]
+structural angular coefficients  [T, T, na+1, ba+1]
+radial mixing                   [na+1, C]
+coupling-path weights           [number_of_paths, C]
+center-primitive mixing         [number_of_positive_degree_primitives, C]
 ```
 
-All arrays use C order. The magnetic radial indices are
-`[channel, basis, center_type, neighbor_type]`; their type pair is the fastest
-varying index, unlike the structural segments. Projection indices are
-`[leg, output_channel, source_channel]`. The total parameter count is
+Array sizes and descriptor order are determined by the model settings through
+[spin_layout.cuh](../../src/force/nep_spin/spin_layout.cuh). The total count is
+`T*N1*(D+2)+1 + T*T*((nr+1)*(br+1)+(na+1)*(ba+1)) + C*(na+1+paths+positive_primitives)`.
+The structural angular coefficients are shared by the spin descriptors.
+The `q_scaler` block contains `D` finite positive values, structural coordinates first.
+See [the spin potential documentation](../../doc/potentials/nep_spin.rst) for
+primitive, path, sector and scaler ordering in both SOC modes.
 
-```text
-N = T * N1 * (D + 2) + 1
-    + T*T * ((nr + 1)*(br + 1) + (na + 1)*(ba + 1))
-    + 9*C*T*T + 4*C*C.
-```
-
-The `q_scaler` block contains `D` finite, strictly positive values, with
-structural components first as in Section 4.2. Magnetic components follow
-the version-1 contraction order defined by
-`make_spin_polynomial_layout` in [nep_spin3_layout.cuh](../../src/force/nep_spin/nep_spin3_layout.cuh):
-local squared moment; order-1 edge terms; order-2 edge/density/correlation and
-axial terms; then order-3 gated and coupled terms. Disabled families contribute
-no entries. Channels increase within a family; channel-pair families use
-`(0,0), (0,1), ..., (0,C-1), (1,1), ..., (C-1,C-1)`.
-
-Spin models use the shared `nep.restart` syntax in Section 6. Its `mu` and
-`sigma` vectors use the same parameter ordering above; Spin metadata and
-`q_scaler` are stored only in the corresponding `nep.txt`.
+Spin training uses the shared `nep.restart` syntax below; model metadata and
+scalers reside in `nep.txt`.
 
 ## 6. `nep.restart`
 
