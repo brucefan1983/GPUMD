@@ -51,7 +51,8 @@ bool is_langevin_spin_option(const char* value)
 {
   return strcmp(value, "lattice") == 0 || strcmp(value, "alpha") == 0 ||
          strcmp(value, "damping") == 0 || strcmp(value, "mobility") == 0 ||
-         strcmp(value, "gamma") == 0 || strcmp(value, "stemp") == 0 || strcmp(value, "seed") == 0;
+         strcmp(value, "gamma") == 0 || strcmp(value, "stemp") == 0 || strcmp(value, "seed") == 0 ||
+         strcmp(value, "midpoint_tol") == 0 || strcmp(value, "midpoint_max_iter") == 0;
 }
 
 void print_spin_mass_factors(const Atom& atom, const std::vector<double>& mass_factor_by_type)
@@ -212,6 +213,7 @@ Spin_Ensemble::Spin_Ensemble(
     bool has_gamma = false;
     bool has_spin_temperature = false;
     bool has_seed = false;
+    bool has_midpoint_tol = false, has_midpoint_max_iter = false;
     int index = spin_option_start;
     while (index < num_param) {
       if (index + 1 >= num_param) {
@@ -243,6 +245,23 @@ Spin_Ensemble::Spin_Ensemble(
       } else if (strcmp(param[index], "mobility") == 0) {
         PRINT_INPUT_ERROR(
           "mobility is not supported; GLSD uses dimensionless damping = hbar * gamma_s_prime.");
+      } else if (strcmp(param[index], "midpoint_tol") == 0) {
+        if (
+          !use_spin_glsd || has_midpoint_tol ||
+          !is_valid_real(param[index + 1], &spin_glsd_midpoint_tol) ||
+          !std::isfinite(spin_glsd_midpoint_tol) || spin_glsd_midpoint_tol <= 0.0) {
+          PRINT_INPUT_ERROR("GLSD midpoint_tol must be finite and > 0, and cannot be repeated.");
+        }
+        has_midpoint_tol = true;
+      } else if (strcmp(param[index], "midpoint_max_iter") == 0) {
+        if (
+          !use_spin_glsd || has_midpoint_max_iter ||
+          !is_valid_int(param[index + 1], &spin_glsd_midpoint_max_iter) ||
+          spin_glsd_midpoint_max_iter <= 0) {
+          PRINT_INPUT_ERROR(
+            "GLSD midpoint_max_iter must be a positive integer and cannot be repeated.");
+        }
+        has_midpoint_max_iter = true;
       } else if (strcmp(param[index], "alpha") == 0) {
         if (use_spin_glsd || has_alpha) {
           PRINT_INPUT_ERROR("alpha belongs only to SIB and cannot be repeated.");
@@ -340,7 +359,11 @@ Spin_Ensemble::Spin_Ensemble(
     print_spin_mass_factors(atom, spin_mass_factor_by_type);
   } else {
     if (use_spin_glsd) {
-      printf("Integrate variable-magnitude spins with Ma-Dudarev GLSD (Heun).\n");
+      printf("Integrate variable-magnitude spins with Ma-Dudarev GLSD (implicit midpoint).\n");
+      printf(
+        "    midpoint_tol = %.17g, midpoint_max_iter = %d.\n",
+        spin_glsd_midpoint_tol,
+        spin_glsd_midpoint_max_iter);
       printf("    damping = %.17g (dimensionless hbar * gamma_s_prime).\n", spin_glsd_damping);
       printf(
         "    converted mobility = %.17g muB^2/(eV ps); Cartesian Boltzmann measure.\n",

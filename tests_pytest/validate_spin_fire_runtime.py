@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LGPL-3.0-or-later
 """Spin FIRE analytic and endpoint regression, without third-party packages."""
-from spin_analytic_model import analytic_model, structure
+from spin_analytic_model import REFERENCE_MODEL, analytic_model, structure
 import argparse
 import json
 import math
@@ -11,7 +11,7 @@ import re
 import subprocess
 import tempfile
 
-FIXTURE = Path(__file__).parent / 'fixtures' / 'nep_spin3'
+from spin_fixtures import FIXTURE
 GPUMD = Path(os.environ.get('GPUMD_COMMAND', Path(__file__).parents[1] / 'src/gpumd')).resolve()
 
 
@@ -19,6 +19,18 @@ def norm(v):
     return math.sqrt(sum(x*x for x in v))
 
 
+def polar_step(spin, field, dt):
+    magnitude = norm(spin)
+    field_norm = norm(field)
+    unit = ([x/magnitude for x in spin] if magnitude else
+            [x/field_norm for x in field] if field_norm else [1.,0.,0.])
+    radial = sum(x*y for x,y in zip(unit,field))
+    rotation = [dt*dt*magnitude*(b-radial*e) for b,e in zip(field,unit)]
+    angle = norm(rotation)
+    theta = min(.1,angle)
+    endpoint = magnitude+max(-.1,min(.1,dt*dt*radial))
+    return [endpoint*(math.cos(theta)*e+(math.sin(theta)*r/angle if angle else 0.))
+            for e,r in zip(unit,rotation)]
 
 
 
@@ -82,6 +94,17 @@ def validate(root):
     initial = read_frame(case/'model.xyz')['spin']
     assert abs(summary['variable_onsite']['initial_energy']-sum(math.tanh(.1*norm(s)**2) for s in initial))<2e-7
 
+    # A radial crossing reflects the chart without artificially pinning a moment at zero.
+    stiff = analytic_model(True).replace('\n0.1\n','\n100.0\n')
+    case,run = run_case(root,'radial_crossing',stiff,structure([[.001,0,0]]*4),
+                        'minimize spin_fire 1e-7 1 1\n')
+    summary[case.name],state = check_run(case,run,converged=False)
+    assert all(s[0]<0 and abs(norm(s)-.001)<1e-9 for s in state['spin'])
+    case,run = run_case(root,'radial_crossing_converged',stiff,structure([[.001,0,0]]*4),
+                        'minimize spin_fire 1e-7 1000 1\n')
+    summary[case.name],state = check_run(case,run,1e-7)
+    assert max(map(norm,state['spin']))<1e-9
+
     case,run = run_case(root,'zero_variable',analytic_model(True),structure([[0,0,0]]*4),
                         'minimize spin_fire 2e-6 3000 1\n')
     summary['zero_variable'],state = check_run(case,run,2e-6)
@@ -133,8 +156,8 @@ def validate(root):
 
     # First-step oracle from independently dumped force, magnetic force and
     # nonsymmetric virial. At zero initial fictitious velocity, FIRE mixing
-    # leaves v=dt*g; this checks simultaneous Cartesian and affine updates.
-    potential=(FIXTURE/'nep_spin_o3c2_uniform.nep').read_text()
+    # checks the spin, Cartesian position and affine cell updates.
+    potential=REFERENCE_MODEL.read_text()
     skew=structure().replace('20 0 0 0 20 0 0 0 20','20 0 0 2 20 0 0 1 20')
     case,run=run_case(root,'joint_reference',potential,skew,'')
     assert run.returncode==0,run.stderr
@@ -153,12 +176,29 @@ def validate(root):
                          final['unwrapped_position'],final['spin']):
         expected=[p[i]+.01*f[i]+sum(strain[i][j]*p[j] for j in range(3)) for i in range(3)]
         errors['position']=max(errors['position'],max(abs(x-y) for x,y in zip(expected,q)))
-        errors['spin']=max(errors['spin'],max(abs(s[i]+.01*g[i]-t[i]) for i in range(3)))
+        expected_spin=polar_step(s,g,.1)
+        errors['spin']=max(errors['spin'],max(abs(a-b) for a,b in zip(expected_spin,t)))
     cell=list(map(float,re.search(r'Lattice="([^"]+)"',(case/'state.xyz').read_text()).group(1).split()))
     errors['cell']=max(abs(cell[3*j+i]-h[i][j]-sum(strain[i][k]*h[k][j] for k in range(3)))
                        for i in range(3) for j in range(3))
     assert max(errors.values())<1e-8,errors
     summary['joint_one_step_oracle']=errors
+
+    # A zero moment can acquire magnitude along the local field; it is not frozen.
+    zero = structure([[0,0,0],[.4,-.3,.7],[-.2,.8,.5],[.6,.1,-.4]])
+    case,run=run_case(root,'zero_moment_reference',potential,zero,'')
+    assert run.returncode==0
+    reference=read_frame(case/'state.xyz')
+    assert norm(reference['mforce'][0])>1e-8
+    case,run=run_case(root,'zero_moment_update',potential,zero,
+                      'minimize spin_fire 1e-14 1 1\n')
+    assert run.returncode==0
+    endpoint=read_frame(case/'state.xyz')
+    error=max(abs(a-b) for s,g,t in zip(reference['spin'],reference['mforce'],endpoint['spin'])
+              for a,b in zip(polar_step(s,g,.1),t))
+    assert error<1e-8,error
+    assert norm(endpoint['spin'][0])>0
+    summary['zero_moment_update']={'one_step_error':error}
 
     # Explicit fixed_atoms=0 must retain the joint update, including cell motion.
     joint_cell=cell

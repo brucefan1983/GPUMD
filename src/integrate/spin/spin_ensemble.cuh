@@ -21,13 +21,13 @@ Contributors:
 */
 
 #pragma once
+#include "force/nep_spin/nep_spin.cuh"
 #include "integrate/ensemble.cuh"
+#include "model/box.cuh"
 #include <memory>
 #include <string>
 
 class Spin_Integrator;
-class NEP_Spin;
-class NEP_Spin_MultiGPU;
 
 class Spin_Ensemble final : public Ensemble
 {
@@ -49,8 +49,7 @@ public:
 private:
   class Lattice_MTTK;
   Force& force_;
-  NEP_Spin* potential_ = nullptr;
-  NEP_Spin_MultiGPU* multigpu_potential_ = nullptr;
+  Spin_Potential* potential_ = nullptr;
   std::unique_ptr<Ensemble> lattice_;
   std::unique_ptr<Spin_Integrator> spin_integrator;
   double temperature1 = 0.0, temperature2 = 0.0;
@@ -62,8 +61,14 @@ private:
   int spin_dynamics_seed = 12345;
   double spin_glsd_damping = 0.0;  // dimensionless hbar * gamma_s_prime
   double spin_glsd_mobility = 0.0; // converted muB^2 / (eV ps), internal only
+  double spin_glsd_midpoint_tol = 1.0e-7;
+  int spin_glsd_midpoint_max_iter = 4;
   bool use_spin_tspin = false, use_spin_sib = false, use_spin_glsd = false,
        spin_lattice_enabled = true;
-  GPU_Vector<double> base_force_, base_mforce_;
-  void refresh_endpoint(Force&, Box&, Atom&, const std::vector<Group>&, GPU_Vector<double>&);
+  Spin_Force_Snapshot modifiers_;
+  Box start_box_;
+  GPU_Vector<double> start_position_, endpoint_position_;
+  GPU_Vector<int> endpoint_images_;
+  void
+  refresh_endpoint(double, Force&, Box&, Atom&, const std::vector<Group>&, GPU_Vector<double>&);
 };
