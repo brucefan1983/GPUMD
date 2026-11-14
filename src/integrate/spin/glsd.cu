@@ -122,8 +122,8 @@ Spin_GLSD::Spin_GLSD(
     !std::isfinite(gamma_) || gamma_ <= 0.0 || !std::isfinite(mobility_) || mobility_ < 0.0 ||
     !std::isfinite(spin_temperature_) || (spin_temperature_ < 0.0 && spin_temperature_ != -1.0) ||
     !std::isfinite(midpoint_tolerance_) || midpoint_tolerance_ <= 0.0 || seed <= 0) {
-    PRINT_INPUT_ERROR("GLSD requires gamma > 0, mobility >= 0, stemp -1 or >= 0, "
-                      "midpoint_tol > 0, and seed > 0.");
+    PRINT_INPUT_ERROR(
+      "GLSD requires gamma > 0, mobility >= 0, stemp -1 or >= 0, midpoint_tol > 0, and seed > 0.");
   }
   // First-order Langevin dynamics has no independent inertial spin velocity.
   atom.spin_velocity_initialized = false;

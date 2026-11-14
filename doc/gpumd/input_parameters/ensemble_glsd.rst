@@ -15,6 +15,9 @@ Langevin spin dynamics (GLSD). A Spin potential and ``spin:R:3`` magnetic moment
 in ``model.xyz`` are required. For fixed-magnitude dynamics, use
 :ref:`SIB <kw_ensemble_sib>`.
 
+The equation of motion follows P. W. Ma and S. L. Dudarev,
+`Phys. Rev. B 86, 054416 (2012) <https://doi.org/10.1103/PhysRevB.86.054416>`_.
+
 Syntax
 ------
 
