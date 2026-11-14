@@ -17,16 +17,16 @@ General form
 The site potential energy is
 
 .. math::
-   
+
    U_i = \frac{1}{2} \sum_{j\neq i} \phi(r_{ij}) + F (\rho_i).
 
 Here, the part with :math:`\phi(r_{ij})` is a pairwise potential and :math:`F (\rho_i)` is the embedding potential, which depends on the electron density :math:`\rho_i` at site :math:`i`.
-The many-body part of the EAM potential comes from the embedding potential.  
+The many-body part of the EAM potential comes from the embedding potential.
 
 The density :math:`\rho_i` is contributed by the neighbors of :math:`i`:
 
 .. math::
-   
+
    \rho_i = \sum_{j\neq i} f(r_{ij}).
 
 Therefore, the form of an :term:`EAM` potential is completely determined by the three functions: :math:`\phi`, :math:`f`, and :math:`F`.
@@ -37,7 +37,7 @@ Version from [Zhou2004]_
 The pair potential between two atoms of the same type :math:`a` is
 
 .. math::
-   
+
    \phi^{aa}(r) = \frac{ A^a \exp[-\alpha(r/r_e^a-1)] } { 1+(r/r_e^a-\kappa^a)^{20} } -
    \frac{ B^a \exp[-\beta(r/r_e^a-1)] } { 1+(r/r_e^a-\lambda^a)^{20} }.
 
@@ -50,7 +50,7 @@ The contribution of the electron density from an atom of type :math:`a` is
 The pair potential between two atoms of different types :math:`a` and :math:`b` is then constructed as
 
 .. math::
-   
+
    \phi^{ab}(r) = \frac{1}{2}
    \left[
    \frac{ f^b(r) } { f^a(r) } \phi^{aa}(r) + \frac{ f^a(r) } { f^b(r) } \phi^{bb}(r)
@@ -59,7 +59,7 @@ The pair potential between two atoms of different types :math:`a` and :math:`b` 
 The embedding energy function is piecewise:
 
 .. math::
-   
+
    F(\rho) = \begin{cases}
    \sum_{i=0}^3 F_{ni} \left( \frac{\rho}{\rho_n}-1\right)^i
    & \rho < 0.85\rho_e \\
@@ -76,7 +76,7 @@ This is a very simple :term:`EAM`-type potential, which is an extension of the F
 The function for the pair potential is
 
 .. math::
-   
+
    \phi(r) = \begin{cases}
    (r-c)^2 \sum_{n=0}^4 c_n r^n  & r \leq c \\
    0                             & r > c
@@ -85,7 +85,7 @@ The function for the pair potential is
 The function for the density is
 
 .. math::
-   
+
    f(r) =
    \begin{cases}
    (r-d)^2 + B^2 (r-d)^4  & r \leq d \\
@@ -105,7 +105,7 @@ The potential file for the version from [Zhou2004]_ reads::
 
   eam_zhou_2004 num_types <list of elements>
   r_e f_e rho_e rho_s alpha beta A B kappa lambda F_n0 F_n1 F_n2 F_n3 F_0 F_1 F_2 F_3 eta F_e cutoff
-  
+
 There are :attr:`num_types` rows of parameters but here we have only written a single row above.
 The order of the rows should be consistent with the :attr:`<list of elements>` in the first line.
 
@@ -137,10 +137,10 @@ The last two parts can be directly copied from the fourth line of the original p
 
 Since the first three lines are comments, this modification does not affect usage in LAMMPS.
 
-Maximum neighbour count (``eam/alloy``)
-----------------------------------------
+Notes
+-----
 
-For the ``eam/alloy`` form, the :ref:`potential <kw_potential>` keyword accepts an optional second argument that sets the per-atom upper bound on neighbours used to allocate the neighbour list on the GPU::
+For ``eam/alloy``, the optional second argument to :ref:`potential <kw_potential>` sets the maximum number of neighbors per atom.
+The default is 400. A smaller value saves GPU memory but must accommodate every atom's neighbors::
 
-   potential <potential_file>          # default: max_neighbor = 400
-   potential <potential_file> 150      # smaller value to save GPU memory
+   potential alloy.eam 150
