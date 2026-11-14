@@ -10,7 +10,7 @@ In addition to the output interval and the quantity flags described under Syntax
 
 If set to `observe`, the first of the supplied NEP potentials, the main potential, propagates the molecular dynamics run.
 Every potential, the main potential included, is evaluated every `interval_thermo` and `interval_exyz` time steps at the positions written to the files.
-Every `interval_thermo` timesteps files in the style of :ref:`thermo.out <thermo_out>` will be written, and every `interval_exyz` timesteps extended XYZ-files will be written. The files are named according to the following convention:
+Every `interval_thermo` time steps files in the style of :ref:`thermo.out <thermo_out>` will be written, and every `interval_exyz` time steps extended XYZ-files will be written. The files are named according to the following convention:
 
 * **.out**: `observer0.out`, `observer1.out`, ..., `observer(N-1).out` for `N` supplied potentials.
 * **.xyz**: `observer0.xyz`, `observer1.xyz`, ..., `observer(N-1).xyz` for `N` supplied potentials.
@@ -22,8 +22,8 @@ The `stress` field in the extended XYZ files holds the pressure tensor in eV/Ã…Â
 The forces exclude those that other keywords add to the atoms, such as `add_force` and `add_efield`.
 Evaluating the potentials leaves the molecular dynamics run unchanged.
 
-If set to `average`, all supplied NEP potentials will be evaluated at every timestep, with the average of all potentials used to propagate the molecular dynamics. 
-In this case, two files will be written: `observer.out` every `interval_thermo` timesteps, and `observer.xyz` every `interval_exyz` timesteps.
+If set to `average`, all supplied NEP potentials will be evaluated at every timestep, with the average of all potentials used to propagate the molecular dynamics.
+In this case, two files will be written: `observer.out` every `interval_thermo` time steps, and `observer.xyz` every `interval_exyz` time steps.
 `observer.out` holds the thermo vector of the run, which the average potential propagates.
 `observer.xyz` holds the per-atom arrays of the run, and takes its energy and `stress` from the same thermo vector.
 A row of `observer.out` equals the row of :ref:`thermo.out <thermo_out>` of the same step.
@@ -55,7 +55,7 @@ Example 1
 To use one NEP potential to propagate the MD (`nep0`), and another (`nep1`) to observe thermo properties every 100 steps and write exyz files every 1000 steps, write::
 
   potential nep0
-  potential nep1  
+  potential nep1
   ...
   dump_observer observe 100 1000 1 1
 
@@ -67,17 +67,16 @@ Example 2
 To run MD with an average of two NEP potentials, `nep0` and `nep1`, and dump the positions, velocities and forces every 1000 steps, write::
 
   potential nep0
-  potential nep1  
+  potential nep1
   ...
   dump_observer average 100 1000 1 1
 
-before the :ref:`run keyword <kw_run>`. This will generate two output files, `observer.out` containing thermo properties  and `observer.xyz`, containing positions, velocities and forces as calculated with the average of `nep0` and `nep1`. `observer.out` will be written every 100 timesteps, and `observer.xyz` every 1000 timesteps.
+before the :ref:`run keyword <kw_run>`. This will generate two output files, `observer.out` containing thermo properties  and `observer.xyz`, containing positions, velocities and forces as calculated with the average of `nep0` and `nep1`. `observer.out` will be written every 100 time steps, and `observer.xyz` every 1000 time steps.
 
 
-Caveats
--------
-* This keyword is not propagating.
-  That means, its effect will not be passed from one run to the next.
+Notes
+-----
+* Repeat this command before each run that needs it.
 * Every run appends to the output files, named as described above.
   In `observe` mode, the runs share one `.out` and one `.xyz` file for each potential.
   In `average` mode, they share `observer.out` and `observer.xyz`.

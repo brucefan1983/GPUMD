@@ -5,7 +5,7 @@
 :attr:`electron_stop`
 =====================
 
-This keyword is used to apply electron stopping forces to high-energy atoms during a run. 
+This keyword is used to apply electron stopping forces to high-energy atoms during a run.
 This is usually used in radiation damage simulations.
 
 Syntax
@@ -27,8 +27,8 @@ For these :math:`N` lines, the number of columns is the number of species used b
 For a compacted multi-element NEP potential, there should be one column with the stopping power for each active species, in the active atom type order printed at initialization.
 For other potential models, there should be one column for each species in the order defined in the potential file.
 
-Example
--------
+Examples
+--------
 
 An example is::
 

@@ -82,9 +82,9 @@ Keywords
    * - :ref:`spin_compress <kw_spin_compress>`
      - number of shared compressed radial channels
    * - :ref:`spin_order <kw_spin_order>`
-     - highest Spin3 contraction level supplied to the neural network
+     - highest magnetic contraction level supplied to the neural network
    * - :ref:`spin_soc <kw_spin_soc>`
-     - enable joint spin--space rotation-invariant Spin3 channels
+     - enable joint spin--space rotation-invariant magnetic channels
    * - :ref:`spin_type <kw_spin_type>`
      - atom types with independent spin degrees of freedom
    * - :ref:`use_typewise_cutoff_zbl <kw_use_typewise_cutoff_zbl>`

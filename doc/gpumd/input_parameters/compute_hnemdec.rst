@@ -5,7 +5,7 @@
 :attr:`compute_hnemdec`
 =======================
 
-This keyword is used to calculate the multicomponent system thermal conductivity using the :ref:`homogeneous non-equilibrium molecular dynamics Evans-Cummings algorithm <hnemdec>` (:term:`HNEMDEC`) method.
+This keyword is used to calculate the multicomponent system thermal conductivity using the :ref:`homogeneous nonequilibrium molecular dynamics Evans-Cummings algorithm <hnemdec>` (:term:`HNEMDEC`) method.
 The results are written to the :ref:`onsager.out output file <onsager_out>`.
 
 Syntax
@@ -51,7 +51,7 @@ Note that one should control the temperature when using this keyword.
 Otherwise, the system will be heated up by the external driving force.
 
 **Important:**
-For this purpose, the :ref:`Nose-Hoover chain thermostat <nose_hoover_chain_thermostat>` is recommended.
+For this purpose, the :ref:`Nosé-Hoover chain thermostat <nose_hoover_chain_thermostat>` is recommended.
 The :ref:`Langevin thermostat <langevin_thermostat>` cannot be used for this purpose because it will affect the dynamics of the system.
 
 Example 2

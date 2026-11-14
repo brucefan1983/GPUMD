@@ -41,14 +41,14 @@ Parameters
   during each ``run`` and is shared by the lattice and spin thermostats.
 
 ``T_coup``
-  Thermostat coupling period in timesteps for ``nvt_tspin``. It controls both
+  Thermostat coupling period in time steps for ``nvt_tspin``. It controls both
   lattice and spin thermostats with ``lattice on``, and only the spin
   thermostat with ``lattice off``. It must be finite and at least ``1``.
 
 ``lattice on|off``
   Available only for ``nvt_tspin`` and defaults to ``on``. With ``on``, the
   lattice positions and velocities are integrated and thermostatted by the
-  standard Nose--Hoover chain. With ``off``, GPUMD leaves every atomic
+  standard Nosé-Hoover chain. With ``off``, GPUMD leaves every atomic
   position and lattice velocity unchanged while continuing to evaluate the
   Spin potential and integrate the spin coordinates. Supplied lattice
   velocities are preserved rather than cleared.

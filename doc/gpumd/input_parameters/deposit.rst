@@ -43,43 +43,46 @@ At each deposition, the new atoms are appended to the model and the :ref:`run <k
 After each sub-run, the current structure is written to a file named :attr:`deposited_N.xyz` in extended XYZ format, including the velocities (and the mass if the model has a mass property, and the group labels if the model has grouping).
 If the :ref:`simulation model file <model_xyz>` contains no velocity data, one extra sub-run of the pristine model is performed before the first deposition.
 
+Examples
+--------
+
 Example 1
----------
+^^^^^^^^^
 
 Deposit 10 H atoms every 10000 steps, at a height of 30 Å in the z direction, with an initial velocity of -0.1 Å/fs (towards decreasing z)::
 
    deposit 10000 2 30 atom H 10 -0.1
 
 Example 2
----------
+^^^^^^^^^
 
 Deposit 10 H atoms with a mass of 2 for every 10000 steps, at a height of 30 Å in the z direction, with an initial velocity of -0.1 Å/fs (towards decreasing z)::
 
    deposit 10000 2 30 atom H 10 -0.1 2
 
 Example 3
----------
+^^^^^^^^^
 
 Deposit 5 H atoms and 5 C atoms every 5000 steps, at heights uniformly sampled between 30 Å and 40 Å in the z direction::
 
    deposit 5000 2 30 40 atom H 5 -0.1 C 5 -0.1
 
 Example 4
----------
+^^^^^^^^^
 
 Deposit atoms read from the file :attr:`add_atoms.txt` every 10000 steps, resetting the z coordinate to 30 Å and the z velocity to -0.1 Å/fs::
 
    deposit 10000 2 30 file add_atoms.txt -0.1
 
 Example 5
----------
+^^^^^^^^^
 
 Deposit atoms read from the file :attr:`add_atoms.txt` every 10000 steps, keeping the positions and velocities exactly as given in the file (:attr:`direction` is :attr:`-1` and no :attr:`velocity` follows the file name)::
 
    deposit 10000 -1 0 file add_atoms.txt
 
-Caveats
--------
+Notes
+-----
 
 * This keyword can appear only once in a :ref:`run.in <run_in>` file, and only one :ref:`run keyword <kw_run>` is allowed when it is used.
 * The original :attr:`run.in` and :attr:`model.xyz` are saved as :attr:`run.in.original` and :attr:`model.xyz.original`, respectively, and the :attr:`run.in` and :attr:`model.xyz` files will be modified during the simulation.

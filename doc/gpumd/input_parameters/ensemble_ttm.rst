@@ -25,8 +25,8 @@ For :attr:`heat_ttm`, the first five parameters,
 :attr:`<T>`, :attr:`<T_coup>`, :attr:`<delta_T>`, :attr:`<label_source>`, and
 :attr:`<label_sink>`, have the same meanings as in :attr:`heat_lan`.
 
-Required parameters
--------------------
+Parameters
+----------
 
 For both :attr:`ttm` and :attr:`heat_ttm`:
 
@@ -42,7 +42,7 @@ For both :attr:`ttm` and :attr:`heat_ttm`:
 The product :attr:`<Ce> \times <rho_e>` is the volumetric electron heat capacity in eV/(K Å\ :math:`^3`).
 
 Optional arguments
-------------------
+^^^^^^^^^^^^^^^^^^
 
 :attr:`ttm_out_interval`
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -107,14 +107,6 @@ such as :attr:`3:10` or :attr:`3-10`.
 Cells outside the active region have zero electron temperature and do not exchange
 energy with neighboring cells or atoms.
 
-Notes
------
-
-* The simulation box for the electron grid is the full MD box.
-* The electron grid is always uniform in real space.
-* Electron-temperature snapshots are written to :ref:`ttm_electron_temperature.out <ttm_electron_temperature_out>`.
-* In :attr:`heat_ttm`, the source and sink labels always refer to grouping method 0.
-
 Examples
 --------
 
@@ -133,3 +125,11 @@ Pure TTM with per-cell properties::
 Heat source/sink plus TTM::
 
   ensemble heat_ttm 300 100 30 0 1 1 0 1.0 1.0 0.005 0.02 0.0 100.0 1 1 40 300 ttm_out_interval 100
+
+Notes
+-----
+
+* The simulation box for the electron grid is the full MD box.
+* The electron grid is always uniform in real space.
+* Electron-temperature snapshots are written to :ref:`ttm_electron_temperature.out <ttm_electron_temperature_out>`.
+* In :attr:`heat_ttm`, the source and sink labels always refer to grouping method 0.

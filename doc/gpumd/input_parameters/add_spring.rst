@@ -45,41 +45,44 @@ where :math:`(x_1, y_1, z_1)` and :math:`(x_2, y_2, z_2)` are the Cartesian coor
 * In :attr:`com_com` mode, :attr:`group_id_1` and :attr:`group_id_2` must be different.
 * Force is in units of eV/Å, distance is in units of Å, velocity is in units of Å/step, and spring constant is in units of eV/Å².
 * Spring forces are written to :attr:`spring_gm<group_method>_g<group_id>_s<spring_id>.out`. The :attr:`spring_id` is assigned independently for each (:attr:`group_method`, :attr:`group_id`) pair. A new spring uses the lowest unused non-negative ID that does not already have a spring output or restart file. A continued spring keeps the ID specified by ``continue <spring_id>``. The meaning of each column in the file is::
-   
+
    # step  mode  Fx  Fy  Fz  Ftotal  energy
 
 where :attr:`mode` is an integer flag: 0 = ghost_com, 1 = ghost_atom, 2 = com_com. In :attr:`com_com` mode, the reported :attr:`Fx`, :attr:`Fy`, and :attr:`Fz` correspond to the net spring force applied to :attr:`group_id_1`.
 
+Examples
+--------
+
 Example 1 (ghost_com + couple)
-------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Add a coupled spring with spring constant 10 eV/Å² and equilibrium distance 0 Å between a static ghost atom and the COM of atoms in group 2 defined by group method 0. The ghost atom is initially located at the COM::
 
    add_spring ghost_com 0 2 0 0 0 couple 10 0 0 0 0
 
 Example 2 (ghost_com + decouple)
---------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Add a decoupled spring with spring constants 10 eV/Å² in the x direction and 0 eV/Å² in the y and z directions between a ghost atom moving at velocity (0.00005, 0, 0) Å/step and the COM of atoms in group 2 defined by group method 0. The ghost atom is initially located at the COM::
 
    add_spring ghost_com 0 2 0.00005 0 0 decouple 10 0 0 0 0 0
 
 Example 3 (ghost_atom + couple)
--------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Add a coupled spring between each atom in group 2 defined by group method 0 and its corresponding moving ghost anchor. Each anchor is initially placed at the corresponding atom position and moves at velocity (0.00005, 0, 0) Å/step::
 
    add_spring ghost_atom 0 2 0.00005 0 0 couple 10 0 0 0 0
 
 Example 4 (com_com + decouple)
-------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Add a decoupled Cartesian spring between the COM of group 1 and the COM of group 2 under the same group method 0::
 
    add_spring com_com 0 1 2 decouple 10 0 0
 
-Note
-----
+Notes
+-----
 
 This keyword can be used multiple times during a run.
 

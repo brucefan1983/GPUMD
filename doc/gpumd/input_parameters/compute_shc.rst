@@ -5,10 +5,10 @@
 :attr:`compute_shc`
 ===================
 
-The :attr:`compute_shc` keyword is used to compute the non-equilibrium virial-velocity correlation function :math:`K(t)` and the spectral heat current (:term:`SHC`) :math:`J_q(\omega)`, in a given direction, for a group of atoms, as defined in Eq. (18) and the left part of Eq. (20) of [Fan2019]_.
+The :attr:`compute_shc` keyword is used to compute the nonequilibrium virial-velocity correlation function :math:`K(t)` and the spectral heat current (:term:`SHC`) :math:`J_q(\omega)`, in a given direction, for a group of atoms, as defined in Eq. (18) and the left part of Eq. (20) of [Fan2019]_.
 The results are written to the :ref:`shc.out output file <shc_out>`.
 
-  
+
 Syntax
 ------
 
@@ -20,12 +20,12 @@ Syntax
 This parameter must be an integer that is :math:`\geq 1` and :math:`\leq 50`.
 
 :attr:`Nc` is the total number of correlation steps.
-This parameter must be an integer that is :math:`\geq 100` and :math:`\leq 1000`. 
+This parameter must be an integer that is :math:`\geq 100` and :math:`\leq 1000`.
 
 :attr:`transport_direction` is the direction of heat transport to be measured.
 It can only be 0, 1, and 2, corresponding to the :math:`x`, :math:`y`, and :math:`z` directions, respectively.
 
-:attr:`num_omega` is the number of frequency points one wants to consider. 
+:attr:`num_omega` is the number of frequency points one wants to consider.
 
 :attr:`max_omega` is the maximum angular frequency (in units of THz) one wants to consider.
 The angular frequency data will be :attr:`max_omega/num_omega, 2*max_omega/num_omega, ..., max_omega`.
@@ -92,8 +92,8 @@ means that
 * you want to consider 500 frequency points
 * the maximum angular frequency is 200 THz
 
-Caveats
--------
+Notes
+-----
 This computation can be memory consuming.
 
 If you want to use the in-out decomposition for 2D materials, you need to make the basal plane in the :math:`xy` directions.

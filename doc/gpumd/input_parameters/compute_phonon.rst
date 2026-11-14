@@ -34,8 +34,8 @@ This keyword is used as follows::
 
 :attr:`displacement` is the displacement (in units of Å) for calculating the force constants using the finite-displacement method.
 
-Example
--------
+Examples
+--------
 
 For example, the command::
 
@@ -43,8 +43,8 @@ For example, the command::
 
 means that one wants to compute the phonon dispersion using a displacement of 0.01 Å.
 
-Caveats
--------
+Notes
+-----
 
 
 This keyword should occur after all the :attr:`potential` keywords.

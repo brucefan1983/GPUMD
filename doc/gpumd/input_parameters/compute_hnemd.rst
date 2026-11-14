@@ -5,7 +5,7 @@
 :attr:`compute_hnemd`
 =====================
 
-This keyword is used to calculate the thermal conductivity using the :ref:`homogeneous non-equilibrium molecular dynamics <hnemd>` (:term:`HNEMD`) method [Fan2019]_.
+This keyword is used to calculate the thermal conductivity using the :ref:`homogeneous nonequilibrium molecular dynamics <hnemd>` (:term:`HNEMD`) method [Fan2019]_.
 The results are written to the :ref:`kappa.out output file <kappa_out>`.
 
 Syntax
@@ -61,5 +61,5 @@ Note that one should control the temperature when using this keyword.
 Otherwise, the system will be heated up by the external driving force.
 
 **Important:**
-For this purpose, the :ref:`Nose-Hoover chain thermostat <nose_hoover_chain_thermostat>` is recommended.
+For this purpose, the :ref:`Nosé-Hoover chain thermostat <nose_hoover_chain_thermostat>` is recommended.
 The :ref:`Langevin thermostat <langevin_thermostat>` cannot be used for this purpose because it will affect the dynamics of the system.

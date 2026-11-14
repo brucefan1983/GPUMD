@@ -50,7 +50,7 @@ Examples
     ensemble ti_nep temp 300 tequil 10000 tswitch 40000
     run 100000
 
-This command equilibrates for 10000 timesteps with NEP1, switches lambda from 0 to 1 in 40000 timesteps, equilibrates for 10000 timesteps with NEP2, and switches lambda back from 1 to 0 in 40000 timesteps.
+This command equilibrates for 10000 time steps with NEP1, switches lambda from 0 to 1 in 40000 time steps, equilibrates for 10000 time steps with NEP2, and switches lambda back from 1 to 0 in 40000 time steps.
 
 Switching between defect states
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

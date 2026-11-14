@@ -23,6 +23,9 @@ where
         \sigma_{i,k}^2 = \frac{1}{M} \sum_{m=1}^{M} \left( F_{i,k}^{(m)} - \bar{F}_{i,k} \right)^2
 
 is the variance of the :math:`k` Cartesian component of the force on atom :math:`i`.
+Parameters
+----------
+
 Here, :math:`F_{i,k}^{(m)}` is that component for model :math:`m`, and :math:`\bar{F}_{i,k}` is its mean over the models.
 If the uncertainty exceeds the specified threshold, :math:`\sigma_f>\delta`, for a structure in a step of a molecular dynamics simulation, then that structure is appended to the file `active.xyz` in the `extended XYZ format <https://github.com/libAtoms/extxyz>`_.
 Additionally, the simulation time :math:`t` and :math:`\sigma_f` are written to the file `active.out` whether or not :math:`\sigma_f>\delta`.
@@ -36,7 +39,7 @@ Checking the uncertainty leaves the trajectory of the molecular dynamics run unc
 `active` takes five arguments.
 The first four set the interval for uncertainty estimation and the per-atom quantities written to `active.xyz`.
 The fifth sets the threshold :math:`\delta` in units of eV/Å.
-      
+
 
 Syntax
 ------
@@ -59,18 +62,17 @@ Example 1
 To run on-the-fly active learning using a committee of 5 NEP potentials, checking if the uncertainty exceeds 0.01 eV/Å every tenth MD step, write::
 
   potential nep0
-  potential nep1  
+  potential nep1
   potential nep2
   potential nep3
   potential nep4
   ...
   active 10 1 1 1 0.01
 
-before the :ref:`run keyword <kw_run>`. This will generate two output files, `active.xyz` and `active.out`. 
+before the :ref:`run keyword <kw_run>`. This will generate two output files, `active.xyz` and `active.out`.
 
-Caveats
--------
-* This keyword is not propagating.
-  That means, its effect will not be passed from one run to the next.
+Notes
+-----
+* Repeat this command before each run that needs it.
 * If the system has exploded, unphysical structures may be saved since no upper bound is set on the uncertainty :math:`\sigma_f`.
-  Ensure that the resulting structures in `active.xyz` are physical. 
+  Ensure that the resulting structures in `active.xyz` are physical.

@@ -22,15 +22,15 @@ Syntax
 
 Positions are always included. All three parameters are required.
 
-Example
--------
+Examples
+--------
 
 To write positions and velocities for every bead every 100 steps, use::
 
    dump_beads 100 1 0
 
-Caveats
--------
+Notes
+-----
 
 * The centroid data (the average over all the beads) for the ring polymer in PIMD-related runs are still output by the :ref:`dump_xyz keyword <kw_dump_xyz>`.
 

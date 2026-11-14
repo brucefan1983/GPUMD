@@ -42,7 +42,7 @@ Using ``x``, ``y``, ``z``, ``xy``, ``yz``, and ``xz`` allows one to specify each
 
 The parameters :attr:`<p_1>` and :attr:`<p_2>` specify the initial and final target pressures for the current run, respectively.
 Finally, the optional parameter :attr:`<tau_press>`, which defaults to ``1000``, determines the period of the barostat in units of the timestep.
-It determines how strongly the system is coupled to the barostat and should be :math:`\geq 200` timesteps.
+It determines how strongly the system is coupled to the barostat and should be :math:`\geq 200` time steps.
 
 Examples
 --------
@@ -117,4 +117,4 @@ No barostat is used, so the simulation cell is fixed.
 
     ensemble nvt_mttk temp 300 1000 tperiod 100
 
-This command ramps the temperature from 300 K to 1000 K and explicitly sets the period of the thermostat to 100 timesteps.
+This command ramps the temperature from 300 K to 1000 K and explicitly sets the period of the thermostat to 100 time steps.

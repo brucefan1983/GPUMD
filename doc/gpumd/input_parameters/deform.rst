@@ -79,8 +79,8 @@ Multiple box components can be deformed simultaneously. For example::
 
   deform xx 0.00001 yy -0.000005 xy 0.00002
 
-Compatibility and caveats
--------------------------
+Notes
+-----
 
 * This keyword applies only to the current :ref:`run <kw_run>`. Repeat it before each subsequent run that requires deformation; the cell reached at the end of a run is retained.
 * :attr:`deform` can be used with NVE and the standard NVT ensembles.

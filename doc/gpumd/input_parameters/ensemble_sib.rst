@@ -44,7 +44,7 @@ Parameters
   the same target also controls the lattice thermostat.
 
 ``T_coup``
-  Nose--Hoover-chain coupling period in timesteps for the lattice. It remains
+  Nosé-Hoover-chain coupling period in time steps for the lattice. It remains
   required by ``nvt_sib`` when ``lattice off`` but then does not alter the
   spin equation.
 

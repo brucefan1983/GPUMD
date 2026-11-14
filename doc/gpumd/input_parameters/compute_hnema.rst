@@ -5,7 +5,7 @@
 :attr:`compute_hnema`
 =====================
 
-The :attr:`compute_hnema` keyword is used to calculate the modal thermal conductivity using the :ref:`homogeneous non-equilibrium modal analysis <hnema>` (:term:`HNEMA`) method [Gabourie2021]_.
+The :attr:`compute_hnema` keyword is used to calculate the modal thermal conductivity using the :ref:`homogeneous nonequilibrium modal analysis <hnema>` (:term:`HNEMA`) method [Gabourie2021]_.
 The results are written to the :ref:`kappamode.out output file <kappamode_out>`.
 
 Syntax

@@ -63,8 +63,7 @@ before the :ref:`run command <kw_run>`. The plumed.dat file, for example, may lo
   PRINT FILE=colvar ARG=d1,restraint.bias
 
 
-Caveats
--------
+Notes
+-----
 
-* This keyword is not propagating.
-  That means, its effect will not be passed from one run to the next.
+* Repeat this command before each run that needs it.

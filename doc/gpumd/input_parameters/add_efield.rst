@@ -68,7 +68,7 @@ For example, the following file applies three electric-field vectors periodicall
    0.00 0.10 0.00
    0.00 0.00 0.10
 
-Note
-----
+Notes
+-----
 
 This keyword can be used multiple times during a run.

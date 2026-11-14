@@ -33,7 +33,6 @@ To use `nep.txt` to propagate the MD and `nep_polarizability.txt` to compute and
 before the :ref:`run keyword <kw_run>`. This will generate a `polarizability.out` output file containing the time step and predicted polarizability at that time step.
 
 
-Caveats
--------
-* This keyword is not propagating.
-  That means, its effect will not be passed from one run to the next.
+Notes
+-----
+* Repeat this command before each run that needs it.

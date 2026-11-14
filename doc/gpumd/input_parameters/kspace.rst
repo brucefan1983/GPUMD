@@ -37,8 +37,8 @@ For a crystal, the actual error can be smaller by an order of magnitude or more.
 Specify ``kspace`` at most once in ``run.in``.
 The setting applies to every ``run``, wherever the line appears in ``run.in``.
 
-Example
--------
+Examples
+--------
 
 To use Ewald::
 

@@ -36,7 +36,7 @@ It determines how strongly the system is coupled to the barostat.
 If keywords :attr:`<p0>`, :attr:`<v0>` or :attr:`<e0>` are not supplied, these quantities will be calculated on the first step.
 In most cases, you don't need to specify these quantities.
 
-Example
+Examples
 --------
 
 .. code-block:: rst

@@ -39,8 +39,8 @@ The command::
 
 implies that the linear and angular momenta for the individual groups in group method 3 are set to zero every 50 steps.
 
-Run behavior
-------------
+Notes
+-----
 
 The first correction is performed before the first integration step, and subsequent corrections occur every :attr:`interval` steps.
 For example, an interval of 10 gives corrections before steps 1, 11, 21, and so on.

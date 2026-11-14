@@ -131,7 +131,7 @@ A file page describes its columns, units, and any headers or blocks needed to se
      - Overwrite
    * - :ref:`viscosity.out <viscosity_out>`
      - :ref:`compute_viscosity <kw_compute_viscosity>`
-     - Viscosity and stress auto-correlation function
+     - Viscosity and stress autocorrelation function
      - Append
    * - :ref:`onsager.out <onsager_out>`
      - :ref:`compute_hnemdec <kw_compute_hnemdec>`

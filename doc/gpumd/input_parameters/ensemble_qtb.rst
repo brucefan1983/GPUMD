@@ -63,7 +63,7 @@ NVT-QTB
 
     ensemble nvt_qtb 300 300 100
 
-Run at 300 K with QTB thermostat. The coupling parameter is 100 timesteps.
+Run at 300 K with QTB thermostat. The coupling parameter is 100 time steps.
 
 .. code-block:: rst
 
@@ -103,7 +103,8 @@ Notes
 * The :attr:`f_max` parameter should be set larger than the highest phonon frequency in the system. For water, 200 ps\ :sup:`-1` is sufficient.
 
 
-References
-----------
+.. only:: html
 
-.. [Dammak2009] H. Dammak, Y. Chalopin, M. Laroche, M. Hayoun, and J.-J. Greffet, *Quantum Thermal Bath for Molecular Dynamics Simulation*, Phys. Rev. Lett. **103**, 190601 (2009).
+   .. rubric:: References
+
+.. [Dammak2009] H\. Dammak, Y. Chalopin, M. Laroche, M. Hayoun, and J.-J. Greffet, *Quantum Thermal Bath for Molecular Dynamics Simulation*, Phys. Rev. Lett. **103**, 190601 (2009).
