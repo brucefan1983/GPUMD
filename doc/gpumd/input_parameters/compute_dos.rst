@@ -14,11 +14,12 @@ The results of these calculations will be written to :ref:`mvac.out <mvac_out>` 
 
 Syntax
 ------
-For this keyword, the command looks like::
+::
 
   compute_dos <sample_interval> <Nc> <omega_max> [{<optional_arg>}]
 
-with parameters defined as:
+Parameters
+----------
 
 * :attr:`sample_interval`: Sampling interval of the velocity data
 * :attr:`Nc`: Maximum number of correlation steps
@@ -43,11 +44,11 @@ where :attr:`points` is the number of frequency points to be used in the DOS cal
 It defaults to :attr:`Nc` if the :attr:`num_dos_points` option is not specified.
 
 
-Example
--------
+Examples
+--------
 
 An example for the use of this keyword is::
-  
+
   compute_dos 5 200 400.0 group 1 2 num_dos_points 300
 
 This means that you

@@ -10,9 +10,12 @@ The results will be written to the :ref:`viscosity.out output file <viscosity_ou
 
 Syntax
 ------
-This keyword has 2 parameters::
+::
 
   compute_viscosity <sampling_interval> <correlation_steps>
 
-The first parameter is the sampling interval for the stress data. 
-The second parameter is the total number of correlations steps. 
+Parameters
+----------
+
+The first parameter is the sampling interval for the stress data.
+The second parameter is the total number of correlation steps.

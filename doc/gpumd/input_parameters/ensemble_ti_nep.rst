@@ -3,7 +3,7 @@
 :attr:`ensemble` (TI_NEP)
 =========================
 
-This keyword is used to set up a nonequilibrium thermodynamic integration integrator between two :term:`NEP` models. Please check [Freitas2016]_ for more details on the nonequilibrium switching scheme.
+This keyword is used to set up a nonequilibrium thermodynamic integration integrator between two :term:`NEP` models. See [Freitas2016]_ for more details on the nonequilibrium switching scheme.
 
 The system is driven by the Hamiltonian
 
@@ -18,14 +18,17 @@ This is an NVT ensemble with a Langevin thermostat, so the free energy differenc
 Syntax
 ------
 
-The parameters can be specified as follows::
+::
 
     ensemble ti_nep temp <temperature> tperiod <tau_temperature> tequil <equilibrium_time> tswitch <switch_time>
 
+Parameters
+----------
+
 - :attr:`<temperature>`: The temperature of the simulation.
-- :attr:`<tau_temperature>`: This parameter is optional, and defaults to ``100``. It determines the period of the thermostat in units of the timestep. It determines how strongly the system is coupled to the thermostat.
-- :attr:`<equilibrium_time>`: The number timesteps to equilibrate the system at :math:`\lambda=0` and at :math:`\lambda=1`.
-- :attr:`<switch_time>`: The number timesteps to vary lambda from 0 to 1 (and from 1 to 0).
+- :attr:`<tau_temperature>`: Thermostat coupling period in time steps; optional, with a default of ``100``.
+- :attr:`<equilibrium_time>`: The number of time steps to equilibrate the system at :math:`\lambda=0` and at :math:`\lambda=1`.
+- :attr:`<switch_time>`: The number of time steps to vary lambda from 0 to 1 (and from 1 to 0).
 
 Specify both ``tequil`` and ``tswitch``, or omit both.
 ``tequil`` must be a non-negative integer and ``tswitch`` a positive integer.
@@ -34,13 +37,12 @@ The run must contain at least ``2 * (tequil + tswitch)`` steps.
 
 Exactly two NEP potentials are needed in the :attr:`run.in` file.
 The first one is NEP1 (:math:`\lambda=0`) and the second one is NEP2 (:math:`\lambda=1`).
-Only the forces are mixed during the switching; the potential energies of NEP1 and NEP2 are kept separately, because both are needed to compute the free energy difference.
-The potential energy and pressure written by :ref:`dump_thermo <kw_dump_thermo>` are therefore those of NEP1 during the whole run.
+The potential energy and pressure written by :ref:`dump_thermo <kw_dump_thermo>` are those of NEP1 throughout the run; use ``ti_nep.csv`` for the energies of both models.
 
-Example
--------
+Examples
+--------
 
-.. code-block:: rst
+.. code-block:: text
 
     potential nep1.txt
     potential nep2.txt
@@ -50,8 +52,8 @@ Example
 
 This command equilibrates for 10000 timesteps with NEP1, switches lambda from 0 to 1 in 40000 timesteps, equilibrates for 10000 timesteps with NEP2, and switches lambda back from 1 to 0 in 40000 timesteps.
 
-Example: switching between defect states
-----------------------------------------
+Switching between defect states
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This ensemble has been used to compute the free energy difference between two charge states of a point defect [Hainer2025]_ and between polaronic states [Berger2026]_.
 One NEP model is trained for one charge state and then relabeled for the other charge state; the original and the relabeled model are given as NEP1 and NEP2.

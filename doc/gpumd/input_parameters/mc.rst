@@ -14,23 +14,34 @@ This keyword requires an ordinary energy NEP (``model nep``) in the
 Syntax
 ------
 
-:attr:`canonical`
-^^^^^^^^^^^^^^^^^
-If the first parameter is :attr:`canonical`, the system will be sampled in the canonical :term:`MC` ensemble.
-It can be used as follows::
+::
 
     mc canonical <md_steps> <mc_trials> <T_i> <T_f> [group <grouping_method> <group_id>]
+    mc sgc <md_steps> <mc_trials> <T_i> <T_f> <num_species> {<species_0> <mu_0> <species_1> <mu_1> ...} [group <grouping_method>  <group_id>]
+    mc vcsgc <md_steps> <mc_trials> <T_i> <T_f> <num_species> {<species_0> <phi_0> <species_1> <phi_1> ...} <kappa> [group <grouping_method>  <group_id>]
 
-This means that :attr:`mc_trials` :term:`MC` trials are performed every :attr:`md_steps` :term:`MD` steps, while the instant temperature for the :term:`MC` ensemble changes linearly from :attr:`T_i` to :attr:`T_f`.
+Parameters
+----------
+
+For all three forms, ``mc_trials`` trials are performed every ``md_steps`` MD steps.
+The MC target temperature changes linearly from ``T_i`` to ``T_f`` during the run.
+
+* The listed species must be supported by the :term:`NEP` model.
+
+* For all the :term:`MC` ensembles, there is an option to specify the grouping method :attr:`grouping_method` and the group ID :attr:`group_id` in the given grouping method, after the parameter :attr:`group`.
+  The functionality is illustrated in the example section below.
+
+* There must be at least one listed species in the initial model system or specified group. For example, if you list Au and Cu for doing :term:`SGC` :term:`MC`, the system or the specified group must have some Au or Cu atoms (or both); otherwise the :term:`MC` trial cannot get started.
+
+:attr:`canonical`
+^^^^^^^^^^^^^^^^^
+Canonical sampling exchanges atomic species while keeping their counts fixed.
+
 
 :attr:`sgc`
 ^^^^^^^^^^^
-If the first parameter is :attr:`sgc`, the system will be sampled in the :term:`SGC` :term:`MC` ensemble.
-It can be used as follows::
+SGC sampling uses species transmutations with chemical-potential differences.
 
-    mc sgc <md_steps> <mc_trials> <T_i> <T_f> <num_species> {<species_0> <mu_0> <species_1> <mu_1> ...} [group <grouping_method>  <group_id>]
-
-This means that :attr:`mc_trials` :term:`MC` trials are performed every :attr:`md_steps` :term:`MD` steps, while the instant temperature for the :term:`MC` ensemble changes linearly from :attr:`T_i` to :attr:`T_f`.
 
 :attr:`num_species` specifies the number of species that are to be included in the sampling.
 It must be no less than 2 and no larger than 4.
@@ -50,12 +61,8 @@ For a convention based on :math:`U-\sum_s\mu_s^{\rm phys}N_s`, the corresponding
 
 :attr:`vcsgc`
 ^^^^^^^^^^^^^
-If the first parameter is :attr:`vcsgc`, the system will be sampled in the :term:`VCSGC` :term:`MC` ensemble.
-It can be used in the following way::
+VCSGC sampling adds a concentration bias.
 
-    mc vcsgc <md_steps> <mc_trials> <T_i> <T_f> <num_species> {<species_0> <phi_0> <species_1> <phi_1> ...} <kappa> [group <grouping_method>  <group_id>]
-
-This means that :attr:`mc_trials` :term:`MC` trials are performed every :attr:`md_steps` :term:`MD` steps, while the instant temperature for the :term:`MC` ensemble changes linearly from :attr:`T_i` to :attr:`T_f`.
 
 :attr:`num_species` specifies the number of species that are to be included in the sampling.
 It must be no less than 2 and no larger than 4.
@@ -73,47 +80,41 @@ If the concentration fluctuations are too large (e.g., deep with miscibility gap
 
 The parameter normalization differs from that used in the original papers [Sadigh2012a]_ [Sadigh2012b]_; see also [Rahm2021]_.
 
-General
-^^^^^^^
-* The listed species must be supported by the :term:`NEP` model.
-
-* For all the :term:`MC` ensembles, there is an option to specify the grouping method :attr:`grouping_method` and the group ID :attr:`group_id` in the given grouping method, after the parameter :attr:`group`. 
-  The functionality is illustrated in the example section below.
-
-* There must be at least one listed species in the initial model system or specified group. For example, if you list Au and Cu for doing :term:`SGC` :term:`MC`, the system or the specified group must have some Au or Cu atoms (or both); otherwise the :term:`MC` trial cannot get started.
+Examples
+--------
 
 Example 1
----------
+^^^^^^^^^
 
 An example for sampling in the canonical ensemble is::
-  
+
   mc canonical 100 200 500 100 group 1 3
 
 This means
 
 * Perform 200 :term:`MC` trials after every 100 :term:`MD` steps.
 * Change the temperature for the :term:`MC` simulation linearly from 500 to 100 K.
-* Only the atoms in group 3 of grouping method 1 will be considered during :term:`MC` sampling. 
+* Only the atoms in group 3 of grouping method 1 will be considered during :term:`MC` sampling.
 
 Example 2
----------
+^^^^^^^^^
 
 Here is an example for :term:`MC` sampling the :term:`SGC` ensemble::
-  
+
   mc sgc 100 1000 300 300 2 Cu 0 Au 0.6
 
 This means
 
 * Perform 1000 :term:`MC` trials after every 100 :term:`MD` steps.
 * The temperature for the :term:`MC` ensemble will be kept at 300 K.
-* Only the Cu and Au atoms are involved in the :term:`MC` process. 
+* Only the Cu and Au atoms are involved in the :term:`MC` process.
   The input parameter for Au is 0.6 eV higher than that for Cu, so the parameter contribution to the acceptance exponent favors Au-to-Cu transmutations.
 
 Example 3
----------
+^^^^^^^^^
 
 Here is an example for sampling in the :term:`VCSGC` ensemble::
-  
+
   mc vcsgc 200 1000 500 500 2 Al -2 Ag 0 10000
 
 This means

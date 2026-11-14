@@ -8,9 +8,11 @@
 This file contains the heat current auto-correlation (:term:`HAC`) function and the running thermal conductivity (:term:`RTC`) from the :ref:`EMD method for heat transport <green_kubo_method>`.
 It is produced when invoking the :ref:`compute_hac keyword <kw_compute_hac>` in the :ref:`run.in input file <run_in>`.
 
+Results are appended to the file.
+
 File format
 -----------
-This file reads
+The columns are:
 
 * column 1: correlation time (in units of ps)
 * column 2: :math:`\langle J_x^{\text{in}}(0)J_x^{\text{tot}}(t)\rangle` (in units of eV\ :math:`^3`/amu)
@@ -38,7 +40,7 @@ For example:
 and
 
 .. math::
-   
+
    \kappa_x^{\text{tot}}(t) = \kappa_x^{\text{in}}(t) + \kappa_x^{\text{out}}(t).
 
 Note that the cross term introduced in [Fan2017]_ has been evenly attributed to the in-plane and out-of-plane components.

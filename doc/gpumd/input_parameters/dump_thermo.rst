@@ -10,12 +10,17 @@ This keyword controls the writing of global thermodynamic quantities to the :ref
 Syntax
 ------
 
-This keyword only requires a single parameter, which is the output interval (number of steps) of the global thermodynamic quantities::
+::
 
   dump_thermo <interval>
 
-Example
--------
+Parameters
+----------
+
+``interval`` is the number of MD steps between outputs.
+
+Examples
+--------
 
 To dump the global thermodynamic quantities every 1000 steps for a run, one can add::
 
@@ -23,7 +28,6 @@ To dump the global thermodynamic quantities every 1000 steps for a run, one can 
 
 before the :ref:`run keyword <kw_run>`.
 
-Caveats
--------
-This keyword is not propagating.
-That means, its effect will not be passed from one run to the next.
+Notes
+-----
+Repeat this command before each run that needs this output.

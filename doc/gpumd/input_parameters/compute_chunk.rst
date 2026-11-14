@@ -27,7 +27,8 @@ For 3D binning::
 
   compute_chunk <sample_interval> <output_interval> bin/3d <dim1> <origin1> <delta1> <dim2> <origin2> <delta2> <dim3> <origin3> <delta3> {<quantity>}
 
-The parameters are defined as follows:
+Parameters
+----------
 
 * :attr:`sample_interval`: Sampling interval in time steps. The quantities are sampled every this many steps.
 
@@ -59,8 +60,8 @@ One can write one or more (distinct) names in any order.
 For triclinic (non-orthogonal) simulation boxes, the box length along each axis is computed as the geometric thickness :math:`L = V / A`, where :math:`V` is the box volume and :math:`A` is the cross-sectional area perpendicular to that axis. This is consistent with GPUMD's internal geometry calculations.
 
 
-Example
--------
+Examples
+--------
 
 Example 1: 1D temperature profile along z
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -143,8 +144,8 @@ Here, each line contains: chunk index, bin center along z (Å), average atom cou
 The output blocks for successive time points are written consecutively with no blank line separator; each block contains exactly :math:`N_\text{chunk}` lines.
 
 
-Caveats
--------
+Notes
+-----
 
 * The :attr:`origin` parameter currently only accepts :attr:`lower`. Numeric origin values are not supported.
 * This keyword defines spatial bins for measurement and analysis. Spatial heat-bath regions are configured separately using the region form of :ref:`ensemble heat_lan <kw_ensemble_heat>`.

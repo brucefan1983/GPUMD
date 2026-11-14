@@ -53,7 +53,7 @@ We require :math:`\tau_p/\Delta t \geq 1` and a good choice is :math:`\tau_p/\De
 The elastic constants are in units of GPa.
 
 
-Caveats
--------
+Notes
+-----
 Specify exactly one ``ensemble`` command before each :ref:`run <kw_run>`.
 The integrator is initialized for that run, and any temperature or pressure ramp is defined over that run.

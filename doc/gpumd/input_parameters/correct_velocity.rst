@@ -18,8 +18,11 @@ This keyword takes a correction interval and an optional grouping method::
 * When :attr:`group_method` is omitted, the correction applies to the whole system.
   When it is specified, the correction is performed independently for every group in that :ref:`grouping method <grouping_methods>` defined in ``model.xyz``.
 
+Examples
+--------
+
 Example 1
----------
+^^^^^^^^^
 
 The command::
 
@@ -28,7 +31,7 @@ The command::
 implies that the linear and angular momenta are set to zero every 10 steps.
 
 Example 2
----------
+^^^^^^^^^
 
 The command::
 

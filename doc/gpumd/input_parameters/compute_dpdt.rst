@@ -15,6 +15,9 @@ This keyword has 1 parameter::
 
   compute_dpdt <sampling_interval>
 
+Parameters
+----------
+
 Here,
 
 * :attr:`sampling_interval` is a positive integer giving the number of time steps between samples.

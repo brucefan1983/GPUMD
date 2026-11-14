@@ -15,9 +15,12 @@ Syntax
 
    compute_hnema <sample_interval> <output_interval> <Fe_x> <Fe_y> <Fe_z> <first_mode> <last_mode> <bin_option> <size>
 
-:attr:`sample_interval` is the sampling interval (in number of steps) used to compute the heat modal heat current.
+Parameters
+----------
+
+:attr:`sample_interval` is the sampling interval (in number of steps) used to compute the modal heat current.
 Must be a divisor of :attr:`output_interval`.
-      
+
 :attr:`output_interval` is the interval to output the modal thermal conductivity. Each modal thermal conductivity output is averaged over all samples per output interval.
 
 :attr:`Fe_x` is the :math:`x` direction component of the external driving force :math:`F_e` in units of Å\ :sup:`-1`.
@@ -73,8 +76,8 @@ Example 3
 
 This example is identical to Example 2, except each bin has 10 modes.
 
-Caveats
--------
+Notes
+-----
 This computation can be very memory intensive.
 The memory requirements are comparable to the size of the :ref:`eigenvector.in input file <eigenvector_in>`.
 

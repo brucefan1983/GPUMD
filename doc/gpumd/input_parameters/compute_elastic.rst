@@ -14,18 +14,21 @@ The results are written to the file ``elastic.out``.
 Syntax
 ------
 
-This keyword is used as follows::
+::
 
-  compute_elastic <strain_value> 
+  compute_elastic <strain_value>
+
+Parameters
+----------
 
 :attr:`strain_value` is the dimensionless amount of strain to be applied in the calculations and must lie in the interval :math:`(0, 0.1]`.
 
 
-Example
--------
+Examples
+--------
 For example, the command::
 
-  compute_elastic 0.01 
+  compute_elastic 0.01
 
 means that one wants to compute the elastic constants with a strain of 0.01.
 
@@ -41,7 +44,7 @@ It can be read directly with NumPy::
    import numpy as np
    C = np.loadtxt("elastic.out")
 
-Caveats
--------
+Notes
+-----
 This keyword must occur after the :ref:`potential keyword <kw_potential>`.
 Use a relaxed reference cell with negligible residual stress, and check convergence with respect to the strain magnitude.

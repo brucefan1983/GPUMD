@@ -11,36 +11,23 @@ The results will be written to :ref:`msd.out output file <msd_out>`.
 
 Syntax
 ------
-For this keyword, the command looks like::
-  
+::
+
   compute_msd <sample_interval> <Nc> [<option> ...]
 
-with parameters defined as
+Parameters
+----------
 
 * :attr:`sample_interval`: Positive integer giving the number of time steps between position samples
 * :attr:`Nc`: Positive integer giving the number of correlation points, including zero correlation time
 
-The optional arguments can be given in any order. Each option can be specified at most once.
-The available options are described below.
-The first special keyword is :attr:`group`.
-The parameters are:
+Each optional argument can appear once, in any order:
 
-* :attr:`group <group_method> <group>`, where :attr:`group_method` is the grouping method to use for computation and :attr:`group` is the group in the grouping method to use
-
-The second special keyword is :attr:`all_groups`.
-This keyword computes the :term:`MSD` and :term:`SDC` for each group in the specified grouping method.
-Note that :attr:`group` and :attr:`all_groups` are mutually exclusive.
-A typical usecase could be to compute the :term:`MSD` for each molecule in a system.
-The parameters are:
-
-* :attr:`all_groups <group_method>`, where :attr:`group_method` is the grouping method to use for computation
-
-Finally, the third special keyword is :attr:`save_every`.
-This keyword saves the internal :term:`MSD` and :term:`SDC` computed so far during the simulation, which can be helpful during long running simulations.
-The file will have a name formatted as ``msd_step[step].out``. 
-The parameters are:
-
-* :attr:`save_every <interval>`, where :attr:`interval` is a positive integer specifying the requested saving interval in MD time steps.
+* ``group <group_method> <group>`` selects one group.
+* ``all_groups <group_method>`` computes separate results for every group in the selected grouping method, for example one group per molecule.
+  It cannot be combined with ``group``.
+* ``save_every <interval>`` writes intermediate results to ``msd_step[step].out``.
+  ``interval`` is a positive integer in MD time steps.
 
 A copy is written only on a step that is a multiple of both :attr:`sample_interval` and :attr:`interval`, after at least :attr:`Nc` position samples have been collected.
 The first copy is therefore written at the first such step at or after ``Nc * sample_interval``.
@@ -56,13 +43,7 @@ An example of this function is::
 
   compute_msd 5 200 group 1 1
 
-This means that you
-
-* want to calculate the :term:`MSD`
-* the position data will be recorded every 5 steps
-* there are 200 correlation points, including zero correlation time
-* you would like to compute only over group 1 in group method 1.
-
+This samples positions every 5 steps for group 1 in grouping method 1, using 200 correlation points including zero time.
 
 To compute the :term:`MSD` for all groups in group method 1 and save a copy of the :term:`MSD` every 100 000 steps, one can write::
 

@@ -3,18 +3,21 @@
 :attr:`ensemble` (TI_RS)
 ========================
 
-This keyword is used to set up a nonequilibrium thermodynamic integration integrator with Reversible Scaling (RS) path. It calculates Gibbs free energy along an isobaric path. Please check [Koning2001]_ and [Freitas2016]_ for more details.
+This keyword is used to set up a nonequilibrium thermodynamic integration integrator with Reversible Scaling (RS) path. It calculates Gibbs free energy along an isobaric path. See [Koning2001]_ and [Freitas2016]_ for more details.
 
 Syntax
 ------
 
-The parameters can be specified as follows::
+::
 
     ensemble ti_rs temp <tmin> <tmax> tperiod <tau_temperature> <pressure_control> <pressure> pperiod <tau_pressure> tswitch <switch_time> tequil <equilibrium_time>
 
+Parameters
+----------
+
 - :attr:`<tmin>` and :attr:`<tmax>`: The initial and final physical temperatures of the forward path, in kelvin.
-- :attr:`<pressure_control>` and :attr:`<pressure>`: The pressure-control mode and the physical pressure in GPa. Please refer to MTTK ensemble for more information.
-- :attr:`<tau_temperature>` and :attr:`<tau_pressure>`: These parameters are optional. Please refer to MTTK ensemble for more information.
+- :attr:`<pressure_control>` and :attr:`<pressure>`: The pressure-control mode and the physical pressure in GPa. See :ref:`MTTK parameters <kw_ensemble_mttk>`.
+- :attr:`<tau_temperature>` and :attr:`<tau_pressure>`: These parameters are optional. See :ref:`MTTK parameters <kw_ensemble_mttk>`.
 - :attr:`<equilibrium_time>`: The number of MD steps in each equilibration stage; a non-negative integer.
 - :attr:`<switch_time>`: The number of MD steps in each switching stage, including both endpoints; an integer of at least 2.
 
@@ -24,10 +27,10 @@ The path consists of initial equilibration, forward switching, equilibration at 
 The run must contain at least ``2 * (tequil + tswitch)`` steps.
 Any remaining steps keep the final target and do not add switching data.
 
-Example
--------
+Examples
+--------
 
-.. code-block:: rst
+.. code-block:: text
 
     ensemble ti_rs temp 300 3000 aniso 10 tswitch 10000 tequil 1000
     run 22000
@@ -76,7 +79,7 @@ The reference Gibbs free energy and the resulting curve are in eV/atom.
 
     w = (cumulative_trapezoid(H1,l,initial=0) + cumulative_trapezoid(H2,l,initial=0))*0.5
 
-    G = (G0 + 1.5*kB*T0*np.log(l) + w)/l 
+    G = (G0 + 1.5*kB*T0*np.log(l) + w)/l
     plt.plot(T, G, label="RS")
     plt.legend()
     plt.xlabel("T (K)")

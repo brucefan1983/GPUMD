@@ -15,7 +15,7 @@ The box variables and the atom positions are changed according to the following 
    \begin{array}{ccc}
    a_x^{\rm new} & b_x^{\rm new} & c_x^{\rm new} \\
    a_y^{\rm new} & b_y^{\rm new} & c_y^{\rm new} \\
-   a_z^{\rm new} & b_z^{\rm new} & c_z^{\rm new} 
+   a_z^{\rm new} & b_z^{\rm new} & c_z^{\rm new}
    \end{array}
    \right)
    =
@@ -30,7 +30,7 @@ The box variables and the atom positions are changed according to the following 
    \begin{array}{ccc}
    a_x^{\rm old} & b_x^{\rm old} & c_x^{\rm old} \\
    a_y^{\rm old} & b_y^{\rm old} & c_y^{\rm old} \\
-   a_z^{\rm old} & b_z^{\rm old} & c_z^{\rm old} 
+   a_z^{\rm old} & b_z^{\rm old} & c_z^{\rm old}
    \end{array}
    \right);
    \\
@@ -78,8 +78,8 @@ we have
    \mu_{yx} & \mu_{yy} & \mu_{yz} \\
    \mu_{zx} & \mu_{zy} & \mu_{zz} \\
    \end{array}
-   \right) 
-   = 
+   \right)
+   =
    \left(
    \begin{array}{ccc}
    \frac{a_x^{\rm old} + \delta}{a_x^{\rm old}} & 0 & 0 \\
@@ -89,21 +89,21 @@ we have
    \right)
 
 In the case of 3 parameters, :math:`\delta_{xx}` (in units of Ångstrom), :math:`\delta_{yy}` (in units of Ångstrom), and :math:`\delta_{zz}` (in units of Ångstrom)::
-  
+
    change_box <delta_xx> <delta_yy> <delta_zz>
 
 we have
 
 .. math::
-   
+
    \left(
    \begin{array}{ccc}
    \mu_{xx} & \mu_{xy} & \mu_{xz} \\
    \mu_{yx} & \mu_{yy} & \mu_{yz} \\
    \mu_{zx} & \mu_{zy} & \mu_{zz} \\
    \end{array}
-   \right) 
-   = 
+   \right)
+   =
    \left(
    \begin{array}{ccc}
    \frac{a_x^{\rm old} + \delta_{xx}}{a_x^{\rm old}} & 0 & 0 \\
@@ -119,15 +119,15 @@ In the case of 6 parameters (the box type must be triclinic), :math:`\delta_{xx}
 we have
 
 .. math::
-   
+
    \left(
    \begin{array}{ccc}
    \mu_{xx} & \mu_{xy} & \mu_{xz} \\
    \mu_{yx} & \mu_{yy} & \mu_{yz} \\
    \mu_{zx} & \mu_{zy} & \mu_{zz} \\
    \end{array}
-   \right) 
-   = 
+   \right)
+   =
    \left(
    \begin{array}{ccc}
    \frac{a_x^{\rm old} + \delta_{xx}}{a_x^{\rm old}} & \epsilon_{xy} & \epsilon_{xz} \\
@@ -140,8 +140,8 @@ Here, :math:`\epsilon_{yx}=\epsilon_{xy}`, :math:`\epsilon_{zx}=\epsilon_{xz}`, 
 These inputs are dimensionless. In the small-strain limit, the engineering shear strain is :math:`\gamma_{\alpha\beta}=2\epsilon_{\alpha\beta}` for :math:`\alpha\ne\beta`.
 The diagonal inputs :math:`\delta_{xx}`, :math:`\delta_{yy}`, and :math:`\delta_{zz}` are lengths in Ångstrom.
 
-Example
--------
+Examples
+--------
 
 For an orthogonal box with :math:`a_x=100` Å, the command::
 

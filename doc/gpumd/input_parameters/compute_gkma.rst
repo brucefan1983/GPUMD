@@ -16,7 +16,10 @@ Syntax
 
    compute_gkma <sample_interval> <first_mode> <last_mode> <bin_option> <size>
 
-:attr:`sample_interval` is the sampling interval (in number of steps) used to compute the heat modal heat current.
+Parameters
+----------
+
+:attr:`sample_interval` is the sampling interval (in number of steps) used to compute the modal heat current.
 
 :attr:`first_mode` and :attr:`last_mode` are the first and last mode, respectively, in the :ref:`eigenvector.in input file <eigenvector_in>` to include in the calculation.
 
@@ -63,8 +66,8 @@ Example 3
 
 This example is identical to Example 2, except each bin has 10 modes.
 
-Caveats
--------
+Notes
+-----
 
 This computation can be very memory intensive.
 The memory requirements are comparable to the size of the :ref:`eigenvector.in input file <eigenvector_in>`.

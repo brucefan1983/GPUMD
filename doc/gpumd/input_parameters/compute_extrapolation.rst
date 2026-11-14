@@ -20,9 +20,12 @@ There are also some Python scripts to perform active learning automatically <htt
 Syntax
 ------
 
-This keyword is used as follows::
+::
 
   compute_extrapolation nep_file <nep_file> asi_file <asi_file> gamma_low <gamma_low> gamma_high <gamma_high> check_interval <check_interval> dump_interval <dump_interval>
+
+Parameters
+----------
 
 :attr:`nep_file` is the name of the NEP potential file used to compute the extrapolation grade. This model is read by this keyword and is independent of the potential used to run the MD.
 It must use the :ref:`nep.txt format <nep_txt>` with ``model nep``,
@@ -45,8 +48,8 @@ Output file
 
 Structures selected according to :attr:`gamma_low` and :attr:`dump_interval` are written to ``extrapolation_dump.xyz`` in extended XYZ format.
 
-Example
--------
+Examples
+--------
 
 .. code::
 

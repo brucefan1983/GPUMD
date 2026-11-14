@@ -8,6 +8,8 @@
 This file contains the global thermodynamic quantities sampled at a given frequency.
 The frequency of the output is controlled via the :ref:`dump_thermo keyword <kw_dump_thermo>`.
 
+Results are appended to the file.
+
 File format
 -----------
 
@@ -28,7 +30,7 @@ There are 18 columns in this output file, each containing the values of a quanti
 * :attr:`ax ay az bx by bz cx cy cz` are the components (in units of Ångstrom) of the triclinic box matrix formed by the following vectors:
 
   .. math::
-     
+
      \boldsymbol{a} &= a_x \boldsymbol{e}_x + a_y \boldsymbol{e}_y + a_z \boldsymbol{e}_z \\
      \boldsymbol{b} &= b_x \boldsymbol{e}_x + b_y \boldsymbol{e}_y + b_z \boldsymbol{e}_z \\
      \boldsymbol{c} &= c_x \boldsymbol{e}_x + c_y \boldsymbol{e}_y + c_z \boldsymbol{e}_z
@@ -38,4 +40,4 @@ For classical MD, the pressure tensor includes both virial and kinetic contribut
 Caveats
 -------
 
-* The data in this file are also valid for PIMD-related runs, but note that in this case the output temperature is just the target one. The energy and pressure contain the virial-estimator contributions. 
+* The data in this file are also valid for PIMD-related runs, but note that in this case the output temperature is just the target one. The energy and pressure contain the virial-estimator contributions.

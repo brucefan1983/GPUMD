@@ -4,6 +4,10 @@
 Output files
 ============
 
+Output files are created by the commands listed below.
+**Append** keeps existing data and adds new results; **Overwrite** replaces existing contents.
+A file page describes its columns, units, and any headers or blocks needed to separate runs.
+
 .. list-table::
    :header-rows: 1
    :width: 100%
@@ -185,7 +189,7 @@ Output files
 .. toctree::
    :maxdepth: 0
    :caption: Contents
-   
+
    cohesive_out
    compute_out
    ttm_electron_temperature_out

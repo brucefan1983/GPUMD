@@ -14,9 +14,12 @@ The calculation is performed when this keyword is read.
 Syntax
 ------
 
-This keyword is used as follows::
+::
 
   compute_cohesive <e1> <e2> <direction>
+
+Parameters
+----------
 
 Here,
 :attr:`e1` is the positive initial box-scaling factor, and
@@ -40,7 +43,7 @@ computes 301 points by scaling the first cell vector (the x-direction for an axi
 The box-scaling points will be 0.9, 0.901, 0.902, ..., 1.2.
 
 
-Caveats
--------
+Notes
+-----
 
 This keyword must occur after the :ref:`potential keyword <kw_potential>`.

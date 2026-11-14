@@ -16,8 +16,8 @@ This keyword requires a positive integer giving the number of MD steps to run::
 
   run <number_of_steps>
 
-Example
--------
+Examples
+--------
 
 To run one million steps, just write::
 

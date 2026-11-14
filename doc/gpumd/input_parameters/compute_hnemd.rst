@@ -15,6 +15,9 @@ Syntax
 
    compute_hnemd <output_interval> <Fe_x> <Fe_y> <Fe_z>
 
+Parameters
+----------
+
 The first parameter is the output interval.
 
 The next three parameters are the :math:`x`, :math:`y`, and :math:`z` components of the external driving force :math:`\boldsymbol{F}_e` in units of Å\ :sup:`-1`.
@@ -40,14 +43,7 @@ This means that
 
 * you want to calculate the thermal conductivity using the :term:`HNEMD` method;
 * the thermal conductivity will be averaged and output every 1000 steps (the heat current is sampled for every step);
-* the external driving force is along the :math:`x` direction and has a magnitude of :math:`10^{-5}` Å\ :sup:`-1`. 
-
-Note that one should control the temperature when using this keyword.
-Otherwise, the system will be heated up by the external driving force.
-
-**Important:**
-For this purpose, the :ref:`Nose-Hoover chain thermostat <nose_hoover_chain_thermostat>` is recommended.
-The :ref:`Langevin thermostat <langevin_thermostat>` cannot be used for this purpose because it will affect the dynamics of the system.
+* the external driving force is along the :math:`x` direction and has a magnitude of :math:`10^{-5}` Å\ :sup:`-1`.
 
 Example 2
 ^^^^^^^^^
@@ -57,3 +53,13 @@ Example 2
    compute_hnemd 1000 0 0.00001 0
 
 This is similar to the above example, but the external driving force is applied along the :math:`y` direction.
+
+Notes
+-----
+
+Note that one should control the temperature when using this keyword.
+Otherwise, the system will be heated up by the external driving force.
+
+**Important:**
+For this purpose, the :ref:`Nose-Hoover chain thermostat <nose_hoover_chain_thermostat>` is recommended.
+The :ref:`Langevin thermostat <langevin_thermostat>` cannot be used for this purpose because it will affect the dynamics of the system.

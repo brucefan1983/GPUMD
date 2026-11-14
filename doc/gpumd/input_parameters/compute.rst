@@ -5,15 +5,18 @@
 :attr:`compute`
 ===============
 
-This keyword is used to compute and output space and time averaged quantities. 
+This keyword is used to compute and output space and time averaged quantities.
 The results are written to the :ref:`compute.out output file <compute_out>`.
 
 
 Syntax
 ------
-It is used in the following way::
+::
 
   compute <grouping_method> <sample_interval> <output_interval> {<quantity>}
+
+Parameters
+----------
 
 The first parameter :attr:`grouping_method` refers to the grouping method defined in the :ref:`simulation model file <model_xyz>`.
 This parameter should be an integer and a number :math:`m` means the :math:`m`-th grouping method (we count from 0) in the :ref:`simulation model file <model_xyz>`.
@@ -28,18 +31,18 @@ The allowed names for :attr:`quantity` are:
 * :attr:`temperature`, which yields the temperature
 * :attr:`potential`, which yields the potential energy
 * :attr:`force`, which yields the force vector
-* :attr:`virial`, which yields all virial components 
+* :attr:`virial`, which yields all virial components
 * :attr:`jp`, which yields the potential part of the heat current vector
 * :attr:`jk`, which yields the kinetic part of the heat current vector
 * :attr:`momentum`, which yields the momentum
 
 One can write one or more (distinct) names in any order.
 
-Example
--------
+Examples
+--------
 
 For example::
-  
+
   compute 0 100 10 temperature
 
 means using the 0-th grouping method defined in the :ref:`simulation model file <model_xyz>`, sampling :attr:`temperature` every 100 time steps and averaging over 10 data points before writing to file.
