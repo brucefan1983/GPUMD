@@ -3,10 +3,10 @@
     This file is part of GPUMD, licensed under GNU GPL version 3 or later.
 */
 
-// Independent NEP4 model storage for the analytic Hessian. File parsing follows
-// this branch's NEP evaluator; NEP's private parameters are never accessed.
+// Independent parameter storage for the analytic Hessian. The shared model
+// reader validates the file; NEP's private parameters are never accessed.
 #pragma once
-#include "force/nep.cuh"
+#include "force/nep/nep.cuh"
 #include "model/box.cuh"
 #include "utilities/gpu_vector.cuh"
 

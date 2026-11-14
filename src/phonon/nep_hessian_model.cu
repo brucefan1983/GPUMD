@@ -5,17 +5,14 @@
 
 #include "nep_hessian_model.cuh"
 #include "utilities/error.cuh"
-#include "utilities/nep_parameters.cuh"
-#include "utilities/read_file.cuh"
+#include "utilities/nep_io/nep_model_file.cuh"
 #include <algorithm>
 #include <cmath>
 #include <fstream>
-#include <limits>
 #include <string>
-#include <vector>
 
 namespace {
-
+// Atomic numbers are needed only for the ZBL pair potential.
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
   "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga", "Ge",
@@ -33,217 +30,68 @@ void NEP_Hessian_Model::initialize(const char* file_potential)
   zbl = NEP::ZBL{};
   std::ifstream input(file_potential);
   if (!input.is_open()) {
-    PRINT_INPUT_ERROR((std::string("Failed to open ") + file_potential).c_str());
+    PRINT_INPUT_ERROR((std::string("Cannot open potential file ") + file_potential).c_str());
   }
-
-  std::vector<std::string> tokens = get_tokens(input);
-  if (tokens.size() < 3) {
-    PRINT_INPUT_ERROR("The first line of the NEP model file should have at least 3 items.");
+  NEP_Model_File model;
+  std::string error;
+  if (!model.read(input, error) || !model.validate_md(error)) {
+    PRINT_INPUT_ERROR(error.c_str());
   }
-
-  // Model class.  The Hessian supports the same model classes as class NEP.
-  if (tokens[0] == "nep4") {
-    paramb.model_type = 0;
-    zbl.enabled = false;
-  } else if (tokens[0] == "nep4_zbl") {
-    paramb.model_type = 0;
-    zbl.enabled = true;
-  } else if (tokens[0] == "nep4_temperature") {
-    paramb.model_type = 3;
-    zbl.enabled = false;
-  } else if (tokens[0] == "nep4_zbl_temperature") {
-    paramb.model_type = 3;
-    zbl.enabled = true;
-  } else {
-    PRINT_INPUT_ERROR((tokens[0] + " is an unsupported NEP model. We only support NEP4 models now.").c_str());
+  if (model.name != "nep" && model.name != "nep_temperature") {
+    PRINT_INPUT_ERROR("Analytic Hessian requires model nep or nep_temperature.");
   }
-
-  paramb.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  if (paramb.num_types <= 0 || paramb.num_types > NUM_ELEMENTS) {
-    PRINT_INPUT_ERROR("Invalid number of NEP atom types.");
-  }
-  if (static_cast<int>(tokens.size()) != 2 + paramb.num_types) {
-    PRINT_INPUT_ERROR(("The first line of the NEP model file should have " +
-         std::to_string(paramb.num_types) + " atom symbols.").c_str());
-  }
-  for (int n = 0; n < paramb.num_types; ++n) {
-    int atomic_number = 0;
-    for (int m = 0; m < NUM_ELEMENTS; ++m) {
-      if (tokens[2 + n] == ELEMENTS[m]) {
-        atomic_number = m + 1;
-        break;
-      }
+  paramb.model_type = model.name == "nep_temperature" ? 3 : 0;
+  paramb.num_types = model.num_types;
+  paramb.num_types_sq = model.num_types * model.num_types;
+  paramb.rc_radial_max = 0.0f;
+  for (int t = 0; t < model.num_types; ++t) {
+    paramb.rc_radial[t] = model.rc_radial[t];
+    paramb.rc_angular[t] = model.rc_angular[t];
+    paramb.rc_radial_max = std::max(paramb.rc_radial_max, model.rc_radial[t]);
+    const auto element = std::find(ELEMENTS, ELEMENTS + NUM_ELEMENTS, model.elements[t]);
+    if (element == ELEMENTS + NUM_ELEMENTS) {
+      PRINT_INPUT_ERROR(("Unknown NEP element: " + model.elements[t]).c_str());
     }
-    if (atomic_number == 0) {
-      PRINT_INPUT_ERROR(("Unknown element symbol " + tokens[2 + n] + " in the NEP model file.").c_str());
-    }
-    zbl.atomic_numbers[n] = atomic_number;
-  }
-
-  // ZBL cutoffs.
-  if (zbl.enabled) {
-    tokens = get_tokens(input);
-    if (tokens.size() != 3 && tokens.size() != 4) {
-      PRINT_INPUT_ERROR("This line should be zbl rc_inner rc_outer [zbl_factor].");
-    }
-    zbl.rc_inner = get_double_from_token(tokens[1], __FILE__, __LINE__);
-    zbl.rc_outer = get_double_from_token(tokens[2], __FILE__, __LINE__);
-    if (zbl.rc_inner == 0.0f && zbl.rc_outer == 0.0f) {
-      zbl.flexible = true;
-    } else if (tokens.size() == 4) {
-      paramb.typewise_cutoff_zbl_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
-      paramb.use_typewise_cutoff_zbl = true;
-    }
-  }
-
-  // Cutoffs.
-  tokens = get_tokens(input);
-  if (tokens.size() != 5 && tokens.size() != paramb.num_types * 2 + 3) {
-    PRINT_INPUT_ERROR("cutoff should have 4 or num_types * 2 + 2 parameters.");
-  }
-  if (tokens.size() == 5) {
-    paramb.rc_radial[0] = get_double_from_token(tokens[1], __FILE__, __LINE__);
-    paramb.rc_angular[0] = get_double_from_token(tokens[2], __FILE__, __LINE__);
-    for (int n = 0; n < paramb.num_types; ++n) {
-      paramb.rc_radial[n] = paramb.rc_radial[0];
-      paramb.rc_angular[n] = paramb.rc_angular[0];
-    }
-  } else {
-    for (int n = 0; n < paramb.num_types; ++n) {
-      paramb.rc_radial[n] = get_double_from_token(tokens[1 + n * 2], __FILE__, __LINE__);
-      paramb.rc_angular[n] = get_double_from_token(tokens[2 + n * 2], __FILE__, __LINE__);
-    }
-  }
-  for (int n = 0; n < paramb.num_types; ++n) {
-    if (!std::isfinite(paramb.rc_radial[n]) || paramb.rc_radial[n] <= 0.0f ||
-        !std::isfinite(paramb.rc_angular[n]) || paramb.rc_angular[n] <= 0.0f) {
-      PRINT_INPUT_ERROR("NEP cutoffs must be finite and positive.");
-    }
-    if (paramb.rc_radial[n] > paramb.rc_radial_max) {
-      paramb.rc_radial_max = paramb.rc_radial[n];
-    }
+    zbl.atomic_numbers[t] = static_cast<int>(element - ELEMENTS) + 1;
   }
   paramb.rc_radial_max_inv = 1.0f / paramb.rc_radial_max;
+  paramb.MN_radial = static_cast<int>(std::ceil(model.max_radial * 1.25));
+  paramb.MN_angular = static_cast<int>(std::ceil(model.max_angular * 1.25));
+  paramb.n_max_radial = model.n_max_radial;
+  paramb.n_max_angular = model.n_max_angular;
+  paramb.basis_size_radial = model.basis_size_radial;
+  paramb.basis_size_angular = model.basis_size_angular;
+  paramb.L_max = model.L_max;
+  paramb.has_q_222 = 2 * model.has_q_222;
+  paramb.has_q_1111 = model.has_q_1111;
+  paramb.has_q_112 = model.has_q_112;
+  paramb.has_q_123 = model.has_q_123;
+  paramb.has_q_233 = model.has_q_233;
+  paramb.has_q_134 = model.has_q_134;
+  paramb.num_L = model.L_max + model.has_q_222 + model.has_q_1111 +
+    model.has_q_112 + model.has_q_123 + model.has_q_233 + model.has_q_134;
+  paramb.dim_angular = model.layout.dim_angular;
+  paramb.num_c_radial = paramb.num_types_sq * (model.n_max_radial + 1) *
+    (model.basis_size_radial + 1);
 
-  const int MN_radial = get_int_from_token(tokens[tokens.size() - 2], __FILE__, __LINE__);
-  const int MN_angular = get_int_from_token(tokens[tokens.size() - 1], __FILE__, __LINE__);
-  if (MN_radial < 0 || MN_radial > 819 || MN_angular < 0 || MN_angular > 819) {
-    PRINT_INPUT_ERROR("NEP neighbor capacities must be between 0 and 819.");
-  }
-  paramb.MN_radial = int(ceil(MN_radial * 1.25));
-  paramb.MN_angular = int(ceil(MN_angular * 1.25));
+  zbl.enabled = model.enable_zbl;
+  zbl.flexible = model.flexible_zbl;
+  zbl.num_types = model.num_types;
+  zbl.rc_inner = model.zbl_rc_inner;
+  zbl.rc_outer = model.zbl_rc_outer;
+  paramb.use_typewise_cutoff_zbl = model.use_typewise_cutoff_zbl;
+  paramb.typewise_cutoff_zbl_factor = model.typewise_cutoff_zbl_factor;
+  std::copy(model.zbl_parameters.begin(), model.zbl_parameters.end(), zbl.para);
 
-  // n_max n_max_radial n_max_angular
-  tokens = get_tokens(input);
-  if (tokens.size() != 3) {
-    PRINT_INPUT_ERROR("This line should be n_max n_max_radial n_max_angular.");
-  }
-  paramb.n_max_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  paramb.n_max_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
-
-  // basis_size basis_size_radial basis_size_angular
-  tokens = get_tokens(input);
-  if (tokens.size() != 3) {
-    PRINT_INPUT_ERROR("This line should be basis_size basis_size_radial basis_size_angular.");
-  }
-  paramb.basis_size_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  paramb.basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
-
-  if (paramb.n_max_radial < 0 || paramb.n_max_radial > 16 ||
-      paramb.n_max_angular < 0 || paramb.n_max_angular > 16 ||
-      paramb.basis_size_radial < 0 || paramb.basis_size_radial > 16 ||
-      paramb.basis_size_angular < 0 || paramb.basis_size_angular > 16) {
-    PRINT_INPUT_ERROR("Analytic Hessian supports NEP n_max and basis_size from 0 to 16.");
-  }
-
-  // l_max l_max_3body has_q_222 has_q_1111 [has_q_112] [has_q_123] ...
-  tokens = get_tokens(input);
-  if (tokens.size() < 4) {
-    PRINT_INPUT_ERROR("This line should be l_max l_max_3body has_q_222 has_q_1111 [has_q_112] "
-         "[has_q_123] [has_q_233] [has_q_134].");
-  }
-  paramb.L_max = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  paramb.num_L = paramb.L_max;
-  paramb.has_q_222 = get_int_from_token(tokens[2], __FILE__, __LINE__);
-  paramb.has_q_1111 = get_int_from_token(tokens[3], __FILE__, __LINE__);
-  if (tokens.size() >= 5) paramb.has_q_112 = get_int_from_token(tokens[4], __FILE__, __LINE__);
-  if (tokens.size() >= 6) paramb.has_q_123 = get_int_from_token(tokens[5], __FILE__, __LINE__);
-  if (tokens.size() >= 7) paramb.has_q_233 = get_int_from_token(tokens[6], __FILE__, __LINE__);
-  if (tokens.size() >= 8) paramb.has_q_134 = get_int_from_token(tokens[7], __FILE__, __LINE__);
-  if (paramb.has_q_222) paramb.num_L += 1;
-  if (paramb.has_q_1111) paramb.num_L += 1;
-  if (paramb.has_q_112) paramb.num_L += 1;
-  if (paramb.has_q_123) paramb.num_L += 1;
-  if (paramb.has_q_233) paramb.num_L += 1;
-  if (paramb.has_q_134) paramb.num_L += 1;
-
-  if (paramb.L_max < 0 || paramb.L_max > 8 || paramb.num_L > 14) {
-    PRINT_INPUT_ERROR("Unsupported angular descriptor count in the NEP model.");
-  }
-  paramb.dim_angular = (paramb.n_max_angular + 1) * paramb.num_L;
-
-  // ANN num_neurons 0
-  tokens = get_tokens(input);
-  if (tokens.size() != 3) {
-    PRINT_INPUT_ERROR("This line should be ANN num_neurons 0.");
-  }
-  annmb.num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  annmb.dim = (paramb.n_max_radial + 1) + paramb.dim_angular;
-  if (paramb.model_type == 3) {
-    annmb.dim += 1;
-  }
-
-  if (annmb.dim > 256 || annmb.num_neurons1 <= 0 ||
-      annmb.num_neurons1 > (std::numeric_limits<int>::max() - 1) /
-        ((annmb.dim + 2) * paramb.num_types)) {
-    PRINT_INPUT_ERROR("Invalid NEP neural network dimensions.");
-  }
-
-  // Calculated parameters.
-  paramb.num_types_sq = paramb.num_types * paramb.num_types;
-  annmb.num_para_ann = (annmb.dim + 2) * annmb.num_neurons1 * paramb.num_types + 1;
-  const int num_para_descriptor =
-    paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
-                           (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
-  if (annmb.num_para_ann >
-      std::numeric_limits<int>::max() - num_para_descriptor - annmb.dim) {
-    PRINT_INPUT_ERROR("NEP parameter count exceeds supported index range.");
-  }
-  annmb.num_para = annmb.num_para_ann + num_para_descriptor;
-  paramb.num_c_radial =
-    paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
-
-  // Neural network and descriptor parameters.
-  std::vector<float> parameters(annmb.num_para + annmb.dim);
-  for (int n = 0; n < annmb.num_para + annmb.dim; ++n) {
-    tokens = get_tokens(input);
-    if (tokens.size() != 1) {
-      PRINT_INPUT_ERROR("Expected one NEP parameter or scaler per line.");
-    }
-    parameters[n] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-    if (!std::isfinite(parameters[n])) {
-      PRINT_INPUT_ERROR("NEP parameters and scalers must be finite.");
-    }
-  }
-
-  // Refactor the descriptor parameters into the [type_pair][basis] layout.
-  std::vector<float> descriptor_parameters = get_descriptor_parameters_type_pair(
-    parameters,
-    annmb.num_para_ann,
-    paramb.num_types,
-    paramb.n_max_radial,
-    paramb.n_max_angular,
-    paramb.basis_size_radial,
-    paramb.basis_size_angular);
-
-  // Replace the file-layout coefficients on the host, then upload one array.
-  // All Hessian kernels use the same type-pair layout as the force kernels.
-  std::copy(descriptor_parameters.begin(), descriptor_parameters.end(),
-    parameters.begin() + annmb.num_para_ann);
-  parameters_.resize(parameters.size());
-  parameters_.copy_from_host(parameters.data());
+  annmb.dim = model.layout.dim;
+  annmb.num_neurons1 = model.num_neurons1;
+  annmb.num_para_ann = model.layout.number_of_variables_ann;
+  annmb.num_para = model.layout.number_of_variables;
+  parameters_.resize(model.parameters.size() + model.q_scaler.size());
+  parameters_.copy_from_host(model.parameters.data(), model.parameters.size());
+  parameters_.copy_from_host(model.q_scaler.data(), model.q_scaler.size(), annmb.num_para);
   float* pointer = parameters_.data();
-  for (int t = 0; t < paramb.num_types; ++t) {
+  for (int t = 0; t < model.num_types; ++t) {
     annmb.w0[t] = pointer;
     pointer += annmb.num_neurons1 * annmb.dim;
     annmb.b0[t] = pointer;
@@ -254,23 +102,6 @@ void NEP_Hessian_Model::initialize(const char* file_potential)
   annmb.b1 = pointer++;
   annmb.c_type_pair = pointer;
   annmb.q_scaler = parameters_.data() + annmb.num_para;
-
-  // Flexible ZBL parameters.
-  if (zbl.flexible) {
-    const int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
-    if (10 * num_type_zbl > static_cast<int>(sizeof(zbl.para) / sizeof(zbl.para[0]))) {
-      PRINT_INPUT_ERROR("Too many atom types for flexible ZBL parameters.");
-    }
-    for (int d = 0; d < 10 * num_type_zbl; ++d) {
-      tokens = get_tokens(input);
-      if (tokens.size() != 1) {
-        PRINT_INPUT_ERROR("Expected one flexible ZBL parameter per line.");
-      }
-      zbl.para[d] = get_double_from_token(tokens[0], __FILE__, __LINE__);
-      if (!std::isfinite(zbl.para[d])) {
-        PRINT_INPUT_ERROR("Flexible ZBL parameters must be finite.");
-      }
-    }
-    zbl.num_types = paramb.num_types;
-  }
+  // Element energy references are constants in the coordinates. Energy and
+  // forces are obtained from Force; only ANN derivatives are evaluated here.
 }

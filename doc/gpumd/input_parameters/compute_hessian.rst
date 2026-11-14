@@ -101,14 +101,13 @@ the command never expands this representation into a dense matrix.
 Supported models and temperature
 --------------------------------
 
-The command reads the NEP4 model format used by this branch's force evaluator:
-``nep4``, ``nep4_zbl``, ``nep4_temperature``, and ``nep4_zbl_temperature``.
-Universal, typewise, and flexible ZBL are supported. Model parameters are
-stored independently of NEP's private state. The shared descriptor conversion
-utility converts file coefficients to the type-pair layout used by all Hessian
-kernels, with a single GPU parameter allocation. Models compacted to the
-species present in ``model.xyz`` are supported. The angular expansion supports
-:math:`0\le L_\mathrm{max}\le8` and the optional invariants of the force evaluator.
+The command uses the same ``NEP_Model_File`` reader and validation as the
+NEP force evaluator. It accepts the current versioned model format with
+``model nep`` or ``model nep_temperature``, including universal, typewise,
+and flexible ZBL settings accepted by that reader. Descriptor coefficients
+use the native type-pair layout, including models compacted to the species
+present in ``model.xyz``. The angular expansion and optional invariants must
+satisfy the shared reader's limits (currently :math:`2\le L_\mathrm{max}\le8`).
 
 Both large boxes and periodic small boxes are supported. Small-box
 calculations use the same periodic-image displacements as the force evaluator.

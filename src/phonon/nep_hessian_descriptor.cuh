@@ -7,7 +7,7 @@
 // arrays. Both ordinary and temperature-dependent models use this input.
 
 #pragma once
-#include "force/nep.cuh"
+#include "force/nep/nep.cuh"
 #include "model/box.cuh"
 #include "utilities/nep_utilities.cuh"
 

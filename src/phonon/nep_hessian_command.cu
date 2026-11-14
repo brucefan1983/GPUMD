@@ -2,6 +2,16 @@
     Copyright 2017 Zheyong Fan and GPUMD development team.
     This file is part of GPUMD, licensed under GNU GPL version 3 or later.
 */
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
+
 #include "nep_hessian_command.cuh"
 #include "nep_analytic_hessian.cuh"
 #include "nep_hessian_model.cuh"
@@ -16,10 +26,101 @@
 #include <fstream>
 #include <iomanip>
 #include <limits>
-#include <sys/stat.h>
-#include <unistd.h>
 
 namespace {
+
+#ifdef _WIN32
+
+// Use the same ANSI code page as std::ofstream's narrow filenames on Windows.
+std::wstring windows_path(const std::string& path)
+{
+  const int size = MultiByteToWideChar(CP_ACP, 0, path.c_str(), -1, nullptr, 0);
+  if (size == 0) PRINT_INPUT_ERROR("Cannot convert Hessian path to Windows filename.");
+  std::vector<wchar_t> result(size);
+  if (!MultiByteToWideChar(CP_ACP, 0, path.c_str(), -1, result.data(), size))
+    PRINT_INPUT_ERROR("Cannot convert Hessian path to Windows filename.");
+  return result.data();
+}
+
+HANDLE open_path(const std::wstring& path)
+{
+  return CreateFileW(path.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+    nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+}
+
+std::wstring resolved_path(HANDLE handle)
+{
+  const DWORD size = GetFinalPathNameByHandleW(handle, nullptr, 0, FILE_NAME_NORMALIZED);
+  if (size == 0) {
+    CloseHandle(handle);
+    PRINT_INPUT_ERROR("Cannot resolve Hessian Windows path.");
+  }
+  std::vector<wchar_t> result(size + 1);
+  const DWORD written = GetFinalPathNameByHandleW(
+    handle, result.data(), static_cast<DWORD>(result.size()), FILE_NAME_NORMALIZED);
+  CloseHandle(handle);
+  if (written == 0 || written >= result.size())
+    PRINT_INPUT_ERROR("Cannot resolve Hessian Windows path.");
+  return std::wstring(result.data(), written);
+}
+
+std::wstring canonical_output_path(const std::string& path)
+{
+  const std::wstring filename = windows_path(path);
+  HANDLE handle = open_path(filename);
+  if (handle != INVALID_HANDLE_VALUE) return resolved_path(handle);
+  const DWORD error = GetLastError();
+  if (error != ERROR_FILE_NOT_FOUND && error != ERROR_PATH_NOT_FOUND)
+    PRINT_INPUT_ERROR(("Cannot inspect Hessian path: " + path).c_str());
+  // A dangling reparse point is not a new output file. Reject it rather than
+  // risk missing an alias to another output whose target does not yet exist.
+  const DWORD attributes = GetFileAttributesW(filename.c_str());
+  if (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_REPARSE_POINT))
+    PRINT_INPUT_ERROR(("Cannot resolve Hessian reparse point: " + path).c_str());
+  const DWORD size = GetFullPathNameW(filename.c_str(), 0, nullptr, nullptr);
+  if (size == 0) PRINT_INPUT_ERROR(("Cannot resolve Hessian path: " + path).c_str());
+  std::vector<wchar_t> absolute(size + 1);
+  wchar_t* name = nullptr;
+  const DWORD written = GetFullPathNameW(
+    filename.c_str(), static_cast<DWORD>(absolute.size()), absolute.data(), &name);
+  if (written == 0 || written >= absolute.size() || name == nullptr || *name == L'\0')
+    PRINT_INPUT_ERROR(("Cannot resolve Hessian output parent: " + path).c_str());
+  const std::wstring leaf(name);
+  *name = L'\0';
+  handle = open_path(absolute.data());
+  if (handle == INVALID_HANDLE_VALUE)
+    PRINT_INPUT_ERROR(("Cannot resolve Hessian output parent: " + path).c_str());
+  std::wstring parent = resolved_path(handle);
+  if (parent.back() != L'\\') parent += L'\\';
+  return parent + leaf;
+}
+
+bool same_file(const std::string& left, const std::string& right)
+{
+  const auto a_path = canonical_output_path(left);
+  const auto b_path = canonical_output_path(right);
+  if (CompareStringOrdinal(a_path.c_str(), -1, b_path.c_str(), -1, TRUE) == CSTR_EQUAL)
+    return true;
+  HANDLE a = open_path(windows_path(left));
+  HANDLE b = open_path(windows_path(right));
+  BY_HANDLE_FILE_INFORMATION a_info{}, b_info{};
+  const bool equal = a != INVALID_HANDLE_VALUE && b != INVALID_HANDLE_VALUE &&
+    GetFileInformationByHandle(a, &a_info) && GetFileInformationByHandle(b, &b_info) &&
+    a_info.dwVolumeSerialNumber == b_info.dwVolumeSerialNumber &&
+    a_info.nFileIndexHigh == b_info.nFileIndexHigh &&
+    a_info.nFileIndexLow == b_info.nFileIndexLow;
+  if (a != INVALID_HANDLE_VALUE) CloseHandle(a);
+  if (b != INVALID_HANDLE_VALUE) CloseHandle(b);
+  return equal;
+}
+
+bool regular_file(const std::string& path)
+{
+  const DWORD attributes = GetFileAttributesW(windows_path(path).c_str());
+  return attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+#else
 
 std::string canonical_output_path(const std::string& path, int depth = 0)
 {
@@ -56,6 +157,14 @@ bool same_file(const std::string& left, const std::string& right)
   return stat(left.c_str(), &a) == 0 && stat(right.c_str(), &b) == 0 &&
     a.st_dev == b.st_dev && a.st_ino == b.st_ino;
 }
+
+bool regular_file(const std::string& path)
+{
+  struct stat entry;
+  return stat(path.c_str(), &entry) == 0 && S_ISREG(entry.st_mode);
+}
+
+#endif
 
 std::string json_escape(const std::string& value)
 {
@@ -336,8 +445,7 @@ void NEP_Hessian_Command::parse(const std::vector<std::string>& tokens)
       const auto tokens = get_tokens(line);
       if (tokens.empty() || tokens[0] != "potential") continue;
       for (size_t i = 1; i < tokens.size(); ++i) {
-        struct stat entry;
-        if (stat(tokens[i].c_str(), &entry) == 0 && S_ISREG(entry.st_mode))
+        if (regular_file(tokens[i]))
           inputs.push_back(tokens[i]);
       }
     }

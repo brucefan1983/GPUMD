@@ -16,7 +16,7 @@
 #include "nep_analytic_hessian.cuh"
 #include "sparse_hessian.cuh"
 #include "force/force.cuh"
-#include "force/nep.cuh"
+#include "force/nep/nep.cuh"
 #include "model/atom.cuh"
 #include "model/group.cuh"
 #include "utilities/error.cuh"
