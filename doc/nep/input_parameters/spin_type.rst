@@ -5,9 +5,17 @@
 :attr:`spin_type`
 ======================
 
-Select the atom types that have independent spin degrees of freedom::
+Select the atom types that have independent spin degrees of freedom.
+
+Syntax
+------
+
+::
 
   spin_type Fe
+
+Parameters
+----------
 
 At least one type must be listed. Names must be unique and must appear in
 :ref:`type <kw_type>`. If omitted, all atom types are selected. The effective
@@ -29,6 +37,19 @@ The grouped-response path derivative uses the selected DFT spin coordinates.
 With :ref:`lambda_spin_response <kw_lambda_spin_response>`, derived tangents
 are zero on excluded types.
 
+Output
+------
+
+None.
+
+Examples
+--------
+
 For example, with ``type 3 Fe Bi O`` and ``spin_type Fe``, Bi and O centers
 respond to neighboring Fe spins and contribute magnetic energy and atomic
 forces without acquiring independent spin degrees of freedom.
+
+Notes
+-----
+
+See :ref:`nep_spin` for the descriptor definition and model contract.

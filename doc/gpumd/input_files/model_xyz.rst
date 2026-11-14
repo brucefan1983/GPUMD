@@ -7,34 +7,26 @@
 Simulation model (``model.xyz``)
 ================================
 
-The ``model.xyz`` file defines the simulation model, including for example the initial positions, velocities, and boundary conditions.
-The file needs to be provided in extended XYZ format, which is described `here <https://github.com/libAtoms/extxyz>`_.
+The ``model.xyz`` file supplies the initial atomic configuration, simulation cell, and boundary conditions.
+It uses the `extended XYZ format <https://github.com/libAtoms/extxyz>`_: one atom-count line, one header line, and one line per atom.
 
 File format
 -----------
 
-Line 1
-^^^^^^
+Line 1: atom count
+^^^^^^^^^^^^^^^^^^
 
-The first line should have one item only, which is the number of atoms in the model :math:`N`.
+Give the number of atoms, :math:`N`, as a single integer.
 
-Line 2
-^^^^^^
+Line 2: header
+^^^^^^^^^^^^^^
 
-This line consists of a number of ``keyword=value`` pairs separated by spaces.
-Spaces before and after ``=`` *are allowed*.
-All the characters are case-insensitive.
-``value`` can be a single item or a number of items enclosed by double quotes, such as ``keyword="value_1 value_2 value_3"``.
-Here, the different values are separated by spaces and spaces after the left ``"`` and before the right ``"`` are allowed.
-For example, one can write ``keyword=" value_1 value_2 value_3 "``.
+The header contains space-separated ``keyword=value`` pairs.
+Enclose a value containing several items in double quotes.
+Header text is case-insensitive, and spaces around ``=`` or inside the quotes are allowed.
+GPUMD reads the following fields; other header fields are ignored.
 
-Essentially any keyword is allowed, but we only read the following ones:
-
-* (*Optional*) ``pbc="pbc_a pbc_b pbc_c"``, where ``pbc_a``, ``pbc_b``, and ``pbc_c`` can be ``T`` or ``F``, which means box is periodic or non-periodic (free, or open) in the :math:`\boldsymbol{a}`, :math:`\boldsymbol{b}`, and :math:`\boldsymbol{c}` directions.
-  We use the minimum-image convention to account for the periodic boundary conditions for non-:term:`NEP` potentials but will consider sufficiently many periodic images for the :term:`NEP` potentials.
-  Therefore, one needs to make sure that the box size is large enough (the thickness in each direction is larger than twice of the potential cutoff) to incorporate enough neighbors for non-:term:`NEP` potentials but does not need to care about this for NEP potentials.
-  The default is ``pbc="T T T"``
-* (*Mandatory*) ``lattice="ax ay az bx by bz cx cy cz"`` specifies the cell vectors:
+* ``lattice="ax ay az bx by bz cx cy cz"`` (required): the Cartesian components of the three cell vectors, in Å:
 
   .. math::
 
@@ -42,25 +34,62 @@ Essentially any keyword is allowed, but we only read the following ones:
      \boldsymbol{b} = b_x \boldsymbol{e}_x + b_y \boldsymbol{e}_y + b_z \boldsymbol{e}_z\\
      \boldsymbol{c} = c_x \boldsymbol{e}_x + c_y \boldsymbol{e}_y + c_z \boldsymbol{e}_z
 
-* ``properties=property_name:data_type:number_of_columns``
+* ``properties=property_name:data_type:number_of_columns:...`` (required): the names, types, and column counts of the per-atom data.
+  Join successive properties with colons, in the order used on each atom line.
+  ``S``, ``R``, and ``I`` denote strings, real numbers, and integers.
+* ``pbc="pbc_a pbc_b pbc_c"`` (optional): ``T`` for periodic or ``F`` for free boundaries along each cell vector.
+  The default is ``pbc="T T T"``.
 
-  We only read the following items:
+Line 3 onward: per-atom data
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-  * ``species:S:1`` atom type (*Mandatory*)
-  * ``pos:R:3`` position vector (*Mandatory*)
-  * ``mass:R:1`` mass (*Optional*: default mass values will be used when this is missing)
-  * ``charge:R:1`` charge (*Optional*: default charge is zero)  
-  * ``vel:R:3`` velocity vector (*Optional*)
-  * ``spin:R:3`` magnetic-moment vector in Bohr magnetons (muB) (*Required for NEP_Spin*)
-  * ``spin_vel:R:3`` spin velocity vector (*Optional for NEP-spin; requires ``spin:R:3``*)
-  * ``group:I:number_of_grouping_methods`` grouping methods (*Optional*)
+Provide exactly :math:`N` atom lines, each with the columns declared by ``properties``.
+The supported properties are:
 
+.. list-table::
+   :header-rows: 1
+   :widths: 27 26 12 35
 
-Line 3 and forward
-^^^^^^^^^^^^^^^^^^
+   * - Property
+     - Quantity
+     - Unit
+     - Requirement or default
+   * - ``species:S:1``
+     - Chemical symbol
+     -
+     - Required
+   * - ``pos:R:3``
+     - Cartesian position
+     - Å
+     - Required
+   * - ``mass:R:1``
+     - Atomic mass
+     - amu
+     - Default mass for the element
+   * - ``charge:R:1``
+     - Atomic charge
+     - e
+     - Zero
+   * - ``vel:R:3``
+     - Cartesian velocity
+     - Å/fs
+     - Optional
+   * - ``spin:R:3``
+     - Magnetic moment
+     - muB
+     - Required for NEP-spin
+   * - ``spin_vel:R:3``
+     - Spin velocity
+     - muB/fs
+     - Optional; requires ``spin:R:3``
+   * - ``group:I:M``
+     - Group labels
+     -
+     - Optional; :math:`M` grouping methods
 
-Each line must contain the same number of items, which are determined by the ``properties`` keyword on line 2.
-The meaning of the grouping methods is illustrated by the example below.
+Here, amu is the unified atomic mass unit, e is the elementary charge, and muB is the Bohr magneton.
+When ``vel`` is present, GPUMD uses these velocities and ignores the initial temperature specified by :ref:`velocity <kw_velocity>`.
+Otherwise, that command sets the initial temperature, which defaults to 300 K.
 
 .. _grouping_methods:
 
@@ -74,31 +103,10 @@ The method number selects a partition of the atoms; the group label selects one 
 These labels remain attached to the atoms as they move; group membership is not recalculated from their current positions.
 If the ``group`` property is omitted, no grouping methods are defined.
 
-Units
------
-
-The mass should be given in units of the unified atomic mass unit (amu). 
-The charge is in units of e (proton charge).
-The cell dimensions and atom coordinates should be given in units of Ångstrom. 
-Velocities need to be specified in units of Å/fs.
-Spin is specified in Bohr magnetons (muB). Spin velocity is in muB/fs.
-Magnetic force is the negative energy derivative with respect to spin, in eV/muB.
-The spin torque, spin crossed with magnetic force, is in eV.
-External magnetic induction B is specified in tesla (T).
-Spin vectors store Cartesian magnetic moments, not normalized directions.
-Active spins are not normalized; training and runtime data must use the same
-spin convention. Elements excluded by the model's ``spin_type`` have zero
-effective spin and zero magnetic force, while their geometry is retained.
-For NEP-spin models, the ``spin`` property may not be repeated, and
-``spin:R:3`` is required; missing spin values are never filled with zeros.
-Other potential models ignore the ``spin`` property.
-
 Example
 -------
 
-Assume we have the following ``model.xyz`` file:
-
-.. code::
+This example illustrates the file format and three grouping methods::
 
    10
    pbc="T F F" lattice="10 0 0 0 1 0 0 0 1" properties=species:S:1:pos:R:3:group:I:3
@@ -113,16 +121,29 @@ Assume we have the following ``model.xyz`` file:
    C  8 0 0 1 8 0
    Si 9 0 0 1 9 0
 
-This means
 
-* There are 10 atoms.
-* Use periodic boundary conditions in the :math:`x` direction and free boundary conditions in the other directions.
-* The box lengths in the three directions are respectively 10 Å, 1 Å, and 1 Å.
-* There are 5 carbon atoms and 5 silicon atoms. The default masses will be used for the atoms (as there are no specific values given in the input file).
-* The 10 atoms are located along a line in the :math:`x` direction with equal spacing, from 0 Å to 9 Å. 
-* There is no velocity data in this file.
-* There are 3 grouping methods
+The ten atoms alternate between C and Si along x, at positions from 0 to 9 Å.
+The cell is 10 Å by 1 Å by 1 Å, with periodic boundaries only along x.
+Default masses are used, and velocities are not supplied.
+The last three columns define:
 
-  * In grouping method 0, atom 0 to atom 4 have group label 0 (which means they are in group 0), and atom 5 to atom 9 have group label 1 (which means they are in group 1).
-  * In grouping method 1, atom :math:`m` (:math:`0\leq m \leq 9`) has group label :math:`m`. That is, each group consists of a single atom.
-  * In grouping method 2, all the atoms have group label 0. That is, all the atoms are in the same group.
+* Method 0: atoms 0-4 belong to group 0, and atoms 5-9 belong to group 1.
+* Method 1: atom :math:`m` belongs to group :math:`m`, so each group has one atom.
+* Method 2: all atoms belong to group 0.
+
+Notes
+-----
+
+For non-NEP potentials, the cell thickness in each periodic direction must exceed twice the potential cutoff.
+NEP potentials include the periodic images needed for smaller cells.
+
+Magnetic force is the negative energy derivative with respect to spin, in eV/muB.
+The spin torque, spin crossed with magnetic force, is in eV.
+External magnetic induction B is specified in tesla (T).
+Spin vectors store Cartesian magnetic moments, not normalized directions.
+Active spins are not normalized; training and runtime data must use the same
+spin convention. Elements excluded by the model's ``spin_type`` have zero
+effective spin and zero magnetic force, while their geometry is retained.
+For NEP-spin models, the ``spin`` property may not be repeated, and
+``spin:R:3`` is required; missing spin values are never filled with zeros.
+Other potential models ignore the ``spin`` property.

@@ -1,7 +1,7 @@
 .. _spin_restart:
 
-Spin restart
-============
+``restart.xyz`` (spin)
+======================
 
 Follow the :ref:`restart.xyz instructions <restart_xyz>` to continue a NEP-spin simulation.
 The restart file additionally contains the per-atom magnetic moments as ``spin:R:3``.

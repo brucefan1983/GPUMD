@@ -7,22 +7,22 @@
 
 This keyword computes the angular distribution function (:term:`ADF`) for all atoms or specific triples of species. Each :term:`ADF` is represented as a histogram, created by measuring the angles formed between a central atom and two neighboring atoms, and binning these angles into `num_bins` bins. Each neighbor must satisfy :math:`r_{\min} \le r < r_{\max}` for its specified radial window. The lower bound is included and the upper bound is excluded. Zero-length center-neighbor vectors are excluded because their angle is undefined.
 Currently, this feature is only available for classical :term:`MD`.
-The results are written to the :ref:`adf.out <adf_out>` file.
 
 Syntax
 ------
 
-For global :term:`ADF`, the keyword is used as follows::
+::
 
   compute_adf <interval> <num_bins> <rc_min> <rc_max>
-
-This means the :term:`ADF` calculations will be performed every :attr:`interval` steps, with :attr:`num_bins` data points.
-
-For local :term:`ADF`, the keyword is used as follows::
-
   compute_adf <interval> <num_bins> <itype1> <jtype1> <ktype1> <rc_min_j1> <rc_max_j1> <rc_min_k1> <rc_max_k1> ...
 
-This means the :term:`ADF` calculations will be performed every :attr:`interval` steps, with :attr:`num_bins` data points. 
+Parameters
+----------
+
+``interval`` is the sampling interval in MD steps, and ``num_bins`` is the number of angular bins.
+The first form computes the global ADF using the radial window from ``rc_min`` to ``rc_max`` for both neighbors.
+The second form computes local ADFs for the specified species triples and radial windows.
+
 The angle formed by the central atom I and neighboring atoms J and K is included in the :term:`ADF` if the following conditions are met:
 
 - The distance between atoms I and J satisfies ``rc_min_jN <= R_IJ < rc_max_jN``.
@@ -49,6 +49,11 @@ where :math:`H_b` is the accumulated number of valid angles in bin :math:`b`.
 Each global or local distribution is normalized separately, so :math:`\sum_b p_b\Delta\theta=1` when valid angles are present.
 If no valid angles have been counted, the corresponding distribution is all zeros.
 
+Output
+------
+
+The results are written to the :ref:`adf.out <adf_out>` file.
+
 Examples
 --------
 
@@ -63,3 +68,8 @@ Calculate the local 0-1-1 ADF every 500 steps, using 50 angular bins and differe
 Multiple triples can be specified in one command::
 
    compute_adf 500 50 0 1 1 0.0 1.2 0.0 1.3 1 0 1 0.0 1.2 0.0 1.3
+
+Notes
+-----
+
+None.

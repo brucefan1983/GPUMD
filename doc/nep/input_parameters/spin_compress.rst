@@ -5,9 +5,17 @@
 :attr:`spin_compress`
 =======================
 
-Set the number of learned radial channels::
+Set the number of learned radial channels.
+
+Syntax
+------
+
+::
 
   spin_compress C
+
+Parameters
+----------
 
 The default is 3 and the range is 1--9. A learned matrix mixes the structural
 angular radial channels into :math:`C` spin channels. All combinations of
@@ -23,3 +31,20 @@ ordering are unchanged.
 
 For ``spin_l_max 2`` and ``spin_order 2``, SOC gives :math:`1+11C` spin
 coordinates; non-SOC gives :math:`1+10C`. See :ref:`nep_spin_dimensions`.
+
+Output
+------
+
+None.
+
+Examples
+--------
+
+::
+
+  spin_compress 3
+
+Notes
+-----
+
+See :ref:`nep_spin` for the descriptor definition and model contract.

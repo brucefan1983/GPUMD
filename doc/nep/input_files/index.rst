@@ -4,11 +4,18 @@
 Input files
 ===========
 
-To train a :term:`NEP` model using the ``nep`` executable, prepare the :ref:`model parameters <nep_in>` (``nep.in``) and the :ref:`training dataset <train_test_xyz>` (``train.xyz``).
-The :ref:`test dataset <train_test_xyz>` (``test.xyz``) is optional. If it is omitted, training proceeds without test-set evaluation or test-set prediction files.
+Run ``nep`` from a directory containing:
+
+* :ref:`nep.in <nep_in>`: the model and training settings.
+* :ref:`train.xyz <train_test_xyz>`: the reference structures and target quantities.
+
+An optional :ref:`test.xyz <train_test_xyz>` provides a separate test set.
+Without it, training proceeds without test-set evaluation or test-set prediction files.
+For evaluation of an existing model, use :ref:`prediction mode <kw_prediction>`; the structures to evaluate are still read from ``train.xyz``.
+The other input files below are needed only for the corresponding training tasks.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents
 
    nep_in

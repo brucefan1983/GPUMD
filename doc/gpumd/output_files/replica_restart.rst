@@ -25,11 +25,10 @@ For PRD, add ``resume prd`` to its original ``multi_replica`` line.
 ``run`` specifies additional steps. A prefix can include a directory, such as ``resume ../previous/remd``.
 New output uses the usual filenames in the current working directory.
 
-Caveats
--------
+Notes
+-----
 
 * Restart files with an incompatible format are rejected.
-  Older replica xyz files containing an additional ``vel_natural`` property are accepted; that property supplies the velocities in GPUMD's internal unit.
 * ``run.in``, ``model.xyz``, and the potential file are still required.
   Preserve atom count, species, masses, box, potential content, replica count, time step, thermostat, and method parameters.
   For charge NEP models, also keep the ``kspace`` command: the method and an explicit PPPM spacing are stored and must match.

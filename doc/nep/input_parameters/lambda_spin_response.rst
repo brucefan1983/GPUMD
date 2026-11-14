@@ -5,9 +5,17 @@
 :attr:`lambda_spin_response`
 =============================
 
-This keyword sets the weight of grouped magnetic-response loss::
+This keyword sets the weight of grouped magnetic-response loss.
+
+Syntax
+------
+
+::
 
   lambda_spin_response <weight>
+
+Parameters
+----------
 
 The weight must be finite and non-negative and defaults to 0. A positive value
 requires ``spin_version 1`` and a valid :ref:`response.xyz <response_xyz>` in
@@ -28,3 +36,20 @@ group-mean Huber term; the latter has weight 0.25. Coordinates do not add a
 separate reliability weight. This objective supplements per-component
 magnetic-force RMSE when relative response along a controlled rotation path
 matters. See :ref:`nep_spin_response` for the response and tangent definitions.
+
+Output
+------
+
+None.
+
+Examples
+--------
+
+::
+
+  lambda_spin_response 1.0
+
+Notes
+-----
+
+None.

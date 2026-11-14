@@ -5,10 +5,18 @@
 :attr:`spin_version`
 ======================
 
-Select the spin descriptor and parameter layout::
+Select the spin descriptor and parameter layout.
+
+Syntax
+------
+
+::
 
   model nep_spin
   spin_version 1
+
+Parameters
+----------
 
 The supported value is 1, which is also the default for ``model nep_spin``.
 Spin training uses NEP ``version 4`` and one hidden layer. ``format_version``

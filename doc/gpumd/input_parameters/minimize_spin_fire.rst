@@ -1,14 +1,19 @@
 .. _spin_fire_minimize:
 
-Spin FIRE
----------
+:attr:`minimize` (Spin FIRE)
+============================
+
+Optimize magnetic moments, optionally together with atomic positions and cell strain.
 
 Syntax
-^^^^^^
+------
 
 For a Spin potential, use::
 
   minimize spin_fire <tolerance> <maximal_number_of_steps> <variable_magnitude> [<fixed_atoms> [<box_change> [<hydrostatic_strain>]]]
+
+Parameters
+----------
 
 * ``variable_magnitude = 0`` preserves each atom's initial spin magnitude;
   ``1`` optimizes all three Cartesian spin components. Zero spins remain zero
@@ -38,8 +43,18 @@ For a Spin potential, use::
 * ``maximal_number_of_steps`` is a positive iteration budget. All attempts count,
   including velocity resets and non-finite trial states.
 
+Output
+------
+
+Console output reports energy, maximum magnetic-force residual, and (for joint runs)
+maximum atomic force and virial stress in GPa (mean normal stress in the
+hydrostatic case). At fixed cell, stress is reported but is not a stopping
+criterion. Only ``converged`` means **all active criteria** have been met.
+``maximum_steps`` and ``stalled``
+do not indicate convergence.
+
 Examples
-^^^^^^^^
+--------
 
 Optimize only spin directions, keeping magnitudes, atoms, and the cell fixed::
 
@@ -48,10 +63,6 @@ Optimize only spin directions, keeping magnitudes, atoms, and the cell fixed::
 Optimize only spins, allowing their magnitudes to change::
 
   minimize spin_fire 1.0e-4 10000 1
-
-The same spin-only optimization with atoms explicitly fixed::
-
-  minimize spin_fire 1.0e-4 10000 1 1
 
 Jointly optimize atoms and variable-magnitude spins at fixed cell::
 
@@ -79,8 +90,8 @@ output procedure as ordinary FIRE::
   dump_xyz 1 relaxed.xyz precision double force spin mforce virial
   run 1
 
-Caveats
-^^^^^^^
+Notes
+-----
 
 * A Spin potential and ``spin:R:3`` in ``model.xyz`` are required. Ordinary
   ``minimize fire`` remains a lattice-only command and is not enabled for Spin
@@ -88,45 +99,14 @@ Caveats
 * Cell optimization requires periodic boundaries in all three directions.
   Joint optimization does not support ``fix`` groups and rejects them; in
   spin-only mode, ``fix`` does not select frozen spins.
-* Atomic velocities and physical ``spin_vel`` are preserved. FIRE uses separate
-  fictitious velocities. After joint optimization, positions, cell inverses,
-  periodic images, and endpoint forces are updated for subsequent commands.
+* Atomic velocities and physical ``spin_vel`` are preserved. Subsequent commands use the optimized configuration.
 * External magnetic fields do not participate in Spin FIRE minimization.
   ``add_mfield`` applies only to MD runs.
-* Output reports energy, maximum magnetic-force residual, and (for joint runs)
-  maximum atomic force and virial stress in GPa (mean normal stress in the
-  hydrostatic case). At fixed cell, stress is reported but is not a stopping
-  criterion. Only ``converged`` means **all active criteria** have been met.
-  ``maximum_steps`` and ``stalled``
-  do not indicate convergence.
 * Individual FIRE steps can increase the energy. Force convergence identifies
   a stationary point, not necessarily the global minimum or a particular phase.
   Variable-magnitude optimization requires a potential fitted over the relevant
   range of moments, atomic configurations, and cell deformations.
 
-Algorithm and stagnation
-^^^^^^^^^^^^^^^^^^^^^^^^
-
-The dot product of the generalized force and fictitious velocity controls FIRE's
-step size and velocity resets. Energy is diagnostic; a constant energy offset
-does not change the optimization. Non-finite trials restore spins, positions,
-cell, and endpoint properties before retrying with a smaller step.
-
-Fixed-magnitude spins use spherical updates with parallel transport of fictitious
-velocities; variable-magnitude spins use Cartesian updates. Each spin move is
-limited to 0.1 radians or 0.1 muB. Joint runs also limit each non-affine atomic
-move to 0.1 angstrom and the Frobenius norm of each cell deformation increment to
-0.01. Cell coordinates use the initial cube-root volume as a length scale, as
-in ordinary cell FIRE. Cell deformation acts on both the cell and atomic
-positions; spins stay in laboratory Cartesian coordinates during this affine
-part of the update. The full virial transpose supplies the conjugate deformation
-force, including nonsymmetric components from spin-orbit interactions.
-
-Stagnation is reported if the internal step drops below 1e-12, if 20 finite moves
-produce no resolved update (8 double epsilons relative to the component scale
-``max(1, abs(old), abs(new))``), or if 1000 attempts pass without a cumulative 1%
-improvement in the largest residual divided by its convergence tolerance. Joint
-runs include atomic, magnetic, and active stress residuals. The plateau detector
-may stop very slow relaxation; inspect the residuals before restarting. None of
-these conditions relaxes the requested convergence criteria. The internal FIRE
-step is an optimization parameter, not the MD ``time_step``.
+If minimization stalls, inspect the reported residuals before restarting.
+Stagnation does not relax the convergence criteria.
+The internal FIRE step is an optimization parameter, independent of the MD ``time_step``.

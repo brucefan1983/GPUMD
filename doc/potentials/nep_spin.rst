@@ -92,7 +92,7 @@ force, magnetic force and all nine virial components are analytical
 chain-rule derivatives of this energy.
 
 Parameter and checkpoint layout
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------------
 
 The shared block-file syntax remains ``format_version 1``. The magnetic
 layout is determined by ``spin_soc`` and the descriptor settings. Parameters are stored
@@ -116,7 +116,7 @@ coordinates. The structural limits remain 90 angular and 103 total coordinates.
 The training optimizer is SNES.
 
 Non-SOC descriptors
-^^^^^^^^^^^^^^^^^^^
+-------------------
 
 Set ``spin_soc 0``. The radial mix, variable-length
 spin primitives, and energy-center mask semantics are shared with the SOC
@@ -145,6 +145,9 @@ but only enter spatial-rank-zero sectors. This ordering is part of the
 ``spin_soc 0`` checkpoint contract.
 
 .. _nep_spin_dimensions:
+
+Descriptor dimensions
+---------------------
 
 For maximum angular rank L, order S and C channels, the non-SOC dimension is
 ``floor(S/2) + C * ((L+1)*(min(L,S)+1) + 1)``. For C=3, L=S=2 this is 31,

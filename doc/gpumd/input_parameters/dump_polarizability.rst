@@ -15,9 +15,17 @@ Syntax
 
    dump_polarizability <interval> <nep_file>
 
+Parameters
+----------
+
 :attr:`interval` parameter is a positive integer giving the output interval (number of steps) for evaluating and writing the polarizability.
 
 :attr:`nep_file` is a :ref:`NEP model file <nep_txt>` with ``model nep_polarizability``.
+
+Output
+------
+
+The time step and predicted polarizability are written to :ref:`polarizability.out <gpumd_polarizability_out>`.
 
 Examples
 --------
@@ -32,8 +40,7 @@ To use `nep.txt` to propagate the MD and `nep_polarizability.txt` to compute and
 
 before the :ref:`run keyword <kw_run>`. This will generate a `polarizability.out` output file containing the time step and predicted polarizability at that time step.
 
+Notes
+-----
 
-Caveats
--------
-* This keyword is not propagating.
-  That means, its effect will not be passed from one run to the next.
+* Repeat this command before each run that needs it.
