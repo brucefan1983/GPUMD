@@ -1,10 +1,13 @@
 GPUMD -- Graphics Processing Units Molecular Dynamics
 *****************************************************
 
-:program:`GPUMD` stands for *Graphics Processing Units Molecular Dynamics*.
-It is a general-purpose molecular dynamics (:term:`MD`) package fully implemented on graphics processing units (:term:`GPU`).
-In addition to :ref:`several empirical interatomic potentials <potentials>`, it supports :ref:`neuroevolution potential <nep_formalism>` (:term:`NEP`) models.
-:program:`GPUMD` also allows one to construct the latter type of models using the :ref:`nep executable <nep_executable>`.
+This manual describes how to run molecular dynamics simulations and train neuroevolution potential (:term:`NEP`) models with :program:`GPUMD`.
+Start with the :doc:`introduction` and :doc:`installation`, then follow the guide for your task:
+
+* :ref:`Run a molecular dynamics simulation <gpumd_executable>` using an existing potential.
+* :ref:`Train or evaluate a NEP model <nep_executable>` using reference data.
+
+The :doc:`theory/index` and :ref:`interatomic potential descriptions <potentials>` explain the methods used in these calculations.
 
 .. toctree::
    :maxdepth: 2

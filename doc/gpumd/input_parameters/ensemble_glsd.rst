@@ -18,46 +18,17 @@ implicit-midpoint discretization. It requires a Spin potential and uses its exis
 magnetic force, atomic force and virial interfaces.
 For fixed-magnitude dynamics use :ref:`SIB <kw_ensemble_sib>`.
 
-Quick start
------------
-
-The following examples use dimensionless ``damping 0.01`` as a starting
-setting for pilot runs, not a default or a calibrated material parameter.
-No equilibrium-moment scan or element table is required to set damping.
-Read the guidance below before interpreting physical relaxation times. After loading a Spin potential and a
-``model.xyz`` with magnetic moments::
-
-    # Deterministic dissipative spin dynamics; fixed atomic positions
-    ensemble nve_glsd damping 0.01 stemp -1
-    time_step 0.1
-    dump_xyz 100 spin.xyz precision double spin mforce
-    dump_restart 1000
-    run 1000
-
-Other ensemble choices::
-
-    # Fixed lattice; spins coupled to a 300 K bath
-    ensemble nvt_glsd 300 300 100 lattice off damping 0.01 seed 731
-
-    # Coupled spin and lattice dynamics (lattice NHC)
-    ensemble nvt_glsd 300 300 100 damping 0.01 seed 731
-
-    # Coupled spin, lattice and cell dynamics (MTTK)
-    ensemble npt_glsd temp 300 300 iso 0 0 tperiod 100 pperiod 1000 damping 0.01 seed 731
-
-The example damping is not a fitted Fe parameter, and the timestep is not a
-stability guarantee. Check timestep convergence and the potential's coverage
-of the sampled moment magnitudes. A potential trained at one fixed magnitude
-need not describe longitudinal energetics.
-
-Syntax and parameters
----------------------
+Syntax
+------
 
 ::
 
     ensemble nve_glsd damping <value> [gamma <value>] [stemp <-1|value>] [seed <value>] [midpoint_tol <value>] [midpoint_max_iter <N>]
     ensemble nvt_glsd <T_1> <T_2> <T_coup> [lattice on|off] damping <value> [gamma <value>] [stemp <-1|0|value>] [seed <value>] [midpoint_tol <value>] [midpoint_max_iter <N>]
     ensemble npt_glsd temp <T_1> <T_2> <pressure_terms> [tperiod <tau_temp>] [pperiod <tau_press>] damping <value> [gamma <value>] [stemp <-1|0|value>] [seed <value>] [midpoint_tol <value>] [midpoint_max_iter <N>]
+
+Parameters
+----------
 
 ``damping``
   Required, finite, non-negative and dimensionless. It is
@@ -126,6 +97,38 @@ The NVT temperature and lattice coupling parameters have the same meaning as
 of :ref:`MTTK <kw_ensemble_mttk>`; all GLSD options follow the MTTK options.
 GLSD uses dimensionless ``damping``; SIB uses Gilbert ``alpha``.
 These keywords select different dissipative equations and are not interchangeable.
+
+Examples
+--------
+
+The following examples use dimensionless ``damping 0.01`` as a starting
+setting for pilot runs, not a default or a calibrated material parameter.
+No equilibrium-moment scan or element table is required to set damping.
+Read the guidance below before interpreting physical relaxation times. After loading a Spin potential and a
+``model.xyz`` with magnetic moments::
+
+    # Deterministic dissipative spin dynamics; fixed atomic positions
+    ensemble nve_glsd damping 0.01 stemp -1
+    time_step 0.1
+    dump_xyz 100 spin.xyz precision double spin mforce
+    dump_restart 1000
+    run 1000
+
+Other ensemble choices::
+
+    # Fixed lattice; spins coupled to a 300 K bath
+    ensemble nvt_glsd 300 300 100 lattice off damping 0.01 seed 731
+
+    # Coupled spin and lattice dynamics (lattice NHC)
+    ensemble nvt_glsd 300 300 100 damping 0.01 seed 731
+
+    # Coupled spin, lattice and cell dynamics (MTTK)
+    ensemble npt_glsd temp 300 300 iso 0 0 tperiod 100 pperiod 1000 damping 0.01 seed 731
+
+The example damping is not a fitted Fe parameter, and the timestep is not a
+stability guarantee. Check timestep convergence and the potential's coverage
+of the sampled moment magnitudes. A potential trained at one fixed magnitude
+need not describe longitudinal energetics.
 
 Choosing damping
 ----------------

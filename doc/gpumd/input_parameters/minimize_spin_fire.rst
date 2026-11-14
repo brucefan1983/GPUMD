@@ -1,14 +1,19 @@
 .. _spin_fire_minimize:
 
-Spin FIRE
----------
+:attr:`minimize` (Spin FIRE)
+============================
+
+Optimize magnetic moments, optionally together with atomic positions and cell strain.
 
 Syntax
-^^^^^^
+------
 
 For a Spin potential, use::
 
   minimize spin_fire <tolerance> <maximal_number_of_steps> <variable_magnitude> [<fixed_atoms> [<box_change> [<hydrostatic_strain>]]]
+
+Parameters
+----------
 
 * ``variable_magnitude = 0`` preserves each atom's initial spin magnitude;
   ``1`` optimizes spin directions and magnitudes. Zero spins remain zero
@@ -39,7 +44,7 @@ For a Spin potential, use::
   including velocity resets and non-finite trial states.
 
 Examples
-^^^^^^^^
+--------
 
 Optimize only spin directions, keeping magnitudes, atoms, and the cell fixed::
 
@@ -79,8 +84,8 @@ output procedure as ordinary FIRE::
   dump_xyz 1 relaxed.xyz precision double force spin mforce virial
   run 1
 
-Caveats
-^^^^^^^
+Notes
+-----
 
 * A Spin potential and ``spin:R:3`` in ``model.xyz`` are required. Ordinary
   ``minimize fire`` remains a lattice-only command and is not enabled for Spin
@@ -105,7 +110,7 @@ Caveats
   range of moments, atomic configurations, and cell deformations.
 
 Algorithm and stagnation
-^^^^^^^^^^^^^^^^^^^^^^^^
+------------------------
 
 The dot product of the generalized force and fictitious velocity controls FIRE's
 step size and velocity resets. Energy is diagnostic; a constant energy offset

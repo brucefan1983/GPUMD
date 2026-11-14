@@ -3,25 +3,41 @@
 :attr:`ensemble` (TI)
 =====================
 
-This keyword is used to set up an equilibrium thermodynamic integration integrator. It is for testing purpose and its only difference from :ref:`ti_spring keyword <kw_ensemble_ti_spring>` is that the lambda value is fixed instead of changing.
+Run thermodynamic integration at a fixed coupling parameter ``lambda``.
+The reference system is the same as for :ref:`ti_spring <kw_ensemble_ti_spring>`, but the coupling does not change during the run.
 
 Syntax
 ------
 
-The parameters can be specified as follows::
+::
 
     ensemble ti lambda <lambda> temp <temperature> tperiod <tau_temperature> spring <element_name> <spring_constant>
 
+Parameters
+----------
+
 - :attr:`<temperature>`: The temperature of the simulation.
-- :attr:`<tau_temperature>`: This parameter is optional, and defaults to ``100``. It determines the period of the thermostat in units of the timestep. It determines how strongly the system is coupled to the thermostat.
+- :attr:`<tau_temperature>`: Thermostat coupling period in time steps; optional, with a default of ``100``.
 - :attr:`<element_name>` and :attr:`<spring_constant>`: Specify the spring constants of elements.
 - :attr:`<lambda>`: The lambda value of the simulation.
 
-Example
--------
+Output
+------
 
-.. code-block:: rst
+Each run overwrites ``ti.csv``.
+The header is ``pe,espring``, followed by one row per MD step.
+The columns are the interatomic-potential energy and harmonic-reference energy, both in eV/atom.
+
+Examples
+--------
+
+.. code-block:: text
 
     ensemble ti lambda 0.3 temp 300 spring Si 6 O 5
 
-This command uses lambda value 0.3 (30% spring force and 70% original force field). The spring constant is 6 eV/A^2 for Si and 5 eV/A^2 for O.
+This command uses lambda value 0.3 (30% spring force and 70% original force field). The spring constant is 6 eV/Å² for Si and 5 eV/Å² for O.
+
+Notes
+-----
+
+None.

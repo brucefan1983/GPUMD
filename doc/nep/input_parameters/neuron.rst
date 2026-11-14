@@ -6,12 +6,35 @@
 ==============
 
 This keyword sets the number of neurons in the hidden layer of the :term:`NN`.
-The syntax is::
+
+Syntax
+------
+
+::
 
   neuron <number_of_neurons>
 
-where :attr:`<number_of_neurons>` corresponds to :math:`N_\mathrm{neu}` in the :ref:`NEP formalism <nep_formalism>` [Fan2022b]_.
+Parameters
+----------
+
+:attr:`<number_of_neurons>` corresponds to :math:`N_\mathrm{neu}` in the :ref:`NEP formalism <nep_formalism>` [Fan2022b]_.
 Values must satisfy :math:`1 \leq N_\mathrm{neu} \leq 120`.
 
 The default value is 30, which is relatively small but can lead to relatively high speed.
+
+Output
+------
+
+None.
+
+Examples
+--------
+
+::
+
+  neuron 30
+
+Notes
+-----
+
 Larger values rarely lead to a notable improvement.

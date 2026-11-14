@@ -5,19 +5,36 @@
 ``sdc.out``
 ===========
 
-This file contains the velocity autocorrelation (:term:`VAC`) and self diffusion coefficient (:term:`SDC`).
-It is generated when invoking the :ref:`compute_sdc keyword <kw_compute_sdc>`.
+This file contains the velocity autocorrelation (:term:`VAC`) and self-diffusion coefficient (:term:`SDC`) calculated by :ref:`compute_sdc <kw_compute_sdc>`.
+Results are appended at the end of each run that uses this command.
 
 File format
 -----------
-The data in this file are organized as follows:
 
-* column 1: correlation time (in units of ps)
-* column 2: VAC (in units of Å\ :sup:`2`/ps\ :sup:`2`) in the :math:`x` direction
-* column 3: VAC (in units of Å\ :sup:`2`/ps\ :sup:`2`) in the :math:`y` direction
-* column 4: VAC (in units of Å\ :sup:`2`/ps\ :sup:`2`) in the :math:`z` direction
-* column 5: SDC (in units of Å\ :sup:`2`/ps) in the :math:`x` direction
-* column 6: SDC (in units of Å\ :sup:`2`/ps) in the :math:`y` direction
-* column 7: SDC (in units of Å\ :sup:`2`/ps) in the :math:`z` direction
+Each run writes comment headers beginning with ``#``, followed by ``Nc`` data rows.
+Each row corresponds to one correlation time.
+For a constant MD time step :math:`\Delta t` and sampling interval :math:`s`, the correlation times are :math:`0,s\Delta t,\ldots,(N_c-1)s\Delta t`.
+The header records the command parameters, format version, atom count, cell, sampling time interval, and column names.
 
-Only the group selected via the arguments of the :ref:`compute_sdc keyword <kw_compute_sdc>` is included in this output.
+.. list-table::
+   :header-rows: 1
+   :widths: 15 55 30
+
+   * - Column
+     - Quantity
+     - Unit
+   * - 1
+     - Correlation time
+     - ps
+   * - 2, 3, 4
+     - VAC along x, y, z, respectively
+     - Å\ :sup:`2`/ps\ :sup:`2`
+   * - 5, 6, 7
+     - SDC along x, y, z, respectively
+     - Å\ :sup:`2`/ps
+
+Notes
+-----
+
+The results cover all atoms unless a group is selected with ``compute_sdc``.
+Each run contributes a separate block of averages.

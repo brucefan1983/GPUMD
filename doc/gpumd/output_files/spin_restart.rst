@@ -1,7 +1,7 @@
 .. _spin_restart:
 
-Spin restart
-============
+``restart.xyz`` (spin)
+======================
 
 See :ref:`restart_xyz` for the general restart instructions.
 

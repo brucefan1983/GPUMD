@@ -15,14 +15,21 @@ The :attr:`move` keyword accepts 4 or 5 parameters::
   move <moving_group_id> <velocity_x> <velocity_y> <velocity_z>
   move <grouping_method> <moving_group_id> <velocity_x> <velocity_y> <velocity_z>
 
+Parameters
+----------
+
 - If only :attr:`moving_group_id` and velocities are given, grouping method 0 is used by default.
 - If :attr:`grouping_method` is also specified, the given grouping method defined in the :ref:`simulation model file <model_xyz>` will be used.
 
 The last three parameters specify the moving velocity vector, in units of Ångstrom/fs.
 
+Output
+------
 
-Example
--------
+None.
+
+Examples
+--------
 
 One can first equilibrate the system and then move one group of atoms and at the same time fix another group of atoms::
 
@@ -43,8 +50,9 @@ Using a specific grouping method::
   move 1 1 0.001 0 0  # move group 1 in grouping method 1, with a speed of 0.001 Ångstrom/fs in the x direction
   run  1000000
 
-Caveats
--------
+Notes
+-----
+
 * One cannot use NPT when using this keyword. Only ``nvt_ber``, ``nvt_nhc``, ``nvt_bdp``, and ``heat_lan`` ensembles are supported.
 * A :ref:`fix <kw_fix>` command is required in the same run. The fixed and moving groups must be different and must use the same grouping method.
 * This keyword only affects the run it belongs to. Repeat both :attr:`move` and :ref:`fix <kw_fix>` before each subsequent run that needs them.

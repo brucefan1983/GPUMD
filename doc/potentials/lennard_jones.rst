@@ -6,10 +6,14 @@ Lennard-Jones potential
 =======================
 
 The Lennard-Jones (:term:`LJ`) potential is one of the simplest two-body potentials used in :term:`MD` simulations.
+
+Potential form
+--------------
+
 The pair potential between particles :math:`i` and :math:`j` is
 
 .. math::
-   
+
    U_{ij} = 4 \epsilon_{ij}
    \left(
    \frac{ \sigma_{ij}^{12} }{ r_{ij}^{12} } -
@@ -42,19 +46,6 @@ If there are two atom types, the potential file reads::
   epsilon_10 sigma_10 cutoff_10
   epsilon_11 sigma_11 cutoff_11
 
-If there are three atom types, the potential file reads::
-  
-  lj 3 <list of the 3 elements>
-  epsilon_00 sigma_00 cutoff_00
-  epsilon_01 sigma_01 cutoff_01
-  epsilon_02 sigma_02 cutoff_02
-  epsilon_10 sigma_10 cutoff_10
-  epsilon_11 sigma_11 cutoff_11
-  epsilon_12 sigma_12 cutoff_12
-  epsilon_20 sigma_20 cutoff_20
-  epsilon_21 sigma_21 cutoff_21
-  epsilon_22 sigma_22 cutoff_22
-
-For :math:`M` atom types, provide all :math:`M^2` rows in the order illustrated above.
+For :math:`M` atom types, provide all :math:`M^2` rows, with the second type index changing fastest: ``00, 01, ..., 0(M-1), 10, ..., (M-1)(M-1)``.
 GPUMD reads each row explicitly and does not generate cross-species parameters using a mixing rule.
 For each pair of species, specify identical parameters for the :math:`ij` and :math:`ji` rows.
