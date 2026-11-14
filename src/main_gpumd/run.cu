@@ -333,13 +333,6 @@ void Run::parse_one_keyword(
     }
     hessian.compute(force, box, atom, group, replicate_size_);
   } else if (tokens[0] == "compute_hessian") {
-    // The dftd3 keyword may appear anywhere in run.in, so scan the whole
-    // input instead of relying on the keyword order.  This uses the same
-    // detection as NEP::initialize_dftd3.
-    if (run_input.contains("dftd3")) {
-      PRINT_INPUT_ERROR(
-        "compute_hessian does not support the DFT-D3 dispersion correction.");
-    }
     NEP_Hessian_Command hessian;
     hessian.parse(tokens);
     hessian.compute(force, box, atom, first_potential_filename_, run_input);

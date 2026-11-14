@@ -33,7 +33,7 @@ radial-angular kernels. Failures return false with a specific error.
 Finite matrices failing numerical diagnostics remain available to the caller.
 
 This module is analytic only: there is no finite-difference fallback here.
-The run-input dispatcher rejects configurations with DFT-D3 enabled.
+The Hessian command rejects configurations with DFT-D3 enabled.
 ------------------------------------------------------------------------------*/
 
 #pragma once
