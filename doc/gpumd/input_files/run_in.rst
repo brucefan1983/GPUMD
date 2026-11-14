@@ -213,7 +213,7 @@ Actions
      - Yes
      - N/A
    * - :ref:`compute_hessian <kw_compute_hessian>`
-     - Compute a Cartesian Hessian and optional phonons
+     - Compute an analytic Cartesian Hessian
      - Yes
      - N/A
    * - :ref:`compute_sdc <kw_compute_sdc>`

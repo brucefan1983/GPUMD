@@ -18,7 +18,6 @@ src/utilities/gpu_macro.cuh file is not modified.
 #define gpuDeviceGetLimit hipDeviceGetLimit
 #define gpuDeviceSetLimit hipDeviceSetLimit
 #define gpuLimitStackSize hipLimitStackSize
-#define gpuLimitPrintfFifoSize hipLimitPrintfFifoSize
 #endif
 #else
 #ifndef HESSIAN_GPU_MACRO_EXT_CUDA_DEFINED
@@ -26,17 +25,5 @@ src/utilities/gpu_macro.cuh file is not modified.
 #define gpuDeviceGetLimit cudaDeviceGetLimit
 #define gpuDeviceSetLimit cudaDeviceSetLimit
 #define gpuLimitStackSize cudaLimitStackSize
-#define gpuLimitPrintfFifoSize cudaLimitPrintfFifoSize
-#endif
-#endif
-
-#ifndef HESSIAN_SOLVER_EXT_DEFINED
-#define HESSIAN_SOLVER_EXT_DEFINED
-#ifdef USE_HIP
-#define gpusolverDnDsyevd_bufferSize hipsolverDnDsyevd_bufferSize
-#define gpusolverDnDsyevd hipsolverDnDsyevd
-#else
-#define gpusolverDnDsyevd_bufferSize cusolverDnDsyevd_bufferSize
-#define gpusolverDnDsyevd cusolverDnDsyevd
 #endif
 #endif

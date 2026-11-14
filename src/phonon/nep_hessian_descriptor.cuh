@@ -3,22 +3,8 @@
     This file is part of GPUMD, licensed under GNU GPL version 3 or later.
 */
 
-/*----------------------------------------------------------------------------80
-NEP descriptor-only kernel for the analytic Hessian.
-
-The descriptor-computation logic in src/force/nep.cu is a `static` kernel
-that cannot be invoked from another translation unit, and the side-channel
-write of q_descriptors that the hessian-only branch added in that file is
-no longer present after the hessian-only branch is rewritten to make no
-modifications to existing source files.  This header therefore provides a
-self-contained, descriptor-only kernel that the hessian module owns and
-calls to populate its own q cache.
-
-The kernel mirrors the descriptor portion of nep.cu's find_descriptor
-(untouched in src/force/nep.cu).  The output is the normalized
-per-atom q array, written in the same SoA layout as
-nep_data.q_descriptors had: dim-major (descriptor component stride N).
-------------------------------------------------------------------------------*/
+// Reconstruct the normalized ANN descriptors using NEP's public neighbor
+// arrays. Both ordinary and temperature-dependent models use this input.
 
 #pragma once
 #include "force/nep.cuh"
@@ -30,12 +16,6 @@ nep_data.q_descriptors had: dim-major (descriptor component stride N).
 #endif
 
 namespace nep_hessian {
-
-struct DescriptorCache {
-  GPU_Vector<float> q; // dim * N, SoA, dim-major
-  int last_num_atoms = 0;
-  int last_dim = 0;
-};
 
 __global__ void find_descriptor_only(
   NEP::ParaMB paramb,

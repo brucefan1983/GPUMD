@@ -25,15 +25,8 @@
 #include "nep_hessian_descriptor.cuh"
 #include "nep_hessian_model.cuh"
 #include <algorithm>
-#include <cctype>
 #include <cmath>
-#include <cstdlib>
-#include <fstream>
-#include <iomanip>
 #include <limits>
-#include <sstream>
-#include <stdexcept>
-#include <string>
 #include <vector>
 
 #define BLOCK_SIZE 64
@@ -47,9 +40,6 @@
 #define ANGULAR_PAIR_BLOCK_SIZE 64
 #define ANGULAR_RADIAL_BLOCK_SIZE 16
 
-__device__ bool g_disable_s_hessian = false;
-__device__ bool g_disable_q_s_hessian = false;
-__device__ bool g_dump_s_derivatives = false;
 
 // ============================================================================
 // Second derivatives of utility functions
@@ -455,8 +445,6 @@ struct LocalQChainAccumulator
   const float* s;
   const float (*s_gradient)[3];
   const float (*s_hessian)[3][3];
-  float* q_gradient;
-  float* q_hessian_diagonal;
   float* gradient;
   float (*hessian)[3];
 
@@ -479,7 +467,6 @@ struct LocalQChainAccumulator
       const int first_variable = variables[first_factor];
       const float first = product(
         coefficient, degree, variables, s, first_factor, -1);
-      q_gradient[first_variable] += first;
       for (int axis_a = 0; axis_a < 3; ++axis_a) {
         gradient[axis_a] += first * s_gradient[first_variable][axis_a];
         for (int axis_b = 0; axis_b < 3; ++axis_b) {
@@ -493,9 +480,6 @@ struct LocalQChainAccumulator
         const int second_variable = variables[second_factor];
         const float second = product(
           coefficient, degree, variables, s, first_factor, second_factor);
-        if (first_variable == second_variable)
-          q_hessian_diagonal[first_variable] += second;
-        if (g_disable_q_s_hessian) continue;
         for (int axis_a = 0; axis_a < 3; ++axis_a)
           for (int axis_b = 0; axis_b < 3; ++axis_b)
             hessian[axis_a][axis_b] += second *
@@ -561,7 +545,6 @@ static __device__ __forceinline__ void add_angular_basis_hessian(
   const float (*unit_gradient)[3],
   const float (*unit_hessian)[3][3],
   const int s_index,
-  float* s,
   float (*s_gradient)[3],
   float (*s_hessian)[3][3])
 {
@@ -657,13 +640,12 @@ static __device__ __forceinline__ void add_angular_basis_hessian(
     }
   }
 
-  s[s_index] += g * value;
   for (int a = 0; a < 3; ++a) {
     s_gradient[s_index][a] += g_gradient[a] * value + g * value_gradient[a];
     for (int b = 0; b < 3; ++b)
       s_hessian[s_index][a][b] += g_hessian[a][b] * value +
         g_gradient[a] * value_gradient[b] + g_gradient[b] * value_gradient[a] +
-        (g_disable_s_hessian ? 0.0f : g * value_hessian[a][b]);
+        g * value_hessian[a][b];
   }
 }
 
@@ -683,7 +665,6 @@ static __device__ __forceinline__ void compute_angular_s_derivatives_for_n(
   const int* g_type,
   const float* r12,
   const float distance,
-  float* s,
   float (*s_gradient)[3],
   float (*s_hessian)[3][3])
 {
@@ -705,10 +686,10 @@ static __device__ __forceinline__ void compute_angular_s_derivatives_for_n(
     find_fn_fnp_fnpp(
       basis, rcinv, distance, fc, fcp, fcpp, fn, fnp, fnpp);
     const int c_index =
-      (angular_n * (paramb.basis_size_angular + 1) + basis) *
-        paramb.num_types_sq +
-      center_type * paramb.num_types + neighbor_type + paramb.num_c_radial;
-    const float coefficient = annmb.c[c_index];
+      get_c_index(
+        center_type * paramb.num_types + neighbor_type, angular_n, basis,
+        paramb.n_max_angular, paramb.basis_size_angular, paramb.num_c_radial);
+    const float coefficient = annmb.c_type_pair[c_index];
     g += coefficient * fn;
     for (int axis_a = 0; axis_a < 3; ++axis_a) {
       g_gradient[axis_a] +=
@@ -728,7 +709,6 @@ static __device__ __forceinline__ void compute_angular_s_derivatives_for_n(
   const int num_s_terms =
     (paramb.L_max + 1) * (paramb.L_max + 1) - 1;
   for (int component = 0; component < num_s_terms; ++component) {
-    s[component] = 0.0f;
     for (int axis_a = 0; axis_a < 3; ++axis_a) {
       s_gradient[component][axis_a] = 0.0f;
       for (int axis_b = 0; axis_b < 3; ++axis_b)
@@ -760,38 +740,16 @@ static __device__ __forceinline__ void compute_angular_s_derivatives_for_n(
     }
   }
 
-  if (g_dump_s_derivatives && angular_n == 0) {
-    const int debug_c_index = center_type * paramb.num_types + neighbor_type +
-      paramb.num_c_radial;
-    printf(
-      "QINTERC %d %d %d %d %d %.10g\n",
-      center, neighbor, debug_c_index, paramb.num_c_radial,
-      paramb.basis_size_angular, annmb.c[debug_c_index]);
-    printf(
-      "QINTERP %d %d %.10g %.10g %.10g %.10g %.10g %.10g %.10g\n",
-      center, neighbor, g, g_gradient[0], g_gradient[1], g_gradient[2],
-      g_hessian[0][0], g_hessian[0][2], g_hessian[2][2]);
-    printf(
-      "QINTERU %d %d %.10g %.10g %.10g %.10g %.10g %.10g %.10g\n",
-      center, neighbor, unit[0], unit[1], unit[2], unit_gradient[0][2],
-      unit_gradient[2][2], unit_hessian[2][0][2],
-      unit_hessian[2][2][2]);
-    printf(
-      "QINTERA %d %d %.10g %.10g %.10g %.10g %.10g %.10g %.10g\n",
-      center, neighbor, 1.0f, unit_gradient[0][0], unit_gradient[0][2],
-      unit_gradient[2][0], unit_gradient[2][2], 0.0f, 0.0f);
-  }
-
   for (int L = 1; L <= paramb.L_max; ++L) {
     for (int m = 0; m <= L; ++m) {
       add_angular_basis_hessian(
         L, m, false, g, g_gradient, g_hessian, unit, unit_gradient,
-        unit_hessian, angular_s_index(L, m, false), s, s_gradient,
+        unit_hessian, angular_s_index(L, m, false), s_gradient,
         s_hessian);
       if (m > 0)
         add_angular_basis_hessian(
           L, m, true, g, g_gradient, g_hessian, unit, unit_gradient,
-          unit_hessian, angular_s_index(L, m, true), s, s_gradient,
+          unit_hessian, angular_s_index(L, m, true), s_gradient,
           s_hessian);
     }
   }
@@ -799,56 +757,24 @@ static __device__ __forceinline__ void compute_angular_s_derivatives_for_n(
 
 static __device__ __forceinline__ void compute_angular_q_derivatives_for_n(
   const NEP::ParaMB paramb,
-  const int center,
-  const int angular_n,
   const int descriptor,
   const float* sum_fxyz,
   const float (*s_gradient)[3],
   const float (*s_hessian)[3][3],
-  float* q_gradient_s,
-  float* q_hessian_diagonal,
   float* neighbor_gradient,
   float (*local_hessian)[3])
 {
-  const int num_s_terms =
-    (paramb.L_max + 1) * (paramb.L_max + 1) - 1;
   for (int axis_a = 0; axis_a < 3; ++axis_a) {
     neighbor_gradient[axis_a] = 0.0f;
     for (int axis_b = 0; axis_b < 3; ++axis_b)
       local_hessian[axis_a][axis_b] = 0.0f;
   }
-  for (int component = 0; component < num_s_terms; ++component) {
-    q_gradient_s[component] = 0.0f;
-    q_hessian_diagonal[component] = 0.0f;
-  }
 
   LocalQChainAccumulator accumulator = {
     sum_fxyz, s_gradient, s_hessian,
-    q_gradient_s, q_hessian_diagonal,
     neighbor_gradient, local_hessian};
   visit_q_monomials(paramb, descriptor, accumulator);
 
-  if (g_dump_s_derivatives) {
-    for (int component = 0; component < num_s_terms; ++component) {
-      const float first = q_gradient_s[component];
-      for (int axis_a = 0; axis_a < 3; ++axis_a) {
-        for (int axis_b = 0; axis_b < 3; ++axis_b) {
-          printf(
-            "QCOMP %d %d %d %d %d %d %.10g %.10g %.10g %.10g\n",
-            center, descriptor, angular_n, component, axis_a, axis_b,
-            first, first * s_hessian[component][axis_a][axis_b],
-            q_hessian_diagonal[component] *
-              s_gradient[component][axis_a] *
-              s_gradient[component][axis_b],
-            local_hessian[axis_a][axis_b]);
-        }
-      }
-    }
-    printf(
-      "QCHAIN %d %d %d %.10g %.10g\n",
-      center, descriptor, angular_n, neighbor_gradient[0],
-      local_hessian[0][0]);
-  }
 }
 
 static __device__ __forceinline__ void compute_radial_neighbor_derivatives(
@@ -870,11 +796,11 @@ static __device__ __forceinline__ void compute_radial_neighbor_derivatives(
     radial_derivative[n] = 0.0f;
     for (int basis = 0; basis <= paramb.basis_size_radial; ++basis) {
       const int c_index =
-        (n * (paramb.basis_size_radial + 1) + basis) * paramb.num_types_sq +
-        center_type * paramb.num_types + neighbor_type;
+        get_c_index(center_type * paramb.num_types + neighbor_type, n, basis,
+            paramb.n_max_radial, paramb.basis_size_radial);
       float fn, fnp, fnpp;
       find_fn_fnp_fnpp(basis, rcinv, distance, fc, fcp, fcpp, fn, fnp, fnpp);
-      radial_derivative[n] += annmb.c[c_index] * fnp;
+      radial_derivative[n] += annmb.c_type_pair[c_index] * fnp;
     }
   }
 }
@@ -974,12 +900,12 @@ static __global__ void find_radial_hessian_kernel(
       float gp = 0.0f, gpp = 0.0f;
       for (int basis = 0; basis <= paramb.basis_size_radial; ++basis) {
         const int c_index =
-          (n * (paramb.basis_size_radial + 1) + basis) * paramb.num_types_sq +
-          t1 * paramb.num_types + t2;
+          get_c_index(t1 * paramb.num_types + t2, n, basis,
+            paramb.n_max_radial, paramb.basis_size_radial);
         float fn, fnp, fnpp;
         find_fn_fnp_fnpp(basis, rcinv, d12, fc, fcp, fcpp, fn, fnp, fnpp);
-        gp += annmb.c[c_index] * fnp;
-        gpp += annmb.c[c_index] * fnpp;
+        gp += annmb.c_type_pair[c_index] * fnp;
+        gpp += annmb.c_type_pair[c_index] * fnpp;
       }
       gnp[n] = gp;
       gnpp[n] = gpp;
@@ -1040,12 +966,12 @@ static __global__ void find_radial_hessian_kernel(
       float gp = 0.0f, gpp = 0.0f;
       for (int basis = 0; basis <= paramb.basis_size_radial; ++basis) {
         const int c_index =
-          (n * (paramb.basis_size_radial + 1) + basis) * paramb.num_types_sq +
-          t1 * paramb.num_types + t2;
+          get_c_index(t1 * paramb.num_types + t2, n, basis,
+            paramb.n_max_radial, paramb.basis_size_radial);
         float fn, fnp, fnpp;
         find_fn_fnp_fnpp(basis, rcinv, d12, fc, fcp, fcpp, fn, fnp, fnpp);
-        gp += annmb.c[c_index] * fnp;
-        gpp += annmb.c[c_index] * fnpp;
+        gp += annmb.c_type_pair[c_index] * fnp;
+        gpp += annmb.c_type_pair[c_index] * fnpp;
       }
       gnp[n] = gp;
       gnpp[n] = gpp;
@@ -1114,11 +1040,11 @@ static __global__ void find_radial_hessian_kernel(
       gnp[n] = 0.0f;
       for (int basis = 0; basis <= paramb.basis_size_radial; ++basis) {
         const int c_index =
-          (n * (paramb.basis_size_radial + 1) + basis) * paramb.num_types_sq +
-          t1 * paramb.num_types + t2;
+          get_c_index(t1 * paramb.num_types + t2, n, basis,
+            paramb.n_max_radial, paramb.basis_size_radial);
         float fn, fnp, fnpp;
         find_fn_fnp_fnpp(basis, rcinv, d12, fc, fcp, fcpp, fn, fnp, fnpp);
-        gnp[n] += annmb.c[c_index] * fnp;
+        gnp[n] += annmb.c_type_pair[c_index] * fnp;
       }
     }
 
@@ -1139,11 +1065,11 @@ static __global__ void find_radial_hessian_kernel(
         other_radial_derivative[n] = 0.0f;
         for (int basis = 0; basis <= paramb.basis_size_radial; ++basis) {
           const int c_index =
-            (n * (paramb.basis_size_radial + 1) + basis) * paramb.num_types_sq +
-            t1 * paramb.num_types + t3;
+            get_c_index(t1 * paramb.num_types + t3, n, basis,
+            paramb.n_max_radial, paramb.basis_size_radial);
           float fn, fnp, fnpp;
           find_fn_fnp_fnpp(basis, rc13inv, d13, fc, fcp, fcpp, fn, fnp, fnpp);
-          other_radial_derivative[n] += annmb.c[c_index] * fnp;
+          other_radial_derivative[n] += annmb.c_type_pair[c_index] * fnp;
         }
       }
 
@@ -1331,9 +1257,8 @@ static __device__ __forceinline__ size_t angular_s_gradient_cache_index(
           component) * 3 + axis;
 }
 
-// Each center-neighbor edge is prepared exactly once. The old monolithic
-// kernel rebuilt the same spherical and descriptor derivatives in every
-// neighbor pair and again in the radial-angular loop.
+// Prepare each center-neighbor-n edge once for both angular pair assembly
+// and radial-angular contractions.
 template <int S_CAPACITY>
 static __global__ void prepare_angular_neighbor_derivatives_kernel(
   const NEP::ParaMB paramb,
@@ -1384,11 +1309,8 @@ static __global__ void prepare_angular_neighbor_derivatives_kernel(
     (paramb.L_max + 1) * (paramb.L_max + 1) - 1;
   const int angular_descriptor_count = paramb.num_L * n_mp1;
   float sum_fxyz[S_CAPACITY] = {};
-  float s_values[S_CAPACITY] = {};
   float s_gradient[S_CAPACITY][3] = {};
   float s_hessian[S_CAPACITY][3][3] = {};
-  float q_gradient_s[S_CAPACITY];
-  float q_hessian_diagonal[S_CAPACITY];
   float neighbor_gradient[MAX_ANGULAR_DESCRIPTORS][3] = {};
   float local_hessian[MAX_ANGULAR_DESCRIPTORS][3][3] = {};
 
@@ -1398,37 +1320,12 @@ static __global__ void prepare_angular_neighbor_derivatives_kernel(
 
   compute_angular_s_derivatives_for_n(
     paramb, annmb, center, neighbor, angular_n, g_type, r12, distance,
-    s_values, s_gradient, s_hessian);
-  if (g_dump_s_derivatives) {
-    if (angular_n == 0)
-      printf(
-        "QPOS %d %d %.10g %.10g %.10g %.10g\n",
-        center, neighbor, r12[0], r12[1], r12[2], distance);
-    for (int component = 0; component < num_s_terms; ++component)
-      for (int axis_a = 0; axis_a < 3; ++axis_a)
-        for (int axis_b = 0; axis_b < 3; ++axis_b)
-          printf(
-            "QSDERIV %d %d %d %d %d %d %.10g %.10g\n",
-            center, neighbor, angular_n, component, axis_a, axis_b,
-            s_gradient[component][axis_a],
-            s_hessian[component][axis_a][axis_b]);
-  }
-
+    s_gradient, s_hessian);
   for (int descriptor = 0; descriptor < paramb.num_L; ++descriptor) {
     compute_angular_q_derivatives_for_n(
-      paramb, center, angular_n, descriptor, sum_fxyz,
-      s_gradient, s_hessian, q_gradient_s, q_hessian_diagonal,
+      paramb, descriptor, sum_fxyz,
+      s_gradient, s_hessian,
       neighbor_gradient[descriptor], local_hessian[descriptor]);
-    if (g_dump_s_derivatives) {
-      for (int component = 0; component < num_s_terms; ++component) {
-        printf(
-          "QSTRANS %d %d %d %d %.10g %.10g %.10g\n",
-          center, neighbor, descriptor * n_mp1 + angular_n, component,
-          sum_fxyz[component], q_gradient_s[component],
-          q_hessian_diagonal[component]);
-      }
-    }
-
     const int angular_descriptor = descriptor * n_mp1 + angular_n;
     for (int axis = 0; axis < 3; ++axis) {
       g_neighbor_gradient[angular_gradient_cache_index(
@@ -1461,8 +1358,6 @@ static __global__ void assemble_angular_neighbor_pairs_kernel(
   const float* g_Fp,
   const float* g_sum_fxyz,
   const float* g_Hqq,
-  const bool g_disable_q_local,
-  const bool g_disable_q_cross,
   const float* g_neighbor_gradient,
   const float* g_neighbor_s_gradient,
   const float* g_local_hessian,
@@ -1536,10 +1431,9 @@ static __global__ void assemble_angular_neighbor_pairs_kernel(
         for (int n = 0; n < n_mp1; ++n) {
           const float fp = descriptor_fp(descriptor, n);
           if (same_neighbor) {
-            if (!g_disable_q_local)
-              value += fp * cached_local_hessian(
+            value += fp * cached_local_hessian(
                 first_edge, descriptor, n, axis_a, axis_b);
-          } else if (!g_disable_q_cross) {
+          } else {
             const float* sum_fxyz = g_sum_fxyz +
               static_cast<size_t>(n * num_s_terms) * N + center;
             value += fp * contract_q_s_hessian(
@@ -1606,11 +1500,8 @@ static __global__ void assemble_angular_radial_cross_kernel(
   const float* g_r12_radial_x,
   const float* g_r12_radial_y,
   const float* g_r12_radial_z,
-  const float* g_Fp,
   const float* g_Hqq,
-  const bool g_dump_descriptor_derivatives,
   const float* g_neighbor_gradient,
-  const float* g_local_hessian,
   const int* g_valid,
   const int* g_sparse_row_offsets,
   const int* g_sparse_columns,
@@ -1644,20 +1535,7 @@ static __global__ void assemble_angular_radial_cross_kernel(
     return g_neighbor_gradient[angular_gradient_cache_index(
       edge, angular_descriptor_count, descriptor * n_mp1 + n, axis)];
   };
-  auto cached_local_hessian = [=](
-                                const int edge,
-                                const int descriptor,
-                                const int n,
-                                const int axis_a,
-                                const int axis_b) {
-    return g_local_hessian[angular_local_hessian_cache_index(
-      edge, angular_descriptor_count, descriptor * n_mp1 + n,
-      axis_a, axis_b)];
-  };
-  auto descriptor_fp = [&](const int descriptor, const int n) {
-    return g_Fp[angular_fp_index(
-      n_max_radial, n_mp1, descriptor, n, n1, N)];
-  };
+
 
   for (int radial_index = 0; radial_index < g_NN_radial[n1]; ++radial_index) {
     const int radial_neighbor = g_NL_radial[n1 + N * radial_index];
@@ -1682,61 +1560,20 @@ static __global__ void assemble_angular_radial_cross_kernel(
        ++neighbor_slot) {
     const int edge = edge_index(neighbor_slot);
     if (!g_valid[edge]) continue;
-    const int neighbor = g_NL_angular[n1 + N * neighbor_slot];
     for (int descriptor = 0; descriptor < paramb.num_L; ++descriptor) {
       for (int n = 0; n < n_mp1; ++n) {
-        const int descriptor_index =
-          n_max_radial + 1 + descriptor * n_mp1 + n;
         for (int axis = 0; axis < 3; ++axis) {
           const float gradient =
             cached_gradient(edge, descriptor, n, axis);
           center_gradient[descriptor][n][axis] -= gradient;
-          if (g_dump_descriptor_derivatives) {
-            for (int other_axis = 0; other_axis < 3; ++other_axis) {
-              const float hessian = cached_local_hessian(
-                edge, descriptor, n, axis, other_axis);
-              printf(
-                "QDERIV %d %d %d %d %d %d %.10g %.10g %.10g\n",
-                n1, neighbor, descriptor_index, n, axis, other_axis,
-                q_scaler[descriptor_index] * gradient,
-                q_scaler[descriptor_index] * hessian, hessian);
-            }
-          }
         }
       }
     }
   }
 
-
-  if (g_dump_descriptor_derivatives) {
-    for (int descriptor = 0; descriptor < paramb.num_L; ++descriptor) {
-      for (int n = 0; n < n_mp1; ++n) {
-        const int descriptor_index =
-          n_max_radial + 1 + descriptor * n_mp1 + n;
-        for (int axis_a = 0; axis_a < 3; ++axis_a) {
-          for (int axis_b = 0; axis_b < 3; ++axis_b) {
-            float hessian_sum = 0.0f;
-            for (int neighbor_slot = 0; neighbor_slot < neighbor_count;
-                 ++neighbor_slot) {
-              const int edge = edge_index(neighbor_slot);
-              if (g_valid[edge])
-                hessian_sum += cached_local_hessian(
-                  edge, descriptor, n, axis_a, axis_b);
-            }
-            printf(
-              "QHESS %d %d %d %d %.10g %.10g %.10g\n",
-              n1, descriptor_index, axis_a, axis_b, hessian_sum,
-              q_scaler[descriptor_index] * hessian_sum,
-              descriptor_fp(descriptor, n));
-          }
-        }
-      }
-    }
-  }
 
   // Radial-angular terms use the same cached angular Jacobian as the
-  // neighbor-pair assembly. This removes the previous O(R*M) derivative
-  // reconstruction while preserving the ordered descriptor blocks.
+  // neighbor-pair assembly.
   for (int radial_source = 0; radial_source <= g_NN_radial[n1];
        ++radial_source) {
     int source_atom = n1;
@@ -1895,153 +1732,6 @@ private:
   std::vector<double> virial_host_;
 };
 
-class QScalerOverride
-{
-public:
-  QScalerOverride(const float* scaler, int dimension)
-    : scaler_(scaler), dimension_(dimension)
-  {
-  }
-
-  bool save_original(std::vector<float>& working_scaler)
-  {
-    working_scaler.resize(dimension_);
-    original_.resize(dimension_);
-    gpuError_t error = gpuMemcpy(
-      original_.data(), scaler_, dimension_ * sizeof(float),
-      gpuMemcpyDeviceToHost);
-    if (error != gpuSuccess) {
-      fprintf(
-        stderr, "Failed to save NEP q_scaler: %s.\n",
-        gpuGetErrorString(error));
-      return false;
-    }
-    working_scaler = original_;
-    return true;
-  }
-
-  bool install(const std::vector<float>& working_scaler)
-  {
-    if (working_scaler.size() != static_cast<size_t>(dimension_)) return false;
-    installed_ = true; // A failed copy may still have partially modified state.
-    gpuError_t error = gpuMemcpy(
-      const_cast<float*>(scaler_), working_scaler.data(),
-      dimension_ * sizeof(float), gpuMemcpyHostToDevice);
-    if (error != gpuSuccess) {
-      fprintf(
-        stderr, "Failed to install diagnostic NEP q_scaler: %s.\n",
-        gpuGetErrorString(error));
-      return false;
-    }
-    return true;
-  }
-
-  bool restore()
-  {
-    if (!installed_) return !restore_failed_;
-    gpuError_t error = gpuMemcpy(
-      const_cast<float*>(scaler_), original_.data(),
-      dimension_ * sizeof(float), gpuMemcpyHostToDevice);
-    if (error != gpuSuccess) {
-      restore_failed_ = true;
-      fprintf(
-        stderr, "Failed to restore NEP q_scaler: %s.\n",
-        gpuGetErrorString(error));
-      return false;
-    }
-    installed_ = false;
-    return true;
-  }
-
-  ~QScalerOverride()
-  {
-    restore();
-  }
-
-private:
-  const float* scaler_;
-  int dimension_;
-  std::vector<float> original_;
-  bool installed_ = false;
-  bool restore_failed_ = false;
-};
-
-bool parse_zero_angular_groups(
-  const std::string& text, int angular_group_count,
-  int angular_descriptor_stride, std::vector<bool>& zero_angular_groups)
-{
-  if (angular_group_count <= 0 || angular_descriptor_stride <= 0 ||
-      angular_group_count >
-        std::numeric_limits<int>::max() / angular_descriptor_stride) {
-    return false;
-  }
-  std::vector<bool> groups(
-    angular_group_count * angular_descriptor_stride, false);
-  std::stringstream stream(text);
-  std::string item;
-  while (std::getline(stream, item, ',')) {
-    size_t first = 0;
-    while (first < item.size() && std::isspace(static_cast<unsigned char>(item[first])))
-      ++first;
-    if (first == item.size()) return false;
-    try {
-      size_t consumed = 0;
-      const long value = std::stol(item, &consumed);
-      while (consumed < item.size() &&
-             std::isspace(static_cast<unsigned char>(item[consumed]))) {
-        ++consumed;
-      }
-      if (consumed != item.size() || value < 0 ||
-          value >= angular_group_count) {
-        return false;
-      }
-      const int begin =
-        static_cast<int>(value) * angular_descriptor_stride;
-      std::fill(
-        groups.begin() + begin, groups.begin() + begin + angular_descriptor_stride,
-        true);
-    } catch (const std::exception&) {
-      return false;
-    }
-  }
-  zero_angular_groups.swap(groups);
-  return true;
-}
-
-void write_hessian_matrix(
-  const std::string& path, const std::vector<double>& hessian_soa,
-  int N, bool atom_major)
-{
-  std::vector<double> output_values;
-  if (atom_major) {
-    output_values.resize(hessian_soa.size());
-    for (int atom_i = 0; atom_i < N; ++atom_i) {
-      for (int axis_i = 0; axis_i < 3; ++axis_i) {
-        const int row_soa = axis_i * N + atom_i;
-        const int row_atom_major = atom_i * 3 + axis_i;
-        for (int atom_j = 0; atom_j < N; ++atom_j) {
-          for (int axis_j = 0; axis_j < 3; ++axis_j) {
-            output_values[row_atom_major * (3 * N) + atom_j * 3 + axis_j] =
-              hessian_soa[row_soa * (3 * N) + axis_j * N + atom_j];
-          }
-        }
-      }
-    }
-  }
-  const std::vector<double>& values = atom_major ? output_values : hessian_soa;
-  std::ofstream output(path);
-  output << std::scientific << std::setprecision(17);
-  output << "# coordinate_order=" << (atom_major ? "atom_major" : "soa") << "\n";
-  output << "# matrix_order=row_major\n";
-  output << "# definition=minus_force_jacobian\n";
-  output << "# unit=eV/A^2\n";
-  for (int row = 0; row < 3 * N; ++row) {
-    for (int column = 0; column < 3 * N; ++column)
-      output << (column ? " " : "") << values[row * (3 * N) + column];
-    output << "\n";
-  }
-}
-
 } // namespace
 
 // ============================================================================
@@ -2057,7 +1747,7 @@ bool compute_nep_analytic_hessian(
   std::vector<double>& hessian_out,
   std::vector<double>& force_out,
   double& pe_out,
-  std::vector<Group>* groups,
+  nep_hessian::Diagnostics& diagnostics,
   sparse_hessian::BlockPattern* sparse_pattern)
 {
   hessian_out.clear();
@@ -2076,33 +1766,6 @@ bool compute_nep_analytic_hessian(
   auto* nep = dynamic_cast<NEP*>(&force.get_potential(0));
   if (nep == nullptr || nep->nep_model_type < 0 || nep->nep_model_type > 3 ||
       nep->ilp_flag != 0) return false;
-  // DFT-D3 dispersion is not covered by the analytic NEP Hessian.  The
-  // command layer rejects such configurations up front; refuse here as well
-  // so that an analytic request can never silently degrade to a
-  // finite-difference result.
-  if (nep_hessian_run_input_has_dftd3()) {
-    printf(
-      "NEP analytic Hessian: DFT-D3 dispersion is not supported; "
-      "the analytic Hessian cannot be computed for this configuration.\n");
-    return false;
-  }
-
-  bool dump_analytic_atom_major = false;
-  if (const char* layout =
-        std::getenv("GPUMD_DUMP_ANALYTIC_HESSIAN_LAYOUT")) {
-    if (std::string(layout) == "soa") {
-      dump_analytic_atom_major = false;
-    } else if (std::string(layout) == "atom_major") {
-      dump_analytic_atom_major = true;
-    } else {
-      printf(
-        "NEP analytic Hessian: invalid dump layout %s "
-        "(expected soa or atom_major).\n",
-        layout);
-      return false;
-    }
-  }
-
   const bool use_expanded_box = model_requires_expanded_box(model, box);
   if (model.paramb.L_max < 0 || model.paramb.L_max > 8 ||
       (model.paramb.L_max + 1) * (model.paramb.L_max + 1) - 1 >
@@ -2176,54 +1839,11 @@ bool compute_nep_analytic_hessian(
     return false;
   }
 
-  const bool zero_radial_descriptors =
-    std::getenv("GPUMD_ZERO_RADIAL_DESCRIPTORS") != nullptr;
-  const bool zero_angular_descriptors =
-    std::getenv("GPUMD_ZERO_ANGULAR_DESCRIPTORS") != nullptr;
-  std::vector<bool> zero_angular_groups;
-  if (const char* groups = std::getenv("GPUMD_ZERO_ANGULAR_GROUPS")) {
-    if (!parse_zero_angular_groups(
-          groups, model.paramb.num_L, angular_descriptor_stride,
-          zero_angular_groups)) {
-      printf(
-        "NEP analytic Hessian: invalid GPUMD_ZERO_ANGULAR_GROUPS=%s.\n",
-        groups);
-      return false;
-    }
-  }
-  const bool scaler_override_used =
-    zero_radial_descriptors || zero_angular_descriptors ||
-    !zero_angular_groups.empty();
-  QScalerOverride scaler_override(model.annmb.q_scaler, model.annmb.dim);
-  std::vector<float> scaler_for_test;
-  if (scaler_override_used &&
-      !scaler_override.save_original(scaler_for_test)) {
-    return false;
-  }
-  if (zero_radial_descriptors) {
-    std::fill(
-      scaler_for_test.begin(),
-      scaler_for_test.begin() + radial_descriptor_count, 0.0f);
-  }
-  if (zero_angular_descriptors) {
-    std::fill(
-      scaler_for_test.begin() + radial_descriptor_count,
-      scaler_for_test.end(), 0.0f);
-  } else {
-    for (int index = 0;
-         index < static_cast<int>(zero_angular_groups.size()); ++index) {
-      if (zero_angular_groups[index])
-        scaler_for_test[radial_descriptor_count + index] = 0.0f;
-    }
-  }
-
   auto finish = [&](bool success) {
-    bool state_restored = scaler_override.restore();
-    // Return to the caller's geometry before rebuilding Force-owned caches.
-    state_restored = atom_backup.restore() && state_restored;
+    // Restore the caller geometry and rebuild force-owned caches.
+    bool state_restored = atom_backup.restore();
     if (state_restored) {
-      // Refresh neighbor/descriptor caches after diagnostic displacements or a
-      // q_scaler override. Atom outputs are restored again below.
+      // Refresh caches at the original geometry, then restore the saved outputs.
       std::vector<Group> empty_groups;
       force.compute(
         box, atom.position_per_atom, atom.type, empty_groups,
@@ -2245,9 +1865,6 @@ bool compute_nep_analytic_hessian(
     }
     return true;
   };
-
-  if (scaler_override_used && !scaler_override.install(scaler_for_test))
-    return finish(false);
 
   const gpuError_t position_upload_error = gpuMemcpy(
     atom.position_per_atom.data(), position_soa.data(),
@@ -2287,45 +1904,6 @@ bool compute_nep_analytic_hessian(
     printf("NEP analytic Hessian: neighbor lists exceed supported index range.\n");
     return finish(false);
   }
-
-  // 2. Run the hessian-owned descriptor kernel to populate a module-local
-  //    q cache.  We cannot rely on a side-channel write inside
-  //    src/force/nep.cu's descriptor kernel because the hessian-only
-  //    branch is purely additive and does not modify nep.cu.
-  static nep_hessian::DescriptorCache q_cache;
-  const int q_dim = model.annmb.dim;
-  if (q_cache.last_num_atoms != N || q_cache.last_dim != q_dim ||
-      static_cast<int>(q_cache.q.size()) != q_dim * N) {
-    q_cache.q.resize(static_cast<size_t>(q_dim) * N);
-    q_cache.last_num_atoms = N;
-    q_cache.last_dim = q_dim;
-  }
-  const int descriptor_grid = (N - 1) / 64 + 1;
-  if (use_expanded_box) {
-    const size_t r12_plane_size = nep->small_box_data.r12.size() / 6;
-    nep_hessian::find_descriptor_only_small_box<<<descriptor_grid, 64>>>(
-      model.paramb, model.annmb, static_cast<float>(force.get_temperature()), N, 0, N,
-      radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
-      angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
-      atom.type.data(),
-      nep->small_box_data.r12.data(),
-      nep->small_box_data.r12.data() + r12_plane_size,
-      nep->small_box_data.r12.data() + 2 * r12_plane_size,
-      nep->small_box_data.r12.data() + 3 * r12_plane_size,
-      nep->small_box_data.r12.data() + 4 * r12_plane_size,
-      nep->small_box_data.r12.data() + 5 * r12_plane_size,
-      q_cache.q.data());
-  } else {
-    nep_hessian::find_descriptor_only<<<descriptor_grid, 64>>>(
-      model.paramb, model.annmb, static_cast<float>(force.get_temperature()), N, 0, N, box,
-      radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
-      angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
-      atom.type.data(),
-      atom.position_per_atom.data(), atom.position_per_atom.data() + N,
-      atom.position_per_atom.data() + 2 * N,
-      q_cache.q.data());
-  }
-  GPU_CHECK_KERNEL
 
   const float* radial_r12_x = nullptr;
   const float* radial_r12_y = nullptr;
@@ -2388,6 +1966,35 @@ bool compute_nep_analytic_hessian(
     }
     max_angular_neighbors = std::max(max_angular_neighbors, count);
   }
+  // Reconstruct the normalized ANN input in command-owned storage.
+  GPU_Vector<float> q_cache(static_cast<size_t>(model.annmb.dim) * N);
+  const int descriptor_grid = (N - 1) / 64 + 1;
+  if (use_expanded_box) {
+    const size_t r12_plane_size = nep->small_box_data.r12.size() / 6;
+    nep_hessian::find_descriptor_only_small_box<<<descriptor_grid, 64>>>(
+      model.paramb, model.annmb, static_cast<float>(force.get_temperature()), N, 0, N,
+      radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
+      angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
+      atom.type.data(),
+      nep->small_box_data.r12.data(),
+      nep->small_box_data.r12.data() + r12_plane_size,
+      nep->small_box_data.r12.data() + 2 * r12_plane_size,
+      nep->small_box_data.r12.data() + 3 * r12_plane_size,
+      nep->small_box_data.r12.data() + 4 * r12_plane_size,
+      nep->small_box_data.r12.data() + 5 * r12_plane_size,
+      q_cache.data());
+  } else {
+    nep_hessian::find_descriptor_only<<<descriptor_grid, 64>>>(
+      model.paramb, model.annmb, static_cast<float>(force.get_temperature()), N, 0, N, box,
+      radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
+      angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
+      atom.type.data(),
+      atom.position_per_atom.data(), atom.position_per_atom.data() + N,
+      atom.position_per_atom.data() + 2 * N,
+      q_cache.data());
+  }
+  GPU_CHECK_KERNEL
+
   // Extract force and PE
   std::vector<double> force_soa(N3);
   atom.force_per_atom.copy_to_host(force_soa.data());
@@ -2406,21 +2013,13 @@ bool compute_nep_analytic_hessian(
   const int* sparse_row_offsets = nullptr;
   const int* sparse_columns = nullptr;
   if (sparse_pattern != nullptr) {
-    if (std::getenv("GPUMD_DUMP_ANALYTIC_HESSIAN") != nullptr ||
-        std::getenv("GPUMD_DUMP_NEP_HESSIAN") != nullptr)
-      return false;
     std::vector<int> radial_list(radial_neighbor_list_gpu.size());
     std::vector<int> angular_list(angular_neighbor_list_gpu.size());
     radial_neighbor_list_gpu.copy_to_host(radial_list.data());
     angular_neighbor_list_gpu.copy_to_host(angular_list.data());
-    try {
-      *sparse_pattern = sparse_hessian::build_pattern_from_neighbors(
-        N, radial_neighbor_counts, radial_list, radial_neighbor_capacity,
-        angular_neighbor_counts, angular_list, angular_neighbor_capacity);
-    } catch (const std::exception& error) {
-      printf("Sparse NEP Hessian pattern failed: %s\n", error.what());
-      return false;
-    }
+    *sparse_pattern = sparse_hessian::build_pattern_from_neighbors(
+      N, radial_neighbor_counts, radial_list, radial_neighbor_capacity,
+      angular_neighbor_counts, angular_list, angular_neighbor_capacity);
     sparse_row_offsets_gpu.resize(sparse_pattern->row_offsets.size(), 0);
     sparse_columns_gpu.resize(sparse_pattern->columns.size(), 0);
     sparse_row_offsets_gpu.copy_from_host(sparse_pattern->row_offsets.data(),
@@ -2440,109 +2039,11 @@ bool compute_nep_analytic_hessian(
   GPU_Vector<float> hqq_gpu(N_total * dim * dim, 0.0f);
   compute_ann_hessian_kernel<<<(N_total - 1) / 64 + 1, 64>>>(
     model.paramb, model.annmb, N_total, atom.type.data(),
-    q_cache.q.data(), hqq_gpu.data());
+    q_cache.data(), hqq_gpu.data());
   GPU_CHECK_KERNEL
-  if (std::getenv("GPUMD_ZERO_ANN_CROSS") != nullptr) {
-    CHECK(gpuMemset(hqq_gpu.data(), 0, hqq_gpu.size() * sizeof(float)));
-  }
-  if (std::getenv("GPUMD_NEGATE_ANN_CROSS") != nullptr) {
-    std::vector<float> hqq_host(hqq_gpu.size());
-    hqq_gpu.copy_to_host(hqq_host.data());
-    for (float& value : hqq_host) value = -value;
-    hqq_gpu.copy_from_host(hqq_host.data());
-  }
-
-  // Debug: dump descriptors, Fp, and Hqq for analysis
-  if (std::getenv("GPUMD_DUMP_NEP_DEBUG") != nullptr) {
-    std::vector<int> nn_radial_host(N_total);
-    std::vector<int> nn_angular_host(N_total);
-    radial_neighbor_counts_gpu.copy_to_host(nn_radial_host.data(), N_total);
-    angular_neighbor_counts_gpu.copy_to_host(nn_angular_host.data(), N_total);
-    int radial_min = nn_radial_host[0], radial_max = nn_radial_host[0];
-    int angular_min = nn_angular_host[0], angular_max = nn_angular_host[0];
-    for (int count : nn_radial_host) {
-      radial_min = std::min(radial_min, count);
-      radial_max = std::max(radial_max, count);
-    }
-    for (int count : nn_angular_host) {
-      angular_min = std::min(angular_min, count);
-      angular_max = std::max(angular_max, count);
-    }
-    printf(
-      "NEP analytic Hessian neighbor counts: radial_min=%d radial_max=%d "
-      "angular_min=%d angular_max=%d\n",
-      radial_min, radial_max, angular_min, angular_max);
-    std::vector<float> q_host(N_total * dim);
-    q_cache.q.copy_to_host(q_host.data());
-    std::vector<float> Fp_host(N_total * dim);
-    nep->nep_data.Fp.copy_to_host(Fp_host.data());
-    std::vector<float> hqq_host(N_total * dim * dim);
-    hqq_gpu.copy_to_host(hqq_host.data());
-    if (const char* path = std::getenv("GPUMD_DUMP_NEP_HQQ")) {
-      std::ofstream output(path);
-      for (int atom = 0; atom < N_total; ++atom) {
-        for (int i = 0; i < dim; ++i) {
-          for (int j = 0; j < dim; ++j) {
-            output << (j ? " " : "") <<
-              hqq_host[(atom * dim + i) * dim + j];
-          }
-          output << "\n";
-        }
-      }
-    }
-    printf("=== NEP Debug Dump (N=%d, dim=%d) ===\n", N_total, dim);
-    {
-      std::vector<float> q_scaler_host(dim);
-      CHECK(gpuMemcpy(
-        q_scaler_host.data(), model.annmb.q_scaler, sizeof(float) * dim,
-        gpuMemcpyDeviceToHost));
-      printf("  q_scaler:");
-      for (int d = 0; d < dim; ++d)
-        printf(" %.10g", q_scaler_host[d]);
-      printf("\n");
-    }
-    for (int n1 = 0; n1 < N_total; ++n1) {
-      std::vector<int> type_host(N_total); atom.type.copy_to_host(type_host.data()); printf("Atom %d (type %d):\n", n1, type_host[n1]);
-      printf("  q_desc:");
-      for (int d = 0; d < dim; ++d) printf(" %.8g", q_host[d * N_total + n1]);
-      printf("\n");
-      printf("  Fp   :");
-      for (int d = 0; d < dim; ++d) printf(" %.8g", Fp_host[d * N_total + n1]);
-      printf("\n");
-      // Print Hqq diagonal and a few off-diagonal
-      printf("  Hqq_diag:");
-      for (int d = 0; d < dim; ++d)
-        printf(" %.8g", hqq_host[(n1 * dim + d) * dim + d]);
-      printf("\n");
-    }
-    // Also dump positions
-    std::vector<double> pos_host(N_total * 3);
-    atom.position_per_atom.copy_to_host(pos_host.data());
-    for (int n1 = 0; n1 < N_total; ++n1)
-      printf("Pos %d: %.10f %.10f %.10f\n", n1,
-        pos_host[n1], pos_host[n1 + N_total], pos_host[n1 + 2 * N_total]);
-  }
-
   // 5. Compute radial Hessian
   int grid = (N_total - 1) / BLOCK_SIZE + 1;
-  const bool disable_radial = std::getenv("GPUMD_DISABLE_RADIAL_HESSIAN") != nullptr;
-  const bool disable_angular = std::getenv("GPUMD_DISABLE_ANGULAR_HESSIAN") != nullptr;
-  const bool disable_zbl = std::getenv("GPUMD_DISABLE_ZBL_HESSIAN") != nullptr;
-  const bool disable_s_hessian =
-    std::getenv("GPUMD_DISABLE_S_HESSIAN") != nullptr;
-  const bool disable_q_s_hessian =
-    std::getenv("GPUMD_DISABLE_Q_S_HESSIAN") != nullptr;
-  CHECK(gpuMemcpyToSymbol(
-    g_disable_s_hessian, &disable_s_hessian, sizeof(bool)));
-  CHECK(gpuMemcpyToSymbol(
-    g_disable_q_s_hessian, &disable_q_s_hessian, sizeof(bool)));
-  const bool dump_s_derivatives =
-    std::getenv("GPUMD_DUMP_ANALYTIC_S_DERIVATIVES") != nullptr;
-  const bool dump_q_derivatives =
-    std::getenv("GPUMD_DUMP_ANALYTIC_Q_DERIVATIVES") != nullptr;
-  CHECK(gpuMemcpyToSymbol(
-    g_dump_s_derivatives, &dump_s_derivatives, sizeof(bool)));
-  if (!disable_radial) {
+  {
     find_radial_hessian_kernel<<<grid, BLOCK_SIZE>>>(
       model.paramb, model.annmb, N_total, 0, N_total, box,
       radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
@@ -2557,54 +2058,17 @@ bool compute_nep_analytic_hessian(
   }
 
   size_t original_stack_limit = 0;
-  size_t original_printf_limit = 0;
   bool restore_stack_limit = false;
-  bool restore_printf_limit = false;
-  if (!disable_angular && angular_descriptor_count > 0) {
+  if (angular_descriptor_count > 0) {
     CHECK(gpuDeviceGetLimit(&original_stack_limit, gpuLimitStackSize));
     // ptxas reports 5.3 KiB for the largest staged angular kernel on sm_86.
-    // Keep headroom without retaining the legacy monolithic kernel's 256 KiB
-    // per-thread stack reservation.
+    // Keep headroom for the staged angular kernels.
     constexpr size_t kRequiredStackBytes = 16ULL * 1024;
     if (original_stack_limit < kRequiredStackBytes) {
       CHECK(gpuDeviceSetLimit(gpuLimitStackSize, kRequiredStackBytes));
       restore_stack_limit = true;
     }
 
-    if (dump_s_derivatives || dump_q_derivatives) {
-      CHECK(gpuDeviceGetLimit(&original_printf_limit, gpuLimitPrintfFifoSize));
-      size_t requested_fifo_bytes = 512ULL * 1024 * 1024;
-      if (const char* value = std::getenv("GPUMD_PRINTF_FIFO_MB")) {
-        const long megabytes = std::atol(value);
-        if (megabytes > 0 &&
-            static_cast<unsigned long>(megabytes) <=
-              std::numeric_limits<size_t>::max() / (1024ULL * 1024)) {
-          requested_fifo_bytes = static_cast<size_t>(megabytes) * 1024 * 1024;
-        }
-      }
-      const size_t fifo_candidates[] = {
-        requested_fifo_bytes,
-        256ULL * 1024 * 1024,
-        64ULL * 1024 * 1024,
-        8ULL * 1024 * 1024};
-      bool fifo_configured = requested_fifo_bytes <= original_printf_limit;
-      for (const size_t requested_bytes : fifo_candidates) {
-        if (fifo_configured) break;
-        const size_t fifo_bytes = std::max(requested_bytes, original_printf_limit);
-        gpuGetLastError();
-        if (gpuDeviceSetLimit(gpuLimitPrintfFifoSize, fifo_bytes) == gpuSuccess) {
-          fifo_configured = true;
-          restore_printf_limit = fifo_bytes != original_printf_limit;
-        }
-      }
-      if (!fifo_configured) {
-        fprintf(
-          stderr,
-          "Warning: could not enlarge the GPU printf FIFO; diagnostic output "
-          "may be truncated.\n");
-        gpuGetLastError();
-      }
-    }
     if (max_angular_neighbors > 0) {
       const int num_s_terms =
         (model.paramb.L_max + 1) * (model.paramb.L_max + 1) - 1;
@@ -2635,18 +2099,6 @@ bool compute_nep_analytic_hessian(
         edge_capacity * cached_angular_descriptors * 9);
       GPU_Vector<int> valid_cache(edge_capacity);
 
-      if (std::getenv("GPUMD_PRINT_ANALYTIC_HESSIAN_DIAGNOSTICS") != nullptr) {
-        printf(
-          "NEP angular Hessian cache: max_neighbors=%d tile_centers=%d "
-          "workspace_bytes=%zu\n",
-          max_angular_neighbors, tile_centers,
-          edge_capacity * bytes_per_edge);
-      }
-
-      const bool disable_q_local =
-        std::getenv("GPUMD_DISABLE_Q_LOCAL") != nullptr;
-      const bool disable_q_cross =
-        std::getenv("GPUMD_DISABLE_Q_CROSS") != nullptr;
       for (int center_begin = 0; center_begin < N_total;
            center_begin += tile_centers) {
         const int center_count =
@@ -2696,7 +2148,7 @@ bool compute_nep_analytic_hessian(
           max_angular_neighbors,
           angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
           nep->nep_data.Fp.data(), nep->nep_data.sum_fxyz.data(),
-          hqq_gpu.data(), disable_q_local, disable_q_cross,
+          hqq_gpu.data(),
           neighbor_gradient_cache.data(), neighbor_s_gradient_cache.data(),
           local_hessian_cache.data(), valid_cache.data(),
           sparse_row_offsets, sparse_columns,
@@ -2715,8 +2167,7 @@ bool compute_nep_analytic_hessian(
           atom.position_per_atom.data() + N_total,
           atom.position_per_atom.data() + 2 * N_total,
           radial_r12_x, radial_r12_y, radial_r12_z,
-          nep->nep_data.Fp.data(), hqq_gpu.data(), dump_q_derivatives,
-          neighbor_gradient_cache.data(), local_hessian_cache.data(),
+          hqq_gpu.data(), neighbor_gradient_cache.data(),
           valid_cache.data(), sparse_row_offsets, sparse_columns,
           hessian_gpu.data());
         GPU_CHECK_KERNEL
@@ -2726,7 +2177,7 @@ bool compute_nep_analytic_hessian(
   }
   // The ZBL parameters come from the model that NEP_Hessian_Model loaded.
   const NEP::ZBL& zbl_state = model.zbl;
-  if (zbl_state.enabled && !disable_zbl) {
+  if (zbl_state.enabled) {
     find_zbl_hessian_kernel<<<grid, BLOCK_SIZE>>>(
       model.paramb, zbl_state, N_total, box,
       angular_neighbor_counts_gpu.data(),
@@ -2740,8 +2191,6 @@ bool compute_nep_analytic_hessian(
     GPU_CHECK_KERNEL
   }
   CHECK(gpuDeviceSynchronize());
-  if (restore_printf_limit)
-    CHECK(gpuDeviceSetLimit(gpuLimitPrintfFifoSize, original_printf_limit));
   if (restore_stack_limit)
     CHECK(gpuDeviceSetLimit(gpuLimitStackSize, original_stack_limit));
 
@@ -2749,173 +2198,15 @@ bool compute_nep_analytic_hessian(
   hessian_out.resize(sparse_pattern != nullptr
     ? sparse_pattern->value_count() : static_cast<size_t>(N3) * N3);
   hessian_gpu.copy_to_host(hessian_out.data());
-  double maximum_asymmetry = 0.0;
-  double maximum_absolute_value = 0.0;
-  double frobenius_square = 0.0;
-  double asymmetry_frobenius_square = 0.0;
-  double maximum_translation_row_sum = 0.0;
-  bool validation_failed = false;
-  if (std::getenv("GPUMD_DUMP_NEP_DEBUG") != nullptr) {
-    double hessian_norm = 0.0;
-    int nonzeros = 0;
-    for (double value : hessian_out) {
-      hessian_norm += value * value;
-      if (value != 0.0) ++nonzeros;
-    }
+  diagnostics = nep_hessian::inspect(hessian_out, N, sparse_pattern);
+  if (!diagnostics.finite || diagnostics.asymmetry_frobenius_relative > 1.0e-6 ||
+      diagnostics.asymmetry_max_relative > 1.0e-5 || diagnostics.translation_relative > 1.0e-5) {
     printf(
-      "NEP analytic Hessian kernel output: nonzeros=%d frobenius=%.12g\n",
-      nonzeros, std::sqrt(hessian_norm));
-  }
-  if (sparse_pattern != nullptr) {
-    const auto& pattern = *sparse_pattern;
-    for (int atom = 0; atom < N_total; ++atom) {
-      for (int block = pattern.row_offsets[atom];
-           block < pattern.row_offsets[atom + 1]; ++block) {
-        const int other = pattern.columns[block];
-        const int transpose = pattern.find_block(other, atom);
-        if (transpose < 0) return finish(false);
-        for (int a = 0; a < 3; ++a) {
-          for (int b = 0; b < 3; ++b) {
-            const size_t index = static_cast<size_t>(block) * 9 + a * 3 + b;
-            const double value = hessian_out[index];
-            if (!std::isfinite(value)) {
-              hessian_out.clear();
-              return finish(false);
-            }
-            maximum_absolute_value = std::max(maximum_absolute_value, std::abs(value));
-            frobenius_square += value * value;
-            const double transposed = hessian_out[
-              static_cast<size_t>(transpose) * 9 + b * 3 + a];
-            const double difference = value - transposed;
-            maximum_asymmetry = std::max(maximum_asymmetry, std::abs(difference));
-            asymmetry_frobenius_square += difference * difference;
-            double row_sum = 0.0;
-            for (int column_block = pattern.row_offsets[atom];
-                 column_block < pattern.row_offsets[atom + 1]; ++column_block)
-              row_sum += hessian_out[static_cast<size_t>(column_block) * 9 + a * 3 + b];
-            maximum_translation_row_sum = std::max(
-              maximum_translation_row_sum, std::abs(row_sum));
-          }
-        }
-      }
-    }
-  } else {
-    for (int row = 0; row < N3; ++row) {
-      for (int column = row + 1; column < N3; ++column) {
-        const double asymmetry = std::abs(
-          hessian_out[row * N3 + column] - hessian_out[column * N3 + row]);
-        maximum_asymmetry = std::max(maximum_asymmetry, asymmetry);
-        asymmetry_frobenius_square += 2.0 * asymmetry * asymmetry;
-      }
-    }
-    for (int row = 0; row < N3; ++row) {
-      for (int column = 0; column < N3; ++column) {
-        const double value = hessian_out[row * N3 + column];
-        if (!std::isfinite(value)) {
-          hessian_out.clear();
-          return finish(false);
-        }
-        maximum_absolute_value = std::max(maximum_absolute_value, std::abs(value));
-        frobenius_square += value * value;
-      }
-    }
-    for (int atom = 0; atom < N_total; ++atom)
-      for (int a = 0; a < 3; ++a)
-        for (int b = 0; b < 3; ++b) {
-          double row_sum = 0.0;
-          for (int other = 0; other < N_total; ++other)
-            row_sum += hessian_out[(a * N_total + atom) * N3 + b * N_total + other];
-          maximum_translation_row_sum = std::max(
-            maximum_translation_row_sum, std::abs(row_sum));
-        }
-  }
-
-  const double raw_frobenius = std::sqrt(frobenius_square);
-  const double raw_scale = std::max(
-    maximum_absolute_value, std::numeric_limits<double>::min());
-  const double asymmetry_frobenius = std::sqrt(asymmetry_frobenius_square);
-  const double asymmetry_max_relative = maximum_asymmetry / raw_scale;
-  const double asymmetry_frobenius_relative =
-    asymmetry_frobenius / std::max(raw_frobenius, std::numeric_limits<double>::min());
-  const double translation_relative = maximum_translation_row_sum / raw_scale;
-
-  // Structural checks operate on H_raw and are enabled by default.  Absolute
-  // thresholds remain available as additional diagnostic constraints.
-  constexpr double kDefaultSymmetryFrobeniusRelative = 1.0e-6;
-  constexpr double kDefaultSymmetryMaxRelative = 1.0e-5;
-  constexpr double kDefaultTranslationRelative = 1.0e-5;
-  auto parse_threshold = [](const char* text, double& value) {
-    if (!text) return true;
-    char* end = nullptr;
-    value = std::strtod(text, &end);
-    return end != text && *end == '\0' && std::isfinite(value) && value >= 0.0;
-  };
-  auto validate_threshold = [
-    &validation_failed
-  ](bool present, bool valid, double value, double actual, const char* name) {
-    if (!present) return;
-    if (!valid) {
-      printf("NEP analytic Hessian: invalid %s threshold.\n", name);
-      validation_failed = true;
-    } else if (actual > value) {
-      validation_failed = true;
-    }
-  };
-
-  if (std::getenv("GPUMD_PRINT_ANALYTIC_HESSIAN_DIAGNOSTICS") != nullptr ||
-      std::getenv("GPUMD_VALIDATE_ANALYTIC_HESSIAN") != nullptr ||
-      std::getenv("GPUMD_DUMP_NEP_DEBUG") != nullptr) {
-    printf(
-      "NEP analytic Hessian raw diagnostics: max_abs=%.12g frobenius=%.12g "
-      "asymmetry_max=%.12g asymmetry_max_relative=%.12g "
-      "asymmetry_frobenius=%.12g asymmetry_frobenius_relative=%.12g "
-      "translation_max=%.12g translation_relative=%.12g\n",
-      maximum_absolute_value, raw_frobenius, maximum_asymmetry,
-      asymmetry_max_relative, asymmetry_frobenius,
-      asymmetry_frobenius_relative, maximum_translation_row_sum,
-      translation_relative);
-  }
-
-  validate_threshold(
-    true, true, kDefaultSymmetryFrobeniusRelative,
-    asymmetry_frobenius_relative, "default symmetry Frobenius");
-  validate_threshold(
-    true, true, kDefaultSymmetryMaxRelative, asymmetry_max_relative,
-    "default symmetry max");
-  validate_threshold(
-    true, true, kDefaultTranslationRelative, translation_relative,
-    "default translation");
-
-  auto validate_environment_threshold = [&](const char* name, double actual) {
-    const char* text = std::getenv(name);
-    if (text == nullptr) return;
-    double value = 0.0;
-    const bool valid = parse_threshold(text, value);
-    validate_threshold(true, valid, value, actual, name);
-  };
-  validate_environment_threshold(
-    "GPUMD_VALIDATE_MAX_ASYMMETRY", maximum_asymmetry);
-  validate_environment_threshold(
-    "GPUMD_VALIDATE_MAX_TRANSLATION_ROW_SUM", maximum_translation_row_sum);
-  validate_environment_threshold(
-    "GPUMD_VALIDATE_MAX_ASYMMETRY_RELATIVE", asymmetry_max_relative);
-  validate_environment_threshold(
-    "GPUMD_VALIDATE_MAX_ASYMMETRY_FROBENIUS_RELATIVE",
-    asymmetry_frobenius_relative);
-  validate_environment_threshold(
-    "GPUMD_VALIDATE_MAX_TRANSLATION_RELATIVE", translation_relative);
-
-  if (const char* path = std::getenv("GPUMD_DUMP_ANALYTIC_HESSIAN")) {
-    write_hessian_matrix(
-      path, hessian_out, N_total, dump_analytic_atom_major);
-  }
-
-  if (validation_failed) {
-    printf(
-      "NEP analytic Hessian failed the configured quality thresholds.\n");
-    hessian_out.clear();
+      "NEP analytic Hessian failed validation: finite=%d symmetry=%.12g "
+      "symmetry_frobenius=%.12g translation=%.12g.\n",
+      diagnostics.finite, diagnostics.asymmetry_max_relative,
+      diagnostics.asymmetry_frobenius_relative, diagnostics.translation_relative);
     return finish(false);
   }
-
   return finish(true);
 }

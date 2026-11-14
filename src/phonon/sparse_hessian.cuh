@@ -7,7 +7,7 @@
 #include <array>
 #include <cmath>
 #include <algorithm>
-#include <stdexcept>
+#include "utilities/error.cuh"
 #include <vector>
 
 namespace sparse_hessian {
@@ -29,33 +29,16 @@ struct BlockPattern {
       ? static_cast<int>(found - columns.begin()) : -1;
   }
 
-  std::vector<double> dense_soa(const std::vector<double>& values) const
-  {
-    if (values.size() != value_count())
-      throw std::runtime_error("invalid sparse Hessian value count");
-    const int dimension = 3 * atoms;
-    std::vector<double> dense(static_cast<size_t>(dimension) * dimension, 0.0);
-    for (int atom = 0; atom < atoms; ++atom)
-      for (int block = row_offsets[atom]; block < row_offsets[atom + 1]; ++block) {
-        const int other = columns[block];
-        for (int a = 0; a < 3; ++a)
-          for (int b = 0; b < 3; ++b)
-            dense[(a * atoms + atom) * dimension + b * atoms + other] =
-              values[static_cast<size_t>(block) * 9 + a * 3 + b];
-      }
-    return dense;
-  }
-
   void symmetrize(std::vector<double>& values) const
   {
     if (values.size() != value_count())
-      throw std::runtime_error("invalid sparse Hessian value count");
+      PRINT_INPUT_ERROR("invalid sparse Hessian value count");
     for (int atom = 0; atom < atoms; ++atom)
       for (int block = row_offsets[atom]; block < row_offsets[atom + 1]; ++block) {
         const int other = columns[block];
         const int transpose = find_block(other, atom);
         if (transpose < 0)
-          throw std::runtime_error("sparse Hessian pattern is not symmetric");
+          PRINT_INPUT_ERROR("sparse Hessian pattern is not symmetric");
         if (block > transpose) continue;
         for (int a = 0; a < 3; ++a)
           for (int b = 0; b < 3; ++b) {
@@ -82,7 +65,7 @@ inline BlockPattern build_pattern_from_neighbors(
       angular_counts.size() != static_cast<size_t>(atoms) ||
       radial_list.size() < static_cast<size_t>(atoms) * radial_capacity ||
       angular_list.size() < static_cast<size_t>(atoms) * angular_capacity)
-    throw std::runtime_error("invalid sparse Hessian neighbor lists");
+    PRINT_INPUT_ERROR("invalid sparse Hessian neighbor lists");
   std::vector<std::vector<int>> rows(atoms);
   for (int center = 0; center < atoms; ++center) {
     std::vector<int> environment{center};
@@ -90,14 +73,14 @@ inline BlockPattern build_pattern_from_neighbors(
     const int angular_count = angular_counts[center];
     if (radial_count < 0 || static_cast<size_t>(radial_count) > radial_capacity ||
         angular_count < 0 || static_cast<size_t>(angular_count) > angular_capacity)
-      throw std::runtime_error("invalid sparse Hessian neighbor count");
+      PRINT_INPUT_ERROR("invalid sparse Hessian neighbor count");
     for (int slot = 0; slot < radial_count; ++slot)
       environment.push_back(radial_list[center + atoms * slot]);
     for (int slot = 0; slot < angular_count; ++slot)
       environment.push_back(angular_list[center + atoms * slot]);
     for (const int atom : environment)
       if (atom < 0 || atom >= atoms)
-        throw std::runtime_error("sparse Hessian neighbor index is out of range");
+        PRINT_INPUT_ERROR("sparse Hessian neighbor index is out of range");
     std::sort(environment.begin(), environment.end());
     environment.erase(std::unique(environment.begin(), environment.end()), environment.end());
     for (const int atom : environment)
@@ -113,10 +96,10 @@ inline BlockPattern build_pattern_from_neighbors(
     std::sort(row.begin(), row.end());
     row.erase(std::unique(row.begin(), row.end()), row.end());
     if (row.empty())
-      throw std::runtime_error("invalid sparse Hessian CSR row");
+      PRINT_INPUT_ERROR("invalid sparse Hessian CSR row");
     result.columns.insert(result.columns.end(), row.begin(), row.end());
     if (result.columns.size() > static_cast<size_t>(0x7fffffff))
-      throw std::runtime_error("sparse Hessian pattern exceeds supported size");
+      PRINT_INPUT_ERROR("sparse Hessian pattern exceeds supported size");
     result.row_offsets.push_back(static_cast<int>(result.columns.size()));
   }
   return result;
