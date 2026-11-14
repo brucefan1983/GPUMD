@@ -37,6 +37,7 @@ For deterministic spin/lattice timestep convergence on one GPU:
 ```sh
 python tests_pytest/validate_spin_glsd_coupled.py --binary "$GPUMD_COMMAND" --output "$RESULTS/glsd-coupled"
 python -m pytest --noconftest -q tests_pytest/test_mttk_chain.py
+python -m pytest --noconftest -q tests_pytest/test_nhc_stability.py
 ```
 
 The coupled check keeps the model, initial state, elapsed time and physical
@@ -46,6 +47,12 @@ triclinic MTTK, and verifies continuity across a periodic crossing. The MTTK
 temperature-chain check compares production stepping with independent host RK4.
 An optional `--reference /path/to/previous/gpumd` supplies a negative control;
 both executables must support the same model format.
+
+The common NHC integrator retains four RESPA substeps and checks for nonfinite
+thermostat states. Its host RK4 check uses a 0.5 fs timestep and coupling times
+of 100 steps for four atoms and 500 steps for 5,575,680 atoms. A shorter coupling
+time can still destabilize a large reservoir with a large temperature mismatch;
+the fixed-four integrator does not increase substeps automatically.
 
 For accumulated periodic images on one GPU:
 

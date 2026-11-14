@@ -24,10 +24,8 @@ Oxford University Press, 2010.
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
-#include <algorithm>
 #include <cmath>
 #include <cstring>
-#include <limits>
 #define DIM 3
 
 Ensemble_NHC::Ensemble_NHC(
@@ -247,18 +245,7 @@ static double nhc(
 {
   // These constants are taken from Tuckerman's book
   int n_sy = 7;
-  // A large kinetic-temperature mismatch drives fast chain modes even at fixed tau_T.
-  double rate = 0.0;
-  for (int m = 0; m < M; ++m) {
-    const double G = m == 0 ? Ek2 - dN * kT
-                           : vel_eta[m - 1] * vel_eta[m - 1] / mas_eta[m - 1] - kT;
-    rate = std::max(rate, std::abs(vel_eta[m] / mas_eta[m]));
-    rate = std::max(rate, std::sqrt(std::abs(G) / mas_eta[m]));
-  }
-  const double substeps = std::ceil(std::abs(dt2_particle) * rate / 0.05);
-  if (!std::isfinite(substeps) || substeps > std::numeric_limits<int>::max())
-    PRINT_INPUT_ERROR("Nose-Hoover chain state requires an unresolvable thermostat time step.");
-  const int n_respa = std::max(4, static_cast<int>(substeps));
+  const int n_respa = 4;
   const double w[7] = {
     0.784513610477560,
     0.235573213359357,

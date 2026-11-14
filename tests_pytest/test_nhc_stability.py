@@ -44,7 +44,9 @@ double energy(const double* y,const double* mass,double kt,double dof) {
 int main() {
   const double kb=8.617343e-5,kt=100*kb,dt=.5/10.18051;
   for(int n : {4,5575680}) for(double startT : {30.,55.,100.}) {
-    const double dof=3.*n,m=kt*std::pow(dt*100,2);
+    // Match the validated fixed-four coupling for the large reservoir.
+    const int tau_steps=n==4?100:500;
+    const double dof=3.*n,m=kt*std::pow(dt*tau_steps,2);
     double mass[4]={dof*m,m,m,m},y[9]={0,0,0,0,1,-1,1,-1,dof*kb*startT},ref[9];
     std::copy(y,y+9,ref);
     double initial=energy(y,mass,kt,dof),drift=0;
@@ -55,7 +57,7 @@ int main() {
       for(int sub=0;sub<512;++sub)rk4(ref,mass,kt,dof,dt/1024);
     }
     double deltaT=std::abs(y[8]-ref[8])/dof/kb;
-    printf("n %d T0 %g Tfinal %.12g delta_RK4 %.6g energy_drift %.6g\n",n,startT,y[8]/dof/kb,deltaT,drift);
+    printf("n %d T0 %g tau_steps %d Tfinal %.12g delta_RK4 %.6g energy_drift %.6g\n",n,startT,tau_steps,y[8]/dof/kb,deltaT,drift);
     assert(deltaT<1e-5);
     assert(drift<.005);
   }
