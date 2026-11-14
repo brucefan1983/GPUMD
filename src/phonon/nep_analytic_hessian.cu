@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "nep_analytic_hessian.cuh"
@@ -2068,10 +2068,16 @@ bool compute_nep_analytic_hessian(
     sparse_columns = sparse_columns_gpu.data();
   }
 
-  // 3. Allocate Hessian on GPU (zero-initialized)
-  GPU_Vector<double> hessian_gpu(
-    sparse_pattern != nullptr ? sparse_pattern->value_count() :
-      static_cast<size_t>(N3) * N3, 0.0);
+  // 3. Zero by byte count: sparse values can exceed the int index range
+  // used by GPU_Vector's fill kernel even when block indices fit in int.
+  const size_t hessian_value_count = sparse_pattern != nullptr
+    ? sparse_pattern->value_count() : static_cast<size_t>(N3) * N3;
+  if (hessian_value_count > std::numeric_limits<size_t>::max() / sizeof(double)) {
+    error = "Analytic Hessian buffer size exceeds the supported byte range.";
+    return finish(false);
+  }
+  GPU_Vector<double> hessian_gpu(hessian_value_count);
+  CHECK(gpuMemset(hessian_gpu.data(), 0, hessian_value_count * sizeof(double)));
 
   // 4. Compute per-atom ANN Hessian from the current descriptor cache
   GPU_Vector<float> hqq_gpu(N_total * dim * dim, 0.0f);

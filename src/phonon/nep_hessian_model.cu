@@ -1,6 +1,16 @@
 /*
-    Copyright 2017 Zheyong Fan and GPUMD development team.
-    This file is part of GPUMD, licensed under GNU GPL version 3 or later.
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "nep_hessian_model.cuh"
@@ -39,6 +49,15 @@ void NEP_Hessian_Model::initialize(const char* file_potential)
   }
   if (model.name != "nep" && model.name != "nep_temperature") {
     PRINT_INPUT_ERROR("Analytic Hessian requires model nep or nep_temperature.");
+  }
+  if (model.has_q_123 && model.L_max < 3) {
+    PRINT_INPUT_ERROR("Analytic Hessian: q_123 requires L_max >= 3.");
+  }
+  if (model.has_q_233 && model.L_max < 3) {
+    PRINT_INPUT_ERROR("Analytic Hessian: q_233 requires L_max >= 3.");
+  }
+  if (model.has_q_134 && model.L_max < 4) {
+    PRINT_INPUT_ERROR("Analytic Hessian: q_134 requires L_max >= 4.");
   }
   paramb.model_type = model.name == "nep_temperature" ? 3 : 0;
   paramb.num_types = model.num_types;
