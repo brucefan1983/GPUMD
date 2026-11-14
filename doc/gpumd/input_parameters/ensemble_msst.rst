@@ -17,6 +17,9 @@ The parameters can be specified as follows::
 
     ensemble msst <direction> <shock_velocity> qmass <qmass_value> mu <mu_value> tscale <tscale_value> p0 <p0> v0 <v0> e0 <e0>
 
+Parameters
+----------
+
 - :attr:`<direction>`: The direction of the shock wave. It can be ``x``, ``y`` or ``z``.
 - :attr:`<shock_velocity>`: The shock velocity of the shock wave in km/s.
 - :attr:`<qmass_value>`: The mass of the simulation cell.
@@ -32,7 +35,12 @@ The parameters can be specified as follows::
 If keywords :attr:`<p0>`, :attr:`<v0>` or :attr:`<e0>` are not supplied, these quantities will be calculated on the first step.
 In most cases, you don't need to specify these quantities.
 
-Example
+Output
+------
+
+None.
+
+Examples
 --------
 
 .. code-block:: rst
@@ -40,3 +48,8 @@ Example
     ensemble msst x 15 qmass 10000 mu 10
 
 This command performs an :term:`MSST` simulation with a shock wave velocity of 15 km/s in the x direction.
+
+Notes
+-----
+
+None.

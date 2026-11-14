@@ -6,17 +6,36 @@
 =======================
 
 This keyword sets the largest radial and angular basis indices of the spin
-descriptor::
+descriptor.
+
+Syntax
+------
+
+::
 
   spin_basis_size <radial_size> <angular_size>
+
+Parameters
+----------
 
 The default is ``8 0``. As for the ordinary NEP basis, a maximum index
 :math:`K` represents :math:`K+1` functions because indexing starts from zero.
 
-For ``spin_version 1``, the current radial construction uses exactly nine basis
-functions and no separate angular basis. The only supported value is::
+For ``spin_version 1``, only ``8 0`` is supported: nine radial basis functions and no separate angular basis.
+
+Output
+------
+
+None.
+
+Examples
+--------
+
+::
 
   spin_basis_size 8 0
 
-The first value controls the radial basis count; the second must be zero and
-is omitted from the model-file field ``spin_basis_size 8``.
+Notes
+-----
+
+None.

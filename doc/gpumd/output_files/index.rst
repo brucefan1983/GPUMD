@@ -4,6 +4,10 @@
 Output files
 ============
 
+Output files are created by the commands listed below.
+**Append** keeps existing data and adds new results; **Overwrite** replaces existing contents.
+A file page describes its columns, units, and any headers or blocks needed to separate runs.
+
 .. list-table::
    :header-rows: 1
    :width: 100%
@@ -131,7 +135,7 @@ Output files
      - Overwrite
    * - :ref:`viscosity.out <viscosity_out>`
      - :ref:`compute_viscosity <kw_compute_viscosity>`
-     - Viscosity and stress auto-correlation function
+     - Viscosity and stress autocorrelation function
      - Append
    * - :ref:`onsager.out <onsager_out>`
      - :ref:`compute_hnemdec <kw_compute_hnemdec>`
@@ -187,9 +191,9 @@ Output files
      - One file per sub-run
 
 .. toctree::
-   :maxdepth: 0
+   :maxdepth: 1
    :caption: Contents
-   
+
    cohesive_out
    compute_out
    ttm_electron_temperature_out
@@ -279,7 +283,7 @@ Temperature ladders, ladder reports, and restart files are overwritten.
      - Overwrite
 
 .. toctree::
-   :maxdepth: 0
+   :maxdepth: 1
 
    remd_temps
    remd_exchange

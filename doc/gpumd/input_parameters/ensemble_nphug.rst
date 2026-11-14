@@ -22,6 +22,9 @@ The parameters can be specified as follows::
 
     ensemble nphug <direction> <p_1> <p_2> tperiod <tau_temp> pperiod <tau_press> p0 <p0> v0 <v0> e0 <e0>
 
+Parameters
+----------
+
 The :attr:`<direction>` parameter can assume one or more of the following values: ``iso``, ``aniso``, ``tri``, ``x``, ``y``, ``z``.
 Here, ``iso``, ``aniso``, and ``tri`` use hydrostatic pressure as the target pressure.
 ``iso`` updates the simulation cell isotropically.
@@ -36,7 +39,12 @@ It determines how strongly the system is coupled to the barostat.
 If keywords :attr:`<p0>`, :attr:`<v0>` or :attr:`<e0>` are not supplied, these quantities will be calculated on the first step.
 In most cases, you don't need to specify these quantities.
 
-Example
+Output
+------
+
+None.
+
+Examples
 --------
 
 .. code-block:: rst
@@ -44,3 +52,8 @@ Example
     ensemble nphug x 300 300
 
 This command performs a simulation using a Hugoniot thermostat with a 300 GPa Hugoniot pressure in the :math:`x` direction.
+
+Notes
+-----
+
+None.

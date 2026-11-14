@@ -31,10 +31,10 @@
 
 .highlight { /* code blocks */
     background: #d5e1cb;
-} 
+}
 
 .admonition-title { /* notes, title */
-    background: #5e81ac !important; 
+    background: #5e81ac !important;
 }
 
 .admonition { /* notes */
@@ -51,4 +51,22 @@
     border-left:solid 3px #005248;
     background: #e4f3f2;
     color: #005248;
+}
+
+.rst-content .toctree-wrapper a code {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font-size: 0.95em;
+    font-weight: inherit;
+}
+
+.rst-content .toctree-wrapper > ul > li {
+    margin-bottom: 0.25em;
+}
+
+.wy-table-responsive table td,
+.wy-table-responsive table th {
+    white-space: normal;
 }

@@ -6,53 +6,58 @@
 Simulation protocol (``run.in``)
 ********************************
 
-The ``run.in`` file is used to define the simulation protocol.
-For ordinary MD, the code executes the commands in this file one by one.
-If the code encounters an invalid command in this file on start-up, it will report an error message and terminate.
-In this input file, blank lines and lines starting with ``#`` are ignored.
-One can thus write comments after ``#``.
-All other lines should be of the form:
+The ``run.in`` file defines the simulation protocol.
+For ordinary MD, GPUMD executes its commands in file order.
 
-.. code::
+File format
+===========
+
+Write one command per line::
 
    keyword parameter_1 parameter_2 ...
 
-For replica-exchange molecular dynamics (REMD) or parallel replica dynamics (PRD), include a :ref:`multi_replica <kw_multi_replica>` command.
-That mode accepts a :ref:`restricted set of input commands <replica_input_parameters>` and requires a single final ``run`` command;
-see the :ref:`complete example <replica_run_in>`.
+Blank lines are ignored, and ``#`` starts a comment that extends to the end of the line.
+An invalid command causes GPUMD to report an error and stop.
 
-The overall structure of an ordinary MD ``run.in`` file is as follows:
+Command order
+=============
 
-* If the model needs replication, put :ref:`replicate <kw_replicate>` first.
-* Set up the potential model using the :ref:`potential <kw_potential>` keyword.
-  Multiple NEP potentials can be used with :ref:`dump_observer <kw_dump_observer>` to evaluate energies, forces and virials along the trajectory, or to run MD using their average potential energy surface.
-* Then, if needed, use the :ref:`minimize <kw_minimize>` keyword to minimize the energy of the whole system.
-* Then one can use the following keywords to carry out static calculations:
+For an ordinary MD simulation:
 
-  * Use the :ref:`compute_cohesive <kw_compute_cohesive>` keyword to compute the cohesive energy curve.
-  * Use the :ref:`compute_elastic <kw_compute_elastic>` keyword to compute the elastic constants.
-  * Use the :ref:`compute_phonon <kw_compute_phonon>` keyword to compute the phonon dispersions.
-  * Use the :ref:`compute_hessian <kw_compute_hessian>` keyword to write the analytic Cartesian Hessian of the current configuration.
-* For :term:`MD`, velocities in ``model.xyz`` are used when present.
-  Otherwise, use :ref:`velocity <kw_velocity>` to choose the initial temperature; the default is 300 K if the keyword is omitted.
-  Then carry out one or more runs as follows:
+1. If needed, use :ref:`replicate <kw_replicate>` before loading a potential.
+2. Load the interaction model with :ref:`potential <kw_potential>`.
+3. If needed, relax the structure with :ref:`minimize <kw_minimize>`.
+4. Set the initial temperature with :ref:`velocity <kw_velocity>` if ``model.xyz`` does not supply velocities.
+   The default is 300 K. If velocities are supplied, GPUMD uses them and ignores this initial-temperature setting.
+5. Choose the :ref:`ensemble <kw_ensemble>` and :ref:`time step <kw_time_step>`, then add the required control, measurement, and output commands.
+6. Execute :ref:`run <kw_run>` for the desired number of steps.
 
-  * Specify an integrator using the :ref:`ensemble <kw_ensemble>` keyword and optionally add keywords to further control the evolution and measurement processes. 
-  * Use the :ref:`run <kw_run>` keyword to run a number of :term:`MD` steps according to the above settings. 
-  * Repeat these two steps for each subsequent run, using the current atomic positions, velocities and simulation cell.
+For each subsequent run, choose the ensemble and repeat the commands needed for that run.
+The atomic positions, velocities, and cell continue from the preceding run; see the :ref:`multiple-run example <multiple_runs>`.
+To continue from a saved configuration in a new simulation, see :ref:`restart.xyz <restart_xyz>`.
 
-For an example with separate equilibration and production stages, see :ref:`multiple runs <multiple_runs>`.
-For continuing from a saved configuration, see :ref:`restart.xyz <restart_xyz>`.
+Static calculations such as :ref:`cohesive-energy curves <kw_compute_cohesive>`, :ref:`elastic constants <kw_compute_elastic>`, :ref:`phonon dispersions <kw_compute_phonon>`, and :ref:`analytic Cartesian Hessians <kw_compute_hessian>` execute when their commands are read, after the potential has been loaded.
+For calculations with several NEP models, see :ref:`dump_observer <kw_dump_observer>`.
 
-The following tables provide an overview of the different keywords.
-A complete list can also be found :ref:`here <gpumd_input_parameters>`.
-The last two columns indicate whether the command is executed immediately (*Exec.*) and whether it is propagated from one ``run`` command to the next (*Prop.*).
-For a non-propagating setting, repeat the command before each run that needs it.
-For an immediately executed command, *N/A* means that there is no per-run setting to propagate; its effect on the model, such as a changed cell or loaded potential, remains in place.
-For :ref:`time_step <kw_time_step>`, the current step size propagates, but the optional maximum-displacement limit must be specified again.
+Replica dynamics use :ref:`multi_replica <kw_multi_replica>`, a :ref:`restricted command set <replica_input_parameters>`, and a single final ``run`` command.
+See the :ref:`replica input example <replica_run_in>`.
+
+Keyword overview
+================
+
+The tables below summarize when commands take effect and whether their settings carry over to the next run.
+The :ref:`keyword reference <gpumd_input_parameters>` gives their syntax and parameters.
+
+* *Exec.*: ``Yes`` means that the command executes immediately when read.
+* *Prop.*: ``Yes`` means that the setting carries over to the next ``run``.
+  Repeat a non-propagating setting before each run that needs it.
+* *N/A*: there is no per-run setting to carry over.
+  The effect of an immediately executed command, such as a loaded potential or changed cell, remains in place.
+
+For :ref:`time_step <kw_time_step>`, the current step size carries over, but the optional displacement limit must be specified again.
 
 Simulation setup
-================
+^^^^^^^^^^^^^^^^
 
 .. list-table::
    :header-rows: 1
@@ -166,6 +171,10 @@ Actions
      - Perform an energy minimization
      - Yes
      - N/A
+   * - :ref:`minimize spin_fire <spin_fire_minimize>`
+     - Minimize magnetic moments, optionally together with atomic positions and cell strain
+     - Yes
+     - N/A
    * - :ref:`run <kw_run>`
      - Run a number of :term:`MD` steps
      - Yes
@@ -230,12 +239,12 @@ Actions
      - Compute Steinhardt bond-orientational order parameters
      - No
      - No
-   * - :ref:`compute_phonon <kw_compute_phonon>`
-     - Compute the phonon dispersion
-     - Yes
-     - N/A
    * - :ref:`compute_hessian <kw_compute_hessian>`
      - Compute an analytic Cartesian Hessian
+     - Yes
+     - N/A
+   * - :ref:`compute_phonon <kw_compute_phonon>`
+     - Compute the phonon dispersion
      - Yes
      - N/A
    * - :ref:`compute_sdc <kw_compute_sdc>`

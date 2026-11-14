@@ -8,12 +8,14 @@
 This file contains the electron group velocity from linear-scaling quantum transport (:term:`LSQT`) calculations.
 It is produced when invoking the :ref:`compute_lsqt keyword <kw_compute_lsqt>` in the :ref:`run.in input file <run_in>`.
 
+Results are appended to the file.
+
 File format
 -----------
 
 * Each row contains the electron group velocity values (in units of m/s) for the specified energies.
 
-* The number of columns equals the number of energy points. 
+* The number of columns equals the number of energy points.
 
 * Different rows are from different time points in the :term:`MD` simulation (supposed to be an equilibrium one), which can be averaged.
 

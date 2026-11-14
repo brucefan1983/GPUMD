@@ -9,9 +9,6 @@ This keyword computes space- and time-averaged per-chunk quantities based on dyn
 Unlike the :ref:`compute keyword <kw_compute>`, which uses static group assignments defined in the model file, :attr:`compute_chunk` assigns atoms to spatial bins (chunks) based on their real-time coordinates at each sampling step.
 This is particularly useful for systems where atoms diffuse across spatial regions during the simulation, such as low-density, porous, or amorphous materials in NEMD simulations.
 
-The results are written to the ``compute_chunk.out`` output file.
-
-
 Syntax
 ------
 
@@ -27,7 +24,8 @@ For 3D binning::
 
   compute_chunk <sample_interval> <output_interval> bin/3d <dim1> <origin1> <delta1> <dim2> <origin2> <delta2> <dim3> <origin3> <delta3> {<quantity>}
 
-The parameters are defined as follows:
+Parameters
+----------
 
 * :attr:`sample_interval`: Sampling interval in time steps. The quantities are sampled every this many steps.
 
@@ -58,9 +56,48 @@ One can write one or more (distinct) names in any order.
 
 For triclinic (non-orthogonal) simulation boxes, the box length along each axis is computed as the geometric thickness :math:`L = V / A`, where :math:`V` is the box volume and :math:`A` is the cross-sectional area perpendicular to that axis. This is consistent with GPUMD's internal geometry calculations.
 
+Output
+------
 
-Example
--------
+.. _compute_chunk_out:
+
+The results are written to ``compute_chunk.out``.
+The file is appended to if it already exists.
+For each output time, there are :math:`N_\text{chunk}` consecutive lines (one per chunk), with the following format per line::
+
+  <chunk_id> <coord1> [<coord2>] [<coord3>] <avg_count> <value1> [<value2>] ...
+
+The columns are:
+
+* :attr:`chunk_id`: the zero-based index of the chunk (dimensionless integer).
+* :attr:`coord1` (and :attr:`coord2`, :attr:`coord3` for 2D/3D binning): the center coordinates (in units of Å) of the chunk along the corresponding binning axis.
+* :attr:`avg_count`: the time-averaged number of atoms in the chunk (dimensionless).
+* :attr:`value1`, :attr:`value2`, ...: the time-averaged values of the requested quantities, in the same order as specified in the command. The units for each quantity are:
+
+  - :attr:`temperature`: K
+  - :attr:`density/number`: Å\ :sup:`-3` (number of atoms per volume)
+  - :attr:`density/mass`: amu/Å\ :sup:`3` (total atomic mass per volume)
+  - :attr:`vx`, :attr:`vy`, :attr:`vz`: Å/fs
+  - :attr:`fx`, :attr:`fy`, :attr:`fz`: eV/Å
+
+The temperature is computed from the kinetic energy of the atoms in each chunk as :math:`T = 2 E_\text{k} / (3 k_\text{B} N)`, where :math:`E_\text{k}` is the total kinetic energy, :math:`N` is the atom count, and :math:`k_\text{B}` is the Boltzmann constant.
+The velocity and force values are per-atom averages within each chunk.
+
+For example, the command::
+
+  compute_chunk 10 100 bin/1d z lower 2.0 temperature density/number
+
+produces output lines of the form::
+
+  0 1.000000 52.0 3.0012345678e+02 2.5000000000e-02
+  1 3.000000 48.0 2.9876543210e+02 2.4000000000e-02
+  ...
+
+Here, each line contains: chunk index, bin center along z (Å), average atom count, temperature (K), and number density (Å\ :sup:`-3`).
+The output blocks for successive time points are written consecutively with no blank line separator; each block contains exactly :math:`N_\text{chunk}` lines.
+
+Examples
+--------
 
 Example 1: 1D temperature profile along z
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -101,50 +138,8 @@ A typical use case for NEMD simulations::
 
 This computes the temperature and density profiles along z during a Langevin heat bath NEMD simulation.
 
-
-.. _compute_chunk_out:
-
-Output file
------------
-
-The results are written to ``compute_chunk.out``.
-The file is appended to if it already exists.
-For each output time, there are :math:`N_\text{chunk}` consecutive lines (one per chunk), with the following format per line::
-
-  <chunk_id> <coord1> [<coord2>] [<coord3>] <avg_count> <value1> [<value2>] ...
-
-The columns are:
-
-* :attr:`chunk_id`: the zero-based index of the chunk (dimensionless integer).
-* :attr:`coord1` (and :attr:`coord2`, :attr:`coord3` for 2D/3D binning): the center coordinates (in units of Å) of the chunk along the corresponding binning axis.
-* :attr:`avg_count`: the time-averaged number of atoms in the chunk (dimensionless).
-* :attr:`value1`, :attr:`value2`, ...: the time-averaged values of the requested quantities, in the same order as specified in the command. The units for each quantity are:
-
-  - :attr:`temperature`: K
-  - :attr:`density/number`: Å\ :sup:`-3` (number of atoms per volume)
-  - :attr:`density/mass`: amu/Å\ :sup:`3` (total atomic mass per volume)
-  - :attr:`vx`, :attr:`vy`, :attr:`vz`: Å/fs
-  - :attr:`fx`, :attr:`fy`, :attr:`fz`: eV/Å
-
-The temperature is computed from the kinetic energy of the atoms in each chunk as :math:`T = 2 E_\text{k} / (3 k_\text{B} N)`, where :math:`E_\text{k}` is the total kinetic energy, :math:`N` is the atom count, and :math:`k_\text{B}` is the Boltzmann constant.
-The velocity and force values are per-atom averages within each chunk.
-
-For example, the command::
-
-  compute_chunk 10 100 bin/1d z lower 2.0 temperature density/number
-
-produces output lines of the form::
-
-  0 1.000000 52.0 3.0012345678e+02 2.5000000000e-02
-  1 3.000000 48.0 2.9876543210e+02 2.4000000000e-02
-  ...
-
-Here, each line contains: chunk index, bin center along z (Å), average atom count, temperature (K), and number density (Å\ :sup:`-3`).
-The output blocks for successive time points are written consecutively with no blank line separator; each block contains exactly :math:`N_\text{chunk}` lines.
-
-
-Caveats
--------
+Notes
+-----
 
 * The :attr:`origin` parameter currently only accepts :attr:`lower`. Numeric origin values are not supported.
 * This keyword defines spatial bins for measurement and analysis. Spatial heat-bath regions are configured separately using the region form of :ref:`ensemble heat_lan <kw_ensemble_heat>`.

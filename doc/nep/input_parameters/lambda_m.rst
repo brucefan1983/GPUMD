@@ -5,9 +5,22 @@
 :attr:`lambda_m`
 =================
 
-This keyword sets the weight of Cartesian magnetic-force RMSE in the loss::
+This keyword sets the weight of Cartesian magnetic-force RMSE in the loss.
+
+Syntax
+------
+
+::
 
   lambda_m <weight>
+
+Alternatively, use both of the following keywords::
+
+  lambda_m_parallel <weight_parallel>
+  lambda_m_perp <weight_perp>
+
+Parameters
+----------
 
 The weight must be non-negative and defaults to 1. It multiplies the RMSE of
 the Cartesian magnetic force
@@ -22,11 +35,37 @@ frame without magnetic-force labels can still contribute energy, force, or
 virial data.
 
 Set ``lambda_m 0`` to remove the Cartesian magnetic-force RMSE from the
-optimization objective. This does not change the analytic magnetic-force
-definition or the model format. ``lambda_mforce`` is an accepted input alias,
-but ``lambda_m`` is the canonical spelling used in the documentation and
-training output.
+optimization objective.
 
+To fit magnetic-moment magnitude and direction separately, set both ``lambda_m_parallel`` and ``lambda_m_perp`` instead of ``lambda_m``.
+Each coefficient must be finite and non-negative. A zero coefficient disables that component.
+These keywords cannot be combined with ``lambda_m``.
+When neither is specified, ``lambda_m`` controls the Cartesian objective.
+
+Output
+------
+
+In split mode, ``loss.out`` adds four columns after ``rmse_tau_test`` and before
+any energy-difference columns: ``rmse_m_parallel_train``, ``rmse_m_perp_train``,
+``rmse_m_parallel_test``, and ``rmse_m_perp_test``. Read the ``# columns`` header;
+the Cartesian and torque diagnostics are retained. Training metrics describe
+the reported batch. Test metrics are zero
+when no test set is supplied.
+
+Examples
+--------
+
+Fit the Cartesian magnetic force::
+
+  lambda_m 1.0
+
+Alternatively, fit parallel and perpendicular components with separate weights::
+
+  lambda_m_parallel 1.0
+  lambda_m_perp 1.0
+
+Notes
+-----
 
 .. _kw_lambda_m_parallel:
 .. _kw_lambda_m_perp:
@@ -35,18 +74,7 @@ training output.
    single: lambda_m_perp (keyword in nep.in)
 
 Independent parallel and perpendicular losses
----------------------------------------------
-
-To fit the magnetic-moment magnitude and direction with separate coefficients,
-replace ``lambda_m`` with **both** of the following keywords::
-
-  lambda_m_parallel 1.0
-  lambda_m_perp     1.0
-
-Each coefficient must be finite and non-negative. Set either coefficient to
-zero to disable that component. Mixing these keywords with ``lambda_m`` or
-``lambda_mforce`` is an error. With neither new keyword present, the original
-Cartesian objective and output columns are unchanged.
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For residual :math:`\delta\boldsymbol M_i=\boldsymbol M_i-\boldsymbol M_i^{ref}`
 and the input spin direction :math:`\hat{\boldsymbol s}_i`, define
@@ -66,22 +94,17 @@ normalization counts one parallel and two perpendicular degrees of freedom.
 At exactly zero spin, squared residuals are assigned isotropically: one third
 to the parallel channel and two thirds to the perpendicular channel. Every
 nonzero spin defines a direction, without a small-moment cutoff. During
-optimization, the existing squared configuration weights multiply each squared
+optimization, squared configuration weights multiply each squared
 residual; reported RMSEs are unweighted.
 
-Native SNES minimizes a weighted sum of **RMSEs**. In general no pair of
+SNES minimizes a weighted sum of **RMSEs**. In general no pair of
 constant coefficients makes the sum of the parallel and perpendicular RMSEs
 equal to Cartesian RMSE. Use ``lambda_m`` to supervise Cartesian magnetic force.
 The raw metrics obey :math:`3 R_M^2=R_\parallel^2+2R_\perp^2`.
 
-``lambda_tau`` remains an independent torque term. Torque weights the
+``lambda_tau`` controls an independent torque term. Torque weights the
 perpendicular residual by spin magnitude and is not the same as ``R_perp``.
 These loss settings do not change the model format or predicted magnetic force.
 
-In split mode, ``loss.out`` adds four columns after ``rmse_tau_test`` and before
-any energy-difference columns: ``rmse_m_parallel_train``, ``rmse_m_perp_train``,
-``rmse_m_parallel_test``, and ``rmse_m_perp_test``. Read the ``# columns`` header;
-the Cartesian and torque diagnostics are retained. Training metrics describe
-the reported batch, as for the existing loss columns. Test metrics are zero
-when no test set is supplied. On restart, the objective is taken from
+On restart, the objective is taken from
 ``nep.in``; the model/restart files do not store these loss coefficients.

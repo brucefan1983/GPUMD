@@ -16,6 +16,9 @@ Syntax
 
   multi_replica prd replicas <number> [<per_gpu>] event <interval> dephase <steps> correlate <steps> distance <threshold> [quench <force_tolerance> <max_steps>] [max_dephase_retries <number>] [resume <prefix>]
 
+Parameters
+----------
+
 * ``replicas``: positive replica count; see :ref:`replica_kw_multi_replica` for GPU allocation.
 * ``event``: positive interval in MD steps between event checks.
 * ``dephase``: nonnegative number of consecutive MD steps required in the basin.
@@ -31,10 +34,15 @@ Syntax
 * ``max_dephase_retries``: positive limit on dephasing trial rounds, including the first attempt; default 1000.
 * ``resume``: :ref:`restart prefix <replica_restart>`.
 
-See :ref:`kw_multi_replica` for supported input commands, GPU allocation, and :ref:`replica_batched_integration`.
+See :ref:`kw_multi_replica` for supported input commands and GPU allocation.
 
-Example
--------
+Output
+------
+
+See :ref:`PRD event records <replica_prd_events>` and the :ref:`replica output files <replica_output_files>` for diagnostics, trajectories, and restart files.
+
+Examples
+--------
 
 ::
 
@@ -45,8 +53,8 @@ Example
   dump_xyz -1 0 1 prd_events.xyz
   run 100000
 
-Caveats
--------
+Notes
+-----
 
 * Choose the basin threshold, dephasing, and correlation times for the system of interest.
   The displacement test does not align translations, rotations, or atom permutations.

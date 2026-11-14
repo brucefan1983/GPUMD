@@ -108,7 +108,7 @@ The [tools directory](https://github.com/brucefan1983/GPUMD/blob/master/tools/re
 
 [NEP_CPU](https://github.com/brucefan1983/NEP_CPU) provides a standalone C++ implementation for evaluating NEP models on CPUs. It serves as the computational engine for several Python packages and includes an interface to [LAMMPS](https://github.com/lammps/lammps).
 
-NEP_CPU is a separate project, not a CPU build of the full GPUMD simulation package. Consult its documentation for supported NEP model variants and installation instructions.
+NEP_CPU is part of the GPUMD project and is hosted in a separate repository. Consult its documentation for supported NEP model variants and installation instructions.
 
 ## Support and contributions
 
