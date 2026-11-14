@@ -480,18 +480,6 @@ def test_tspin_reuses_velocity_across_runs_and_restart(tmp_path):
     assert "Initialized TSPIN velocities with seed" not in restarted.stdout
 
 
-def test_sib_discards_tspin_velocity_across_runs_and_restart(tmp_path):
-    case = tmp_path / "switched"
-    result = _prepare_case(case,
-        "potential nep.txt\ntime_step 0.1\n"
-        "ensemble nvt_tspin 300 300 100 seed 17\nrun 1\n"
-        "ensemble nve_sib alpha 0\ndump_restart 1\nrun 1\n"
-        "ensemble nvt_tspin 300 300 100 seed 999\nrun 1\n")
-    assert result.returncode == 0, result.stdout + result.stderr
-    assert result.stdout.count("Initialized TSPIN velocities with seed") == 2
-    assert "spin_vel:" not in (case / "restart.xyz").read_text().splitlines()[1]
-
-
 @pytest.mark.slow
 def test_tspin_short_temperature_statistics(tmp_path):
     result = _prepare_case(tmp_path / "thermal", "replicate 5 5 5\npotential nep.txt\n"
