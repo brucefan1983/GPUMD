@@ -45,4 +45,4 @@ Examples
 Notes
 -----
 
-None.
+Descriptor output is not available for ``model nep_dipole`` or ``model nep_polarizability``.

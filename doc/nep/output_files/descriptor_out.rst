@@ -9,6 +9,7 @@ The ``descriptor.out`` file contains the per-structure or per-atom descriptor va
 
 This file is written only in :ref:`prediction mode <kw_prediction>` (``prediction 1``), with :ref:`output_descriptor <kw_output_descriptor>` set to 1 or 2.
 It is not written during training.
+Descriptor output is not available for ``model nep_dipole`` or ``model nep_polarizability``.
 Each prediction run appends to an existing file; remove or rename it before running if only the new results are wanted.
 Mode 1 writes one row per structure; mode 2 writes one row per atom.
 
