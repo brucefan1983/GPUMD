@@ -62,19 +62,15 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    compute
    compute_chunk
    compute_adf
-   compute_cohesive
    compute_dos
    compute_dpdt
-   compute_elastic
    compute_gkma
    compute_hac
-   compute_hessian
    compute_hnema
    compute_hnemd
    compute_hnemdec
    compute_ic
    compute_orientorder
-   compute_phonon
    compute_sdc
    compute_msd
    compute_shc
@@ -82,6 +78,15 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    compute_lsqt
    compute_rdf
    compute_angular_rdf
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Static calculations
+
+   compute_cohesive
+   compute_elastic
+   compute_hessian
+   compute_phonon
 
 .. toctree::
    :maxdepth: 1

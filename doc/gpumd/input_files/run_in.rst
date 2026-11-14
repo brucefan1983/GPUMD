@@ -32,6 +32,7 @@ The overall structure of an ordinary MD ``run.in`` file is as follows:
   * Use the :ref:`compute_cohesive <kw_compute_cohesive>` keyword to compute the cohesive energy curve.
   * Use the :ref:`compute_elastic <kw_compute_elastic>` keyword to compute the elastic constants.
   * Use the :ref:`compute_phonon <kw_compute_phonon>` keyword to compute the phonon dispersions.
+  * Use the :ref:`compute_hessian <kw_compute_hessian>` keyword to write the analytic Cartesian Hessian of the current configuration.
 * For :term:`MD`, velocities in ``model.xyz`` are used when present.
   Otherwise, use :ref:`velocity <kw_velocity>` to choose the initial temperature; the default is 300 K if the keyword is omitted.
   Then carry out one or more runs as follows:

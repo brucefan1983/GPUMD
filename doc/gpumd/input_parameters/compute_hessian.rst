@@ -1,52 +1,64 @@
 .. _kw_compute_hessian:
+.. index::
+   single: compute_hessian (keyword in run.in)
 
 :attr:`compute_hessian`
 =======================
 
-Compute the Cartesian Hessian analytically for a single NEP energy model at
-the current atomic positions. This command writes the matrix for external
-analysis. The existing :ref:`compute_phonon <kw_compute_phonon>` command
-retains its finite-displacement calculation and phonon output conventions.
+Compute the Cartesian Hessian analytically for the current atomic positions
+using a single NEP energy model. The command executes as soon as it is read
+and must follow :ref:`potential <kw_potential>`. It does not relax the
+structure. For ordinary NEP, no preceding MD run is needed.
 
 Syntax
 ------
 
 .. code-block:: text
 
-   compute_hessian analytic [output <path>] [output_format dense|sparse] \
-       [raw_output <path>] [metadata <path>] [structure_output <path>]
+   compute_hessian analytic [<option> <value> ...]
 
-Options are key-value pairs. The method must be ``analytic``. This command
-must follow the :ref:`potential <kw_potential>` definition.
+Write the entire command on one line in ``run.in``; backslash continuation
+is not supported. Options are pairs of names and values as listed below.
 
-``output``
-   Path of the symmetrized Hessian, default ``hessian.out``.
+Parameters
+----------
 
-``output_format``
-   ``dense`` (default) writes a full text matrix. ``sparse`` writes the
-   nonzero entries in Matrix Market coordinate format, using an atom-block
-   sparsity pattern built from the NEP neighbor environments.
+``analytic``
+   Required calculation method.
 
-``raw_output``
-   Optional matrix before symmetrization, using the selected output format.
+``output <path>``
+   Matrix output path. Default: ``hessian.out``.
 
-``metadata``
-   Optional JSON file with system information, analytic energy and forces,
-   and matrix diagnostics before and after symmetrization. Available with
-   both dense and sparse storage.
+``output_format dense|sparse``
+   Matrix format. Default: ``dense`` (full text matrix). ``sparse`` writes
+   Matrix Market coordinate format.
 
-``structure_output``
-   Optional extended XYZ snapshot of the evaluated positions, masses, and
-   forces. It is available with both output formats.
+``raw_output <path>``
+   Optional matrix before symmetrization, in the selected output format.
+   Default: no raw file.
 
-Output paths must differ from each other and from the input structure,
-``run.in``, and potential files. Existing outputs are overwritten. File-write
-failures terminate the calculation with an error.
+``metadata <path>``
+   Optional JSON file containing system information, energy, forces, matrix
+   diagnostics, storage format, and model temperature when applicable.
+   Default: no metadata file. Available with both matrix formats.
 
-Matrix definition and ordering
-------------------------------
+``structure_output <path>``
+   Optional extended XYZ snapshot containing positions, species, masses,
+   and forces. Default: no snapshot. Available with both matrix formats.
 
-The Hessian is the negative Cartesian force Jacobian:
+Each execution overwrites the selected output files. Choose distinct paths
+for all outputs; they must also differ from ``model.xyz``, ``run.in``, and
+potential files. A file-write error terminates the calculation.
+
+.. _hessian_out:
+
+Output
+------
+
+Matrix definition
+^^^^^^^^^^^^^^^^^
+
+For :math:`N` atoms, the Hessian is a :math:`3N\times3N` matrix:
 
 .. math::
 
@@ -54,135 +66,115 @@ The Hessian is the negative Cartesian force Jacobian:
    = -\frac{\partial F_{i\alpha}}{\partial R_{j\beta}}
    = \frac{\partial^2 E}{\partial R_{i\alpha}\partial R_{j\beta}}.
 
-Its shape is :math:`3N\times3N` and its units are eV/angstrom squared.
-Both formats use GPUMD's structure-of-arrays (SoA) coordinate order:
+Its units are :math:`\mathrm{eV}/\text{\AA}^2`. Rows and columns use the
+coordinate order
 
 .. math::
 
    x_0,\ldots,x_{N-1},y_0,\ldots,y_{N-1},z_0,\ldots,z_{N-1}.
 
-The matrix contains Cartesian force constants, without mass weighting or
-an acoustic-sum-rule projection. The reported output is
-:math:`(H+H^\mathsf{T})/2`. No dynamical matrix, wave-vector path, phonon
-frequency, or eigenvector is calculated by this command.
+Atom indices follow the input structure order. The main output is
+:math:`(H+H^\mathsf{T})/2`; ``raw_output`` contains the matrix before this
+symmetrization. Neither output is mass weighted, and no acoustic sum rule
+is imposed. For mode analysis, apply mass weighting separately as
+:math:`D_{i\alpha,j\beta}=H_{i\alpha,j\beta}/\sqrt{m_i m_j}`.
+The command does not calculate phonon frequencies or eigenvectors.
 
-Dense output
-------------
+For periodic systems, contributions from different periodic images of the
+same atom are already summed. Neither dense nor sparse output retains
+lattice-translation labels. A matrix from a small periodic box therefore
+cannot be used directly as translation-resolved real-space force constants
+for a phonon dispersion at arbitrary wave vectors. For phonon dispersions,
+see :ref:`compute_phonon <kw_compute_phonon>` and its cell-size requirements.
 
-The file begins with ``#`` comment lines identifying the ordering, units,
-atom count, and whether the matrix is raw or symmetrized. Each subsequent
-line is one matrix row. For example, NumPy can read it with
-``numpy.loadtxt("hessian.out")``.
+Dense format
+^^^^^^^^^^^^
 
-The raw matrix is written first if requested, then symmetrized in place.
-The command does not retain a second full host matrix for symmetrization.
+The default ``hessian.out`` begins with ``#`` comment lines describing the
+units, ordering, atom count, and result type, followed by one matrix row per
+line. Read it with NumPy::
+
+   import numpy as np
+   H = np.loadtxt("hessian.out")
 
 .. _hessian_sparse:
 
-Sparse output
--------------
+Sparse format
+^^^^^^^^^^^^^
 
-The Matrix Market file starts with::
+The Matrix Market file begins with::
 
    %%MatrixMarket matrix coordinate real general
 
-After comments, a dimensions line gives ``3N 3N nnz``. Subsequent lines give
-``row column value`` with one-based SoA indices. Both halves of the symmetric
-matrix are stored; exactly zero values are omitted.
+After ``%`` comment lines, a dimensions line gives ``3N 3N nnz``. The
+remaining lines contain ``row column value`` with one-based indices in the
+coordinate order above. Both halves of the symmetric matrix are stored;
+exactly zero entries are omitted. Read it without converting to dense::
 
-The internal pattern contains a 3-by-3 block for each pair of atoms sharing
-a contributing NEP environment. Periodic images of an atom accumulate into
-the same atom block. Storage scales with the number of populated blocks;
-the command never expands this representation into a dense matrix.
+   from scipy.io import mmread
+   H = mmread("hessian.mtx").tocsr()
 
-.. _hessian_analytic:
+Diagnostics
+^^^^^^^^^^^
 
-Supported models and temperature
---------------------------------
+Before symmetrization, the command checks that the matrix is finite,
+symmetric within numerical tolerance, and consistent with uniform
+translations producing no restoring force. These checks help detect
+unreliable results; they do not establish that the structure is relaxed
+or dynamically stable.
 
-The command uses the same ``NEP_Model_File`` reader and validation as the
-NEP force evaluator. The active potential must use the single-GPU NEP
-implementation; ``NEP_MULTIGPU`` and ILP combinations are rejected before
-loading Hessian parameters. It accepts the current versioned model format with
-``model nep`` or ``model nep_temperature``, including universal, typewise,
-and flexible ZBL settings accepted by that reader. Descriptor coefficients
-use the native type-pair layout, including models compacted to the species
-present in ``model.xyz``. The angular expansion and optional invariants must
-satisfy the shared reader's limits (currently :math:`2\le L_\mathrm{max}\le8`).
-
-Both large boxes and periodic small boxes are supported. Small-box
-calculations use the same periodic-image displacements as the force evaluator.
-A single non-NEP model, multiple potentials, charge, spin, vdW, and composite
-ILP models are unsupported.
-
-DFT-D3 dispersion is explicitly rejected by the run-input dispatcher,
-regardless of whether ``dftd3`` appears before or after ``compute_hessian``.
-There is no finite-difference mode or fallback in this command.
-
-For temperature-dependent models, the temperature input is fixed at the
-value currently used by the force evaluator. A preceding ``run`` sets and
-advances this value according to the ensemble target temperatures. Before
-any ``run`` it is zero; ``velocity`` alone does not set the model temperature.
-The result is the model's coordinate Hessian at that fixed temperature,
-without finite-temperature sampling or phonon renormalization.
-
-Diagnostics and metadata
-------------------------
-
-The raw matrix must be finite and satisfy these relative checks:
-
-* maximum asymmetry divided by the largest absolute matrix entry:
-  at most :math:`10^{-5}`;
-* Frobenius norm of :math:`H-H^\mathsf{T}` divided by that of :math:`H`:
-  at most :math:`10^{-6}`;
-* largest absolute Cartesian translation sum divided by the largest
-  absolute matrix entry: at most :math:`10^{-5}`.
-
-Failed checks terminate the command. If the raw matrix is finite but fails
-symmetry or translation checks, explicitly requested ``raw_output`` and
-``metadata`` files are written with ``failed_validation`` status before
-termination. The normal matrix and structure outputs are not written in this
-case; metadata records no normal matrix output or symmetrized diagnostics.
-These structural checks do not replace comparison with an independently
-evaluated force Jacobian.
-
-Metadata schema version 5 records the cell, periodicity, atom types and order,
-matrix conventions and storage format, energy, forces, actual model temperature
-(for temperature-dependent NEP), validation status, output paths, and
-raw/symmetrized matrix diagnostics. Git information and input-file hashes are intentionally left
-to external provenance or validation tools.
+Failed checks terminate the calculation. If the matrix is finite but fails
+symmetry or translation checks, requested ``raw_output`` and ``metadata``
+files are still written and marked ``failed_validation``. The normal
+matrix and structure snapshot are not written in this case. Metadata
+records the failure reason and raw diagnostics; symmetrized diagnostics
+are ``null``. Do not treat these diagnostic files as an accepted result.
 
 Examples
 --------
 
-Write a dense matrix, its raw form, and diagnostics::
+Write the default dense ``hessian.out`` for the positions in ``model.xyz``::
 
    potential nep.txt
-   compute_hessian analytic output hessian.out raw_output hessian_raw.out metadata hessian.json
+   compute_hessian analytic
 
-Write a sparse matrix and the evaluated structure::
+Write a sparse matrix and a structure snapshot::
 
    potential nep.txt
    compute_hessian analytic output_format sparse output hessian.mtx structure_output hessian.xyz
 
-Calculate after a temperature-dependent model has been run at 300 K::
+Also request the raw matrix and diagnostics (valid with either format)::
+
+   potential nep.txt
+   compute_hessian analytic raw_output hessian_raw.out metadata hessian.json
+
+For a temperature-dependent NEP model, run at a constant target temperature
+before evaluating the final current configuration::
 
    potential nep.txt
    velocity 300
    ensemble nvt_ber 300 300 100
    time_step 1
    run 1000
-   compute_hessian analytic output hessian_300K.out
+   compute_hessian analytic output hessian_300K.out metadata hessian_300K.json
 
-Caveats
--------
+.. _hessian_analytic:
 
-Dense storage scales as :math:`9N^2` doubles on the GPU and host. Dense indices
-require :math:`(3N)^2\le2^{31}-1`. Sparse output avoids this dense-matrix limit
-but remains subject to ANN, neighbor-list, and sparse-block index bounds and
-available memory. Angular workspace is processed in tiles.
+Notes
+-----
 
-The command restores the caller's positions, forces, per-atom energies, and
-virials and refreshes force-owned caches at the original geometry, so MD can
-continue after the calculation. Temporary descriptor and derivative buffers
-are released when the command returns.
+* Supported models are ordinary and temperature-dependent NEP energy models
+  on a single GPU, including their ZBL terms. Multiple potentials, multi-GPU
+  NEP, charge, spin, vdW, and ILP models are unsupported. DFT-D3 is rejected
+  wherever its command appears in ``run.in``. This command has no
+  finite-difference mode or fallback.
+* For temperature-dependent NEP, the model temperature is held fixed at
+  the value reached by the preceding ``run``, as determined by its ensemble
+  target temperatures. Before any ``run`` it is zero; ``velocity`` alone
+  does not set it. The actual value is reported in the log and metadata.
+  The result describes the current configuration at this fixed model
+  temperature, without thermal averaging or phonon renormalization.
+* Dense storage requires :math:`9N^2` matrix entries. Choose sparse output
+  for large systems when most entries are zero; its storage grows with the
+  number of interacting atom pairs. Both formats remain limited by
+  available memory and supported system sizes.
