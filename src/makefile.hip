@@ -21,6 +21,7 @@ CFLAGS = -O3 --offload-arch=$(HIP_ARCH) -DUSE_HIP
 INC = -I./
 LDFLAGS = 
 LIBS = -lhipblas -lhipsolver -lhipfft
+TB_LIBS = -lhipblas -lhipsolver
 
 
 ###########################################################
@@ -31,14 +32,25 @@ SOURCES_GPUMD =                   \
 	$(wildcard minimize/*.cu)     \
 	$(wildcard phonon/*.cu)       \
 	$(wildcard integrate/*.cu)    \
+	$(wildcard integrate/*/*.cu) \
 	$(wildcard mc/*.cu)           \
 	$(wildcard force/*.cu)        \
+	$(wildcard force/*/*.cu)      \
 	$(wildcard measure/*.cu)      \
+	$(wildcard measure/*/*.cu)      \
 	$(wildcard model/*.cu)        \
-	$(wildcard utilities/*.cu)
+	$(wildcard utilities/*.cu)   \
+	$(wildcard utilities/*/*.cu)
 SOURCES_NEP =                     \
 	$(wildcard main_nep/*.cu)     \
-	$(wildcard utilities/*.cu)
+	$(wildcard main_nep/*/*.cu)   \
+	$(wildcard utilities/*.cu)   \
+	$(wildcard utilities/*/*.cu)
+
+SOURCES_TB =                      \
+	$(wildcard main_tb/*.cu)      \
+	utilities/error.cu           \
+	utilities/main_common.cu
 
 
 ###########################################################
@@ -46,6 +58,7 @@ SOURCES_NEP =                     \
 ###########################################################
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
 OBJ_NEP = $(SOURCES_NEP:.cu=.o)
+OBJ_TB = $(SOURCES_TB:.cu=.o)
 
 
 ###########################################################
@@ -53,21 +66,28 @@ OBJ_NEP = $(SOURCES_NEP:.cu=.o)
 ###########################################################
 HEADERS =                         \
 	$(wildcard utilities/*.cuh)   \
+	$(wildcard utilities/*/*.cuh) \
 	$(wildcard main_gpumd/*.cuh)  \
 	$(wildcard integrate/*.cuh)   \
+	$(wildcard integrate/*/*.cuh) \
 	$(wildcard mc/*.cuh)          \
 	$(wildcard minimize/*.cuh)    \
 	$(wildcard force/*.cuh)       \
+	$(wildcard force/*/*.cuh)     \
 	$(wildcard measure/*.cuh)     \
+	$(wildcard measure/*/*.cuh)     \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
-	$(wildcard main_nep/*.cuh)
+	$(wildcard main_nep/*.cuh)    \
+	$(wildcard main_nep/*/*.cuh)
+
+HEADERS_TB = $(wildcard main_tb/*.cuh) $(wildcard utilities/*.cuh) $(wildcard utilities/*/*.cuh)
 
 
 ###########################################################
 # executables
 ###########################################################
-all: gpumd nep
+all: gpumd nep tb
 gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 	@echo =================================================
@@ -77,6 +97,12 @@ nep: $(OBJ_NEP)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 	@echo =================================================
 	@echo The nep executable is successfully compiled!
+	@echo =================================================
+
+tb: $(OBJ_TB)
+	$(CC) $(LDFLAGS) $^ -o $@ $(TB_LIBS)
+	@echo =================================================
+	@echo The tb executable is successfully compiled!
 	@echo =================================================
 
 
@@ -103,11 +129,13 @@ phonon/%.o: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.o: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_tb/%.o: main_tb/%.cu $(HEADERS_TB)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 
 
 ###########################################################
 # clean up
 ###########################################################
 clean:
-	rm -f */*.o gpumd nep
+	rm -f */*.o */*/*.o gpumd nep tb
 

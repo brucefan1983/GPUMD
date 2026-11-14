@@ -2,23 +2,21 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
-#include "dataset.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
-#include <memory>
-#include <stdio.h>
+#include <string>
 #include <vector>
 
 class Parameters;
@@ -26,46 +24,39 @@ class Parameters;
 class Fitness
 {
 public:
-  Fitness(Parameters& para);
-  ~Fitness();
-  void compute(const int generation, Parameters& para, const float*, float*, float*, float*, float*, float*);
+  explicit Fitness(Potential& potential);
+  Fitness(const Fitness&) = delete;
+  Fitness& operator=(const Fitness&) = delete;
+  void print_training_header();
+  void compute(
+    const int generation,
+    Parameters& para,
+    const float* population,
+    const float* gpu_population,
+    const int* gpu_type_of_variable,
+    float* fitness_total);
   void report_error(
     Parameters& para,
     const int generation,
     const float loss_total,
-    const float loss_L1,
-    const float loss_L2,
-    float* elite);
-  void predict(Parameters& para, float* elite);
+    const int best_index,
+    float* elite,
+    const std::string& checkpoint_base);
+  void predict(float* elite);
   void get_save_potential_label(Parameters& para, const int generation, std::string& filename);
 
-protected:
-  bool has_test_set = false;
+private:
+  Potential& potential;
   int num_batches = 0;
-  int max_NN_radial;  // radial neighbor list size
-  int max_NN_angular; // angular neighbor list size
-  FILE* fid_loss_out = NULL;
-  std::unique_ptr<Potential> potential;
-  std::vector<std::vector<Dataset>> train_set;
-  std::vector<Dataset> test_set;
-  void output(
-    bool is_stress,
-    int num_components,
-    FILE* fid,
-    float* prediction,
-    float* reference,
-    Dataset& dataset);
-    void output_atomic(
-      int num_components,
-      FILE* fid,
-      float* prediction,
-      float* reference,
-      Dataset& dataset);
-  void update_energy_force_virial(
-    FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset);
-  void update_charge(FILE* fid_charge, Dataset& dataset);
-  void update_bec(FILE* fid_bec, Dataset& dataset);
-  void update_dipole(FILE* fid_dipole, Dataset& dataset, bool atomic);
-  void update_polarizability(FILE* fid_polarizability, Dataset& dataset, bool atomic);
-  void write_nep_txt(FILE* fid_nep, Parameters& para, float* elite);
+  std::vector<float> fitness_L1;
+  std::vector<float> fitness_L2;
+  std::vector<float> cost_L1reg;
+  std::vector<float> cost_L2reg;
+  GPU_Vector<float> gpu_cost_L1reg;
+  GPU_Vector<float> gpu_cost_L2reg;
+  void regularize(
+    Parameters& para,
+    const float* gpu_population,
+    const int* gpu_type_of_variable,
+    float* fitness_total);
 };

@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -18,7 +18,6 @@
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
-#include <string>
 
 class Atom;
 
@@ -34,14 +33,12 @@ public:
     int n_max_radial = 0;
     int n_max_angular = 0;
     int L_max = 0;
-    int dim_angular;
     int has_q_222 = 0;
     int has_q_1111 = 0;
     int has_q_112 = 0;
     int has_q_123 = 0;
     int has_q_233 = 0;
     int has_q_134 = 0;
-    int num_L;
     int basis_size_radial = 8;
     int basis_size_angular = 8;
     int num_types_sq = 0;
@@ -58,7 +55,6 @@ public:
     const float* b0[NUM_ELEMENTS];
     const float* w1[NUM_ELEMENTS];
     const float* b1;
-    const float* c;
     const float* c_type_pair;
     const float* q_scaler;
   };
@@ -79,7 +75,6 @@ private:
   struct Data {
     GPU_Vector<float> Fp;
     GPU_Vector<float> sum_fxyz;
-    GPU_Vector<float> descriptor_parameters_type_pair;
     GPU_Vector<int> NN_radial;
     GPU_Vector<int> NL_radial;
     GPU_Vector<int> NN_angular;
@@ -105,8 +100,6 @@ private:
   GPU_Vector<double> B_projection_;
   int num_atoms_ = 0;
   int B_size_per_atom_ = 0;
-  bool is_polarizability_ = false;
-  std::string atom_types_[NUM_ELEMENTS];
 
   void update_potential(float* parameters);
   void compute_large_box(Box& box, const GPU_Vector<double>& position);

@@ -147,5 +147,5 @@ Caveats
 -------
 
 * The :attr:`origin` parameter currently only accepts :attr:`lower`. Numeric origin values are not supported.
-* This keyword addresses the measurement/analysis side of dynamic spatial binning. The NEMD heat baths (:attr:`ensemble heat_*` source/sink regions) still use static group assignments. Dynamic heat bath regions would require separate modifications to the integrator.
+* This keyword defines spatial bins for measurement and analysis. Spatial heat-bath regions are configured separately using the region form of :ref:`ensemble heat_lan <kw_ensemble_heat>`.
 * Multiple :attr:`compute_chunk` commands can be used in the same run.

@@ -6,7 +6,7 @@ Hybrid SW+ILP potential
 ========================
 
 The hybrid :term:`SW` + :term:`ILP` potential [Jiang2025]_ in :program:`GPUMD` combines 
-the Stillinger-Weber potential (:term:`SW`) [Stillinger1985]_ for intralyer
+the Stillinger-Weber potential (:term:`SW`) [Stillinger1985]_ for intralayer
 interactions and the interlayer potential (:term:`ILP`) [Ouyang2018]_ [Ouyang2020]_ 
 for interlayer interactions to simulate homostructures based on 
 transition metal dichalcogenides layered materials. The 
@@ -16,44 +16,15 @@ more details are in [Jiang2015]_ and [Jiang2019]_.
 Potential form
 --------------
 
-The site potential of :term:`ILP` can be written as:
-
-.. math::
-   
-   U_i^{\mathrm{ILP}}=  \mathrm{Tap}(r_{ij}) \left[U^{\mathrm{att}}(r_{ij})+U^{\mathrm{rep}}(r_{ij}, \boldsymbol{n}_i, \boldsymbol{n}_j)\right]
-
-The function :math:`\mathrm{Tap}(r_{ij})` is a cutoff function and takes the following form in the intermediate region:
-
-.. math::
-
-   \mathrm{Tap}(r_{ij})=20{\left(\frac{r_{ij}}{R_{\mathrm{cut}}}\right)}^7-
-   70{\left(\frac{r_{ij}}{R_{\mathrm{cut}}}\right)}^6+84{\left(\frac{r_{ij}}{R_{\mathrm{cut}}}\right)}^5-
-   35{\left(\frac{r_{ij}}{R_{\mathrm{cut}}}\right)}^4+1
-
-The repulsive term and the attractive term take the following forms:
-
-.. math::
-
-   U^{\mathrm{att}}(r_{ij})&=-\frac{1}{1+e^{-d_{ij}\left[r_{ij}/(S_{\mathrm{R},ij}\cdot r_{ij}^{\mathrm{eff}})-1\right]}}\frac{C_{6,ij}}{r_{ij}^{6}}.
-   
-   U^{\mathrm{rep}}(r_{ij}, \boldsymbol{n}_i, \boldsymbol{n}_j)&=e^{\alpha_{ij}\left(1-\frac{\gamma_{ij}}{\beta_{ij}}\right)} \left\{\epsilon_{ij}+C_{ij}\left[e^{-{(\frac{\rho_{ij}}{\gamma_{ij}})}^2}+e^{-{\left(\frac{\rho_{ji}}{\gamma_{ij}}\right)}^2}\right]\right\}.
-
-where :math:`\boldsymbol n_i` and :math:`\boldsymbol n_j` are normal vectors of atom :math:`i` and :math:`j`,
-:math:`\rho_{ij}` and :math:`\rho_{ji}` are the lateral interatomic distance, which can be expressed as:
-
-.. math::
-
-   \rho_{ij}^{2}&= r_{ij}^2-{(\boldsymbol r_{ij} \cdot \boldsymbol n_i)}^2\\
-   \rho_{ji}^{2}&= r_{ij}^2-{(\boldsymbol r_{ij} \cdot \boldsymbol n_j)}^2
-
-Other variables are all fitting parameters.
+The ILP energy, taper function, and parameter definitions are given in :ref:`ILP potential form <ilp_potential_form>`.
+The ILP contribution acts between atoms in different layers.
 
 The site potential of modified :term:`SW` can be written as:
 
 .. math:: 
 
-   U_i^{\mathrm{SW}} =& \sum_i\sum_{j>i}\phi_2\left(r_{ij}\right)+
-   \sum_i\sum_{j\neq i}\sum_{k>j}\phi_3 \left(r_{ij}, r_{ik}, \theta_{ijk}\right)\\
+   U_i^{\mathrm{SW}} =& \frac{1}{2}\sum_{j\neq i}\phi_2\left(r_{ij}\right)+
+   \frac{1}{2}\sum_{j\neq i}\sum_{k\neq i,j}\phi_3 \left(r_{ij}, r_{ik}, \theta_{ijk}\right)\\
    \phi_2\left(r_{ij}\right) =& A_{ij}\epsilon_{ij}\left[B_{ij} 
    \left(\frac{\sigma_{ij}}{r_{ij}} \right)^{p_{ij}} - \left(\frac{\sigma_{ij}}{r_{ij}} 
    \right)^{q_{ij}} \right] \exp \left(\frac{\sigma_{ij}}{r_{ij}-a_{ij}\sigma_{ij}} \right)\\
@@ -63,8 +34,9 @@ The site potential of modified :term:`SW` can be written as:
    \exp \left(\frac{\gamma_{ik}\sigma_{ik}}{r_{ik}-a_{ik}\sigma_{ik}} \right) \\
    \delta =& \cos \theta_{ijk} - \cos \theta_{0ijk}\\
 
-where :math:`\phi_2` and :math:`\phi_3` are two-body and three-body terms. The 
-cutoff of :term:`SW` potential is :math:`a\cdot\sigma`. For some materials, such as borophene and 
+where :math:`\phi_2` and :math:`\phi_3` are two-body and three-body terms.
+The sums run over intralayer neighbors; the factors of :math:`1/2` account for the two directions of each bond and the two orders of each neighbor pair.
+The cutoff of :term:`SW` potential is :math:`a\cdot\sigma`. For some materials, such as borophene and
 transition metal dichalcogenides, some unnecessary angle types should be excluded in the 
 three-body interaction by multiplying the cutoff function :math:`f_C(\delta)`.
 Here, for transition metal dichalcogenides, :math:`\delta_1` is set to 0.25 and 

@@ -1,4 +1,5 @@
 potential   ../qnep_train/nep.txt
+kspace ewald
 velocity    1
 
 ensemble nve

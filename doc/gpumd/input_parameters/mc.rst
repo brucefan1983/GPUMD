@@ -8,7 +8,8 @@
 The :attr:`mc` keyword is used to carry out Monte Carlo (:term:`MC`) trial steps, usually in combination with a :term:`MD` simulation.
 Three :term:`MC` ensembles are supported, including the canonical, the semi-grand canonical (:term:`SGC`), and the variance-constrained semi-grand canonical (:term:`VCSGC`) [Sadigh2012a]_ [Sadigh2012b]_ ensemble.
 
-This keyword can only be used in combination with :term:`NEP` models.
+This keyword requires an ordinary energy NEP (``model nep``) in the
+:ref:`nep.txt format <nep_txt>`.
 
 Syntax
 ------
@@ -37,27 +38,40 @@ After specifying the number of species, one needs to specify their chemical symb
 The species can be listed in arbitrary order.
 Note that only the differences between the chemical potentials matter.
 
+For a trial transmutation from species :math:`a` to species :math:`b`, GPUMD uses the acceptance probability
+
+.. math::
+
+   P_{a\to b}=\min\left[1,\exp\left(-\frac{\Delta U+\mu_b-\mu_a}{k_{\rm B}T}\right)\right],
+
+where :math:`\Delta U` is the change in potential energy.
+Thus, increasing the input :math:`\mu_b` makes conversion into species :math:`b` less favorable.
+For a convention based on :math:`U-\sum_s\mu_s^{\rm phys}N_s`, the corresponding input values are :math:`\mu_s=-\mu_s^{\rm phys}` up to a common additive constant.
+
 :attr:`vcsgc`
 ^^^^^^^^^^^^^
 If the first parameter is :attr:`vcsgc`, the system will be sampled in the :term:`VCSGC` :term:`MC` ensemble.
 It can be used in the following way::
 
-    mc vcsgc <md_steps> <mc_trials> <T_i> <T_f> <num_species> {<species_0> <phi_0> <species_1> <phi_1> ...} kappa [group <grouping_method>  <group_id>]
+    mc vcsgc <md_steps> <mc_trials> <T_i> <T_f> <num_species> {<species_0> <phi_0> <species_1> <phi_1> ...} <kappa> [group <grouping_method>  <group_id>]
 
 This means that :attr:`mc_trials` :term:`MC` trials are performed every :attr:`md_steps` :term:`MD` steps, while the instant temperature for the :term:`MC` ensemble changes linearly from :attr:`T_i` to :attr:`T_f`.
 
 :attr:`num_species` specifies the number of species that are to be included in the sampling.
 It must be no less than 2 and no larger than 4.
-After specifying the number of species, one needs to specify their chemical symbols (:attr:`species_i`) and chemical potentials (:attr:`phi_i` = :math:`\phi_i`).
+After specifying the number of species, one needs to specify their chemical symbols (:attr:`species_i`) and dimensionless concentration-bias parameters (:attr:`phi_i` = :math:`\phi_i`).
 The species can be listed in arbitrary order.
+Only differences between the :math:`\phi_i` parameters enter the acceptance criterion.
 Next one needs to specify the (dimensionless) :attr:`kappa` parameter (:math:`\kappa`).
 
 The :math:`\phi` and :math:`\kappa` parameters constrain the average and variance of the species concentrations, respectively.
-One can usually achieve a sampling of the full composition range by varying :math:`\phi_i` between -1.2 and +1.2, which thus play a role that is equivalent to the :math:`\mu_i` parameters in the :term:`SGC` ensemble.
+For a binary system, a symmetric scan can use :math:`\phi_A=-\phi` and :math:`\phi_B=\phi`, varying the common scan parameter :math:`\phi` approximately from -1.2 to +1.2.
+This changes :math:`\phi_B-\phi_A` from -2.4 to +2.4; it is distinct from varying only one species parameter while fixing the other.
+The resulting compositions depend on the interactions and temperature and should be checked from the sampled concentrations.
 Typically a :math:`\kappa` value of 100 is suitable.
 If the concentration fluctuations are too large (e.g., deep with miscibility gaps) one should increase this value.
 
-The choice of parameters that we use here differs from the original papers [Sadigh2012a]_ [Sadigh2012b]_ in terms of normalization and follows the expressions in e.g., [Rahm2021]_.
+The parameter normalization differs from that used in the original papers [Sadigh2012a]_ [Sadigh2012b]_; see also [Rahm2021]_.
 
 General
 ^^^^^^^
@@ -93,7 +107,7 @@ This means
 * Perform 1000 :term:`MC` trials after every 100 :term:`MD` steps.
 * The temperature for the :term:`MC` ensemble will be kept at 300 K.
 * Only the Cu and Au atoms are involved in the :term:`MC` process. 
-  The Au atoms have a chemical potential of 0.6 eV relative to the Cu atoms.
+  The input parameter for Au is 0.6 eV higher than that for Cu, so the parameter contribution to the acceptance exponent favors Au-to-Cu transmutations.
 
 Example 3
 ---------

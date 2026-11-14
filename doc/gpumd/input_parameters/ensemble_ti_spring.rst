@@ -19,8 +19,11 @@ The parameters can be specified as follows::
 - :attr:`<element_name>` and :attr:`<spring_constant>`: Specify the spring constants of elements.
 - :attr:`<pressure>`: Although this is an NVT ensemble, you can assign a pressure value to help GPUMD compute the Gibbs free energy. It does not affect the simulation process.
 
-Please note that the spring constants should be placed at the end of the command. If there are no ``spring`` keyword, the spring constants will be computed automatically through the MSD of atoms.
-If you do not specify :attr:`<equilibrium_time>` and :attr:`<switch_time>`, they will be automatically set in a 1:4 ratio.
+Please note that the spring constants should be placed at the end of the command. If the ``spring`` keyword is omitted, the spring constants are estimated from the atomic MSD during the initial equilibration, which requires ``tequil`` greater than zero.
+Specify both ``tequil`` and ``tswitch``, or omit both.
+``tequil`` must be a non-negative integer and ``tswitch`` a positive integer.
+When omitted, they are set to ``floor(0.1 * N)`` and ``floor(0.4 * N)``, respectively, where ``N`` is the number of run steps; the resulting ``tswitch`` must still be positive.
+The run must contain at least ``2 * (tequil + tswitch)`` steps.
 
 Example
 -------
@@ -40,8 +43,8 @@ This command calculates spring constants automatically.
 Output file
 -----------
 
-This command will produce a csv file. The columns are lambda, dlambda, potential energy and spring energy (eV/atom).
+This command produces ``ti_spring.csv``. The columns are lambda, dlambda, potential energy and spring energy (eV/atom).
 
-This command will also produce a yaml file, which contains Gibbs free energy and other information.
+It also produces ``ti_spring.yaml``, which contains the free energies in eV/atom, temperature ``T`` in K, pressure ``P`` in eV/Å³, volume ``V`` in Å³/atom, and reference-system information. The ``press`` input is in GPa; use the pressure corresponding to the equilibrated volume when calculating Gibbs free energy.
 
 Additionally, important information will be displayed on the screen during the simulation process, so it is recommended to carefully review and take note of these details.

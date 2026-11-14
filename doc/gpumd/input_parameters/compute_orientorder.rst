@@ -52,7 +52,7 @@ neighbors :math:`k` of particle :math:`i`, including atom :math:`i` itself:
 
 .. math::
 
-   \overline{q}_{lm}(i) = \frac{1}{N_b} \sum \limits_{k=0}^{N_b}
+   \overline{q}_{lm}(i) = \frac{1}{N_b+1} \sum \limits_{k=0}^{N_b}
    q_{lm}(k).
 
 

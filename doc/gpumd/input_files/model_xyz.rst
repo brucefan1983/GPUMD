@@ -51,14 +51,28 @@ Essentially any keyword is allowed, but we only read the following ones:
   * ``mass:R:1`` mass (*Optional*: default mass values will be used when this is missing)
   * ``charge:R:1`` charge (*Optional*: default charge is zero)  
   * ``vel:R:3`` velocity vector (*Optional*)
+  * ``spin:R:3`` magnetic-moment vector in Bohr magnetons (muB) (*Required for NEP_Spin*)
+  * ``spin_vel:R:3`` spin velocity vector (*Optional for NEP-spin; requires ``spin:R:3``*)
   * ``group:I:number_of_grouping_methods`` grouping methods (*Optional*)
 
 
 Line 3 and forward
 ^^^^^^^^^^^^^^^^^^
 
-Each line must contain the same number of items, which are determined by the ``property`` keyword on line 2.
+Each line must contain the same number of items, which are determined by the ``properties`` keyword on line 2.
 The meaning of the grouping methods is illustrated by the example below.
+
+.. _grouping_methods:
+
+Grouping methods
+----------------
+
+``group:I:M`` supplies one group label per atom for each of :math:`M` independent grouping methods, numbered from 0 to :math:`M-1` in column order.
+Within each method, every atom belongs to the group identified by its label, which must be an integer from 0 to :math:`N-1`.
+The method number selects a partition of the atoms; the group label selects one group within that partition.
+
+These labels remain attached to the atoms as they move; group membership is not recalculated from their current positions.
+If the ``group`` property is omitted, no grouping methods are defined.
 
 Units
 -----
@@ -67,6 +81,17 @@ The mass should be given in units of the unified atomic mass unit (amu).
 The charge is in units of e (proton charge).
 The cell dimensions and atom coordinates should be given in units of Ångstrom. 
 Velocities need to be specified in units of Å/fs.
+Spin is specified in Bohr magnetons (muB). Spin velocity is in muB/fs.
+Magnetic force is the negative energy derivative with respect to spin, in eV/muB.
+The spin torque, spin crossed with magnetic force, is in eV.
+External magnetic induction B is specified in tesla (T).
+Spin vectors store Cartesian magnetic moments, not normalized directions.
+Active spins are not normalized; training and runtime data must use the same
+spin convention. Elements excluded by the model's ``spin_type`` have zero
+effective spin and zero magnetic force, while their geometry is retained.
+For NEP-spin models, the ``spin`` property may not be repeated, and
+``spin:R:3`` is required; missing spin values are never filled with zeros.
+Other potential models ignore the ``spin`` property.
 
 Example
 -------
@@ -76,7 +101,7 @@ Assume we have the following ``model.xyz`` file:
 .. code::
 
    10
-   pbc="T F F" lattice="4 0 0 0 1 0 0 0 1" properties=species:S:1:pos:R:3:group:I:3
+   pbc="T F F" lattice="10 0 0 0 1 0 0 0 1" properties=species:S:1:pos:R:3:group:I:3
    C  0 0 0 0 0 0
    Si 1 0 0 0 1 0
    C  2 0 0 0 2 0
@@ -92,7 +117,7 @@ This means
 
 * There are 10 atoms.
 * Use periodic boundary conditions in the :math:`x` direction and free boundary conditions in the other directions.
-* The box lengths in the three directions are respectively 4 Å, 1 Å, and 1 Å.
+* The box lengths in the three directions are respectively 10 Å, 1 Å, and 1 Å.
 * There are 5 carbon atoms and 5 silicon atoms. The default masses will be used for the atoms (as there are no specific values given in the input file).
 * The 10 atoms are located along a line in the :math:`x` direction with equal spacing, from 0 Å to 9 Å. 
 * There is no velocity data in this file.

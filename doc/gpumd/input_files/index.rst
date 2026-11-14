@@ -12,5 +12,6 @@ To run one a simulation using the ``gpumd`` executable, one has to prepare at le
 
    run_in
    model_xyz
+   replica_temperatures
    kpoints_in
    eigenvector_in

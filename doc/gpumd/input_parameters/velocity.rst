@@ -5,7 +5,7 @@
 :attr:`velocity`
 ================
 
-This keyword is used to initialize the velocities of the atoms in the system according to a given temperature. 
+This keyword initializes atomic velocities at a specified temperature when ``model.xyz`` contains no velocity data.
 
 Syntax
 ------
@@ -15,7 +15,7 @@ Syntax
     velocity <initial_temperature> seed <seed_number>
 
 * The temperature is in units of kelvin (K).
-* You can specify a seed for the random number generator to generate a fixed temperature distribution, which is optional. If not specified, the velocities are initialized differently each time.
+* The optional positive integer :attr:`seed_number` makes the randomly generated velocities reproducible.
 
 Example
 -------
@@ -29,8 +29,9 @@ means that one wants to set the initial temperature to 10 K.
 Caveats
 -------
 
-* The initial velocities generated in this fashion do not obey the Maxwell distribution.
-  This is, however, not a problem since during the MD simulation, the Maxwell distribution will be achieved automatically within a short time.
-* The total linear and angular momenta are set to zero.
-* If there are already velocity data in the :ref:`simulation model file <model_xyz>`, the initial temperature will not be used and the velocities will be initialized as those in the simulation model file.
-* If there are not velocity data in the :ref:`simulation model file <model_xyz>`, and this keyword is missing, velocities will be initialized with a default temperature of 300 K.
+* The randomly generated velocities do not initially obey the Maxwell distribution; equilibrate the system before collecting production data.
+  Their total linear and angular momenta are set to zero.
+* If the :ref:`simulation model file <model_xyz>` contains ``vel:R:3``, those velocities are used and the initial temperature specified by ``velocity`` is ignored.
+  The target temperature specified by :ref:`ensemble <kw_ensemble>` still controls the thermostat.
+* If ``model.xyz`` contains no velocity data and this keyword is omitted, velocities are initialized at a default temperature of 300 K.
+* To continue from the velocities reached in a preceding run, omit ``velocity`` between runs; see :ref:`multiple runs <multiple_runs>`.

@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -30,7 +30,7 @@ Run simulation according to the inputs in the run.in file.
 #include "replicate.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
-#include "utilities/compact_nep.cuh"
+#include "utilities/nep_io/compact_nep.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
@@ -217,17 +217,7 @@ void Run::compute_force()
         atom.mass);
     }
   } else {
-    force.compute(
-      box,
-      atom.position_per_atom,
-      atom.type,
-      group,
-      atom.potential_per_atom,
-      atom.force_per_atom,
-      atom.virial_per_atom,
-      atom.velocity_per_atom,
-      atom.mass,
-      atom.position_image.size() > 0 ? atom.position_image.data() : nullptr);
+    force.compute(box, atom, group);
   }
 }
 
@@ -324,7 +314,7 @@ void Run::parse_one_keyword(
 #endif
 
   if (tokens[0] == "potential") {
-    force.parse_potential(tokens, box, atom.type.size(), run_input);
+    force.parse_potential(tokens, box, atom, run_input);
   } else if (tokens[0] == "minimize") {
     Minimize minimize;
     minimize.parse_minimize(
@@ -366,7 +356,7 @@ void Run::parse_one_keyword(
   } else if (tokens[0] == "velocity") {
     parse_velocity(tokens);
   } else if (tokens[0] == "ensemble") {
-    integrate.parse_ensemble(tokens, atom, box, group);
+    integrate.parse_ensemble(tokens, atom, box, group, force);
   } else if (tokens[0] == "time_step") {
     parse_time_step(tokens);
   } else if (tokens[0] == "correct_velocity") {

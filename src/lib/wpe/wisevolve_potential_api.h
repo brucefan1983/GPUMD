@@ -54,6 +54,7 @@ typedef enum WpeStatus {
   WPE_ERR_INTERNAL = 5
 } WpeStatus;
 
+/* On input struct_size is writable capacity; on return it is bytes copied. */
 typedef struct WpeInfo {
   uint32_t struct_size;
   uint32_t reserved0;
@@ -109,6 +110,11 @@ typedef struct WpeStageInfo {
   float dftd3_rc_coordination_number;
   uint32_t reserved2;
   uint32_t reserved3;
+  /* PPPM target mesh spacing in angstroms, valid from 0.2 through 2.0.
+   * An absent field (legacy struct_size), or zero, selects the 1.0 default.
+   * Effective for qNEP PPPM only. Requires a library supporting this extension.
+   * The ABI-1 minimum size below remains frozen at the end of reserved3. */
+  double qnep_pppm_spacing;
 } WpeStageInfo;
 
 typedef struct WpeCreateInfo {

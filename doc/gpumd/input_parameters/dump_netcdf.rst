@@ -34,9 +34,9 @@ Currently, the following optional arguments are accepted:
 * Per-atom quantities
 
   Any number of the names below can be given, in any order, each adding one quantity to the
-  output.
-  The atom types and the wrapped positions are always written, as the ``type`` and
-  ``coordinates`` variables.
+  output, except that :attr:`unwrapped_position_only` replaces the wrapped positions.
+  The atom types and positions are always written, as the ``type`` and
+  ``coordinates`` variables. The positions are wrapped by default.
 
   .. list-table::
      :header-rows: 1
@@ -56,6 +56,10 @@ Currently, the following optional arguments are accepted:
        - kcal/mol/Å
      * - :attr:`unwrapped_position`
        - ``unwrapped_coordinates``
+       - ``(frame, atom, spatial)``
+       - Å
+     * - :attr:`unwrapped_position_only`
+       - ``coordinates`` (unwrapped)
        - ``(frame, atom, spatial)``
        - Å
      * - :attr:`potential`
@@ -82,6 +86,11 @@ Currently, the following optional arguments are accepted:
        - ``group_labels``
        - ``(atom, grouping_method)``
        - --
+
+  The :attr:`unwrapped_position` option keeps wrapped positions in ``coordinates`` and adds
+  ``unwrapped_coordinates``. The :attr:`unwrapped_position_only` option writes only unwrapped
+  positions in ``coordinates`` and adds the global attribute ``position_mode=unwrapped``.
+  These two options are mutually exclusive.
 
   The group labels are fixed by the :ref:`simulation model file <model_xyz>` and are therefore
   written once, without a frame dimension.
@@ -130,7 +139,7 @@ Requirements and specifications
 * NetCDF output files can be read for example by `VMD <https://www.ks.uiuc.edu/Research/vmd/>`_ or `OVITO <https://ovito.org/>`_ for visualization.
 * The NetCDF files also contain atom types, cell lengths, and angles, which can be used in visualization and analysis software.
 * The atomic positions are always included in the output. For periodic MD, the wrapped
-  positions are written.
+  positions are written unless :attr:`unwrapped_position_only` is given.
 * AMBER NetCDF represents a periodic cell using lengths and angles in a standard orientation.
   If the GPUMD cell has a different orientation, the output is rigidly transformed with the cell
   so that periodic geometry is preserved. Positions, velocities, forces and unwrapped positions
@@ -184,6 +193,21 @@ To dump group 0 from grouping method 1 with lossless deflate compression, one ca
 
 before the :ref:`run command <kw_run>`.
 
+Unwrapped positions
+^^^^^^^^^^^^^^^^^^^
+
+To dump both wrapped and unwrapped positions with velocities every 15 steps, one can add::
+
+  dump_netcdf 15 both.nc unwrapped_position velocity
+
+before the :ref:`run command <kw_run>`.
+
+To dump only unwrapped positions with velocities every 15 steps, one can add::
+
+  dump_netcdf 15 movie.nc unwrapped_position_only velocity
+
+before the :ref:`run command <kw_run>`.
+
 Forces and per-atom virials
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -218,7 +242,7 @@ Caveats
 * The output file has an appending behavior. Frames are added to an existing file of that name,
   whether it was written by an earlier run of the same GPUMD execution or by an earlier execution.
   A different filename creates a separate trajectory file.
-* The layout of a NetCDF file is fixed when the file is created, so the group, quantity, precision,
+* The layout of a NetCDF file is fixed when the file is created, so the position mode, group, quantity, precision,
   and compression settings must match those the existing file was written with. If they do not,
   GPUMD stops with an error naming the file. Remove or rename that file to start a new trajectory.
 * The ``time`` variable restarts at the beginning of every GPUMD execution, while ``frame`` keeps

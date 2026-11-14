@@ -2,26 +2,28 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
 #include "structure.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
-class Parameters;
+class NEP_Parameters;
 
 class Dataset
 {
 public:
+  int batch_index; // training batch index; -1 denotes the test set
+  int device_id;
   int Nc;             // number of configurations
   int N;              // total number of atoms (sum of Na[])
   int max_Na;         // number of atoms in the largest configuration
@@ -47,67 +49,53 @@ public:
   GPU_Vector<int> NN_radial_sum;  // prefix sum of NN_radial
   GPU_Vector<int> NN_angular_sum; // prefix sum of NN_angular
 
-  GPU_Vector<float> charge;      // calculated charge in GPU
-  GPU_Vector<float> charge_shifted;      // shifted charge in GPU
-  GPU_Vector<float> bec;         // Born effective charge in GPU
-  GPU_Vector<float> energy;      // calculated energy in GPU
-  GPU_Vector<float> virial;      // calculated virial in GPU
-  GPU_Vector<float> force;       // calculated force in GPU
-  GPU_Vector<float> avirial; // calculated atomic virial in GPU
-  std::vector<float> charge_cpu;  // calculated charge in CPU
-  std::vector<float> bec_cpu;     // calculated BEC in CPU
-  std::vector<float> energy_cpu; // calculated energy in CPU
-  std::vector<float> virial_cpu; // calculated virial in CPU
-  std::vector<float> force_cpu;  // calculated force in CPU
-  std::vector<float> avirial_cpu;   // calculated atomic virial in CPU
+  GPU_Vector<double> energy;      // calculated energy in GPU
+  GPU_Vector<float> virial;       // calculated virial in GPU
+  GPU_Vector<float> force;        // calculated force in GPU
+  std::vector<double> energy_cpu; // calculated energy in CPU
+  std::vector<float> virial_cpu;  // calculated virial in CPU
+  std::vector<float> force_cpu;   // calculated force in CPU
 
-  GPU_Vector<float> energy_weight_gpu;    // energy weight in GPU
-  GPU_Vector<float> charge_ref_gpu;       // reference charge in GPU
-  GPU_Vector<float> energy_ref_gpu;       // reference energy in GPU
-  GPU_Vector<float> virial_ref_gpu;       // reference virial in GPU
-  GPU_Vector<float> force_ref_gpu;        // reference force in GPU
-  GPU_Vector<float> bec_ref_gpu;          // reference BEC in GPU
-  GPU_Vector<float> avirial_ref_gpu;     // reference atomic virial in GPU
-  GPU_Vector<float> temperature_ref_gpu;  // reference temperature in GPU
-  std::vector<float> energy_weight_cpu;   // energy weight in CPU
-  std::vector<float> charge_ref_cpu;      // reference charge in CPU
-  std::vector<float> energy_ref_cpu;      // reference energy in CPU
-  std::vector<float> virial_ref_cpu;      // reference virial in CPU
-  std::vector<float> force_ref_cpu;       // reference force in CPU
-  std::vector<float> bec_ref_cpu;         // reference BEC in CPU
-  std::vector<float> avirial_ref_cpu;      // reference atomic virial in CPU
-  std::vector<float> weight_cpu;          // configuration weight in CPU
-  std::vector<float> temperature_ref_cpu; // reference temperature in CPU
+  GPU_Vector<float> energy_weight_gpu;  // energy weight in GPU
+  GPU_Vector<double> energy_ref_gpu;    // reference energy in GPU
+  GPU_Vector<float> virial_ref_gpu;     // reference virial in GPU
+  GPU_Vector<float> force_ref_gpu;      // reference force in GPU
+  std::vector<float> energy_weight_cpu; // energy weight in CPU
+  std::vector<double> energy_ref_cpu;   // reference energy in CPU
+  std::vector<float> virial_ref_cpu;    // reference virial in CPU
+  std::vector<float> force_ref_cpu;     // reference force in CPU
+  std::vector<float> weight_cpu;        // configuration weight in CPU
 
   GPU_Vector<float> type_weight_gpu; // relative force weight for different atom types (GPU)
 
-  std::vector<float> error_cpu; // error in energy, virial, or force
-  GPU_Vector<float> error_gpu;  // error in energy, virial, or force
+  std::vector<double> energy_error_cpu;
+  GPU_Vector<double> energy_error_gpu;
+  std::vector<float> error_cpu; // error in virial or force
+  GPU_Vector<float> error_gpu;  // error in virial or force
 
   std::vector<bool> has_type;
 
   std::vector<Structure> structures;
 
-  void
-  construct(Parameters& para, std::vector<Structure>& structures, int n1, int n2, int device_id);
-  std::vector<float> get_rmse_force(Parameters& para, const bool use_weight, int device_id);
-  std::vector<float> get_rmse_energy(
-    Parameters& para,
-    float& energy_shift_per_structure,
+  void construct(NEP_Parameters& para, std::vector<Structure>& structures,
+    int n1, int n2, int device_id, int batch_index);
+  void set_energy_reference(const std::vector<double>& reference);
+  std::vector<float> get_rmse_force(NEP_Parameters& para, const bool use_weight, int device_id);
+  std::vector<double> get_rmse_energy(
+    NEP_Parameters& para,
+    double& energy_shift_per_structure,
     const bool use_weight,
     const bool do_shift,
     int device_id);
-  std::vector<float> get_rmse_virial(Parameters& para, const bool use_weight, int device_id);
-  std::vector<float> get_rmse_avirial(Parameters& para, const bool use_weight, int device_id);
-  std::vector<float> get_rmse_charge(Parameters& para, int device_id);
-  std::vector<float> get_rmse_bec(Parameters& para, int device_id);
+  std::vector<float> get_rmse_virial(
+    NEP_Parameters& para, const bool use_weight, int device_id, int num_components = 6);
 
 private:
   void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);
-  void find_has_type(Parameters& para);
-  void find_Na(Parameters& para);
-  void initialize_gpu_data(Parameters& para);
-  void find_neighbor(Parameters& para);
+  void find_has_type(NEP_Parameters& para);
+  void find_Na(NEP_Parameters& para);
+  void initialize_gpu_data(NEP_Parameters& para);
+  void find_neighbor(NEP_Parameters& para);
 };
 
 class NEP_Neighbor
@@ -122,7 +110,7 @@ public:
   GPU_Vector<float> y12_angular;
   GPU_Vector<float> z12_angular;
 
-  void prepare(Parameters& para, Dataset& dataset, int device_id);
+  void prepare(NEP_Parameters& para, Dataset& dataset, int device_id);
 
 private:
   GPU_Vector<float> rc_radial;

@@ -8,6 +8,45 @@ import post_checks
 
 
 class PostCheckTests(unittest.TestCase):
+    def test_nep_energy_difference_batches(self):
+        spec = {
+            "name": "nep_energy_difference", "output": "loss.out",
+            "generations": 10, "batches": 3, "empty_batch": 2,
+        }
+        post_checks.validate_spec(spec, "spec")
+        data = np.column_stack([np.arange(1, 11), np.ones(10), np.full(10, 2.0)])
+        data[[2, 5, 8], 1] = 0
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            path = root / "loss.out"
+            header = "columns generation rmse_ediff_train rmse_ediff_test"
+            np.savetxt(path, data, header=header)
+            result = post_checks.run([spec], root)
+            self.assertEqual(result[0]["metrics"], {"rows": 10, "empty_batch_rows": 3})
+            for row, column, value in ((2, 1, 1), (0, 1, 0), (0, 2, 0), (1, 0, 1), (0, 1, np.nan)):
+                with self.subTest(row=row, column=column, value=value):
+                    altered = data.copy()
+                    altered[row, column] = value
+                    np.savetxt(path, altered, header=header)
+                    with self.assertRaises(post_checks.PostCheckError):
+                        post_checks.run([spec], root)
+            np.savetxt(path, data[:-1], header=header)
+            with self.assertRaises(post_checks.PostCheckError):
+                post_checks.run([spec], root)
+            np.savetxt(path, data)
+            with self.assertRaises(post_checks.PostCheckError):
+                post_checks.run([spec], root)
+
+    def test_nep_energy_difference_spec(self):
+        spec = {
+            "name": "nep_energy_difference", "output": "loss.out",
+            "generations": 10, "batches": 3, "empty_batch": 2,
+        }
+        for key, value in (("generations", 0), ("batches", True), ("empty_batch", 3), ("empty_batch", -1)):
+            with self.subTest(key=key, value=value):
+                with self.assertRaises(ValueError):
+                    post_checks.validate_spec(dict(spec, **{key: value}), "spec")
+
     def test_extxyz_parser_and_msd_reference(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

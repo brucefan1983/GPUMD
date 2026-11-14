@@ -20,7 +20,6 @@ In addition to :ref:`several empirical interatomic potentials <potentials>`, it 
    :caption: Interface
 
    gpumd/index
-   gpumd-replica/index
    nep/index
 
 .. toctree::

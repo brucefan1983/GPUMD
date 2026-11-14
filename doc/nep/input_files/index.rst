@@ -4,7 +4,8 @@
 Input files
 ===========
 
-To run a :term:`NEP` construction  using the ``nep`` executable, one has to prepare three input files that respectively specify the parameters of the :ref:`NEP model <nep_in>` (``nep.in``), the :ref:`training dataset <train_test_xyz>` (``train.xyz``), and the :ref:`test dataset <train_test_xyz>` (``test.xyz``).
+To train a :term:`NEP` model using the ``nep`` executable, prepare the :ref:`model parameters <nep_in>` (``nep.in``) and the :ref:`training dataset <train_test_xyz>` (``train.xyz``).
+The :ref:`test dataset <train_test_xyz>` (``test.xyz``) is optional. If it is omitted, training proceeds without test-set evaluation or test-set prediction files.
 
 .. toctree::
    :maxdepth: 2
@@ -12,3 +13,5 @@ To run a :term:`NEP` construction  using the ``nep`` executable, one has to prep
 
    nep_in
    train_test_xyz
+   response_xyz
+   ediff_in

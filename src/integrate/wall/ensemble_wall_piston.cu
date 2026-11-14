@@ -1,0 +1,208 @@
+/*
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+#include "ensemble_wall_piston.cuh"
+#include "utilities/gpu_macro.cuh"
+
+namespace
+{
+static __global__ void gpu_find_wall(
+  int number_of_atoms,
+  double wall_pos_left,
+  double wall_pos_right,
+  bool* wall_list_left,
+  bool* wall_list_right,
+  double* position)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_atoms) {
+    wall_list_left[i] = (position[i] < wall_pos_left);
+    wall_list_right[i] = (position[i] > wall_pos_right);
+  }
+}
+
+static __global__ void gpu_velocity_verlet(
+  const bool is_step1,
+  const int number_of_particles,
+  const double vp,
+  bool* left_wall_list,
+  bool* right_wall_list,
+  const double g_time_step,
+  const double* g_mass,
+  double* g_x,
+  double* g_y,
+  double* g_z,
+  double* g_vx,
+  double* g_vy,
+  double* g_vz,
+  const double* g_fx,
+  const double* g_fy,
+  const double* g_fz)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_particles) {
+    const double time_step = g_time_step;
+    const double time_step_half = time_step * 0.5;
+    double vx = g_vx[i];
+    double vy = g_vy[i];
+    double vz = g_vz[i];
+    const double mass_inv = 1.0 / g_mass[i];
+    const double ax = g_fx[i] * mass_inv;
+    const double ay = g_fy[i] * mass_inv;
+    const double az = g_fz[i] * mass_inv;
+
+    if (right_wall_list[i]) {
+      vx = 0;
+      vy = 0;
+      vz = 0;
+    } else if (left_wall_list[i]) {
+      vx = vp;
+      vy = 0;
+      vz = 0;
+    } else {
+      vx += ax * time_step_half;
+      vy += ay * time_step_half;
+      vz += az * time_step_half;
+    }
+    g_vx[i] = vx;
+    g_vy[i] = vy;
+    g_vz[i] = vz;
+
+    if (is_step1) {
+      g_x[i] += vx * time_step;
+      g_y[i] += vy * time_step;
+      g_z[i] += vz * time_step;
+    }
+  }
+}
+} // namespace
+
+Ensemble_wall_piston::Ensemble_wall_piston(const std::vector<std::string>& tokens)
+{
+  const int num_params = tokens.size();
+  int i = 2;
+  while (i < num_params) {
+    if (tokens[i] == "vp") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for vp keyword.");
+      if (!is_valid_real(tokens[i + 1], &vp))
+        PRINT_INPUT_ERROR("Wrong inputs for vp keyword.");
+      i += 2;
+    } else if (tokens[i] == "thickness") {
+      if (i + 1 >= num_params)
+        PRINT_INPUT_ERROR("Missing value for thickness keyword.");
+      if (!is_valid_real(tokens[i + 1], &thickness))
+        PRINT_INPUT_ERROR("Wrong inputs for thickness keyword.");
+      i += 2;
+    } else {
+      PRINT_INPUT_ERROR("Unknown keyword.");
+    }
+  }
+  vp = vp / 100 * TIME_UNIT_CONVERSION;
+  printf("Piston velocity: %f km/s.\n", vp);
+  printf("The thickness of fixed wall: %f Ang.\n", thickness);
+}
+
+void Ensemble_wall_piston::init(Box& box, Atom& atom)
+{
+  int N = atom.number_of_atoms;
+  gpu_left_wall_list.resize(N, false);
+  gpu_right_wall_list.resize(N, false);
+  gpu_find_wall<<<(N - 1) / 128 + 1, 128>>>(
+    N,
+    thickness,
+    box.cpu_h[0] - thickness,
+    gpu_left_wall_list.data(),
+    gpu_right_wall_list.data(),
+    atom.position_per_atom.data());
+}
+
+void Ensemble_wall_piston::initialize_before_first_step(
+  const double,
+  const int,
+  const std::vector<Group>&,
+  Box& box,
+  Atom& atom,
+  GPU_Vector<double>&)
+{
+  init(box, atom);
+}
+
+void Ensemble_wall_piston::compute1(
+  const double time_step,
+  const int step,
+  const int number_of_steps,
+  const std::vector<Group>& group,
+  Box& box,
+  Atom& atoms,
+  GPU_Vector<double>& thermo)
+{
+  find_thermo(
+    box.get_volume(),
+    group,
+    atoms.mass,
+    atoms.potential_per_atom,
+    atoms.velocity_per_atom,
+    atoms.virial_per_atom,
+    thermo);
+  int n = atoms.number_of_atoms;
+  gpu_velocity_verlet<<<(n - 1) / 128 + 1, 128>>>(
+    true,
+    n,
+    vp,
+    gpu_left_wall_list.data(),
+    gpu_right_wall_list.data(),
+    time_step,
+    atoms.mass.data(),
+    atoms.position_per_atom.data(),
+    atoms.position_per_atom.data() + n,
+    atoms.position_per_atom.data() + 2 * n,
+    atoms.velocity_per_atom.data(),
+    atoms.velocity_per_atom.data() + n,
+    atoms.velocity_per_atom.data() + 2 * n,
+    atoms.force_per_atom.data(),
+    atoms.force_per_atom.data() + n,
+    atoms.force_per_atom.data() + 2 * n);
+}
+
+void Ensemble_wall_piston::compute2(
+  const double time_step,
+  const int step,
+  const int number_of_steps,
+  const std::vector<Group>& group,
+  Box& box,
+  Atom& atoms,
+  GPU_Vector<double>& thermo,
+  Force& force)
+{
+  int n = atoms.number_of_atoms;
+  gpu_velocity_verlet<<<(n - 1) / 128 + 1, 128>>>(
+    false,
+    n,
+    vp,
+    gpu_left_wall_list.data(),
+    gpu_right_wall_list.data(),
+    time_step,
+    atoms.mass.data(),
+    atoms.position_per_atom.data(),
+    atoms.position_per_atom.data() + n,
+    atoms.position_per_atom.data() + 2 * n,
+    atoms.velocity_per_atom.data(),
+    atoms.velocity_per_atom.data() + n,
+    atoms.velocity_per_atom.data() + 2 * n,
+    atoms.force_per_atom.data(),
+    atoms.force_per_atom.data() + n,
+    atoms.force_per_atom.data() + 2 * n);
+}

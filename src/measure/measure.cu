@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -20,43 +20,44 @@ The driver class dealing with measurement.
 #include "measure.cuh"
 #include "active.cuh"
 #include "add_efield.cuh"
+#include "force/nep_spin/mfield.cuh"
 #include "add_force.cuh"
 #include "add_random_force.cuh"
 #include "add_spring.cuh"
-#include "adf.cuh"
-#include "angular_rdf.cuh"
+#include "measure/structure/adf.cuh"
+#include "measure/structure/angular_rdf.cuh"
 #include "compute.cuh"
 #include "compute_chunk.cuh"
 #include "compute_dpdt.cuh"
 #include "compute_es.cuh"
 #include "deform.cuh"
 #include "dos.cuh"
-#include "dump_beads.cuh"
-#include "dump_cg.cuh"
-#include "dump_dipole.cuh"
-#include "dump_netcdf.cuh"
-#include "dump_observer.cuh"
-#include "dump_polarizability.cuh"
-#include "dump_restart.cuh"
-#include "dump_shock_nemd.cuh"
-#include "dump_thermo.cuh"
-#include "dump_xyz.cuh"
+#include "measure/dump/dump_beads.cuh"
+#include "measure/dump/dump_cg.cuh"
+#include "measure/dump/dump_dipole.cuh"
+#include "measure/dump/dump_netcdf.cuh"
+#include "measure/dump/dump_observer.cuh"
+#include "measure/dump/dump_polarizability.cuh"
+#include "measure/dump/dump_restart.cuh"
+#include "measure/dump/dump_shock_nemd.cuh"
+#include "measure/dump/dump_thermo.cuh"
+#include "measure/dump/dump_xyz.cuh"
 #include "electron_stop.cuh"
-#include "enhanced_sampling.cuh"
+#include "measure/enhanced_sampling/enhanced_sampling.cuh"
 #include "extrapolation.cuh"
-#include "hac.cuh"
-#include "hnemdec_kappa.cuh"
-#include "hnemd_kappa.cuh"
-#include "iron_conductivity.cuh"
-#include "lsqt.cuh"
-#include "modal_analysis.cuh"
-#include "msd.cuh"
-#include "orientorder.cuh"
+#include "measure/transport/hac.cuh"
+#include "measure/transport/hnemdec_kappa.cuh"
+#include "measure/transport/hnemd_kappa.cuh"
+#include "measure/transport/iron_conductivity.cuh"
+#include "measure/transport/lsqt.cuh"
+#include "measure/transport/modal_analysis.cuh"
+#include "measure/transport/msd.cuh"
+#include "measure/structure/orientorder.cuh"
 #include "plumed.cuh"
-#include "rdf.cuh"
-#include "sdc.cuh"
-#include "shc.cuh"
-#include "viscosity.cuh"
+#include "measure/structure/rdf.cuh"
+#include "measure/transport/sdc.cuh"
+#include "measure/transport/shc.cuh"
+#include "measure/transport/viscosity.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
 #include "mc/mc.cuh"
@@ -267,6 +268,9 @@ bool Measure::parse_action(
     std::unique_ptr<Action> action;
     action.reset(new Add_Spring(tokens, group, atom));
     actions_.emplace_back(std::move(action));
+  } else if (tokens[0] == "add_mfield") {
+    std::unique_ptr<Action> action(new Spin_Magnetic_Field(tokens, group));
+    actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "add_efield") {
     std::unique_ptr<Action> action;
     action.reset(new Add_Efield(
@@ -306,13 +310,13 @@ void Measure::pre_run(
       printf("    Please set the action name you developed.\n");
       exit(1);
     }
-    // dump_xyz, dump_netcdf, compute_chunk, add_force, add_spring, and add_efield are allowed
-    // to be called multiple times; others are not
+    // dump_xyz, dump_netcdf, compute_chunk, add_force, add_spring, add_efield, and
+    // add_mfield are allowed to be called multiple times; others are not
     if (
       action->action_name != "dump_xyz" && action->action_name != "dump_netcdf" &&
       action->action_name != "compute_chunk" &&
       action->action_name != "add_force" && action->action_name != "add_spring" &&
-      action->action_name != "add_efield") {
+      action->action_name != "add_efield" && action->action_name != "add_mfield") {
       for (auto& action_name : action_names) {
         if (action_name == action->action_name) {
           std::cout << "There are multiple " << action->action_name << " keywords within one run.\n";

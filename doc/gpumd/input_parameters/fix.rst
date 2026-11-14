@@ -33,4 +33,4 @@ Fix group 2 using grouping method 1::
 Caveats
 -------
 * This keyword is not propagating, which means that it only affects the simulation within the run it belongs to.
-* When both :attr:`fix` and :ref:`move <kw_move>` are used, they must use the same grouping method.
+* When used with :ref:`move <kw_move>`, the fixed and moving groups must be different and must use the same grouping method.

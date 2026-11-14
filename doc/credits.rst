@@ -1,19 +1,8 @@
 .. _credits:
-.. index:: Credits
-
-.. |br| raw:: html
-
-  <br/>
-
-
-Credits
-*******
-
-TBC
-
+.. index:: Acknowledgments
 
 Acknowledgments
----------------
-* `NSFC <http://www.nsfc.gov.cn/>`_ with project numbers 11404033 and 11974059
-* `Aalto Science-IT project <http://science-it.aalto.fi/>`_
-* `Finland's IT Center for Science (CSC) <https://www.csc.fi/>`_
+***************
+
+* NSFC (Nos. 11404033 and 11974059)
+* Advanced Materials-National Science and Technology Major Project (No. 2024ZD0606900)

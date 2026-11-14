@@ -1,0 +1,77 @@
+/*
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+#pragma once
+#include "measure/action.cuh"
+#include "utilities/gpu_vector.cuh"
+#include <string>
+#include <vector>
+class Box;
+
+// Writes a row of thermo.out from the thermo vector T, U and the six components of the stress.
+// A PIMD ensemble stores the kinetic energy instead of the temperature in that vector, and the
+// row then holds the target temperature.
+// Otherwise the kinetic energy is 1.5 * k_B * T times the atoms that the temperature counts.
+void write_thermo_row(
+  FILE* fid,
+  GPU_Vector<double>& gpu_thermo,
+  const bool thermo_holds_kinetic_energy,
+  const double temperature_target,
+  const int number_of_atoms_for_temperature,
+  const Box& box);
+
+class Dump_Thermo : public Action
+{
+public:
+  void parse(const std::vector<std::string>& tokens);
+
+  Dump_Thermo(const std::vector<std::string>& tokens);
+
+  virtual void pre_run(
+    const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
+  virtual void end_of_step(
+      const int number_of_steps,
+      int step,
+      const int fixed_group,
+      const int move_group,
+      const double global_time,
+      const double temperature,
+      Integrate& integrate,
+      Box& box,
+      std::vector<Group>& group,
+      GPU_Vector<double>& thermo,
+      Atom& atom,
+      Force& force);
+
+  virtual void post_run(
+    Atom& atom,
+    Box& box,
+    Integrate& integrate,
+    const int number_of_steps,
+    const double time_step,
+    const double temperature);
+
+private:
+  int dump_interval_ = 1;
+  FILE* fid_;
+  char filename_[200];
+};

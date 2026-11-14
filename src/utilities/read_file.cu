@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -18,10 +18,12 @@ Some functions for dealing with text files. Written by Mikko Ervasti.
 ------------------------------------------------------------------------------*/
 
 #include "error.cuh"
+#include "utilities/nep_io/nep_file.cuh"
 #include "read_file.cuh"
 #include <ctype.h>
 #include <errno.h>
 #include <cstring>
+#include <fstream>
 
 int is_valid_int(const char* s, int* result)
 {
@@ -69,8 +71,6 @@ int is_valid_real(const std::string& s, double* result)
 
 bool is_nep_charge_potential(const std::string& potential_file_name)
 {
-  bool is_nep_charge = false;
-
   std::ifstream input_potential(potential_file_name);
   if (!input_potential.is_open()) {
     PRINT_INPUT_ERROR("Cannot open potential file.");
@@ -78,17 +78,18 @@ bool is_nep_charge_potential(const std::string& potential_file_name)
   std::string line;
   std::getline(input_potential, line);
   std::vector<std::string> tokens = get_tokens(line);
-  if (tokens[0].size() >= 12) {
-    if (tokens[0].substr(0, 11) == "nep4_charge") {
-      is_nep_charge = true;
-    }
+  if (tokens.empty()) {
+    PRINT_INPUT_ERROR("Empty potential file.");
   }
-  if (tokens[0].size() >= 16) {
-    if (tokens[0].substr(0, 15) == "nep4_zbl_charge") {
-      is_nep_charge = true;
+  if (NEP_File::is_nep_header(tokens[0])) {
+    input_potential.clear();
+    input_potential.seekg(0);
+    std::string model;
+    std::string error;
+    if (!NEP_File::read_model_name(input_potential, model, error)) {
+      PRINT_INPUT_ERROR(error.c_str());
     }
+    return model == "qnep1" || model == "qnep2" || model == "qnep3" || model == "qnep3_vdw";
   }
-  input_potential.close();
-
-  return is_nep_charge;
+  return false;
 }

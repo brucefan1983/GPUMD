@@ -23,8 +23,8 @@ The parameters for running in the isothermal-isobaric ensemble (NPT) can be spec
 
     ensemble npt_mttk temp <T_1> <T_2> <direction> <p_1> <p_2> tperiod <tau_temp> pperiod <tau_press>
 
-:attr:`<T_1>` and :attr:`<T_2>` specify the initial and final temperature, respectively.
-The temperature will vary linearly from :attr:`<T_1>` to :attr:`<T_2>` during the simulation process.
+:attr:`<T_1>` and :attr:`<T_2>` specify the initial and final target temperatures, respectively.
+The target temperature varies linearly between them during the current run.
 The optional :attr:`<tau_temp>` parameter, which defaults to ``100``, determines the period of the thermostat in units of the timestep.
 It determines how strongly the system is coupled to the thermostat.
 
@@ -35,7 +35,7 @@ Here, ``iso``, ``aniso``, and ``tri`` use hydrostatic pressure as the target pre
 ``tri`` updates all six degrees of freedom of the simulation cell.
 Using ``x``, ``y``, ``z``, ``xy``, ``yz``, ``xz`` allows one to specify each stress component independently.
 
-The parameters :attr:`<p_1>` and :attr:`<p_2>` specify the initial and final pressure, respectively.
+The parameters :attr:`<p_1>` and :attr:`<p_2>` specify the initial and final target pressures for the current run, respectively.
 Finally, the optional parameter :attr:`<tau_press>`, which defaults to ``1000``, determines the period of the barostat in units of the timestep.
 It determines how strongly the system is coupled to the barostat and should be :math:`\geq 200` timesteps.
 

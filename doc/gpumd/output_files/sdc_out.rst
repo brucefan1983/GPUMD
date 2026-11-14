@@ -20,4 +20,4 @@ The data in this file are organized as follows:
 * column 6: SDC (in units of Å\ :sup:`2`/ps) in the :math:`y` direction
 * column 7: SDC (in units of Å\ :sup:`2`/ps) in the :math:`z` direction
 
-Only the group selected via the arguments of the :ref:`compute_sdc_keyword <kw_compute_sdc>` is included in this output.
+Only the group selected via the arguments of the :ref:`compute_sdc keyword <kw_compute_sdc>` is included in this output.

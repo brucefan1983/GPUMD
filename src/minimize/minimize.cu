@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -23,6 +23,7 @@ The driver class for minimizers.
 #include "minimizer_fire.cuh"
 #include "minimizer_fire_box_change.cuh"
 #include "minimizer_sd.cuh"
+#include "minimizer_spin_fire.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
@@ -101,6 +102,8 @@ void Minimize::parse_minimize(
         PRINT_INPUT_ERROR("Hydrostatic_strain should be 1 or 0.");
       }
     }
+  } else if (tokens[1] == "spin_fire") {
+    minimizer_type = 3;
   } else {
     PRINT_INPUT_ERROR("Invalid minimizer.");
   }
@@ -143,6 +146,12 @@ void Minimize::parse_minimize(
 
       minimizer.reset(new Minimizer_FIRE_Box_Change(
         atom.number_of_atoms, number_of_steps, force_tolerance, hydrostatic_strain));
+
+      minimizer->compute(force, box, atom, atom.position_per_atom, group);
+
+      break;
+    case 3:
+      minimizer.reset(new Minimizer_Spin_FIRE(tokens, fixed_group, atom, box));
 
       minimizer->compute(force, box, atom, atom.position_per_atom, group);
 

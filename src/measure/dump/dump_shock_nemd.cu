@@ -1,0 +1,347 @@
+/*
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+#include "dump_shock_nemd.cuh"
+#include "utilities/gpu_macro.cuh"
+#include <cstring>
+
+namespace
+{
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
+static __device__ __inline__ double atomicAdd(double* address, double val)
+{
+  unsigned long long* address_as_ull = (unsigned long long*)address;
+  unsigned long long old = *address_as_ull, assumed;
+  do {
+    assumed = old;
+    old =
+      atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+
+  } while (assumed != old);
+  return __longlong_as_double(old);
+}
+#endif
+
+static __global__ void gpu_com(
+  int N,
+  double bin_size,
+  double* g_mass,
+  double* g_x,
+  double* g_vx,
+  double* g_vy,
+  double* g_vz,
+  double* com_vx_data,
+  double* com_vy_data,
+  double* com_vz_data,
+  double* density_data)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  double mass, vx, vy, vz;
+  if (i < N) {
+    const int bin = static_cast<int>(g_x[i] / bin_size);
+    mass = g_mass[i];
+    vx = g_vx[i];
+    vy = g_vy[i];
+    vz = g_vz[i];
+    atomicAdd(&com_vx_data[bin], vx * mass);
+    atomicAdd(&com_vy_data[bin], vy * mass);
+    atomicAdd(&com_vz_data[bin], vz * mass);
+    atomicAdd(&density_data[bin], mass);
+  }
+}
+
+static __global__ void gpu_calc1(
+  int bins, double* com_vx_data, double* com_vy_data, double* com_vz_data, double* density_data)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if ((i < bins) && (density_data[i] > 1e-5)) {
+    com_vx_data[i] /= density_data[i];
+    com_vy_data[i] /= density_data[i];
+    com_vz_data[i] /= density_data[i];
+  }
+}
+
+static __global__ void gpu_thermo(
+  int N,
+  double bin_size,
+  double* g_x,
+  double* g_mass,
+  double* g_vx,
+  double* g_vy,
+  double* g_vz,
+  double* g_pxx,
+  double* g_pyy,
+  double* g_pzz,
+  double* temp_data,
+  double* com_vx_data,
+  double* com_vy_data,
+  double* com_vz_data,
+  double* pxx_data,
+  double* pyy_data,
+  double* pzz_data,
+  double* number_data)
+{
+  double mass, vx, vy, vz;
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N) {
+    const int bin = static_cast<int>(g_x[i] / bin_size);
+    mass = g_mass[i];
+    vx = g_vx[i] - com_vx_data[bin];
+    vy = g_vy[i] - com_vy_data[bin];
+    vz = g_vz[i] - com_vz_data[bin];
+    atomicAdd(&temp_data[bin], (vx * vx + vy * vy + vz * vz) * mass);
+    atomicAdd(&pxx_data[bin], g_pxx[i] + vx * vx * mass);
+    atomicAdd(&pyy_data[bin], g_pyy[i] + vy * vy * mass);
+    atomicAdd(&pzz_data[bin], g_pzz[i] + vz * vz * mass);
+    atomicAdd(&number_data[bin], 1);
+  }
+}
+
+static __global__ void gpu_calc2(
+  int bins,
+  double slice_volume,
+  double* temp_data,
+  double* pxx_data,
+  double* pyy_data,
+  double* pzz_data,
+  double* density_data,
+  double* number_data)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < bins) {
+    // if there are too few atoms, stop calculating temperature
+    if (number_data[i] >= 20)
+      temp_data[i] /= 3 * number_data[i] * K_B;
+    pxx_data[i] = pxx_data[i] / slice_volume * 1.602177e+2;
+    pyy_data[i] = pyy_data[i] / slice_volume * 1.602177e+2;
+    pzz_data[i] = pzz_data[i] / slice_volume * 1.602177e+2;
+    density_data[i] /= slice_volume;
+  }
+}
+
+void write_to_file(FILE* file, const double* array, int n)
+{
+  for (int i = 0; i < n; i++)
+    fprintf(file, "%f ", array[i]);
+  fprintf(file, "\n");
+  fflush(file);
+}
+
+} // namespace
+
+Dump_Shock_NEMD::Dump_Shock_NEMD(const std::vector<std::string>& tokens)
+{
+  parse(tokens);
+  action_name = "dump_shock_nemd";
+}
+
+void Dump_Shock_NEMD::parse(const std::vector<std::string>& tokens)
+{
+  const int num_param = tokens.size();
+  dump_ = true;
+
+  printf("Dump spatial histogram thermo information for piston shock wave simulation, ");
+  bool interval_seen = false;
+  bool bin_size_seen = false;
+  int i = 1;
+  while (i < num_param) {
+    if (tokens[i] == "interval") {
+      if (interval_seen) {
+        PRINT_INPUT_ERROR("Option 'interval' is specified more than once in dump_shock_nemd.\n");
+      }
+      if (i + 1 >= num_param) {
+        PRINT_INPUT_ERROR("A value is required for option 'interval' in dump_shock_nemd.\n");
+      }
+      if (!is_valid_int(tokens[i + 1], &dump_interval_)) {
+        PRINT_INPUT_ERROR("Dump interval should be an integer.\n");
+      }
+      if (dump_interval_ <= 0) {
+        PRINT_INPUT_ERROR("Dump interval should be positive.\n");
+      }
+      interval_seen = true;
+      i += 2;
+    } else if (tokens[i] == "bin_size") {
+      if (bin_size_seen) {
+        PRINT_INPUT_ERROR("Option 'bin_size' is specified more than once in dump_shock_nemd.\n");
+      }
+      if (i + 1 >= num_param) {
+        PRINT_INPUT_ERROR("A value is required for option 'bin_size' in dump_shock_nemd.\n");
+      }
+      if (!is_valid_real(tokens[i + 1], &bin_size_)) {
+        PRINT_INPUT_ERROR("Bin size should be a real number.\n");
+      }
+      if (bin_size_ <= 0.0) {
+        PRINT_INPUT_ERROR("Bin size should be positive.\n");
+      }
+      bin_size_seen = true;
+      i += 2;
+    } else {
+      PRINT_INPUT_ERROR("Unknown keyword in dump_shock_nemd.\n");
+    }
+  }
+  if (!interval_seen) {
+    PRINT_INPUT_ERROR("dump_shock_nemd requires option 'interval'.\n");
+  }
+  printf("every %d steps with a bin size of %g A.\n", dump_interval_, bin_size_);
+}
+
+void Dump_Shock_NEMD::pre_run(
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  if (!dump_)
+    return;
+
+  n = atom.number_of_atoms;
+  bins = static_cast<int>(box.cpu_h[direction * 4] / bin_size_) + 1;
+  if (n < bins)
+    PRINT_INPUT_ERROR("Too few atoms!");
+  for (int i = 0; i < 3; i++)
+    if (i != direction)
+      slice_vol *= box.cpu_h[i * 4]; // create vectors to store hist
+  slice_vol *= bin_size_;
+
+  temp_file = my_fopen("temperature_hist.txt", "w");
+  pxx_file = my_fopen("pxx_hist.txt", "w");
+  pyy_file = my_fopen("pyy_hist.txt", "w");
+  pzz_file = my_fopen("pzz_hist.txt", "w");
+  density_file = my_fopen("density_hist.txt", "w");
+  com_vx_file = my_fopen("vp_hist.txt", "w");
+}
+
+void Dump_Shock_NEMD::end_of_step(
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
+{
+  if (!dump_ || (step + 1) % dump_interval_ != 0)
+    return;
+
+  gpu_temp.resize(bins, 0);
+  gpu_pxx.resize(bins, 0);
+  gpu_pyy.resize(bins, 0);
+  gpu_pzz.resize(bins, 0);
+  gpu_density.resize(bins, 0);
+  gpu_number.resize(bins, 0);
+  gpu_com_vx.resize(bins, 0);
+  gpu_com_vy.resize(bins, 0);
+  gpu_com_vz.resize(bins, 0);
+  cpu_temp.resize(bins, 0);
+  cpu_pxx.resize(bins, 0);
+  cpu_pyy.resize(bins, 0);
+  cpu_pzz.resize(bins, 0);
+  cpu_density.resize(bins, 0);
+  cpu_com_vx.resize(bins, 0);
+  // calculate COM velocity first
+  gpu_com<<<(n - 1) / 128 + 1, 128>>>(
+    n,
+    bin_size_,
+    atom.mass.data(),
+    atom.position_per_atom.data() + direction * n,
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + n,
+    atom.velocity_per_atom.data() + 2 * n,
+    gpu_com_vx.data(),
+    gpu_com_vy.data(),
+    gpu_com_vz.data(),
+    gpu_density.data());
+  GPU_CHECK_KERNEL
+  gpu_calc1<<<(bins - 1) / 128 + 1, 128>>>(
+    bins, gpu_com_vx.data(), gpu_com_vy.data(), gpu_com_vz.data(), gpu_density.data());
+  GPU_CHECK_KERNEL
+  // get spatial thermo info
+  gpu_thermo<<<(n - 1) / 128 + 1, 128>>>(
+    n,
+    bin_size_,
+    atom.position_per_atom.data() + direction * n,
+    atom.mass.data(),
+    atom.velocity_per_atom.data(),
+    atom.velocity_per_atom.data() + n,
+    atom.velocity_per_atom.data() + 2 * n,
+    atom.virial_per_atom.data(),
+    atom.virial_per_atom.data() + 1 * n,
+    atom.virial_per_atom.data() + 2 * n,
+    gpu_temp.data(),
+    gpu_com_vx.data(),
+    gpu_com_vy.data(),
+    gpu_com_vz.data(),
+    gpu_pxx.data(),
+    gpu_pyy.data(),
+    gpu_pzz.data(),
+    gpu_number.data());
+  GPU_CHECK_KERNEL
+  gpu_calc2<<<(bins - 1) / 128 + 1, 128>>>(
+    bins,
+    slice_vol,
+    gpu_temp.data(),
+    gpu_pxx.data(),
+    gpu_pyy.data(),
+    gpu_pzz.data(),
+    gpu_density.data(),
+    gpu_number.data());
+  GPU_CHECK_KERNEL
+  // copy from gpu to cpu
+  gpu_temp.copy_to_host(cpu_temp.data());
+  gpu_pxx.copy_to_host(cpu_pxx.data());
+  gpu_pyy.copy_to_host(cpu_pyy.data());
+  gpu_pzz.copy_to_host(cpu_pzz.data());
+  gpu_density.copy_to_host(cpu_density.data());
+  gpu_com_vx.copy_to_host(cpu_com_vx.data());
+  // write to file
+  for (int i = 0; i < bins; i++) {
+    cpu_com_vx[i] /= 0.01 * TIME_UNIT_CONVERSION; // to km/s
+    cpu_density[i] *= 1.660538921;                // to g/cm3
+  }
+  write_to_file(temp_file, cpu_temp.data(), bins);
+  write_to_file(pxx_file, cpu_pxx.data(), bins);
+  write_to_file(pyy_file, cpu_pyy.data(), bins);
+  write_to_file(pzz_file, cpu_pzz.data(), bins);
+  write_to_file(density_file, cpu_density.data(), bins);
+  write_to_file(com_vx_file, cpu_com_vx.data(), bins);
+}
+
+void Dump_Shock_NEMD::post_run(
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
+{
+  if (!dump_)
+    return;
+  printf("Closing files ...\n");
+  fclose(temp_file);
+  fclose(pxx_file);
+  fclose(pyy_file);
+  fclose(pzz_file);
+  fclose(density_file);
+  fclose(com_vx_file);
+  dump_ = false;
+}

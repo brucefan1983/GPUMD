@@ -4,7 +4,8 @@
 =======================
 
 The :attr:`ensemble` keyword is used to set up an integration method (an integrator).
-The integrators described on this page enable one to carry out path integral molecular dynamics (:term:`PIMD`) simulations and thereby to incorporate quantum dynamical effects.
+The :attr:`pimd` and :attr:`pimd_scr` integrators incorporate nuclear quantum effects in equilibrium properties using path integral molecular dynamics (:term:`PIMD`).
+The :attr:`rpmd` and :attr:`trpmd` integrators provide approximate real-time quantum dynamics [Craig2004]_ [Rossi2014]_.
 
 
 Syntax
@@ -52,7 +53,7 @@ It can be used as follows::
 
     ensemble rpmd <num_beads> 
 
-This can be understood as the NVE version of :term:`PIMD`, where no thermostat is applied.
+The ring polymer evolves without a thermostat, providing an approximation to real-time quantum correlation functions.
 
 :attr:`trpmd`
 ^^^^^^^^^^^^^
@@ -62,4 +63,4 @@ It can be used as follows::
 
     ensemble trpmd <num_beads> 
 
-This is similar to :term:`RPMD`, but the Langevin thermosat is applied to the internal modes.
+This is similar to :term:`RPMD`, but the Langevin thermostat is applied to the internal modes, leaving the centroid mode unthermostatted.

@@ -19,24 +19,25 @@ where
 and
 
 .. math::
-   \boldsymbol{J}^{\text{pot}}_i = -\frac{1}{2}\sum_{j \neq i} \boldsymbol{r}_{ij}
+   \boldsymbol{J}^{\text{pot}} = -\frac{1}{2}\sum_i\sum_{j \neq i} \boldsymbol{r}_{ij}
    \left(\frac{\partial U_i}{\partial \boldsymbol{r}_{ij}} \cdot \boldsymbol{v}_j
    -\frac{\partial U_j}{\partial \boldsymbol{r}_{ji}} \cdot \boldsymbol{v}_i\right).
 
-The potential part of the per-atom heat current can also be written in the following equivalent forms [Fan2015]_:
+Exchanging the summation indices gives the following equivalent expression for the total potential heat current [Fan2015]_:
 
 .. math::
-   \boldsymbol{J}^{\text{pot}}_i = -\sum_{j \neq i} \boldsymbol{r}_{ij}
+   \boldsymbol{J}^{\text{pot}} = -\sum_i\sum_{j \neq i} \boldsymbol{r}_{ij}
    \left(\frac{\partial U_i}{\partial \boldsymbol{r}_{ij}} \cdot \boldsymbol{v}_j\right);
 
-and
+These expressions are equivalent after summing over all atoms, but their individual atomic contributions generally differ.
+GPUMD uses the following per-atom partition, which gives the same total heat current:
 
 .. math::
 
    \boldsymbol{J}^{\text{pot}}_i = \sum_{j \neq i} \boldsymbol{r}_{ij}
    \left(\frac{ \partial U_j} {\partial \boldsymbol{r}_{ji}} \cdot \boldsymbol{v}_i\right).
 
-Therefore, the per-atom heat current can also be expressed in terms of the per-atom virial [Gabourie2021]_:
+With this partition, the per-atom heat current can be expressed in terms of the per-atom virial :math:`\mathbf{W}_i` defined above [Gabourie2021]_:
 
 .. math::
 

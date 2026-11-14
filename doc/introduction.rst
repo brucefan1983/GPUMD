@@ -7,7 +7,8 @@ In addition to :ref:`several empirical interatomic potentials <potentials>`, it 
 :program:`GPUMD` also allows one to construct the latter type of models using the :ref:`nep executable <nep_executable>`.
 
 :program:`GPUMD` is also highly efficient for conducting :term:`MD` simulations with many-body potentials such as the Tersoff potential and is particularly good for heat transport applications.
-It is written in CUDA C++ and requires a CUDA-enabled Nvidia GPU of compute capability no less than 3.5.
+It is written in CUDA C++ for NVIDIA GPUs and also supports AMD GPUs through ROCm/HIP.
+See the :ref:`installation instructions <installation>` for build requirements.
 
 Python interfaces
 -----------------

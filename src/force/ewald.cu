@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -92,7 +92,7 @@ void Ewald::find_k_and_G(const double* box)
     b3[d] *= two_pi_over_det;
   }
 
-  const float volume_k = two_pi * two_pi * two_pi / abs(det);
+  const float volume_k = two_pi * two_pi * two_pi / std::abs(det);
   int n1_max = alpha * two_pi * get_area(b2, b3) / volume_k;
   int n2_max = alpha * two_pi * get_area(b3, b1) / volume_k;
   int n3_max = alpha * two_pi * get_area(b1, b2) / volume_k;
@@ -116,7 +116,7 @@ void Ewald::find_k_and_G(const double* box)
           cpu_kx.emplace_back(kx);
           cpu_ky.emplace_back(ky);
           cpu_kz.emplace_back(kz);
-          const float G = abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
+          const float G = std::abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
           cpu_G.emplace_back(2.0f * G);
         }
       }

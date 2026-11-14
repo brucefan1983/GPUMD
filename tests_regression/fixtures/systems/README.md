@@ -29,13 +29,12 @@ has a 25.30329523 Angstrom cubic periodic box and deliberately stays on the
 NEP large-box path. Their pinned SHA-256 values are:
 
 - model: `44a76a943b6e1c419706e0f0b257200d38319194c80a60c589da977f7620b57c`;
-- potential: `261e236885f88b785d832123ce8d7d3a8dbb220dec962ebbec26654ca481ee0b`.
+- potential: `1c3340be87cd5f001ace48870c00fcb66e71d227998940451128e134e9dec8c4`.
 
 `../potentials/C_2022_NEP4_MODIFIED.txt` is the upstream observer test's
-`C_2022_NEP3_MODIFIED.txt` with only its model header updated from `nep3` to
-`nep4`, matching the model families accepted by this baseline's
-`Force::parse_potential()`. Its SHA-256 is
-`7319c9a7c21aa4cc66ba66c91cf4d4540dade2a28acab90f2529b39c26bbd459`.
+`C_2022_NEP3_MODIFIED.txt`, migrated to format 1 with its parameter values
+preserved. Its SHA-256 is
+`c906656f8ca18e848b413792a6d2aeec3fc51b6b5cd79dcfded1dbb500379234`.
 The unmodified companion is staged directly from
 `potentials/nep/C_2022_NEP4.txt`.
 
@@ -46,4 +45,20 @@ validation, and grouped MSD. Their response or test-specific NEP models are
 stored under `../models/`; ordinary public GPUMD potentials continue to be
 staged from the repository-level `potentials/` directory when available.
 Legacy NEP3 fixtures used by these tests were converted to the equivalent
-NEP4 parameter layout before being added here.
+NEP4 parameter layout before being added here. The NEP fixtures now use
+format 1, with type-pair-major CIJ blocks and unchanged parameter values.
+
+## PPPM mesh fixtures
+
+The original five `pppm_batio3_*.xyz` files derive from
+`tests_pytest/fixtures/structures/BaTiO3-nat40-rattled.xyz`. Fractional positions
+are preserved while changing the cell: exact 8 Angstrom edges, an x edge of
+8.0001 Angstrom, a 1 Angstrom xy tilt, and an 8 Angstrom xy tilt (45 degrees).
+The 15.9 Angstrom x fixture first tiles twice along x (80 atoms), then sets
+the cell to 15.9 x 8 x 8 Angstrom. These controlled geometries exercise mesh
+boundaries; they are not equilibrium reference structures. Fixture SHA-256
+values are pinned in `test_manifest.py`.
+
+`pppm_batio3_mesh_limit.xyz` keeps the 40 atomic positions of the 8 Angstrom
+fixture in a 102.6 x 102 x 102 Angstrom cell. At spacing 0.2, its
+540 x 512 x 512 mesh exceeds the point limit and is rejected before allocation.

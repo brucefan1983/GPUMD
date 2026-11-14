@@ -1,11 +1,11 @@
 .. _loss_out:
 .. index::
-   single: loss.txt (output file)
+   single: loss.out (output file)
 
 ``loss.out``
 ============
 
-This files contains the terms that enter the :ref:`loss function <nep_loss_function>`, written every :ref:`output_interval <kw_output_interval>` generations (100 by default).
+This file contains the terms that enter the :ref:`loss function <nep_loss_function>`, written every :ref:`output_interval <kw_output_interval>` generations (100 by default).
 
 File format
 -----------
@@ -40,7 +40,7 @@ where
 * :attr:`rmse_force_test` is the force RMSE (in units of eV/Å) for the test set.
 * :attr:`rmse_virial_test` is the virial RMSE (in units of eV/atom) for the test set.
 
-If a potential model with charges (:ref:`charge_mode <kw_charge_mode>` or ``charge_vdw``) is trained, the columns are::
+If a charge model (``qnep1``, ``qnep2``, ``qnep3``, or ``qnep3_vdw``) is selected using the :ref:`model keyword <kw_model>`, the columns are::
 
   generation total L1 L2 rmse_energy_train rmse_force_train rmse_virial_train rmse_charge_train rmse_bec_train rmse_energy_test rmse_force_test rmse_virial_test rmse_charge_test rmse_bec_test
 
@@ -48,6 +48,19 @@ where
 
 * :attr:`rmse_charge_train` and :attr:`rmse_charge_test` are the RMSE of the total charge (in units of e/atom) for the training and test sets.
 * :attr:`rmse_bec_train` and :attr:`rmse_bec_test` are the :term:`BEC` RMSE (in units of e) for the training and test sets.
+
+If the energy-difference loss is active through the keyword :ref:`lambda_d <kw_lambda_d>`, the columns of a potential model are followed by::
+
+  rmse_ediff_train rmse_ediff_test
+
+where
+
+* :attr:`rmse_ediff_train` is the RMSE of the energy combinations (in units of eV) over the training combinations of :ref:`ediff.in <ediff_in>` in the mini-batch of the current generation, like the other training columns.
+  Each squared error enters with the weight of its combination, and the sum is divided by the number of combinations.
+  :attr:`total` contains it multiplied by :math:`\lambda_d`.
+  It is 0 for a mini-batch without training combinations.
+* :attr:`rmse_ediff_test` is the same RMSE over all test combinations, since the test set forms a single batch.
+  It is 0 without a test set or without test combinations.
 
 If a dipole model is trained, the columns are::
 
@@ -66,3 +79,24 @@ where
 
 * :attr:`rmse_polarizability_train` is the polarizability RMSE (per atom) for the training set.
 * :attr:`rmse_polarizability_test` is the polarizability RMSE (per atom) for the test set.
+
+If a Spin NEP potential is trained, each row contains the following fields::
+
+  generation total L1 L2 rmse_energy_train rmse_force_train rmse_virial_train rmse_mforce_train rmse_tau_train rmse_energy_test rmse_force_test rmse_virial_test rmse_mforce_test rmse_tau_test
+
+Here, :attr:`rmse_mforce` is the Cartesian magnetic-force RMSE in eV/muB and
+:attr:`rmse_tau` is the RMSE of
+:math:`\boldsymbol{s}_i\times\boldsymbol{M}_i`, in eV.
+Only structures containing magnetic-force labels contribute to these two
+terms. The grouped magnetic-response loss, when enabled, contributes to
+:attr:`total` but currently has no separate output column.
+
+With :ref:`independent magnetic losses <kw_lambda_m_parallel>`, four additional
+columns precede any energy-difference columns::
+
+  rmse_m_parallel_train rmse_m_perp_train rmse_m_parallel_test rmse_m_perp_test
+
+They report unweighted RMSE in eV/muB, normalized by one parallel or two
+perpendicular degrees of freedom. Training columns describe the current batch;
+test columns are zero if no test set is supplied. Use the ``# columns`` header
+to identify columns for the selected objective.

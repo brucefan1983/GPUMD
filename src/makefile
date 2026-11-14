@@ -37,9 +37,11 @@ endif
 INC = -I./
 LDFLAGS = 
 LIBS = -lcublas -lcusolver -lcufft
+TB_LIBS = -lcublas -lcusolver
 NEP_LIBS =
 GNEP_LIBS =
 ifndef OS
+LIBS += -lpthread
 NEP_LIBS += -ldl
 GNEP_LIBS += -lpthread
 endif
@@ -53,17 +55,29 @@ SOURCES_GPUMD =                   \
 	$(wildcard minimize/*.cu)     \
 	$(wildcard phonon/*.cu)       \
 	$(wildcard integrate/*.cu)    \
+	$(wildcard integrate/*/*.cu) \
 	$(wildcard mc/*.cu)           \
 	$(wildcard force/*.cu)        \
+	$(wildcard force/*/*.cu)      \
 	$(wildcard measure/*.cu)      \
+	$(wildcard measure/*/*.cu)      \
 	$(wildcard model/*.cu)        \
-	$(wildcard utilities/*.cu)
+	$(wildcard utilities/*.cu)   \
+	$(wildcard utilities/*/*.cu)
 SOURCES_NEP =                     \
 	$(wildcard main_nep/*.cu)     \
-	$(wildcard utilities/*.cu)
+	$(wildcard main_nep/*/*.cu)   \
+	$(wildcard utilities/*.cu)   \
+	$(wildcard utilities/*/*.cu)
 SOURCES_GNEP =                     \
 	$(wildcard main_gnep/*.cu)     \
-	$(wildcard utilities/*.cu)
+	$(wildcard utilities/*.cu)   \
+	$(wildcard utilities/*/*.cu)
+
+SOURCES_TB =                      \
+	$(wildcard main_tb/*.cu)      \
+	utilities/error.cu           \
+	utilities/main_common.cu
 
 
 ###########################################################
@@ -72,10 +86,12 @@ SOURCES_GNEP =                     \
 ifdef OS # For Windows with the cl.exe compiler
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.obj)
 OBJ_NEP = $(SOURCES_NEP:.cu=.obj)
+OBJ_TB = $(SOURCES_TB:.cu=.obj)
 OBJ_GNEP = $(SOURCES_GNEP:.cu=.obj)
 else
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
 OBJ_NEP = $(SOURCES_NEP:.cu=.o)
+OBJ_TB = $(SOURCES_TB:.cu=.o)
 OBJ_GNEP = $(SOURCES_GNEP:.cu=.o)
 endif
 
@@ -85,28 +101,29 @@ endif
 ###########################################################
 HEADERS =                         \
 	$(wildcard utilities/*.cuh)   \
+	$(wildcard utilities/*/*.cuh) \
 	$(wildcard main_gpumd/*.cuh)  \
 	$(wildcard integrate/*.cuh)   \
+	$(wildcard integrate/*/*.cuh) \
 	$(wildcard mc/*.cuh)          \
 	$(wildcard minimize/*.cuh)    \
 	$(wildcard force/*.cuh)       \
+	$(wildcard force/*/*.cuh)     \
 	$(wildcard measure/*.cuh)     \
+	$(wildcard measure/*/*.cuh)     \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
 	$(wildcard main_nep/*.cuh)    \
+	$(wildcard main_nep/*/*.cuh)  \
 	$(wildcard main_gnep/*.cuh)
+
+HEADERS_TB = $(wildcard main_tb/*.cuh) $(wildcard utilities/*.cuh) $(wildcard utilities/*/*.cuh)
 
 
 ###########################################################
 # executables
 ###########################################################
-all: gpumd nep gpumd_replica
-
-.PHONY: all gpumd_replica clean_replica clean
-
-# Keep replica objects separate and share the selected compiler and architecture.
-gpumd_replica:
-	$(MAKE) -C main_replica CC="$(CC)" CUDA_ARCH="$(CUDA_ARCH)"
+all: gpumd nep tb
 
 gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
@@ -122,6 +139,12 @@ gnep: $(OBJ_GNEP)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS) $(GNEP_LIBS)
 	@echo =================================================
 	@echo The gnep executable is successfully compiled!
+	@echo =================================================
+
+tb: $(OBJ_TB)
+	$(CC) $(LDFLAGS) $^ -o $@ $(TB_LIBS)
+	@echo =================================================
+	@echo The tb executable is successfully compiled!
 	@echo =================================================
 
 
@@ -149,6 +172,8 @@ phonon/%.obj: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.obj: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_tb/%.obj: main_tb/%.cu $(HEADERS_TB)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_gnep/%.obj: main_gnep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 else # for Linux
@@ -172,6 +197,8 @@ phonon/%.o: phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_nep/%.o: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_tb/%.o: main_tb/%.cu $(HEADERS_TB)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_gnep/%.o: main_gnep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 endif
@@ -180,12 +207,9 @@ endif
 ###########################################################
 # clean up
 ###########################################################
-clean_replica:
-	$(MAKE) -C main_replica clean
-
-clean: clean_replica
+clean:
 ifdef OS
 	del /s *.obj *.exp *.lib *.exe
 else
-	rm -f */*.o gpumd nep gnep
+	rm -f */*.o */*/*.o gpumd nep gnep tb
 endif

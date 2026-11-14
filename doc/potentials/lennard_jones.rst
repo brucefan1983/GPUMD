@@ -21,8 +21,8 @@ This is important to keep in mind when using this model as it implies that both 
 
 The implementation in :program:`GPUMD` supports up to 10 atom types.
 
-There are two parameters, which respectively control the depth (:math:`\epsilon`) and the position (:math:`\sigma`) of the potential well.
-They are given in units of eV and Å, respectively.
+The parameter :math:`\epsilon` is the well depth, in eV, and :math:`\sigma` is the zero-crossing distance, in Å.
+The untruncated pair potential has its minimum at :math:`r=2^{1/6}\sigma`, where :math:`U=-\epsilon`.
 
 File format
 -----------
@@ -55,4 +55,6 @@ If there are three atom types, the potential file reads::
   epsilon_21 sigma_21 cutoff_21
   epsilon_22 sigma_22 cutoff_22
 
-The extension to more than three atom types should be apparent from the examples above.
+For :math:`M` atom types, provide all :math:`M^2` rows in the order illustrated above.
+GPUMD reads each row explicitly and does not generate cross-species parameters using a mixing rule.
+For each pair of species, specify identical parameters for the :math:`ij` and :math:`ji` rows.

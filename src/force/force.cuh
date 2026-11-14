@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -28,16 +28,19 @@
 #include <vector>
 
 class RunInput;
+class Spin_Runtime;
+class Atom;
 
 class Force
 {
 public:
   Force(void);
+  ~Force();
 
   void parse_potential(
     const std::vector<std::string>& tokens,
     const Box& box,
-    const int number_of_atoms,
+    Atom& atom,
     const RunInput& run_input);
 
   void compute(
@@ -60,6 +63,20 @@ public:
     GPU_Vector<double>& velocity_per_atom,
     GPU_Vector<double>& mass_per_atom,
     int* position_image = nullptr);
+
+  void compute(Box& box, Atom& atom, const std::vector<Group>& group);
+
+  // Zeroes the given arrays and evaluates one potential alone into them. The positions and the
+  // float box are read as they are.
+  void compute_one_potential(
+    const int potential_index,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    const std::vector<Group>& group,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
 
 #ifdef GPUMD_WPE_ENABLED
   void wpe_process_command(
@@ -95,6 +112,7 @@ private:
   double temperature = 0;
   double delta_T;
   std::vector<std::unique_ptr<Potential>> potentials;
+  std::unique_ptr<Spin_Runtime> spin_runtime_;
   bool is_fcp = false;
   bool has_non_nep = false;
   std::string multiple_potentials_mode_ = "observe"; // "observe" or "average"

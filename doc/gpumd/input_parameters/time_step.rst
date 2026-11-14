@@ -45,6 +45,6 @@ Caveats
 -------
 * There is a default value (1 fs) for the time step.
   That means, if you forget to set one, a time step of 1 fs will be used.
-* This keyword is propagating.
-  That means, its effect will be passed from one run to the next.
-  Most of the other keywords are non-propagating.
+* The current time-step value is retained from one run to the next unless a new ``time_step`` command is given.
+* The optional :attr:`max_distance_per_step` limit applies only to the current run.
+  To use adaptive time stepping in the next run, repeat the full two-parameter command.

@@ -2,25 +2,27 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/nep_utilities.cuh"
 
 class NEP_Energy
 {
 public:
+  std::vector<double> energy_reference;
   struct ParaMB {
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_zbl_factor = 0.0f;
@@ -33,20 +35,18 @@ public:
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
     int n_max_angular = 0; // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;         // l = 0, 1, 2, ..., L_max
-    int dim_angular;
     int has_q_222 = 0;
     int has_q_1111 = 0;
     int has_q_112 = 0;
     int has_q_123 = 0;
     int has_q_233 = 0;
     int has_q_134 = 0;
-    int num_L;
     int basis_size_radial = 8;
     int basis_size_angular = 8;
     int num_types_sq = 0;
     int num_c_radial = 0;
     int num_types = 0;
-    float q_scaler[140];
+    float q_scaler[MAX_DIM];
   };
 
   struct ANN {

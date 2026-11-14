@@ -253,7 +253,7 @@ and
 We consider the following three pressure-controlling conditions:
 
 * *Condition 1*:
-  The simulation box is *orthogonal* and only the hydrostatic pressure (trace of the pressure tensor) is controlled.
+  The simulation box is *orthogonal* and only the hydrostatic pressure (one third of the trace of the pressure tensor) is controlled.
   The simulation box must be periodic in all three directions.
   The scaling matrix only has nonzero diagonal components and the diagonal components can be written as:
 
@@ -280,8 +280,9 @@ We consider the following three pressure-controlling conditions:
 
   .. math::
 
-     \mu_{\alpha\beta}= 1-\frac{\beta_{\alpha\beta} \Delta t}{3 \tau_p} (p^{\rm target}_{\alpha\beta} - p^{\rm instant}_{\alpha\beta}).
+     \mu_{\alpha\beta}= \delta_{\alpha\beta}-\frac{\beta_{\alpha\beta} \Delta t}{3 \tau_p} (p^{\rm target}_{\alpha\beta} - p^{\rm instant}_{\alpha\beta}).
 
+Here, :math:`\delta_{\alpha\beta}` is the Kronecker delta.
 The parameter :math:`\beta_{\alpha\beta}` is the isothermal compressibility, which is the inverse of the elastic modulus.
 :math:`\Delta t` is the time step and :math:`\tau_p` is the pressure coupling time (relaxation time).
 

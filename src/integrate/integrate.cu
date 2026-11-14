@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -22,25 +22,27 @@ The driver class for the various integrators.
 #include "ensemble_ber.cuh"
 #include "ensemble_lan.cuh"
 #include "ensemble_heat_hybrid.cuh"
-#include "ensemble_msst.cuh"
+#include "integrate/shock/ensemble_msst.cuh"
 #include "ensemble_mttk.cuh"
 #include "ensemble_nhc.cuh"
-#include "ensemble_nphug.cuh"
-#include "ensemble_npt_qtb.cuh"
+#include "integrate/shock/ensemble_nphug.cuh"
+#include "integrate/qtb/ensemble_npt_qtb.cuh"
 #include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
-#include "ensemble_pimd.cuh"
-#include "ensemble_qtb.cuh"
-#include "ensemble_ti.cuh"
-#include "ensemble_ti_as.cuh"
-#include "ensemble_ti_liquid.cuh"
-#include "ensemble_ti_rs.cuh"
-#include "ensemble_ti_spring.cuh"
+#include "integrate/pimd/ensemble_pimd.cuh"
+#include "integrate/qtb/ensemble_qtb.cuh"
+#include "integrate/ti/ensemble_ti.cuh"
+#include "integrate/ti/ensemble_ti_as.cuh"
+#include "integrate/ti/ensemble_ti_liquid.cuh"
+#include "integrate/ti/ensemble_ti_nep.cuh"
+#include "integrate/ti/ensemble_ti_rs.cuh"
+#include "integrate/ti/ensemble_ti_spring.cuh"
 #include "ensemble_ttm.cuh"
-#include "ensemble_wall_harmonic.cuh"
-#include "ensemble_wall_mirror.cuh"
-#include "ensemble_wall_piston.cuh"
+#include "integrate/wall/ensemble_wall_harmonic.cuh"
+#include "integrate/wall/ensemble_wall_mirror.cuh"
+#include "integrate/wall/ensemble_wall_piston.cuh"
 #include "integrate.cuh"
+#include "spin/spin_ensemble.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -91,6 +93,14 @@ double Integrate::get_temperature2() const
 double Integrate::get_temperature() const
 {
   return temperature;
+}
+
+double Integrate::get_target_temperature_of_step() const { return ensemble_->temperature; }
+
+int Integrate::get_number_of_atoms_for_temperature(
+  const int number_of_atoms, const std::vector<Group>& group) const
+{
+  return ensemble_->get_number_of_atoms_for_temperature(number_of_atoms, group);
 }
 
 int Integrate::get_num_target_pressure_components() const
@@ -260,13 +270,17 @@ void Integrate::compute2(
   }
 
   ensemble.compute2(time_step, step, number_of_steps, group, box, atom, thermo, force);
+  // A barostat can change the box in compute2. Force::compute refreshes the float copy of the box
+  // only at the next step, and the measurements at the end of this step read it.
+  box.set_is_orthogonal();
 }
 
 void Integrate::parse_ensemble(
   const std::vector<std::string>& tokens,
   const Atom& atom,
   const Box& box,
-  const std::vector<Group>& group)
+  const std::vector<Group>& group,
+  Force& force)
 {
   if (tokens.size() < 2) {
     PRINT_INPUT_ERROR("Keyword 'ensemble' requires an ensemble type.");
@@ -280,6 +294,16 @@ void Integrate::parse_ensemble(
   if (tokens[1] == "nve") {
     ensemble_ = std::make_unique<Ensemble_NVE>(tokens);
     type = EnsembleType::NVE;
+  } else if (
+    tokens[1] == "nvt_tspin" || tokens[1] == "npt_tspin" ||
+    tokens[1] == "nve_sib" || tokens[1] == "nvt_sib" || tokens[1] == "npt_sib" ||
+    tokens[1] == "nve_glsd" || tokens[1] == "nvt_glsd" || tokens[1] == "npt_glsd") {
+    auto ensemble_spin = std::make_unique<Spin_Ensemble>(tokens, atom, box, group, force);
+    type = ensemble_spin->type;
+    temperature1 = ensemble_spin->get_temperature1();
+    temperature2 = ensemble_spin->get_temperature2();
+    temperature = temperature1;
+    ensemble_ = std::move(ensemble_spin);
   } else if (tokens[1] == "nvt_ber" || tokens[1] == "npt_ber") {
     auto ensemble_ber = std::make_unique<Ensemble_BER>(tokens, box);
     type = ensemble_ber->type;
@@ -419,6 +443,9 @@ void Integrate::parse_ensemble(
   } else if (tokens[1] == "ti_liquid") {
     type = EnsembleType::TI_LIQUID;
     ensemble_ = std::make_unique<Ensemble_TI_Liquid>(tokens);
+  } else if (tokens[1] == "ti_nep") {
+    type = EnsembleType::TI_NEP;
+    ensemble_ = std::make_unique<Ensemble_TI_Nep>(tokens);
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
   }

@@ -3,6 +3,8 @@ import json
 import os
 import re
 import subprocess
+
+import run_regression as runner
 import sys
 from pathlib import Path
 
@@ -92,11 +94,24 @@ def test_manifest_suite_and_input_style_contract():
         assert case["expected_returncode"] == 1
         assert "full" in case["suites"]
 
-    candidate_only_cases = [case for case in cases if case.get("candidate_only")]
-    assert candidate_only_cases == []
+    for case in cases:
+        assert not {"role_expectations", "compare_cross_version", "candidate_only"}.intersection(case)
 
-    role_cases = [case for case in cases if "role_expectations" in case]
-    assert role_cases == []
+
+def test_manifest_rejects_asymmetric_contracts():
+    for key, value in (
+        ("role_expectations", {"baseline": {"expect": "failure"}, "candidate": {"expect": "success"}}),
+        ("compare_cross_version", False),
+        ("candidate_only", True),
+    ):
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        manifest["cases"][0][key] = value
+        try:
+            runner.validate_manifest(manifest, find_repo_root())
+        except runner.ConfigurationError as exc:
+            assert "unknown key(s)" in str(exc) and key in str(exc), str(exc)
+        else:
+            raise AssertionError(f"Asymmetric contract {key} was accepted")
 
 
 def test_manifest_uses_single_run_byte_exact_defaults():
@@ -120,11 +135,13 @@ def test_manifest_cross_case_relations_are_declarative():
     relations = manifest["relations"]
     assert relations
     assert len({relation["id"] for relation in relations}) == len(relations)
-    assert {relation["operation"] for relation in relations} <= {"equal", "concat"}
+    assert {relation["operation"] for relation in relations} <= {"equal", "concat", "numeric_equal"}
 
     for relation in relations:
         assert relation["roles"] == ["baseline", "candidate"]
-        if relation["operation"] == "equal":
+        if relation["id"].startswith("pppm_default_equivalence_"):
+            assert relation["operation"] == "numeric_equal"
+        if relation["operation"] in ("equal", "numeric_equal"):
             references = relation["members"]
             assert len(references) >= 2
         else:
@@ -191,11 +208,11 @@ def test_manifest_accounts_for_every_case_input():
 def test_package_fixture_hashes_are_pinned():
     expected = {
         "fixtures/potentials/temperature_F_nep.txt":
-            "261e236885f88b785d832123ce8d7d3a8dbb220dec962ebbec26654ca481ee0b",
+            "1c3340be87cd5f001ace48870c00fcb66e71d227998940451128e134e9dec8c4",
         "fixtures/systems/temperature_F_512.xyz":
             "44a76a943b6e1c419706e0f0b257200d38319194c80a60c589da977f7620b57c",
         "fixtures/potentials/C_2022_NEP4_MODIFIED.txt":
-            "7319c9a7c21aa4cc66ba66c91cf4d4540dade2a28acab90f2529b39c26bbd459",
+            "c906656f8ca18e848b413792a6d2aeec3fc51b6b5cd79dcfded1dbb500379234",
         "fixtures/potentials/neighbor_alias_lj.txt":
             "d058a4054474f8cc1daa260942e05e53b53654f0339bde6f72d2af331eba2a09",
         "fixtures/systems/neighbor_alias_aliased.xyz":
@@ -227,7 +244,7 @@ def test_package_fixture_hashes_are_pinned():
         "fixtures/potentials/graphene_tersoff_1988_params.txt":
             "baf64d6b7f5bbfc32f7af38b64b601af9ce4b4417e8e6c2af320d00610f4f9ef",
         "fixtures/training/pbte.xyz":
-            "3b9f1d55fe61def164ab87370dce66b760d6740d3c1cc35ec6bc3db057572c5c",
+            "374154710cda7bb2d5ad6a05fbe4cfdc93b70910226d192705bd84654f7f8ed7",
         "fixtures/training/pbte_water_mixed.xyz":
             "78cda019ae1243eda4764afc98b53abe287e4a84f2aeaf2c53d37a01b0c04743",
         "fixtures/training/tnep_120.xyz":
@@ -235,6 +252,12 @@ def test_package_fixture_hashes_are_pinned():
         "fixtures/training/water_12_fff.xyz":
             "27a92bdbb864c8c1455eb770666283c9e77c1ee663cb02f9ed1b75beb950692a",
     }
+    expected["fixtures/systems/pppm_batio3_15p9.xyz"] = "6f81f06e8973b52795f8f1bc5f3e49651cc4c83fcbed0cc9b16d87f642476ed8"
+    expected["fixtures/systems/pppm_batio3_8.xyz"] = "d725a5e43e6596025bd2171a0be187b6b392332a6046504759005fd97554ebb5"
+    expected["fixtures/systems/pppm_batio3_above8.xyz"] = "e25849411b53c9361eb440b4d73f0bdccfbb72c70be202fc4445ae70541aa7dc"
+    expected["fixtures/systems/pppm_batio3_tilt.xyz"] = "c4d06e41bccf3b33c341be6a1640326f785eefcc49ea956c8d41ffd905054375"
+    expected["fixtures/systems/pppm_batio3_shear45.xyz"] = "43170c26dcfac9f4268fd1f1ed8966ab0c95a71221da2e4858a2560f6168a488"
+    expected["fixtures/systems/pppm_batio3_mesh_limit.xyz"] = "b0218360043739fe7663b93954daa366f01c5eeea26aac8b241ebf11f69361b3"
     for relative_path, expected_digest in expected.items():
         digest = hashlib.sha256((PACKAGE_ROOT / relative_path).read_bytes()).hexdigest()
         assert digest == expected_digest, relative_path
@@ -255,13 +278,10 @@ def test_successful_nep_cases_declare_neighbor_output():
             continue
         if not nep_tags.intersection(case.get("covers", [])):
             continue
-        default_expectation = case.get("expect", "success")
-        role_expectations = case.get("role_expectations", {}).values()
-        success_capable = default_expectation == "success" or any(
-            role.get("expect", default_expectation) == "success"
-            for role in role_expectations
-        )
-        if success_capable:
+        if case["id"] in {"pppm_no_force", "ewald_no_force"}:
+            assert case["outputs"] == []
+            assert case["stdout_contains"]
+        elif case["expect"] == "success":
             assert "neighbor.out" in case["outputs"], case["id"]
 
 
@@ -270,11 +290,11 @@ def test_training_cases_use_nep_program_and_minimal_inputs():
     training_cases = [
         case for case in manifest["cases"] if "training" in case["suites"]
     ]
-    assert len(training_cases) == 22
+    assert len(training_cases) == 23
     assert all(case.get("program") == "nep" for case in training_cases)
     assert all("full" in case["suites"] for case in training_cases)
     assert all(
-        case["outputs"] == ["loss.out", "nep.txt", "nep.restart"]
+        case["outputs"][:3] == ["loss.out", "nep.txt", "nep.restart"]
         for case in training_cases
     )
     assert all("stage" not in case for case in training_cases)
@@ -299,7 +319,13 @@ def test_training_cases_use_nep_program_and_minimal_inputs():
             fields for fields in commands if fields[0] == "output_interval"
         )
         assert generation == ["generation", "10"], case["id"]
-        assert output_interval == ["output_interval", "10"], case["id"]
+        interval = "1" if case["id"] == "train_nep_pbte_ediff" else "10"
+        assert output_interval == ["output_interval", interval], case["id"]
+        expected_outputs = ["loss.out", "nep.txt", "nep.restart"]
+        if case["id"] == "train_nep_pbte_ediff":
+            expected_outputs += ["energy_test.out", "force_test.out", "virial_test.out", "stress_test.out"]
+            assert ["lambda_d", "0.1"] in commands
+        assert case["outputs"] == expected_outputs, case["id"]
 
     mixed_cases = [case for case in training_cases if case["id"].endswith("_mixed")]
     assert len(mixed_cases) == 4
@@ -317,6 +343,27 @@ def test_training_cases_use_nep_program_and_minimal_inputs():
             continue
         input_path = PACKAGE_ROOT / case["input"].removeprefix("package:")
         assert "batch 61" in input_path.read_text(encoding="utf-8"), case["id"]
+
+
+def test_energy_difference_fixture_preserves_pbte_data():
+    path = PACKAGE_ROOT / "fixtures/training/pbte.xyz"
+    text = path.read_text()
+    names = re.findall(r" name=(pbte_\d+)$", text, re.MULTILINE)
+    assert names == ["pbte_01", "pbte_02", "pbte_03", "pbte_04"]
+    original = re.sub(r" name=pbte_0[1-4](?=\n)", "", text)
+    assert hashlib.sha256(original.encode()).hexdigest() == (
+        "3b9f1d55fe61def164ab87370dce66b760d6740d3c1cc35ec6bc3db057572c5c"
+    )
+    frames = runner.post_checks.read_extxyz(path)
+    assert len(frames) == 25
+    for a, b in ((0, 1), (2, 3)):
+        left, right = frames[a], frames[b]
+        assert left["natoms"] == right["natoms"] == 250
+        for species in ("Pb", "Te"):
+            assert sum(left["arrays"]["species"] == species) == 125
+            assert sum(right["arrays"]["species"] == species) == 125
+        assert not (left["arrays"]["pos"] == right["arrays"]["pos"]).all()
+        assert abs(float(left["fields"]["energy"]) - float(right["fields"]["energy"])) > 1
 
 
 def test_behavior_contract_cases_are_full_differential_cases():
@@ -432,14 +479,13 @@ def test_parsing_validation_cases_match_the_accepted_baseline():
 
 
 
-def test_semantic_postchecks_preserve_byte_exact_cross_version_outputs():
+def test_semantic_postchecks_preserve_cross_version_comparisons():
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     post_checked = [case for case in manifest["cases"] if case.get("post_checks")]
     assert post_checked
     for case in post_checked:
-        # Semantic tolerances are independent post-processing oracles only.
-        # Baseline/candidate output comparison stays byte-exact.
-        assert case.get("comparisons", {}) == {}
+        expected = {"force_test.out"} if case["id"] == "train_nep_pbte_ediff" else set()
+        assert set(case.get("comparisons", {})) == expected
         assert "role_expectations" not in case
         assert case.get("compare_cross_version", True) is True
 
@@ -457,7 +503,7 @@ def test_regression_has_no_dependency_on_migrated_gpumd_test_directories():
         assert f"repo:tests/gpumd/{directory}/" not in text
 
 
-def test_numeric_exceptions_are_limited_to_calibrated_gpu_outputs():
+def test_numeric_exceptions_are_explicit_per_output():
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     actual = {
         case["id"]: {
@@ -471,15 +517,16 @@ def test_numeric_exceptions_are_limited_to_calibrated_gpu_outputs():
             for comparison in case.get("comparisons", {}).values()
         )
     }
-    assert actual == {
+    expected = {
+        "train_nep_pbte_ediff": {
+            "force_test.out": (1e-5, 2e-7),
+        },
+        "predict_nep_pbte_batch": {
+            "force_train.out": (1e-5, 2e-7),
+        },
         "qnep_ewald_future_bec": {
             "bec.xyz": (0.0, 3e-6),
             "dpdt.out": (0.0, 2e-7),
-        },
-        "qnep_pppm_future_bec": {
-            "bec.xyz": (0.0, 1e-5),
-            "thermo.out": (0.0, 1e-7),
-            "dpdt.out": (0.0, 2e-6),
         },
         "qnep_actions_before_potential": {
             "bec.xyz": (0.0, 3e-6),
@@ -491,13 +538,45 @@ def test_numeric_exceptions_are_limited_to_calibrated_gpu_outputs():
         "dftd3_single_late": {
             "restart.xyz": (0.0, 1e-17),
         },
+        "qnep_pppm_future_bec": {
+            "bec.xyz": (0, 1e-5),
+            "thermo.out": (0, 1e-7),
+            "dpdt.out": (0, 2e-6),
+        },
     }
+
+    pppm_same_mesh_ids = {
+        "pppm_default",
+        "pppm_explicit",
+        "pppm_round_power2",
+        "pppm_mode2",
+        "pppm_peratom",
+        "pppm_mode2_peratom",
+        "pppm_deform_same_mesh",
+        "pppm_shear_same_mesh",
+        "pppm_npt",
+        "pppm_two_runs",
+        "pppm_spacing_one",
+        "pppm_spacing_late",
+        "pppm_spacing_fine",
+        "pppm_spacing_coarse",
+        "pppm_round_exact",
+        "pppm_round_above",
+        "pppm_round_5_7",
+        "pppm_grow_shrink",
+        "pppm_grow_shrink_peratom",
+        "pppm_triclinic_mesh",
+    }
+    for case_id in pppm_same_mesh_ids:
+        expected[case_id] = {"thermo.out": (0, 1e-7), "state.xyz": (0, 2e-5)}
+    assert actual == expected
 
 
 if __name__ == "__main__":
     tests = (
         test_manifest_validation_cli,
         test_manifest_suite_and_input_style_contract,
+        test_manifest_rejects_asymmetric_contracts,
         test_manifest_uses_single_run_byte_exact_defaults,
         test_manifest_cross_case_relations_are_declarative,
         test_runner_exposes_explicit_external_paths,
@@ -505,12 +584,13 @@ if __name__ == "__main__":
         test_package_fixture_hashes_are_pinned,
         test_successful_nep_cases_declare_neighbor_output,
         test_training_cases_use_nep_program_and_minimal_inputs,
+        test_energy_difference_fixture_preserves_pbte_data,
         test_behavior_contract_cases_are_full_differential_cases,
         test_default_runtime_consumers_are_full_cases,
         test_parsing_validation_cases_match_the_accepted_baseline,
-        test_semantic_postchecks_preserve_byte_exact_cross_version_outputs,
+        test_semantic_postchecks_preserve_cross_version_comparisons,
         test_regression_has_no_dependency_on_migrated_gpumd_test_directories,
-        test_numeric_exceptions_are_limited_to_calibrated_gpu_outputs,
+        test_numeric_exceptions_are_explicit_per_output,
     )
     for test in tests:
         test()

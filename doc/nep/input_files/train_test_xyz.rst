@@ -6,8 +6,10 @@
 ``train.xyz`` and ``test.xyz``
 ==============================
 
-The :attr:`train.xyz` file, which contains the training data for the construction of a :term:`NEP` model, and the :attr:`test.xyz` file, which contains the corresponding test data, both need to be provided in `extended xyz file format <https://github.com/libAtoms/extxyz>`_.
+The :attr:`train.xyz` file contains the training data for the construction of a :term:`NEP` model, while the optional :attr:`test.xyz` file contains the corresponding test data.
+Both files use `extended xyz file format <https://github.com/libAtoms/extxyz>`_.
 Each structure (or configuration or frame) occupies :math:`N+2` lines, where :math:`N` is the number of atoms in the structure.
+Grouped magnetic-response data use a separate :ref:`response.xyz <response_xyz>` file.
 
 Format for a single structure
 -----------------------------
@@ -41,18 +43,45 @@ Essentially any keyword is allowed, but we only read the following ones:
   Positive and negative values represent compressed and stretched states, respectively.
 * :attr:`stress="sxx sxy sxz syx syy syz szx szy szz"` is optional and gives the :math:`3\times3` stress tensor of the structure in eV/Å\ :math:`^3`.
   Positive and negative values represent stretched and compressed states, respectively.
-  If both :attr:`virial` and :attr:`stress` are present the former is used.
+  If both :attr:`virial` and :attr:`stress` are present, the virial is used.
+  During potential training, the two tensors must agree after conversion to per-atom virials, within :math:`10^{-3}` eV/atom for each independent component; otherwise training stops with an input error.
 * :attr:`weight=relative_weight` is optional and gives the relative weight for the current structure in the total loss function.
+* :attr:`energy_weight=relative_weight` is optional and defaults to 1. It multiplies the squared energy error for the current structure, in addition to the weighting specified by :attr:`weight`.
+* :attr:`charge=total_charge` is optional for ``qnep1``, ``qnep2``, ``qnep3``, and ``qnep3_vdw`` models. It gives the total charge of the structure in units of elementary charge e and defaults to 0.
+* :attr:`temperature=temperature_value` is required for the ``nep_temperature`` model and gives the electronic temperature in kelvin.
+* :attr:`pbc="T T T"` or :attr:`pbc="F F F"` specifies fully periodic or fully nonperiodic boundaries for the long-range models ``qnep1``, ``qnep2``, ``qnep3``, ``nep_vdw``, and ``qnep3_vdw`` (see :ref:`model <kw_model>`).
+  The default is ``T T T``. Mixed periodic and nonperiodic directions are not supported for these models.
+* :attr:`name=label` is optional and gives the structure a label, by which :ref:`ediff.in <ediff_in>` refers to it.
+  Labels are matched case-insensitively for the letters A to Z and must be unique within a file.
+  A label must not begin with ``#``, ``+`` or ``-``, or contain whitespace or any of ``* / = " ' { }``, and a structure has at most one :attr:`name` field.
+  The field is read only when the keyword :ref:`lambda_d <kw_lambda_d>` is set, and a label that breaks these rules is then an input error.
 * :attr:`properties=property_name:data_type:number_of_columns` is mandatory but only read the following items:
   
   * :attr:`species:S:1` chemical symbol in the periodic table (case-sensitive)
   * :attr:`pos:R:3` position vector
   * :attr:`force:R:3` or :attr:`forces:R:3` target force vector
   * :attr:`bec:R:9` target Born effective charge (:term:`BEC`) tensor (optional)
+  * :attr:`adipole:R:3` or :attr:`atomic_dipole:R:3` target atomic dipole vector in the order :math:`x,y,z` (required for ``model nep_dipole`` with ``atomic_v 1``)
+  * :attr:`apol:R:9` or :attr:`atomic_polarizability:R:9` target atomic polarizability tensor in the order :math:`xx,xy,xz,yx,yy,yz,zx,zy,zz` (required for ``model nep_polarizability`` with ``atomic_v 1``)
+  * :attr:`spin:R:3`, :attr:`spins:R:3`, :attr:`moment:R:3`, or
+    :attr:`moments:R:3` Cartesian magnetic-moment vector in muB (required when
+    :ref:`spin_version <kw_spin_version>` is specified)
+  * :attr:`mforce:R:3` target magnetic-force vector (optional). The aliases
+    ``mforces``, ``force_mag``, ``forces_mag``, ``magnetic_force``, and
+    ``magnetic_forces`` are also accepted.
+
+  For atom types excluded by :ref:`spin_type <kw_spin_type>`, training, test
+  and prediction readers set the effective spin to zero and ignore magnetic-force
+  labels. The original files need no modification. Energy and atomic-force labels
+  are preserved, and their positions remain part of the geometric environment.
 
 * If a dipole model is to be trained, energy, virial, stress, and force will be ignored and one should additionally provide :attr:`dipole="dx dy dz"`, which is the dipole vector of the structure. 
 
 * If a polarizability model is to be trained, energy, virial, stress, force, and dipole will be ignored and one should additionally provide :attr:`pol="pxx pxy pxz pyx pyy pyz pzx pzy pzz"`, which is the polarizability tensor of the structure.
+
+For atomic dipole or polarizability fitting, set :ref:`atomic_v <kw_atomic_v>` to ``1`` and provide the corresponding atomic property above.
+The training reader also requires the global ``dipole`` or ``pol`` field on line 2 in this mode, although the loss is evaluated using the atomic targets.
+Atomic targets are given directly, without division by the number of atoms.
 
 Starting from line 3
 ^^^^^^^^^^^^^^^^^^^^
@@ -64,14 +93,16 @@ Units
 * Length and position are expected in units of Ångstrom.
 * The energy is expected  in units of eV.
 * Forces are expected in units of eV/Å.
-* Virials are expected in units of eV (such that the virial divided by the volume yields the stress).
+* Virials are expected in units of eV. The corresponding stress is the negative of the virial divided by the cell volume.
 * Dipole and polarizability can be in arbitrary units (such as the Hartree atomic units) as liked (and remembered) by the user.
 * :term:`BEC` is in units of elementary charge e.
+* Spin is in Bohr magnetons (muB), and magnetic force is in eV/muB.
+  Magnetic force is the negative Cartesian derivative of energy with respect to spin.
 
 Tips
 ----
-* Periodic boundary conditions are always assumed for all directions in each configuration.
-  When the box thickness in a direction is smaller than twice of the radial cutoff distance, the code will internally replicate the box in that direction.
+* Long-range models use the boundary conditions specified by :attr:`pbc` as described above. Other models assume periodic boundary conditions in all directions.
+  For periodic configurations, when the box thickness in a direction is smaller than twice the radial cutoff distance, the code internally replicates the box in that direction.
 * The minimal number of atoms in a configuration is 1.
   The user is responsible for choosing a sensible reference energy when preparing the energy data.
   But this is not crucial as the absolute energies are not relevant in the present context.
@@ -79,4 +110,3 @@ Tips
 * The energy and virial data refer to the total energy and virial for the system.
   They are not per-atom but per-cell quantities.
 * The :term:`BEC` is optional. You can also have it only for some structures.
-

@@ -2,15 +2,15 @@
     Copyright 2017 Zheyong Fan and GPUMD development team
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU Lesser General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-    You should have received a copy of the GNU General Public License
-    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*----------------------------------------------------------------------------80
@@ -460,7 +460,7 @@ void MC_Ensemble_SGC::compute(
     }
     // printf("        per-atom energy before swapping = %g eV.\n", pe_before_total / NN_ij_cpu);
     // printf("        per-atom energy after swapping = %g eV.\n", pe_after_total / NN_ij_cpu);
-    float energy_difference = pe_after_total - pe_before_total;
+    double energy_difference = pe_after_total - pe_before_total;
 
     if (!is_vcsgc) {
       energy_difference += mu_or_phi[index_new_species] - mu_or_phi[index_old_species];
@@ -468,12 +468,14 @@ void MC_Ensemble_SGC::compute(
       energy_difference +=
         kappa * K_B * temperature / group_size *
         (group_size * (mu_or_phi[index_new_species] - mu_or_phi[index_old_species]) +
-         2 * (num_atoms_species[index_new_species] - num_atoms_species[index_old_species]) + 1.0);
+         2 * (num_atoms_species[index_new_species] - num_atoms_species[index_old_species]) + 2.0);
     }
 
     std::uniform_real_distribution<float> r2(0, 1);
     float random_number = r2(rng);
-    float probability = exp(-energy_difference / (K_B * temperature));
+    double energy_change = energy_difference;
+    energy_change += nep_energy.energy_reference[type_j] - nep_energy.energy_reference[type_i];
+    float probability = exp(-energy_change / (K_B * temperature));
 
     if (random_number < probability) {
       ++num_accepted;

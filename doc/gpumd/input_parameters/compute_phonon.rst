@@ -6,7 +6,8 @@
 ======================
 
 This keyword can be used to compute the phonon dispersions using the finite-displacement method.
-The results are written to the :ref:`D.out output file <D_out>` and the :ref:`omega2.out output file <omega2_out>`.
+For a path containing multiple k points, the results are written to the :ref:`D.out output file <D_out>` and the :ref:`omega2.out output file <omega2_out>`.
+With a single Gamma point, the output is instead ``eigenvector.out``; see :ref:`eigenvector.in <eigenvector_in>` for its binary format and use in modal analysis.
 
 To use this keyword, please make sure the following files have been prepared in the input directory:
 
@@ -21,7 +22,8 @@ To use this keyword, please make sure the following files have been prepared in 
      - Specify the :math:`\boldsymbol{k}`-points along the high-symmetry paths
 
 
-To use this keyword, :attr:`replicate` keywords must write head in the :attr:`run.in` file.
+The :ref:`replicate keyword <kw_replicate>` must be the first command in ``run.in``.
+Use ``replicate 1 1 1`` when the input cell itself is the desired phonon basis.
 
 Syntax
 ------

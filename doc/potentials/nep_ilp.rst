@@ -6,22 +6,27 @@ Hybrid NEP+ILP potential
 ========================
 
 The hybrid :term:`NEP` + :term:`ILP` potential [Bu2026]_ in :program:`GPUMD` combines the neuroevolution potential 
-(:term:`NEP`), [Fan2022b]_ (NEP3), and [Song2024]_ (NEP4), for intralyer
+(:term:`NEP`), [Fan2022b]_ (NEP3), and [Song2024]_ (NEP4), for intralayer
 interactions and the interlayer potential (:term:`ILP`) [Ouyang2018]_ [Ouyang2020]_ 
 for interlayer interactions to simulate van der Waals materials. 
 Now this hybrid potential supports to simulate homo- and heterostructures based on 
 graphene, :math:`h`-BN and transition metal dichalcogenides (TMDs) layered materials.
 
+.. _ilp_potential_form:
+
 Potential form
 --------------
 
-The site potential of :term:`ILP` can be written as:
+The total :term:`ILP` energy can be written as:
 
 .. math::
    
-   U_i^{\mathrm{ILP}}=  \mathrm{Tap}(r_{ij}) \left[U^{\mathrm{att}}(r_{ij})+U^{\mathrm{rep}}(r_{ij}, \boldsymbol{n}_i, \boldsymbol{n}_j)\right]
+   U^{\mathrm{ILP}}=\frac{1}{2}\sum_i\sum_{j\in\mathcal{N}_i^{\mathrm{inter}}}
+   \mathrm{Tap}(r_{ij}) \left[U^{\mathrm{att}}(r_{ij})+U^{\mathrm{rep}}(r_{ij}, \boldsymbol{n}_i, \boldsymbol{n}_j)\right]
 
-The function :math:`\mathrm{Tap}(r_{ij})` is a cutoff function and takes the following form in the intermediate region:
+Here, :math:`\mathcal{N}_i^{\mathrm{inter}}` contains the neighbors of atom :math:`i` in other layers within the ILP cutoff.
+The factor of :math:`1/2` avoids counting each atom pair twice.
+The cutoff function :math:`\mathrm{Tap}(r_{ij})` takes the following form for :math:`0\leq r_{ij}<R_{\mathrm{cut}}` and is zero beyond the cutoff:
 
 .. math::
 
@@ -35,9 +40,9 @@ The repulsive term and the attractive term take the following forms:
 
    U^{\mathrm{att}}(r_{ij})&=-\frac{1}{1+e^{-d_{ij}\left[r_{ij}/(S_{\mathrm{R},ij}\cdot r_{ij}^{\mathrm{eff}})-1\right]}}\frac{C_{6,ij}}{r_{ij}^{6}}.
    
-   U^{\mathrm{rep}}(r_{ij}, \boldsymbol{n}_i, \boldsymbol{n}_j)&=e^{\alpha_{ij}\left(1-\frac{\gamma_{ij}}{\beta_{ij}}\right)} \left\{\epsilon_{ij}+C_{ij}\left[e^{-{(\frac{\rho_{ij}}{\gamma_{ij}})}^2}+e^{-{\left(\frac{\rho_{ji}}{\gamma_{ij}}\right)}^2}\right]\right\}.
+   U^{\mathrm{rep}}(r_{ij}, \boldsymbol{n}_i, \boldsymbol{n}_j)&=e^{\alpha_{ij}\left(1-\frac{r_{ij}}{\beta_{ij}}\right)} \left\{\epsilon_{ij}+C_{ij}\left[e^{-{(\frac{\rho_{ij}}{\delta_{ij}})}^2}+e^{-{\left(\frac{\rho_{ji}}{\delta_{ij}}\right)}^2}\right]\right\}.
 
-where :math:`\boldsymbol n_i` and :math:`\boldsymbol n_j` are normal vectors of atom :math:`i` and :math:`j`,
+where :math:`\boldsymbol n_i` and :math:`\boldsymbol n_j` are unit normal vectors of atom :math:`i` and :math:`j`,
 :math:`\rho_{ij}` and :math:`\rho_{ji}` are the lateral interatomic distance, which can be expressed as:
 
 .. math::
@@ -45,6 +50,7 @@ where :math:`\boldsymbol n_i` and :math:`\boldsymbol n_j` are normal vectors of 
    \rho_{ij}^{2}&= r_{ij}^2-{(\boldsymbol r_{ij} \cdot \boldsymbol n_i)}^2\\
    \rho_{ji}^{2}&= r_{ij}^2-{(\boldsymbol r_{ij} \cdot \boldsymbol n_j)}^2
 
+The width :math:`\delta_{ij}` corresponds to ``delta`` in the parameter file.
 Other variables are all fitting parameters.
 
 The site potential of :term:`NEP` can be written as:
@@ -62,8 +68,9 @@ File format
 This hybrid potential requires 3 kinds of files: one for :term:`ILP` potential, 
 one for :term:`NEP` potential and the other for mapping :term:`NEP` potential to groups in model file.
 We have adopted the :term:`ILP` file format that is similar but not identical to that used by `lammps <https://docs.lammps.org/pair_ilp_graphene_hbn.html>`_.
-The :term:`NEP` potential file is not required to modify, while to make the :term:`ILP` and :term:`NEP` potentials identify the layers, it's required to set some groups
-in ``model.xyz`` file.
+Each :term:`NEP` file must use the :ref:`nep.txt format <nep_txt>` with
+``model nep``, one hidden layer, uniform cutoffs, and no ZBL.
+Groups in ``model.xyz`` identify the layers for both the :term:`ILP` and :term:`NEP` potentials.
 
 In ``run.in`` file, the :attr:`potential` setting is as::
   
@@ -129,9 +136,11 @@ setting in ``run.in`` file is as::
   
   potential C.ilp map.nep
 
-Assume that the first line in ``C.nep`` is::
+Assume that ``C.nep`` begins with::
   
-  nep3 1 C 
+  nep 1 C
+  format_version 1
+  model nep
 
 and :attr:`group_method` 0 is used to identify the different layers. Then ``C.ilp``
 is required to set as::
@@ -170,13 +179,17 @@ The potential setting in ``run.in`` file is as::
   
   potential BNMoS.ilp map.nep
 
-Assume the first line in ``BN.nep`` is::
+Assume ``BN.nep`` begins with::
   
-  nep4 2 B N
+  nep 2 B N
+  format_version 1
+  model nep
 
-and in ``MoS.nep`` is::
+and ``MoS.nep`` begins with::
 
-  nep4 2 Mo S
+  nep 2 Mo S
+  format_version 1
+  model nep
 
 We also assume the :attr:`group_method` 0 is used to identify the different layers and 
 :attr:`group_method` 1 is used to identify the different sublayers for :term:`ILP`. In :attr:`group_method` 1, 
