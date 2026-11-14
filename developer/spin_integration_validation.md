@@ -48,8 +48,8 @@ temperature-chain check compares production stepping with independent host RK4.
 An optional `--reference /path/to/previous/gpumd` supplies a negative control;
 both executables must support the same model format.
 
-The common NHC integrator retains four RESPA substeps and checks for nonfinite
-thermostat states. Its host RK4 check uses a 0.5 fs timestep and coupling times
+The common NHC integrator is unchanged from upstream and uses four RESPA
+substeps. Its host RK4 check uses a 0.5 fs timestep and coupling times
 of 100 steps for four atoms and 500 steps for 5,575,680 atoms. A shorter coupling
 time can still destabilize a large reservoir with a large temperature mismatch;
 the fixed-four integrator does not increase substeps automatically.

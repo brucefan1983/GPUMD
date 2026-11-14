@@ -245,7 +245,7 @@ static double nhc(
 {
   // These constants are taken from Tuckerman's book
   int n_sy = 7;
-  const int n_respa = 4;
+  int n_respa = 4;
   const double w[7] = {
     0.784513610477560,
     0.235573213359357,
@@ -304,11 +304,6 @@ static double nhc(
       vel_eta[M - 1] += dt4 * G;
     }
   }
-  if (!(factor > 0.0) || !std::isfinite(factor))
-    PRINT_INPUT_ERROR("Nose-Hoover chain produced a non-finite velocity scale.");
-  for (int m = 0; m < M; ++m)
-    if (!std::isfinite(pos_eta[m]) || !std::isfinite(vel_eta[m]))
-      PRINT_INPUT_ERROR("Nose-Hoover chain produced a non-finite thermostat state.");
   return factor;
 }
 
