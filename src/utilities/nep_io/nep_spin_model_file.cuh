@@ -7,7 +7,8 @@
 // Current Spin model data. Parameter order is identical to the training arrays
 // and the @ parameters block.
 struct NEP_Spin_Model_File {
-  static constexpr int MAX_DIM_SPIN = 199; // structural 103 + magnetic 96
+  static constexpr int COMPACT_ANN_DIM = 199; // Preserve the existing common-shape workspace.
+  static constexpr int MAX_DIM_SPIN = 339; // structural 103 + magnetic 236 (C9/L4/O4, no SOC)
   std::vector<std::string> elements;
   float rc_radial = 0, rc_angular = 0;
   int max_radial = 0, max_angular = 0;

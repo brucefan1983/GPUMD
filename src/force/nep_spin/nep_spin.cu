@@ -350,7 +350,7 @@ __global__ void find_structural_descriptor(
     descriptor[static_cast<size_t>(N) * (paramb.n_max_radial + 1 + d * channels + n) + n1] = q[d];
 }
 
-template<class Real = float>
+template<class Real = float, int Capacity = NEP_Spin_Model_File::COMPACT_ANN_DIM>
 __global__ void find_potential(
   const int N,
   const int descriptor_dim,
@@ -375,14 +375,14 @@ __global__ void find_potential(
   const float* b0 = w0 + static_cast<std::size_t>(hidden_neurons) * descriptor_dim;
   const float* w1 = b0 + hidden_neurons;
   const float* b1 = parameters + static_cast<std::size_t>(num_types) * type_block;
-  Real q[NEP_Spin_Model_File::MAX_DIM_SPIN] = {0.0f};
+  Real q[Capacity] = {0.0f};
   for (int d = 0; d < descriptor_dim; ++d) {
     q[d] = wide_spin && d >= structural_dim
       ? wide_spin[static_cast<std::size_t>(N) * (d-structural_dim) + atom] * q_scaler[d]
       : descriptor[static_cast<std::size_t>(N) * d + atom] * q_scaler[d];
   }
   Real energy = 0.0f;
-  Real fp[NEP_Spin_Model_File::MAX_DIM_SPIN] = {0.0f};
+  Real fp[Capacity] = {0.0f};
   for (int neuron = 0; neuron < hidden_neurons; ++neuron) {
     Real projection = 0.0f;
     for (int d = 0; d < descriptor_dim; ++d) {
@@ -1533,12 +1533,18 @@ void NEP_Spin::compute(
   const int grid_size = (N - 1) / block_size + 1;
   auto launch_potential = [&]() {
     auto launch = [&](auto precision, const double* wide) {
-      find_potential<decltype(precision)><<<grid_size, block_size>>>(
-        N, model_.descriptor_dim, model_.hidden_neurons, model_.num_types, type.data(),
-        data_.descriptor.data(), data_.parameters.data(),
-        data_.parameters.data() + model_.model_parameter_count, data_.energy_reference.data(),
-        potential.data(), data_.Fp.data(),
-        wide, model_.struct_descriptor_dim);
+      auto launch_dim = [&](auto capacity) {
+        find_potential<decltype(precision), decltype(capacity)::value><<<grid_size, block_size>>>(
+          N, model_.descriptor_dim, model_.hidden_neurons, model_.num_types, type.data(),
+          data_.descriptor.data(), data_.parameters.data(),
+          data_.parameters.data() + model_.model_parameter_count, data_.energy_reference.data(),
+          potential.data(), data_.Fp.data(),
+          wide, model_.struct_descriptor_dim);
+      };
+      if (model_.descriptor_dim <= NEP_Spin_Model_File::COMPACT_ANN_DIM)
+        launch_dim(std::integral_constant<int, NEP_Spin_Model_File::COMPACT_ANN_DIM>{});
+      else
+        launch_dim(std::integral_constant<int, NEP_Spin_Model_File::MAX_DIM_SPIN>{});
     };
     if (data_.wide_spin_descriptors.size()) launch(double{}, data_.wide_spin_descriptors.data());
     else launch(float{}, nullptr);

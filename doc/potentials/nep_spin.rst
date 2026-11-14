@@ -20,7 +20,7 @@ universal ZBL term. Flexible ZBL (``zbl 0 0``) is not supported.
 ``spin_version`` identifies the descriptor and parameter-layout
 contract, independently of the file syntax version and ``spin_order``.
 
-Every :ref:`spin_cutoff <kw_spin_cutoff>` value must be positive and no larger
+Every :ref:`spin_cutoff <kw_spin_cutoff>` value must be at least 3 Å and no larger
 than the ordinary NEP radial cutoff. This constraint applies to both training
 input and model files; different spin cutoffs per atom type are supported
 within this bound.
@@ -110,7 +110,9 @@ ascending degree then rank. In SOC mode, path order is geometry rank, primitive,
 in the ``@ q_scaler`` block.
 
 Current limits are :math:`1\leq C\leq9`, :math:`0\leq L\leq4`,
-:math:`1\leq S\leq4`, at most 96 response and 199 total coordinates.
+:math:`1\leq S\leq4`, and ``spin_soc 0/1``. Every combination of these
+magnetic settings is supported, with at most 236 magnetic and 339 total
+coordinates. The structural limits remain 90 angular and 103 total coordinates.
 The training optimizer is SNES.
 
 Non-SOC descriptors
@@ -146,8 +148,9 @@ but only enter spatial-rank-zero sectors. This ordering is part of the
 
 For maximum angular rank L, order S and C channels, the non-SOC dimension is
 ``floor(S/2) + C * ((L+1)*(min(L,S)+1) + 1)``. For C=3, L=S=2 this is 31,
-with 81 tensor components per channel. The existing limits of 96 response
-and 199 total coordinates still apply. The largest supported product basis
+with 81 tensor components per channel. At C=9, L=S=4 it reaches the maximum
+236 magnetic coordinates (339 with the maximal structural shape).
+The largest supported product basis
 has 625 components per channel; large layouts retain the generic CUDA
 fallback. SOC at L=S=2 has ``1+11*C`` spin coordinates.
 

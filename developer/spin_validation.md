@@ -25,3 +25,20 @@ GLSD/FIRE validators. Four-GPU checks use `validate_spin_multigpu.py`,
 `validate_spin_integrators_multigpu.py` and `validate_spin_training_multigpu.py`.
 The runtime model for Fe/Ge tests is `tests_pytest/fixtures/nep_spin/c3l2s2_fege.nep`.
 Numerical checks do not establish accuracy on an application dataset.
+
+## Declared magnetic-shape capacity
+
+```sh
+python tests_pytest/test_spin_capacity.py
+GPUMD_COMMAND=/path/to/gpumd NEP_COMMAND=/path/to/nep GPUMD_SRC=/path/to/src \
+  python tests_pytest/validate_spin_capacity.py --workdir /path/to/new/results
+```
+
+The host check exhausts all 360 C/L/order/SOC combinations, checks tensor indices,
+and reads each with the maximum existing structural shape (103 coordinates).
+The GPU check compares E/F/virial/mforce between NEP prediction and GPUMD for
+every combination, with two fourth-order Richardson estimates of force, magnetic force
+and raw9 virial for all 55 combinations above the former 96-column limit.
+The 100- and 236-magnetic-column boundaries also exercise JIT, one training
+generation, and multi-image small-box prediction. These are numerical capacity
+checks, not fitted-model accuracy or long-time dynamics acceptance.

@@ -134,7 +134,7 @@ def main():
                 other = 'lambda_m_perp' if key.endswith('parallel') else 'lambda_m_parallel'
                 invalid.append((f'{key} {bad}\n{other} 1', 'finite and non-negative'))
         for key, message in [('lambda_tau', 'finite and non-negative'),
-                             ('spin_cutoff', 'finite positive')]:
+                             ('spin_cutoff', 'finite numbers >= 3 A')]:
             for bad in ('nan', 'inf', '1e40'):
                 case = root / f'invalid-{key}-{bad}'
                 config = common.replace(f'{key} ' + ('0.5' if key == 'lambda_tau' else '6.0'), f'{key} {bad}')

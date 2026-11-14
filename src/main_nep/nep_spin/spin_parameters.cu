@@ -178,9 +178,6 @@ void Spin_Parameters::validate_spin_parameters()
 void Spin_Parameters::calculate_spin_dimensions()
 {
   dim_spin = nep_spin::Layout(spin_compress, spin_l_max, spin_order, spin_soc).dimension;
-  if (dim_spin > 96) {
-    PRINT_INPUT_ERROR("Number of spin descriptors should not exceed 96.\n");
-  }
   dim = dim_struct + dim_spin;
   if (dim > NEP_Spin_Model_File::MAX_DIM_SPIN) {
     PRINT_INPUT_ERROR(
@@ -328,16 +325,16 @@ void Spin_Parameters::parse_spin_cutoff(const char** param, int num_param)
     PRINT_INPUT_ERROR("Please set type before setting spin_cutoff.\n");
   }
   if (num_types <= 0 || (num_param != 2 && num_param != num_types + 1)) {
-    PRINT_INPUT_ERROR("spin_cutoff should have one positive number or one per atom type.\n");
+    PRINT_INPUT_ERROR("spin_cutoff should have one value >= 3 A or one per atom type.\n");
   }
   spin_cutoff_by_type.resize(num_types);
   for (int type = 0; type < num_types; ++type) {
     double cutoff = 0.0;
     const int value_index = num_param == 2 ? 1 : type + 1;
     if (
-      !is_valid_real(param[value_index], &cutoff) || !std::isfinite(cutoff) || cutoff <= 0.0 ||
+      !is_valid_real(param[value_index], &cutoff) || !std::isfinite(cutoff) || cutoff < 3.0 ||
       cutoff > std::numeric_limits<float>::max()) {
-      PRINT_INPUT_ERROR("spin_cutoff values must be finite positive numbers within float range.\n");
+      PRINT_INPUT_ERROR("spin_cutoff values must be finite numbers >= 3 A within float range.\n");
     }
     spin_cutoff_by_type[type] = static_cast<float>(cutoff);
   }

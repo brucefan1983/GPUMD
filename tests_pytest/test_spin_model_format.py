@@ -120,6 +120,8 @@ def test_parameter_and_scaler_order(codec, tmp_path, name):
     ('spin_type Fe', 'spin_type Fe Fe'),
     ('spin_type Fe', 'spin_type Unknown'),
     ('spin_cutoff 6', 'spin_cutoff 0'),
+    ('spin_cutoff 6', 'spin_cutoff 2.999'),
+    ('spin_cutoff 6', 'spin_cutoff 6 2.999 6'),
     ('spin_cutoff 6', 'spin_cutoff 7'),
     ('ann 32 0', 'ann 32 1'),
     ('spin_scaler 1','spin_scaler 0'),
@@ -154,3 +156,10 @@ def test_defaults_and_zbl(codec,tmp_path):
     parsed=parse(codec,tmp_path/'model.nep',model)
     assert parsed['spin_type']==[1,1,1]
     assert parsed['zbl']==[1,1,2,.75]
+
+
+def test_spin_cutoff_lower_bound(codec, tmp_path):
+    model = (Path(__file__).parent/'fixtures/nep_spin/c3l2s2.nep').read_text()
+    for cutoff, expected in [('3', [3, 3, 3]), ('3 4 6', [3, 4, 6])]:
+        parsed = parse(codec, tmp_path/'cutoff.nep', model.replace('spin_cutoff 6', 'spin_cutoff '+cutoff))
+        assert parsed['spin_cutoff'] == expected

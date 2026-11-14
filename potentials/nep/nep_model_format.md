@@ -556,12 +556,15 @@ The following fields supplement the common energy-model fields:
 | `spin_compress C` | Learned radial channels in `1..9` |
 | `spin_order S` | Primitive polynomial degree in `1..4` |
 | `spin_soc flag` | Independent rotations (`0`) or joint rotations (`1`) |
-| `spin_cutoff ...` | One value or one per type; positive and no larger than radial cutoff; pair cutoff is the arithmetic mean |
+| `spin_cutoff ...` | One value or one per type; at least 3 Å and no larger than radial cutoff; pair cutoff is the arithmetic mean |
 | `spin_scaler 1` | Per-component scaling in `q_scaler` |
 | `spin_type ...` | Optional nonempty subset with independent spins; defaults to all types |
 
-All atom types are energy centers. The limits are 90 structural angular,
-96 spin and 199 total descriptor components. One hidden layer is required.
+All atom types are energy centers. Every combination of the declared magnetic
+ranges is supported. The limits are 90 structural angular, 103 structural,
+236 magnetic and 339 total descriptor components. The magnetic maximum is
+reached at C=9, L=4, S=4 without SOC. Models with at most 199 total components
+retain the compact ANN workspace. One hidden layer is required.
 Universal ZBL and the shared elemental energy reference are supported.
 
 The parameter vector uses C-order arrays:

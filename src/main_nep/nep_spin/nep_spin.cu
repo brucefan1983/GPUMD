@@ -306,10 +306,16 @@ void NEP_Spin_Model::find_force(
         work.Fp.data());
     } else {
       auto launch = [&](auto wide_input) {
-        apply_ann_one_layer_warp<NEP_Spin_Model_File::MAX_DIM_SPIN, decltype(wide_input)::value>
-          <<<(data.N + 3) / 4, 128>>>(data.N, annmb[device_id], data.type.data(),
-            work.descriptors.data(), para.q_scaler_gpu[device_id].data(), data.energy.data(),
-            work.Fp.data(), struct_dim_, wide.size() ? wide.data() : nullptr);
+        auto launch_dim = [&](auto capacity) {
+          apply_ann_one_layer_warp<decltype(capacity)::value, decltype(wide_input)::value>
+            <<<(data.N + 3) / 4, 128>>>(data.N, annmb[device_id], data.type.data(),
+              work.descriptors.data(), para.q_scaler_gpu[device_id].data(), data.energy.data(),
+              work.Fp.data(), struct_dim_, wide.size() ? wide.data() : nullptr);
+        };
+        if (annmb[device_id].dim <= NEP_Spin_Model_File::COMPACT_ANN_DIM)
+          launch_dim(std::integral_constant<int, NEP_Spin_Model_File::COMPACT_ANN_DIM>{});
+        else
+          launch_dim(std::integral_constant<int, NEP_Spin_Model_File::MAX_DIM_SPIN>{});
       };
       if (wide.size()) launch(std::true_type{});
       else launch(std::false_type{});

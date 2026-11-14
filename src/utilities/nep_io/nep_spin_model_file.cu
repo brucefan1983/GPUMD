@@ -119,8 +119,8 @@ bool NEP_Spin_Model_File::read(std::istream& input, std::string& error)
   for (int t = 0; t < types; ++t) {
     if (!number(f, f->values.size() == 1 ? 0 : t, spin_cutoff[t]))
       return false;
-    if (spin_cutoff[t] <= 0)
-      return fail(error, "spin_cutoff must be positive.");
+    if (spin_cutoff[t] < 3)
+      return fail(error, "spin_cutoff must be at least 3 A.");
     if (spin_cutoff[t] > rc_radial)
       return fail(error, "spin_cutoff must not exceed the NEP radial cutoff.");
   }
@@ -175,7 +175,7 @@ bool NEP_Spin_Model_File::read(std::istream& input, std::string& error)
   dim_struct = n_max[0] + 1 + dim_angular;
   dim_spin = nep_spin::Layout(spin_compress, spin_l_max, spin_order, spin_soc).dimension;
   dim = dim_struct + dim_spin;
-  if (dim_angular > 90 || dim_spin > 96 || dim > MAX_DIM_SPIN)
+  if (dim_angular > 90 || dim > MAX_DIM_SPIN)
     return fail(error, "descriptor dimensions exceed the supported Spin shape.");
   const int parameter_count =
     (dim + 2) * num_neurons * types + 1 +

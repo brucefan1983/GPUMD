@@ -141,13 +141,15 @@ def validate_parser(root):
         "invalid_second_basis": NEP_IN.replace("spin_l_max 2", "spin_l_max 2\nspin_basis_size 0 1"),
         "invalid_order": NEP_IN.replace("spin_order 2", "spin_order 5"),
         "invalid_soc": NEP_IN.replace("spin_soc 1", "spin_soc 2"),
-        "oversized_spin_shape": NEP_IN.replace("spin_compress 2", "spin_compress 9"),
+        "invalid_spin_shape": NEP_IN.replace("spin_compress 2", "spin_compress 10"),
         "invalid_spin_cutoff_arity": NEP_IN.replace(
             "spin_cutoff 6.0", "spin_cutoff 4.0 5.0 6.0"),
         "removed_spin_chiral": NEP_IN.replace("spin_soc 1", "spin_soc 1\nspin_chiral 1"),
         "response_requires_metadata": NEP_IN.replace(
             "lambda_tau 0.5", "lambda_tau 0.5\nlambda_spin_response 0.3"),
     }
+    for cutoff in ("1e-100", "1e-100 6", "6 1e-100", "2.999", "2.999 6", "6 2.999"):
+        cases[f"invalid_spin_cutoff_{cutoff}"] = NEP_IN.replace("spin_cutoff 6.0", f"spin_cutoff {cutoff}")
     for value in ("0", "3", "1.0", "nan", "1 2", ""):
         cases[f"invalid_spin_version_{value}"] = NEP_IN.replace("spin_version 1", f"spin_version {value}")
     cases["duplicate_spin_version"] = NEP_IN + "spin_version 1\n"
@@ -176,7 +178,7 @@ def validate_parser(root):
             raise AssertionError(f"{name} did not fail closed")
     # Validate after all keywords: both orders reject oversized uniform/typewise
     # cutoffs and accept a final radial cutoff larger than its default of 8 A.
-    for spin_cutoff in ("7.0", "5.0 7.0", "9.0"):
+    for spin_cutoff in ("7.0", "5.0 7.0", "9.0", "3.0", "3.0 6.0"):
         for spin_first in (False, True):
             name = f"cutoff_bound_{spin_cutoff}_{spin_first}"
             radial = "9.0 5.0" if spin_cutoff == "9.0" else "6.0 5.0"
@@ -187,7 +189,7 @@ def validate_parser(root):
             write_case(case, text)
             result = run(NEP, case)
             results[name] = result.returncode
-            if spin_cutoff == "9.0":
+            if spin_cutoff in ("9.0", "3.0", "3.0 6.0"):
                 assert result.returncode == 0, result.stdout + result.stderr
             else:
                 assert result.returncode != 0
