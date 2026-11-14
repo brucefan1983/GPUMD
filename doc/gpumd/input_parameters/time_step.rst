@@ -5,46 +5,42 @@
 :attr:`time_step`
 =================
 
-Set the time step for integration.
+Set the integration time step, optionally with a displacement limit for adaptive time stepping.
 
 Syntax
 ------
 
-This keyword can accept either one or two parameters. 
-If there is only one parameter, it is the time step (in units of fs) for a run::
+::
 
-  time_step <dt_in_fs>
+  time_step <dt_in_fs> [<max_distance_per_step>]
 
-If there are two parameters, the first one is the time step and the second one is the maximum distance (in units of Ångstrom) any atom in the system can travel within one step::
+Parameters
+----------
 
-  time_step <dt_in_fs> <max_distance_per_step>
+* ``dt_in_fs``: Time step in fs. The default is 1 fs.
+* ``max_distance_per_step``: Optional positive displacement limit in Å per step.
+  When supplied, the time step is reduced as needed based on the largest atomic speed.
+  By default, this limit is not applied.
+
+Output
+------
+
+None.
 
 Examples
 --------
 
-Example 1
-^^^^^^^^^
-
-To set the time step to 0.5 fs, one can add::
+Use a fixed time step of 0.5 fs::
 
   time_step 0.5
 
-before the :ref:`run keyword <kw_run>`.
-
-Example 2
-^^^^^^^^^
-
-To set the time step to 2.0 fs and to require that no atom in the system can travel more than 0.05 Å per step, one can add::
+Use a time step of at most 2 fs with a displacement limit of 0.05 Å per step::
 
   time_step 2.0 0.05
 
-before the :ref:`run keyword <kw_run>`.
+Notes
+-----
 
-
-Caveats
--------
-* There is a default value (1 fs) for the time step.
-  That means, if you forget to set one, a time step of 1 fs will be used.
 * The current time-step value is retained from one run to the next unless a new ``time_step`` command is given.
-* The optional :attr:`max_distance_per_step` limit applies only to the current run.
-  To use adaptive time stepping in the next run, repeat the full two-parameter command.
+* The displacement limit applies only to the current run.
+  Repeat the full two-parameter command before each run that needs adaptive time stepping.

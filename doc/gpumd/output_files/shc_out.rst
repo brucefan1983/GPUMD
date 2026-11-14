@@ -5,7 +5,7 @@
 ``shc.out``
 ===========
 
-This file contains the non-equilibrium virial-velocity correlation function :math:`K(t)` and the spectral heat current (:term:`SHC`) :math:`J_q(\omega)`, in a given direction, for a group of atoms, as defined in Eq. (18) and the left part of Eq. (20) of [Fan2019]_.
+This file contains the nonequilibrium virial-velocity correlation function :math:`K(t)` and the spectral heat current (:term:`SHC`) :math:`J_q(\omega)`, in a given direction, for a group of atoms, as defined in Eq. (18) and the left part of Eq. (20) of [Fan2019]_.
 It is generated when invoking the :ref:`compute_shc keyword <kw_compute_shc>`.
 
 File format
@@ -28,7 +28,7 @@ In the next :attr:`num_omega` rows:
 * column 1: angular frequency :math:`\omega` in units of THz
 * column 2: :math:`J_q^{\rm in}(\omega)` in units of Å eV/ps/THz
 * column 3: :math:`J_q^{\rm out}(\omega)` in units of Å eV/ps/THz
- 
+
 :math:`J_q^{\rm in}(\omega) + J_q^{\rm out}(\omega) = J_q(\omega)` is exactly the left expression in Eq. (20) of [Fan2019]_.
 
 Only the potential part of the heat current has been included.

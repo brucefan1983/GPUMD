@@ -6,8 +6,32 @@
 ================
 
 This keyword sets the weight :math:`\lambda_v` of the loss term associated with the **virials** in the :ref:`loss function <nep_loss_function>`.
-The syntax is::
+
+Syntax
+------
+
+::
 
   lambda_v <weight>
 
+Parameters
+----------
+
 Here, :attr:`<weight>` represents :math:`\lambda_v`, which must satisfy :math:`\lambda_v \geq 0` and defaults to :math:`\lambda_v = 0.1`.
+
+Output
+------
+
+None.
+
+Examples
+--------
+
+::
+
+  lambda_v 0.1
+
+Notes
+-----
+
+None.

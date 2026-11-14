@@ -3,19 +3,22 @@
 :attr:`ensemble` (TI_AS)
 ========================
 
-This keyword is used to set up a nonequilibrium thermodynamic integration integrator with Adiabatic switching (AS) path. It calculates Gibbs free energy along an isothermal path. Please check [Cajahuaringa2022]_ for more details.
+This keyword is used to set up a nonequilibrium thermodynamic integration integrator with Adiabatic switching (AS) path. It calculates Gibbs free energy along an isothermal path. See [Cajahuaringa2022]_ for more details.
 
 Syntax
 ------
 
-The parameters can be specified as follows::
+::
 
     ensemble ti_as temp <temperature> tperiod <tau_temperature> <pressure_control> <pmin> <pmax> pperiod <tau_pressure> tswitch <switch_time> tequil <equilibrium_time>
 
+Parameters
+----------
+
 - :attr:`<temperature>`: The temperature of the AS simulation, in kelvin.
 - :attr:`<pmin>` and :attr:`<pmax>`: The initial and final pressures of the forward path, in GPa. Either increasing or decreasing pressure can be used.
-- :attr:`<pressure_control>`: Please refer to MTTK ensemble for more information.
-- :attr:`<tau_temperature>` and :attr:`<tau_pressure>`: These parameters are optional. Please refer to MTTK ensemble for more information.
+- :attr:`<pressure_control>`: See :ref:`MTTK parameters <kw_ensemble_mttk>`.
+- :attr:`<tau_temperature>` and :attr:`<tau_pressure>`: These parameters are optional. See :ref:`MTTK parameters <kw_ensemble_mttk>`.
 - :attr:`<equilibrium_time>`: The number of MD steps in each equilibration stage; a non-negative integer.
 - :attr:`<switch_time>`: The number of MD steps in each switching stage, including both endpoints; an integer of at least 2.
 
@@ -25,18 +28,8 @@ The path consists of initial equilibration, forward switching, equilibration at 
 The run must contain at least ``2 * (tequil + tswitch)`` steps.
 Any remaining steps keep the final target and do not add switching data.
 
-Example
--------
-
-.. code-block:: rst
-
-    ensemble ti_as temp 300 aniso 10 30 tswitch 10000 tequil 1000
-    run 22000
-
-This run equilibrates for 1000 steps at 10 GPa, switches to 30 GPa in 10000 steps, equilibrates there for 1000 steps, and switches back to 10 GPa in 10000 steps, all at 300 K.
-
-Output file
------------
+Output
+------
 
 ``ti_as.csv`` contains ``2 * tswitch`` rows after the header: the forward path followed by the backward path.
 The columns ``p`` and ``V`` are the target pressure in eV/Å³ and the volume per atom in Å³/atom.
@@ -61,7 +54,7 @@ The reference Gibbs free energy and the resulting curve are in eV/atom.
     G0 = y["G"]
 
     ti = read_csv("ti_as.csv")
-    n = 10000  # tswitch in the example above
+    n = 10000  # tswitch in the example below
     if len(ti) != 2*n:
         raise ValueError("Expected two complete switching paths.")
     forward = ti.iloc[:n]
@@ -79,3 +72,18 @@ The reference Gibbs free energy and the resulting curve are in eV/atom.
     plt.legend()
     plt.xlabel("P (GPa)")
     plt.ylabel("G (eV/atom)")
+
+Examples
+--------
+
+.. code-block:: text
+
+    ensemble ti_as temp 300 aniso 10 30 tswitch 10000 tequil 1000
+    run 22000
+
+This run equilibrates for 1000 steps at 10 GPa, switches to 30 GPa in 10000 steps, equilibrates there for 1000 steps, and switches back to 10 GPa in 10000 steps, all at 300 K.
+
+Notes
+-----
+
+None.

@@ -5,29 +5,47 @@
 ``nep.in``
 ==========
 
-This file specifies hyperparameters used for training neuroevolution potential (:term:`NEP`) models, the functional form of which is outlined :ref:`here <nep_formalism>`.
-The :term:`NEP` approach was proposed in [Fan2021]_ (NEP1) and later improved in [Fan2022a]_ (NEP2), [Fan2022b]_ (NEP3), and [Song2024]_ (NEP4).
-Currently, only NEP4 is supported; the :ref:`version keyword <kw_version>` therefore only accepts ``4``.
+This file selects the model and controls NEP training or prediction.
+For the model equations, see :ref:`NEP formalism <nep_formalism>`.
 
 File format
 -----------
 
-In this input file, blank lines and lines starting with :attr:`#` are ignored.
-One can thus write comments after :attr:`#`.
+Write one keyword per line::
 
-All other lines need to be of the following form::
-  
   keyword parameter_1 parameter_2 ...
- 
-Put the mandatory :ref:`type keyword <kw_type>` first.
-It must precede :ref:`cutoff <kw_cutoff>` and :ref:`type_weight <kw_type_weight>`, as well as :ref:`spin_cutoff <kw_spin_cutoff>` when training a Spin model.
 
-The :ref:`type keyword <kw_type>` does not have default parameters and *must* be set.
-All other keywords have default values.
+Blank lines are ignored, and ``#`` starts a comment that extends to the end of the line.
+Put the required :ref:`type <kw_type>` keyword first, followed by the settings to change from their defaults.
+In particular, ``type`` must precede :ref:`cutoff <kw_cutoff>`, :ref:`type_weight <kw_type_weight>`, and :ref:`spin_cutoff <kw_spin_cutoff>`.
+All other keywords have defaults for ordinary NEP training.
 
-Use :ref:`model <kw_model>` to select the model family, for example
-``model qnep2`` or ``model qnep3_vdw``. Omitting all model selectors selects
-ordinary ``nep``.
+Use :ref:`model <kw_model>` to select another model family, such as ``model qnep2``.
+The default model is ordinary ``nep``.
+Only NEP4 is supported, so :ref:`version <kw_version>` can be omitted or set to ``4``.
+
+Example
+-------
+
+The following input lists common settings for an ordinary Te-Pb NEP model explicitly.
+Apart from the required species list, the values shown are the defaults::
+
+  type        2 Te Pb
+  version     4
+  cutoff      8 4
+  n_max       6 6
+  basis_size  6 6
+  l_max       4 1
+  neuron      30
+  lambda_e    1.0
+  lambda_f    1.0
+  lambda_v    0.1
+  batch       1000
+  population  50
+  generation  100000
+
+Choose the cutoffs and other model settings for the system and training data.
+For Spin training, see the :ref:`spin_version example <spin_training_example>` and :ref:`Spin potential documentation <nep_spin>`.
 
 Keywords
 --------
@@ -64,9 +82,9 @@ Keywords
    * - :ref:`spin_compress <kw_spin_compress>`
      - number of shared compressed radial channels
    * - :ref:`spin_order <kw_spin_order>`
-     - highest Spin3 contraction level supplied to the neural network
+     - highest magnetic contraction level supplied to the neural network
    * - :ref:`spin_soc <kw_spin_soc>`
-     - enable joint spin--space rotation-invariant Spin3 channels
+     - enable joint spin--space rotation-invariant magnetic channels
    * - :ref:`spin_type <kw_spin_type>`
      - atom types with independent spin degrees of freedom
    * - :ref:`use_typewise_cutoff_zbl <kw_use_typewise_cutoff_zbl>`
@@ -76,7 +94,7 @@ Keywords
    * - :ref:`n_max <kw_n_max>`
      - radial-function index limits for radial and angular descriptors
    * - :ref:`basis_size <kw_basis_size>`
-     - number of radial (:math:`N_\mathrm{bas}^\mathrm{R}`) and angular (:math:`N_\mathrm{bas}^\mathrm{A}`) basis functions
+     - radial (:math:`N_\mathrm{bas}^\mathrm{R}`) and angular (:math:`N_\mathrm{bas}^\mathrm{A}`) basis sizes
    * - :ref:`l_max <kw_l_max>`
      - expansion order for angular terms
    * - :ref:`neuron <kw_neuron>`
@@ -119,6 +137,8 @@ Keywords
      - population size used in the :term:`SNES` algorithm [Schaul2011]_
    * - :ref:`generation <kw_generation>`
      - number of generations used by the :term:`SNES` algorithm [Schaul2011]_
+   * - :ref:`seed <kw_seed>`
+     - random seed for the :term:`SNES` algorithm
    * - :ref:`save_potential <kw_save_potential>`
      - periodically save model checkpoints and, optionally, restart checkpoints
    * - :ref:`output_interval <kw_output_interval>`
@@ -142,24 +162,3 @@ Each mismatch is reported on its own line, naming the keyword, the value used by
       basis_size_angular: nep.in gives 6 (default), nep.txt gives 8.
 
 The same comparison is applied to the :ref:`nep.txt <nep_txt>` read by the :ref:`import_q_scaler keyword <kw_import_q_scaler>`, where a mismatch is always an error.
-
-Example
--------
-Here is an example :attr:`nep.in` file using all the default parameters::
-  
-  type       	2 Te Pb   # this is a mandatory keyword
-  version       4         # the only option
-  cutoff     	8 4       # please choose these reasonably
-  n_max      	6 6       # default
-  basis_size	6 6       # default
-  l_max      	4 1       # default
-  neuron     	30        # default
-  lambda_e      1.0       # default
-  lambda_f      1.0       # default
-  lambda_v      0.1       # default
-  batch         1000      # default
-  population	50        # default
-  generation	100000    # default
-
-For Spin training, see the :ref:`spin_version example <spin_training_example>`
-and the :ref:`Spin potential documentation <nep_spin>`.

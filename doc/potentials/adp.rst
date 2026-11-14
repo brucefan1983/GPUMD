@@ -2,12 +2,10 @@
 .. index::
    single: Angular Dependent Potential
 
-Angular Dependent Potential (ADP)
+Angular-dependent potential (ADP)
 ==================================
 
-:program:`GPUMD` supports the Angular Dependent Potential (ADP), which is an extension of the embedded atom method (:term:`EAM`) that includes angular forces through dipole and quadrupole distortions of the local atomic environment.
-
-The ADP was developed to provide a more accurate description of directional bonding and angular forces in metallic systems, particularly for materials where traditional EAM potentials fail to capture the full complexity of atomic interactions. The ADP formalism is especially useful for modeling complex crystal structures, defects, and phase transformations in metals and alloys.
+:program:`GPUMD` supports the Angular-dependent potential (ADP), which is an extension of the embedded atom method (:term:`EAM`) that includes angular forces through dipole and quadrupole distortions of the local atomic environment.
 
 Potential form
 --------------
@@ -15,10 +13,11 @@ Potential form
 General form
 ^^^^^^^^^^^^
 
-The ADP is described in detail by Mishin et al. [Mishin2005]_ and has been successfully applied to various metallic systems including the Cu-Ta system [Pun2015]_, U-Mo alloys [Starikov2018]_, etc. The total energy of atom :math:`i` is given by:
+The ADP formalism is described in [Mishin2005]_, with applications to Cu-Ta [Pun2015]_ and U-Mo [Starikov2018]_.
+The site energy of atom :math:`i` is
 
 .. math::
-   
+
    E_i = F_\alpha\left(\sum_{j\neq i} \rho_\beta(r_{ij})\right) + \frac{1}{2} \sum_{j\neq i} \phi_{\alpha\beta}(r_{ij}) + \frac{1}{2} \sum_s (\mu_{is})^2 + \frac{1}{2} \sum_{s,t} (\lambda_{ist})^2 - \frac{1}{6} \nu_i^2
 
 where:
@@ -38,7 +37,7 @@ Angular terms
 The dipole distortion tensor represents the first moment of the local environment:
 
 .. math::
-   
+
    \mu_{is} = \sum_{j\neq i} u_{\alpha\beta}(r_{ij}) r_{ij}^s
 
 where :math:`u_{\alpha\beta}(r)` is a tabulated function and :math:`r_{ij}^s` is the :math:`s`-component of the vector from atom :math:`i` to atom :math:`j`.
@@ -46,13 +45,13 @@ where :math:`u_{\alpha\beta}(r)` is a tabulated function and :math:`r_{ij}^s` is
 The quadrupole distortion tensor represents the second moment of the local environment:
 
 .. math::
-   
+
    \lambda_{ist} = \sum_{j\neq i} w_{\alpha\beta}(r_{ij}) r_{ij}^s r_{ij}^t
 
 where :math:`w_{\alpha\beta}(r)` is another tabulated function. The trace of the quadrupole tensor is:
 
 .. math::
-   
+
    \nu_i = \lambda_{ixx} + \lambda_{iyy} + \lambda_{izz}
 
 The angular terms :math:`\mu` and :math:`\lambda` introduce directional dependence into the potential energy, allowing the ADP to capture angular forces that are absent in the traditional EAM formalism. These terms are essential for accurately modeling materials with complex bonding environments.
@@ -93,7 +92,7 @@ Each element section contains:
   * :attr:`lattice_constant`: Equilibrium lattice constant (in Angstroms)
   * :attr:`lattice_type`: Crystal structure (e.g., fcc, bcc, hcp)
 
-- Next :attr:`Nrho` values: Embedding function :math:`F(\rho)` 
+- Next :attr:`Nrho` values: Embedding function :math:`F(\rho)`
 
   * Tabulated values of :math:`F` at :math:`\rho = 0, \Delta\rho, 2\Delta\rho, ..., (N_\rho-1)\Delta\rho`
   * Units: eV
@@ -129,7 +128,7 @@ For all element pairs :math:`(i, j)` with :math:`i \geq j`:
 
 - :attr:`Nr` values: Quadrupole function :math:`w_{ij}(r)`
 
-  * Tabulated as :math:`w(r)` (NOT scaled by distance)  
+  * Tabulated as :math:`w(r)` (NOT scaled by distance)
   * Units: eV\ :math:`^{1/2}`/Å²
   * Same ordering as pair potentials
 
@@ -142,7 +141,7 @@ GPUMD supports the standard `ADP format <https://docs.lammps.org/pair_adp.html>`
 
 .. note::
 
-   The user needs to modify the first line of the potential file as follows:
+   The user needs to modify the first line of the potential file as follows::
 
      adp <num_types> <list of elements>
 
@@ -162,7 +161,7 @@ To use an ADP potential in GPUMD, specify it in the :file:`run.in` input file::
 where :attr:`<potential_file>` is the path to the ADP potential file.
 
 Examples
-^^^^^^^^
+--------
 
 **Single-element system (pure Ta)**::
 
@@ -180,9 +179,10 @@ Examples
 
    Element types are automatically matched between :file:`model.xyz` and the ADP potential file based on element symbols. The order and number of atom types in :file:`model.xyz` can be different from those in the potential file.
 
-References
-----------
+.. only:: html
 
-.. [Pun2015] G. P. Pun, K. A. Darling, L. J. Kecskes, and Y. Mishin, "Angular-dependent interatomic potential for the Cu–Ta system and its application to structural stability of nano-crystalline alloys," Acta Mater. 100, 377 (2015).
+   .. rubric:: References
 
-.. [Starikov2018] S. V. Starikov, L. N. Kolotova, A. Y. Kuksin, D. E. Smirnova, and V. I. Tseplyaev, "Atomistic simulation of cubic and tetragonal phases of U-Mo alloy: Structure and thermodynamic properties," J. Nucl. Mater. 499, 451 (2018).
+.. [Pun2015] G\. P. Pun, K. A. Darling, L. J. Kecskes, and Y. Mishin, "Angular-dependent interatomic potential for the Cu–Ta system and its application to structural stability of nano-crystalline alloys," Acta Mater. 100, 377 (2015).
+
+.. [Starikov2018] S\. V. Starikov, L. N. Kolotova, A. Y. Kuksin, D. E. Smirnova, and V. I. Tseplyaev, "Atomistic simulation of cubic and tetragonal phases of U-Mo alloy: Structure and thermodynamic properties," J. Nucl. Mater. 499, 451 (2018).

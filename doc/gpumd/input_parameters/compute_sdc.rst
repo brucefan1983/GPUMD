@@ -5,37 +5,37 @@
 :attr:`compute_sdc`
 ===================
 
-This keyword computes the self-diffusion coefficient (:term:`SDC`) from the velocity autocorrelation (:term:`VAC`) function.
-If this keyword appears in a run, the :term:`VAC` function will be computed and integrated to obtain the :term:`SDC`.
-The results will be written to :ref:`sdc.out output file <sdc_out>`.
+Compute the velocity autocorrelation (:term:`VAC`) and integrate it to obtain the self-diffusion coefficient (:term:`SDC`).
 
 Syntax
 ------
-For this keyword, the command looks like::
-  
-  compute_sdc <sample_interval> <Nc> [<optional_arg>]
 
-with parameters defined as
+::
 
-* :attr:`sample_interval`: Sampling interval of the velocity data
-* :attr:`Nc`: Maximum number of correlation steps
+  compute_sdc <sample_interval> <Nc> [group <group_method> <group>]
 
-The optional argument :attr:`optional_arg` allows an additional special keyword.
-The keyword for this function is :attr:`group`.
-The parameters are:
+Parameters
+----------
 
-* :attr:`group <group_method> <group>`, where :attr:`group_method` is the grouping method to use for computation and :attr:`group` is the group in the grouping method to use
+* ``sample_interval``: Positive integer giving the number of MD steps between velocity samples.
+* ``Nc``: Positive integer giving the number of correlation points, including zero correlation time.
+* ``group <group_method> <group>``: Optional selection of a group defined in :ref:`model.xyz <grouping_methods>`.
+  Without this option, all atoms are included.
+
+Output
+------
+
+Results are written to :ref:`sdc.out <sdc_out>`.
 
 Examples
 --------
 
-An example of this function is::
+Sample velocities every 5 steps and calculate 200 correlation points for group 1 of grouping method 1::
 
   compute_sdc 5 200 group 1 1
 
-This means that you
+Notes
+-----
 
-* want to calculate the :term:`SDC`
-* the velocity data will be recorded every 5 steps
-* the maximum number of correlation steps is 200
-* you would like to compute only over group 1 in group method 1.
+The run must provide at least ``Nc`` velocity samples.
+Repeat this command before each run that requires the calculation; each run accumulates its own averages.

@@ -5,8 +5,7 @@
 :attr:`compute_hnemdec`
 =======================
 
-This keyword is used to calculate the multicomponent system thermal conductivity using the :ref:`homogeneous non-equilibrium molecular dynamics Evans-Cummings algorithm <hnemdec>` (:term:`HNEMDEC`) method.
-The results are written to the :ref:`onsager.out output file <onsager_out>`.
+This keyword is used to calculate the multicomponent system thermal conductivity using the :ref:`homogeneous nonequilibrium molecular dynamics Evans-Cummings algorithm <hnemdec>` (:term:`HNEMDEC`) method.
 
 Syntax
 ------
@@ -14,6 +13,9 @@ Syntax
 .. code::
 
    compute_hnemdec <driving_force> <output_interval> <Fe_x> <Fe_y> <Fe_z>
+
+Parameters
+----------
 
 :attr:`driving_force` determines which type of driving force to use. It could be zero or non zero positive integer, which means thermal driving force or diffusive driving force.
 In the case of zero, heat flux is equivalent to dissipative flux, with driving force :math:`F_e` in the units of Å\ :sup:`-1`.
@@ -27,6 +29,11 @@ Each row contains coefficients averaged over that block.
 :attr:`Fe_y` is the :math:`y` direction component of the external driving force :math:`F_e`.
 
 :attr:`Fe_z` is the :math:`z` direction component of the external driving force :math:`F_e`.
+
+Output
+------
+
+The results are written to the :ref:`onsager.out output file <onsager_out>`.
 
 Examples
 --------
@@ -42,13 +49,13 @@ This means that
 
 * you want to calculate the onsager coefficients using the :term:`HNEMDEC` method with heat flux as dissipative flux;
 * the onsager coefficients will be averaged and output every 1000 steps (the heat current and momentum current is sampled for every step);
-* the external driving force is along the :math:`x` direction and has a magnitude of :math:`10^{-5}` Å\ :sup:`-1`. 
+* the external driving force is along the :math:`x` direction and has a magnitude of :math:`10^{-5}` Å\ :sup:`-1`.
 
 Note that one should control the temperature when using this keyword.
 Otherwise, the system will be heated up by the external driving force.
 
 **Important:**
-For this purpose, the :ref:`Nose-Hoover chain thermostat <nose_hoover_chain_thermostat>` is recommended.
+For this purpose, the :ref:`Nosé-Hoover chain thermostat <nose_hoover_chain_thermostat>` is recommended.
 The :ref:`Langevin thermostat <langevin_thermostat>` cannot be used for this purpose because it will affect the dynamics of the system.
 
 Example 2
@@ -62,3 +69,8 @@ The external driving force is diffusive driving force that will produced a momen
 
 To obtain the thermal conductivity, combine a thermal-driving calculation with diffusive-driving calculations for :math:`M-1` independent components at the same thermodynamic state.
 See :ref:`onsager.out <onsager_out>` for matrix assembly, unit conversion, and a binary-system example.
+
+Notes
+-----
+
+None.

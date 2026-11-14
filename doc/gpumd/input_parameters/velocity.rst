@@ -9,25 +9,32 @@ This keyword initializes atomic velocities at a specified temperature when ``mod
 
 Syntax
 ------
-* This keyword can be used in the following ways::
-  
+
+::
+
     velocity <initial_temperature>
     velocity <initial_temperature> seed <seed_number>
+
+Parameters
+----------
 
 * The temperature is in units of kelvin (K).
 * The optional positive integer :attr:`seed_number` makes the randomly generated velocities reproducible.
 
-Example
--------
+Output
+------
 
-The command::
+None.
+
+Examples
+--------
+
+Initialize velocities at 10 K::
 
     velocity 10
 
-means that one wants to set the initial temperature to 10 K. 
-
-Caveats
--------
+Notes
+-----
 
 * The randomly generated velocities do not initially obey the Maxwell distribution; equilibrate the system before collecting production data.
   Their total linear and angular momenta are set to zero.

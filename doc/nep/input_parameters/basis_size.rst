@@ -5,14 +5,35 @@
 :attr:`basis_size`
 ==================
 
-It sets the number of basis functions that are used to build the radial and angular descriptor functions, see Sects. II.B and II.C as well as Eq. (3) in [Fan2022b]_.
-The syntax is::
+Set the basis sizes used to construct the radial and angular descriptor functions; see Sects. II.B and II.C and Eq. (3) of [Fan2022b]_.
+
+Syntax
+------
+
+::
 
   basis_size <N_bas_R> <N_bas_A>
 
-where :attr:`<N_bas_R>` and :attr:`<N_bas_A>` set :math:`N_\mathrm{bas}^\mathrm{R}` and :math:`N_\mathrm{bas}^\mathrm{A}`, respectively.
-The recommended ranges are :math:`0 \leq N_\mathrm{bas}^\mathrm{R} \leq 8` and :math:`0 \leq N_\mathrm{bas}^\mathrm{A} \leq 8`.
+Parameters
+----------
 
-The default values of :math:`N_\mathrm{bas}^\mathrm{R}=6` and :math:`N_\mathrm{bas}^\mathrm{A}=6` are usually sufficient.
+``N_bas_R`` and ``N_bas_A`` set :math:`N_\mathrm{bas}^\mathrm{R}` and :math:`N_\mathrm{bas}^\mathrm{A}`, respectively.
+Both default to 6, which is usually sufficient.
+The recommended range for each parameter is 0 to 8.
 
-**Note:** These parameters should not be confused with :math:`n_\mathrm{max}^\mathrm{R}` and :math:`n_\mathrm{max}^\mathrm{A}`, which are set via the :ref:`n_max keyword <kw_n_max>`.
+Output
+------
+
+None.
+
+Examples
+--------
+
+::
+
+  basis_size 8 8
+
+Notes
+-----
+
+These basis sizes are distinct from the descriptor index limits set by :ref:`n_max <kw_n_max>`.
