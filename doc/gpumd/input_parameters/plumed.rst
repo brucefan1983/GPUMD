@@ -7,7 +7,6 @@
 
 Invoke the `PLUMED <https://www.plumed.org/>`_ plugin during a MD run.
 
-
 Syntax
 ------
 
@@ -15,18 +14,17 @@ This keyword has the following format::
 
   plumed <plumed_file> <interval> <if_restart>
 
+Parameters
+----------
+
 The :attr:`plumed_file` parameter is the name of the PLUMED input file.
 The :attr:`interval` parameter is the interval (number of steps) of calling the PLUMED subroutines.
 The :attr:`if_restart` parameter determines if the PLUMED plugin should restart its calculations, which includes appending to its output files, reading the previous biases, etc.
 
+Output
+------
 
-Requirements and specifications
--------------------------------
-
-* This keyword requires an external package to operate.
-  Instructions for how to set up the `PLUMED package <https://www.plumed.org/>`_ can be found :ref:`here <plumed_setup>`.
-* Increasing the :attr:`interval` parameter will speed up your simulation if you only want PLUMED to calculate collective variables (CVs). But you have to set it to 1 if your simulation was biased by PLUMED.
-
+PLUMED writes the files requested by its input script. ``if_restart`` controls its restart and append behavior.
 
 Examples
 --------
@@ -62,8 +60,14 @@ before the :ref:`run command <kw_run>`. The plumed.dat file, for example, may lo
   RESTRAINT ARG=d1 AT=0.0 KAPPA=2.0 LABEL=restraint
   PRINT FILE=colvar ARG=d1,restraint.bias
 
-
 Notes
 -----
 
 * Repeat this command before each run that needs it.
+
+Requirements and specifications
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+* This keyword requires an external package to operate.
+  Instructions for how to set up the `PLUMED package <https://www.plumed.org/>`_ can be found :ref:`here <plumed_setup>`.
+* Increasing the :attr:`interval` parameter will speed up your simulation if you only want PLUMED to calculate collective variables (CVs). But you have to set it to 1 if your simulation was biased by PLUMED.

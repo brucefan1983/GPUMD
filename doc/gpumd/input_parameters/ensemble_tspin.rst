@@ -73,6 +73,18 @@ Parameters
   absent. The default is ``12345``. The seed is ignored when initialized spin
   velocities are supplied.
 
+Output
+------
+
+Write the propagated state and magnetic force with::
+
+    dump_xyz 100 spin.xyz spin mforce spin_velocity
+
+The extended-XYZ fields are ``spin:R:3``, ``mforce:R:3``, and
+``spin_vel:R:3``. Check that the spin temperature remains stable for the
+chosen ``mass_factor`` and timestep. With ``lattice on``, also check the
+lattice temperature. For ``npt_tspin``, check cell and pressure stability.
+
 Examples
 --------
 
@@ -97,8 +109,17 @@ Run isotropic pressure-controlled spin--lattice dynamics at 300 K and 0 GPa::
 In these examples, ``mass_factor`` is a spin-mass coefficient. It does not
 replace or change the lattice atomic masses.
 
+Notes
+-----
+
+TSPIN requires exactly one NEP-spin potential, a positive time step, positive
+target temperatures, and finite integration parameters. The MTTK restriction
+``pperiod >= 200`` also applies to ``npt_tspin``.
+
+For ``npt_tspin``, the MTTK defaults are ``tperiod 100`` and ``pperiod 1000``.
+
 Spin degrees of freedom
------------------------
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Only elements listed in the model's ``spin_type`` have spin degrees of freedom.
 Other elements contribute to the geometric environment, but their effective
@@ -107,7 +128,7 @@ thermostat. ``mass_factor <element> 0`` additionally freezes a magnetic
 coordinate and excludes it from the thermostat.
 
 State initialization and restart
---------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Each atom must have a ``spin:R:3`` vector. TSPIN propagates the full Cartesian
 vector and does not normalize its length.
@@ -123,7 +144,7 @@ is loaded as ``model.xyz``. Thermostat and barostat internal variables are
 initialized anew; see :ref:`Spin restart <spin_restart>`.
 
 Pressure coupling in ``npt_tspin``
-----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The MTTK barostat acts on the simulation cell, atomic positions, and lattice
 momenta. It neither rescales nor rotates the Cartesian spin vectors. The
@@ -132,24 +153,3 @@ potential virial of :math:`U(\boldsymbol R,\boldsymbol S)`, but not the TSPIN
 kinetic energy. Spin affects the cell through the Spin-potential virial.
 Because pressure control requires cell and lattice dynamics, ``npt_tspin``
 does not accept ``lattice off``.
-
-Output and checks
------------------
-
-Write the propagated state and magnetic force with::
-
-    dump_xyz 100 spin.xyz spin mforce spin_velocity
-
-The extended-XYZ fields are ``spin:R:3``, ``mforce:R:3``, and
-``spin_vel:R:3``. Check that the spin temperature remains stable for the
-chosen ``mass_factor`` and timestep. With ``lattice on``, also check the
-lattice temperature. For ``npt_tspin``, check cell and pressure stability.
-
-Notes
------
-
-TSPIN requires exactly one NEP-spin potential, a positive time step, positive
-target temperatures, and finite integration parameters. The MTTK restriction
-``pperiod >= 200`` also applies to ``npt_tspin``.
-
-For ``npt_tspin``, the MTTK defaults are ``tperiod 100`` and ``pperiod 1000``.

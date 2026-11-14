@@ -36,6 +36,11 @@ Parameters
 
 See :ref:`kw_multi_replica` for supported input commands and GPU allocation.
 
+Output
+------
+
+See :ref:`PRD event records <replica_prd_events>` and the :ref:`replica output files <replica_output_files>` for diagnostics, trajectories, and restart files.
+
 Examples
 --------
 

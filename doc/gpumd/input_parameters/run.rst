@@ -12,9 +12,20 @@ See :ref:`replica_kw_run` for how steps are counted in REMD, PRD, and resumed ru
 
 Syntax
 ------
-This keyword requires a positive integer giving the number of MD steps to run::
+
+::
 
   run <number_of_steps>
+
+Parameters
+----------
+
+``number_of_steps`` is a positive integer giving the number of MD steps.
+
+Output
+------
+
+Output is controlled by the measurement and dump commands enabled for this run; see :doc:`../output_files/index`.
 
 Examples
 --------
@@ -23,10 +34,13 @@ To run one million steps, just write::
 
   run 1000000
 
+Notes
+-----
+
 .. _multiple_runs:
 
 Multiple runs
--------------
+^^^^^^^^^^^^^
 
 For ordinary MD, successive runs in the same ``run.in`` continue from the current positions, velocities and simulation cell.
 The potential model remains loaded, and the current :ref:`time step <kw_time_step>` is retained unless changed.

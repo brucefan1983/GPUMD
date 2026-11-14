@@ -7,7 +7,6 @@
 
 This keyword is used to compute the radial distribution function (:term:`RDF`) for all atoms or pairs of species.
 It works for both classical :term:`MD` and :term:`PIMD`.
-The results will be written to the :ref:`rdf.out <rdf_out>` file.
 
 Syntax
 ------
@@ -16,12 +15,30 @@ This keyword is used as follows::
 
   compute_rdf <cutoff> <num_bins> <interval>
 
+Parameters
+----------
+
 This means that the :term:`RDF` calculations will be performed every :attr:`interval` steps, with :attr:`num_bins` data points evenly distributed from 0 to :attr:`cutoff` (in units of Ångstrom) in terms of the distance between atom pairs.
 
 Partial RDFs for all element pairs are computed automatically.
 
-Method
+Output
 ------
+
+The results will be written to the :ref:`rdf.out <rdf_out>` file.
+
+Examples
+--------
+
+::
+
+   compute_rdf 8.0 400 1000 # Calculate all RDFs every 1000 MD steps with 400 data up to 8 Angstrom
+
+Notes
+-----
+
+Method
+^^^^^^
 
 The :term:`RDF` is proportional to the relative probability of finding atomic pairs at a distance around :math:`r` in the system, and to a large extent, reflects the local structural information of the system. It is defined as
 
@@ -48,10 +65,3 @@ In the discrete histogram, :math:`\Delta r=\mathtt{cutoff}/\mathtt{num\_bins}` a
 Pairs with :math:`b\Delta r < r \le (b+1)\Delta r` enter bin :math:`b`, including the outer cutoff in the last bin.
 The normalization uses the shell-volume approximation :math:`4\pi r_b^2\Delta r`.
 Each sampled configuration is normalized using its own volume, and the reported RDF is the arithmetic mean over the samples.
-
-Examples
---------
-
-::
-
-   compute_rdf 8.0 400 1000 # Calculate all RDFs every 1000 MD steps with 400 data up to 8 Angstrom

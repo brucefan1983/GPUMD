@@ -7,7 +7,6 @@
 
 This keyword is used to compute the angular-dependent radial distribution function (:term:`ARDF`) for all atoms or pairs of species.
 It works for classical :term:`MD`.
-The results will be written to the :ref:`angular_rdf.out <angular_rdf_out>` file.
 
 Syntax
 ------
@@ -15,6 +14,9 @@ Syntax
 This keyword is used as follows::
 
   compute_angular_rdf <cutoff> <r_num_bins> <angular_num_bins> <interval> [atom <i1> <i2> atom <i3> <i4> ...]
+
+Parameters
+----------
 
 This means that the ARDF calculations will be performed every :attr:`interval` steps, with :attr:`r_num_bins` radial bins spanning 0 to :attr:`cutoff` (in units of Ångstrom), and :attr:`angular_num_bins` angular bins spanning :math:`-\pi` to :math:`\pi` (in radians). The output coordinates are the bin centers.
 
@@ -24,8 +26,24 @@ To additionally calculate the partial :term:`ARDF` for a pair of species, one ca
 For a compacted multi-element NEP potential, the types 0, 1, 2, ... refer to the active atom types printed at initialization, which preserve the species order in the original potential file. For other potential models, they correspond to the species in the potential file in order.
 Currently, one can specify at most 6 pairs.
 
-Method
+Output
 ------
+
+The results will be written to the :ref:`angular_rdf.out <angular_rdf_out>` file.
+
+Examples
+--------
+
+::
+
+   compute_angular_rdf 8.0 400 100 1000 # total ARDF every 1000 MD steps with 400 bins in distance and 100 bins in angle up to 8 Angstrom
+   compute_angular_rdf 8.0 400 100 1000 atom 0 0 atom 1 1 atom 0 1 # additionally calculate 3 partial ARDFs
+
+Notes
+-----
+
+Method
+^^^^^^
 
 Let :math:`H(r,\theta)` count ordered center-neighbor pairs of distinct atoms in a radial-angular bin.
 The total ARDF is
@@ -61,11 +79,3 @@ Here, :math:`H_{ab}` counts displacements directed from type :math:`a` to type :
 For different types, reversing the requested type order reverses the displacement direction and shifts its azimuth by :math:`\pi` modulo :math:`2\pi`.
 For the same type, both directions of each pair are included; self pairs are excluded.
 The reported distributions average the individually normalized sampled configurations.
-
-Examples
---------
-
-::
-
-   compute_angular_rdf 8.0 400 100 1000 # total ARDF every 1000 MD steps with 400 bins in distance and 100 bins in angle up to 8 Angstrom
-   compute_angular_rdf 8.0 400 100 1000 atom 0 0 atom 1 1 atom 0 1 # additionally calculate 3 partial ARDFs

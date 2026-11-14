@@ -27,19 +27,8 @@ The path consists of initial equilibration, forward switching, equilibration at 
 The run must contain at least ``2 * (tequil + tswitch)`` steps.
 Any remaining steps keep the final target and do not add switching data.
 
-Examples
---------
-
-.. code-block:: text
-
-    ensemble ti_rs temp 300 3000 aniso 10 tswitch 10000 tequil 1000
-    run 22000
-
-This run equilibrates for 1000 steps at :math:`\lambda=1`, switches to :math:`\lambda=300/3000=0.1` in 10000 steps, equilibrates there for 1000 steps, and switches back to 1 in 10000 steps.
-The thermostat temperature remains 300 K; the corresponding physical temperature is :math:`T=300/\lambda`.
-
-Output file
------------
+Output
+------
 
 ``ti_rs.csv`` contains ``2 * tswitch`` rows after the header: the forward path followed by the backward path.
 The columns are ``lambda``, ``dlambda`` (the derivative of lambda with respect to the MD step index), and ``enthalpy`` (the unscaled potential energy plus the physical pressure times volume, per atom, in eV/atom).
@@ -65,7 +54,7 @@ The reference Gibbs free energy and the resulting curve are in eV/atom.
     G0 = y["G"]
 
     rs = read_csv("ti_rs.csv")
-    n = 10000  # tswitch in the example above
+    n = 10000  # tswitch in the example below
     if len(rs) != 2*n:
         raise ValueError("Expected two complete switching paths.")
     forward = rs.iloc[:n]
@@ -84,3 +73,19 @@ The reference Gibbs free energy and the resulting curve are in eV/atom.
     plt.legend()
     plt.xlabel("T (K)")
     plt.ylabel("G (eV/atom)")
+
+Examples
+--------
+
+.. code-block:: text
+
+    ensemble ti_rs temp 300 3000 aniso 10 tswitch 10000 tequil 1000
+    run 22000
+
+This run equilibrates for 1000 steps at :math:`\lambda=1`, switches to :math:`\lambda=300/3000=0.1` in 10000 steps, equilibrates there for 1000 steps, and switches back to 1 in 10000 steps.
+The thermostat temperature remains 300 K; the corresponding physical temperature is :math:`T=300/\lambda`.
+
+Notes
+-----
+
+None.

@@ -75,29 +75,10 @@ Parameters
   Positive integer for counter-based Gaussian noise. The default is
   ``12345``. A given atom, timestep, and seed always receive the same noise.
 
-Method
+Output
 ------
 
-For a unit direction :math:`\boldsymbol e_n`, SIB forms
-
-.. math::
-
-   \boldsymbol\Omega =
-   \frac{\gamma\Delta t}{1+\alpha^2}
-   [\boldsymbol H+\alpha(\boldsymbol e\times\boldsymbol H)]
-   +\boldsymbol\Omega_\mathrm{th}.
-
-SIB uses a predictor and a corrected rotation, with the magnetic field evaluated at the midpoint.
-The same thermal increment is used in both stages.
-
-The angular-noise standard deviation for a spin magnitude :math:`\mu_s`
-follows from matching its variance to the damping mobility
-:math:`\gamma\alpha/(1+\alpha^2)` (fluctuation--dissipation):
-
-.. math::
-
-   \sigma_\Omega =
-   \sqrt{\frac{2\alpha\gamma k_B T\Delta t}{\mu_s(1+\alpha^2)}}.
+None.
 
 Examples
 --------
@@ -133,3 +114,27 @@ of other elements are masked to zero, receive no magnetic noise, and remain
 zero. The initial magnitude of each active moment is conserved.
 
 For variable-magnitude dynamics, use :ref:`GLSD <kw_ensemble_glsd>`.
+
+Method
+^^^^^^
+
+For a unit direction :math:`\boldsymbol e_n`, SIB forms
+
+.. math::
+
+   \boldsymbol\Omega =
+   \frac{\gamma\Delta t}{1+\alpha^2}
+   [\boldsymbol H+\alpha(\boldsymbol e\times\boldsymbol H)]
+   +\boldsymbol\Omega_\mathrm{th}.
+
+SIB uses a predictor and a corrected rotation, with the magnetic field evaluated at the midpoint.
+The same thermal increment is used in both stages.
+
+The angular-noise standard deviation for a spin magnitude :math:`\mu_s`
+follows from matching its variance to the damping mobility
+:math:`\gamma\alpha/(1+\alpha^2)` (fluctuation--dissipation):
+
+.. math::
+
+   \sigma_\Omega =
+   \sqrt{\frac{2\alpha\gamma k_B T\Delta t}{\mu_s(1+\alpha^2)}}.

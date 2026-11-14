@@ -22,6 +22,11 @@ Parameters
   When supplied, the time step is reduced as needed based on the largest atomic speed.
   By default, this limit is not applied.
 
+Output
+------
+
+None.
+
 Examples
 --------
 

@@ -8,9 +8,15 @@
 This keyword can be used to spline the pair potential to the universal :term:`ZBL` potential [Ziegler1985]_ at short distances.
 This is useful, for example, for models to be used in simulations of ion irradiation or extreme compression, when the interatomic distances can become very short.
 
-The syntax is as follows::
+Syntax
+------
+
+::
 
   zbl <cutoff>
+
+Parameters
+----------
 
 Here, :attr:`<cutoff>` is a real number that specifies the "outer" cutoff :math:`r_\mathrm{c}^\mathrm{ZBL-outer}`, beyond which the :term:`ZBL` potential is zero.
 The "inner" cutoff of the :term:`ZBL` potential, below which value the pair interaction is completely given by the :term:`ZBL` potential, is fixed to half of the outer cutoff, :math:`r_\mathrm{c}^\mathrm{ZBL-inner} = r_\mathrm{c}^\mathrm{ZBL-outer} /2`, which we have empirically found to be a reasonable choice.
@@ -33,6 +39,23 @@ parameter is still needed but will not be used. Other models reject flexible
 ZBL. Without this keyword, a ``zbl.in`` file is ignored. In prediction mode,
 ZBL parameters are read from ``nep.txt`` rather than ``zbl.in``.
 For a :math:`n`-species system, there should be :math:`n(n+1)/2` lines in the `zbl.in` files.
-Each line represents a unique pair of species. 
+Each line represents a unique pair of species.
 Counting from 1, the order of the lines is 1-1, 1-2, ..., 1-:math:`n`, 2-2, 2-3, ..., 2-:math:`n`, :math:`n`-:math:`n`.
 For each pair of species, there are 10 parameters to be listed from left to right: the first two are the inner and outer cutoff radii, respectively; the next 8 are the parameters :math:`a_1` to :math:`a_8` in the ZBL function :math:`\phi(x)=a_1e^{-a_2x}+a_3e^{-a_4x}+a_5e^{-a_6x}+a_7e^{-a_8x}`.
+
+Output
+------
+
+None.
+
+Examples
+--------
+
+::
+
+  zbl 2.5
+
+Notes
+-----
+
+None.

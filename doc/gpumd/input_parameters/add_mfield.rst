@@ -25,6 +25,11 @@ Bounds must be finite, in [0, 1], and satisfy min < max. Intervals are half-open
 [min, max). Coordinates are evaluated after periodic boundary wrapping.
 No group labels are needed for region mode.
 
+Output
+------
+
+None.
+
 Examples
 --------
 

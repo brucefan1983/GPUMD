@@ -33,6 +33,10 @@ Each pair must satisfy :math:`0 \leq s_\mathrm{min} < s_\mathrm{max} \leq 1`, an
 The lower bounds are included and the upper bounds are excluded.
 Region membership is determined from the current atomic positions during integration, so atoms can enter and leave the heat baths.
 
+Output
+------
+
+None.
 
 Examples
 --------
@@ -46,3 +50,8 @@ Apply Langevin heat baths to two spatial slabs::
   ensemble heat_lan 300 100 10 0 0.1 0 1 0 1 0.5 0.6 0 1 0 1
 
 This places the 310 K source at :math:`0 \leq s_a < 0.1` and the 290 K sink at :math:`0.5 \leq s_a < 0.6`, spanning the full cell along the other two fractional coordinates.
+
+Notes
+-----
+
+None.

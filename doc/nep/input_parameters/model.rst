@@ -5,9 +5,17 @@
 :attr:`model`
 =============
 
-This keyword selects the model used for training or prediction::
+This keyword selects the model used for training or prediction.
+
+Syntax
+------
+
+::
 
   model <name>
+
+Parameters
+----------
 
 The names match the ``model`` field in ``nep.txt``. If no model-selection
 keyword is given, the default is ``nep``.
@@ -46,10 +54,25 @@ with any other explicit ``model``.
 
 See :ref:`flip_charge <kw_flip_charge>` for the restart option.
 
+Output
+------
+
+None.
+
+Examples
+--------
+
+::
+
+  model nep
+
+Notes
+-----
+
 .. _nep_long_range_models:
 
 Long-range models
------------------
+^^^^^^^^^^^^^^^^^
 
 The models ``qnep1``, ``qnep2``, and ``qnep3`` [Fan2026]_ predict environment-dependent atomic charges in addition to the local NEP energy.
 The ``qnep1`` and ``qnep2`` models follow the approaches of Song et al. [Song2024b]_ and Cheng [Cheng2025]_, respectively.
@@ -70,7 +93,7 @@ For periodic systems, this part is evaluated in reciprocal space with its self i
 The ``qnep3_vdw`` model combines this dispersion contribution with the charge contribution used by ``qnep3``.
 
 Training data
-^^^^^^^^^^^^^
+~~~~~~~~~~~~~
 
 Use the energy, force, and optional virial or stress labels described in :ref:`train.xyz and test.xyz <train_test_xyz>`.
 Atomic charge and dispersion-coefficient labels are not required.
@@ -80,7 +103,7 @@ Fitting Born effective charges is usually appropriate for a single material in a
 The weights of the total-charge and Born-effective-charge loss terms are set by :ref:`lambda_q <kw_lambda_q>` and :ref:`lambda_z <kw_lambda_z>`, respectively.
 
 Boundary conditions and MD use
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 For training and prediction with ``nep``, all five long-range models support fully periodic (``pbc="T T T"``) and fully nonperiodic (``pbc="F F F"``) structures.
 The default is fully periodic; mixed boundary conditions are not supported.

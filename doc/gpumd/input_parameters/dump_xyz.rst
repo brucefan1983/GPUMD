@@ -48,6 +48,10 @@ Parameters
   The :attr:`unwrapped_position_only` option writes only unwrapped positions.
   The :attr:`unwrapped_position` and :attr:`unwrapped_position_only` options are mutually exclusive.
 
+Output
+------
+
+The requested per-atom properties are written to the specified extended XYZ file(s).
 
 Examples
 --------
@@ -76,6 +80,7 @@ Examples
 
 Notes
 -----
+
 * Repeat this command before each run that needs this output.
 * With no ``split`` option or trailing ``*``, the output file has an appending behavior.
   With ``split``, each run creates new numbered files without overwriting existing chunks.

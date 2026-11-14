@@ -6,11 +6,10 @@
 ===============
 
 This keyword is used to compute and output space and time averaged quantities.
-The results are written to the :ref:`compute.out output file <compute_out>`.
-
 
 Syntax
 ------
+
 ::
 
   compute <grouping_method> <sample_interval> <output_interval> {<quantity>}
@@ -38,6 +37,11 @@ The allowed names for :attr:`quantity` are:
 
 One can write one or more (distinct) names in any order.
 
+Output
+------
+
+The results are written to the :ref:`compute.out output file <compute_out>`.
+
 Examples
 --------
 
@@ -47,3 +51,8 @@ For example::
 
 means using the 0-th grouping method defined in the :ref:`simulation model file <model_xyz>`, sampling :attr:`temperature` every 100 time steps and averaging over 10 data points before writing to file.
 That is, there is only one output every :math:`100 \times 10=1000` time steps.
+
+Notes
+-----
+
+None.

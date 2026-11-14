@@ -8,11 +8,33 @@
 For ordinary structural NEP, when training or resuming without :attr:`fine_tune`, :program:`nep` computes :attr:`q_scaler`, the per-descriptor-component normalization used by the neural network, from the training structures of the current run at generation 0.
 This keyword instead tells :program:`nep` to read :attr:`q_scaler` from the :attr:`nep.txt` file present in the run directory, skipping that computation.
 This naturally requires such a file to be present.
-The syntax is::
+
+Syntax
+------
+
+::
 
   import_q_scaler <0 or 1>
 
-with a default value of 0.
+Parameters
+----------
+
+The flag is 0 (default) or 1. A value of 1 imports the descriptor normalization from ``nep.txt``.
+
+Output
+------
+
+None.
+
+Examples
+--------
+
+::
+
+  import_q_scaler 1
+
+Notes
+-----
 
 Use this option to retain a model's descriptor normalization when continuing training on different data.
 Provide ``nep.txt`` with exactly the same architecture and species as the current run.
@@ -20,7 +42,7 @@ This option does not extract species or change the search state read from ``nep.
 For extraction from a foundation model, see :ref:`fine_tune <kw_fine_tune>`.
 
 NEP-spin training and restart
-----------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Spin restart automatically restores the scaler from the matching ``nep.txt``,
 even with ``import_q_scaler 0``. The model and restart must have compatible

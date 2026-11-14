@@ -6,7 +6,6 @@
 =====================
 
 This keyword is used to calculate the thermal conductivity using the :ref:`homogeneous nonequilibrium molecular dynamics <hnemd>` (:term:`HNEMD`) method [Fan2019]_.
-The results are written to the :ref:`kappa.out output file <kappa_out>`.
 
 Syntax
 ------
@@ -28,6 +27,11 @@ According to Eq. (8) of [Fan2019]_:
 * Using a nonzero :math:`x` component of :math:`\boldsymbol{F}_e`, one can obtain the :math:`xx`, :math:`yx` and :math:`zx` components of the thermal conductivity tensor.
 * Using a nonzero :math:`y` component of :math:`\boldsymbol{F}_e`, one can obtain the :math:`xy`, :math:`yy` and :math:`zy` components of the thermal conductivity tensor.
 * Using a nonzero :math:`z` component of :math:`\boldsymbol{F}_e`, one can obtain the :math:`xz`, :math:`yz` and :math:`zz` components of the thermal conductivity tensor.
+
+Output
+------
+
+The results are written to the :ref:`kappa.out output file <kappa_out>`.
 
 Examples
 --------

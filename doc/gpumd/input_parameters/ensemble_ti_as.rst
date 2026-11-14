@@ -28,18 +28,8 @@ The path consists of initial equilibration, forward switching, equilibration at 
 The run must contain at least ``2 * (tequil + tswitch)`` steps.
 Any remaining steps keep the final target and do not add switching data.
 
-Examples
---------
-
-.. code-block:: text
-
-    ensemble ti_as temp 300 aniso 10 30 tswitch 10000 tequil 1000
-    run 22000
-
-This run equilibrates for 1000 steps at 10 GPa, switches to 30 GPa in 10000 steps, equilibrates there for 1000 steps, and switches back to 10 GPa in 10000 steps, all at 300 K.
-
-Output file
------------
+Output
+------
 
 ``ti_as.csv`` contains ``2 * tswitch`` rows after the header: the forward path followed by the backward path.
 The columns ``p`` and ``V`` are the target pressure in eV/Å³ and the volume per atom in Å³/atom.
@@ -64,7 +54,7 @@ The reference Gibbs free energy and the resulting curve are in eV/atom.
     G0 = y["G"]
 
     ti = read_csv("ti_as.csv")
-    n = 10000  # tswitch in the example above
+    n = 10000  # tswitch in the example below
     if len(ti) != 2*n:
         raise ValueError("Expected two complete switching paths.")
     forward = ti.iloc[:n]
@@ -82,3 +72,18 @@ The reference Gibbs free energy and the resulting curve are in eV/atom.
     plt.legend()
     plt.xlabel("P (GPa)")
     plt.ylabel("G (eV/atom)")
+
+Examples
+--------
+
+.. code-block:: text
+
+    ensemble ti_as temp 300 aniso 10 30 tswitch 10000 tequil 1000
+    run 22000
+
+This run equilibrates for 1000 steps at 10 GPa, switches to 30 GPa in 10000 steps, equilibrates there for 1000 steps, and switches back to 10 GPa in 10000 steps, all at 300 K.
+
+Notes
+-----
+
+None.

@@ -15,6 +15,9 @@ This keyword is used as follows::
 
   electron_stop <file>
 
+Parameters
+----------
+
 The first line of the file should have 3 values:
 
 * the first is the number of data points to be listed :math:`N`;
@@ -27,9 +30,19 @@ For these :math:`N` lines, the number of columns is the number of species used b
 For a compacted multi-element NEP potential, there should be one column with the stopping power for each active species, in the active atom type order printed at initialization.
 For other potential models, there should be one column for each species in the order defined in the potential file.
 
+Output
+------
+
+None.
+
 Examples
 --------
 
 An example is::
 
    electron_stop my_stopping_power.txt
+
+Notes
+-----
+
+None.

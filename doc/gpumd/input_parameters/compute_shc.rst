@@ -6,8 +6,6 @@
 ===================
 
 The :attr:`compute_shc` keyword is used to compute the nonequilibrium virial-velocity correlation function :math:`K(t)` and the spectral heat current (:term:`SHC`) :math:`J_q(\omega)`, in a given direction, for a group of atoms, as defined in Eq. (18) and the left part of Eq. (20) of [Fan2019]_.
-The results are written to the :ref:`shc.out output file <shc_out>`.
-
 
 Syntax
 ------
@@ -15,6 +13,9 @@ Syntax
 .. code::
 
    compute_shc <sample_interval> <Nc> <transport_direction> <num_omega> <max_omega> [{<optional_arg>}]
+
+Parameters
+----------
 
 :attr:`sample_interval` is the sampling interval (number of steps) between two correlation steps.
 This parameter must be an integer that is :math:`\geq 1` and :math:`\leq 50`.
@@ -40,6 +41,11 @@ If :attr:`grouping_method` is assigned and :attr:`group_id` is -1, it means to c
 Since it is very time and memory consuming to calculate the all group :math:`K(t)` for a large system, so one can assign the part that don't want to calculate to :attr:`group_id` 0.
 Also, grouping method :attr:`grouping_method` must be defined in the :ref:`simulation model input file <model_xyz>`.
 If this option is missing, it means computing :math:`K(t)` for the whole system.
+
+Output
+------
+
+The results are written to the :ref:`shc.out output file <shc_out>`.
 
 Examples
 --------
@@ -94,6 +100,7 @@ means that
 
 Notes
 -----
+
 This computation can be memory consuming.
 
 If you want to use the in-out decomposition for 2D materials, you need to make the basal plane in the :math:`xy` directions.

@@ -21,6 +21,9 @@ The complete syntax for the six combinations is::
   add_spring com_com <group_method> <group_id_1> <group_id_2> couple <k_couple> <R0>
   add_spring com_com <group_method> <group_id_1> <group_id_2> decouple <k_decouple_x> <k_decouple_y> <k_decouple_z>
 
+Parameters
+----------
+
 The coupled spring potential is:
 
 .. math::
@@ -44,7 +47,11 @@ where :math:`(x_1, y_1, z_1)` and :math:`(x_2, y_2, z_2)` are the Cartesian coor
 * In :attr:`decouple` mode, :attr:`k_decouple_x`, :attr:`k_decouple_y`, and :attr:`k_decouple_z` must be non-negative.
 * In :attr:`com_com` mode, :attr:`group_id_1` and :attr:`group_id_2` must be different.
 * Force is in units of eV/Å, distance is in units of Å, velocity is in units of Å/step, and spring constant is in units of eV/Å².
-* Spring forces are written to :attr:`spring_gm<group_method>_g<group_id>_s<spring_id>.out`. The :attr:`spring_id` is assigned independently for each (:attr:`group_method`, :attr:`group_id`) pair. A new spring uses the lowest unused non-negative ID that does not already have a spring output or restart file. A continued spring keeps the ID specified by ``continue <spring_id>``. The meaning of each column in the file is::
+
+Output
+------
+
+Spring forces are written to :attr:`spring_gm<group_method>_g<group_id>_s<spring_id>.out`. The :attr:`spring_id` is assigned independently for each (:attr:`group_method`, :attr:`group_id`) pair. A new spring uses the lowest unused non-negative ID that does not already have a spring output or restart file. A continued spring keeps the ID specified by ``continue <spring_id>``. The meaning of each column in the file is::
 
    # step  mode  Fx  Fy  Fz  Ftotal  energy
 

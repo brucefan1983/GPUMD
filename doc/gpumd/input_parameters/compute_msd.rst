@@ -7,10 +7,10 @@
 
 This keyword computes the self-diffusion coefficient (:term:`SDC`) from the mean-square displacement (:term:`MSD`) function.
 If this keyword appears in a run, the :term:`MSD` function will be computed and each Cartesian component of the :term:`SDC` is calculated as one half of the time derivative of the corresponding :term:`MSD` component.
-The results will be written to :ref:`msd.out output file <msd_out>`.
 
 Syntax
 ------
+
 ::
 
   compute_msd <sample_interval> <Nc> [<option> ...]
@@ -35,6 +35,10 @@ Choose :attr:`interval` to be a multiple of :attr:`sample_interval` to obtain th
 Step numbers are counted from the beginning of the current run.
 Each copy contains the averages accumulated so far; saving does not reset the accumulation.
 
+Output
+------
+
+The results will be written to :ref:`msd.out output file <msd_out>`.
 
 Examples
 --------
@@ -51,3 +55,8 @@ To compute the :term:`MSD` for all groups in group method 1 and save a copy of t
 
 In this example, sufficient position samples are available at step 1000, but the first intermediate file is ``msd_step100000.out`` at step 100000.
 The final results are also appended to ``msd.out`` at the end of the run.
+
+Notes
+-----
+
+None.

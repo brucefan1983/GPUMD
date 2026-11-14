@@ -19,6 +19,11 @@ Parameters
 
 ``interval`` is a positive integer giving the number of MD steps between updates.
 
+Output
+------
+
+The current configuration is written to :ref:`restart.xyz <restart_xyz>`.
+
 Examples
 --------
 
@@ -30,9 +35,9 @@ before the :ref:`run keyword <kw_run>`.
 Each update overwrites the file.
 To save the configuration at the final step, choose a run length that is a multiple of the output interval.
 
-
 Notes
 -----
+
 Repeat this command before each run that needs this output.
 
 NEP-spin models also save the per-atom Cartesian ``spin:R:3`` values.

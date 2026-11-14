@@ -31,10 +31,10 @@
 
 .highlight { /* code blocks */
     background: #d5e1cb;
-} 
+}
 
 .admonition-title { /* notes, title */
-    background: #5e81ac !important; 
+    background: #5e81ac !important;
 }
 
 .admonition { /* notes */
@@ -64,4 +64,9 @@
 
 .rst-content .toctree-wrapper > ul > li {
     margin-bottom: 0.25em;
+}
+
+.wy-table-responsive table td,
+.wy-table-responsive table th {
+    white-space: normal;
 }

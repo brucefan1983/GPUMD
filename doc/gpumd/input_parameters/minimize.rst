@@ -10,7 +10,6 @@ Minimization is performed immediately when this command is read from ``run.in`` 
 Subsequent commands use the resulting atomic positions and simulation cell.
 Currently, the fast inertial relaxation engine (FIRE) [Bitzek2006]_ [Guénolé2020]_ method and the steepest descent (SD) method have been implemented.
 
-
 Syntax
 ------
 
@@ -33,6 +32,12 @@ For box optimization, convergence requires both the force criterion above and a 
 With general strain, the largest absolute component of the virial tensor divided by the volume must be below :math:`10^{-4}` GPa.
 With hydrostatic strain, the absolute hydrostatic pressure must be below :math:`10^{-4}` GPa.
 These minimization pressures contain only the virial contribution.
+
+Output
+------
+
+Minimization progress is printed to the console.
+The optimized structure can be saved using the output procedure shown in the examples.
 
 Examples
 --------

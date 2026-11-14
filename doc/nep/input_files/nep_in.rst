@@ -94,7 +94,7 @@ Keywords
    * - :ref:`n_max <kw_n_max>`
      - radial-function index limits for radial and angular descriptors
    * - :ref:`basis_size <kw_basis_size>`
-     - number of radial (:math:`N_\mathrm{bas}^\mathrm{R}`) and angular (:math:`N_\mathrm{bas}^\mathrm{A}`) basis functions
+     - radial (:math:`N_\mathrm{bas}^\mathrm{R}`) and angular (:math:`N_\mathrm{bas}^\mathrm{A}`) basis sizes
    * - :ref:`l_max <kw_l_max>`
      - expansion order for angular terms
    * - :ref:`neuron <kw_neuron>`

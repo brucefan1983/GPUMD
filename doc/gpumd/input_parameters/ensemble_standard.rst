@@ -39,6 +39,8 @@ The NVT methods use the following thermostats:
 ``npt_ber`` uses the :ref:`Berendsen barostat <berendsen_barostat>`; ``npt_scr`` uses :ref:`stochastic cell rescaling <stochastic_cell_rescaling>`.
 Both take the same pressure-control parameters, with pressures and estimated elastic moduli in GPa and ``p_coup`` in time steps.
 
+.. _standard_pressure_parameters:
+
 Choose one of the following forms for ``pressure_control_parameters``:
 
 * **Isotropic cell changes**
@@ -79,6 +81,10 @@ Choose one of the following forms for ``pressure_control_parameters``:
   It is used to convert the coupling constant (or relaxation time, see :ref:`here <choice_of_parameters>`) of the barostat into suitable internal units.
   If an elastic constant component exceeds 2000 GPa, the coupling constant for that component will be zero and that box component will not be changed.
 
+Output
+------
+
+None.
 
 Examples
 --------
@@ -90,3 +96,8 @@ Maintain a target temperature of 300 K using the BDP thermostat::
 Use isotropic Berendsen pressure control at 0 GPa, with an estimated modulus of 100 GPa::
 
     ensemble npt_ber 300 300 100 0 100 1000
+
+Notes
+-----
+
+None.

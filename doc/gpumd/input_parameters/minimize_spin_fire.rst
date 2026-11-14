@@ -43,6 +43,16 @@ Parameters
 * ``maximal_number_of_steps`` is a positive iteration budget. All attempts count,
   including velocity resets and non-finite trial states.
 
+Output
+------
+
+Console output reports energy, maximum magnetic-force residual, and (for joint runs)
+maximum atomic force and virial stress in GPa (mean normal stress in the
+hydrostatic case). At fixed cell, stress is reported but is not a stopping
+criterion. Only ``converged`` means **all active criteria** have been met.
+``maximum_steps`` and ``stalled``
+do not indicate convergence.
+
 Examples
 --------
 
@@ -92,12 +102,6 @@ Notes
 * Atomic velocities and physical ``spin_vel`` are preserved. Subsequent commands use the optimized configuration.
 * External magnetic fields do not participate in Spin FIRE minimization.
   ``add_mfield`` applies only to MD runs.
-* Output reports energy, maximum magnetic-force residual, and (for joint runs)
-  maximum atomic force and virial stress in GPa (mean normal stress in the
-  hydrostatic case). At fixed cell, stress is reported but is not a stopping
-  criterion. Only ``converged`` means **all active criteria** have been met.
-  ``maximum_steps`` and ``stalled``
-  do not indicate convergence.
 * Individual FIRE steps can increase the energy. Force convergence identifies
   a stationary point, not necessarily the global minimum or a particular phase.
   Variable-magnitude optimization requires a potential fitted over the relevant

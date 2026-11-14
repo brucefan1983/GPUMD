@@ -37,11 +37,9 @@ The MC target temperature changes linearly from ``T_i`` to ``T_f`` during the ru
 ^^^^^^^^^^^^^^^^^
 Canonical sampling exchanges atomic species while keeping their counts fixed.
 
-
 :attr:`sgc`
 ^^^^^^^^^^^
 SGC sampling uses species transmutations with chemical-potential differences.
-
 
 :attr:`num_species` specifies the number of species that are to be included in the sampling.
 It must be no less than 2 and no larger than 4.
@@ -63,7 +61,6 @@ For a convention based on :math:`U-\sum_s\mu_s^{\rm phys}N_s`, the corresponding
 ^^^^^^^^^^^^^
 VCSGC sampling adds a concentration bias.
 
-
 :attr:`num_species` specifies the number of species that are to be included in the sampling.
 It must be no less than 2 and no larger than 4.
 After specifying the number of species, one needs to specify their chemical symbols (:attr:`species_i`) and dimensionless concentration-bias parameters (:attr:`phi_i` = :math:`\phi_i`).
@@ -79,6 +76,11 @@ Typically a :math:`\kappa` value of 100 is suitable.
 If the concentration fluctuations are too large (e.g., deep with miscibility gaps) one should increase this value.
 
 The parameter normalization differs from that used in the original papers [Sadigh2012a]_ [Sadigh2012b]_; see also [Rahm2021]_.
+
+Output
+------
+
+Monte Carlo statistics are written to :ref:`mcmd.out <mcmd_out>`.
 
 Examples
 --------
@@ -124,3 +126,8 @@ This means
 * Only the Al and Ag atoms are involved in the :term:`MC` process.
   The dimensionless :math:`\phi` parameters for Al and Ag are -2 and 0, respectively.
   The dimensionless :math:`\kappa` parameter is 10000.
+
+Notes
+-----
+
+None.

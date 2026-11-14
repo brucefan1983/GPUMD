@@ -7,9 +7,7 @@
 
 This keyword is used for computing the cohesive energy curve.
 At each scaling factor, the atomic positions are relaxed in the fixed, scaled cell using steepest descent, with a force tolerance of :math:`10^{-5}` eV/Å and at most 1000 minimization steps.
-The results are written to the :ref:`cohesive.out output file <cohesive_out>`.
 The calculation is performed when this keyword is read.
-
 
 Syntax
 ------
@@ -31,6 +29,10 @@ Only ``direction=6`` scales the cell isotropically.
 The scaling factors are :math:`e_1+0.001n`, with :math:`n=0,\ldots,\operatorname{round}[1000(e_2-e_1)]`.
 Each point is generated from the cell and atomic positions present when the keyword is read, followed by relaxation at the fixed scaled cell.
 
+Output
+------
+
+The results are written to the :ref:`cohesive.out output file <cohesive_out>`.
 
 Examples
 --------
@@ -41,7 +43,6 @@ The command::
 
 computes 301 points by scaling the first cell vector (the x-direction for an axis-aligned orthogonal cell).
 The box-scaling points will be 0.9, 0.901, 0.902, ..., 1.2.
-
 
 Notes
 -----

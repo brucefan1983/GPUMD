@@ -6,6 +6,17 @@
 ===========================
 
 This keyword selects the integration method for the next :ref:`run <kw_run>`.
+
+Syntax
+------
+
+::
+
+  ensemble <method> <parameters>
+
+Parameters
+----------
+
 For conventional classical MD, the main choices are:
 
 * ``nve``: dynamics without a thermostat or barostat.
@@ -29,11 +40,10 @@ The available methods, including specialized integrators, are described on the f
 * :ref:`NEMD for simulating compressive shock wave <kw_ensemble_shock_nemd>`
 * Thermodynamic integration and switching: :ref:`TI <kw_ensemble_ti>`, :ref:`TI_Spring <kw_ensemble_ti_spring>`, :ref:`TI_AS <kw_ensemble_ti_as>`, :ref:`TI_RS <kw_ensemble_ti_rs>`, :ref:`TI_Liquid <kw_ensemble_ti_liquid>`, and :ref:`TI_NEP <kw_ensemble_ti_nep>`
 
-
 .. _choice_of_parameters:
 
 Units and suggested parameters
-------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The units of temperature and pressure for this keyword are K and GPa, respectively.
 These are thermostat and barostat targets; they do not set the initial atomic velocities, which are determined by ``model.xyz`` or the :ref:`velocity keyword <kw_velocity>`.
@@ -52,8 +62,20 @@ We require :math:`\tau_p/\Delta t \geq 1` and a good choice is :math:`\tau_p/\De
 
 The elastic constants are in units of GPa.
 
+Output
+------
+
+None.
+
+Examples
+--------
+
+::
+
+  ensemble nvt_bdp 300 300 100
 
 Notes
 -----
+
 Specify exactly one ``ensemble`` command before each :ref:`run <kw_run>`.
 The integrator is initialized for that run, and any temperature or pressure ramp is defined over that run.

@@ -12,11 +12,18 @@ For an immediate change of the box and atomic positions, use :ref:`change_box <k
 Syntax
 ------
 
-The :attr:`deform` keyword supports two legacy forms and one general form.
-
-**4-parameter legacy form** ::
+::
 
   deform <A_per_step> <deform_x> <deform_y> <deform_z>
+  deform <A_per_step_x> <A_per_step_y> <A_per_step_z> <deform_x> <deform_y> <deform_z>
+  deform <component_1> <A_per_step_1> [<component_2> <A_per_step_2> ...]
+
+Parameters
+----------
+
+The :attr:`deform` keyword supports two legacy forms and one general form.
+
+**4-parameter legacy form**:
 
 Here, :attr:`A_per_step` specifies the increment of the box length per simulation step, in units of Ångstrom/step.
 For example, suppose the box length in a given direction at the beginning of a run is 100 Ångstrom and this parameter is :math:`10^{-5}` Ångstrom/step. A run with :math:`10^{6}` steps will then change the box length by 10%.
@@ -25,18 +32,14 @@ The parameters :attr:`deform_x`, :attr:`deform_y`, and :attr:`deform_z` can be 0
 
 In this form, the same deformation rate is applied to all directions that are flagged as deformed.
 
-**6-parameter legacy form** ::
-
-  deform <A_per_step_x> <A_per_step_y> <A_per_step_z> <deform_x> <deform_y> <deform_z>
+**6-parameter legacy form**:
 
 Here, :attr:`A_per_step_x`, :attr:`A_per_step_y`, and :attr:`A_per_step_z` specify the increments of the box lengths in the x, y, and z directions per simulation step, respectively, in units of Ångstrom/step.
 The parameters :attr:`deform_x`, :attr:`deform_y`, and :attr:`deform_z` enable or disable deformation in each direction.
 
 This form allows independent deformation rates in the x, y, and z directions.
 
-**General form** ::
-
-  deform <component_1> <A_per_step_1> [<component_2> <A_per_step_2> ...]
+**General form**:
 
 The available components are
 
@@ -49,6 +52,11 @@ With the cell vectors written as columns, :math:`\mathbf{h}=[\mathbf{a},\mathbf{
 The components :attr:`xy`, :attr:`xz`, and :attr:`yz` are geometric box/tilt components and are not symmetric Voigt shear-strain components.
 For example, ``deform xy 0.00001`` adds :math:`10^{-5}` Å to :math:`b_x` per MD step; this is a length increment rather than the dimensionless shear input of ``change_box``.
 Each component can only be specified once in a :attr:`deform` command.
+
+Output
+------
+
+None.
 
 Examples
 --------

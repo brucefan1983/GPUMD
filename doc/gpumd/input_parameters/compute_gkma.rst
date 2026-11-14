@@ -6,8 +6,6 @@
 ====================
 
 The :attr:`compute_gkma` keyword can be used to calculate the modal heat current using the Green-Kubo modal analysis (:term:`GKMA`) method [Lv2016]_.
-The results are written to the :ref:`heatmode.out output file <heatmode_out>`.
-
 
 Syntax
 ------
@@ -29,6 +27,11 @@ The options are ``bin_size`` and ``f_bin_size``.
 :attr:`size` defines how the modes are added to each bin.
 If :attr:`bin_option` is ``bin_size``, then this is an integer describing how many modes are included per bin.
 If :attr:`bin_option` = ``f_bin_size``, then binning is by frequency and this is a float describing the bin size in THz.
+
+Output
+------
+
+The results are written to the :ref:`heatmode.out output file <heatmode_out>`.
 
 Examples
 --------

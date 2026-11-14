@@ -21,6 +21,13 @@ Parameters
 - :attr:`<element_name>` and :attr:`<spring_constant>`: Specify the spring constants of elements.
 - :attr:`<lambda>`: The lambda value of the simulation.
 
+Output
+------
+
+Each run overwrites ``ti.csv``.
+The header is ``pe,espring``, followed by one row per MD step.
+The columns are the interatomic-potential energy and harmonic-reference energy, both in eV/atom.
+
 Examples
 --------
 
@@ -29,3 +36,8 @@ Examples
     ensemble ti lambda 0.3 temp 300 spring Si 6 O 5
 
 This command uses lambda value 0.3 (30% spring force and 70% original force field). The spring constant is 6 eV/Å² for Si and 5 eV/Å² for O.
+
+Notes
+-----
+
+None.

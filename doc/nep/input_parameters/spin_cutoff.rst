@@ -5,10 +5,18 @@
 :attr:`spin_cutoff`
 ====================
 
-This keyword sets the magnetic cutoff distance in Å::
+This keyword sets the magnetic cutoff distance in Å.
+
+Syntax
+------
+
+::
 
   spin_cutoff <cutoff>
   spin_cutoff <cutoff_type_1> ... <cutoff_type_N>
+
+Parameters
+----------
 
 Set the :ref:`type keyword <kw_type>` before this keyword.
 
@@ -24,6 +32,14 @@ as well.
 For an edge between types :math:`a` and :math:`b`, the model uses the arithmetic mean
 :math:`(r_a^\mathrm{spin}+r_b^\mathrm{spin})/2`.
 
+Output
+------
+
+None.
+
+Examples
+--------
+
 For example, with ``type 2 Fe Ge``::
 
   cutoff 6.0 5.0
@@ -31,3 +47,8 @@ For example, with ``type 2 Fe Ge``::
 
 uses 4, 5, and 6 Å for Fe--Fe, Fe--Ge, and Ge--Ge magnetic edges. The ``spin_cutoff``
 line does not change the ordinary structural NEP cutoffs.
+
+Notes
+-----
+
+None.

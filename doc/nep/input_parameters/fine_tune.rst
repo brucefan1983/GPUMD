@@ -6,11 +6,26 @@
 =================
 
 This keyword instructs :program:`nep` to fine tune a model starting from a foundation model.
-The syntax is::
+
+Syntax
+------
+
+::
 
   fine_tune <nep_model_file> <nep_restart_file>
 
-where :attr:`<nep_model_file>` is the potential file for the foundation model and :attr:`<nep_restart_file>` is the restart file for the foundation model.
+Parameters
+----------
+
+:attr:`<nep_model_file>` is the potential file for the foundation model and :attr:`<nep_restart_file>` is the restart file for the foundation model.
+
+Output
+------
+
+None.
+
+Examples
+--------
 
 The example below uses the foundation model in ``potentials/nep/nep89_20250409``.
 
@@ -39,3 +54,8 @@ In this ``nep.in`` template, replace ``type <your types>`` with the number and c
   population 50
   save_potential 1000 0 1
   generation 5000
+
+Notes
+-----
+
+None.

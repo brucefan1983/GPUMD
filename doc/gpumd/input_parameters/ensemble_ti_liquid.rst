@@ -27,6 +27,13 @@ Specify both ``tequil`` and ``tswitch``, or omit both.
 When omitted, they are set to ``floor(0.1 * N)`` and ``floor(0.4 * N)``, respectively, where ``N`` is the number of run steps; the resulting ``tswitch`` must still be positive.
 The run must contain at least ``2 * (tequil + tswitch)`` steps.
 
+Output
+------
+
+This command will produce a csv file. The columns are lambda, dlambda, potential energy and UF energy (eV/atom).
+
+This command will also produce a yaml file, which contains Gibbs free energy and other information.
+
 Examples
 --------
 
@@ -36,9 +43,7 @@ Examples
 
 Each switching stage lasts 4000 time steps and each equilibration stage lasts 1000 time steps.
 
-Output file
------------
+Notes
+-----
 
-This command will produce a csv file. The columns are lambda, dlambda, potential energy and UF energy (eV/atom).
-
-This command will also produce a yaml file, which contains Gibbs free energy and other information.
+None.

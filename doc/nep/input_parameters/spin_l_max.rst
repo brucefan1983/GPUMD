@@ -6,9 +6,17 @@
 ===================
 
 This keyword controls the maximum spatial tensor rank used by the spin
-descriptor::
+descriptor.
+
+Syntax
+------
+
+::
 
   spin_l_max <l_3body> <l_4body> <l_5body>
+
+Parameters
+----------
 
 The default is ``2 0 0``. For ``spin_version 1``, ``l_3body`` can range from 0
 to 2 and the other two values must be zero.
@@ -29,6 +37,21 @@ For NEP-spin, the first value has the following interpretation:
      - additionally use symmetric-traceless rank-2 contractions
 
 This rank cutoff is distinct from :ref:`spin_order <kw_spin_order>` and from
-the ordinary structural :ref:`l_max <kw_l_max>`. A typical setting is::
+the ordinary structural :ref:`l_max <kw_l_max>`.
+
+Output
+------
+
+None.
+
+Examples
+--------
+
+Use the default spatial rank cutoff::
 
   spin_l_max 2 0 0
+
+Notes
+-----
+
+None.

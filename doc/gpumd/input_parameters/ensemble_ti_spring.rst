@@ -28,6 +28,13 @@ Specify both ``tequil`` and ``tswitch``, or omit both.
 When omitted, they are set to ``floor(0.1 * N)`` and ``floor(0.4 * N)``, respectively, where ``N`` is the number of run steps; the resulting ``tswitch`` must still be positive.
 The run must contain at least ``2 * (tequil + tswitch)`` steps.
 
+Output
+------
+
+This command produces ``ti_spring.csv``. The columns are lambda, dlambda, potential energy and spring energy (eV/atom).
+
+It also produces ``ti_spring.yaml``, which contains the free energies in eV/atom, temperature ``T`` in K, pressure ``P`` in eV/Å³, volume ``V`` in Å³/atom, and reference-system information. The ``press`` input is in GPa; use the pressure corresponding to the equilibrated volume when calculating Gibbs free energy.
+
 Examples
 --------
 
@@ -43,9 +50,7 @@ Each switching stage lasts 4000 time steps and each equilibration stage lasts 10
 
 This command calculates spring constants automatically.
 
-Output file
------------
+Notes
+-----
 
-This command produces ``ti_spring.csv``. The columns are lambda, dlambda, potential energy and spring energy (eV/atom).
-
-It also produces ``ti_spring.yaml``, which contains the free energies in eV/atom, temperature ``T`` in K, pressure ``P`` in eV/Å³, volume ``V`` in Å³/atom, and reference-system information. The ``press`` input is in GPa; use the pressure corresponding to the equilibrated volume when calculating Gibbs free energy.
+None.

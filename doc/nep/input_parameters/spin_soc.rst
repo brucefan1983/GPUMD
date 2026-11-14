@@ -6,9 +6,17 @@
 =================
 
 This keyword controls whether the descriptor can couple spin direction
-to the local spatial environment::
+to the local spatial environment.
+
+Syntax
+------
+
+::
 
   spin_soc <flag>
+
+Parameters
+----------
 
 The flag can be 0 or 1 and defaults to 1. It is used only with
 ``spin_version 1``.
@@ -29,3 +37,20 @@ subset. With value 1, it also includes scalar contractions between spin and
 spatial rank-1/rank-2 objects up to
 :ref:`spin_l_max <kw_spin_l_max>`. The flag changes the descriptor's allowed
 information flow; it does not impose a particular analytic SOC Hamiltonian.
+
+Output
+------
+
+None.
+
+Examples
+--------
+
+::
+
+  spin_soc 1
+
+Notes
+-----
+
+None.

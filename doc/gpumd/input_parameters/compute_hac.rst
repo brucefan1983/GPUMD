@@ -6,10 +6,10 @@
 ===================
 
 This keyword can be used to calculate the heat current autocorrelation (:term:`HAC`) and running thermal conductivity (:term:`RTC`) using the :ref:`Green-Kubo method <green_kubo_method>`.
-The results will be written to the :ref:`hac.out output file <hac_out>`.
 
 Syntax
 ------
+
 ::
 
   compute_hac <sampling_interval> <correlation_steps> <output_interval>
@@ -20,6 +20,11 @@ Parameters
 The first parameter is the sampling interval for the heat current data.
 The second parameter is the maximum number of correlation steps.
 The third parameter is the output interval of the :term:`HAC` and :term:`RTC` data.
+
+Output
+------
+
+The results will be written to the :ref:`hac.out output file <hac_out>`.
 
 Examples
 --------
@@ -46,3 +51,8 @@ Example 2
 
 This is similar to the above example but with one exception:
 The :term:`HAC`/:term:`RTC` data will be averaged for every 10 data before outputting, generating :math:`10^4` rows of data in the output file.
+
+Notes
+-----
+
+None.

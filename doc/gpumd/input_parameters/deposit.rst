@@ -15,6 +15,9 @@ This keyword is used in one of the following two ways::
   deposit <interval> <direction> <height_min> [height_max] atom <element_1> <num_1> <velocity_1> [mass_1] [<element_2> <num_2> <velocity_2> [mass_2] ...] # usage 1
   deposit <interval> <direction> <height_min> [height_max] file <add_atom_file> [velocity]                                                          # usage 2
 
+Parameters
+----------
+
 * :attr:`interval` is the deposition interval (number of steps) and must be a positive integer.
   The number of steps in the :ref:`run keyword <kw_run>` must be divisible by it.
 * :attr:`direction` is the deposition direction: :attr:`0`, :attr:`1`, and :attr:`2` correspond to the x, y, and z directions, respectively.
@@ -40,8 +43,12 @@ This keyword is used in one of the following two ways::
   With :attr:`direction` set to :attr:`-1`, no :attr:`velocity` is allowed after the file name and the file is used as it is.
 
 At each deposition, the new atoms are appended to the model and the :ref:`run <kw_run>` is effectively split into sub-runs of :attr:`interval` steps, with one deposition between two consecutive sub-runs.
-After each sub-run, the current structure is written to a file named :attr:`deposited_N.xyz` in extended XYZ format, including the velocities (and the mass if the model has a mass property, and the group labels if the model has grouping).
 If the :ref:`simulation model file <model_xyz>` contains no velocity data, one extra sub-run of the pristine model is performed before the first deposition.
+
+Output
+------
+
+After each sub-run, the current structure is written to a file named :attr:`deposited_N.xyz` in extended XYZ format, including the velocities (and the mass if the model has a mass property, and the group labels if the model has grouping).
 
 Examples
 --------

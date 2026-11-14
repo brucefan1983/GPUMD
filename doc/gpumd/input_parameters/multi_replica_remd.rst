@@ -29,6 +29,11 @@ Parameters
 
 See :ref:`kw_multi_replica` for supported input commands and GPU allocation.
 
+Output
+------
+
+See :ref:`replica output files <replica_output_files>` for temperature assignments, exchange statistics, trajectories, and restart files.
+
 Examples
 --------
 

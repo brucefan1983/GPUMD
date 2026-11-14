@@ -5,7 +5,8 @@ Output files
 ============
 
 Training writes a model, a restart state, loss history, and predictions for comparison with the reference data.
-The :ref:`loss.out file <loss_out>` is written in "append mode". Prediction files, ``nep.txt``, and ``nep.restart`` are overwritten when updated.
+The :ref:`loss.out file <loss_out>` and :ref:`descriptor.out <descriptor_out>` use append mode.
+The ``*_train.out`` and ``*_test.out`` prediction files, ``nep.txt``, and ``nep.restart`` are overwritten when updated.
 
 During training, the ``*_train.out`` prediction files are updated every 1000 generations.
 The :ref:`loss.out <loss_out>` file and corresponding console output, :ref:`nep.txt <nep_txt>`, :ref:`nep.restart <nep_restart>`, and ``*_test.out`` prediction files are updated at the interval set by :ref:`output_interval <kw_output_interval>` (100 generations by default).
@@ -26,7 +27,7 @@ All these files are plain text. Read their headers and the format descriptions b
    * - :ref:`nep.txt <nep_txt>`
      - :term:`NEP` potential parameters
    * - :ref:`nep.restart <nep_restart>`
-     - restart file 
+     - restart file
    * - :ref:`energy_train.out <energy_out>`, :ref:`energy_test.out <energy_out>`
      - target and predicted energies for training/test data
    * - :ref:`force_train.out <force_out_nep>`, :ref:`force_test.out <force_out_nep>`

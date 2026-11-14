@@ -5,18 +5,44 @@
 :attr:`output_descriptor`
 =========================
 
-Write normalized descriptors for the structures or atoms in ``train.xyz`` to :ref:`descriptor.out <descriptor_out>`.
-It is only in effect for the prediction mode (see the :ref:`prediction keyword <kw_prediction>`).
-The syntax is::
+Select per-structure or per-atom descriptor output in prediction mode.
+
+Syntax
+------
+
+::
 
   output_descriptor <mode>
 
-where :attr:`<mode>` must be an integer that can assume one of the following values.
+Parameters
+----------
+
+:attr:`<mode>` must be an integer that can assume one of the following values.
 
 =====  =====================================================
-Value  Mode 
+Value  Mode
 -----  -----------------------------------------------------
 0      not to output descriptors during prediction (default)
 1      output per-structure descriptors during prediction
 2      output per-atom descriptors during prediction
 =====  =====================================================
+
+Output
+------
+
+With ``prediction 1`` and mode 1 or 2, normalized descriptors from ``train.xyz`` are appended to :ref:`descriptor.out <descriptor_out>`.
+Mode 1 writes one row per structure; mode 2 writes one row per atom.
+No descriptor file is written during training.
+
+Examples
+--------
+
+::
+
+  prediction 1
+  output_descriptor 1
+
+Notes
+-----
+
+None.

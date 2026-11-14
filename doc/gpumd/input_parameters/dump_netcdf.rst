@@ -8,7 +8,6 @@
 Write per-atom data to a user-specified NetCDF trajectory file based on the
 `AMBER 1.0 conventions <http://ambermd.org/netcdf/nctraj.pdf>`_.
 
-
 Syntax
 ------
 
@@ -122,6 +121,11 @@ Currently, the following optional arguments are accepted:
     Requesting ``deflate`` without NetCDF4/HDF5 support causes an error.
     See :ref:`NetCDF setup <netcdf_setup>` for how to build NetCDF-C with NetCDF4/HDF5 support.
 
+Output
+------
+
+The selected properties are written to ``filename`` in NetCDF format, with the variables and units listed under Parameters.
+
 Examples
 --------
 
@@ -175,7 +179,6 @@ output interval, so every output file contains one independently sampled group::
   dump_netcdf 25 group_1.nc group 0 1 velocity compression deflate 1
 
   run 100000
-
 
 Notes
 -----

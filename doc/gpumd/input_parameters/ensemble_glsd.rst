@@ -88,8 +88,62 @@ For a local radial harmonic mode with curvature :math:`\kappa` and relaxation ti
 This is a local estimate, not a general fit to coupled finite-temperature dynamics.
 One scalar mobility controls both longitudinal and transverse relaxation, so a Gilbert damping value alone does not specify this model.
 
-Method
+Output
 ------
+
+None.
+
+Examples
+--------
+
+The following examples use dimensionless ``damping 0.01`` as a starting
+setting for pilot runs, not a default or a calibrated material parameter.
+After loading a NEP-spin potential and a ``model.xyz`` with magnetic moments::
+
+    # Deterministic dissipative spin dynamics; fixed atomic positions
+    ensemble nve_glsd damping 0.01 stemp -1
+    time_step 0.1
+    dump_xyz 100 spin.xyz precision double spin mforce
+    dump_restart 1000
+    run 1000
+
+Other ensemble choices::
+
+    # Fixed lattice; spins coupled to a 300 K bath
+    ensemble nvt_glsd 300 300 100 lattice off damping 0.01 seed 731
+
+    # Coupled spin and lattice dynamics (lattice NHC)
+    ensemble nvt_glsd 300 300 100 damping 0.01 seed 731
+
+    # Coupled spin, lattice and cell dynamics (MTTK)
+    ensemble npt_glsd temp 300 300 iso 0 0 tperiod 100 pperiod 1000 damping 0.01 seed 731
+
+The example damping is not a fitted Fe parameter, and the timestep is not a
+stability guarantee. Check timestep convergence and the potential's coverage
+of the sampled moment magnitudes. A potential trained at one fixed magnitude
+need not describe longitudinal energetics.
+
+Notes
+-----
+
+Use ``dump_xyz ... precision double spin mforce``. GLSD has no independent
+``spin_vel`` state; noisy paths have no instantaneous differentiable velocity.
+Entering GLSD clears inherited spin velocity and marks it uninitialized;
+requesting ``spin_velocity`` output then fails explicitly. Switching later to
+TSPIN lets that integrator initialize its own velocity. No spin kinetic energy
+is included in the lattice temperature.
+
+For continuation, follow :ref:`Spin restart <spin_restart>`.
+A new run initializes its thermostat, barostat, and noise sequence; reusing a seed restarts that sequence.
+
+The same seed and atom order give the same random increments across GPU counts, but floating-point reductions can differ.
+Assess stochastic results through converged statistics rather than long-trajectory identity.
+Only elements listed in ``spin_type`` evolve and receive Cartesian thermal
+noise, including active atoms whose current moment is zero. Other elements
+retain zero effective moments.
+
+Method
+^^^^^^
 
 The convention follows `Ma and Dudarev (2012) <https://doi.org/10.1103/PhysRevB.86.054416>`_, with moments expressed in units of :math:`\mu_B`.
 The dimensionless input is :math:`\eta=\hbar\gamma'_s`, where :math:`\gamma'_s` is the paper's Cartesian dissipation coefficient.
@@ -156,7 +210,7 @@ For a radial harmonic well, :math:`\lambda\kappa\Delta t<2` is a stability condi
 Check time-step convergence. Unlike SIB, Heun does not preserve spin length exactly during undamped precession.
 
 Noise, equilibrium measure and limits
--------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Independent Cartesian Wiener increments obey
 :math:`\langle dW_{ia}dW_{jb}\rangle=\delta_{ij}\delta_{ab}dt`.
@@ -188,52 +242,3 @@ normalizable distribution over unbounded moments. Short trajectories with
 such a model establish only local stability, not global thermal equilibrium
 or extrapolation validity. Different spin measures or material-specific
 kinetics require separate specification and validation.
-
-Examples
---------
-
-The following examples use dimensionless ``damping 0.01`` as a starting
-setting for pilot runs, not a default or a calibrated material parameter.
-After loading a NEP-spin potential and a ``model.xyz`` with magnetic moments::
-
-    # Deterministic dissipative spin dynamics; fixed atomic positions
-    ensemble nve_glsd damping 0.01 stemp -1
-    time_step 0.1
-    dump_xyz 100 spin.xyz precision double spin mforce
-    dump_restart 1000
-    run 1000
-
-Other ensemble choices::
-
-    # Fixed lattice; spins coupled to a 300 K bath
-    ensemble nvt_glsd 300 300 100 lattice off damping 0.01 seed 731
-
-    # Coupled spin and lattice dynamics (lattice NHC)
-    ensemble nvt_glsd 300 300 100 damping 0.01 seed 731
-
-    # Coupled spin, lattice and cell dynamics (MTTK)
-    ensemble npt_glsd temp 300 300 iso 0 0 tperiod 100 pperiod 1000 damping 0.01 seed 731
-
-The example damping is not a fitted Fe parameter, and the timestep is not a
-stability guarantee. Check timestep convergence and the potential's coverage
-of the sampled moment magnitudes. A potential trained at one fixed magnitude
-need not describe longitudinal energetics.
-
-Notes
------
-
-Use ``dump_xyz ... precision double spin mforce``. GLSD has no independent
-``spin_vel`` state; noisy paths have no instantaneous differentiable velocity.
-Entering GLSD clears inherited spin velocity and marks it uninitialized;
-requesting ``spin_velocity`` output then fails explicitly. Switching later to
-TSPIN lets that integrator initialize its own velocity. No spin kinetic energy
-is included in the lattice temperature.
-
-For continuation, follow :ref:`Spin restart <spin_restart>`.
-A new run initializes its thermostat, barostat, and noise sequence; reusing a seed restarts that sequence.
-
-The same seed and atom order give the same random increments across GPU counts, but floating-point reductions can differ.
-Assess stochastic results through converged statistics rather than long-trajectory identity.
-Only elements listed in ``spin_type`` evolve and receive Cartesian thermal
-noise, including active atoms whose current moment is zero. Other elements
-retain zero effective moments.

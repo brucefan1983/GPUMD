@@ -6,7 +6,6 @@
 ===================
 
 Compute the velocity autocorrelation (:term:`VAC`) and integrate it to obtain the self-diffusion coefficient (:term:`SDC`).
-Results are written to :ref:`sdc.out <sdc_out>`.
 
 Syntax
 ------
@@ -22,6 +21,11 @@ Parameters
 * ``Nc``: Positive integer giving the number of correlation points, including zero correlation time.
 * ``group <group_method> <group>``: Optional selection of a group defined in :ref:`model.xyz <grouping_methods>`.
   Without this option, all atoms are included.
+
+Output
+------
+
+Results are written to :ref:`sdc.out <sdc_out>`.
 
 Examples
 --------

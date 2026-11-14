@@ -36,10 +36,41 @@ Total capacity must accommodate all replicas.
 Replicas are assigned round-robin and remain resident in GPU memory.
 One process uses the visible GPUs on a single node; select GPUs with ``CUDA_VISIBLE_DEVICES`` or the job scheduler.
 
+Output
+------
+
+REMD and PRD automatically write their :ref:`diagnostics and restart files <replica_output_files>`.
+Trajectories require :ref:`dump_xyz <replica_kw_dump_xyz>`.
+To continue a completed run, use the mode's ``resume`` option and preserve the complete set of :ref:`restart files <replica_restart>`.
+
+Examples
+--------
+
+.. _replica_run_in:
+
+With four visible GPUs, this places two replicas on each GPU::
+
+  multi_replica remd replicas 8 2 exchange 1000 temp 300 450
+
+A complete REMD input is::
+
+  potential nep.txt
+  time_step 0.5
+  ensemble nvt_bdp 300 450 100
+  multi_replica remd replicas 8 exchange 1000 temp 300 450 equilibrate 200000
+  dump_xyz -1 0 5000 trajectory.xyz velocity
+  run 2000000
+
+This uses a geometric temperature ladder from 300 to 450 K, with 200000 equilibration steps followed by 2000000 production steps per replica.
+See :ref:`replica_prd` for a complete PRD example.
+
+Notes
+-----
+
 .. _replica_model_xyz:
 
 Input files
------------
+^^^^^^^^^^^
 
 Prepare :ref:`run.in <run_in>`, :ref:`model.xyz <model_xyz>`, and one supported potential file in the working directory, then run ``gpumd`` there.
 All replicas use the same initial structure, species, masses, and simulation box.
@@ -51,7 +82,7 @@ A resumed run uses the velocities and random-number-generator states in its :ref
 .. _replica_input_parameters:
 
 Supported input commands
-------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 A ``run.in`` containing ``multi_replica`` accepts only the commands below.
 Specify ``multi_replica`` and ``ensemble`` once each, and put one ``run`` command last.
@@ -60,7 +91,7 @@ Other GPUMD commands, including ``deposit``, ``velocity``, and ``minimize``, can
 .. _replica_kw_potential:
 
 Potential
-^^^^^^^^^
+~~~~~~~~~
 
 Use :ref:`potential <kw_potential>` with exactly one filename::
 
@@ -74,7 +105,7 @@ GPUs are assigned whole replicas rather than spatial partitions of one system.
 .. _replica_kw_time_step:
 
 Time step
-^^^^^^^^^
+~~~~~~~~~
 
 Use :ref:`time_step <kw_time_step>` with one positive time step in fs::
 
@@ -85,7 +116,7 @@ The default is 1 fs. The optional maximum-displacement limit of ordinary MD is n
 .. _replica_kw_ensemble:
 
 Thermostat
-^^^^^^^^^^
+~~~~~~~~~~
 
 The :ref:`ensemble <kw_ensemble>` command must use ``nvt_bdp`` with a fixed simulation box::
 
@@ -104,7 +135,7 @@ PRD removes center-of-mass motion and requires at least two atoms.
 .. _replica_kw_kspace:
 
 Electrostatics
-^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~
 
 For qNEP models, :ref:`kspace <kw_kspace>` selects ``pppm`` (the default) or ``ewald``.
 The optional PPPM mesh spacing has the same meaning and allowed range as in ordinary MD.
@@ -114,7 +145,7 @@ The method and an explicitly supplied spacing must match when :ref:`resuming <re
 .. _replica_kw_run:
 
 Run length
-^^^^^^^^^^
+~~~~~~~~~~
 
 Use :ref:`run <kw_run>` once, at the end of ``run.in``, with a positive number of steps::
 
@@ -127,7 +158,7 @@ Use :ref:`run <kw_run>` once, at the end of ``run.in``, with a positive number o
 .. _replica_kw_dump_xyz:
 
 Trajectory output
-^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~
 
 The optional :ref:`dump_xyz <kw_dump_xyz>` command can appear once and uses the following syntax in replica runs::
 
@@ -141,31 +172,3 @@ The filename cannot end with ``*``. Other ordinary-MD ``dump_xyz`` options are n
   The interval is validated but ignored; use ``1``. Velocities are not supported.
 
 See :ref:`replica_trajectory` for filenames and frame contents.
-
-.. _replica_run_in:
-
-Examples
---------
-
-With four visible GPUs, this places two replicas on each GPU::
-
-  multi_replica remd replicas 8 2 exchange 1000 temp 300 450
-
-A complete REMD input is::
-
-  potential nep.txt
-  time_step 0.5
-  ensemble nvt_bdp 300 450 100
-  multi_replica remd replicas 8 exchange 1000 temp 300 450 equilibrate 200000
-  dump_xyz -1 0 5000 trajectory.xyz velocity
-  run 2000000
-
-This uses a geometric temperature ladder from 300 to 450 K, with 200000 equilibration steps followed by 2000000 production steps per replica.
-See :ref:`replica_prd` for a complete PRD example.
-
-Output and restart
-------------------
-
-REMD and PRD automatically write their :ref:`diagnostics and restart files <replica_output_files>`.
-Trajectories require ``dump_xyz`` as described above.
-To continue a completed run, use the mode's ``resume`` option and preserve the complete set of :ref:`restart files <replica_restart>`.

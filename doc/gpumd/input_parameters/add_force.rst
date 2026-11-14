@@ -33,6 +33,11 @@ Parameters
   Vector 0 is used at the initial force evaluation (:math:`t=0`).
   At :math:`t=n\Delta t`, vector :math:`n\bmod N` is used.
 
+Output
+------
+
+None.
+
 Examples
 --------
 

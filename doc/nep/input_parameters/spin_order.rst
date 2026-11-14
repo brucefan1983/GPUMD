@@ -6,9 +6,17 @@
 ===================
 
 This keyword selects the highest contraction level supplied to the
-neural network::
+neural network.
+
+Syntax
+------
+
+::
 
   spin_order <order>
+
+Parameters
+----------
 
 The value can be 1, 2, or 3 and defaults to 3. It is used only with
 ``spin_version 1``.
@@ -31,3 +39,20 @@ order 3. ``spin_order`` is **not** the body order of the final energy. The
 neural network is nonlinear and can combine these coordinates with each other
 and with the structural NEP descriptor. See :ref:`nep_spin_contractions` for
 the descriptor overview.
+
+Output
+------
+
+None.
+
+Examples
+--------
+
+::
+
+  spin_order 3
+
+Notes
+-----
+
+None.

@@ -6,9 +6,16 @@
 ================
 
 This keyword sets the weight :math:`\lambda_d` of the loss term associated with **energy differences** between structures in the :ref:`loss function <nep_loss_function>`.
-The syntax is::
+
+Syntax
+------
+
+::
 
   lambda_d <weight>
+
+Parameters
+----------
 
 Here, :attr:`<weight>` represents :math:`\lambda_d`, which must be a positive number.
 Without the keyword, the term is inactive.
@@ -38,10 +45,23 @@ Without the keyword, an :attr:`ediff.in` file is ignored.
 The keyword is only available for potential models and is an input error together with ``model nep_dipole`` or ``model nep_polarizability``, also in prediction mode.
 In prediction mode of a potential model, the keyword has no effect.
 
+Output
+------
+
 When the term is active, :ref:`loss.out <loss_out>` has two additional columns, :attr:`rmse_ediff_train` and :attr:`rmse_ediff_test`.
 
+Examples
+--------
+
+::
+
+  lambda_d 1.0
+
+Notes
+-----
+
 Mini-batches
-------------
+^^^^^^^^^^^^
 
 With a :attr:`batch` size smaller than the number of training structures, ``nep`` keeps the structures of each training combination in one mini-batch.
 The mini-batches then differ from those of a run without the term, also for the structures that take part in no combination.

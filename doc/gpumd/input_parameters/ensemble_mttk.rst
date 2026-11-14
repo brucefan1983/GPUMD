@@ -44,6 +44,11 @@ The parameters :attr:`<p_1>` and :attr:`<p_2>` specify the initial and final tar
 Finally, the optional parameter :attr:`<tau_press>`, which defaults to ``1000``, determines the period of the barostat in units of the timestep.
 It determines how strongly the system is coupled to the barostat and should be :math:`\geq 200` time steps.
 
+Output
+------
+
+None.
+
 Examples
 --------
 
@@ -92,7 +97,6 @@ Using these settings one applies a pressure of 5 GPa along the :math:`x` directi
 
 Using this setup one applies 5 GPa of pressure along the :math:`x` direction while fixing the cell dimensions along the other directions.
 
-
 NPH ensemble
 ^^^^^^^^^^^^
 
@@ -101,7 +105,6 @@ NPH ensemble
     ensemble nph_mttk iso 10 10
 
 When using this command one performs a NPH simulation at 10 GPa, allowing only changes in the volume but not the cell shape.
-
 
 NVT ensemble
 ^^^^^^^^^^^^
@@ -118,3 +121,8 @@ No barostat is used, so the simulation cell is fixed.
     ensemble nvt_mttk temp 300 1000 tperiod 100
 
 This command ramps the temperature from 300 K to 1000 K and explicitly sets the period of the thermostat to 100 time steps.
+
+Notes
+-----
+
+None.

@@ -6,7 +6,6 @@
 =======================
 
 This keyword is used to calculate the multicomponent system thermal conductivity using the :ref:`homogeneous nonequilibrium molecular dynamics Evans-Cummings algorithm <hnemdec>` (:term:`HNEMDEC`) method.
-The results are written to the :ref:`onsager.out output file <onsager_out>`.
 
 Syntax
 ------
@@ -30,6 +29,11 @@ Each row contains coefficients averaged over that block.
 :attr:`Fe_y` is the :math:`y` direction component of the external driving force :math:`F_e`.
 
 :attr:`Fe_z` is the :math:`z` direction component of the external driving force :math:`F_e`.
+
+Output
+------
+
+The results are written to the :ref:`onsager.out output file <onsager_out>`.
 
 Examples
 --------
@@ -65,3 +69,8 @@ The external driving force is diffusive driving force that will produced a momen
 
 To obtain the thermal conductivity, combine a thermal-driving calculation with diffusive-driving calculations for :math:`M-1` independent components at the same thermodynamic state.
 See :ref:`onsager.out <onsager_out>` for matrix assembly, unit conversion, and a binary-system example.
+
+Notes
+-----
+
+None.

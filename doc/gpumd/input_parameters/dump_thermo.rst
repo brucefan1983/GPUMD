@@ -19,6 +19,11 @@ Parameters
 
 ``interval`` is the number of MD steps between outputs.
 
+Output
+------
+
+Global thermodynamic quantities are written to :ref:`thermo.out <thermo_out>`.
+
 Examples
 --------
 
@@ -30,4 +35,5 @@ before the :ref:`run keyword <kw_run>`.
 
 Notes
 -----
+
 Repeat this command before each run that needs this output.

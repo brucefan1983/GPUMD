@@ -9,11 +9,9 @@ This keyword computes the phonon density of states (:term:`PDOS`) using the mass
 The output is normalized such that the integral of the :term:`PDOS` over all frequencies equals :math:`3N`, where :math:`N` is the number of atoms.
 If this keyword appears in a run, the mass-weighted :term:`VAC` function will be computed and directly used to compute the :term:`PDOS`.
 
-The results of these calculations will be written to :ref:`mvac.out <mvac_out>` (for the normalized mass-weighted :term:`VAC` function) and :ref:`dos.out <dos_out>` (for the :term:`DOS`).
-
-
 Syntax
 ------
+
 ::
 
   compute_dos <sample_interval> <Nc> <omega_max> [{<optional_arg>}]
@@ -43,6 +41,10 @@ The option :attr:`num_dos_points` has one parameter::
 where :attr:`points` is the number of frequency points to be used in the DOS calculation.
 It defaults to :attr:`Nc` if the :attr:`num_dos_points` option is not specified.
 
+Output
+------
+
+The results of these calculations will be written to :ref:`mvac.out <mvac_out>` (for the normalized mass-weighted :term:`VAC` function) and :ref:`dos.out <dos_out>` (for the :term:`DOS`).
 
 Examples
 --------
@@ -59,3 +61,8 @@ This means that you
 * the maximum angular frequency you want to consider is :math:`\omega_{max} = 2\pi\nu_{max} =` 400 THz
 * you would like to compute only over group 2 in group method 1
 * you would like the maximum angular frequency to be evenly divided into 300 points for output.
+
+Notes
+-----
+
+None.

@@ -6,7 +6,6 @@
 =====================
 
 The :attr:`compute_hnema` keyword is used to calculate the modal thermal conductivity using the :ref:`homogeneous nonequilibrium modal analysis <hnema>` (:term:`HNEMA`) method [Gabourie2021]_.
-The results are written to the :ref:`kappamode.out output file <kappamode_out>`.
 
 Syntax
 ------
@@ -37,6 +36,11 @@ The options are :attr:`bin_size` and :attr:`f_bin_size`.
 :attr:`size` defines how the modes are added to each bin.
 If :attr:`bin_option` is ``bin_size``, then this is an integer describing how many modes are included per bin.
 If :attr:`bin_option` is ``f_bin_size``, then binning is by frequency and this is a float describing the bin size in THz.
+
+Output
+------
+
+The results are written to the :ref:`kappamode.out output file <kappamode_out>`.
 
 Examples
 --------
@@ -78,6 +82,7 @@ This example is identical to Example 2, except each bin has 10 modes.
 
 Notes
 -----
+
 This computation can be very memory intensive.
 The memory requirements are comparable to the size of the :ref:`eigenvector.in input file <eigenvector_in>`.
 

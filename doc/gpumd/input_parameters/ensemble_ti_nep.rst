@@ -5,16 +5,6 @@
 
 This keyword is used to set up a nonequilibrium thermodynamic integration integrator between two :term:`NEP` models. See [Freitas2016]_ for more details on the nonequilibrium switching scheme.
 
-The system is driven by the Hamiltonian
-
-.. math::
-
-   H(\lambda) = (1-\lambda) U_1 + \lambda U_2,
-
-where :math:`U_1` and :math:`U_2` are the potential energies from the first (NEP1) and the second (NEP2) :ref:`potential <kw_potential>` specified in the :attr:`run.in` file.
-Lambda is switched from 0 to 1 (forward) and back from 1 to 0 (backward), and the Helmholtz free energy difference :math:`F_{\rm NEP1} - F_{\rm NEP2}` is obtained from the average of the forward and backward work.
-This is an NVT ensemble with a Langevin thermostat, so the free energy difference is evaluated at the volume of the simulation box.
-
 Syntax
 ------
 
@@ -39,6 +29,15 @@ Exactly two NEP potentials are needed in the :attr:`run.in` file.
 The first one is NEP1 (:math:`\lambda=0`) and the second one is NEP2 (:math:`\lambda=1`).
 The potential energy and pressure written by :ref:`dump_thermo <kw_dump_thermo>` are those of NEP1 throughout the run; use ``ti_nep.csv`` for the energies of both models.
 
+Output
+------
+
+This command will produce a csv file :attr:`ti_nep.csv`. The columns are lambda, dlambda, potential energy of NEP1 and potential energy of NEP2 (eV/atom). The file is only written during the switching.
+
+This command will also produce a yaml file :attr:`ti_nep.yaml`, which contains the Helmholtz free energy difference :attr:`F_diff` (:math:`F_{\rm NEP1} - F_{\rm NEP2}`, eV/atom) and the temperature.
+
+Both files are overwritten by a subsequent :attr:`ti_nep` run in the same directory, so use separate directories for separate calculations.
+
 Examples
 --------
 
@@ -59,11 +58,18 @@ This ensemble has been used to compute the free energy difference between two ch
 One NEP model is trained for one charge state and then relabeled for the other charge state; the original and the relabeled model are given as NEP1 and NEP2.
 The resulting :attr:`F_diff` is the raw Helmholtz free energy difference between the two charge states, which goes into the expression for the formation free energy of the defect.
 
-Output file
------------
+Notes
+-----
 
-This command will produce a csv file :attr:`ti_nep.csv`. The columns are lambda, dlambda, potential energy of NEP1 and potential energy of NEP2 (eV/atom). The file is only written during the switching.
+Switching path
+^^^^^^^^^^^^^^
 
-This command will also produce a yaml file :attr:`ti_nep.yaml`, which contains the Helmholtz free energy difference :attr:`F_diff` (:math:`F_{\rm NEP1} - F_{\rm NEP2}`, eV/atom) and the temperature.
+The system is driven by the Hamiltonian
 
-Both files are overwritten by a subsequent :attr:`ti_nep` run in the same directory, so use separate directories for separate calculations.
+.. math::
+
+   H(\lambda) = (1-\lambda) U_1 + \lambda U_2,
+
+where :math:`U_1` and :math:`U_2` are the potential energies from the first (NEP1) and the second (NEP2) :ref:`potential <kw_potential>` specified in the :attr:`run.in` file.
+Lambda is switched from 0 to 1 (forward) and back from 1 to 0 (backward), and the Helmholtz free energy difference :math:`F_{\rm NEP1} - F_{\rm NEP2}` is obtained from the average of the forward and backward work.
+This is an NVT ensemble with a Langevin thermostat, so the free energy difference is evaluated at the volume of the simulation box.

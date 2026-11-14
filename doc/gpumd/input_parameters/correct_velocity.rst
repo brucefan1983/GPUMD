@@ -9,14 +9,23 @@ This keyword allows one to enforce zero linear and angular momenta at regular in
 
 Syntax
 ------
+
 This keyword takes a correction interval and an optional grouping method::
 
   correct_velocity <interval> [<group_method>]
+
+Parameters
+----------
 
 * :attr:`interval` is an integer number of MD steps and must be at least 10. A value between 10 and 100 should be good.
 
 * When :attr:`group_method` is omitted, the correction applies to the whole system.
   When it is specified, the correction is performed independently for every group in that :ref:`grouping method <grouping_methods>` defined in ``model.xyz``.
+
+Output
+------
+
+None.
 
 Examples
 --------
