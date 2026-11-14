@@ -43,6 +43,25 @@ std::wstring windows_path(const std::string& path)
   return result.data();
 }
 
+void check_windows_output_path(const std::string& path)
+{
+  const std::wstring filename = windows_path(path);
+  // A colon is allowed only after a drive letter, also in an extended path.
+  // In particular, file::$DATA aliases file even before either file exists.
+  size_t drive = 0;
+  if (filename.size() >= 4 && filename[0] == L'\\' && filename[1] == L'\\' &&
+      (filename[2] == L'?' || filename[2] == L'.') && filename[3] == L'\\')
+    drive = 4;
+  for (size_t i = 0; i < filename.size(); ++i) {
+    if (filename[i] != L':') continue;
+    const bool drive_colon = i == drive + 1 &&
+      ((filename[drive] >= L'A' && filename[drive] <= L'Z') ||
+       (filename[drive] >= L'a' && filename[drive] <= L'z'));
+    if (!drive_colon)
+      PRINT_INPUT_ERROR(("Hessian output paths must not use Windows data streams: " + path).c_str());
+  }
+}
+
 HANDLE open_path(const std::wstring& path)
 {
   return CreateFileW(path.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
@@ -206,6 +225,9 @@ void check_output_paths(
   for (const auto& path : requested_outputs)
     if (!path.empty()) outputs.push_back(path);
   for (size_t i = 0; i < outputs.size(); ++i) {
+#ifdef _WIN32
+    check_windows_output_path(outputs[i]);
+#endif
     canonical_output_path(outputs[i]);
     for (const auto& input : inputs)
       if (same_file(outputs[i], input))

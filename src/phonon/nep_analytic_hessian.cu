@@ -836,6 +836,30 @@ static __device__ __forceinline__ void load_neighbor_vector(
   r12[2] = static_cast<float>(z12);
 }
 
+// Validate the exact vectors consumed by the derivative kernels, including
+// explicit periodic images in small boxes. Do not silently omit close pairs.
+static __global__ void validate_hessian_neighbors(
+  const int N, const Box box, const int* counts, const int* neighbors,
+  const double* x, const double* y, const double* z,
+  const float* r12_x, const float* r12_y, const float* r12_z, int* invalid)
+{
+  const int center = blockIdx.x * blockDim.x + threadIdx.x;
+  if (center >= N) return;
+  for (int slot = 0; slot < counts[center]; ++slot) {
+    const int neighbor = neighbors[center + N * slot];
+    if (neighbor < 0 || neighbor >= N) {
+      atomicOr(invalid, 1);
+      continue;
+    }
+    float r12[3];
+    load_neighbor_vector(
+      box, N, center, slot, neighbor, x, y, z, r12_x, r12_y, r12_z, r12);
+    const float distance = sqrtf(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+    if (!isfinite(distance)) atomicOr(invalid, 2);
+    else if (distance < 1.0e-6f) atomicOr(invalid, 4);
+  }
+}
+
 // ============================================================================
 // GPU kernel: compute radial Hessian (Term 1 + Term 2 for radial descriptors)
 //
@@ -888,7 +912,6 @@ static __global__ void find_radial_hessian_kernel(
       box, N, n1, i1, n2, g_x, g_y, g_z,
       g_r12_x, g_r12_y, g_r12_z, r12);
     const float d12 = sqrtf(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-    if (d12 < 1.0e-6f) continue;
     const float d12inv = 1.0f / d12;
     const float d12inv3 = d12inv * d12inv * d12inv;
     const float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
@@ -954,7 +977,6 @@ static __global__ void find_radial_hessian_kernel(
       box, N, n1, i1, n2, g_x, g_y, g_z,
       g_r12_x, g_r12_y, g_r12_z, r12);
     const float d12 = sqrtf(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-    if (d12 < 1.0e-6f) continue;
     const float d12inv = 1.0f / d12;
     const float d12inv3 = d12inv * d12inv * d12inv;
     const float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
@@ -1030,7 +1052,6 @@ static __global__ void find_radial_hessian_kernel(
       box, N, n1, i1, n2, g_x, g_y, g_z,
       g_r12_x, g_r12_y, g_r12_z, r12);
     const float d12 = sqrtf(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-    if (d12 < 1.0e-6f) continue;
     const float d12inv = 1.0f / d12;
     const float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
     const float rcinv = 1.0f / rc;
@@ -1056,7 +1077,6 @@ static __global__ void find_radial_hessian_kernel(
         box, N, n1, i2, n3, g_x, g_y, g_z,
         g_r12_x, g_r12_y, g_r12_z, r13);
       const float d13 = sqrtf(r13[0] * r13[0] + r13[1] * r13[1] + r13[2] * r13[2]);
-      if (d13 < 1.0e-6f) continue;
       const float d13inv = 1.0f / d13;
       const float rc13 = (paramb.rc_radial[t1] + paramb.rc_radial[t3]) * 0.5f;
       const float rc13inv = 1.0f / rc13;
@@ -1135,7 +1155,6 @@ static __global__ void find_zbl_hessian_kernel(
       box, N, n1, neighbor_index, n2, g_x, g_y, g_z,
       g_r12_x, g_r12_y, g_r12_z, r12);
     const float d12 = sqrtf(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-    if (d12 < 1.0e-6f) continue;
 
     float energy;
     float energy_first;
@@ -1303,7 +1322,6 @@ static __global__ void prepare_angular_neighbor_derivatives_kernel(
     g_r12_x, g_r12_y, g_r12_z, r12);
   const float distance =
     sqrtf(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-  if (distance < 1.0e-6f) return;
 
   const int num_s_terms =
     (paramb.L_max + 1) * (paramb.L_max + 1) - 1;
@@ -1545,7 +1563,6 @@ static __global__ void assemble_angular_radial_cross_kernel(
       g_r12_radial_x, g_r12_radial_y, g_r12_radial_z, r12);
     const float d12 =
       sqrtf(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-    if (d12 < 1.0e-6f) continue;
     const float d12inv = 1.0f / d12;
     compute_radial_neighbor_derivatives(
       paramb, annmb, g_type[n1], g_type[radial_neighbor], r12, d12,
@@ -1591,7 +1608,6 @@ static __global__ void assemble_angular_radial_cross_kernel(
         g_r12_radial_x, g_r12_radial_y, g_r12_radial_z, r12);
       const float d12 =
         sqrtf(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      if (d12 < 1.0e-6f) continue;
       const float d12inv = 1.0f / d12;
       compute_radial_neighbor_derivatives(
         paramb, annmb, g_type[n1], g_type[source_atom], r12, d12,
@@ -1959,6 +1975,34 @@ bool compute_nep_analytic_hessian(
       return finish(false);
     }
     max_angular_neighbors = std::max(max_angular_neighbors, count);
+  }
+  // Check both lists before allocating the Hessian or evaluating derivatives.
+  GPU_Vector<int> invalid_neighbors_gpu(1);
+  int invalid_neighbors = 0;
+  invalid_neighbors_gpu.copy_from_host(&invalid_neighbors, 1);
+  const int neighbor_grid = (N - 1) / BLOCK_SIZE + 1;
+  validate_hessian_neighbors<<<neighbor_grid, BLOCK_SIZE>>>(
+    N, box, radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
+    atom.position_per_atom.data(), atom.position_per_atom.data() + N,
+    atom.position_per_atom.data() + 2 * N,
+    radial_r12_x, radial_r12_y, radial_r12_z, invalid_neighbors_gpu.data());
+  GPU_CHECK_KERNEL
+  validate_hessian_neighbors<<<neighbor_grid, BLOCK_SIZE>>>(
+    N, box, angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
+    atom.position_per_atom.data(), atom.position_per_atom.data() + N,
+    atom.position_per_atom.data() + 2 * N,
+    angular_r12_x, angular_r12_y, angular_r12_z, invalid_neighbors_gpu.data());
+  GPU_CHECK_KERNEL
+  invalid_neighbors_gpu.copy_to_host(&invalid_neighbors, 1);
+  if (invalid_neighbors != 0) {
+    if (invalid_neighbors & 1)
+      error = "Analytic Hessian neighbor index is outside the atom range.";
+    else if (invalid_neighbors & 2)
+      error = "Analytic Hessian found a non-finite neighbor distance.";
+    else
+      error = "Analytic Hessian requires neighbor distances of at least 1e-6 Angstrom, "
+              "including periodic images.";
+    return finish(false);
   }
   // Reconstruct the normalized ANN input in command-owned storage.
   GPU_Vector<float> q_cache(static_cast<size_t>(model.annmb.dim) * N);

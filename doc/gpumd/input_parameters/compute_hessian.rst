@@ -48,7 +48,8 @@ Parameters
 
 Each execution overwrites the selected output files. Choose distinct paths
 for all outputs; they must also differ from ``model.xyz``, ``run.in``, and
-potential files. A file-write error terminates the calculation.
+potential files. On Windows, output paths cannot use NTFS data streams
+(such as ``hessian.out::$DATA``). A file-write error terminates the calculation.
 
 .. _hessian_out:
 
@@ -174,6 +175,9 @@ Notes
   does not set it. The actual value is reported in the log and metadata.
   The result describes the current configuration at this fixed model
   temperature, without thermal averaging or phonon renormalization.
+* Neighbor distances, including periodic images, must be at least
+  :math:`10^{-6}` Å. Closer neighbors terminate the calculation without
+  writing Hessian or diagnostic files.
 * Dense storage requires :math:`9N^2` matrix entries. Choose sparse output
   for large systems when most entries are zero; its storage grows with the
   number of interacting atom pairs. Both formats remain limited by
