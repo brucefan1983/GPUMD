@@ -4,14 +4,21 @@
 Input files
 ===========
 
-To run one a simulation using the ``gpumd`` executable, one has to prepare at least two input files that respectively define the :ref:`simulation model <model_xyz>`, i.e., an atomic configuration (``model.xyz``), and specify the :ref:`simulation protocol <run_in>` (``run.in``).
+Run ``gpumd`` from a directory containing:
+
+* :ref:`model.xyz <model_xyz>`: the initial atomic configuration and simulation cell.
+* :ref:`run.in <run_in>`: the simulation commands, in execution order.
+
+The :ref:`potential command <kw_potential>` in ``run.in`` specifies the potential files to load.
+Relative file paths are resolved from this working directory.
+The other input files below are needed only for the corresponding calculations.
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents
 
-   run_in
    model_xyz
+   run_in
    replica_temperatures
    kpoints_in
    eigenvector_in
