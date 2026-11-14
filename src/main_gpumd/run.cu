@@ -26,6 +26,7 @@ Run simulation according to the inputs in the run.in file.
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
 #include "phonon/hessian.cuh"
+#include "phonon/nep_hessian_command.cuh"
 #include "replicate.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
@@ -331,6 +332,10 @@ void Run::parse_one_keyword(
       PRINT_INPUT_ERROR("replicate keyword not found in run.in file.");
     }
     hessian.compute(force, box, atom, group, replicate_size_);
+  } else if (tokens[0] == "compute_hessian") {
+    NEP_Hessian_Command hessian;
+    hessian.parse(tokens);
+    hessian.compute(force, box, atom, first_potential_filename_, run_input);
   } else if (tokens[0] == "compute_cohesive") {
     Cohesive cohesive;
     cohesive.parse(tokens, 0);

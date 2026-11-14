@@ -65,6 +65,10 @@ A file page describes its columns, units, and any headers or blocks needed to se
      - :ref:`compute_chunk <kw_compute_chunk>`
      - Time-averaged quantities in dynamic spatial bins
      - Append
+   * - :ref:`hessian.out <hessian_out>`
+     - :ref:`compute_hessian <kw_compute_hessian>`
+     - Analytic Cartesian Hessian (default filename)
+     - Overwrite
    * - :ref:`elastic.out <elastic_out>`
      - :ref:`compute_elastic <kw_compute_elastic>`
      - Elastic constants

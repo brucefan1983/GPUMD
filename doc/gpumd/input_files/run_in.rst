@@ -36,7 +36,7 @@ For each subsequent run, choose the ensemble and repeat the commands needed for 
 The atomic positions, velocities, and cell continue from the preceding run; see the :ref:`multiple-run example <multiple_runs>`.
 To continue from a saved configuration in a new simulation, see :ref:`restart.xyz <restart_xyz>`.
 
-Static calculations such as :ref:`cohesive-energy curves <kw_compute_cohesive>`, :ref:`elastic constants <kw_compute_elastic>`, and :ref:`phonon dispersions <kw_compute_phonon>` execute when their commands are read, after the potential has been loaded.
+Static calculations such as :ref:`cohesive-energy curves <kw_compute_cohesive>`, :ref:`elastic constants <kw_compute_elastic>`, :ref:`phonon dispersions <kw_compute_phonon>`, and :ref:`analytic Cartesian Hessians <kw_compute_hessian>` execute when their commands are read, after the potential has been loaded.
 For calculations with several NEP models, see :ref:`dump_observer <kw_dump_observer>`.
 
 Replica dynamics use :ref:`multi_replica <kw_multi_replica>`, a :ref:`restricted command set <replica_input_parameters>`, and a single final ``run`` command.
@@ -239,6 +239,10 @@ Actions
      - Compute Steinhardt bond-orientational order parameters
      - No
      - No
+   * - :ref:`compute_hessian <kw_compute_hessian>`
+     - Compute an analytic Cartesian Hessian
+     - Yes
+     - N/A
    * - :ref:`compute_phonon <kw_compute_phonon>`
      - Compute the phonon dispersion
      - Yes
