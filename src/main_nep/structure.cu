@@ -82,7 +82,8 @@ static void change_box(const NEP_Parameters& para, Structure& structure)
   }
 }
 
-void NEP_Data_Reader::read_geometry(const XYZ_Record& record, Structure& structure) const
+void NEP_Data_Reader::read_geometry(
+  const XYZ_Record& record, Structure& structure, XYZ_Geometry* precise) const
 {
   structure.num_atom = record.num_atoms;
   structure.index_in_file = record.index;
@@ -108,12 +109,14 @@ void NEP_Data_Reader::read_geometry(const XYZ_Record& record, Structure& structu
       has_lattice_in_exyz = true;
       const int transpose_index[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
       for (int m = 0; m < 9; ++m) {
-        structure.box_original[transpose_index[m]] = get_double_from_token(
+        const double value = get_double_from_token(
           tokens[n + m].substr(
             (m == 0) ? (lattice_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
           xyz_filename.c_str(),
           line_number);
+        structure.box_original[transpose_index[m]] = value;
+        if (precise) precise->cell[transpose_index[m]] = value;
       }
       change_box(para, structure);
     }
@@ -130,6 +133,7 @@ void NEP_Data_Reader::read_geometry(const XYZ_Record& record, Structure& structu
   if (pos_offset < 0) {
     PRINT_INPUT_ERROR("'pos' is missing in properties.");
   }
+  if (precise) precise->position.resize(structure.num_atom);
   structure.type.resize(structure.num_atom);
   structure.x.resize(structure.num_atom);
   structure.y.resize(structure.num_atom);
@@ -141,12 +145,14 @@ void NEP_Data_Reader::read_geometry(const XYZ_Record& record, Structure& structu
     const auto& tokens = record.atoms[na];
     line_number = record.comment_line_number + na + 1;
     std::string atom_symbol(tokens[species_offset]);
-    structure.x[na] =
-      get_double_from_token(tokens[0 + pos_offset], xyz_filename.c_str(), line_number);
-    structure.y[na] =
-      get_double_from_token(tokens[1 + pos_offset], xyz_filename.c_str(), line_number);
-    structure.z[na] =
-      get_double_from_token(tokens[2 + pos_offset], xyz_filename.c_str(), line_number);
+    const std::array<double, 3> position = {
+      get_double_from_token(tokens[pos_offset], xyz_filename.c_str(), line_number),
+      get_double_from_token(tokens[pos_offset + 1], xyz_filename.c_str(), line_number),
+      get_double_from_token(tokens[pos_offset + 2], xyz_filename.c_str(), line_number)};
+    structure.x[na] = position[0];
+    structure.y[na] = position[1];
+    structure.z[na] = position[2];
+    if (precise) precise->position[na] = position;
     bool is_allowed_element = false;
     for (int n = 0; n < para.elements.size(); ++n) {
       if (atom_symbol == para.elements[n]) {
@@ -190,9 +196,40 @@ void NEP_Data_Reader::read_energy(
   }
 }
 
+static void read_virial_tensor(
+  const XYZ_Record& record, size_t first, size_t key_length, int atoms,
+  const float* volume, bool symmetric, float* result)
+{
+  double tensor[9];
+  for (int i = 0; i < 9; ++i) {
+    const auto& token = record.tokens.at(first + i);
+    const size_t start = i == 0 ? key_length + 1 : 0;
+    tensor[i] = get_double_from_token(
+      token.substr(start, token.size() - start - (i == 8)), record.filename.c_str(),
+      record.comment_line_number);
+  }
+  if (!symmetric) {
+    // Preserve ordinary NEP's component selection and FP32 normalization.
+    constexpr int index[6] = {0, 4, 8, 3, 7, 6};
+    for (int d = 0; d < 6; ++d) {
+      result[d] = static_cast<float>(tensor[index[d]]);
+      if (volume) result[d] *= -*volume / atoms;
+      else result[d] /= atoms;
+    }
+    return;
+  }
+  const double scale = volume ? -*volume / atoms : 1.0 / atoms;
+  result[0] = tensor[0] * scale;
+  result[1] = tensor[4] * scale;
+  result[2] = tensor[8] * scale;
+  result[3] = (tensor[1] + tensor[3]) * (0.5 * scale);
+  result[4] = (tensor[5] + tensor[7]) * (0.5 * scale);
+  result[5] = (tensor[6] + tensor[2]) * (0.5 * scale);
+}
+
 void NEP_Data_Reader::read_structure(const XYZ_Record& record, Structure& structure)
 {
-  read_geometry(record, structure);
+  read_geometry(record, structure, precise_geometry());
   read_energy(record, structure, true);
   const auto& tokens = record.tokens;
   const auto& xyz_filename = record.filename;
@@ -202,16 +239,8 @@ void NEP_Data_Reader::read_structure(const XYZ_Record& record, Structure& struct
     const std::string virial_string = "virial=";
     if (tokens[n].substr(0, virial_string.length()) == virial_string) {
       structure.has_virial = true;
-      const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
-      for (int m = 0; m < 9; ++m) {
-        structure.virial[reduced_index[m]] = get_double_from_token(
-          tokens[n + m].substr(
-            (m == 0) ? (virial_string.length() + 1) : 0,
-            (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-          xyz_filename.c_str(),
-          line_number);
-        structure.virial[reduced_index[m]] /= structure.num_atom;
-      }
+      read_virial_tensor(record, n, virial_string.size(), structure.num_atom, nullptr,
+                         para.model_name == "nep_spin", structure.virial);
     }
   }
   // if stresses are available, read them and convert them to per atom virials
@@ -222,16 +251,9 @@ void NEP_Data_Reader::read_structure(const XYZ_Record& record, Structure& struct
     if (tokens[n].substr(0, stress_string.length()) == stress_string) {
       has_stress = true;
       float volume = std::abs(get_det(structure.box_original));
-      const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
-      for (int m = 0; m < 9; ++m) {
-        virials_from_stress[reduced_index[m]] = get_double_from_token(
-          tokens[n + m].substr(
-            (m == 0) ? (stress_string.length() + 1) : 0,
-            (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-          xyz_filename.c_str(),
-          line_number);
-        virials_from_stress[reduced_index[m]] *= -volume / structure.num_atom;
-      }
+      read_virial_tensor(
+        record, n, stress_string.size(), structure.num_atom, &volume,
+        para.model_name == "nep_spin", virials_from_stress.data());
     }
   }
   if (structure.has_virial && has_stress) {

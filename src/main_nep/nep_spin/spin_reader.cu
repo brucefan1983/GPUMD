@@ -55,28 +55,30 @@ static bool rotation_displacement(
   return true;
 }
 
-static std::string frame_key(const Structure& geometry, const Spin_Data::Labels& label)
+static std::string frame_key(const Structure& geometry, const Spin_Data::FrameInput& label)
 {
   std::ostringstream key;
   key << std::hexfloat;
   for (int t : geometry.type)
     key << t << ',';
   key << ';';
-  for (float x : geometry.box_original)
-    key << x << ',';
-  for (const auto* values :
-       {&geometry.x, &geometry.y, &geometry.z, &label.sx, &label.sy, &label.sz}) {
+  auto append = [&](double x) { key << (x == 0.0 ? 0.0 : x) << ','; };
+  for (double x : label.geometry.cell)
+    append(x);
+  for (const auto& position : label.geometry.position)
+    for (double x : position) append(x);
+  for (const auto* values : {&label.sx, &label.sy, &label.sz}) {
     key << ';';
-    for (float x : *values)
-      key << x << ',';
+    for (double x : *values)
+      append(x);
   }
   return key.str();
 }
 
 void NEP_Spin_Model::Spin_Reader::read_structure(const XYZ_Record& record, Structure& structure)
 {
-  NEP_Energy_Reader::read_structure(record, structure);
   labels.emplace_back();
+  NEP_Energy_Reader::read_structure(record, structure);
   auto& label = labels.back();
   int spin_offset = -1, mforce_offset = -1, offset = 0;
   for (int k = 0; k < record.properties.size() / 3; ++k) {
@@ -100,9 +102,11 @@ void NEP_Spin_Model::Spin_Reader::read_structure(const XYZ_Record& record, Struc
     offset += count;
   }
   if (spin_offset < 0)
-    PRINT_INPUT_ERROR("spin_version 1 requires spin/spins/moment/moments with property type R:3.");
+    PRINT_INPUT_ERROR("NEP-spin requires spin/spins/moment/moments with property type R:3.");
   label.has_mforce = mforce_offset >= 0;
-  for (auto* values : {&label.sx, &label.sy, &label.sz, &label.mfx, &label.mfy, &label.mfz})
+  for (auto* values : {&label.sx, &label.sy, &label.sz})
+    values->resize(structure.num_atom, 0.0);
+  for (auto* values : {&label.mfx, &label.mfy, &label.mfz})
     values->resize(structure.num_atom, 0.0f);
   for (int a = 0; a < structure.num_atom; ++a) {
     auto value = [&](int i) {
@@ -190,12 +194,15 @@ void NEP_Spin_Model::Spin_Reader::prepare_dataset(Dataset& dataset)
 const char* NEP_Spin_Model::Spin_Reader::energy_difference_conflict(
   const Structure& a, const Structure& b) const
 {
-  const char* conflict = NEP_Energy_Reader::energy_difference_conflict(a, b);
-  if (!conflict)
+  if (a.num_atom != b.num_atom || a.type != b.type || a.pbc != b.pbc)
     return nullptr;
   const auto& x = labels.at(a.index_in_file);
   const auto& y = labels.at(b.index_in_file);
+  for (int d = 0; a.pbc && d < 9; ++d)
+    if (std::abs(x.geometry.cell[d] - y.geometry.cell[d]) > 1e-5f) return nullptr;
   for (int i = 0; i < a.num_atom; ++i) {
+    for (int d = 0; d < 3; ++d)
+      if (std::abs(x.geometry.position[i][d] - y.geometry.position[i][d]) > 1e-5f) return nullptr;
     if (
       std::abs(x.sx[i] - y.sx[i]) > 1e-5f || std::abs(x.sy[i] - y.sy[i]) > 1e-5f ||
       std::abs(x.sz[i] - y.sz[i]) > 1e-5f)
@@ -204,7 +211,7 @@ const char* NEP_Spin_Model::Spin_Reader::energy_difference_conflict(
   return "have the same geometry and spins, for which the model predicts the same energy.";
 }
 void NEP_Spin_Model::Spin_Reader::read_response(
-  std::vector<Structure>& structures, std::vector<Spin_Data::Labels>& response_labels)
+  std::vector<Structure>& structures, std::vector<Spin_Data::FrameInput>& response_labels)
 {
   std::ifstream input("response.xyz");
   if (!input.is_open())
@@ -252,9 +259,9 @@ void NEP_Spin_Model::Spin_Reader::derive_spin_response_tangents(std::vector<Fram
     PRINT_INPUT_ERROR("lambda_spin_response requires rotation response frames in response.xyz.\n");
   }
 
-  const auto differs = [](const float left, const float right) {
+  const auto differs = [](double left, double right) {
     return !std::isfinite(left) || !std::isfinite(right) ||
-           std::abs(static_cast<double>(left) - static_cast<double>(right)) > 1.0e-6;
+           std::abs(left - right) > 1.0e-6;
   };
   for (auto& item : groups) {
     auto& members = item.second;
@@ -286,16 +293,14 @@ void NEP_Spin_Model::Spin_Reader::derive_spin_response_tangents(std::vector<Fram
         PRINT_INPUT_ERROR("A rotation response_group cannot change atom count, type, or order.\n");
       }
       for (int d = 0; d < 9; ++d) {
-        if (differs(structure.geometry.box_original[d], reference.geometry.box_original[d])) {
+        if (differs(structure.label.geometry.cell[d], reference.label.geometry.cell[d])) {
           PRINT_INPUT_ERROR("A rotation response_group cannot change its cell.\n");
         }
       }
       for (int atom = 0; atom < structure.geometry.num_atom; ++atom) {
-        if (
-          differs(structure.geometry.x[atom], reference.geometry.x[atom]) ||
-          differs(structure.geometry.y[atom], reference.geometry.y[atom]) ||
-          differs(structure.geometry.z[atom], reference.geometry.z[atom])) {
-          PRINT_INPUT_ERROR("A rotation response_group cannot change atomic positions.\n");
+        for (int d = 0; d < 3; ++d) {
+          if (differs(structure.label.geometry.position[atom][d], reference.label.geometry.position[atom][d]))
+            PRINT_INPUT_ERROR("A rotation response_group cannot change atomic positions.\n");
         }
         if (
           !std::isfinite(structure.label.mfx[atom]) || !std::isfinite(structure.label.mfy[atom]) ||

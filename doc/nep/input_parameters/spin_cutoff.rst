@@ -5,7 +5,7 @@
 :attr:`spin_cutoff`
 ====================
 
-This keyword sets the Spin3 cutoff distance in Å::
+This keyword sets the spin cutoff distance in Å::
 
   spin_cutoff <cutoff>
   spin_cutoff <cutoff_type_1> ... <cutoff_type_N>
@@ -22,7 +22,7 @@ Every value must be less than or equal to the largest ordinary radial cutoff
 file. To use a larger magnetic cutoff, increase the ordinary radial cutoff
 as well.
 
-For an edge between types :math:`a` and :math:`b`, Spin3 uses the arithmetic mean
+For an edge between types :math:`a` and :math:`b`, spin uses the arithmetic mean
 :math:`(r_a^\mathrm{spin}+r_b^\mathrm{spin})/2`.
 
 For example, with ``type 2 Fe Ge``::

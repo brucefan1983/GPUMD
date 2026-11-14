@@ -3,29 +3,19 @@
    single: spin_soc (keyword in nep.in)
 
 :attr:`spin_soc`
-=================
+==================
 
-This Spin3 keyword controls whether the descriptor can couple spin direction
-to the local spatial environment::
+Select the rotational symmetry of the spin descriptor::
 
-  spin_soc <flag>
+  spin_soc 1
 
-The flag can be 0 or 1 and defaults to 1. It is used only with
-``spin_version 1``.
+The default is 1. Value 1 couples spatial and spin tensors into joint-rotation
+sectors. Value 0 retains separate spatial and spin ranks and contracts each
+full product-tensor norm; the energy is invariant under independent global
+rotations of the lattice and spins. Spatial angular information, variable
+spin lengths and center/neighbor exchange responses are retained.
 
-.. list-table::
-   :header-rows: 1
-   :widths: 15 85
-
-   * - Value
-     - Rotational symmetry represented by the descriptor
-   * - 0
-     - independent rotations of positions and spins
-   * - 1
-     - joint rotations of positions and axial spin vectors (default)
-
-With value 0, Spin3 retains only the separately spin-rotation-invariant
-subset. With value 1, it also includes scalar contractions between spin and
-spatial rank-1/rank-2 objects up to
-:ref:`spin_l_max <kw_spin_l_max>`. The flag changes the descriptor's allowed
-information flow; it does not impose a particular analytic SOC Hamiltonian.
+Both modes preserve time reversal and have analytical atomic-force,
+magnetic-force and virial derivatives, including at zero spin. The flag
+specifies the model symmetry; it does not control the DFT reference calculation.
+See :ref:`nep_spin`. Each mode defines its own descriptor and parameter layout.

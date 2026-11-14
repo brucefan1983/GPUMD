@@ -1,60 +1,52 @@
-# Fixed-spin runtime validation
+# Spin validation
 
-Build `gpumd` and `nep` on a CUDA node, choosing the device architecture:
-
-```sh
-make -C src -j8 CUDA_ARCH=-arch=sm_70 gpumd nep
-export GPUMD_COMMAND="$PWD/src/gpumd"
-export NEP_COMMAND="$PWD/src/nep"
-```
-
-Use Python with NumPy and pytest. Set `RESULTS` to a new output directory outside
-this checkout. The first two GPU scripts need one GPU; run them with one
-allocated device visible. The third requires four allocated GPUs in one process.
+Build `src/nep` and `src/gpumd` on the target GPU host. Set `GPUMD_SRC`,
+`NEP_COMMAND` and `GPUMD_COMMAND` to the source tree and matching binaries.
+Keep results outside the repository.
 
 ```sh
-python -m pytest --noconftest -q tests_pytest/test_spin_model_format.py tests_pytest/test_spin_validation.py
-python tests_pytest/validate_nep_spin3_runtime.py
-python tests_pytest/validate_mfield_runtime.py
-python tests_pytest/validate_spin_multigpu.py --binary "$GPUMD_COMMAND" --model tests_pytest/fixtures/nep_spin3/nep_spin_o3c2_uniform.nep --output "$RESULTS/runtime"
+python3 tests_pytest/validate_spin_model.py --require-jit --workdir "$RESULTS/soc"
+python3 tests_pytest/validate_spin_nosoc.py --generate-fixtures "$RESULTS/oracle"
+python3 tests_pytest/validate_spin_nosoc.py --fixtures "$RESULTS/oracle" --workdir "$RESULTS/nosoc"
+python3 tests_pytest/validate_spin_compiled_shapes.py --workdir "$RESULTS/shapes"
+python3 tests_pytest/validate_spin_training.py --check-jit
+python3 tests_pytest/validate_spin_training_lifecycle.py
+python3 -m pytest tests_pytest/test_spin_model_format.py tests_pytest/test_spin_validation.py
 ```
 
-The runtime oracle checks cover energy, atomic force, magnetic force and all
-nine virial components, plus energy-reference invariance, excluded-spin
-masking, replication and fixed-spin restart. Model-selection checks include
-uppercase fields, attached comments and a model record after numeric blocks.
-Small-cell checks cover capacity growth and a 10,000-atom thin cell compared
-with an equivalent expanded cell. Split XYZ output is checked after restart. The frozen reference provenance
-is documented in [fixtures](../tests_pytest/fixtures/nep_spin3/README.md).
-The external-field script checks analytic Zeeman energy and magnetic force,
-group and region selection, boundary crossing, excluded spins and invalid inputs.
-It also checks additive fields and clearing/redeclaring them across runs.
-Ordinary-model checks require extra scalar, vector, nonfinite, string and duplicate
-`spin` properties to leave predictions and restart output unchanged.
-Multi-GPU comparisons use componentwise tolerances and reject nonfinite values.
-To compare revisions, add `--reference /path/to/reference/gpumd` to the multi-GPU
-command. Every reference case then uses that executable on one GPU; without
-this option, the candidate executable supplies the one-GPU reference.
-They cover small cells, nonuniform and triclinic systems, cutoff boundaries,
-partition directions, motion across partition boundaries, additive magnetic fields
-and energy references.
-An additional supported `n_max 4 8`, `l_max 8 2 1` model needs 51,840 bytes
-in the direct angular-force path and therefore exercises its 48 KiB fallback
-on one, two and four GPUs with nonzero forces.
+SOC uses frozen independent FP64/autograd fixtures. Non-SOC uses an independent
+FP64 Legendre oracle and finite differences; fixture generation needs NumPy.
+Checks cover derivatives, symmetries, zero spins, inactive species, periodic
+cells, trained predictions and restarts. See [fixtures](../tests_pytest/fixtures/nep_spin/README.md).
 
-Run the [training validation](spin_validation.md) against the same build to
-check the shared descriptor implementation and native/JIT agreement. Keep its
-model, seed, budget and GPU settings fixed when comparing revisions.
+For runtime drivers, run the `test_spin_*` pytest modules and the standalone
+GLSD/FIRE validators. Four-GPU checks use `validate_spin_multigpu.py`,
+`validate_spin_integrators_multigpu.py` and `validate_spin_training_multigpu.py`.
+The runtime model for Fe/Ge tests is `tests_pytest/fixtures/nep_spin/c3l2s2_fege.nep`.
+`test_spin_force_modifiers.py` compares random-force samples across processes and
+requires a `DEBUG` build with a fixed PRNG seed. Other runtime tests can use the
+normal build. Restart checks preserve spins and spin velocities at double
+precision; a new SIB/GLSD ensemble initializes its noise counter anew.
+Numerical checks do not establish accuracy on an application dataset.
 
-For ordinary GPUMD and NEP behavior, build an unmodified upstream checkout and
-run the full regression suite. `BASELINE_GPUMD` and `BASELINE_NEP` must identify
-those independently built upstream executables:
+## MD kernel specialization
+
+MD contracts the fixed angular coefficients with the spin-channel projection once
+when loading a model. C3/L2/S2 SOC and non-SOC layouts use compiled constant tables
+and four neighboring lanes per atom/channel. With angular basis size 8, one edge
+pass caches the radial value and derivative for the descriptor and force passes.
+The cache is refreshed on every force evaluation, including spin correctors;
+it does not assume positions stay unchanged between calls. Other shapes use the
+precontracted generic kernels. No runtime compiler or new input keyword is required.
+
+Regenerate the constant layouts from the shared layout builder, without changing
+any independent oracle, using:
 
 ```sh
-python tests_regression/run_regression.py --repo-root "$PWD" \
-  --baseline "$BASELINE_GPUMD" --candidate "$GPUMD_COMMAND" \
-  --baseline-nep "$BASELINE_NEP" --candidate-nep "$NEP_COMMAND" --suite full
+c++ -std=c++14 -Isrc tests_pytest/generate_spin_md_layouts.cpp -o "$RESULTS/generate-spin-md"
+"$RESULTS/generate-spin-md" > src/force/nep_spin/spin_md_layouts.cuh
 ```
 
-These checks validate implementation contracts, not fit quality or performance.
-Spin integrators and their checkpoint state are outside this suite.
+Performance acceptance should compare identical models and initial velocities in
+interleaved GPUMD runs. Report NVE force evaluation separately from spin integrators
+such as SIB, which evaluate the force again for the corrector.

@@ -203,7 +203,7 @@ The `nep` executable is implemented under `src/main_nep/` and shares utilities w
 | Top level | Entry point, model selection, optimizer, scheduling, and shared data structures |
 | `common/` | Reusable NEP parameter, data, loss, I/O, and runtime-compilation helpers |
 | `nep/` | Ordinary and temperature-dependent NEP |
-| `nep_spin/` | Spin3 parameters, magnetic labels/neighbors, response supervision, and model I/O |
+| `nep_spin/` | spin parameters, magnetic labels/neighbors, response supervision, and model I/O |
 | `nep_charge/` | NEP charge modes 1 and 2 |
 | `nep_vdw/` | NEP with long-range dispersion |
 | `nep_charge_vdw/` | NEP with charge and dispersion |

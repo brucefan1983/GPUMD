@@ -5,7 +5,7 @@
 #include <vector>
 
 // Current Spin model data. Parameter order is identical to the training arrays
-// and the @ parameters block; no legacy text or layout conversion is involved.
+// and the @ parameters block.
 struct NEP_Spin_Model_File {
   static constexpr int MAX_DIM_SPIN = 199; // structural 103 + magnetic 96
   std::vector<std::string> elements;
@@ -14,7 +14,7 @@ struct NEP_Spin_Model_File {
   int n_max[2] = {}, basis_size[2] = {}, l_max[7] = {};
   int num_neurons = 0;
   int spin_basis_size = 0, spin_l_max = 0, spin_compress = 0;
-  int spin_order = 0, spin_soc = 0, spin_projection_size = 0;
+  int spin_order = 0, spin_soc = 0, projection_parameter_count = 0;
   int dim_struct = 0, dim_spin = 0, dim = 0;
   std::vector<float> spin_cutoff;
   std::vector<int> spin_type;
@@ -23,7 +23,11 @@ struct NEP_Spin_Model_File {
   std::vector<double> energy_reference;
   std::vector<float> parameters, q_scaler;
 
+  static const char* angular_rank_error(int rank, int q123, int q233, int q134) {
+    if ((q123 || q233) && rank < 3) return "q_123 and q_233 require structural l_max >= 3.";
+    if (q134 && rank < 4) return "q_134 requires structural l_max >= 4.";
+    return nullptr;
+  }
   static bool is_spin_model(const std::string& filename);
   bool read(std::istream& input, std::string& error);
-  static int spin_dimension(int channels, int l_max, int order, int soc);
 };

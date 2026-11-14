@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate independent Spin3 magnetic RMSE terms, restart, and GPU parity.
+"""Validate independent Spin magnetic RMSE terms, restart, and GPU parity.
 
 Run the real nep executable on one allocated CUDA device, or pass
 --devices 1 2 4 for GPU parity. Recompute magnetic errors from exported predictions.
@@ -14,7 +14,7 @@ import struct
 import subprocess
 import tempfile
 
-import validate_main_nep_spin3_training as base
+import validate_spin_training as base
 from validate_spin_training_multigpu import read_restart, run_nep
 
 

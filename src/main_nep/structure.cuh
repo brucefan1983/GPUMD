@@ -20,6 +20,7 @@
 class NEP_Parameters;
 class Dataset;
 struct XYZ_Record;
+struct XYZ_Geometry;
 
 struct Structure {
   int index_in_file = 0; // position of the structure in train.xyz or test.xyz
@@ -67,7 +68,8 @@ protected:
   virtual void begin_reading() {}
   virtual void read_structure(const XYZ_Record& record, Structure& structure);
   virtual void print_summary(const std::vector<Structure>& structures) const {}
-  void read_geometry(const XYZ_Record& record, Structure& structure) const;
+  virtual XYZ_Geometry* precise_geometry() { return nullptr; }
+  void read_geometry(const XYZ_Record& record, Structure& structure, XYZ_Geometry* precise = nullptr) const;
   void read_energy(const XYZ_Record& record, Structure& structure, bool required) const;
 };
 

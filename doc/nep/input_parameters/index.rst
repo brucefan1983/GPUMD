@@ -46,7 +46,6 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
    flip_charge
    spin_version
    spin_compress
-   spin_basis_size
    spin_l_max
    spin_cutoff
    spin_order

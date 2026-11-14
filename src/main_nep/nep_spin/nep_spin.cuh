@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "force/nep_spin/spin_storage.cuh"
 #include "main_nep/common/energy_difference.cuh"
 #include "main_nep/common/nep_batch_data.cuh"
 #include "main_nep/common/nep_common.cuh"
@@ -44,43 +45,7 @@ public:
   void parameter_groups(std::vector<int>&) override;
   void read_model(float*) override;
   void write_restart(const char*, const std::vector<float>&, const std::vector<float>&) override;
-  struct Spin_Polynomial_Layout {
-    int channels = 0;
-    int pair_count = 0;
-    int density_stride = 38;
-    int moment_count = 0;
-    int local_s2 = -1;
-    int edge_l0_dot = -1;
-    int edge_l0_neighbor_s2 = -1;
-    int edge_l2_pair = -1;
-    int center_l2_environment = -1;
-    int edge_l0_dot2 = -1;
-    int density_l0_self = -1;
-    int density_l1_longitudinal_self = -1;
-    int density_l1_axial_self = -1;
-    int density_l1_stf_self = -1;
-    int density_l1_product_self = -1;
-    int density_l2_product_self = -1;
-    int density_l0_dot_response = -1;
-    int correlation_same_edge = -1;
-    int correlation_distinct_neighbor = -1;
-    int correlation_distinct_l1 = -1;
-    int correlation_distinct_l2 = -1;
-    int angular_l1_moment_offset = -1;
-    int angular_l2_moment_offset = -1;
-    int coupling_l11_axial = -1;
-    int edge_l11_axial = -1;
-    int coupling_l22_axial = -1;
-    int edge_l22_axial = -1;
-    int edge_l0_moment_gate = -1;
-    int coupling_l11_dot_response = -1;
-    int coupling_l111_p_m_x = -1;
-    int coupling_l22_dot_response = -1;
-    int coupling_l111_p_qs_x = -1;
-    int coupling_l112_edge_response = -1;
-    int coupling_l111_bulk = -1;
-    int descriptor_dim = 0;
-  };
+
 
 private:
   class ResponseLoss
@@ -106,23 +71,24 @@ private:
       : NEP_Energy_Reader(p, e), parameters(p), data(d)
     {
     }
-    void read_response(std::vector<Structure>&, std::vector<Spin_Data::Labels>&);
+    void read_response(std::vector<Structure>&, std::vector<Spin_Data::FrameInput>&);
 
   private:
     void prepare_train(std::vector<Structure>&, int, int&, std::vector<int>&) override;
     void prepare_test(const std::vector<Structure>&, bool) override;
     void prepare_dataset(Dataset&) override;
     const char* energy_difference_conflict(const Structure&, const Structure&) const override;
+    XYZ_Geometry* precise_geometry() override { return &labels.back().geometry; }
     void begin_reading() override { labels.clear(); }
     void read_structure(const XYZ_Record&, Structure&) override;
     struct Frame {
       const Structure& geometry;
-      Spin_Data::Labels& label;
+      Spin_Data::FrameInput& label;
     };
     void derive_spin_response_tangents(std::vector<Frame>&);
     Spin_Parameters& parameters;
     NEP_Batch_Data<Spin_Data>& data;
-    std::vector<Spin_Data::Labels> labels;
+    std::vector<Spin_Data::FrameInput> labels;
     std::set<std::string> train_groups, test_groups, test_frames;
   };
 
@@ -145,12 +111,8 @@ private:
   std::unique_ptr<NEP_Compiled_Evaluation> compiled_kernel_;
   std::unique_ptr<NEP_Compile> compiled_spin_;
   using SpinDescriptorFunction = void (*)(
-    Spin_Polynomial_Layout layout,
     int atom_count,
     int struct_dim,
-    int num_types,
-    int spin_basis_size,
-    float spin_cutoff,
     const float* spin_cutoff_pair,
     const int* type,
     const int* spin_type_active,
@@ -161,18 +123,15 @@ private:
     const double* r12_spin,
     int r12_plane_size,
     const float* descriptor_coefficients,
-    int spin_coefficient_offset,
     const float* projection,
     float* moments,
-    float* descriptors);
+    float* descriptors,
+    double* wide_spin_descriptors,
+    const double* wide_radial);
   SpinDescriptorFunction spin_descriptor_jit_ = nullptr;
   using SpinForceFunction = void (*)(
-    Spin_Polynomial_Layout layout,
     int atom_count,
     int struct_dim,
-    int num_types,
-    int spin_basis_size,
-    float spin_cutoff,
     const float* spin_cutoff_pair,
     const int* type,
     const int* spin_type_active,
@@ -184,12 +143,12 @@ private:
     int r12_plane_size,
     const float* Fp,
     const float* descriptor_coefficients,
-    int spin_coefficient_offset,
     const float* projection,
     const float* moments,
     double* force,
     double* mforce,
-    double* virial);
+    double* virial,
+    const double* wide_radial);
   SpinForceFunction spin_force_jit_ = nullptr;
   void initialize_spin_compiled(const Spin_Parameters&);
   void initialize(Spin_Parameters&, int, int);
@@ -205,23 +164,19 @@ private:
   float response_loss(int);
   void write_magnetic_predictions(const char*, const std::vector<std::pair<Dataset*, int>>&);
   struct Spin_Workspace {
+    nep_spin::Storage spin_layout;
     GPU_Vector<int> spin_type_active;
     GPU_Vector<float> spin_cutoff_pair;
-    GPU_Vector<float> spin3_moments;
+    GPU_Vector<float> spin_moments;
+    GPU_Vector<double> wide_spin_descriptors, wide_radial;
+    GPU_Vector<float> radial_coefficients;
     GPU_Vector<double> force;
     GPU_Vector<double> mforce;
     GPU_Vector<double> virial;
   };
   int spin_compress_ = 0;
-  int spin_basis_size_ = 0;
-  int spin_l_max_ = 0;
-  int spin_order_ = 0;
-  int spin_soc_ = 0;
   int spin_projection_offset_ = 0;
   int struct_dim_ = 0;
-  int spin_coefficient_offset_ = 0;
   int num_types_ = 0;
-  float spin_cutoff_ = 0.0f;
-  Spin_Polynomial_Layout polynomial_layout_;
   Spin_Workspace spin_data_[16];
 };

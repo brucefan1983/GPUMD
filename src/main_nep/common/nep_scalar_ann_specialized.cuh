@@ -14,13 +14,20 @@
 */
 
 #pragma once
+
+#ifdef NEP_SPIN_ANN_FP64
+using ScalarANNAccumulator = double;
+#else
+using ScalarANNAccumulator = float;
+#endif
+
 static __device__ __forceinline__ void apply_scalar_ann_jit(
   const float* parameters,
   const int set_offset,
   const int type,
   float* q,
-  float& F,
-  float* Fp)
+  ScalarANNAccumulator& F,
+  ScalarANNAccumulator* Fp)
 {
   const float* wb = parameters + set_offset + type * ONE_ANN_NO_BIAS_JIT;
   const float* b =
@@ -74,8 +81,8 @@ static __global__ void ann_nep_jit(
     q[d] = descriptors[n1 + d * N] * q_scaler[d];
   }
 
-  float F = 0.0f;
-  float Fp[ANN_DIM_JIT] = {0.0f};
+  ScalarANNAccumulator F = 0.0;
+  ScalarANNAccumulator Fp[ANN_DIM_JIT] = {};
   apply_scalar_ann_jit(parameters, 0, t, q, F, Fp);
   pe[n1] = static_cast<double>(F);
 

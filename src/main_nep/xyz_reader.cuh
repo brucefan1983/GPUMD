@@ -14,9 +14,16 @@
 */
 
 #pragma once
+#include <array>
 #include <fstream>
 #include <string>
 #include <vector>
+
+// Optional unrounded geometry for readers whose kernels use double precision.
+struct XYZ_Geometry {
+  std::array<double, 9> cell;
+  std::vector<std::array<double, 3>> position;
+};
 
 // One frame as written in an extended XYZ file, before model-specific interpretation.
 struct XYZ_Record

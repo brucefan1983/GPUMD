@@ -184,8 +184,8 @@ def main():
     # n_max_angular=8 and ten angular channels need 16*(90+9*80)*4 = 51,840 shared bytes,
     # exceeding the 48 KiB direct-force limit and selecting the generic fallback.
     # The large cell also keeps every actual multi-GPU domain out of the small-box path.
-    dim = 5 + 9 * 10 + 55
-    count = (dim + 2) * 30 * 2 + 1 + 4 * (5 * 9 + 9 * 9 + 2 * 9) + 16
+    dim = 5 + 9 * 10 + 34
+    count = (dim + 2) * 32 * 2 + 1 + 4 * (5 * 9 + 9 * 9) + 135
     rng = np.random.default_rng(9127)
     header = model.split("@ parameters", 1)[0].replace("n_max 4 4", "n_max 4 8").replace("l_max 4 2 0", "l_max 8 2 1")
     fallback = a.output / "angular-fallback.nep"

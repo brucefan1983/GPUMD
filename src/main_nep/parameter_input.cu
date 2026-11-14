@@ -102,7 +102,7 @@ void ParameterInput::parse_model(const char** param, int num_param)
   } else if (model == "nep_temperature") {
     model_type = 3;
   } else if (model == "nep_spin") {
-    spin_version = 1;
+    if (!spin_version) spin_version = 1;
   } else if (model == "qnep1") {
     charge_mode = 1;
   } else if (model == "qnep2") {

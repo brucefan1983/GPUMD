@@ -257,6 +257,7 @@ static __device__ __forceinline__ void find_fn_and_fnp_in_double(
   const double x = 2.0 * (scaled - 1.0) * (scaled - 1.0) - 1.0;
   fn[0] = fc;
   fnp[0] = fcp;
+  if (n_max == 0) return;
   fn[1] = (x + 1.0) * 0.5 * fc;
   fnp[1] = 2.0 * (scaled - 1.0) * rcinv * fc + (x + 1.0) * 0.5 * fcp;
   double u0 = 1.0;

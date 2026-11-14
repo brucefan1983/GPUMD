@@ -138,3 +138,20 @@ REPLICA_TEST_WORKDIR=/tmp/replica-checks \
 A missing executable, unavailable GPU, process timeout (120 seconds per run),
 or failed assertion fails the test. The suite does not modify CI and
 does not cover multiple GPUs, long-time sampling accuracy, or performance.
+
+## Spin training precision
+
+From the repository root, with CUDA `nvcc` on `PATH` and an appropriate GPU
+selected in `CUDA_VISIBLE_DEVICES`:
+
+```bash
+python tests_pytest/validate_spin_ann_precision.py --arch sm_89
+python tests_pytest/validate_spin_training.py --nep src/nep --check-jit
+```
+
+Choose `--arch` for the target GPU. The first check compares the shared ANN
+accumulator with an independent host long-double oracle, including small energy
+differences and finite-difference derivatives for one and two hidden layers.
+The second exercises the full training/restart/prediction lifecycle and requires
+actual JIT compilation for native/compiled parity. ANN-only precision is not a
+bound on geometry or descriptor rounding in a full potential evaluation.
