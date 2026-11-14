@@ -52,3 +52,16 @@
     background: #e4f3f2;
     color: #005248;
 }
+
+.rst-content .toctree-wrapper a code {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font-size: 0.95em;
+    font-weight: inherit;
+}
+
+.rst-content .toctree-wrapper > ul > li {
+    margin-bottom: 0.25em;
+}

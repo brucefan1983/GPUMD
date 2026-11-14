@@ -2,8 +2,8 @@
 .. index::
    single: add_force (keyword in run.in)
 
-``add_force``
-=============
+:attr:`add_force`
+=================
 
 Add an external force to each atom in a selected group during a run.
 

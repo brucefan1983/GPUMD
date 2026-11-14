@@ -15,7 +15,7 @@ For evaluation of an existing model, use :ref:`prediction mode <kw_prediction>`;
 The other input files below are needed only for the corresponding training tasks.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents
 
    nep_in

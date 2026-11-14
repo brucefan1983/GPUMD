@@ -25,8 +25,8 @@ For PRD, add ``resume prd`` to its original ``multi_replica`` line.
 ``run`` specifies additional steps. A prefix can include a directory, such as ``resume ../previous/remd``.
 New output uses the usual filenames in the current working directory.
 
-Caveats
--------
+Notes
+-----
 
 * Restart files with an incompatible format are rejected.
   Older replica xyz files containing an additional ``vel_natural`` property are accepted; that property supplies the velocities in GPUMD's internal unit.

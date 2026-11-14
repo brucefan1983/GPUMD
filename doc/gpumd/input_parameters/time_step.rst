@@ -2,8 +2,8 @@
 .. index::
    single: time_step (keyword in run.in)
 
-``time_step``
-=============
+:attr:`time_step`
+=================
 
 Set the integration time step, optionally with a displacement limit for adaptive time stepping.
 

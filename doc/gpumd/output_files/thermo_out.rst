@@ -37,7 +37,7 @@ There are 18 columns in this output file, each containing the values of a quanti
 
 For classical MD, the pressure tensor includes both virial and kinetic contributions, with diagonal components positive under compression.
 
-Caveats
--------
+Notes
+-----
 
 * The data in this file are also valid for PIMD-related runs, but note that in this case the output temperature is just the target one. The energy and pressure contain the virial-estimator contributions.

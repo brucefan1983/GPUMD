@@ -1,7 +1,7 @@
 .. _spin_fire_minimize:
 
-Spin FIRE
-=========
+:attr:`minimize` (Spin FIRE)
+============================
 
 Optimize magnetic moments, optionally together with atomic positions and cell strain.
 

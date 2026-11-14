@@ -14,7 +14,7 @@ Relative file paths are resolved from this working directory.
 The other input files below are needed only for the corresponding calculations.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents
 
    model_xyz

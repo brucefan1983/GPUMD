@@ -2,8 +2,8 @@
 .. index::
    single: compute_sdc (keyword in run.in)
 
-``compute_sdc``
-===============
+:attr:`compute_sdc`
+===================
 
 Compute the velocity autocorrelation (:term:`VAC`) and integrate it to obtain the self-diffusion coefficient (:term:`SDC`).
 Results are written to :ref:`sdc.out <sdc_out>`.

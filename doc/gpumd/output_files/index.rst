@@ -187,7 +187,7 @@ A file page describes its columns, units, and any headers or blocks needed to se
      - One file per sub-run
 
 .. toctree::
-   :maxdepth: 0
+   :maxdepth: 1
    :caption: Contents
 
    cohesive_out
@@ -279,7 +279,7 @@ Temperature ladders, ladder reports, and restart files are overwritten.
      - Overwrite
 
 .. toctree::
-   :maxdepth: 0
+   :maxdepth: 1
 
    remd_temps
    remd_exchange

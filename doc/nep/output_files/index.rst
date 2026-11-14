@@ -49,7 +49,7 @@ All these files are plain text. Read their headers and the format descriptions b
      - descriptor values for training data set in prediction mode
 
 .. toctree::
-   :maxdepth: 0
+   :maxdepth: 1
    :caption: Contents
 
    loss_out
