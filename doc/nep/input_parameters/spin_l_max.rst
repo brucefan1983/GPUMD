@@ -13,7 +13,7 @@ descriptor::
 The default is ``2 0 0``. For ``spin_version 1``, ``l_3body`` can range from 0
 to 2 and the other two values must be zero.
 
-For Spin3, the first value has the following interpretation:
+For NEP-spin, the first value has the following interpretation:
 
 .. list-table::
    :header-rows: 1
@@ -29,6 +29,6 @@ For Spin3, the first value has the following interpretation:
      - additionally use symmetric-traceless rank-2 contractions
 
 This rank cutoff is distinct from :ref:`spin_order <kw_spin_order>` and from
-the ordinary structural :ref:`l_max <kw_l_max>`. A typical Spin3 setting is::
+the ordinary structural :ref:`l_max <kw_l_max>`. A typical setting is::
 
   spin_l_max 2 0 0

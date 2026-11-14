@@ -15,6 +15,9 @@ Syntax
 
   multi_replica remd replicas <number> [<per_gpu>] exchange <interval> temp <T_min> <T_max> [spacing <type>] [equilibrate <steps>] [resume <prefix>]
 
+Parameters
+----------
+
 * ``number``: at least two replicas; see :ref:`replica_kw_multi_replica` for GPU allocation.
 * ``exchange``: positive number of MD steps between exchange rounds.
 * ``temp``: positive ladder endpoints in K, with ``T_min < T_max``.
@@ -24,10 +27,10 @@ Syntax
   These steps do not count toward ``run``.
 * ``resume``: :ref:`restart prefix <replica_restart>`; cannot be combined with positive ``equilibrate``.
 
-See :ref:`kw_multi_replica` for supported input commands, GPU allocation, and :ref:`replica_batched_integration`.
+See :ref:`kw_multi_replica` for supported input commands and GPU allocation.
 
-Example
--------
+Examples
+--------
 
 ::
 
@@ -35,8 +38,8 @@ Example
 
 A complete input is shown in the :ref:`multi_replica example <replica_run_in>`.
 
-Caveats
--------
+Notes
+-----
 
 * Exchanges alternate between adjacent temperature-label pairs, starting with ``(0, 1), (2, 3), ...``.
   For two replicas, the only pair is attempted every round.

@@ -5,9 +5,8 @@
 :attr:`prediction`
 ==================
 
-This keyword instructs :program:`nep` to evaluate a model against a set of structures without starting an optimization.
-This requires a ``nep.txt`` file, in addition to the ``nep.in`` file, to be present.
-Note that only the structures in ``train.xyz`` are included in the prediction.
+Evaluate an existing ``nep.txt`` model on the structures in ``train.xyz``.
+This mode requires ``nep.in``, ``nep.txt``, and ``train.xyz``; it does not optimize the model or evaluate ``test.xyz``.
 The syntax is::
 
   prediction <mode>
@@ -20,3 +19,9 @@ Value  Mode
 0      optimization mode (default)
 1      prediction mode
 =====  ===========================
+
+To evaluate a model, include::
+
+  prediction 1
+
+The predicted and reference quantities are written to the corresponding ``*_train.out`` files listed under :doc:`../output_files/index`.

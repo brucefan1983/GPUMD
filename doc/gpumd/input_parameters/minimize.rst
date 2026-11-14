@@ -14,10 +14,13 @@ Currently, the fast inertial relaxation engine (FIRE) [Bitzek2006]_ [Guénolé20
 Syntax
 ------
 
-This keyword is used as follows::
+::
 
   minimize sd <force_tolerance> <maximal_number_of_steps>
   minimize fire <force_tolerance> <maximal_number_of_steps> [<box_change> [<hydrostatic_strain>]]
+
+Parameters
+----------
 
 The methods are :attr:`sd` (steepest descent) and :attr:`fire` (FIRE).
 :attr:`force_tolerance` is in units of eV/Å.
@@ -44,7 +47,7 @@ means that one wants to do an energy minimization using the steepest descent met
 
 Example 2
 ^^^^^^^^^
-If you have no idea how small :attr:`force_tolerance` should be, you can simply assign a negative number to it::
+To run a fixed number of SD iterations, use a negative force tolerance::
 
   minimize sd -1 10000
 
@@ -62,7 +65,7 @@ Example 4
 ^^^^^^^^^^^^^
 The command::
 
-  minimize fire 1.0e-5 1000 1 
+  minimize fire 1.0e-5 1000 1
 
 means that one wants to optimize box during the energy minimization process.
 
@@ -86,8 +89,8 @@ To write the optimized structure, follow minimization with a single NVE step at 
 This writes the structure without advancing the atomic positions.
 Before a subsequent MD run, restore a suitable positive :ref:`time step <kw_time_step>` and specify the :ref:`ensemble <kw_ensemble>` and output commands for that run.
 
-Caveats
--------
+Notes
+-----
 
 * This keyword should occur after the :ref:`potential keyword <kw_potential>`.
 

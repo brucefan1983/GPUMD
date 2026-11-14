@@ -32,23 +32,17 @@ keyword is given, the default is ``nep``.
    * - ``qnep2``
      - Charge NEP with reciprocal-space electrostatics
    * - ``qnep3``
-     - qNEP mode 2 with charge self-energy correction
+     - ``qnep2`` with charge self-energy correction
    * - ``nep_vdw``
      - NEP with learned long-range vdW
    * - ``qnep3_vdw``
-     - qNEP mode 3 with learned long-range vdW
-
-``qnep3`` uses the same parameter layout as ``qnep2``, but adds the
-self-energy correction to the long-range charge energy.
+     - ``qnep3`` with learned long-range vdW
 
 Specify ``model`` at most once.
 
 For ``model nep_spin``, :ref:`spin_version <kw_spin_version>` may still be
 specified and defaults to ``1``. It is an error to combine ``spin_version``
 with any other explicit ``model``.
-
-Using ``spin_version`` without ``model`` also remains supported with a warning;
-``spin_version`` itself remains the spin descriptor version setting.
 
 See :ref:`flip_charge <kw_flip_charge>` for the restart option.
 

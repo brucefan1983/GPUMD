@@ -14,11 +14,8 @@ Choose ``nvt_tspin`` for a fixed simulation cell, optionally with lattice
 dynamics, or ``npt_tspin`` when the simulation cell and pressure must also be
 controlled.
 
-The implementation is compositional. Both commands add the same spin
-Nose--Hoover-chain integrator. ``nvt_tspin`` combines it with the standard
-lattice Nose--Hoover chain, whereas ``npt_tspin`` combines it with the
-:ref:`MTTK thermostat and barostat <kw_ensemble_mttk>`. TSPIN does not contain
-a second implementation of the lattice thermostat or barostat.
+Both methods use a spin Nosé-Hoover-chain thermostat.
+The lattice uses a Nosé-Hoover chain in ``nvt_tspin`` and :ref:`MTTK temperature and pressure control <kw_ensemble_mttk>` in ``npt_tspin``.
 
 Syntax
 ------
@@ -35,30 +32,6 @@ The ``npt_tspin`` options through ``pperiod`` have the same syntax, meaning,
 and defaults as ``npt_mttk``. The pressure terms can be ``iso``, ``aniso``,
 ``tri``, or a supported combination of ``x``, ``y``, ``z``, ``xy``, ``xz``,
 and ``yz``. The optional TSPIN pairs must come after all MTTK options.
-
-Examples
---------
-
-Run fixed-cell spin--lattice dynamics at 300 K::
-
-    ensemble nvt_tspin 300 300 100 mass_factor 0.001 seed 12345
-
-Keep atomic positions and lattice velocities fixed and propagate only the
-spin coordinates::
-
-    ensemble nvt_tspin 300 300 100 lattice off mass_factor 0.001 seed 12345
-
-For a Fe--Ge structure, propagate Fe spins with a coefficient of ``0.001``
-and keep Ge spins fixed::
-
-    ensemble nvt_tspin 300 300 100 mass_factor Fe 0.001 Ge 0 seed 12345
-
-Run isotropic pressure-controlled spin--lattice dynamics at 300 K and 0 GPa::
-
-    ensemble npt_tspin temp 300 300 iso 0 0 tperiod 100 pperiod 1000 mass_factor 0.001 seed 12345
-
-In both examples, ``mass_factor`` is a spin-mass coefficient. It does not
-replace or change the lattice atomic masses.
 
 Parameters
 ----------
@@ -93,13 +66,36 @@ Parameters
   non-negative, and at least one element must have a positive value. A value
   of ``0`` is a TSPIN freeze marker: GPUMD excludes those spins from the spin
   thermostat degrees of freedom, sets their spin velocities to zero, and does
-  not update their spin coordinates. Zero is never used as a physical mass or
-  as a divisor.
+  not update their spin coordinates.
 
 ``seed <value>``
   Positive integer used to generate spin velocities when ``spin_vel:R:3`` is
   absent. The default is ``12345``. The seed is ignored when initialized spin
   velocities are supplied.
+
+Examples
+--------
+
+Run fixed-cell spin--lattice dynamics at 300 K::
+
+    ensemble nvt_tspin 300 300 100 mass_factor 0.001 seed 12345
+
+Keep atomic positions and lattice velocities fixed and propagate only the
+spin coordinates::
+
+    ensemble nvt_tspin 300 300 100 lattice off mass_factor 0.001 seed 12345
+
+For a Fe--Ge structure, propagate Fe spins with a coefficient of ``0.001``
+and keep Ge spins fixed::
+
+    ensemble nvt_tspin 300 300 100 mass_factor Fe 0.001 Ge 0 seed 12345
+
+Run isotropic pressure-controlled spin--lattice dynamics at 300 K and 0 GPa::
+
+    ensemble npt_tspin temp 300 300 iso 0 0 tperiod 100 pperiod 1000 mass_factor 0.001 seed 12345
+
+In these examples, ``mass_factor`` is a spin-mass coefficient. It does not
+replace or change the lattice atomic masses.
 
 Spin degrees of freedom
 -----------------------
@@ -149,30 +145,14 @@ The extended-XYZ fields are ``spin:R:3``, ``mforce:R:3``, and
 chosen ``mass_factor`` and timestep. With ``lattice on``, also check the
 lattice temperature. For ``npt_tspin``, check cell and pressure stability.
 
-The run log reports either ``integrate the lattice with a Nose-Hoover chain``
-or ``keep lattice positions and velocities fixed``. When using ``lattice
-off``, include ``velocity`` in a short ``dump_xyz`` run; positions are written
-automatically. Confirm that both remain unchanged while ``spin`` evolves.
-The log also prints the resolved spin mass factor for each element. For an
-element assigned ``0``, confirm that both ``spin`` and ``spin_velocity`` stay
-unchanged while an element with a positive factor evolves.
+Notes
+-----
 
-Restrictions
-------------
-
-TSPIN requires exactly one Spin potential, a positive timestep, positive
-target temperatures, and finite integration parameters. ``npt_tspin`` is the
-only pressure-controlled TSPIN variant; ``npt_ber_tspin`` and
-``npt_scr_tspin`` are not implemented. The MTTK restriction
+TSPIN requires exactly one NEP-spin potential, a positive time step, positive
+target temperatures, and finite integration parameters. The MTTK restriction
 ``pperiod >= 200`` also applies to ``npt_tspin``. The ``lattice`` keyword is
 only valid for ``nvt_tspin`` and accepts only ``on`` or ``off``. Element-wise
 ``mass_factor`` input must cover every element present in ``model.xyz``;
 unknown, missing, or repeated element names are rejected.
 
-Defaults
---------
-
-``lattice`` defaults to ``on``, ``mass_factor`` defaults to ``1.0``, and
-``seed`` defaults to ``12345``.
-For ``npt_tspin``, MTTK retains its own defaults, including ``tperiod 100``
-and ``pperiod 1000``.
+For ``npt_tspin``, the MTTK defaults are ``tperiod 100`` and ``pperiod 1000``.

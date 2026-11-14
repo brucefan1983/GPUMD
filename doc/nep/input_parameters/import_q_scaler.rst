@@ -14,14 +14,13 @@ The syntax is::
 
 with a default value of 0.
 
-This is intended for resuming training from a restart state (:attr:`nep.restart`) that was transplanted from a different model, e.g. a foundation model restricted to a subset of species via a species-selection tool.
-In that case, the transplanted network weights were tuned under the :attr:`q_scaler` of the original model, and recomputing a different one from a smaller or less diverse training set can force the weights to spend part of the optimization readapting to the new descriptor scale, rather than only to the new training data.
-Unlike :attr:`fine_tune`, this keyword does not perform any species extraction: the :attr:`nep.txt` file it reads from is expected to already have the exact same architecture and species as the current run, which is why the file is referred to implicitly rather than by a path argument, matching the way :attr:`nep.restart` is referred to.
-:program:`nep` compares the header of that file against :attr:`nep.in` and raises an error naming the keyword on any mismatch; see :ref:`the nep.in page <nep_in>` for the details.
-The mean/standard-deviation restart state (:attr:`mu`/:attr:`sigma`) is unaffected by this keyword: it is unconditionally read from :attr:`nep.restart`, exactly as in any other non-:attr:`fine_tune` run.
+Use this option to retain a model's descriptor normalization when continuing training on different data.
+Provide ``nep.txt`` with exactly the same architecture and species as the current run.
+This option does not extract species or change the search state read from ``nep.restart``.
+For extraction from a foundation model, see :ref:`fine_tune <kw_fine_tune>`.
 
-Spin training and restart
--------------------------
+NEP-spin training and restart
+----------------------------------------
 
 Spin restart automatically restores the scaler from the matching ``nep.txt``,
 even with ``import_q_scaler 0``. The model and restart must have compatible

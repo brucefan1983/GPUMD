@@ -12,14 +12,10 @@ The syntax is::
 
 where :attr:`<nep_model_file>` is the potential file for the foundation model and :attr:`<nep_restart_file>` is the restart file for the foundation model.
 
-Currently, we provide one foundation model in GPUMD/potentials/nep/nep89_20250409.
+The example below uses the foundation model in ``potentials/nep/nep89_20250409``.
 
 The hyperparameters that define the architecture of the foundation model cannot be changed and must be repeated in :attr:`nep.in`.
-For more details, see the following exemplary :attr:`nep.in` file::
-
-  # for prediction
-  #type       89 H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr Rb Sr Y Zr Nb Mo Tc Ru Rh Pd Ag Cd In Sn Sb Te I Xe Cs Ba La Ce Pr Nd Pm Sm Eu Gd Tb Dy Ho Er Tm Yb Lu Hf Ta W Re Os Ir Pt Au Hg Tl Pb Bi Ac Th Pa U Np Pu 
-  #prediction 1
+In this ``nep.in`` template, replace ``type <your types>`` with the number and chemical symbols of the elements to train::
 
   # for fine-tuning
   fine_tune nep89_20250409.txt nep89_20250409.restart
@@ -31,7 +27,7 @@ For more details, see the following exemplary :attr:`nep.in` file::
   cutoff     6 5
   n_max      4 4
   basis_size 8 8
-  l_max      4 2 1
+  l_max      4 1 1
   neuron     80
 
   # These can be changed:
@@ -43,4 +39,3 @@ For more details, see the following exemplary :attr:`nep.in` file::
   population 50
   save_potential 1000 0 1
   generation 5000
-  

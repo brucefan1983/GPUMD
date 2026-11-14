@@ -5,7 +5,7 @@
 :attr:`spin_order`
 ===================
 
-This Spin3 keyword selects the highest contraction level supplied to the
+This keyword selects the highest contraction level supplied to the
 neural network::
 
   spin_order <order>
@@ -30,4 +30,4 @@ The levels are nested: order 1 is a prefix of order 2, which is a prefix of
 order 3. ``spin_order`` is **not** the body order of the final energy. The
 neural network is nonlinear and can combine these coordinates with each other
 and with the structural NEP descriptor. See :ref:`nep_spin_contractions` for
-the explicit construction.
+the descriptor overview.

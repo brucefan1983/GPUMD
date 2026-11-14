@@ -5,7 +5,7 @@
 :attr:`output_descriptor`
 =========================
 
-This keyword instructs :program:`nep` to output the (normalized) descriptors for all the atoms in the ``train.xyz`` file.
+Write normalized descriptors for the structures or atoms in ``train.xyz`` to :ref:`descriptor.out <descriptor_out>`.
 It is only in effect for the prediction mode (see the :ref:`prediction keyword <kw_prediction>`).
 The syntax is::
 

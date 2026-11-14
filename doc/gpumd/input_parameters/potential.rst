@@ -55,18 +55,7 @@ direction, for example::
 
    potential Si_NEP.txt x
 
-NEP-spin
---------
+Notes
+-----
 
-A :ref:`NEP-spin model <nep_spin>` uses all GPUs visible to the process to
-compute the same atomic system. The optional partition direction also applies
-to NEP-spin. Small systems may not benefit from multiple GPUs; global atom
-arrays remain on GPU 0.
-
-Provide ``spin:R:3`` in :ref:`model.xyz <model_xyz>`. Fully periodic orthogonal
-and triclinic cells are supported. Spins remain fixed under ``nve`` and
-``nvt_nhc``. For spin dynamics, use :ref:`SIB <kw_ensemble_sib>`,
-:ref:`TSPIN <kw_ensemble_tspin>`, or :ref:`GLSD <kw_ensemble_glsd>`.
-Multiple-potential runs are not supported for NEP-spin.
-See :ref:`the Spin runtime instructions <nep_spin_runtime>` for output,
-restart and external-field usage.
+For NEP-spin input requirements, integrator choices, output, and continuation, see :ref:`NEP-spin runtime use <nep_spin_runtime>`.
