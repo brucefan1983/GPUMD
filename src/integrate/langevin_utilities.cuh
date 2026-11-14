@@ -315,15 +315,15 @@ static __global__ void find_ke_region(
   const double* g_vz,
   double* g_ke)
 {
-  //<<<2, 512>>>
+  //<<<dim3(number_of_blocks, 2), 512>>>
   int tid = threadIdx.x;
-  int bid = blockIdx.x;
-  int number_of_batches = (N - 1) / 512 + 1;
+  int bid = blockIdx.y;
+  int number_of_batches = (N - 1) / (512 * gridDim.x) + 1;
   __shared__ double s_ke[512];
   s_ke[tid] = 0.0;
 
   for (int batch = 0; batch < number_of_batches; ++batch) {
-    int n = tid + batch * 512;
+    int n = tid + (blockIdx.x + batch * gridDim.x) * 512;
     if (n < N) {
       double sa, sb, sc;
       get_fractional_position(box, g_x[n], g_y[n], g_z[n], sa, sb, sc);
@@ -370,7 +370,31 @@ static __global__ void find_ke_region(
   }
 
   if (tid == 0) {
-    g_ke[bid] = s_ke[0];
+    g_ke[bid * gridDim.x + blockIdx.x] = s_ke[0];
   } // kinetic energy times 2
+}
+
+// Reduce the source/sink block partials before and after thermostatting.
+static __global__ void sum_ke_region(const int number_of_blocks, const double* g_partial, double* g_ke)
+{
+  int tid = threadIdx.x;
+  __shared__ double s_ke[512];
+  double ke = 0.0;
+  for (int n = tid; n < number_of_blocks; n += blockDim.x) {
+    ke += g_partial[blockIdx.x * number_of_blocks + n];
+  }
+  s_ke[tid] = ke;
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_ke[tid] += s_ke[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    g_ke[blockIdx.x] = s_ke[0];
+  }
 }
 
