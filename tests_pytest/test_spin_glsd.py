@@ -179,3 +179,10 @@ def test_glsd_coupled_timestep_convergence(tmp_path):
         pytest.skip("GPUMD executable is not built")
     from validate_spin_glsd_coupled import validate
     validate(tmp_path, GPUMD)
+
+
+def test_glsd_accumulated_periodic_images(tmp_path):
+    if not GPUMD.is_file():
+        pytest.skip("GPUMD executable is not built")
+    from validate_spin_glsd_images import validate
+    validate(tmp_path, GPUMD)

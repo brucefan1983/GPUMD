@@ -47,6 +47,19 @@ temperature-chain check compares production stepping with independent host RK4.
 An optional `--reference /path/to/previous/gpumd` supplies a negative control;
 both executables must support the same model format.
 
+For accumulated periodic images on one GPU:
+
+```sh
+python tests_pytest/validate_spin_glsd_images.py --binary "$GPUMD_COMMAND" --output "$RESULTS/glsd-images"
+python -m pytest --noconftest -q tests_pytest/test_spin_midpoint_position.py
+```
+
+Five ordinary NVE steps accumulate independent positive and negative images.
+The following GLSD steps must match a control restarted from the same wrapped
+positions, velocities and spins, for both orthogonal and triclinic cells.
+An optional `--reference /path/to/previous/gpumd` verifies the old orthogonal
+image-history failure. The host test also covers deforming cells and partial PBC.
+
 Use [runtime validation](spin_runtime_validation.md) for the fixed-spin and
 ordinary full regression commands, and [training validation](spin_validation.md)
 for native/JIT model and training checks. Run on the same source snapshot; record

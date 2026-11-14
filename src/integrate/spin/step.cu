@@ -24,15 +24,30 @@ Contributors:
 #include "glsd.cuh"
 #include "integrator.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cmath>
 
 namespace
 {
 __global__ void midpoint_position(
-  int size, const double* start, const double* endpoint, double* midpoint)
+  int n, Box box, const double* start, const double* endpoint, double* midpoint)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < size)
-    midpoint[i] = 0.5 * (start[i] + endpoint[i]);
+  if (i >= n) return;
+  double r[3], s[3];
+  for (int d = 0; d < 3; ++d)
+    r[d] = 0.5 * (start[d * n + i] + endpoint[d * n + i]);
+  for (int d = 0; d < 3; ++d)
+    s[d] = box.cpu_h[9 + 3*d] * r[0] + box.cpu_h[10 + 3*d] * r[1] +
+           box.cpu_h[11 + 3*d] * r[2];
+  const int pbc[3] = {box.pbc_x, box.pbc_y, box.pbc_z};
+  // Force's public PBC pass only removes one image; discard all midpoint images here.
+  for (int d = 0; d < 3; ++d) {
+    const double image = pbc[d] ? floor(s[d]) : 0.0;
+    for (int k = 0; k < 3; ++k)
+      r[k] -= box.cpu_h[3*k + d] * image;
+  }
+  for (int d = 0; d < 3; ++d)
+    midpoint[d * n + i] = r[d];
 }
 
 // Save each Action increment once at the predictor spin. Strip its Zeeman
@@ -120,15 +135,15 @@ void Spin_Ensemble::refresh_endpoint(
   if (coupled_glsd) {
     endpoint_position_.copy_from_device(atom.position_per_atom.data());
     endpoint_images_.copy_from_device(atom.position_image.data());
-    // Interpolate unwrapped coordinates so a periodic crossing stays continuous.
-    midpoint_position<<<(3 * n + 127) / 128, 128>>>(
-      3 * n, start_position_.data(), atom.unwrapped_position.data(),
-      atom.position_per_atom.data());
-    GPU_CHECK_KERNEL
     for (int i = 0; i < 9; ++i)
       box.cpu_h[i] = 0.5 * (start_box_.cpu_h[i] + endpoint_box.cpu_h[i]);
     box.get_inverse();
     box.set_is_orthogonal();
+    // Interpolate continuously, then wrap completely in the midpoint cell before force evaluation.
+    midpoint_position<<<(n + 127) / 128, 128>>>(
+      n, box, start_position_.data(), atom.unwrapped_position.data(),
+      atom.position_per_atom.data());
+    GPU_CHECK_KERNEL
     atom.position_image.fill(0);
     evaluate();
   }

@@ -85,7 +85,9 @@ For example, to cap the work at 20 corrections while retaining the default toler
   is not conserved even when noise is disabled.
 
 With lattice motion enabled, the spin midpoint solve evaluates the field at
-the midpoint of the unwrapped atomic coordinates and cell. The final atomic
+the midpoint of the unwrapped atomic coordinates and cell. Periodic midpoint
+coordinates are fully wrapped into that cell before evaluating the field,
+independently of accumulated image history. The final atomic
 forces and virial are evaluated at the true spin/geometry endpoint before
 the second lattice velocity, thermostat and barostat updates. Midpoint trial
 evaluations preserve periodic images and reuse external Action increments
