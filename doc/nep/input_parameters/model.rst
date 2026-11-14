@@ -40,8 +40,8 @@ keyword is given, the default is ``nep``.
 
 Specify ``model`` at most once.
 
-For ``model nep_spin``, :ref:`spin_version <kw_spin_version>` may still be
-specified and defaults to ``1``. It is an error to combine ``spin_version``
+For ``model nep_spin``, :ref:`spin_version <kw_spin_version>` defaults to ``1``.
+It is an error to combine ``spin_version``
 with any other explicit ``model``.
 
 See :ref:`flip_charge <kw_flip_charge>` for the restart option.

@@ -127,7 +127,7 @@ GPUMD supports the `eam/alloy <https://docs.lammps.org/pair_eam.html>`_ format a
 
 .. note::
 
-   The user needs to modify the first line of the potential file as follows:
+   The user needs to modify the first line of the potential file as follows::
 
      eam/alloy <num_types> <list of elements>
 

@@ -32,14 +32,10 @@ Parameters
 ``damping``
   Required, finite, non-negative and dimensionless. It is
   :math:`\eta=\hbar\gamma'_s`, where :math:`\gamma'_s` is the paper's
-  Cartesian GLSD dissipation coefficient. This is a new input normalization
-  of that coefficient, not another physical term and not the paper's
-  :math:`\gamma_s` or Gilbert alpha. There is no material-independent
-  physical default. Zero disables damping and noise. The code converts it
-  once per ensemble specification to the constant internal mobility
+  Cartesian GLSD dissipation coefficient. It differs from the paper's
+  :math:`\gamma_s` and from Gilbert alpha. There is no material-independent
+  physical default. Zero disables damping and noise. The corresponding constant mobility is
   :math:`\lambda=\eta g_L^2/\hbar=\eta g^2\hbar`, in muB^2/(eV ps).
-  It is never inferred from element identity, initial or instantaneous
-  magnetic moments, volume or force curvature.
 
 ``gamma``
   Positive, finite numerical precession coefficient :math:`g=g_L/\hbar`;
@@ -102,8 +98,8 @@ Startup output reports both damping and mobility.
 
 Let :math:`\mathbf S` denote the numerical magnetic moment in units of
 :math:`\mu_B`, :math:`\mathbf H=-\partial E/\partial\mathbf S` the public
-magnetic force, :math:`g` the existing ``gamma`` numerical coefficient and
-:math:`\lambda` the constant internal mobility derived from ``damping``. Time is converted from fs to ps:
+magnetic force, :math:`g` the ``gamma`` numerical coefficient and
+:math:`\lambda` the constant mobility derived from ``damping``. Time is expressed in ps:
 
 .. math::
 
@@ -113,8 +109,8 @@ magnetic force, :math:`g` the existing ``gamma`` numerical coefficient and
 The precession sign agrees with SIB. There is no Gilbert
 :math:`1/(1+\alpha^2)` factor in this mode. With dimensional magnetic moments,
 the precession coefficient has units :math:`\mu_B/(\mathrm{eV\,ps})`;
-GPUMD's historical ``gamma`` input absorbs the numerical Bohr-magneton unit
-and is printed in :math:`(\mathrm{eV\,ps})^{-1}`. ``add_mfield`` still takes
+the ``gamma`` input absorbs the numerical Bohr-magneton unit
+and is printed in :math:`(\mathrm{eV\,ps})^{-1}`. ``add_mfield`` takes
 tesla and performs the Zeeman conversion before integration.
 
 For :math:`r=|\mathbf S|>0`, the deterministic longitudinal and transverse
@@ -198,9 +194,7 @@ Examples
 
 The following examples use dimensionless ``damping 0.01`` as a starting
 setting for pilot runs, not a default or a calibrated material parameter.
-No equilibrium-moment scan or element table is required to set damping.
-Read the guidance below before interpreting physical relaxation times. After loading a Spin potential and a
-``model.xyz`` with magnetic moments::
+After loading a NEP-spin potential and a ``model.xyz`` with magnetic moments::
 
     # Deterministic dissipative spin dynamics; fixed atomic positions
     ensemble nve_glsd damping 0.01 stemp -1

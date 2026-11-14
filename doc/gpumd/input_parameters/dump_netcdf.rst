@@ -204,9 +204,6 @@ Notes
   type numbering is unchanged.
 
 * Repeat this command before each run that needs this output.
-* This keyword can be invoked multiple times within one run to write different
-  groups to different files. Each invocation must use a distinct filename and
-  can use its own output interval and options.
 * The output file has an appending behavior. Frames are added to an existing file of that name,
   whether it was written by an earlier run of the same GPUMD execution or by an earlier execution.
   A different filename creates a separate trajectory file.

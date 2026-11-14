@@ -65,5 +65,7 @@ The reported distributions average the individually normalized sampled configura
 Examples
 --------
 
+::
+
    compute_angular_rdf 8.0 400 100 1000 # total ARDF every 1000 MD steps with 400 bins in distance and 100 bins in angle up to 8 Angstrom
    compute_angular_rdf 8.0 400 100 1000 atom 0 0 atom 1 1 atom 0 1 # additionally calculate 3 partial ARDFs

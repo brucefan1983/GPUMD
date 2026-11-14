@@ -103,6 +103,9 @@ Original energy and atomic-force labels are retained; input files are unchanged.
 Model dimensions
 ================
 
+Let :math:`C` be the number of radial channels set by :ref:`spin_compress <kw_spin_compress>`,
+:math:`L` the first value of :ref:`spin_l_max <kw_spin_l_max>`,
+and :math:`S` the value of :ref:`spin_soc <kw_spin_soc>`.
 Let :math:`P=C(C+1)/2`, :math:`I_X` be 1 when condition :math:`X` is true and
 0 otherwise, and define
 
@@ -110,8 +113,7 @@ Let :math:`P=C(C+1)/2`, :math:`I_X` be 1 when condition :math:`X` is true and
 
    a_C=1+I_{C\geq2},\qquad b_C=1+2I_{C\geq2}.
 
-For :math:`L=l_\mathrm{max}` and :math:`S=\texttt{spin\_soc}`, the order-1
-magnetic descriptor dimension is
+The order-1 magnetic descriptor dimension is
 
 .. math::
 
@@ -148,7 +150,7 @@ O3-C2-L2-SOC1 shape therefore gives :math:`42+55=97` total coordinates.
 The trainable magnetic descriptor parameters comprise
 :math:`9C N_\mathrm{typ}^2` radial coefficients and
 :math:`4C^2` radial-leg mixing coefficients. These are optimized together
-with the neural-network parameters by SNES.
+with the neural-network parameters by SNES. Here, :math:`N_\mathrm{typ}` is the number of element types.
 
 .. _nep_spin_scaling:
 
@@ -207,7 +209,8 @@ Spin loss terms
 ===============
 
 Spin training augments the ordinary :ref:`NEP loss <nep_loss_function>` with
-magnetic-force and torque RMSE terms,
+magnetic-force, torque, and grouped-response terms.
+With the default Cartesian magnetic-force objective controlled by :ref:`lambda_m <kw_lambda_m>`,
 
 .. math::
 
@@ -235,12 +238,16 @@ where :math:`N_\mathrm{m}` counts labeled active spins and
                   \boldsymbol{s}_i\times\boldsymbol{M}^{\mathrm{tar}}_i|^2
      \right]^{1/2}.
 
-The magnetic-force loss always includes all three Cartesian components and
-includes zero spins. Both the torque-error sum and its count exclude spins at
+This Cartesian magnetic-force RMSE includes all three components and zero spins.
+Both the torque-error sum and its count exclude spins at
 or below the squared-magnitude threshold.
 To supervise only spin rotation, set ``lambda_m 0`` and a positive ``lambda_tau``.
 For nonzero spins, the squared torque error equals the squared transverse magnetic-force
 error multiplied by :math:`|\boldsymbol{s}_i|^2`.
+
+To weight the parallel and perpendicular magnetic-force components separately, replace ``lambda_m``
+with both :ref:`lambda_m_parallel and lambda_m_perp <kw_lambda_m_parallel>`.
+Either component can be disabled by setting its coefficient to zero.
 
 .. _nep_spin_response:
 

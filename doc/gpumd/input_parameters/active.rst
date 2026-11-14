@@ -23,9 +23,6 @@ where
         \sigma_{i,k}^2 = \frac{1}{M} \sum_{m=1}^{M} \left( F_{i,k}^{(m)} - \bar{F}_{i,k} \right)^2
 
 is the variance of the :math:`k` Cartesian component of the force on atom :math:`i`.
-Parameters
-----------
-
 Here, :math:`F_{i,k}^{(m)}` is that component for model :math:`m`, and :math:`\bar{F}_{i,k}` is its mean over the models.
 If the uncertainty exceeds the specified threshold, :math:`\sigma_f>\delta`, for a structure in a step of a molecular dynamics simulation, then that structure is appended to the file `active.xyz` in the `extended XYZ format <https://github.com/libAtoms/extxyz>`_.
 Additionally, the simulation time :math:`t` and :math:`\sigma_f` are written to the file `active.out` whether or not :math:`\sigma_f>\delta`.
@@ -36,17 +33,15 @@ The `stress` field holds the pressure tensor in eV/Å³, which adds the kinetic 
 The forces exclude those that other keywords add to the atoms, such as `add_force` and `add_efield`.
 Checking the uncertainty leaves the trajectory of the molecular dynamics run unchanged.
 
-`active` takes five arguments.
-The first four set the interval for uncertainty estimation and the per-atom quantities written to `active.xyz`.
-The fifth sets the threshold :math:`\delta` in units of eV/Å.
-
-
 Syntax
 ------
 
 .. code::
 
    active <interval> <has_velocity> <has_force> <has_uncertainty> <threshold>
+
+Parameters
+----------
 
 :attr:`interval` is the interval (number of steps) between checking the uncertainty. If set to 1, the uncertainty will be computed for every step of the MD simulation.
 :attr:`has_velocity` can be 1 or 0, which means the velocities will or will not be included in the exyz output.

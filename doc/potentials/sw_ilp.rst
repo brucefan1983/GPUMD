@@ -37,9 +37,8 @@ The sums run over intralayer neighbors; the factors of :math:`1/2` account for t
 The cutoff of :term:`SW` potential is :math:`a\cdot\sigma`. For some materials, such as borophene and
 transition metal dichalcogenides, some unnecessary angle types should be excluded in the
 three-body interaction by multiplying the cutoff function :math:`f_C(\delta)`.
-Here, for transition metal dichalcogenides, :math:`\delta_1` is set to 0.25 and
-:math:`\delta_2` is set to 0.35.
-
+It equals 1 for :math:`|\delta|\leq0.25`, 0 for :math:`|\delta|\geq0.35`, and
+:math:`[1+\cos(\pi(|\delta|-0.25)/0.10)]/2` between these limits.
 
 File format
 -----------

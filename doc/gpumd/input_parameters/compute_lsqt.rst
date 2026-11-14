@@ -7,9 +7,9 @@
 
 This keyword is used to compute the electronic transport properties using the linear-scaling quantum transport (:term:`LSQT`) [Fan2021b]_ approach.
 :term:`LSQT` and :term:`MD` are coupled to account for electron-phonon scattering.
-Currently, only a tight-binding model for carbon is supported (hard coded).
+Only a tight-binding model for carbon is supported.
 The results will be written into the files lsqt_dos.out, lsqt_velocity.out, and lsqt_sigma.out.
-This feature is preliminary and changes might be made in the near future.
+This feature is preliminary.
 
 Syntax
 ------
@@ -25,5 +25,7 @@ This keyword is used as follows::
 
 Examples
 --------
+
+::
 
    compute_lsqt x 3000 10001 -8.1 8.1 8.2

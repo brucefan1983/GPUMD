@@ -150,9 +150,6 @@ Notes
 
 TSPIN requires exactly one NEP-spin potential, a positive time step, positive
 target temperatures, and finite integration parameters. The MTTK restriction
-``pperiod >= 200`` also applies to ``npt_tspin``. The ``lattice`` keyword is
-only valid for ``nvt_tspin`` and accepts only ``on`` or ``off``. Element-wise
-``mass_factor`` input must cover every element present in ``model.xyz``;
-unknown, missing, or repeated element names are rejected.
+``pperiod >= 200`` also applies to ``npt_tspin``.
 
 For ``npt_tspin``, the MTTK defaults are ``tperiod 100`` and ``pperiod 1000``.

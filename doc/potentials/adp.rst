@@ -141,7 +141,7 @@ GPUMD supports the standard `ADP format <https://docs.lammps.org/pair_adp.html>`
 
 .. note::
 
-   The user needs to modify the first line of the potential file as follows:
+   The user needs to modify the first line of the potential file as follows::
 
      adp <num_types> <list of elements>
 
