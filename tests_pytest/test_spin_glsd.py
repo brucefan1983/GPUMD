@@ -172,3 +172,10 @@ def test_sib_rejects_glsd_midpoint_controls(tmp_path, options):
     _, result = run(tmp_path, "sib", INITIAL, "nve_sib alpha 0 " + options, 1, .1)
     assert result.returncode != 0
     assert "Input Error" in result.stdout + result.stderr
+
+
+def test_glsd_coupled_timestep_convergence(tmp_path):
+    if not GPUMD.is_file():
+        pytest.skip("GPUMD executable is not built")
+    from validate_spin_glsd_coupled import validate
+    validate(tmp_path, GPUMD)

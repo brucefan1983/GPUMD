@@ -27,6 +27,14 @@ Contributors:
 
 namespace
 {
+__global__ void midpoint_position(
+  int size, const double* start, const double* endpoint, double* midpoint)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < size)
+    midpoint[i] = 0.5 * (start[i] + endpoint[i]);
+}
+
 // Save each Action increment once at the predictor spin. Strip its Zeeman
 // energy here so it can be evaluated at each corrected spin.
 __global__ void capture_modifiers(
@@ -107,21 +115,42 @@ void Spin_Ensemble::refresh_endpoint(
       atom.virial_per_atom.data());
     GPU_CHECK_KERNEL
   };
-  // NHC and MTTK finish their position and cell updates in compute1.
-  // The predictor field is already valid for the first midpoint iteration.
-  for (int iteration = 0;; ++iteration) {
-    bool endpoint_ready = true;
-    if (use_spin_glsd) {
+  const bool coupled_glsd = use_spin_glsd && lattice_;
+  const Box endpoint_box = box;
+  if (coupled_glsd) {
+    endpoint_position_.copy_from_device(atom.position_per_atom.data());
+    endpoint_images_.copy_from_device(atom.position_image.data());
+    // Interpolate unwrapped coordinates so a periodic crossing stays continuous.
+    midpoint_position<<<(3 * n + 127) / 128, 128>>>(
+      3 * n, start_position_.data(), atom.unwrapped_position.data(),
+      atom.position_per_atom.data());
+    GPU_CHECK_KERNEL
+    for (int i = 0; i < 9; ++i)
+      box.cpu_h[i] = 0.5 * (start_box_.cpu_h[i] + endpoint_box.cpu_h[i]);
+    box.get_inverse();
+    box.set_is_orthogonal();
+    atom.position_image.fill(0);
+    evaluate();
+  }
+  if (use_spin_glsd) {
+    // With fixed geometry the predictor field already belongs to the midpoint.
+    for (int iteration = 0;; ++iteration) {
       auto& glsd = static_cast<Spin_GLSD&>(*spin_integrator);
       glsd.compute2(dt, atom);
-      endpoint_ready = glsd.converged() || iteration + 1 >= spin_glsd_midpoint_max_iter;
-      if (endpoint_ready)
+      if (glsd.converged() || iteration + 1 >= spin_glsd_midpoint_max_iter) {
         glsd.finish_step(atom);
+        break;
+      }
+      evaluate();
     }
-    evaluate();
-    if (endpoint_ready)
-      break;
   }
+  if (coupled_glsd) {
+    box = endpoint_box;
+    atom.position_per_atom.copy_from_device(endpoint_position_.data());
+    atom.position_image.copy_from_device(endpoint_images_.data());
+  }
+  evaluate();
+  atom.update_unwrapped_position(box);
   find_thermo(
     box.get_volume(),
     group,

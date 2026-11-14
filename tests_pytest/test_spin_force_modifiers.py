@@ -15,6 +15,7 @@ GPUMD = Path(os.environ.get("GPUMD_COMMAND", Path(__file__).parents[1] / "src/gp
 @pytest.mark.parametrize("ensemble", [
     "nve_sib alpha 0 gamma 3 stemp -1 seed 731",
     "nve_glsd damping .01 gamma 3 stemp -1 seed 731",
+    "nvt_glsd 300 300 1e8 lattice on damping .01 gamma 3 stemp -1 seed 731",
 ])
 @pytest.mark.parametrize("length", [8, 20], ids=["small-box", "large-box"])
 def test_corrector_preserves_force_modifiers(tmp_path, ensemble, length):
@@ -53,7 +54,8 @@ def test_corrector_preserves_force_modifiers(tmp_path, ensemble, length):
         return state
 
     # NVE at dt=0 has the same three Action samples but no Spin corrector.
-    reference = run("reference", "nve", 0)
+    reference = (run("reference", "nvt_nhc 300 300 1e8", .1)
+                 if ensemble.startswith("nvt_") else run("reference", "nve", 0))
     actual = run("spin", ensemble, .1)
     np.testing.assert_allclose(actual["force"], reference["force"], rtol=0, atol=1e-12)
     np.testing.assert_allclose(actual["force"].mean(axis=0), [.02, -.01, .03], rtol=0, atol=1e-12)

@@ -113,6 +113,13 @@ For example, to cap the work at 20 corrections while retaining the default toler
   with positive mobility the spin subsystem dissipates energy, so its energy
   is not conserved even when noise is disabled.
 
+With lattice motion enabled, the spin midpoint solve evaluates the field at
+the midpoint of the unwrapped atomic coordinates and cell. The final atomic
+forces and virial are evaluated at the true spin/geometry endpoint before
+the second lattice velocity, thermostat and barostat updates. Midpoint trial
+evaluations preserve periodic images and reuse external Action increments
+without resampling mechanical noise.
+
 The NVT temperature and lattice coupling parameters have the same meaning as
 :ref:`NHC <kw_ensemble_standard>`. ``T_coup`` is required even with
 ``lattice off``, when it has no effect on spins. The NPT prefix has the syntax

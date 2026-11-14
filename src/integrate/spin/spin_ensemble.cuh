@@ -23,6 +23,7 @@ Contributors:
 #pragma once
 #include "integrate/ensemble.cuh"
 #include "force/nep_spin/nep_spin.cuh"
+#include "model/box.cuh"
 #include <memory>
 #include <string>
 
@@ -65,5 +66,8 @@ private:
   bool use_spin_tspin = false, use_spin_sib = false, use_spin_glsd = false,
        spin_lattice_enabled = true;
   Spin_Force_Snapshot modifiers_;
+  Box start_box_;
+  GPU_Vector<double> start_position_, endpoint_position_;
+  GPU_Vector<int> endpoint_images_;
   void refresh_endpoint(double, Force&, Box&, Atom&, const std::vector<Group>&, GPU_Vector<double>&);
 };

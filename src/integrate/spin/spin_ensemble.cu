@@ -89,6 +89,12 @@ void Spin_Ensemble::initialize_run(
     modifiers_.energy.resize(n);
     modifiers_.virial.resize(9 * n);
   }
+  if (use_spin_glsd && lattice_) {
+    atom.enable_unwrapped_position();
+    start_position_.resize(3 * atom.number_of_atoms);
+    endpoint_position_.resize(3 * atom.number_of_atoms);
+    endpoint_images_.resize(3 * atom.number_of_atoms);
+  }
 }
 
 void Spin_Ensemble::initialize_before_first_step(
@@ -126,6 +132,11 @@ void Spin_Ensemble::compute1(
   GPU_Vector<double>& thermo)
 {
   set_step_temperature(step, steps);
+  if (use_spin_glsd && lattice_) {
+    atom.update_unwrapped_position(box);
+    start_position_.copy_from_device(atom.unwrapped_position.data());
+    start_box_ = box;
+  }
   if (lattice_)
     lattice_->compute1(dt, step, steps, group, box, atom, thermo);
   spin_integrator->compute1(dt, atom);
@@ -145,6 +156,10 @@ void Spin_Ensemble::compute2(
   Force& force)
 {
   set_step_temperature(step, steps);
+  const bool coupled_glsd = use_spin_glsd && lattice_;
+  // Finish the spin step and evaluate endpoint forces before the final lattice kick.
+  if (coupled_glsd)
+    refresh_endpoint(dt, force, box, atom, group, thermo);
   if (lattice_) {
     lattice_->compute2(dt, step, steps, group, box, atom, thermo, force);
     energy_transferred[0] = lattice_->energy_transferred[0];
@@ -162,7 +177,7 @@ void Spin_Ensemble::compute2(
   }
   if (use_spin_tspin)
     spin_integrator->compute2(dt, atom);
-  if (!use_spin_tspin) {
+  if (!use_spin_tspin && !coupled_glsd) {
     box.set_is_orthogonal();
     atom.update_unwrapped_position(box);
     refresh_endpoint(dt, force, box, atom, group, thermo);

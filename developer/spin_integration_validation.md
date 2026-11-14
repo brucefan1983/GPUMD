@@ -30,6 +30,21 @@ The GLSD command checks analytic zero/constant-field trajectories, deterministic
 radial relaxation, physical-state restart, fresh per-run noise seeding, and 1/2/4 GPU parity.
 It does not establish equilibrium sampling of an arbitrary trained potential.
 
+For deterministic spin/lattice timestep convergence on one GPU:
+
+```sh
+python tests_pytest/validate_spin_glsd_coupled.py --binary "$GPUMD_COMMAND" --output "$RESULTS/glsd-coupled"
+python -m pytest --noconftest -q tests_pytest/test_mttk_chain.py
+```
+
+The coupled check keeps the model, initial state, elapsed time and physical
+thermostat/barostat periods fixed while halving the timestep. It checks position,
+velocity and spin errors for weak and finite NHC coupling, plus the cell for
+triclinic MTTK, and verifies continuity across a periodic crossing. The MTTK
+temperature-chain check compares production stepping with independent host RK4.
+An optional `--reference /path/to/previous/gpumd` supplies a negative control;
+both executables must support the same model format.
+
 Use [runtime validation](spin_runtime_validation.md) for the fixed-spin and
 ordinary full regression commands, and [training validation](spin_validation.md)
 for native/JIT model and training checks. Run on the same source snapshot; record
