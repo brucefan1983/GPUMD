@@ -1,7 +1,8 @@
 # Spin validation
 
-Build `src/nep` and `src/gpumd` on the target GPU host. Set `GPUMD_SRC`,
-`NEP_COMMAND` and `GPUMD_COMMAND` to the source tree and matching binaries.
+Build `src/nep` and `src/gpumd` on the target GPU host. Set `GPUMD_SRC` to
+the absolute path of the `src/` directory, and set `NEP_COMMAND` and
+`GPUMD_COMMAND` to the matching binaries.
 Keep results outside the repository.
 
 ```sh
