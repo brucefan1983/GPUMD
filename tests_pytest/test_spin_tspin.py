@@ -15,10 +15,10 @@ from spin_runtime_helpers import base_model as _model_with_zero_lattice_velocity
 from spin_fixtures import load_fixture
 
 def selective_type_model():
-    return (FIXTURE / "nep_spin_o3c2_uniform.nep").read_text()
+    return (FIXTURE / "c3l2s2_fege.nep").read_text()
 
 
-FIXTURE = Path(__file__).parent / "fixtures" / "nep_spin3"
+FIXTURE = Path(__file__).parent / "fixtures" / "nep_spin"
 GPUMD = Path(os.environ.get("GPUMD_COMMAND", Path(__file__).parents[1] / "src" / "gpumd"))
 K_B = 8.617343e-5
 PI = 3.14159265358979
@@ -400,13 +400,13 @@ def test_element_mass_factor_zero_freezes_only_selected_spins(tmp_path):
     assert "spin mass factor for Ge is 1.5" in result.stdout
 
 
-def test_npt_tspin_runs_with_spin3_force_path(tmp_path):
-    fixture = Path(__file__).parent / "fixtures" / "nep_spin3"
-    _, oracle = load_fixture("o3c2_uniform")
-    case = oracle["cases"]["chiral_soc"]
-    directory = tmp_path / "spin3"
+def test_npt_tspin_runs_with_spin_force_path(tmp_path):
+    fixture = Path(__file__).parent / "fixtures" / "nep_spin"
+    _, oracle = load_fixture("c3l2s2_fege")
+    case = oracle["cases"]["noncollinear"]
+    directory = tmp_path / "spin"
     directory.mkdir()
-    shutil.copy(fixture / "nep_spin_o3c2_uniform.nep", directory / "nep.txt")
+    shutil.copy(fixture / "c3l2s2_fege.nep", directory / "nep.txt")
     lattice = " ".join(str(value) for value in case["cell"])
     lines = [
         str(len(case["types"])),

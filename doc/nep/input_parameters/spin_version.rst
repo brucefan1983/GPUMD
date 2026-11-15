@@ -21,7 +21,7 @@ Parameters
 The only supported value is ``1``, which is also the default for
 ``model nep_spin``. Omit this keyword for other models.
 Version 1 uses the magnetic descriptor described in :ref:`nep_spin`.
-The :ref:`spin_order <kw_spin_order>` keyword independently selects the contraction order.
+The :ref:`spin_order <kw_spin_order>` keyword independently sets the maximum polynomial degree of the spin inputs.
 
 Output
 ------
@@ -33,22 +33,26 @@ Examples
 
 .. _spin_training_example:
 
-The following NEP-spin setup uses the default descriptor shape. ``spin_compress``
-defaults to 2 and may be omitted. Together with the structural defaults, this
-gives 55 magnetic and 97 total coordinates, within :ref:`nep_spin_dimensions`::
+The following NEP-spin setup uses the default spin descriptor settings.
+All atom types are energy centers; only Fe has independent spin degrees of freedom::
 
-  version          4
-  type             2 Fe Ge
   model            nep_spin
+  version          4
   spin_version     1
-  spin_basis_size  8 0
-  spin_l_max       2 0 0
-  spin_compress    2
-  spin_order       3
-  spin_soc         1
+  type             3 Fe Bi O
+  cutoff           6 5
+  n_max            4 4
+  basis_size       8 8
+  l_max            4 2 0
   neuron           30
-  lambda_m         1.0
-  batch            1000
+  spin_type        Fe
+  spin_cutoff      6
+  spin_compress    3
+  spin_l_max       2
+  spin_order       2
+  spin_soc         1
+  lambda_m         1
+  batch            512
   generation       100000
 
 See :ref:`nep_spin_dimensions` before changing the descriptor shape.

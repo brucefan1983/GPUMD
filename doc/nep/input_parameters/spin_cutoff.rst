@@ -25,9 +25,8 @@ one positive value for every type in the order declared by :ref:`type
 <kw_type>`. If this keyword is absent, the largest ordinary radial
 :ref:`cutoff <kw_cutoff>` is broadcast.
 
-Every value must be less than or equal to the largest ordinary radial cutoff. The same restriction applies when reading a model
-file. To use a larger magnetic cutoff, increase the ordinary radial cutoff
-as well.
+Each value must be finite, at least 3 Å, and no larger than the ordinary radial cutoff.
+The same bounds apply when reading a model file. To use a larger magnetic cutoff, increase the ordinary radial cutoff as well.
 
 For an edge between types :math:`a` and :math:`b`, the model uses the arithmetic mean
 :math:`(r_a^\mathrm{spin}+r_b^\mathrm{spin})/2`.

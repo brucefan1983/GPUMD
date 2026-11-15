@@ -10,12 +10,13 @@ def analytic_model(onsite):
     scaler = next(i for i, line in enumerate(lines) if line.startswith("@ q_scaler "))
     count = int(lines[parameter].split()[2])
     dim = int(lines[scaler].split()[2])
+    neurons = int(next(line.split()[1] for line in lines if line.startswith("ann ")))
     values = [0.0] * count
     if onsite:
         for element in range(2):
-            offset = element * 30 * (dim + 2)
+            offset = element * neurons * (dim + 2)
             values[offset + 30] = 0.1
-            values[offset + 30 * dim + 30] = 1.0
+            values[offset + neurons * dim + neurons] = 1.0
     header = ["energy_reference 0 0" if line.startswith("energy_reference ")
               else "spin_type Fe Ge" if line.startswith("spin_type ") else line
               for line in lines[:parameter]]

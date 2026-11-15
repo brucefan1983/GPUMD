@@ -17,16 +17,12 @@ Syntax
 Parameters
 ----------
 
-The default is 2 and the input range is 1--9. The symbol :math:`C` denotes
+The default is 3 and the input range is 1--9. The symbol :math:`C` denotes
 this value in :ref:`nep_spin`. Each channel is a learned combination of the
-radial basis, and all contraction families reuses the same :math:`C`
-channels. It therefore controls descriptor rank and cost; it does not select
-a fixed list of Hamiltonian terms.
-
-For ``spin_version 1``, the spin descriptor must not exceed 96 components, and
-the combined structural plus spin descriptor must not exceed 199 components.
-The exact count also depends on :ref:`spin_order <kw_spin_order>`,
-:ref:`spin_l_max <kw_spin_l_max>`, and :ref:`spin_soc <kw_spin_soc>`.
+structural angular radial channels. It controls descriptor size and cost;
+it does not select a fixed list of Hamiltonian terms.
+The resulting dimension also depends on :ref:`spin_order <kw_spin_order>`,
+:ref:`spin_l_max <kw_spin_l_max>`, and :ref:`spin_soc <kw_spin_soc>`; see :ref:`nep_spin_dimensions`.
 
 Output
 ------
@@ -36,14 +32,9 @@ None.
 Examples
 --------
 
-For example, the commonly used order-3, :math:`l_\mathrm{max}=2`, SOC-enabled
-shape has 55 magnetic coordinates with::
+::
 
-  spin_compress 2
-
-Together with the default structural descriptors, this default NEP-spin descriptor has
-97 total coordinates and satisfies both dimension limits. Use the formulas in
-:ref:`nep_spin_dimensions` before increasing this value.
+  spin_compress 3
 
 Notes
 -----

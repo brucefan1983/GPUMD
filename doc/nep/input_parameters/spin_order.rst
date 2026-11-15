@@ -5,8 +5,7 @@
 :attr:`spin_order`
 ===================
 
-This keyword selects the highest contraction level supplied to the
-neural network.
+This keyword sets the maximum polynomial degree of primitive spin inputs.
 
 Syntax
 ------
@@ -18,27 +17,14 @@ Syntax
 Parameters
 ----------
 
-The value can be 1, 2, or 3 and defaults to 3. It is used only with
-``spin_version 1``.
+The range is 1--4 and the default is 2. Order 2 includes spin vectors,
+squared magnitudes, and rank-2 spin tensors
+when permitted by :ref:`spin_l_max <kw_spin_l_max>`. Order 4 also includes
+cubic and quartic spin inputs.
 
-.. list-table::
-   :header-rows: 1
-   :widths: 15 85
-
-   * - Value
-     - Descriptor content
-   * - 1
-     - local spin invariants and direct one-edge contractions
-   * - 2
-     - order 1 plus edge powers, density norms, and two-leg correlations
-   * - 3
-     - order 2 plus nested three-leg contractions
-
-The levels are nested: order 1 is a prefix of order 2, which is a prefix of
-order 3. ``spin_order`` is **not** the body order of the final energy. The
-neural network is nonlinear and can combine these coordinates with each other
-and with the structural NEP descriptor. See :ref:`nep_spin_contractions` for
-the descriptor overview.
+This is not an upper bound on the polynomial degree or body order of the
+energy: squared tensor norms and the nonlinear fitting network combine
+these inputs. See :ref:`nep_spin_contractions`.
 
 Output
 ------
@@ -50,7 +36,7 @@ Examples
 
 ::
 
-  spin_order 3
+  spin_order 2
 
 Notes
 -----

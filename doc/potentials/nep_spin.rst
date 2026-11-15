@@ -47,8 +47,8 @@ when ZBL is enabled and contains no spin dependence. The reference energies
 use the shared ``energy_reference`` convention.
 
 This architecture allows the nonlinear network to combine structural and
-magnetic coordinates. Therefore, ``spin_order`` describes the hierarchy of
-primitive magnetic contractions supplied to the network; it is not the body
+magnetic coordinates. Therefore, ``spin_order`` describes the maximum polynomial degree of
+primitive spin inputs supplied to the network; it is not the body
 order of the final energy.
 
 .. _nep_spin_contractions:
@@ -57,18 +57,18 @@ Magnetic descriptor
 ===================
 
 The descriptor combines the central spin, neighboring spins, and local atomic geometry within :ref:`spin_cutoff <kw_spin_cutoff>`.
-It uses learned radial channels and scalar contractions of spin and spatial vectors and tensors.
-The main choices are:
+It forms scalar invariants from local spin and geometric densities. The main choices are:
 
-* :ref:`spin_compress <kw_spin_compress>` sets the number of shared radial channels.
-* :ref:`spin_order <kw_spin_order>` selects nested levels of magnetic correlations: direct one-edge terms, two-leg correlations, and three-leg correlations.
-* :ref:`spin_l_max <kw_spin_l_max>` selects the maximum spatial tensor rank.
+* :ref:`spin_compress <kw_spin_compress>` sets the number of learned radial channels.
+* :ref:`spin_order <kw_spin_order>` sets the maximum polynomial degree of the spin inputs, including changes in moment magnitude.
+* :ref:`spin_l_max <kw_spin_l_max>` bounds the spatial and spin tensor ranks and, in SOC mode, the coupled rank.
 * :ref:`spin_soc <kw_spin_soc>` controls whether spin orientation couples to the local lattice orientation.
 * :ref:`spin_type <kw_spin_type>` selects the elements with active spin degrees of freedom.
 
-The radial basis uses the same cutoff-weighted Chebyshev construction as ordinary NEP, with the magnetic cutoff.
-The supported :ref:`spin_basis_size <kw_spin_basis_size>` is ``8 0``, giving nine radial basis functions and no separate angular basis.
-The default descriptor uses ``spin_order 3``, ``spin_compress 2``, ``spin_l_max 2 0 0``, and ``spin_soc 1``.
+The spin descriptor reuses the structural angular radial coefficients with its own magnetic cutoff.
+The second :ref:`basis_size <kw_basis_size>` value also sets its radial basis; ``basis_size 8 8`` gives nine basis functions.
+The default spin settings are ``spin_compress 3``, ``spin_order 2``, ``spin_l_max 2``, and ``spin_soc 1``.
+Spin vectors are not normalized, and zero moments are supported.
 
 Symmetries
 ==========
@@ -91,8 +91,8 @@ transformation of the lattice vectors and axial spin vectors,
    \boldsymbol{s}_i\longrightarrow\det(R)R\boldsymbol{s}_i,
    \qquad R\in O(3).
 
-The :ref:`spin_type <kw_spin_type>` selection defines independent spin
-coordinates and magnetic descriptor centers. All neighbor types enter geometric
+All atom types are energy centers. The :ref:`spin_type <kw_spin_type>`
+selection defines the independent spin coordinates. All neighbor types enter geometric
 moment sums within the spin cutoff. The reader sets excluded types' effective
 spins to zero and ignores their magnetic-force labels, so their contributions
 to moments containing neighbor spins vanish while geometric contributions remain.
@@ -103,54 +103,13 @@ Original energy and atomic-force labels are retained; input files are unchanged.
 Model dimensions
 ================
 
-Let :math:`C` be the number of radial channels set by :ref:`spin_compress <kw_spin_compress>`,
-:math:`L` the first value of :ref:`spin_l_max <kw_spin_l_max>`,
-and :math:`S` the value of :ref:`spin_soc <kw_spin_soc>`.
-Let :math:`P=C(C+1)/2`, :math:`I_X` be 1 when condition :math:`X` is true and
-0 otherwise, and define
+The magnetic dimension depends on :ref:`spin_compress <kw_spin_compress>`,
+:ref:`spin_order <kw_spin_order>`, :ref:`spin_l_max <kw_spin_l_max>`, and :ref:`spin_soc <kw_spin_soc>`.
+The default ``spin_compress 3``, ``spin_l_max 2``, ``spin_order 2`` shape has
+34 magnetic coordinates with SOC and 31 without SOC.
 
-.. math::
-
-   a_C=1+I_{C\geq2},\qquad b_C=1+2I_{C\geq2}.
-
-The order-1 magnetic descriptor dimension is
-
-.. math::
-
-   D_1=1+2C+2C I_S I_{L\geq2}.
-
-The order-2 increment is
-
-.. math::
-
-   \Delta D_2 &= 2C
-   +C I_{L\geq1}\left(3I_S+1-I_S\right)
-   +C I_{L\geq2}+C+2P\\
-   &+a_C C I_S I_{L\geq1}
-   +a_C C I_S I_{L\geq2}
-   +P I_{L\geq1}+P I_{L\geq2},
-
-and the order-3 increment is
-
-.. math::
-
-   \Delta D_3 &= C
-   +a_C C I_S I_{L\geq1}\\
-   &+b_C C I_S I_{L\geq2}
-   +C I_S I_{L\geq1} I_{C\geq3}.
-
-Therefore :math:`D_2=D_1+\Delta D_2` and
-:math:`D_3=D_2+\Delta D_3`. For the common :math:`L=2`, ``spin_soc 1`` shape,
-O2-C2 has 43 magnetic coordinates and O3-C2 has 55. The implementation limits
-the magnetic part to 96 coordinates and requires the combined structural and
-magnetic dimension to satisfy :math:`D_\mathrm{str}+D_\mathrm{spin}\leq199`.
-With the ordinary structural defaults, :math:`D_\mathrm{str}=42`; the default
-O3-C2-L2-SOC1 shape therefore gives :math:`42+55=97` total coordinates.
-
-The trainable magnetic descriptor parameters comprise
-:math:`9C N_\mathrm{typ}^2` radial coefficients and
-:math:`4C^2` radial-leg mixing coefficients. These are optimized together
-with the neural-network parameters by SNES. Here, :math:`N_\mathrm{typ}` is the number of element types.
+All combinations of ``spin_compress 1--9``, ``spin_l_max 0--4``, ``spin_order 1--4``, and ``spin_soc 0/1`` are supported.
+The limits are 236 magnetic and 339 combined structural and magnetic coordinates; the structural angular limit remains 90.
 
 .. _nep_spin_scaling:
 
@@ -283,7 +242,11 @@ Model formats and input
 Select ``model nep_spin`` in ``nep.in``. The model requires NEP4 and one hidden layer.
 The exported ``nep.txt`` uses ``format_version 1``, ``model nep_spin``, and ``spin_version 1``.
 Universal :ref:`ZBL <kw_zbl>` is optional; flexible ZBL is not supported.
+Parameters from the previous Spin3 descriptor layout are incompatible with this model.
 See :ref:`spin_version <kw_spin_version>` for the training settings and compatibility requirements.
+Spin virial and stress labels use the symmetric tensor part when reduced to six components.
+The parameter and scaler layouts are specified in
+`the NEP model format <https://github.com/brucefan1983/GPUMD/blob/master/potentials/nep/nep_model_format.md>`_.
 
 .. _nep_spin_runtime:
 
