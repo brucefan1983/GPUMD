@@ -1,8 +1,11 @@
 """Analytic zero or E_i = tanh(0.1 |S_i|^2) potential in the current Spin format."""
 from spin_fixtures import FIXTURE
 
+REFERENCE_MODEL = next(path for path in sorted(FIXTURE.glob("*.nep"))
+                       if path.read_text().splitlines()[0].split()[2:] == ["Fe", "Ge"])
+
 def analytic_model(onsite):
-    lines = (FIXTURE / "nep_spin_o3c2_uniform.nep").read_text().splitlines()
+    lines = REFERENCE_MODEL.read_text().splitlines()
     parameter = next(i for i, line in enumerate(lines) if line.startswith("@ parameters "))
     scaler = next(i for i, line in enumerate(lines) if line.startswith("@ q_scaler "))
     count = int(lines[parameter].split()[2])

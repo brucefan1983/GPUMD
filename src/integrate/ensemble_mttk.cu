@@ -701,6 +701,9 @@ void Ensemble_MTTK::nhc_temp_integrate(
   // propagate eta_dot by 1/4 step
   t_current = find_current_temperature(group, box, atom, thermo);
   eta_dotdot[0] = temperature_dof * kB * (t_current - t_target) / Q[0];
+  // Refresh every chain force, including the first step and changing target masses.
+  for (int n = 1; n < tchain; n++)
+    eta_dotdot[n] = (Q[n - 1] * eta_dot[n - 1] * eta_dot[n - 1] - kB * t_target) / Q[n];
   for (int n = tchain - 1; n >= 0; n--) {
     expfac = exp(-dt8 * eta_dot[n + 1]);
     eta_dot[n] = (expfac * eta_dot[n] + eta_dotdot[n] * dt4) * expfac;

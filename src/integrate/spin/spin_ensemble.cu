@@ -20,8 +20,6 @@ Contributors:
   Chengbing Chen: 1747193328@qq.com
 */
 
-#include "force/nep_spin/nep_spin.cuh"
-#include "force/nep_spin/nep_spin_multigpu.cuh"
 #include "glsd.cuh"
 #include "integrator.cuh"
 #include "sib.cuh"
@@ -34,12 +32,10 @@ void Spin_Ensemble::initialize_run(
 {
   if (force_.get_number_of_potentials() != 1)
     PRINT_INPUT_ERROR("A spin ensemble requires one NEP-spin potential.");
-  auto& potential = force_.get_potential(0);
-  auto* spin = dynamic_cast<NEP_Spin*>(&potential);
-  auto* multigpu = dynamic_cast<NEP_Spin_MultiGPU*>(&potential);
-  if (!spin && !multigpu)
+  potential_ = dynamic_cast<Spin_Potential*>(&force_.get_potential(0));
+  if (!potential_)
     PRINT_INPUT_ERROR("A spin ensemble requires a NEP-spin potential.");
-  const auto& spin_types = spin ? spin->spin_types() : multigpu->spin_types();
+  const auto& spin_types = potential_->spin_types();
 
   if (lattice_) {
     lattice_->fixed_group = fixed_group;
@@ -79,6 +75,7 @@ void Spin_Ensemble::initialize_run(
       spin_dynamics_gamma,
       spin_glsd_mobility,
       spin_dynamics_temperature,
+      spin_glsd_midpoint_tol,
       spin_dynamics_seed,
       spin_types,
       atom));
@@ -86,10 +83,17 @@ void Spin_Ensemble::initialize_run(
   }
 
   if (!use_spin_tspin) {
-    potential_ = spin;
-    multigpu_potential_ = multigpu;
-    base_force_.resize(3 * atom.number_of_atoms);
-    base_mforce_.resize(3 * atom.number_of_atoms);
+    const size_t n = atom.number_of_atoms;
+    modifiers_.force.resize(3 * n);
+    modifiers_.mforce.resize(3 * n);
+    modifiers_.energy.resize(n);
+    modifiers_.virial.resize(9 * n);
+  }
+  if (use_spin_glsd && lattice_) {
+    atom.enable_unwrapped_position();
+    start_position_.resize(3 * atom.number_of_atoms);
+    endpoint_position_.resize(3 * atom.number_of_atoms);
+    endpoint_images_.resize(3 * atom.number_of_atoms);
   }
 }
 
@@ -106,6 +110,8 @@ void Spin_Ensemble::initialize_before_first_step(
 }
 void Spin_Ensemble::finalize_run(const Atom& atom, const Box& box)
 {
+  if (use_spin_glsd)
+    static_cast<Spin_GLSD&>(*spin_integrator).report_iterations();
   if (lattice_)
     lattice_->finalize_run(atom, box);
 }
@@ -126,15 +132,18 @@ void Spin_Ensemble::compute1(
   GPU_Vector<double>& thermo)
 {
   set_step_temperature(step, steps);
+  if (use_spin_glsd && lattice_) {
+    atom.update_unwrapped_position(box);
+    start_position_.copy_from_device(atom.unwrapped_position.data());
+    start_box_ = box;
+  }
   if (lattice_)
     lattice_->compute1(dt, step, steps, group, box, atom, thermo);
   spin_integrator->compute1(dt, atom);
   // Capture the next potential evaluation before Actions add their increments.
   // The request is consumed there, so the corrector cannot overwrite it.
-  if (potential_)
-    potential_->request_force_snapshot(base_force_, base_mforce_);
-  else if (multigpu_potential_)
-    multigpu_potential_->request_force_snapshot(base_force_, base_mforce_);
+  if (!use_spin_tspin)
+    potential_->request_force_snapshot(modifiers_);
 }
 void Spin_Ensemble::compute2(
   double dt,
@@ -147,6 +156,10 @@ void Spin_Ensemble::compute2(
   Force& force)
 {
   set_step_temperature(step, steps);
+  const bool coupled_glsd = use_spin_glsd && lattice_;
+  // Finish the spin step and evaluate endpoint forces before the final lattice kick.
+  if (coupled_glsd)
+    refresh_endpoint(dt, force, box, atom, group, thermo);
   if (lattice_) {
     lattice_->compute2(dt, step, steps, group, box, atom, thermo, force);
     energy_transferred[0] = lattice_->energy_transferred[0];
@@ -162,10 +175,11 @@ void Spin_Ensemble::compute2(
       atom.virial_per_atom,
       thermo);
   }
-  spin_integrator->compute2(dt, atom);
-  if (!use_spin_tspin) {
+  if (use_spin_tspin)
+    spin_integrator->compute2(dt, atom);
+  if (!use_spin_tspin && !coupled_glsd) {
     box.set_is_orthogonal();
     atom.update_unwrapped_position(box);
-    refresh_endpoint(force, box, atom, group, thermo);
+    refresh_endpoint(dt, force, box, atom, group, thermo);
   }
 }
