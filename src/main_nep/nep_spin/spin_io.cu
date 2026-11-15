@@ -1,6 +1,16 @@
 /*
     Copyright 2017 Zheyong Fan and GPUMD development team
-    This file is part of GPUMD and is distributed under LGPLv3 or later.
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "main_nep/common/nep_io.cuh"
@@ -28,11 +38,10 @@ void validate_model(Spin_Parameters& para, const NEP_Spin_Model_File& model)
     model.n_max[1] != para.n_max_angular || model.basis_size[0] != para.basis_size_radial ||
     model.basis_size[1] != para.basis_size_angular ||
     !std::equal(model.l_max, model.l_max + 7, l_max) || model.num_neurons != para.num_neurons1 ||
-    model.spin_basis_size != para.spin_basis_size[0] || model.spin_l_max != para.spin_l_max[0] ||
+    model.spin_basis_size != para.spin_basis_size || model.spin_l_max != para.spin_l_max ||
     model.spin_compress != para.spin_compress || model.spin_order != para.spin_order ||
-    model.spin_soc != para.spin_soc ||
-    model.spin_projection_size != para.number_of_variables_spin_projection ||
-    model.dim != para.dim || model.parameters.size() != size_t(para.number_of_variables)) {
+    model.spin_soc != para.spin_soc || model.dim != para.dim ||
+    model.parameters.size() != size_t(para.number_of_variables)) {
     PRINT_INPUT_ERROR("nep.in is inconsistent with the Spin model in nep.txt.");
   }
   const auto same = [](float a, float b) {
@@ -71,8 +80,8 @@ void write_checkpoint_metadata(FILE* fid_nep, const Spin_Parameters& para)
       return active != 1;
     });
   fprintf(fid_nep, "spin_version 1\n");
-  fprintf(fid_nep, "spin_basis_size %d\n", para.spin_basis_size[0]);
-  fprintf(fid_nep, "spin_l_max %d\n", para.spin_l_max[0]);
+  fprintf(fid_nep, "spin_basis_size %d\n", para.spin_basis_size);
+  fprintf(fid_nep, "spin_l_max %d\n", para.spin_l_max);
   fprintf(fid_nep, "spin_compress %d\n", para.spin_compress);
   fprintf(fid_nep, "spin_cutoff");
   const bool uniform_spin_cutoff = std::all_of(
@@ -86,7 +95,6 @@ void write_checkpoint_metadata(FILE* fid_nep, const Spin_Parameters& para)
   fprintf(fid_nep, "\n");
   fprintf(fid_nep, "spin_order %d\n", para.spin_order);
   fprintf(fid_nep, "spin_soc %d\n", para.spin_soc);
-  fprintf(fid_nep, "spin_projection_size %d\n", para.number_of_variables_spin_projection);
   fprintf(fid_nep, "spin_scaler 1\n");
   if (write_dof) {
     fprintf(fid_nep, "spin_type");

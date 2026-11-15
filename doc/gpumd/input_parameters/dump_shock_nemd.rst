@@ -18,11 +18,14 @@ Syntax
 
    dump_shock_nemd interval <time_interval> bin_size <bin_size>
 
+Parameters
+----------
+
 - The :attr:`interval` parameter sets the output interval (number of steps).
 - The :attr:`bin_size` parameter, optional with a default value of 10, defines the thickness of each histogram bin in Å.
 
-Output files
-------------
+Output
+------
 
 .. _shock_nemd_hist_out:
 
@@ -43,3 +46,8 @@ To output spatial thermo information every 1000 steps for a run in the x-directi
 .. code::
 
   dump_shock_nemd interval 1000 bin_size 20
+
+Notes
+-----
+
+None.

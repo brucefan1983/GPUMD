@@ -35,7 +35,7 @@ The NVE ensemble is also called the micro-canonical ensemble.
 We use the velocity-Verlet integration method with the following equations:
 
 .. math::
-   
+
    \boldsymbol{v}_i(t_{m+1}) \approx \boldsymbol{v}_i(t_{m}) +
    \frac{\boldsymbol{F}_i(t_m)+\boldsymbol{F}_i(t_{m+1})}{2m_i}\Delta t
    \\
@@ -78,12 +78,12 @@ The velocities are scaled in the Berendsen thermostat [Berendsen1984]_ as follow
    \sqrt{1 + \frac{\Delta t}{\tau_T} \left(\frac{T_0}{T} - 1\right)}.
 
 Here, :math:`\tau_T` is the coupling time (relaxation time) parameter, :math:`T_0` is the target temperature, and :math:`T` is the instant temperature calculated from the current velocities.
-We require that :math:`\tau_T/\Delta t \geq 1`. 
+We require that :math:`\tau_T/\Delta t \geq 1`.
 
 When :math:`\tau_T/\Delta t = 1`, the above formula reduces to the simple velocity-scaling formula:
 
 .. math::
-   
+
    \boldsymbol{v}_i^{\text{scaled}} = \boldsymbol{v}_i \sqrt{\frac{T_0}{T}}.
 
 A larger value of :math:`\tau_T/\Delta t` represents a weaker coupling between the system and the thermostat.
@@ -94,12 +94,12 @@ This thermostat is usually used for reaching equilibrium and is *not recommended
 
 .. _nose_hoover_chain_thermostat:
 .. index::
-   single: Nose-Hoover chain thermostat
+   single: Nosé-Hoover chain thermostat
 
-Nose-Hoover chain thermostat
+Nosé-Hoover chain thermostat
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-In the Nose-Hoover chain (:term:`NHC`) method [Tuckerman2010]_, the equations of motion for the particles in the thermostatted region are (those for the thermostat variables are not presented):
+In the Nosé-Hoover chain (:term:`NHC`) method [Tuckerman2010]_, the equations of motion for the particles in the thermostatted region are (those for the thermostat variables are not presented):
 
 .. math::
    \frac{d \boldsymbol{r}_i}{dt} = \frac{\boldsymbol{p}_i}{m_i} \\
@@ -110,8 +110,8 @@ Here,
 :math:`\boldsymbol{p}_i` is the momentum of atom :math:`i`.
 :math:`m_i` is the mass of atom  :math:`i`.
 :math:`\boldsymbol{F}_i` is the total force on atom :math:`i` resulting from the potential model used.
-:math:`Q_0=N_{\rm f} k_{\rm B} T_0 \tau_T^2` is the ''mass'' of the thermostat variable directly coupled to the system and :math:`\pi_0` is the corresponding ''momentum''. 
-:math:`N_{\rm f}` is the degree of freedom in the thermostatted region. 
+:math:`Q_0=N_{\rm f} k_{\rm B} T_0 \tau_T^2` is the ''mass'' of the thermostat variable directly coupled to the system and :math:`\pi_0` is the corresponding ''momentum''.
+:math:`N_{\rm f}` is the degree of freedom in the thermostatted region.
 :math:`k_{\rm B}` is Boltzmann's constant and :math:`T_0` is the target temperature.
 :math:`\tau_T` is a time parameter, and we suggest a value of :math:`\tau_T/\Delta t \approx 100`, where :math:`\Delta t` is the time step.
 
@@ -154,24 +154,24 @@ The Berendsen thermostat does not generate a true NVT ensemble.
 As an extension of the Berendsen thermostat, the Bussi-Donadio-Parrinello (:term:`BDP`) thermostat [Bussi2007b]_ incorporates a proper randomness into the velocity re-scaling factor and generates a true NVT ensemble.
 It is also called the stochastic velocity rescaling (:term:`SVR`) thermostat.
 
-In the :term:`BDP` thermostat, the velocities are scaled in the following way: 
+In the :term:`BDP` thermostat, the velocities are scaled in the following way:
 
 .. math::
-   
+
    \boldsymbol{v}_i^{\text{scaled}} = \alpha \boldsymbol{v}_i
 
 where
 
 .. math::
-   
+
    \alpha^2=
-   e^{-\Delta t/\tau_T} + 
+   e^{-\Delta t/\tau_T} +
    \frac{T_0}{TN_f} \left( 1-e^{-\Delta t/\tau_T} \right) \left( R_1^2 + \sum_{i=2}^{N_f}R_i^2 \right) +
    2e^{-\Delta t/2\tau_T} R_1 \sqrt{\frac{T_0}{TN_f} \left( 1-e^{-\Delta t/\tau_T} \right) }.
 
 Here,
 :math:`\boldsymbol{v}_i` is the velocity of atom :math:`i` before the re-scaling.
-:math:`N_{\rm f}` is the degree of freedom in the thermostatted region. 
+:math:`N_{\rm f}` is the degree of freedom in the thermostatted region.
 :math:`T` is instant temperature and :math:`T_0` is the target temperature.
 :math:`\Delta t` is the time step for integration.
 :math:`\tau_T` is a time parameter, and we suggest a value of :math:`\tau_T/\Delta t \approx 100`, where :math:`\Delta t` is the time step.
@@ -204,7 +204,7 @@ The barostat scales the box and positions as follows:
    \begin{array}{ccc}
    a_x^{\rm scaled} & b_x^{\rm scaled} & c_x^{\rm scaled} \\
    a_y^{\rm scaled} & b_y^{\rm scaled} & c_y^{\rm scaled} \\
-   a_z^{\rm scaled} & b_z^{\rm scaled} & c_z^{\rm scaled} 
+   a_z^{\rm scaled} & b_z^{\rm scaled} & c_z^{\rm scaled}
    \end{array}
    \right)
    =
@@ -219,7 +219,7 @@ The barostat scales the box and positions as follows:
    \begin{array}{ccc}
    a_x & b_x & c_x \\
    a_y & b_y & c_y \\
-   a_z & b_z & c_z 
+   a_z & b_z & c_z
    \end{array}
    \right)
 
@@ -302,12 +302,12 @@ The stochastic scaling matrix components are
 
 .. math::
 
-   \mu^{\rm stochastic}_{\alpha\beta} 
+   \mu^{\rm stochastic}_{\alpha\beta}
    = \sqrt{
    \frac{1}{D_{\rm couple}}}
-   \sqrt{ 
-   \frac{\beta_{\alpha\beta} \Delta t}{3\tau_p} 
-   \frac{2k_{\rm B} T^{\rm target}}{V} 
+   \sqrt{
+   \frac{\beta_{\alpha\beta} \Delta t}{3\tau_p}
+   \frac{2k_{\rm B} T^{\rm target}}{V}
    } R_{\alpha\beta}.
 
 Here,

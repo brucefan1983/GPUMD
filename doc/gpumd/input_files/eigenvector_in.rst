@@ -3,8 +3,8 @@
    single: gpumd input files; Eigenvectors
    single: eigenvector.in
 
-Eigenvectors for modal analysis
--------------------------------
+Modal eigenvectors (``eigenvector.in``)
+---------------------------------------
 
 The ``eigenvector.in`` file supplies the normal modes used by :ref:`compute_gkma <kw_compute_gkma>` and :ref:`compute_hnema <kw_compute_hnema>`.
 It is a binary file of native 32-bit floating-point values, with no text header or record markers.

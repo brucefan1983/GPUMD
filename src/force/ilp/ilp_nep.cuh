@@ -223,7 +223,7 @@ private:
   GPU_Vector<bool> sublayer_flag_gpu;
 
   // save max nep rcut to make sure pbc
-  double max_nep_rc;
+  float max_nep_rc = 0.0f;
 };
 
 static __constant__ float Tap_coeff[8];

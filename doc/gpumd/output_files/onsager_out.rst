@@ -5,7 +5,7 @@
 ``onsager.out``
 ===============
 
-This file contains block averages of components of the Onsager coefficient tensors from the homogeneous non-equilibrium molecular dynamics Evans-Cummings algorithm (:term:`HNEMDEC`) method.
+This file contains block averages of components of the Onsager coefficient tensors from the homogeneous nonequilibrium molecular dynamics Evans-Cummings algorithm (:term:`HNEMDEC`) method.
 It is generated when invoking the :ref:`compute_hnemdec keyword <kw_compute_hnemdec>`.
 Each row averages the preceding :attr:`output_interval` MD steps, rather than all steps since the start of the run.
 Rows are appended to the file, with :math:`3(M+1)` columns for :math:`M` elements and no time column.
@@ -13,7 +13,7 @@ Rows are appended to the file, with :math:`3(M+1)` columns for :math:`M` element
 File format
 -----------
 If the driving force is in the :math:`\mu` (:math:`\mu` can be :math:`x`, :math:`y`, or :math:`z`) direction and the dissipative flux is set as heat flux, for a system with :math:`M` elements, this file reads:
-  
+
 * column 1: :math:`L_{x \mu}^{\text{qq}}(t)` (in units of :math:`W/mK`)
 * column 2: :math:`L_{y \mu}^{\text{qq}}(t)` (in units of :math:`W/mK`)
 * column 3: :math:`L_{z \mu}^{\text{qq}}(t)` (in units of :math:`W/mK`)
@@ -34,7 +34,7 @@ If the dissipative flux is changed to momentum flux of component :math:`\alpha`,
 * column 4: :math:`L_{x \mu}^{1\alpha}(t)` (in units of :math:`10^{-12} kgs/m^{3}K`)
 * column 5: :math:`L_{y \mu}^{1\alpha}(t)` (in units of :math:`10^{-12} kgs/m^{3}K`)
 * column 6: :math:`L_{z \mu}^{1\alpha}(t)` (in units of :math:`10^{-12} kgs/m^{3}K`)
-* ...  
+* ...
 * column :math:`3M+1`: :math:`L_{x \mu}^{M\alpha}(t)` (in units of :math:`10^{-12} kgs/m^{3}K`)
 * column :math:`3M+2`: :math:`L_{y \mu}^{M\alpha}(t)` (in units of :math:`10^{-12} kgs/m^{3}K`)
 * column :math:`3M+3`: :math:`L_{z \mu}^{M\alpha}(t)` (in units of :math:`10^{-12} kgs/m^{3}K`)

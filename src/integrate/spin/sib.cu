@@ -184,6 +184,8 @@ Spin_SIB::Spin_SIB(double alpha, double gamma, double spin_temperature, int seed
     seed <= 0) {
     PRINT_INPUT_ERROR("SIB requires alpha >= 0, gamma > 0, stemp >= -1, and a positive seed.");
   }
+  atom.spin_velocity_initialized = false;
+  atom.spin_velocity_per_atom.fill(0.0);
   spin_start_.resize(3 * number_of_atoms);
   noise_increment_.resize(3 * number_of_atoms);
 }

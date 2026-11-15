@@ -11,7 +11,7 @@ import pytest
 from spin_runtime_helpers import base_model as _base_model
 
 
-FIXTURE = Path(__file__).parent / "fixtures" / "nep_spin3"
+FIXTURE = Path(__file__).parent / "fixtures" / "nep_spin"
 GPUMD = Path(os.environ.get("GPUMD_COMMAND", Path(__file__).parents[1] / "src" / "gpumd"))
 BOLTZMANN = 8.617343e-5
 MASK64 = 0xFFFFFFFFFFFFFFFF
@@ -28,7 +28,7 @@ def _replace_spins(model_text, spins):
 
 def _run(case_dir, run_input, model_text=None):
     case_dir.mkdir()
-    (case_dir / "nep.txt").write_text((FIXTURE / "nep_spin_o3c2_uniform.nep").read_text().replace("spin_type Fe\n", "spin_type Fe Ge\n"))
+    (case_dir / "nep.txt").write_text((FIXTURE / "c3l2s2_fege.nep").read_text().replace("spin_type Fe\n", "spin_type Fe Ge\n"))
     (case_dir / "model.xyz").write_text(model_text or _base_model())
     (case_dir / "run.in").write_text(run_input)
     return subprocess.run(

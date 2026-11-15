@@ -50,7 +50,7 @@ double Box::get_area(const int d) const
 double Box::get_volume(void) const
 {
   double volume;
-  volume = abs(
+  volume = std::abs(
     cpu_h[0] * (cpu_h[4] * cpu_h[8] - cpu_h[5] * cpu_h[7]) +
     cpu_h[1] * (cpu_h[5] * cpu_h[6] - cpu_h[3] * cpu_h[8]) +
     cpu_h[2] * (cpu_h[3] * cpu_h[7] - cpu_h[4] * cpu_h[6]));

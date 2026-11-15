@@ -95,6 +95,8 @@ Ensemble_TI_Nep::Ensemble_TI_Nep(const std::vector<std::string>& tokens)
       auto_switch = false;
       if (!is_valid_int(tokens[i + 1], &t_switch))
         PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
+      if (t_switch < 1)
+        PRINT_INPUT_ERROR("tswitch must be at least 1.");
       i += 2;
     } else if (tokens[i] == "tequil") {
       if (i + 1 >= num_params)
@@ -102,6 +104,8 @@ Ensemble_TI_Nep::Ensemble_TI_Nep(const std::vector<std::string>& tokens)
       auto_switch = false;
       if (!is_valid_int(tokens[i + 1], &t_equil))
         PRINT_INPUT_ERROR("Wrong inputs for t_equil keyword.");
+      if (t_equil < 0)
+        PRINT_INPUT_ERROR("tequil must be non-negative.");
       i += 2;
     } else if (tokens[i] == "temp") {
       if (i + 1 >= num_params)
@@ -119,10 +123,8 @@ Ensemble_TI_Nep::Ensemble_TI_Nep(const std::vector<std::string>& tokens)
       PRINT_INPUT_ERROR("Unknown keyword.");
     }
   }
-  if ((t_switch < 0 && t_equil >= 0) || (t_switch >= 0 && t_equil < 0)) {
-    PRINT_INPUT_ERROR(
-      "Error: Please specify either both t_switch and t_equil, or neither (to let the program "
-      "auto-determine)");
+  if (!auto_switch && (t_switch < 0 || t_equil < 0)) {
+    PRINT_INPUT_ERROR("Specify both tswitch and tequil, or omit both.");
   }
   printf(
     "Thermostat: target temperature is %f k, t_period is %f timesteps.\n",
@@ -139,7 +141,14 @@ void Ensemble_TI_Nep::init(
   if (auto_switch) {
     t_switch = (int)(number_of_steps * 0.4);
     t_equil = (int)(number_of_steps * 0.1);
-  } else
+  }
+  if (t_switch < 1) {
+    PRINT_INPUT_ERROR("tswitch must be at least 1; increase the run length in automatic mode.");
+  }
+  if (t_equil > number_of_steps / 2 || t_switch > number_of_steps / 2 - t_equil) {
+    PRINT_INPUT_ERROR("run must be at least 2 * (tequil + tswitch) steps for TI.");
+  }
+  if (!auto_switch)
     printf("The number of steps should be set to %d!\n", 2 * (t_equil + t_switch));
   printf(
     "Nonequilibrium thermodynamic integration: t_switch is %d timestep, t_equil is %d timesteps.\n",

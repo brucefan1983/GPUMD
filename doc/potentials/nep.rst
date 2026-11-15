@@ -8,7 +8,8 @@ Neuroevolution potential
 The neuroevolution potential (:term:`NEP`) approach was proposed in [Fan2021]_ (NEP1) and later improved in [Fan2022a]_ (NEP2), [Fan2022b]_ (NEP3), and [Song2024]_ (NEP4).
 Currently, :program:`GPUMD` only supports NEP4, as NEP1, NEP2, and NEP3 are deprecated.
 
-:program:`GPUMD` not only allows one to carry out simulations using :term:`NEP` models via the :ref:`gpumd executable <gpumd_executable>` but even the construction of such models via the :ref:`nep executable <nep_executable>`.
+Use :ref:`gpumd <gpumd_executable>` to run MD with a trained model and :ref:`nep <nep_executable>` to train or evaluate a model.
+This page defines the descriptors, network, and loss function; the NEP chapter describes the training workflow.
 
 The neural network model
 ========================
@@ -16,13 +17,13 @@ The neural network model
 :term:`NEP` uses a simple feedforward neural network (:term:`NN`) to represent the site energy of atom :math:`i` as a function of a descriptor vector with :math:`N_\mathrm{des}` components,
 
 .. math::
-   
+
    U_i(\mathbf{q}) = U_i \left(\{q^i_{\nu}\}_{\nu =1}^{N_\mathrm{des}}\right).
 
 There is a single hidden layer with :math:`N_\mathrm{neu}` neurons in the NN and we have
 
 .. math::
-   
+
    U_i = \sum_{\mu=1}^{N_\mathrm{neu}}w^{(1)}_{\mu}\tanh\left(\sum_{\nu=1}^{N_\mathrm{des}} w^{(0)}_{\mu\nu} q^i_{\nu} - b^{(0)}_{\mu}\right) - b^{(1)},
 
 where :math:`\tanh(x)` is the activation function in the hidden layer, :math:`\mathbf{w}^{(0)}` is the connection weight matrix from the input layer (descriptor vector) to the hidden layer, :math:`\mathbf{w}^{(1)}` is the connection weight vector from the hidden layer to the output node, which is the energy :math:`U_i`, :math:`\mathbf{b}^{(0)}` is the bias vector in the hidden layer, and :math:`b^{(1)}` is the bias for node :math:`U_i`.
@@ -30,7 +31,7 @@ where :math:`\tanh(x)` is the activation function in the hidden layer, :math:`\m
 The descriptor
 ==============
 
-The descriptor for atom :math:`i` consists of a number of radial and angular components as described below. 
+The descriptor for atom :math:`i` consists of a number of radial and angular components as described below.
 
 The **radial descriptor** components are defined as
 
@@ -41,7 +42,7 @@ The **radial descriptor** components are defined as
 with
 
 .. math::
-   
+
    0\leq n\leq n_\mathrm{max}^\mathrm{R},
 
 where the summation runs over all the neighbors of atom :math:`i` within a certain cutoff distance.
@@ -52,7 +53,7 @@ The formulation is similar but not identical to the atomic cluster expansion (:t
 For 3-body ones, we define (:math:`0\leq n\leq n_\mathrm{max}^\mathrm{A}`, :math:`1\leq l \leq l_\mathrm{max}^\mathrm{3b}`)
 
 .. math::
-   
+
    q^i_{nl} = \sum_{m=-l}^l (-1)^m A^i_{nlm} A^i_{nl(-m)},
 
 where
@@ -68,13 +69,13 @@ The radial functions :math:`g_n(r_{ij})` appear in both the radial and the angul
 In the radial descriptor components,
 
 .. math::
-   
+
    g_n(r_{ij}) = \sum_{k=0}^{N_\mathrm{bas}^\mathrm{R}} c^{ij}_{nk} f_k(r_{ij}),
 
-with 
+with
 
 .. math::
-   
+
    f_k(r_{ij}) = \frac{1}{2}
    \left[T_k\left(2\left(r_{ij}/r_\mathrm{c}^\mathrm{R}-1\right)^2-1\right)+1\right]
    f_\mathrm{c}(r_{ij}),
@@ -82,11 +83,11 @@ with
 and
 
 .. math::
-   
-   f_\mathrm{c}(r_{ij}) 
+
+   f_\mathrm{c}(r_{ij})
    = \begin{cases}
    \frac{1}{2}\left[
-   1 + \cos\left( \pi \frac{r_{ij}}{r_\mathrm{c}^\mathrm{R}} \right) 
+   1 + \cos\left( \pi \frac{r_{ij}}{r_\mathrm{c}^\mathrm{R}} \right)
    \right],& r_{ij}\leq r_\mathrm{c}^\mathrm{R}; \\
    0, & r_{ij} > r_\mathrm{c}^\mathrm{R}.
    \end{cases}
@@ -135,28 +136,27 @@ For example, ``n_max 6 6`` and ``l_max 4 1`` give :math:`N_\mathrm{4b}=1`, :math
 .. _nep_loss_function:
 .. _nep_optimization_procedure:
 .. index::
-   single: NEP loss function   
+   single: NEP loss function
 
 Optimization procedure
 ======================
 
-The name of the :term:`NEP` model is owed to the use of the separable natural evolution strategy (:term:`SNES`) that is used for the optimization of the parameters [Schaul2011]_.
-The interested reader is referred to [Schaul2011]_ and [Fan2021]_ for details.
+NEP optimizes its parameters using separable natural evolution strategy (:term:`SNES`) [Schaul2011]_ [Fan2021]_.
 
 The key quantity in the optimization procedure is the loss (or objective) function, which is being minimized.
 It is defined as a weighted sum over the loss terms associated with energies, forces, virials and energy differences as well as the :math:`\mathcal{L}_1` and :math:`\mathcal{L}_2` norms of the parameter vector.
 
 .. math::
-   
-   L(\boldsymbol{z}) 
-   &= \lambda_\mathrm{e} \left( 
+
+   L(\boldsymbol{z})
+   &= \lambda_\mathrm{e} \left(
    \frac{1}{N_\mathrm{str}}\sum_{n=1}^{N_\mathrm{str}} \left( U^\mathrm{NEP}(n,\boldsymbol{z}) - U^\mathrm{tar}(n)\right)^2
    \right)^{1/2} \nonumber \\
-   &+  \lambda_\mathrm{f} \left( 
+   &+  \lambda_\mathrm{f} \left(
    \frac{1}{3N}
    \sum_{i=1}^{N} \left( \boldsymbol{F}_i^\mathrm{NEP}(\boldsymbol{z}) - \boldsymbol{F}_i^\mathrm{tar}\right)^2
    \right)^{1/2} \nonumber \\
-   &+  \lambda_\mathrm{v} \left( 
+   &+  \lambda_\mathrm{v} \left(
    \frac{1}{6N_\mathrm{str}}
    \sum_{n=1}^{N_\mathrm{str}} \sum_{\mu\nu} \left( W_{\mu\nu}^\mathrm{NEP}(n,\boldsymbol{z}) - W_{\mu\nu}^\mathrm{tar}(n)\right)^2
    \right)^{1/2} \nonumber \\

@@ -5,14 +5,12 @@
 ``restart.xyz``
 ===============
 
-This file stores the simulation cell and atomic data, including positions and velocities, for continuing a simulation.
-It is generated when invoking the :ref:`dump_restart keyword <kw_dump_restart>`.
+The :ref:`dump_restart command <kw_dump_restart>` writes the simulation cell and atomic data, including positions and velocities, to this file at the specified interval.
+Each write overwrites the previous contents.
 
 File format
 -----------
 This file has the same format as the :ref:`simulation model input file <model_xyz>`.
-
-* The output mode for this file is overwrite.
 
 Continuing a simulation
 -----------------------

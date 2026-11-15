@@ -62,95 +62,104 @@ def float32(value):
     return struct.unpack('f', struct.pack('f', float(value)))[0]
 
 
-@pytest.mark.parametrize('fixture', ['o3c2_uniform', 'o3c2_typewise', 'o3c3_uniform'])
-def test_parameter_and_scaler_order(codec, tmp_path, fixture):
-    model, _ = load_fixture(fixture)
-    parsed = parse(codec, tmp_path / 'model.nep', model)
-    lines = model.splitlines()
-    for name in ('parameters', 'q_scaler'):
-        start = next(i for i, line in enumerate(lines) if line.startswith('@ ' + name + ' '))
-        count = int(lines[start].split()[2])
-        assert parsed[name] == [float32(value) for value in lines[start + 1:start + count + 1]]
-    reference = next(line.split()[1:] for line in lines if line.startswith('energy_reference '))
-    assert parsed['energy_reference'] == list(map(float, reference))
-    assert parsed['dimensions'] == [30, 91 if fixture == 'o3c3_uniform' else 55]
-    assert parsed['spin_cutoff'] == ([4, 6] if fixture == 'o3c2_typewise' else [6, 6])
-    assert parsed['spin_type'] == [1, 0]
+@pytest.mark.parametrize('name,dimension,count', [
+    ('c3l2s2',64,7270), ('c2l4s4',70,8151), ('c1l0s1',32,4081)])
+def test_spin_model(codec, tmp_path, name, dimension, count):
+    model = (Path(__file__).parent/'fixtures/nep_spin'/(name+'.nep')).read_text()
+    parsed = parse(codec,tmp_path/'model.nep',model)
+    assert parsed['dimensions'] == [30,dimension-30]
+    assert len(parsed['parameters']) == count
+    assert len(parsed['q_scaler']) == dimension
+    assert parsed['spin_type'] == [1,0,0]
 
 
-def test_defaults_and_universal_zbl(codec, tmp_path):
-    model, _ = load_fixture('o3c2_uniform')
-    model = model.replace('spin_type Fe\n', '')
-    model = model.replace('model nep_spin\n', 'model nep_spin\nzbl 1 2 0.75\n')
-    parsed = parse(codec, tmp_path / 'model.nep', model)
-    assert parsed['spin_type'] == [1, 1]
-    assert parsed['zbl'] == [1, 1, 2, 0.75]
-
-
-@pytest.mark.parametrize('edit', [
-    lambda s: s.replace('model nep_spin\n', 'model nep_spin3\n'),
-    lambda s: s.replace('spin_version 1', 'spin_mode 3'),
-    lambda s: s.replace('spin_version 1', 'spin_version 2'),
-    lambda s: s.replace('spin_version 1', 'spin_version 1.0'),
-    lambda s: s.replace('spin_version 1\n', ''),
-    lambda s: s.replace('spin_version 1', 'spin_version 1\nspin_version 1'),
-    lambda s: s.replace('energy_reference', 'unknown_reference'),
-    lambda s: s.replace('format_version 1', 'format_version 2'),
-    lambda s: s + '@ unexpected 1\n1\n',
-    lambda s: s.replace('spin_projection_size 16', 'spin_projection_size 15'),
-    lambda s: s.replace('spin_scaler 1', 'spin_scaler 0'),
-    lambda s: s.replace('spin_compress 2', 'spin_compress 9'),
-    lambda s: s.replace('spin_cutoff 6.0', 'spin_cutoff 0'),
-    lambda s: s.replace('spin_type Fe', 'spin_type Fe Fe'),
-    lambda s: s.replace('spin_type Fe', 'spin_dof_type Fe'),
-    lambda s: s.replace('spin_type Fe', 'spin_type Fe\nspin_env_type Fe Ge'),
-    lambda s: s.replace('ann 30 0', 'ann 30 1'),
-    lambda s: s.replace('@ parameters ', '@ q_scaler ', 1),
-    lambda s: s[:s.index('@ q_scaler')] + '@ q_scaler 1\n1\n',
-    lambda s: s[:s.index('@ q_scaler')] + '@ q_scaler 85\n' + '0\n' * 85,
-    lambda s: s[:s.index('@ q_scaler')] + '@ q_scaler 85\n' + '1e-100\n' * 85,
-    lambda s: 'nep4_spin3 2 Fe Ge\nspin_mode 3 9\n',
+@pytest.mark.parametrize('old,new', [
+    ('spin_version 1','spin_version 2'),
+    ('spin_version 1','spin_version 1.0'),
+    ('spin_soc 1','spin_soc 0'),
+    ('spin_order 2','spin_order 5'),
+    ('spin_l_max 2','spin_l_max 5'),
+    ('spin_basis_size 8','spin_basis_size 7'),
+    ('spin_type Fe','spin_dof_type Fe'),
 ])
-def test_reject_invalid_models(codec, tmp_path, edit):
-    model, _ = load_fixture('o3c2_uniform')
-    path = tmp_path / 'invalid.nep'
-    path.write_text(edit(model))
-    result = subprocess.run([codec, path], capture_output=True, text=True)
+def test_spin_reject_invalid(codec,tmp_path,old,new):
+    model = (Path(__file__).parent/'fixtures/nep_spin/c3l2s2.nep').read_text()
+    path = tmp_path/'invalid.nep';path.write_text(model.replace(old,new))
+    result=subprocess.run([codec,path],capture_output=True,text=True)
     assert result.returncode == 1 and result.stderr
 
 
-def test_reject_flexible_zbl(codec, tmp_path):
-    model, _ = load_fixture('o3c2_uniform')
-    path = tmp_path / 'flexible-zbl.nep'
-    path.write_text(model.replace('model nep_spin\n', 'model nep_spin\nzbl 0 0\n'))
+@pytest.mark.parametrize('channels,rank,order,dimension,projection', [
+    (3,2,2,61,87), (1,3,2,44,36), (1,4,4,58,98), (2,1,4,42,54)])
+def test_spin_nosoc_layout(codec,tmp_path,channels,rank,order,dimension,projection):
+    template=(Path(__file__).parent/'fixtures/nep_spin/c3l2s2.nep').read_text().split('@ parameters')[0]
+    for old,new in [('spin_soc 1','spin_soc 0'),('spin_compress 3',f'spin_compress {channels}'),
+                    ('spin_l_max 2',f'spin_l_max {rank}'),('spin_order 2',f'spin_order {order}')]:
+        template=template.replace(old,new)
+    count=3*32*(dimension+2)+1+810+projection
+    model=template+f'@ parameters {count}\n'+'0\n'*count+f'@ q_scaler {dimension}\n'+'1\n'*dimension
+    parsed=parse(codec,tmp_path/'nosoc.nep',model)
+    assert parsed['dimensions']==[30,dimension-30]
+    assert len(parsed['parameters'])==count
+
+
+@pytest.mark.parametrize('name', ['c3l2s2', 'c2l4s4', 'c1l0s1', 'c3l2s2_fege'])
+def test_parameter_and_scaler_order(codec, tmp_path, name):
+    model = (Path(__file__).parent/'fixtures/nep_spin'/(name+'.nep')).read_text()
+    parsed = parse(codec, tmp_path/'model.nep', model)
+    lines = model.splitlines()
+    for key in ('parameters','q_scaler'):
+        a = next(i for i,l in enumerate(lines) if l.startswith('@ '+key+' '))
+        count = int(lines[a].split()[2])
+        assert parsed[key] == [float32(v) for v in lines[a+1:a+1+count]]
+
+
+@pytest.mark.parametrize('old,new', [
+    ('spin_version 1', 'spin_version 1\nspin_version 1'),
+    ('spin_version 1\n', ''),
+    ('spin_type Fe', 'spin_type Fe Fe'),
+    ('spin_type Fe', 'spin_type Unknown'),
+    ('spin_cutoff 6', 'spin_cutoff 0'),
+    ('spin_cutoff 6', 'spin_cutoff 2.999'),
+    ('spin_cutoff 6', 'spin_cutoff 6 2.999 6'),
+    ('spin_cutoff 6', 'spin_cutoff 7'),
+    ('ann 32 0', 'ann 32 1'),
+    ('spin_scaler 1','spin_scaler 0'),
+    ('energy_reference','unknown_reference'),
+    ('@ q_scaler 64', '@ q_scaler 63'),
+    ('format_version 1', 'format_version 2'),
+    ('model nep_spin', 'model nep_spin\nzbl 0 0'),
+])
+def test_model_validation(codec,tmp_path,old,new):
+    model = (Path(__file__).parent/'fixtures/nep_spin/c3l2s2.nep').read_text()
+    assert old in model
+    path=tmp_path/'invalid.nep';path.write_text(model.replace(old,new))
+    result=subprocess.run([codec,path],capture_output=True,text=True)
+    assert result.returncode == 1 and result.stderr
+
+
+@pytest.mark.parametrize("angular,minimum", [
+    ("2 0 0 0 1 0 0", 3), ("2 0 0 0 0 1 0", 3), ("3 0 0 0 0 0 1", 4),
+])
+def test_structural_rank_for_mixed_invariants(codec, tmp_path, angular, minimum):
+    model = (Path(__file__).parent / 'fixtures/nep_spin/c3l2s2.nep').read_text()
+    path = tmp_path / "rank.nep"
+    path.write_text(model.replace("l_max 4 2 0\n", f"l_max {angular}\n"))
     result = subprocess.run([codec, path], capture_output=True, text=True)
     assert result.returncode == 1
-    assert 'NEP-spin does not support flexible ZBL' in result.stderr
+    assert f"structural l_max >= {minimum}" in result.stderr
 
 
-@pytest.mark.parametrize('cutoff', ['6.0', '7.0', '5.0 7.0'])
-@pytest.mark.parametrize('spin_first', [False, True])
-def test_spin_cutoff_bound(codec, tmp_path, cutoff, spin_first):
-    model, _ = load_fixture('o3c2_uniform')
-    model = model.replace('spin_cutoff 6.0', 'spin_cutoff ' + cutoff)
-    if spin_first:
-        line = next(line for line in model.splitlines() if line.startswith('cutoff '))
-        model = model.replace(line + '\n', '').replace(
-            'spin_cutoff ' + cutoff + '\n', 'spin_cutoff ' + cutoff + '\n' + line + '\n')
-    path = tmp_path / 'model.nep'
-    path.write_text(model)
-    result = subprocess.run([codec, path], capture_output=True, text=True)
-    if cutoff == '6.0':
-        assert result.returncode == 0, result.stderr
-    else:
-        assert result.returncode == 1
-        assert 'spin_cutoff must not exceed the NEP radial cutoff' in result.stderr
+def test_defaults_and_zbl(codec,tmp_path):
+    model=(Path(__file__).parent/'fixtures/nep_spin/c3l2s2.nep').read_text()
+    model=model.replace('spin_type Fe\n','').replace('model nep_spin\n','model nep_spin\nzbl 1 2 0.75\n')
+    parsed=parse(codec,tmp_path/'model.nep',model)
+    assert parsed['spin_type']==[1,1,1]
+    assert parsed['zbl']==[1,1,2,.75]
 
 
-@pytest.mark.parametrize('record', ['MODEL NEP_SPIN', 'model nep_spin#comment', None])
-def test_model_selection_uses_file_parser(codec, tmp_path, record):
-    model, _ = load_fixture('o3c2_uniform')
-    changed = model.replace('model nep_spin\n', record + '\n' if record else '')
-    if record is None:
-        changed += '\nmodel nep_spin\n'
-    assert parse(codec, tmp_path / 'model.nep', changed)['spin_type'] == [1, 0]
+def test_spin_cutoff_lower_bound(codec, tmp_path):
+    model = (Path(__file__).parent/'fixtures/nep_spin/c3l2s2.nep').read_text()
+    for cutoff, expected in [('3', [3, 3, 3]), ('3 4 6', [3, 4, 6])]:
+        parsed = parse(codec, tmp_path/'cutoff.nep', model.replace('spin_cutoff 6', 'spin_cutoff '+cutoff))
+        assert parsed['spin_cutoff'] == expected

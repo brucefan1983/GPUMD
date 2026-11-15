@@ -13,16 +13,19 @@ This allows approximate inclusion of nuclear quantum effects (zero-point energy 
 
 The :attr:`npt_qtb` variant combines the QTB thermostat with the Parrinello-Rahman (MTTK) barostat [Martyna1994]_, equivalent to LAMMPS ``fix nph`` + ``fix qtb``.
 
-
 Syntax
 ------
 
+::
+
+  ensemble nvt_qtb <T_1> <T_2> <T_coup> [f_max <value>] [N_f <value>]
+  ensemble npt_qtb <direction> <p_1> <p_2> temp <T_1> <T_2> tperiod <tau_T> pperiod <tau_p> [f_max <value>] [N_f <value>]
+
+Parameters
+----------
+
 :attr:`nvt_qtb`
 ^^^^^^^^^^^^^^^
-
-Run an NVT simulation with the QTB thermostat::
-
-    ensemble nvt_qtb <T_1> <T_2> <T_coup> [f_max <value>] [N_f <value>]
 
 * :attr:`<T_1>` and :attr:`<T_2>`: Initial and final target temperature (K). The target temperature varies linearly during the run.
 * :attr:`<T_coup>`: Thermostat coupling parameter (in units of timestep). Controls the friction coefficient: :math:`\gamma = 1 / (\text{T\_coup} \times dt)`.
@@ -31,10 +34,6 @@ Run an NVT simulation with the QTB thermostat::
 
 :attr:`npt_qtb`
 ^^^^^^^^^^^^^^^
-
-Run an NPT simulation with the QTB thermostat and Parrinello-Rahman (MTTK) barostat::
-
-    ensemble npt_qtb <direction> <p_1> <p_2> temp <T_1> <T_2> tperiod <tau_T> pperiod <tau_p> [f_max <value>] [N_f <value>]
 
 Pressure control parameters:
 
@@ -52,6 +51,10 @@ QTB-specific optional parameters (same as :attr:`nvt_qtb`):
 * :attr:`f_max`: Maximum frequency (ps\ :sup:`-1`, default 200).
 * :attr:`N_f`: Number of frequency points (default 100).
 
+Output
+------
+
+None.
 
 Examples
 --------
@@ -63,7 +66,7 @@ NVT-QTB
 
     ensemble nvt_qtb 300 300 100
 
-Run at 300 K with QTB thermostat. The coupling parameter is 100 timesteps.
+Run at 300 K with QTB thermostat. The coupling parameter is 100 time steps.
 
 .. code-block:: rst
 
@@ -92,7 +95,6 @@ Anisotropic pressure control with explicit QTB parameters.
 
 Apply 5 GPa along x and 0 GPa along y and z.
 
-
 Notes
 -----
 
@@ -102,8 +104,8 @@ Notes
 * The :attr:`npt_qtb` ensemble uses the MTTK (Martyna-Tuckerman-Tobias-Klein) integrator for pressure control, which is the same as :ref:`npt_mttk <mttk>` but with the Nosé-Hoover chain thermostat replaced by the QTB thermostat.
 * The :attr:`f_max` parameter should be set larger than the highest phonon frequency in the system. For water, 200 ps\ :sup:`-1` is sufficient.
 
+.. only:: html
 
-References
-----------
+   .. rubric:: References
 
-.. [Dammak2009] H. Dammak, Y. Chalopin, M. Laroche, M. Hayoun, and J.-J. Greffet, *Quantum Thermal Bath for Molecular Dynamics Simulation*, Phys. Rev. Lett. **103**, 190601 (2009).
+.. [Dammak2009] H\. Dammak, Y. Chalopin, M. Laroche, M. Hayoun, and J.-J. Greffet, *Quantum Thermal Bath for Molecular Dynamics Simulation*, Phys. Rev. Lett. **103**, 190601 (2009).

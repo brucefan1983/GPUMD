@@ -8,6 +8,8 @@
 This file contains the running electrical conductivity :math:`\Sigma(E,t)` as a function of energy :math:`E` and correlation time :math:`t`, from linear-scaling quantum transport (:term:`LSQT`) calculations.
 It is produced when invoking the :ref:`compute_lsqt keyword <kw_compute_lsqt>` in the :ref:`run.in input file <run_in>`.
 
+Results are appended to the file.
+
 File format
 -----------
 

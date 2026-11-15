@@ -24,6 +24,7 @@ Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <algorithm>
 #include <cstring>
 
 #define BLOCK_SIZE_FORCE 128
@@ -116,7 +117,7 @@ ILP_TERSOFF::ILP_TERSOFF(FILE* fid_ilp, FILE* fid_tersoff, int num_types, int nu
   initialize_tersoff_1988(fid_tersoff, num_atoms);
 
   // initialize neighbor lists and some temp vectors
-  int max_neighbor_number = min(num_atoms, CUDA_MAX_NL_CBN);
+  int max_neighbor_number = std::min(num_atoms, CUDA_MAX_NL_CBN);
   ilp_data.NN.resize(num_atoms);
   ilp_data.NL.resize(num_atoms * max_neighbor_number);
   ilp_data.cell_count.resize(num_atoms);

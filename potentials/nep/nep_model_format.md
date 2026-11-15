@@ -547,73 +547,117 @@ The model tables in Section 4.1 determine the number of outputs, global paramete
 
 For `model nep_spin`, `spin_version` identifies the magnetic descriptor and
 parameter layout, independently of `format_version`. Its only supported value
-is the literal token `1`. The following fields supplement the common
-energy-model fields; all are required except `spin_type`.
+is `1`. The following fields supplement the common energy-model fields;
+all are required except `spin_type`.
 
 | Field | Version-1 meaning |
 |---|---|
 | `spin_version 1` | Magnetic descriptor and parameter-layout version |
-| `spin_basis_size 8` | Fixed maximum magnetic radial basis index; nine basis functions |
-| `spin_l_max L` | Magnetic angular rank, `L` in `0..2` |
-| `spin_compress C` | Number of compressed radial channels, `C` in `1..9` |
-| `spin_order <order>` | Contraction order in `1..3` |
-| `spin_soc <flag>` | Joint spin/spatial channels: `0` or `1` |
-| `spin_cutoff ...` | One cutoff, or `T` cutoffs in element order, in angstroms; each must satisfy `0 < cutoff <= rc_radial`; pair cutoff is their arithmetic mean |
-| `spin_projection_size P` | Number of projection coefficients; must equal `4*C*C` |
+| `spin_basis_size K` | Maximum magnetic radial basis index; must equal the second structural `basis_size` value |
+| `spin_l_max L` | Maximum spatial/spin tensor rank, `L` in `0..4` |
+| `spin_compress C` | Number of learned radial channels, `C` in `1..9` |
+| `spin_order s` | Maximum spin polynomial degree, `s` in `1..4` |
+| `spin_soc <flag>` | Independent spin/spatial rotations (`0`) or joint rotations (`1`) |
+| `spin_cutoff ...` | One cutoff, or `T` cutoffs in element order, in angstroms; `3 <= cutoff <= rc_radial`; pair cutoff is their arithmetic mean |
 | `spin_scaler 1` | Per-component scaling is present in `q_scaler` |
 | `spin_type <elements...>` | Optional nonempty subset with independent spin degrees of freedom; defaults to all elements |
 
 Entries in `spin_type` must be distinct elements from the first line. This
 selection does not change the element order or the sizes of parameter arrays.
-For descriptor definitions and units, see
+All atom types are energy centers. For descriptor definitions and units, see
 [the Spin potential documentation](../../doc/potentials/nep_spin.rst).
 
 Version 1 requires one hidden layer (`ann N1 0`, `1 <= N1 <= 120`) and uniform
 structural cutoffs with `3 <= rc_angular <= rc_radial <= 100`. Structural
 indices satisfy `0 <= nr <= 12`, `0 <= na <= 8`, `0 <= br <= 16`,
-`0 <= ba <= 12`, and `2 <= L_max <= 8`. The model reader accepts at most
-90 structural angular components, 96 magnetic components, and 199 total
-descriptor components. `energy_reference` and optional universal `zbl` use
-the shared syntax; flexible ZBL and the `zbl_parameters` block are unsupported.
+`0 <= ba <= 12`, and `2 <= L_max <= 8`. At most 90 structural angular
+components and 339 total descriptor components are allowed. `energy_reference`
+and optional universal `zbl` use the shared syntax; flexible ZBL and the
+`zbl_parameters` block are unsupported.
 
-#### Parameter and scaler layout
+#### Primitive, path and sector ordering
+
+Here `C`, `L` and `s` denote `spin_compress`, `spin_l_max` and `spin_order`.
+The primitive `(d,j)` is `|spin|^(d-j) * Y_j(spin)`, where `Y_j` is the
+component-normalized real solid harmonic of rank `j`. Enumerate primitives
+by increasing degree `d = 0..s`, then increasing rank
+`j = d mod 2, d mod 2 + 2, ..., min(d,L)`.
+The first primitive is `(0,0)`; let `N_prim` count all remaining primitives.
+The center-primitive mixing array follows this positive-degree primitive order.
+
+For `spin_soc 1`:
+
+- Paths are ordered by spatial rank `g = 0..L`, primitive `(d,j)` in the
+  order above, site, then coupled rank `o = |g-j|..min(g+j,L)`.
+- Degree-zero primitives use the center site only. Positive-degree primitives have
+  two sites, center first and neighbor second.
+- Each path belongs to the sector `(o, spatial_parity, time_parity)`, with
+  `spatial_parity = (-1)^g` and `time_parity = (-1)^d`. Collect distinct
+  sector keys and sort them lexicographically, with `-1` before `+1`.
+
+For `spin_soc 0`:
+
+- Sectors are ordered by increasing spatial rank `g = 0..L`, then spin
+  rank `j = 0..min(L,s)`.
+- Paths are ordered by `(g,j)`, then by primitives of rank `j` in the
+  degree/rank order above, then by site. Site order and the degree-zero
+  rule are the same as for SOC.
+
+Let `N_path` and `N_sector` be the numbers of paths and sectors obtained from
+these rules. They specify array lengths and indices; no path or sector table
+is stored in `nep.txt`.
+
+#### Parameter layout
 
 Let `D = D_struct + D_spin`, where `D_struct` is the dimension in Section 4.1
-without extra inputs. `D_spin` is determined by `spin_compress`, `spin_l_max`,
-`spin_order`, and `spin_soc`, as implemented by `NEP_Spin_Model_File::spin_dimension`
-in [nep_spin_model_file.cu](../../src/utilities/nep_io/nep_spin_model_file.cu).
+without extra inputs. The number of positive-degree rank-zero primitives is
+`N_local = floor(s/2)`. The magnetic dimension is
+
+```text
+D_spin = N_local + C * (N_sector + 1).
+```
+
 With `O = G = S = 1` in Section 4.1, the parameter vector is:
 
 ```text
 ANN parameters and common energy-output bias
 structural radial coefficients   [T, T, nr + 1, br + 1]
 structural angular coefficients  [T, T, na + 1, ba + 1]
-magnetic radial coefficients    [C, 9, T, T]
-magnetic projection coefficients [4, C, C]
+radial mixing                   [na + 1, C]
+coupling-path weights           [N_path, C]
+center-primitive mixing         [N_prim, C]
 ```
 
-All arrays use C order. The magnetic radial indices are
-`[channel, basis, center_type, neighbor_type]`; their type pair is the fastest
-varying index, unlike the structural segments. Projection indices are
-`[leg, output_channel, source_channel]`. The total parameter count is
+All arrays use C order. The structural angular coefficients are reused by
+the spin descriptor. The three final arrays are shared across element types;
+channel index `0..C-1` varies fastest in each array. Path and primitive
+indices follow the rules above. The total parameter count is
 
 ```text
 N = T * N1 * (D + 2) + 1
     + T*T * ((nr + 1)*(br + 1) + (na + 1)*(ba + 1))
-    + 9*C*T*T + 4*C*C.
+    + C * (na + 1 + N_path + N_prim).
 ```
 
-The `q_scaler` block contains `D` finite, strictly positive values, with
-structural components first as in Section 4.2. Magnetic components follow
-the version-1 contraction order defined by
-`make_spin_polynomial_layout` in [nep_spin3_layout.cuh](../../src/force/nep_spin/nep_spin3_layout.cuh):
-local squared moment; order-1 edge terms; order-2 edge/density/correlation and
-axial terms; then order-3 gated and coupled terms. Disabled families contribute
-no entries. Channels increase within a family; channel-pair families use
-`(0,0), (0,1), ..., (0,C-1), (1,1), ..., (C-1,C-1)`.
+#### Scaler layout
+
+The `q_scaler` block contains `D` finite, strictly positive values. Structural
+components come first, in the order given in Section 4.2. Magnetic components
+follow in this order:
+
+1. Positive-degree rank-zero local primitives, in the primitive order above
+   (`d = 2, 4, ...`), with one coordinate per primitive.
+2. Sectors in the SOC or non-SOC order above. Within each sector, store
+   the scalar tensor sum for channels `0..C-1`, if present, followed by
+   the squared tensor norm for channels `0..C-1`.
+
+The scalar tensor sum is present only for the SOC sector `(0,+1,+1)` or
+the non-SOC sector `(g,j) = (0,0)`. Squared norms are divided by `2*o+1`
+for SOC and by `(2*g+1)*(2*j+1)` for non-SOC. Each scaler corresponds to
+one descriptor coordinate in this order.
 
 Spin models use the shared `nep.restart` syntax in Section 6. Its `mu` and
-`sigma` vectors use the same parameter ordering above; Spin metadata and
+`sigma` vectors use the same parameter ordering above; spin metadata and
 `q_scaler` are stored only in the corresponding `nep.txt`.
 
 ## 6. `nep.restart`

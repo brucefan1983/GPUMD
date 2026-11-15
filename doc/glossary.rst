@@ -45,16 +45,16 @@ Glossary
         :ref:`Green-Kubo modal analysis <green_kubo_modal_analysis>` [Lv2016]_
 
    HAC
-        :ref:`heat current auto-correlation <heat_current_autocorrelation>`
+        :ref:`heat current autocorrelation <heat_current_autocorrelation>`
 
    HNEMA
-        :ref:`homogeneous non-equilibrium modal analysis <hnema>` [Gabourie2021]_
+        :ref:`homogeneous nonequilibrium modal analysis <hnema>` [Gabourie2021]_
 
    HNEMD
-        :ref:`The homogeneous non-equilibrium molecular dynamics <hnemd>`
+        :ref:`homogeneous nonequilibrium molecular dynamics <hnemd>`
 
    HNEMDEC
-        :ref:`homogeneous non-equilibrium molecular dynamics Evans-Cummings algorithm <hnemdec>`
+        :ref:`homogeneous nonequilibrium molecular dynamics Evans-Cummings algorithm <hnemdec>`
 
    IC
         ionic conductivity
@@ -75,22 +75,22 @@ Glossary
         molecular dynamics
 
    MSD
-        mean square displacement
+        mean-square displacement
 
    MSST
-        :ref:`Multi-scale shock technique <msst>` [Reed2003]_
+        :ref:`multiscale shock technique <msst>` [Reed2003]_
 
    MTTK
         :ref:`Martyna-Tuckerman-Tobias-Klein integrator <mttk>` [Martyna1994]_
 
    NEMD
-        :ref:`non-equilibrium molecular dynamics <nemd>`
+        :ref:`nonequilibrium molecular dynamics <nemd>`
 
    NEP
         :ref:`neuroevolution potential <nep_formalism>`
 
    NHC
-        :ref:`Nose-Hoover chain thermostat <nose_hoover_chain_thermostat>` [Tuckerman2010]_
+        :ref:`Nosé-Hoover chain thermostat <nose_hoover_chain_thermostat>` [Tuckerman2010]_
 
    NN
         neural network
@@ -138,7 +138,7 @@ Glossary
         thermostatted ring-polymer molecular dynamics
 
    VAC
-        velocity auto-correlation
+        velocity autocorrelation
 
    VCSGC
         variance-constrained semi-grand canonical [Sadigh2012a]_ [Sadigh2012b]_

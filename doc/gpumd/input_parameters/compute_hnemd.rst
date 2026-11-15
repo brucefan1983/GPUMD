@@ -5,8 +5,7 @@
 :attr:`compute_hnemd`
 =====================
 
-This keyword is used to calculate the thermal conductivity using the :ref:`homogeneous non-equilibrium molecular dynamics <hnemd>` (:term:`HNEMD`) method [Fan2019]_.
-The results are written to the :ref:`kappa.out output file <kappa_out>`.
+This keyword is used to calculate the thermal conductivity using the :ref:`homogeneous nonequilibrium molecular dynamics <hnemd>` (:term:`HNEMD`) method [Fan2019]_.
 
 Syntax
 ------
@@ -14,6 +13,9 @@ Syntax
 .. code::
 
    compute_hnemd <output_interval> <Fe_x> <Fe_y> <Fe_z>
+
+Parameters
+----------
 
 The first parameter is the output interval.
 
@@ -25,6 +27,11 @@ According to Eq. (8) of [Fan2019]_:
 * Using a nonzero :math:`x` component of :math:`\boldsymbol{F}_e`, one can obtain the :math:`xx`, :math:`yx` and :math:`zx` components of the thermal conductivity tensor.
 * Using a nonzero :math:`y` component of :math:`\boldsymbol{F}_e`, one can obtain the :math:`xy`, :math:`yy` and :math:`zy` components of the thermal conductivity tensor.
 * Using a nonzero :math:`z` component of :math:`\boldsymbol{F}_e`, one can obtain the :math:`xz`, :math:`yz` and :math:`zz` components of the thermal conductivity tensor.
+
+Output
+------
+
+The results are written to the :ref:`kappa.out output file <kappa_out>`.
 
 Examples
 --------
@@ -40,14 +47,7 @@ This means that
 
 * you want to calculate the thermal conductivity using the :term:`HNEMD` method;
 * the thermal conductivity will be averaged and output every 1000 steps (the heat current is sampled for every step);
-* the external driving force is along the :math:`x` direction and has a magnitude of :math:`10^{-5}` Å\ :sup:`-1`. 
-
-Note that one should control the temperature when using this keyword.
-Otherwise, the system will be heated up by the external driving force.
-
-**Important:**
-For this purpose, the :ref:`Nose-Hoover chain thermostat <nose_hoover_chain_thermostat>` is recommended.
-The :ref:`Langevin thermostat <langevin_thermostat>` cannot be used for this purpose because it will affect the dynamics of the system.
+* the external driving force is along the :math:`x` direction and has a magnitude of :math:`10^{-5}` Å\ :sup:`-1`.
 
 Example 2
 ^^^^^^^^^
@@ -57,3 +57,13 @@ Example 2
    compute_hnemd 1000 0 0.00001 0
 
 This is similar to the above example, but the external driving force is applied along the :math:`y` direction.
+
+Notes
+-----
+
+Note that one should control the temperature when using this keyword.
+Otherwise, the system will be heated up by the external driving force.
+
+**Important:**
+For this purpose, the :ref:`Nosé-Hoover chain thermostat <nose_hoover_chain_thermostat>` is recommended.
+The :ref:`Langevin thermostat <langevin_thermostat>` cannot be used for this purpose because it will affect the dynamics of the system.

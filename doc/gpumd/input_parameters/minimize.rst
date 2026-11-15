@@ -10,14 +10,16 @@ Minimization is performed immediately when this command is read from ``run.in`` 
 Subsequent commands use the resulting atomic positions and simulation cell.
 Currently, the fast inertial relaxation engine (FIRE) [Bitzek2006]_ [Guénolé2020]_ method and the steepest descent (SD) method have been implemented.
 
-
 Syntax
 ------
 
-This keyword is used as follows::
+::
 
   minimize sd <force_tolerance> <maximal_number_of_steps>
   minimize fire <force_tolerance> <maximal_number_of_steps> [<box_change> [<hydrostatic_strain>]]
+
+Parameters
+----------
 
 The methods are :attr:`sd` (steepest descent) and :attr:`fire` (FIRE).
 :attr:`force_tolerance` is in units of eV/Å.
@@ -30,6 +32,12 @@ For box optimization, convergence requires both the force criterion above and a 
 With general strain, the largest absolute component of the virial tensor divided by the volume must be below :math:`10^{-4}` GPa.
 With hydrostatic strain, the absolute hydrostatic pressure must be below :math:`10^{-4}` GPa.
 These minimization pressures contain only the virial contribution.
+
+Output
+------
+
+Minimization progress is printed to the console.
+The optimized structure can be saved using the output procedure shown in the examples.
 
 Examples
 --------
@@ -44,7 +52,7 @@ means that one wants to do an energy minimization using the steepest descent met
 
 Example 2
 ^^^^^^^^^
-If you have no idea how small :attr:`force_tolerance` should be, you can simply assign a negative number to it::
+To run a fixed number of SD iterations, use a negative force tolerance::
 
   minimize sd -1 10000
 
@@ -62,7 +70,7 @@ Example 4
 ^^^^^^^^^^^^^
 The command::
 
-  minimize fire 1.0e-5 1000 1 
+  minimize fire 1.0e-5 1000 1
 
 means that one wants to optimize box during the energy minimization process.
 
@@ -86,8 +94,8 @@ To write the optimized structure, follow minimization with a single NVE step at 
 This writes the structure without advancing the atomic positions.
 Before a subsequent MD run, restore a suitable positive :ref:`time step <kw_time_step>` and specify the :ref:`ensemble <kw_ensemble>` and output commands for that run.
 
-Caveats
--------
+Notes
+-----
 
 * This keyword should occur after the :ref:`potential keyword <kw_potential>`.
 

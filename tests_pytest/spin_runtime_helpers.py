@@ -18,7 +18,7 @@ def base_model():
 def run_case(root, name, run_input, model_text=None):
     case = root / name
     case.mkdir()
-    shutil.copy(FIXTURE / "nep_spin_o3c2_uniform.nep", case / "nep.txt")
+    shutil.copy(FIXTURE / "c3l2s2_fege.nep", case / "nep.txt")
     (case / "model.xyz").write_text(model_text or base_model())
     (case / "run.in").write_text(run_input)
     result = subprocess.run(

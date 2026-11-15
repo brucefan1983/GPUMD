@@ -39,7 +39,7 @@ private:
   static constexpr double f_alpha = 0.99;
   static constexpr double dt_0 = 0.1;
   static constexpr double dt_max_spin = 1.0;
-  static constexpr double dt_max_joint = 0.3;
+  static constexpr double dt_max_joint = 0.2;
   static constexpr double dt_min = 1.0e-12;
   static constexpr int N_min = 5; // Grow dt after more than N_min positive-power steps.
 

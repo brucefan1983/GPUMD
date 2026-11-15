@@ -74,7 +74,7 @@ private:
   double rc_min_ = 0.0;
   double rc_max_ = 3.0;
 
-  std::vector<int> adf;
+  std::vector<unsigned long long> adf;
   std::vector<double> angle;
   std::vector<int> itype_cpu;
   std::vector<int> jtype_cpu;
@@ -84,7 +84,7 @@ private:
   std::vector<double> rc_min_k_cpu;
   std::vector<double> rc_max_k_cpu;
 
-  GPU_Vector<int> adf_gpu;
+  GPU_Vector<unsigned long long> adf_gpu;
   GPU_Vector<int> itype_gpu;
   GPU_Vector<int> jtype_gpu;
   GPU_Vector<int> ktype_gpu;

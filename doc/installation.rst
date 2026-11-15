@@ -7,112 +7,112 @@ Installation
 Download
 ========
 
-The source code is hosted on `github <https://github.com/brucefan1983/GPUMD>`_.
+Download the source from the `GPUMD repository <https://github.com/brucefan1983/GPUMD>`_, or clone it with Git::
 
+  git clone https://github.com/brucefan1983/GPUMD.git
+  cd GPUMD
+
+The commands below refer to this repository directory.
 
 Prerequisites
 =============
 
-.. tabs::
+For NVIDIA GPUs, use a CUDA toolkit and driver that support the target GPU, with a compatible host compiler.
 
-   .. tab:: Make
+* **Make:** the Linux makefile uses C++14. On Windows, use ``cl.exe`` from Microsoft Visual Studio and a `64-bit make.exe <http://www.equation.com/servlet/equation.cmd?fa=make>`_.
+* **CMake (pre-release):** use CMake 3.24 or newer and a host compiler with C++17 support. On Windows, use ``cl.exe`` from Microsoft Visual Studio.
 
-      To compile and run :program:`GPUMD` on NVIDIA GPUs, use a CUDA toolkit and driver that support the target GPU.
-      On Linux systems, the default makefile uses C++14; the host compiler must support this standard and be compatible with the selected CUDA toolkit.
-      On Windows systems, one also needs the ``cl.exe`` compiler from Microsoft Visual Studio and a `64-bit version of make.exe <http://www.equation.com/servlet/equation.cmd?fa=make>`_.
-
-      Alternatively, :program:`GPUMD` can be built for AMD GPUs through ROCm/HIP (see :ref:`Building for AMD GPUs <build_amd_hip>` below); this requires a ROCm installation.
-
-   .. tab:: CMake (pre-release)
-
-      CMake 3.24 or newer is required on all platforms.
-      Use an NVIDIA GPU, a compatible CUDA toolkit and driver, and a host compiler that supports C++17.
-      On Windows systems, the host compiler is ``cl.exe`` from Microsoft Visual Studio.
+For AMD GPUs, use ROCm/HIP and follow :ref:`Building for AMD GPUs <build_amd_hip>`.
 
 .. _compilation:
 
 Compilation
 ===========
 
+Choose one build method.
+Both produce ``gpumd``, ``nep``, and ``tb`` by default.
+
 .. tabs::
 
    .. tab:: Make
 
-      In the ``src`` directory run ``make``, which generates three executables: ``nep``, ``gpumd``, and ``tb``.
-      To build only the MD executable, run ``make gpumd``.
-      Set ``CUDA_ARCH`` to an architecture supported by both your GPU and CUDA toolkit, for example::
+      Run ``make`` in ``src``. Set ``CUDA_ARCH`` for your GPU and CUDA toolkit, for example::
 
+        cd src
         make CUDA_ARCH=-arch=sm_89
 
-      This example targets an RTX 4090. The makefile defaults to ``sm_60``; CUDA 13.0 removed offline compilation support for Pascal GPUs, including ``sm_60``.
-      See the `CUDA release notes <https://docs.nvidia.com/cuda/archive/13.0.0/cuda-toolkit-release-notes/index.html>`_ for architecture compatibility.
-      Check the comments at the beginning of the makefile for additional options.
+      This example targets an RTX 4090. The executables are written to ``src``.
+      To build only one executable, add its target name, for example ``make gpumd CUDA_ARCH=-arch=sm_89``.
+
+      The makefile defaults to ``sm_60``. CUDA 13.0 removed offline compilation support for Pascal GPUs, including ``sm_60``; see the `CUDA release notes <https://docs.nvidia.com/cuda/archive/13.0.0/cuda-toolkit-release-notes/index.html>`_.
+      Check the comments at the beginning of ``src/makefile`` for other options.
+      After changing compiler flags, GPU architecture, or optional libraries, run ``make clean`` before rebuilding.
 
    .. tab:: CMake (pre-release)
 
-      Configure and compile from the project root:
+      Configure and build from the repository root::
 
-      .. code-block:: bash
-
-        cmake -S . -B build -D CMAKE_BUILD_TYPE=Release
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
         cmake --build build --config Release --parallel
 
-      The default targets are ``gpumd``, ``nep``, and ``tb``.
-      With a single-configuration generator, the executables are placed in ``build``; with Visual Studio, they are normally in ``build/Release``.
-      ``CMAKE_BUILD_TYPE=Release`` selects optimization for single-configuration generators such as Unix Makefiles and Ninja; ``--config Release`` selects the configuration for generators such as Visual Studio.
-      Omit ``--parallel`` to fall back to serial compilation.
+      The executables are placed in ``build`` with a single-configuration generator, or normally in ``build/Release`` with Visual Studio.
+      ``CMAKE_BUILD_TYPE`` selects the configuration for generators such as Unix Makefiles and Ninja; ``--config`` selects it for generators such as Visual Studio.
+      Omit ``--parallel`` for serial compilation.
 
-      To target a specific GPU architecture, add ``-D`` at configure time:
+      The GPU architecture defaults to ``native``.
+      To choose it explicitly, add ``-DCMAKE_CUDA_ARCHITECTURES`` to the configure command, for example for an RTX 4090::
 
-      .. code-block:: bash
+        cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=89
 
-        -D CMAKE_CUDA_ARCHITECTURES=value   # 80, 90, ... (default native)
+      To build only one executable, add its target name::
 
-
-When changing compiler flags, GPU architecture, or optional library support in a Make build, run ``make clean`` before rebuilding.
-The optional-library examples below append flags after the existing variable definitions in ``src/makefile``.
+        cmake --build build --config Release --target gpumd --parallel
 
 .. _build_amd_hip:
 
 Building for AMD GPUs (ROCm/HIP)
 ================================
 
-.. tabs::
+Use ``src/makefile.hip`` with a ROCm installation that provides ``hipcc``, rocThrust/rocPRIM, hipBLAS, hipSOLVER, and hipFFT::
 
-   .. tab:: Make
+  cd src
+  make -f makefile.hip
 
-      :program:`GPUMD` also runs on AMD GPUs through ROCm/HIP. In the ``src`` directory, build with the HIP makefile instead of the default one::
+The target architecture defaults to ``gfx90a``. Select another AMD GPU with ``HIP_ARCH``, for example::
 
-        make -f makefile.hip
+  make -f makefile.hip HIP_ARCH=gfx1100
 
-      This uses ``hipcc`` and links rocThrust/rocPRIM, hipBLAS, hipSOLVER, and hipFFT, so it requires a ROCm installation. The target GPU architecture defaults to ``gfx90a``; build for another AMD GPU by setting ``HIP_ARCH``::
+The executables are written to ``src``.
+After changing build options, clean with ``make -f makefile.hip clean`` before rebuilding.
+CMake builds for AMD GPUs are not yet supported.
 
-        make -f makefile.hip HIP_ARCH=gfx1100
+Running a program
+=================
 
-   .. tab:: CMake (pre-release)
+Run the executable from the directory containing the input files, using its full path or adding its directory to ``PATH``.
+For example, in a Linux shell after a Make build::
 
-      CMake build for AMD GPUs is not yet supported.
+  export PATH="/path/to/GPUMD/src:$PATH"
 
+Replace ``/path/to/GPUMD/src`` with your executable directory; for a CMake build, use ``/path/to/GPUMD/build`` instead.
+Then run ``gpumd`` from the simulation directory or ``nep`` from the training directory.
+Follow the :ref:`MD workflow <gpumd_executable>` or :ref:`NEP training and prediction workflow <nep_executable>` for the required inputs and outputs.
+The repository's `examples directory <https://github.com/brucefan1983/GPUMD/tree/master/examples>`_ provides examples for both programs.
 
-Examples
-========
-
-You can find several examples for how to use both the ``gpumd`` and ``nep`` executables in `the examples directory <https://github.com/brucefan1983/GPUMD/tree/master/examples>`_ of the :program:`GPUMD` repository.
-   
 GPU selection and multi-GPU execution
 =====================================
 
 The ``nep`` executable uses all GPUs visible to the process. On CUDA systems,
 use ``CUDA_VISIBLE_DEVICES`` to select a subset, for example::
 
-  CUDA_VISIBLE_DEVICES=0 ./nep
-  CUDA_VISIBLE_DEVICES=0,1 ./nep
+  CUDA_VISIBLE_DEVICES=0 nep
+  CUDA_VISIBLE_DEVICES=0,1 nep
 
 The ``gpumd`` executable also uses all visible GPUs when running standard NEP
 or temperature-dependent NEP models, and ``nep_spin`` spin models.
 For example::
 
-  CUDA_VISIBLE_DEVICES=0,1 ./gpumd
+  CUDA_VISIBLE_DEVICES=0,1 gpumd
 
 For ordinary MD, charge NEP models currently use the single-GPU implementation in ``gpumd``.
 For replica dynamics, :ref:`multi_replica <kw_multi_replica>` assigns complete replicas of an energy NEP or charge NEP system to the visible GPUs.
@@ -228,56 +228,38 @@ output formats are unchanged.
 NetCDF setup
 ============
 
-To use `NetCDF <https://www.unidata.ucar.edu/software/netcdf/>`_ (see :ref:`dump_netcdf keyword <kw_dump_netcdf>`) with :program:`GPUMD`, a few extra steps must be taken before building :program:`GPUMD`.
-First, you must download and install a compatible version of NetCDF.
-:program:`GPUMD` requires netCDF-C 4.6.3 or later; version 4.6.3 remains a known-compatible baseline.
+The :ref:`dump_netcdf command <kw_dump_netcdf>` requires netCDF-C 4.6.3 or newer.
+The steps below use Make; append the flags after the existing variable definitions in ``src/makefile``.
 
-The setup instructions are below:
+Install NetCDF
+--------------
 
-* Download `netCDF-C 4.6.3 <https://github.com/Unidata/netcdf-c/releases/tag/v4.6.3>`_ or a `newer release <https://github.com/Unidata/netcdf-c/releases>`_.
-* Configure and build NetCDF.
-  It is best to follow the instructions included with the software but, for the configuration, please use the following flags seen in our example line
+Install `netCDF-C 4.6.3 <https://github.com/Unidata/netcdf-c/releases/tag/v4.6.3>`_ or a `newer release <https://github.com/Unidata/netcdf-c/releases>`_, following its build instructions.
+For uncompressed output, a minimal configuration is::
 
-  .. code:: bash
+  ./configure --prefix=<path> --disable-netcdf-4 --disable-dap
+  make -j
+  make install
 
-     ./configure --prefix=<path> --disable-netcdf-4 --disable-dap
+Here, ``<path>`` is the installation directory.
+This configuration avoids HDF5 and zlib dependencies.
+For ``compression deflate`` output, omit ``--disable-netcdf-4`` and build with NetCDF4/HDF5 and zlib support.
+If a newer release reports a missing ``xml2-config``, add ``--disable-libxml2`` to use its bundled XML parser.
 
-  This configuration supports the default uncompressed NetCDF output and avoids the
-  additional HDF5 and zlib dependencies. To use the optional ``compression deflate``
-  mode, install NetCDF-C with NetCDF4/HDF5 and zlib support by omitting
-  ``--disable-netcdf-4``. For newer NetCDF-C releases, if ``configure`` reports that
-  ``xml2-config`` cannot be found, add ``--disable-libxml2`` to use the bundled XML
-  parser. Here, the :attr:`--prefix` determines the output directory of the build.
-  Then make and install NetCDF:
+Compile GPUMD
+-------------
 
-  .. code:: bash
+Append the following to ``src/makefile``, replacing ``<path>`` with the NetCDF installation directory:
 
-     make -j && make install
+.. code:: make
 
-* Enable the NetCDF functionality.
-  To do this, one must enable the :attr:`USE_NETCDF` flag.
-  In the makefile, this will look as follows:
+  CFLAGS += -DUSE_NETCDF
+  INC += -I<path>/include
+  LDFLAGS += -L<path>/lib -Xlinker=-rpath -Xlinker=<path>/lib
+  LIBS += -lnetcdf
 
-  .. code:: make
-
-     CFLAGS += -DUSE_NETCDF
-
-  In addition to that line the makefile must also be updated to the following:
-
-  .. code:: make
-
-     INC += -I<path>/include
-     LDFLAGS += -L<path>/lib -Xlinker=-rpath -Xlinker=<path>/lib
-     LIBS += -lnetcdf
-
-  where :attr:`<path>` should be replaced with the installation path for NetCDF
-  (defined in :attr:`--prefix` of the ``./configure`` command). The ``-L`` option
-  specifies where to find NetCDF while linking, and the ``-rpath`` linker option
-  records this location so that the shared NetCDF library can also be found when
-  running :program:`GPUMD`.
-* Follow the remaining :program:`GPUMD` installation instructions
-
-Following these steps will enable the :ref:`dump_netcdf keyword <kw_dump_netcdf>`.
+The library path is used both when linking and when running GPUMD.
+Run ``make clean`` in ``src``, then rebuild as described under :ref:`Compilation <compilation>`.
 
 
 .. _plumed_setup:
@@ -287,54 +269,43 @@ Following these steps will enable the :ref:`dump_netcdf keyword <kw_dump_netcdf>
 PLUMED setup
 ============
 
-To use `PLUMED <https://www.plumed.org/>`_ (see :ref:`plumed keyword <kw_plumed>`) with :program:`GPUMD`, a few extra steps must be taken before building :program:`GPUMD`.
-First, you must download and install PLUMED.
+The :ref:`plumed command <kw_plumed>` requires a PLUMED installation.
+The steps below use Make; append the flags after the existing variable definitions in ``src/makefile``.
 
-The setup instructions are below:
+Install PLUMED
+--------------
 
-* Download `the latest version of PLUMED <https://github.com/plumed/plumed2/releases/>`_, e.g. the `plumed-src-2.8.2.tgz <https://github.com/plumed/plumed2/releases/download/v2.8.2/plumed-src-2.8.2.tgz>`_ tarball.
-* Configure and build PLUMED.
-  It is best to follow the `instructions <https://www.plumed.org/doc-v2.8/user-doc/html/_installation.html>`_, but for a quick installation, you may use the following setup:
+Download a `PLUMED release <https://github.com/plumed/plumed2/releases/>`_ and follow its installation instructions.
+For example, the following configuration can be used with `PLUMED 2.8.2 <https://www.plumed.org/doc-v2.8/user-doc/html/_installation.html>`_::
 
-  .. code:: bash
+  ./configure --prefix=<path> --disable-mpi --enable-openmp --enable-modules=all
+  make -j6
+  make install
 
-     ./configure --prefix=<path> --disable-mpi --enable-openmp --enable-modules=all
+Here, ``<path>`` is the installation directory.
+Set the runtime environment, for example in your shell startup file:
 
-  Here, the :attr:`--prefix` determines the output directory of the build. Then make and install PLUMED:
+.. code:: bash
 
-  .. code:: bash
+  export PLUMED_KERNEL=<path>/lib/libplumedKernel.so
+  export LD_LIBRARY_PATH=<path>/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+  export PATH=<path>/bin:$PATH
 
-     make -j6 && make install
+Replace ``<path>`` with the same installation directory and open a new shell if you edited its startup file.
 
-  Then update your environment variables (e.g., add the following lines to your bashrc file):
+Compile GPUMD
+-------------
 
-  .. code:: bash
+Append the following to ``src/makefile``:
 
-     export PLUMED_KERNEL=<path>/lib/libplumedKernel.so
-     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:<path>/lib
-     export PATH=$PATH:<path>/bin
+.. code:: make
 
-  where :attr:`<path>` should be replaced with the installation path for PLUMED (defined in :attr:`--prefix` of the ``./configure`` command). Finally, reopen your shell to apply changes.
-* Enable the PLUMED functionality.
-  To do this, one must enable the :attr:`USE_PLUMED` flag.
-  In the makefile, this will look as follows:
+  CFLAGS += -DUSE_PLUMED
+  INC += -I<path>/include
+  LDFLAGS += -L<path>/lib
+  LIBS += -lplumed -lplumedKernel
 
-  .. code:: make
-
-     CFLAGS += -DUSE_PLUMED
-
-  In addition to that line the makefile must also be updated to the following:
-
-  .. code:: make
-
-     INC += -I<path>/include
-     LDFLAGS += -L<path>/lib
-     LIBS += -lplumed -lplumedKernel
-
-  where :attr:`<path>` should be replaced with the installation path for PLUMED (defined in :attr:`--prefix` of the ``./configure`` command).
-* Follow the remaining :program:`GPUMD` installation instructions
-
-Following these steps will enable the :ref:`plumed keyword <kw_plumed>`.
+Run ``make clean`` in ``src``, then rebuild as described under :ref:`Compilation <compilation>`.
 
 .. _use_dp_in_gpumd:
 .. index::
@@ -424,46 +395,20 @@ Run the compiled ``gpumd`` executable from the directory containing ``run.in`` a
 NNAP support
 ============
 
-Program introduction
---------------------
+GPUMD supports NNAP (Neural-Network Atomic Potentials) through `jse <https://github.com/liqa1024/jse>`_.
+This interface is a development version.
+The instructions below describe a Linux build with CUDA.
 
-This is the beginning of :program:`GPUMD` support for NNAP in jse.
+Prerequisites
+-------------
 
-jse (Java Simulation Environment, GitHub: `liqa1024/jse <https://github.com/liqa1024/jse>`_)
-is a high-performance, extensible simulation framework for atomistic and materials modeling.
-It provides the latest support for NNAP (Neural-Network Atomic Potentials), including direct execution, `ASE`, `LAMMPS`, and :program:`GPUMD` as described in this document.
-:program:`GPUMD` invokes dedicated NNAP support in jse via JNI to run simulations with NNAP potentials.
-
-Necessary instructions
-----------------------
-
-* This is a development version.
-* The NNAP potential file (``.json`` / ``.jnn``) and the corresponding GPUMD
-  setting file (``.txt``) must be correctly prepared before running
-  `GPUMD-NNAP`.
-* The element order in setting file must be consistent with that in the
-  NNAP potential file.
-
-Installation dependencies
--------------------------
-
-To compile and run `GPUMD-NNAP`, the following requirements must be
-satisfied:
-
-* The new version (``>= 4.1.0``) of jse must be installed and able to pass JNI build ``jse --jnibuild``.
-* The installation requirements of :program:`GPUMD` itself must be met, including
-  a working CUDA compiler and a compatible NVIDIA GPU.
+In addition to the GPUMD build requirements, install jse 4.1.0 or newer with a working JNI build (``jse --jnibuild``).
+Prepare an NNAP model (``.json`` or ``.jnn``) and a corresponding GPUMD setting file as shown below.
+For the complete jse installation and usage guides, see `jse <https://github.com/liqa1024/jse>`_ and `jse-skill <https://github.com/liqa1024/jse-skill>`_.
+For support, contact Qing'an Li (liqa1024@vip.qq.com) or Ke Xu (twtdq@qq.com).
 
 Installation details
 --------------------
-
-If you have any questions, please contact Qing'an Li (liqa1024@vip.qq.com) and Ke Xu
-(twtdq@qq.com).
-
-This section describes how to compile :program:`GPUMD` with NNAP support on Linux.
-For an introduction to NNAP/jse and complete installation and usage guides, refer to
-`liqa1024/jse <https://github.com/liqa1024/jse>`_ and
-`liqa1024/jse-skill <https://github.com/liqa1024/jse-skill>`_.
 
 Prepare the environment
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -484,7 +429,7 @@ Install jse
 Install jse from the dev channel to obtain the latest development version (for linux):
 
 .. code:: bash
-  
+
   bash <(curl -fsSL https://raw.githubusercontent.com/liqa1024/jse/dev/scripts/get.sh)
 
 Optionally, manually run the JNI build to detect any potential environment issues in advance:
@@ -572,13 +517,13 @@ Run the NNAP test
 In the GPUMD input file, use the NNAP potential as follows:
 
 .. code::
-  
+
   potential nnap.txt CuZr-sphs.json
 
 An example GPUMD setting file ``nnap.txt`` file is:
 
 .. code::
-  
+
   nnap 2 Cu Zr
 
 The element order in ``nnap.txt`` must be consistent with that in the NNAP potential
@@ -588,19 +533,12 @@ For example, if the NNAP potential file uses the element order ``Zr Cu``, then
 ``nnap.txt`` should be written as:
 
 .. code::
-  
+
   nnap 2 Zr Cu
 
 Run the test with::
 
   gpumd
-
-Notice
-------
-
-The element list in the NNAP setting file and the NNAP potential file must be the
-same. Otherwise, the atom types will be mapped incorrectly during the
-simulation.
 
 References
 ~~~~~~~~~~

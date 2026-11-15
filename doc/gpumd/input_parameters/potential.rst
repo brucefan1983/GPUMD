@@ -7,25 +7,18 @@
 
 This keyword is used to specify the interatomic potential model for the system.
 
-Available potential models
---------------------------
-
-* :ref:`Tersoff-1989 potential <tersoff_1989>`
-* :ref:`Tersoff-1988 potential <tersoff_1988>`
-* :ref:`Tersoff mini potential <tersoff_mini>`
-* :ref:`Embedded atom method (EAM) potential <eam>`
-* :ref:`Angular dependent potential (ADP) <adp>`
-* :ref:`Force constant potential (FCP) <fcp>`
-* :ref:`Lennard-Jones (LJ) potential <lennard_jones_potential>`
-* :ref:`Neuroevolution potential (NEP) <nep_formalism>`
-* :ref:`Hybrid NEP+ILP potential <nep_ilp>`
-* :ref:`Hybrid SW+ILP potential <sw_ilp>`
-* :ref:`Hybrid Tersoff+ILP potential <tersoff_ilp>`
-* :ref:`Deep Potential (DP) <use_dp_in_gpumd>`
-* :ref:`NNAP via jse <use_nnap_in_gpumd>`
+The :ref:`interatomic potentials chapter <potentials>` describes model forms and parameter files.
+External integrations are described under :ref:`Deep Potential <use_dp_in_gpumd>` and :ref:`NNAP <use_nnap_in_gpumd>`.
 
 Syntax
 ------
+
+::
+
+  potential <potential_filename> [<model_options>]
+
+Parameters
+----------
 
 The first parameter, :attr:`potential_filename`, is the filename (including
 relative or absolute path) of the potential file to be used. Some potential
@@ -50,8 +43,13 @@ of standard NEP, temperature-dependent NEP, and ``nep_spin`` models. For ordinar
 currently use the single-GPU implementation in ``gpumd``; see :ref:`Long-range models <nep_long_range_models>` for their boundary conditions and usage.
 With :ref:`multi_replica <kw_multi_replica>`, complete replicas are assigned to GPUs and the partition-direction parameter is not supported.
 
-Example
--------
+Output
+------
+
+None.
+
+Examples
+--------
 
 .. code::
 
@@ -62,18 +60,7 @@ direction, for example::
 
    potential Si_NEP.txt x
 
-NEP-spin
---------
+Notes
+-----
 
-A :ref:`NEP-spin model <nep_spin>` uses all GPUs visible to the process to
-compute the same atomic system. The optional partition direction also applies
-to NEP-spin. Small systems may not benefit from multiple GPUs; global atom
-arrays remain on GPU 0.
-
-Provide ``spin:R:3`` in :ref:`model.xyz <model_xyz>`. Fully periodic orthogonal
-and triclinic cells are supported. Spins remain fixed under ``nve`` and
-``nvt_nhc``. For spin dynamics, use :ref:`SIB <kw_ensemble_sib>`,
-:ref:`TSPIN <kw_ensemble_tspin>`, or :ref:`GLSD <kw_ensemble_glsd>`.
-Multiple-potential runs are not supported for NEP-spin.
-See :ref:`the Spin runtime instructions <nep_spin_runtime>` for output,
-restart and external-field usage.
+For NEP-spin input requirements, integrator choices, output, and continuation, see :ref:`NEP-spin runtime use <nep_spin_runtime>`.

@@ -5,8 +5,7 @@
 :attr:`compute_hnema`
 =====================
 
-The :attr:`compute_hnema` keyword is used to calculate the modal thermal conductivity using the :ref:`homogeneous non-equilibrium modal analysis <hnema>` (:term:`HNEMA`) method [Gabourie2021]_.
-The results are written to the :ref:`kappamode.out output file <kappamode_out>`.
+The :attr:`compute_hnema` keyword is used to calculate the modal thermal conductivity using the :ref:`homogeneous nonequilibrium modal analysis <hnema>` (:term:`HNEMA`) method [Gabourie2021]_.
 
 Syntax
 ------
@@ -15,9 +14,12 @@ Syntax
 
    compute_hnema <sample_interval> <output_interval> <Fe_x> <Fe_y> <Fe_z> <first_mode> <last_mode> <bin_option> <size>
 
-:attr:`sample_interval` is the sampling interval (in number of steps) used to compute the heat modal heat current.
+Parameters
+----------
+
+:attr:`sample_interval` is the sampling interval (in number of steps) used to compute the modal heat current.
 Must be a divisor of :attr:`output_interval`.
-      
+
 :attr:`output_interval` is the interval to output the modal thermal conductivity. Each modal thermal conductivity output is averaged over all samples per output interval.
 
 :attr:`Fe_x` is the :math:`x` direction component of the external driving force :math:`F_e` in units of Å\ :sup:`-1`.
@@ -34,6 +36,11 @@ The options are :attr:`bin_size` and :attr:`f_bin_size`.
 :attr:`size` defines how the modes are added to each bin.
 If :attr:`bin_option` is ``bin_size``, then this is an integer describing how many modes are included per bin.
 If :attr:`bin_option` is ``f_bin_size``, then binning is by frequency and this is a float describing the bin size in THz.
+
+Output
+------
+
+The results are written to the :ref:`kappamode.out output file <kappamode_out>`.
 
 Examples
 --------
@@ -73,8 +80,9 @@ Example 3
 
 This example is identical to Example 2, except each bin has 10 modes.
 
-Caveats
--------
+Notes
+-----
+
 This computation can be very memory intensive.
 The memory requirements are comparable to the size of the :ref:`eigenvector.in input file <eigenvector_in>`.
 

@@ -15,6 +15,9 @@ Syntax
   kspace ewald
   kspace pppm [spacing]
 
+Parameters
+----------
+
 The default method is ``pppm`` (particle-particle particle-mesh).
 Its optional ``spacing`` parameter sets the maximum mesh spacing in Angstrom
 (allowed range: 0.2 to 2.0, inclusive).
@@ -29,16 +32,16 @@ The default spacing keeps this product at or below :math:`\pi/6`.
 The mesh is chosen automatically and grows as needed when the box changes.
 It does not shrink. The actual spacing may be smaller than the requested value.
 
+Output
+------
+
 At the first force evaluation, GPUMD prints the mesh.
 For models with charges, it also prints an estimate of the root-mean-square error of the charge contribution to the PPPM forces relative to the Ewald sum [Deserno1998]_.
 This estimate uses the charges of that step and assumes that they are randomly distributed.
 For a crystal, the actual error can be smaller by an order of magnitude or more.
 
-Specify ``kspace`` at most once in ``run.in``.
-The setting applies to every ``run``, wherever the line appears in ``run.in``.
-
-Example
--------
+Examples
+--------
 
 To use Ewald::
 
@@ -47,3 +50,9 @@ To use Ewald::
 To request a PPPM spacing of at most 1.5 Angstrom use::
 
    kspace pppm 1.5
+
+Notes
+-----
+
+Specify ``kspace`` at most once in ``run.in``.
+The setting applies to every ``run``, wherever the line appears in ``run.in``.

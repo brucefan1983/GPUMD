@@ -3,27 +3,46 @@
 :attr:`add_mfield`
 ==================
 
-Apply a constant external magnetic induction to an atom group or a fractional-coordinate region::
+Apply a constant external magnetic induction to an atom group or a fractional-coordinate region.
+
+Syntax
+------
+
+::
 
   add_mfield <group_method> <group_id> <Bx> <By> <Bz>
   add_mfield region <amin> <amax> <bmin> <bmax> <cmin> <cmax> <Bx> <By> <Bz>
 
-Grouping method and group ID select an existing model.xyz group, as in
-add_efield. The three finite field components are in tesla (T). There is no
-separate magnitude or direction normalization. For a 10 T field along z::
+Parameters
+----------
 
-  add_mfield 0 0 0 0 10
-
+Grouping method and group ID select an existing group in ``model.xyz``. The three finite field components are in tesla (T). There is no
+separate magnitude or direction normalization.
 Group selection follows atom identities even when atoms move. Region selection
-instead follows current fractional coordinates along cell vectors a, b, and c,
-using the same coordinate conversion and membership test as heat_lan.
+instead follows current fractional coordinates along cell vectors a, b, and c.
+
 Bounds must be finite, in [0, 1], and satisfy min < max. Intervals are half-open:
 [min, max). Coordinates are evaluated after periodic boundary wrapping.
 No group labels are needed for region mode.
 
+Output
+------
+
+None.
+
+Examples
+--------
+
+Apply a 10 T field along z to group 0 in grouping method 0::
+
+  add_mfield 0 0 0 0 10
+
 For a 10 T field along z in the first half of the cell along a::
 
   add_mfield region 0 0.5 0 1 0 1 0 0 10
+
+Notes
+-----
 
 Membership is recomputed on every force evaluation: atoms entering the region
 receive the field, and atoms leaving it no longer do. The sharp boundary gives

@@ -1,0 +1,554 @@
+{
+  "model_sha256": "c153fb39c4ab649aa9d362f7a68779c12035919d24b25410f4525768cf3e4cfc",
+  "dimension": 32,
+  "parameters": 4081,
+  "cases": {
+    "large": {
+      "types": [
+        "Fe",
+        "Fe",
+        "Bi",
+        "O"
+      ],
+      "positions": [
+        [
+          0.2,
+          0.3,
+          0.4
+        ],
+        [
+          2.1,
+          0.5,
+          0.7
+        ],
+        [
+          0.8,
+          2.4,
+          0.6
+        ],
+        [
+          1.8,
+          1.9,
+          2.2
+        ]
+      ],
+      "spins": [
+        [
+          0.8,
+          -0.4,
+          1.1
+        ],
+        [
+          -0.5,
+          0.9,
+          0.3
+        ],
+        [
+          0.2,
+          0.8,
+          -0.4
+        ],
+        [
+          -0.7,
+          0.1,
+          0.2
+        ]
+      ],
+      "cell": [
+        24.0,
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        0.0,
+        0.0,
+        0.0,
+        26.0
+      ],
+      "energy": -0.0985283030997815,
+      "potential": [
+        -0.00897484688782587,
+        -0.01598675029592421,
+        -0.0024941080145452973,
+        -0.07107259790148612
+      ],
+      "force": [
+        [
+          0.07074027352485077,
+          -0.023991970545924626,
+          0.018466253552438444
+        ],
+        [
+          -0.05345420645436516,
+          -0.03574432297676315,
+          -0.009540481046007111
+        ],
+        [
+          0.001618934260471575,
+          0.06520293745386467,
+          0.017333327482234373
+        ],
+        [
+          -0.01890500133095718,
+          -0.005466643931176898,
+          -0.026259099988665702
+        ]
+      ],
+      "mforce": [
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ]
+      ],
+      "virial": [
+        -0.13083963383654235,
+        -0.03753908147341422,
+        -0.04974147747993801,
+        -0.03753908147341421,
+        0.12103067376788013,
+        -0.00752266847837436,
+        -0.04974147747993816,
+        -0.007522668478374429,
+        -0.046661858796953525
+      ]
+    },
+    "triclinic": {
+      "types": [
+        "Fe",
+        "Fe",
+        "Bi",
+        "O"
+      ],
+      "positions": [
+        [
+          0.2,
+          0.3,
+          0.4
+        ],
+        [
+          2.1,
+          0.5,
+          0.7
+        ],
+        [
+          0.8,
+          2.4,
+          0.6
+        ],
+        [
+          1.8,
+          1.9,
+          2.2
+        ]
+      ],
+      "spins": [
+        [
+          0.8,
+          -0.4,
+          1.1
+        ],
+        [
+          -0.5,
+          0.9,
+          0.3
+        ],
+        [
+          0.2,
+          0.8,
+          -0.4
+        ],
+        [
+          -0.7,
+          0.1,
+          0.2
+        ]
+      ],
+      "cell": [
+        4.4,
+        0.0,
+        0.0,
+        0.7,
+        4.8,
+        0.0,
+        0.2,
+        0.6,
+        4.5
+      ],
+      "energy": -0.09717272477525032,
+      "potential": [
+        0.004268802525929163,
+        -0.023114235498847075,
+        0.014743532512623232,
+        -0.09307082431495564
+      ],
+      "force": [
+        [
+          0.09393444496039635,
+          -0.014433017271090663,
+          -0.053865025670379214
+        ],
+        [
+          -0.07642756035627485,
+          -0.015445264479037404,
+          0.031116590750664003
+        ],
+        [
+          0.002610449253948495,
+          0.0334132251265796,
+          0.026184507791969736
+        ],
+        [
+          -0.02011733385807,
+          -0.003534943376451537,
+          -0.003436072872254511
+        ]
+      ],
+      "mforce": [
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ]
+      ],
+      "virial": [
+        -0.3123981268587362,
+        -0.03768884217488305,
+        -0.03471583908751477,
+        -0.037688842174883025,
+        0.05384911323351526,
+        0.0032427498911239624,
+        -0.03471583908751481,
+        0.00324274989112398,
+        -0.28878004269467844
+      ]
+    },
+    "zero": {
+      "types": [
+        "Fe",
+        "Fe",
+        "Bi",
+        "O"
+      ],
+      "positions": [
+        [
+          0.2,
+          0.3,
+          0.4
+        ],
+        [
+          2.1,
+          0.5,
+          0.7
+        ],
+        [
+          0.8,
+          2.4,
+          0.6
+        ],
+        [
+          1.8,
+          1.9,
+          2.2
+        ]
+      ],
+      "spins": [
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0
+        ]
+      ],
+      "cell": [
+        24.0,
+        0.0,
+        0.0,
+        0.0,
+        25.0,
+        0.0,
+        0.0,
+        0.0,
+        26.0
+      ],
+      "energy": -0.0985283030997815,
+      "potential": [
+        -0.00897484688782587,
+        -0.01598675029592421,
+        -0.0024941080145452973,
+        -0.07107259790148612
+      ],
+      "force": [
+        [
+          0.07074027352485077,
+          -0.023991970545924626,
+          0.018466253552438444
+        ],
+        [
+          -0.05345420645436516,
+          -0.03574432297676315,
+          -0.009540481046007111
+        ],
+        [
+          0.001618934260471575,
+          0.06520293745386467,
+          0.017333327482234373
+        ],
+        [
+          -0.01890500133095718,
+          -0.005466643931176898,
+          -0.026259099988665702
+        ]
+      ],
+      "mforce": [
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ]
+      ],
+      "virial": [
+        -0.13083963383654235,
+        -0.03753908147341422,
+        -0.04974147747993801,
+        -0.03753908147341421,
+        0.12103067376788013,
+        -0.00752266847837436,
+        -0.04974147747993816,
+        -0.007522668478374429,
+        -0.046661858796953525
+      ]
+    },
+    "isolated": {
+      "types": [
+        "Fe",
+        "Fe",
+        "Bi",
+        "O"
+      ],
+      "positions": [
+        [
+          0.2,
+          0.3,
+          0.4
+        ],
+        [
+          9.1,
+          7.5,
+          7.7
+        ],
+        [
+          14.8,
+          16.4,
+          14.6
+        ],
+        [
+          22.8,
+          22.9,
+          23.2
+        ]
+      ],
+      "spins": [
+        [
+          0.8,
+          -0.4,
+          1.1
+        ],
+        [
+          -0.5,
+          0.9,
+          0.3
+        ],
+        [
+          0.2,
+          0.8,
+          -0.4
+        ],
+        [
+          -0.7,
+          0.1,
+          0.2
+        ]
+      ],
+      "cell": [
+        40.0,
+        0.0,
+        0.0,
+        0.0,
+        40.0,
+        0.0,
+        0.0,
+        0.0,
+        40.0
+      ],
+      "energy": -0.08399999886751175,
+      "potential": [
+        -0.020999999716877937,
+        -0.020999999716877937,
+        -0.020999999716877937,
+        -0.020999999716877937
+      ],
+      "force": [
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ]
+      ],
+      "mforce": [
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ],
+        [
+          -0.0,
+          -0.0,
+          -0.0
+        ]
+      ],
+      "virial": [
+        -0.0,
+        -0.0,
+        -0.0,
+        -0.0,
+        -0.0,
+        -0.0,
+        -0.0,
+        -0.0,
+        -0.0
+      ]
+    }
+  },
+  "source_sha256": {
+    "analyze_results.py": "769f8c79d465a9939c91e6106487a05b37f565687587a8bb49908cd0d3e58214",
+    "analytic_capacity.py": "eb38855ede445f44df838636ffeffc3d5243837e8a55807411b129f9d9e09ea4",
+    "audit_mode4.py": "b077a3680dbb16e1ece1f91af69c73695cfbaf528f95c236da08f1959e2ffb88",
+    "train_bfo.py": "b1d31cfc8b459bc0f6df5a8f571b7e9779c6350a60746db75fe4f7a842c9b75a",
+    "benchmark_native_entry.py": "508c878e1d301c496e3eff462e0b83c32a4e6b1ee957e392c1593c41394f17b4",
+    "prepare_data.py": "c34e57f37da45e8cbe45e9a6c89410a7b1b15298065340ae21f3304c7b3225c9",
+    "make_report.py": "6b22b9a48671da63b85083b53903bea2a259f44b992d1b158474885e5852d0c7",
+    "baseline_l4.py": "bec7b11b804fd7d7045a49c4a3bbc83d1728a888e006d62f688fdc70f9aa4358",
+    "bfo_models.py": "a1f87c8c70128cec4931f39ecb27c3faba63a43591916a07dc37b747b2d9321e",
+    "prototype.py": "43bad6f68ea1ad6162fbf37cccd33584d89485b023b75e5e5dbab06fd3e710b4",
+    "numerical_gates.py": "1e4b31404e1283d804c363112eb3120300fef0b810c6af73bac9e913cc431cfb",
+    "benchmark_bfo.py": "933c6ae6f3a91698858f8dc1f6172ededbeb50e1df7980605f0182ff920f0ea4",
+    "verify_checkpoints.py": "fde39f7f94fc42963ef297b98dca77057b718651857c0190e9e8c541a2243710",
+    "support/models.py": "2cf82815528625083c097299a91592b7f6cf7e86e15f12782227faa358ed8071",
+    "support/data.py": "6fc86c167a9bee9d7053ef19d4797e4a93ee1aa115412b27c60cc6134ff8120f",
+    "support/l4_check/reference/spin_high_l_fixtures.py": "640393d88f17301197e5f344632f6c82690baf6a03663446ade21fa5d31c6bc7",
+    "support/l4_check/reference/spin_high_l_oracle.py": "f10b08e36d7213af4997ece17511de756a0e9c5b5819e361a59fc98fe3295999",
+    "support/reference/torchnep/spin_schema.py": "998962f43fde7c8e0bbe76a5a0a658688a6a3b0a703875d9be89d48247bdcf01",
+    "support/reference/torchnep/ase_calculator.py": "211efa22057da7b5c561313503b3c9a678320b2b18d4fd96b57199618b5fbbfa",
+    "support/reference/torchnep/neighbor.py": "f405f326a0853e7acba330a79a0b63ea3605f618df454829a95ca6f6d575453a",
+    "support/reference/torchnep/oc_cuda_full.py": "a232232a48b61e30488c1fb2b7c0c3bd6a94fb4ebdc78ccd24f47a010fa4b64b",
+    "support/reference/torchnep/train_sharded.py": "e88e796082fcc1f889b1f885f838bddcf5f259e9c0193760ce50b0b0d2a7f001",
+    "support/reference/torchnep/oc_cuda_bank_generic.py": "015271f3b221ee1c42bc3f500b74c20a229750315cfc0a438dc30ca5ac37f5f0",
+    "support/reference/torchnep/nep.py": "8f248af21a32f5c739b22846800c56bed810475f871e7d6f9051e2be8353652c",
+    "support/reference/torchnep/constants.py": "0cac7ecce5a185af2eb3f4c8d3ece21b1699699b7735a951cace59e9b9a36f1f",
+    "support/reference/torchnep/oc_cuda_train.py": "c3c76c44737505b11fd0fea51da89c4247d8d3993624927a0d9a1c0ec4b63b9b",
+    "support/reference/torchnep/predict.py": "45a7e988a41aced34478491c377982d4ba00c9f70eb82b5886808ed6f20c971e",
+    "support/reference/torchnep/__init__.py": "8b59665ef535a35521d7f8f90f4fb22a074721112c85ba58530e281b2addafff",
+    "support/reference/torchnep/magnetic_polynomial_v3.py": "7248dcec11748efbd70f9e95c6fd9db5d6be1cf663b255e1bfbe05d028ff3790",
+    "support/reference/torchnep/oc_cuda_edge_generic.py": "94167480ef3e5f67b811d176c84eb416a59013b3897693e09dbc4b03007dff0f",
+    "support/reference/torchnep/oc_cuda_struct_center.py": "39b334598126200d3c9a80cbc3eb1fe8b1aec3aaa0244e890d0f2331712d67cd",
+    "support/reference/torchnep/model.py": "22b6f40fb622b566221d5af9d7779af269a4f96e9d1b819a174b1c12196f548d",
+    "support/reference/torchnep/ops.py": "8c6a85554be38987d25fcaff74179667147f485ea9d8a4dcaaf37fd60bb2d9f0",
+    "support/reference/torchnep/magnetic_polynomial.py": "9f9a9546ee940afd5f6323c83c42d257916977bbf22f39bb8fac13213d4cce29",
+    "support/reference/torchnep/compiled_autograd.py": "c409cdcc4dd4dab36a77721243b51da98a45a20e672a6182289fe33fc412f2c9",
+    "support/reference/torchnep/oc_cuda_center_generic.py": "17beb260be46e191ee90e7dc0d5a7a6cd8727cc3278d3e145ee6b0fa5b246d0f",
+    "support/reference/torchnep/train.py": "6a8a8bbd5f67695d359d4f46eca3554cfd3c23bf7184cc15ea227a6f2d7a4e52",
+    "support/reference/torchnep/oc_cuda_graph.py": "0d08f84d8fab20bb9f9a44d98fbb959f7d0a9710de59e38f57dce874e48b7613",
+    "support/reference/torchnep/response_training.py": "0977127f399c0c947744a7679c34470e3cbe773d972d236f64e7af95724e6b43",
+    "support/reference/torchnep/spin_diagnostics.py": "89d9fbf0e45daffa64c74497cc64898e9ec0261670d08cf65d3b57668fe71cca",
+    "support/reference/torchnep/oc_cuda_bank_v3.py": "51331d090f5a3580f34bc5bca6a508424b8d1a99ee94a3954c20706cc47726a7",
+    "support/reference/torchnep/data.py": "b13a2f3149e48312b53e6c2c1b5e1f5be268209c04869de3517a2d5806c7dfbf",
+    "support/reference/torchnep/oc_cuda_bank.py": "593c4f7f6e2a7bae21f6458d843b13c09800da4c46dc1b441ade581cc22da3f8",
+    "support/reference/torchnep/oc_cuda_center.py": "f51b163a70a0290bc8b1bb361d9a8b26744d682943c81dac9c0c1c764d692130",
+    "support/reference/torchnep/csrc/setup.py": "82c414c89f8234ba4e76b6d9481af7d1f348c1196c77d1ea786bc70529087eec"
+  }
+}

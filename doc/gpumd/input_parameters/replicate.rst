@@ -5,25 +5,35 @@
 :attr:`replicate`
 =================
 
+Replicate the simulation cell along its three cell vectors.
+
 Syntax
 ------
 
-This keyword is used as follows::
+::
 
   replicate <n_a> <n_b> <n_c>
 
+Parameters
+----------
+
 Here, :attr:`n_a`, :attr:`n_b` and :attr:`n_c` are the numbers of replicas in the :math:`a`, :math:`b` and :math:`c` directions. They must be positive integers.
 
+Output
+------
 
-Example
--------
+None.
 
-To build a 1*2*4 supercell, just write::
+Examples
+--------
+
+Build a :math:`1 \times 2 \times 4` supercell::
 
    replicate 1 2 4
 
-Caveats
--------
-* Use this command before defining potential.
+Notes
+-----
+
+* Use this command before loading the potential.
 * The group information and velocities of atoms are also replicated.
-* Don't replicate along non-periodic dimensions.
+* Do not replicate along nonperiodic directions.

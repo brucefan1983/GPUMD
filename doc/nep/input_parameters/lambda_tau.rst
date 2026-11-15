@@ -5,9 +5,17 @@
 :attr:`lambda_tau`
 ===================
 
-This keyword sets the weight of spin-torque RMSE in the loss::
+This keyword sets the weight of spin-torque RMSE in the loss.
+
+Syntax
+------
+
+::
 
   lambda_tau <weight>
+
+Parameters
+----------
 
 The weight must be non-negative and defaults to 0. For each labeled active
 atom, the predicted and target quantities are converted to
@@ -30,3 +38,20 @@ and is normalized by two degrees of freedom per included spin. The squared
 magnitude is evaluated in double precision for both the error and its count;
 spins at or below the threshold are excluded from both. Squared torque errors
 weight squared transverse magnetic-force errors by :math:`|\boldsymbol{s}_i|^2`.
+
+Output
+------
+
+None.
+
+Examples
+--------
+
+::
+
+  lambda_tau 1.0
+
+Notes
+-----
+
+None.

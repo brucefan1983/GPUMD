@@ -28,6 +28,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #pragma once
 
 #include "force/neighbor.cuh"
+#include "force/nep_spin/spin_storage.cuh"
 #include "force/potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -35,7 +36,37 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include <string>
 #include <vector>
 
-class NEP_Spin : public Potential
+struct Spin_Force_Snapshot {
+  GPU_Vector<double> force, mforce, energy, virial;
+};
+
+class Spin_Potential : public Potential
+{
+public:
+  virtual const std::vector<int>& spin_types() const = 0;
+  void request_force_snapshot(Spin_Force_Snapshot& target) { snapshot_ = &target; }
+
+protected:
+  void save_force_snapshot(
+    const GPU_Vector<double>& force,
+    const GPU_Vector<double>& mforce,
+    const GPU_Vector<double>& energy,
+    const GPU_Vector<double>& virial)
+  {
+    if (snapshot_) {
+      snapshot_->force.copy_from_device(force.data());
+      snapshot_->mforce.copy_from_device(mforce.data());
+      snapshot_->energy.copy_from_device(energy.data());
+      snapshot_->virial.copy_from_device(virial.data());
+      snapshot_ = nullptr;
+    }
+  }
+
+private:
+  Spin_Force_Snapshot* snapshot_ = nullptr;
+};
+
+class NEP_Spin : public Spin_Potential
 {
 public:
   // Model-specific parameter types passed by value to CUDA kernels.
@@ -98,6 +129,7 @@ public:
 
 private:
   struct Data {
+    nep_spin::Storage spin_layout;
     GPU_Vector<float> parameters;
     GPU_Vector<float> descriptor;
     GPU_Vector<float> Fp;
@@ -108,7 +140,10 @@ private:
     GPU_Vector<double> energy_reference;
     GPU_Vector<int> spin_type_active;
     GPU_Vector<float> spin_cutoff_pair;
-    GPU_Vector<float> spin3_moments;
+    GPU_Vector<float> spin_moments;
+    GPU_Vector<float> radial_coefficients;
+    GPU_Vector<double> wide_radial, wide_spin_descriptors;
+    GPU_Vector<float> radial_edges;
     GPU_Vector<int> NN_radial;
     GPU_Vector<int> NL_radial;
     GPU_Vector<int> NN_angular;
@@ -143,12 +178,9 @@ private:
     int max_neighbors_global = 0;
     int max_neighbors_angular = 0;
     int neighbor_capacity = 0;
-    int spin_basis_size[2] = {0, 0};
-    int spin_l_max[3] = {0, 0, 0};
     int spin_compress = 0;
     int spin_order = 0;
     int spin_soc = 0;
-    int spin_projection_size = 0;
     double cutoff_radial = 0.0;
     double cutoff_angular = 0.0;
     double spin_cutoff = 0.0;
@@ -158,7 +190,6 @@ private:
     std::size_t ann_parameter_count = 0;
     std::size_t radial_parameter_count = 0;
     std::size_t angular_parameter_count = 0;
-    std::size_t spin_parameter_count = 0;
     std::size_t spin_projection_parameter_count = 0;
     std::size_t model_parameter_count = 0;
     std::vector<std::string> elements;
@@ -196,20 +227,9 @@ public:
   void resize_domain(int num_atoms);
   void invalidate_neighbors() { neighbor_.invalidate(); }
 
-  // The caller owns the buffers until the next compute completes. Only that
-  // evaluation is captured; later endpoint evaluations leave the buffers intact.
-  void request_force_snapshot(GPU_Vector<double>& force, GPU_Vector<double>& mforce)
-  {
-    force_snapshot_ = &force;
-    mforce_snapshot_ = &mforce;
-  }
-
-  const std::vector<int>& spin_types() const { return model_.spin_type_active; }
+  const std::vector<int>& spin_types() const override { return model_.spin_type_active; }
 
 private:
-  GPU_Vector<double>* force_snapshot_ = nullptr;
-  GPU_Vector<double>* mforce_snapshot_ = nullptr;
-  void save_force_snapshot(const GPU_Vector<double>&, const GPU_Vector<double>&);
   Model model_;
   Data data_;
   class Neighbors
@@ -257,8 +277,17 @@ private:
     const int block_size,
     const std::size_t shared_size);
 
-  template <int C>
-  void launch_spin3_descriptors_typed(
+  void launch_structural_descriptors(
+    const Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    Data& data,
+    const double* radial_edges,
+    const double* angular_edges,
+    int plane,
+    gpuStream_t stream = nullptr);
+
+  void launch_spin_descriptors(
     const Model& model,
     const Box& box,
     const GPU_Vector<int>& type,
@@ -269,32 +298,7 @@ private:
     int r12_plane_size = 0,
     gpuStream_t stream = nullptr);
 
-  void launch_spin3_descriptors(
-    const Model& model,
-    const Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    const GPU_Vector<double>& spin,
-    Data& data,
-    const double* slot_r12 = nullptr,
-    int r12_plane_size = 0,
-    gpuStream_t stream = nullptr);
-
-  template <int C>
-  void launch_spin3_forces_typed(
-    const Model& model,
-    const Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    const GPU_Vector<double>& spin,
-    Data& data,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& mforce,
-    GPU_Vector<double>& virial,
-    const double* slot_r12 = nullptr,
-    int r12_plane_size = 0);
-
-  void launch_spin3_forces(
+  void launch_spin_forces(
     const Model& model,
     const Box& box,
     const GPU_Vector<int>& type,

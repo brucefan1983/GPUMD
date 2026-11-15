@@ -13,7 +13,7 @@
 
 The semi-implicit B (SIB) integrator propagates the direction of each
 ``spin:R:3`` vector with the stochastic Landau--Lifshitz--Gilbert equation.
-It preserves each vector's initial magnitude and uses the public
+It preserves each vector's initial magnitude and uses
 ``mforce:R:3`` from a Spin potential as
 :math:`\boldsymbol H=-\partial E/\partial\boldsymbol S`.
 
@@ -35,6 +35,51 @@ For pressure-controlled dynamics, use::
 The MTTK portion of ``npt_sib`` has the same syntax as
 :ref:`npt_mttk <kw_ensemble_mttk>`. SIB options must follow all MTTK options.
 
+Parameters
+----------
+
+``T_1``, ``T_2``
+  Initial and final temperatures in K. SIB uses the linearly ramped target
+  temperature for its thermal magnetic noise. With lattice dynamics enabled,
+  the same target also controls the lattice thermostat.
+
+``T_coup``
+  Nosé-Hoover-chain coupling period in time steps for the lattice. It remains
+  required by ``nvt_sib`` when ``lattice off`` but then does not alter the
+  spin equation.
+
+``lattice on|off``
+  Available only for ``nvt_sib`` and defaults to ``on``. ``off`` keeps atomic
+  positions and velocities fixed.
+
+``alpha <value>``
+  Dimensionless Gilbert damping coefficient. It must be finite and
+  non-negative. The default is ``0``; thermal noise is then also zero.
+
+``gamma <value>``
+  Positive gyromagnetic factor :math:`\gamma/\hbar` in
+  :math:`(\mathrm{eV\,ps})^{-1}`. The default is
+  :math:`2/\hbar=3038.53\ (\mathrm{eV\,ps})^{-1}` in GPUMD's unit system.
+
+``stemp <-1|0|value>``
+  Controls the thermal magnetic noise. ``-1`` disables it while retaining
+  deterministic damping, ``0`` follows the ensemble target temperature, and
+  a positive value fixes the spin-noise temperature in K. The default is
+  ``0``.
+
+  For ``nve_sib``, the default is ``-1`` because there is no lattice target
+  temperature. A fixed positive spin temperature is accepted, while ``0`` is
+  rejected. ``nve_sib`` always keeps lattice positions and velocities fixed.
+
+``seed <value>``
+  Positive integer for counter-based Gaussian noise. The default is
+  ``12345``. A given atom, timestep, and seed always receive the same noise.
+
+Output
+------
+
+None.
+
 Examples
 --------
 
@@ -55,80 +100,8 @@ Run isotropic pressure-controlled spin--lattice dynamics::
 
     ensemble npt_sib temp 300 300 iso 0 0 tperiod 100 pperiod 1000 alpha 0.1 seed 12345
 
-Parameters
-----------
-
-``T_1``, ``T_2``
-  Initial and final temperatures in K. SIB uses the linearly ramped target
-  temperature for its thermal magnetic noise. With lattice dynamics enabled,
-  the same target also controls the lattice thermostat.
-
-``T_coup``
-  Nose--Hoover-chain coupling period in timesteps for the lattice. It remains
-  required by ``nvt_sib`` when ``lattice off`` but then does not alter the
-  spin equation.
-
-``lattice on|off``
-  Available only for ``nvt_sib`` and defaults to ``on``. ``off`` keeps atomic
-  positions and velocities fixed while evaluating the Spin potential twice
-  per timestep for the SIB midpoint and endpoint fields.
-
-``alpha <value>``
-  Dimensionless Gilbert damping coefficient. It must be finite and
-  non-negative. The default is ``0``; thermal noise is then also zero.
-
-``gamma <value>``
-  Positive gyromagnetic factor :math:`\gamma/\hbar` in
-  :math:`(\mathrm{eV\,ps})^{-1}`. The default is
-  :math:`2/\hbar=3038.53\ (\mathrm{eV\,ps})^{-1}` in GPUMD's unit system.
-
-``stemp <-1|0|value>``
-  Controls the thermal magnetic noise. ``-1`` disables it while retaining
-  deterministic damping, ``0`` follows the ensemble target temperature, and
-  a positive value fixes the spin-noise temperature in K. The default is
-  ``0``.
-
-  For ``nve_sib``, the default is ``-1`` because there is no lattice target
-  temperature. A fixed positive spin temperature is accepted, while ``0`` is
-  rejected. ``nve_sib`` always keeps lattice positions and velocities fixed,
-  matching the DynSpin SIB/NVE separation between spin and lattice dynamics.
-
-``seed <value>``
-  Positive integer for counter-based Gaussian noise. The default is
-  ``12345``. A given atom, timestep, and seed always receive the same noise.
-
-Algorithm
----------
-
-For a unit direction :math:`\boldsymbol e_n`, SIB forms
-
-.. math::
-
-   \boldsymbol\Omega =
-   \frac{\gamma\Delta t}{1+\alpha^2}
-   [\boldsymbol H+\alpha(\boldsymbol e\times\boldsymbol H)]
-   +\boldsymbol\Omega_\mathrm{th}.
-
-The predictor endpoint is an analytic Cayley rotation of
-:math:`\boldsymbol e_n`. GPUMD evaluates the second Spin-potential field at
-the unnormalized arithmetic chord midpoint
-:math:`(\boldsymbol e_n+\boldsymbol e_\mathrm{pred})/2`, reuses the same
-thermal increment, and applies the corrected Cayley rotation from the
-original direction. A final force evaluation caches the endpoint energy,
-force, virial, and magnetic force for output and the next timestep. Thus SIB
-uses two Spin-potential evaluations per timestep after the initial force.
-
-The angular-noise standard deviation for a spin magnitude :math:`\mu_s`
-follows from matching its variance to the damping mobility
-:math:`\gamma\alpha/(1+\alpha^2)` (fluctuation--dissipation):
-
-.. math::
-
-   \sigma_\Omega =
-   \sqrt{\frac{2\alpha\gamma k_B T\Delta t}{\mu_s(1+\alpha^2)}}.
-
-Restrictions
-------------
+Notes
+-----
 
 SIB requires one Spin potential, ``spin:R:3`` on every atom, a positive
 timestep, positive target temperatures, ``alpha >= 0``, ``gamma > 0``, and a
@@ -140,6 +113,28 @@ SIB propagates nonzero moments of elements listed in ``spin_type``. Moments
 of other elements are masked to zero, receive no magnetic noise, and remain
 zero. The initial magnitude of each active moment is conserved.
 
-For variable-magnitude dynamics use the independent
-:ref:`GLSD ensembles <kw_ensemble_glsd>`. SIB does not accept ``lsf``, ``damping`` or
-``mobility``; its fixed-magnitude equation and Cayley integration are unchanged.
+For variable-magnitude dynamics, use :ref:`GLSD <kw_ensemble_glsd>`.
+
+Method
+^^^^^^
+
+For a unit direction :math:`\boldsymbol e_n`, SIB forms
+
+.. math::
+
+   \boldsymbol\Omega =
+   \frac{\gamma\Delta t}{1+\alpha^2}
+   [\boldsymbol H+\alpha(\boldsymbol e\times\boldsymbol H)]
+   +\boldsymbol\Omega_\mathrm{th}.
+
+SIB uses a predictor and a corrected rotation, with the magnetic field evaluated at the midpoint.
+The same thermal increment is used in both stages.
+
+The angular-noise standard deviation for a spin magnitude :math:`\mu_s`
+follows from matching its variance to the damping mobility
+:math:`\gamma\alpha/(1+\alpha^2)` (fluctuation--dissipation):
+
+.. math::
+
+   \sigma_\Omega =
+   \sqrt{\frac{2\alpha\gamma k_B T\Delta t}{\mu_s(1+\alpha^2)}}.

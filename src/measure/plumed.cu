@@ -25,6 +25,7 @@ Interface to the PLUMED plugin: https://www.plumed.org
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
+#include <algorithm>
 #include <cstring>
 
 #define E_C 1.602176634E-19 // Elementary charge
@@ -167,7 +168,7 @@ void PLUMED::calculate(int plumed_step, Box& box, Atom& atom)
   cpu_b_vector[7] = box.cpu_h[5];
   cpu_b_vector[8] = box.cpu_h[8];
 
-  fill(cpu_v_vector.begin(), cpu_v_vector.end(), 0.0);
+  std::fill(cpu_v_vector.begin(), cpu_v_vector.end(), 0.0);
   stop_flag = 0;
 
   plumed_cmd(plumed_main, "setStep", &plumed_step);

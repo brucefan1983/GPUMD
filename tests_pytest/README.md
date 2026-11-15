@@ -149,3 +149,32 @@ test. `REPLICA_SAMPLING_STEPS` can change its length (at least 1000000 steps).
 CPU-only algorithm and checkpoint tests run without CUDA or pytest:
 `python3 tests_pytest/test_remd_tp_host.py`. Their GPU operations are test doubles;
 only the GPU suite checks asynchronous execution.
+
+## Spin training precision
+
+From the repository root, with CUDA `nvcc` on `PATH` and an appropriate GPU
+selected in `CUDA_VISIBLE_DEVICES`:
+
+```bash
+python tests_pytest/validate_spin_ann_precision.py --arch sm_89
+python tests_pytest/validate_spin_training.py --nep src/nep --check-jit
+```
+
+Choose `--arch` for the target GPU. The first check compares the spin-private ANN
+accumulator with an independent host long-double oracle, including small energy
+differences and finite-difference derivatives for its supported single hidden layer.
+The second exercises the full training/restart/prediction lifecycle and requires
+actual JIT compilation for native/compiled parity. ANN-only precision is not a
+bound on geometry or descriptor rounding in a full potential evaluation.
+
+## Spin generated headers
+
+Regenerate with NumPy, Torch, e3nn and clang-format 17 on `PATH`:
+
+```bash
+python tests_pytest/generate_spin_tables.py
+c++ -std=c++14 -Isrc tests_pytest/generate_spin_md_layouts.cpp -o /path/to/generator
+/path/to/generator | clang-format --style=file > src/force/nep_spin/spin_md_layouts.cuh
+```
+
+Both outputs use the project license header and repository formatting.

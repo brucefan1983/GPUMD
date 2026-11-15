@@ -15,9 +15,17 @@ Syntax
 
    dump_dipole <interval> <nep_file>
 
+Parameters
+----------
+
 :attr:`interval` parameter is a positive integer giving the output interval (number of steps) for evaluating and writing the dipole.
 
 :attr:`nep_file` is a :ref:`NEP model file <nep_txt>` with ``model nep_dipole``.
+
+Output
+------
+
+The time step and predicted dipole are written to :ref:`dipole.out <gpumd_dipole_out>`.
 
 Examples
 --------
@@ -32,8 +40,7 @@ To use `nep.txt` to propagate the MD and `nep_dipole.txt` to compute and write t
 
 before the :ref:`run keyword <kw_run>`. This will generate a `dipole.out` output file containing the time step and predicted dipole at that time step.
 
+Notes
+-----
 
-Caveats
--------
-* This keyword is not propagating.
-  That means, its effect will not be passed from one run to the next.
+* Repeat this command before each run that needs it.

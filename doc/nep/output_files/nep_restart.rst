@@ -7,9 +7,7 @@
 
 This file enables restarting an optimization run.
 If the file is present, training will start from the state saved in this file.
-The file is updated during training every :ref:`output_interval <kw_output_interval>` generations.
-
-The default :ref:`output_interval <kw_output_interval>` is 100 generations.
+The file is overwritten every :ref:`output_interval <kw_output_interval>` generations (100 by default).
 
 The file uses the `NEP restart format
 <https://github.com/brucefan1983/GPUMD/blob/master/potentials/nep/nep_model_format.md#6-neprestart>`_.

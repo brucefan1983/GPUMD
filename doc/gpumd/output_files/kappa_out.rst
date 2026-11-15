@@ -10,10 +10,12 @@ It is generated when invoking the :ref:`compute_hnemd keyword <kw_compute_hnemd>
 Each row is calculated from the heat current averaged over the most recent :attr:`output_interval` MD steps.
 The running average can be obtained by cumulatively averaging these rows.
 
+Results are appended to the file.
+
 File format
 -----------
 If the driving force is in the positive :math:`\mu` (:math:`\mu` can be :math:`x`, :math:`y`, or :math:`z`) direction, this file reads:
-  
+
 * column 1: :math:`\kappa_{x\mu}^{\text{in}}(t)` (in units of W/mK)
 * column 2: :math:`\kappa_{x\mu}^{\text{out}}(t)` (in units of W/mK)
 * column 3: :math:`\kappa_{y\mu}^{\text{in}}(t)` (in units of W/mK)
@@ -26,7 +28,7 @@ For 3D materials, one can sum up some columns to get the conventional data.
 That is:
 
 .. math::
-   
+
    \kappa_{x\mu}^{\text{tot}}(t) &= \kappa_{x\mu}^{\text{in}}(t) + \kappa_{x\mu}^{\text{out}}(t) \\
    \kappa_{y\mu}^{\text{tot}}(t) &= \kappa_{y\mu}^{\text{in}}(t) + \kappa_{y\mu}^{\text{out}}(t).
 

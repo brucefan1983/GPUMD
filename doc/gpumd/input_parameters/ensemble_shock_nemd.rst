@@ -21,24 +21,30 @@ It is recommended to use this with the :ref:`dump_shock_nemd keyword <kw_dump_sh
 Syntax
 ------
 
-The parameters are specified as follows:
+::
 
-.. code-block:: rst
+  ensemble wall_piston vp <vp> [thickness <thickness>]
+  ensemble wall_mirror vp <vp>
+  ensemble wall_harmonic vp <vp> [k <k>]
 
-    ensemble wall_piston vp <vp> thickness <thickness>
+Parameters
+----------
 
-- :attr:`<vp>`: Indicates the velocity of the moving piston in km/s.
-- :attr:`<thickness>`: Defines the thickness of the wall in Angstroms. This keyword is optional with the default value of 20.
+``vp`` is the piston velocity in km/s for all three methods.
+For ``wall_piston``, ``thickness`` is the wall thickness in Å (default 20).
+For ``wall_harmonic``, ``k`` is the harmonic-wall strength in eV/Å² (default 10).
 
-.. code-block:: rst
+Output
+------
 
-    ensemble wall_mirror vp <vp>
+None.
 
-- :attr:`<vp>`: Indicates the velocity of the moving piston in km/s.
+Examples
+--------
 
-.. code-block:: rst
+None.
 
-    ensemble wall_harmonic vp <vp> k <k>
+Notes
+-----
 
-- :attr:`<vp>`: Indicates the velocity of the moving piston in km/s.
-- :attr:`<k>`: Defines the strength of the harmonic wall in eV/A^2. This keyword is optional with the default value of 10.
+None.

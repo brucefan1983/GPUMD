@@ -32,6 +32,7 @@ Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
 #include "utilities/nep_io/nep_model_file.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -200,19 +201,19 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     parambs[i].rc_angular = model.rc_angular[0];
     printf("    radial cutoff = %g A.\n", parambs[i].rc_radial);
     printf("    angular cutoff = %g A.\n", parambs[i].rc_angular);
-    max_nep_rc = max(max_nep_rc, parambs[i].rc_radial);
+    max_nep_rc = std::max(max_nep_rc, parambs[i].rc_radial);
 
     printf("    MN_radial = %d.\n", model.max_radial);
     parambs[i].MN_radial = int(ceil(model.max_radial * 1.25));
     parambs[i].MN_angular = int(ceil(model.max_angular * 1.25));
-    max_MN_radial = max(max_MN_radial, parambs[i].MN_radial);
-    max_MN_angular = max(max_MN_angular, parambs[i].MN_angular);
+    max_MN_radial = std::max(max_MN_radial, parambs[i].MN_radial);
+    max_MN_angular = std::max(max_MN_angular, parambs[i].MN_angular);
     printf("    enlarged MN_radial = %d.\n", parambs[i].MN_radial);
     printf("    enlarged MN_angular = %d.\n", parambs[i].MN_angular);
 
     parambs[i].n_max_radial = model.n_max_radial;
     parambs[i].n_max_angular = model.n_max_angular;
-    max_n_max_angular = max(max_n_max_angular, parambs[i].n_max_angular);
+    max_n_max_angular = std::max(max_n_max_angular, parambs[i].n_max_angular);
     printf("    n_max_radial = %d.\n", parambs[i].n_max_radial);
     printf("    n_max_angular = %d.\n", parambs[i].n_max_angular);
 
@@ -242,7 +243,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     annmbs[i].num_neurons1 = model.num_neurons1;
     annmbs[i].dim = model.layout.dim;
     nep_model_type = parambs[i].model_type;
-    max_dim = max(max_dim, annmbs[i].dim);
+    max_dim = std::max(max_dim, annmbs[i].dim);
     printf("    ANN = %d-%d-1.\n", annmbs[i].dim, annmbs[i].num_neurons1);
 
     parambs[i].rcinv_radial = 1.0f / parambs[i].rc_radial;
@@ -303,7 +304,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
 
 
   // initialize ilp neighbor lists and some temp vectors
-  int max_neighbor_number = min(num_atoms, CUDA_MAX_NL_ILP_NEP_TMD);
+  int max_neighbor_number = std::min(num_atoms, CUDA_MAX_NL_ILP_NEP_TMD);
   ilp_data.NN.resize(num_atoms);
   ilp_data.NL.resize(num_atoms * max_neighbor_number);
   ilp_data.cell_count.resize(num_atoms);
@@ -738,7 +739,7 @@ void find_neighbor_ilp_nep(
   GPU_CHECK_KERNEL
 
   const int MN = NL.size() / NN.size();
-  gpu_sort_neighbor_list<<<N, min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
+  gpu_sort_neighbor_list<<<N, std::min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
   GPU_CHECK_KERNEL
 }
 
@@ -2581,11 +2582,11 @@ void ILP_NEP::compute_ilp(
       nep_data.NN_angular,
       nep_data.NL_angular);
     
-  gpu_sort_neighbor_list<<<number_of_atoms, min(1024, max_MN_radial), max_MN_radial * sizeof(int)>>>(
+  gpu_sort_neighbor_list<<<number_of_atoms, std::min(1024, max_MN_radial), max_MN_radial * sizeof(int)>>>(
     number_of_atoms, nep_data.NN_radial.data(), nep_data.NL_radial.data());
   GPU_CHECK_KERNEL
 
-  gpu_sort_neighbor_list<<<number_of_atoms, min(1024, max_MN_angular), max_MN_angular * sizeof(int)>>>(
+  gpu_sort_neighbor_list<<<number_of_atoms, std::min(1024, max_MN_angular), max_MN_angular * sizeof(int)>>>(
     number_of_atoms, nep_data.NN_angular.data(), nep_data.NL_angular.data());
   GPU_CHECK_KERNEL
 

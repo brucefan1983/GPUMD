@@ -21,12 +21,12 @@ The full command is::
 
   ensemble heat_ttm <T> <T_coup> <delta_T> <label_source> <label_sink> <grouping_method> <group_id> <Ce> <rho_e> <kappa_e> <gamma_p> <gamma_s> <v_0> <nx> <ny> <nz> <T_e_init> [{optional_args}]
 
+Parameters
+----------
+
 For :attr:`heat_ttm`, the first five parameters,
 :attr:`<T>`, :attr:`<T_coup>`, :attr:`<delta_T>`, :attr:`<label_source>`, and
 :attr:`<label_sink>`, have the same meanings as in :attr:`heat_lan`.
-
-Required parameters
--------------------
 
 For both :attr:`ttm` and :attr:`heat_ttm`:
 
@@ -42,10 +42,10 @@ For both :attr:`ttm` and :attr:`heat_ttm`:
 The product :attr:`<Ce> \times <rho_e>` is the volumetric electron heat capacity in eV/(K Å\ :math:`^3`).
 
 Optional arguments
-------------------
+^^^^^^^^^^^^^^^^^^
 
 :attr:`ttm_out_interval`
-^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~
 Syntax::
 
   ttm_out_interval <interval>
@@ -54,7 +54,7 @@ Set the output interval for :ref:`ttm_electron_temperature.out <ttm_electron_tem
 The default value is 1.
 
 :attr:`ttm_infile`
-^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~
 Syntax::
 
   ttm_infile <filename>
@@ -67,7 +67,7 @@ The file must contain one line for each cell in the form::
 The grid indices are 1-based.
 
 :attr:`ttm_properties_file`
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Syntax::
 
   ttm_properties_file <filename>
@@ -84,7 +84,7 @@ This file must define all grid cells and overrides the uniform
 :attr:`<Ce> \times <rho_e>`, :attr:`<kappa_e>`, and :attr:`<gamma_p>` values.
 
 :attr:`ttm_source`
-^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~
 Syntax::
 
   ttm_source <source>
@@ -94,7 +94,7 @@ The source strength is in eV/(ps Å\ :math:`^3`).
 When :attr:`ttm_properties_file` is used, the source in each cell is multiplied by :attr:`eta`.
 
 :attr:`ttm_active_x`, :attr:`ttm_active_y`, :attr:`ttm_active_z`
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Syntax::
 
   ttm_active_x <range>
@@ -107,13 +107,10 @@ such as :attr:`3:10` or :attr:`3-10`.
 Cells outside the active region have zero electron temperature and do not exchange
 energy with neighboring cells or atoms.
 
-Notes
------
+Output
+------
 
-* The simulation box for the electron grid is the full MD box.
-* The electron grid is always uniform in real space.
-* Electron-temperature snapshots are written to :ref:`ttm_electron_temperature.out <ttm_electron_temperature_out>`.
-* In :attr:`heat_ttm`, the source and sink labels always refer to grouping method 0.
+Electron-temperature snapshots are written to :ref:`ttm_electron_temperature.out <ttm_electron_temperature_out>`.
 
 Examples
 --------
@@ -133,3 +130,10 @@ Pure TTM with per-cell properties::
 Heat source/sink plus TTM::
 
   ensemble heat_ttm 300 100 30 0 1 1 0 1.0 1.0 0.005 0.02 0.0 100.0 1 1 40 300 ttm_out_interval 100
+
+Notes
+-----
+
+* The simulation box for the electron grid is the full MD box.
+* The electron grid is always uniform in real space.
+* In :attr:`heat_ttm`, the source and sink labels always refer to grouping method 0.

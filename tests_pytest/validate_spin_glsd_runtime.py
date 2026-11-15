@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: LGPL-3.0-or-later
-"""Full executable GLSD lifecycle and 1/2/4 GPU checks (numpy, four allocated GPUs).
+"""Full executable GLSD lifecycle and 1/2/4 GPU checks (numpy, allocated GPUs).
 
 Analytic zero/constant-field, free-diffusion, and deterministic onsite cases
 check the public gpumd path. The bounded tanh ANN is not an equilibrium oracle.
@@ -15,7 +15,7 @@ import shutil
 import subprocess
 import numpy as np
 from spin_fixtures import FIXTURE
-from spin_analytic_model import analytic_model, structure as small_structure
+from spin_analytic_model import REFERENCE_MODEL, analytic_model, structure as small_structure
 from validate_spin_multigpu import frame, structure, write_xyz, sha
 
 
@@ -34,13 +34,15 @@ def main():
     p=argparse.ArgumentParser()
     for key in ('binary','output'):
         p.add_argument('--'+key,type=Path,required=True)
-    p.add_argument('--model', type=Path, default=FIXTURE/'nep_spin_o3c2_uniform.nep')
+    p.add_argument('--model', type=Path, default=REFERENCE_MODEL)
+    p.add_argument('--gpus', type=int, choices=(1, 2, 4), default=4)
     a=p.parse_args()
     for key in ('binary','model','output'): setattr(a,key,getattr(a,key).resolve())
     a.output.mkdir(parents=True,exist_ok=False)
     devices=os.environ.get('CUDA_VISIBLE_DEVICES','0,1,2,3').split(',')
-    assert len(devices)>=4,'four allocated GPUs required'
-    report={'binary_sha256':sha(a.binary),'model_sha256':sha(a.model),'cases':{}}
+    assert len(devices)>=a.gpus,'not enough allocated GPUs'
+    layouts=tuple(g for g in (1, 2, 4) if g<=a.gpus)
+    report={'binary_sha256':sha(a.binary),'model_sha256':sha(a.model),'gpu_layouts':layouts,'cases':{}}
     def record(name,data):
         report['cases'][name]=data
         (a.output/'report.json').write_text(json.dumps(report,indent=2))
@@ -64,7 +66,7 @@ def main():
             assert result.returncode!=0,case
             assert "Input Error" in (case/'run.log').read_text(),case
             return case
-        assert result.returncode==0,(case,(case/'run.log').read_text()[-3000:])
+        assert result.returncode==0,(case,result.returncode,(case/'run.log').read_text())
         state=frame(case/'state.xyz')
         assert all(np.isfinite(v).all() for v in state.values()),case
         return case,state
@@ -92,7 +94,7 @@ def main():
     masked_lines[-1]='Ge '+masked_lines[-1].split(' ',1)[1]
     masked_xyz.write_text('\n'.join(masked_lines)+'\n')
     symbols=[line.split()[0] for line in masked_xyz.read_text().splitlines()[2:]]
-    for g in (1,2,4):
+    for g in layouts:
         _,masked=run(f'masked-noise-g{g}',g, f'nve_glsd {damping(2,3)} gamma 3 stemp 300',
                      20,1,masked_model,masked_xyz)
         inactive=np.array([symbol!='Fe' for symbol in symbols])
@@ -102,7 +104,7 @@ def main():
         record(f'masked-noise-g{g}', {'inactive_atoms':int(inactive.sum())})
     # Exact zero and constant-field solution through actual Force::compute.
     small=a.output/'small.xyz';small.write_text(small_structure([[0,0,0]]*4))
-    for g in (1,2,4):
+    for g in layouts:
         _,z=run(f'zero-g{g}',g,f'nve_glsd {damping(2, 3)} gamma 3',100,10,zero,small)
         assert np.max(np.abs(z['spin']))==0
         _,z=run(f'zero-field-g{g}',g,f'nve_glsd {damping(2, 3)} gamma 3',100,10,zero,small,
@@ -157,15 +159,22 @@ def main():
         assert np.sum(s['potential']) < np.sum(np.tanh(.1*np.sum(initial**2,axis=1)))
     assert errors[0]/errors[1]>3.5 and errors[1]/errors[2]>3,errors
     record('onsite_convergence',{'errors':errors})
+    # These fixtures are numerical oracles, not calibrated dynamical models.
+    # Compare decompositions with converged midpoint solves at a short timestep.
+    bundled_dt = .01
+    # Keep physical bath periods at 10 fs and 100 fs as the timestep changes.
+    tperiod, pperiod = 10 / bundled_dt, 100 / bundled_dt
     # Bundled model: spin-only, coupled lattice and pressure endpoints.
     for name,ens,steps in [
         ('Fe0',f'nve_glsd {damping(10)} stemp -1 seed 731',200),
-        ('FeT',f'nvt_glsd 300 300 100 lattice off {damping(10)} seed 731',200),
-        ('coupled',f'nvt_glsd 300 300 100 lattice on {damping(10)} seed 731',100),
-        ('npt',f'npt_glsd temp 300 300 iso 0 0 tperiod 100 pperiod 1000 {damping(10)} seed 731',20)]:
+        ('FeT',f'nvt_glsd 300 300 {tperiod:g} lattice off {damping(10)} seed 731',200),
+        ('coupled',f'nvt_glsd 300 300 {tperiod:g} lattice on {damping(10)} seed 731',100),
+        ('npt',f'npt_glsd temp 300 300 iso 0 0 tperiod {tperiod:g} pperiod {pperiod:g} {damping(10)} seed 731',20)]:
         states=[]
-        for g in (1,2,4):
-            case,s=run(f'{name}-g{g}',g,ens,steps,field=field)
+        ens += ' midpoint_tol 1e-7 midpoint_max_iter 100'
+        for g in layouts:
+            case,s=run(f'{name}-g{g}',g,ens,steps,bundled_dt,field=field)
+            assert 'steps accepted at iteration cap before convergence: 0 of' in (case/'run.log').read_text(), case
             states.append(s)
             _,endpoint=run(f'{name}-endpoint-g{g}',g,'nve',1,0,
                            xyz_in=case/'restart.xyz',field=field)
@@ -178,13 +187,13 @@ def main():
             record(f'{name}-g{g}',{'norm_min':float(norms.min()),'norm_max':float(norms.max()),
                    'mean_spin':s['spin'].mean(axis=0).tolist(),'mean_norm':float(norms.mean()),
                    'norm_sd':float(norms.std()),'wrapped_position_difference':float(np.max(np.abs(s['pos']-pos)))})
-        for g, candidate in zip((2, 4), states[1:]):
+        for g, candidate in zip(layouts[1:], states[1:]):
             dif=difference(states[0],candidate)
             assert dif['spin']<3e-5 and dif['mforce']<1e-5 and dif['force']<1e-4,dif
             record(name+f'-g1-g{g}',dif)
     # Free Cartesian diffusion is an independent Gaussian transient oracle.
     # It is deliberately not described as an equilibrium for a zero potential.
-    for g in (1,2,4):
+    for g in layouts:
         samples=[]
         for seed in (731,913,1171):
             _,s=run(f'diffusion-{seed}-g{g}',g,
@@ -199,7 +208,7 @@ def main():
     # Physical-state restart; each ensemble starts a new seeded noise stream.
     for temp in (-1,300):
         ens=f'nve_glsd {damping(2, 3)} gamma 3 stemp {temp} seed 731'
-        for g in (1,2,4):
+        for g in layouts:
             _,whole=run(f'whole-{temp}-g{g}',g,ens,40,1,toy)
             half,_=run(f'half-{temp}-g{g}',g,ens,20,1,toy)
             _,restart=run(f'restart-{temp}-g{g}',g,ens,20,1,toy,half/'restart.xyz')
@@ -212,7 +221,7 @@ def main():
             assert err2<1e-12,err2
             assert 'spin_vel:' not in (half/'restart.xyz').read_text().splitlines()[1]
             record(f'restart-{temp}-g{g}',{'uninterrupted_difference':err,'restart_vs_new_run_error':err2})
-    for g in (1,2,4):
+    for g in layouts:
         source=a.output/f'half-300-g{g}'/'restart.xyz'
         sib_case,_=run(f'switch-sib-g{g}',g,'nve_sib alpha 0',1,1,toy,source)
         assert 'spin_glsd_' not in (sib_case/'restart.xyz').read_text()

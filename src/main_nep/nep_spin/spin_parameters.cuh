@@ -1,6 +1,16 @@
 /*
     Copyright 2017 Zheyong Fan and GPUMD development team
-    This file is part of GPUMD and is distributed under LGPLv3 or later.
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
@@ -10,9 +20,9 @@ class Spin_Parameters : public NEP_Energy_Parameters
 {
 public:
   explicit Spin_Parameters(const ParameterInput& input);
-  int spin_compress = 2, spin_order = 3, spin_soc = 1;
-  int spin_basis_size[2] = {8, 0};
-  int spin_l_max[3] = {2, 0, 0};
+  int spin_compress = 3, spin_order = 2, spin_soc = 1;
+  int spin_basis_size = 0;
+  int spin_l_max = 2;
   float spin_cutoff = 8.0f;
   float lambda_m = 1.0f, lambda_tau = 0.0f, lambda_spin_response = 0.0f;
   float lambda_m_parallel = 0.0f, lambda_m_perp = 0.0f;
@@ -20,7 +30,7 @@ public:
   bool is_spin_type_set = false;
   bool spin_restart = false;
   int dim_struct = 0, dim_spin = 0;
-  int number_of_variables_descriptor_spin = 0, number_of_variables_spin_projection = 0;
+  int number_of_variables_spin_projection = 0;
   std::vector<int> spin_type_active;
   std::vector<float> spin_cutoff_by_type;
   GPU_Vector<float> q_scaler_square_sum[16];

@@ -34,7 +34,7 @@ def main():
     def run(name, count, ensemble, xyz, steps=8, dt=.01):
         directory = args.output / name
         directory.mkdir()
-        shutil.copy(FIXTURE / 'nep_spin_o3c2_uniform.nep', directory / 'nep.txt')
+        shutil.copy(FIXTURE / 'c3l2s2_fege.nep', directory / 'nep.txt')
         shutil.copy(xyz, directory / 'model.xyz')
         (directory / 'run.in').write_text(
             'potential nep.txt x\n' + magnetic_field + f'ensemble {ensemble}\ntime_step {dt}\n'

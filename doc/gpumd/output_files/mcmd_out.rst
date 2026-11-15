@@ -5,8 +5,10 @@
 ``mcmd.out``
 ============
 
-This file contains some data related to (:term:`MC`) simulation.
+This file records MC acceptance ratios and species concentrations.
 It is generated when invoking the :ref:`mc keyword <kw_mc>`.
+
+Results are appended to the file.
 
 File format
 -----------

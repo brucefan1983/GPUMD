@@ -232,11 +232,12 @@ void _init_clebsch_gordan(std::vector<double>& cglist, const std::vector<int>& l
     const int l = llist[il];
     for (int m1 = 0; m1 < 2 * l + 1; m1++) {
       int aa2 = m1 - l;
-      for (int m2 = max(0, l - m1); m2 < min(2 * l + 1, 3 * l - m1 + 1); m2++) {
+      for (int m2 = std::max(0, l - m1); m2 < std::min(2 * l + 1, 3 * l - m1 + 1); m2++) {
         int bb2 = m2 - l;
         int m = aa2 + bb2 + l;
         double sums{0.0};
-        for (int z = max(0, max(-aa2, bb2)); z < min(l, min(l - aa2, l + bb2)) + 1; z++) {
+        for (int z = std::max(0, std::max(-aa2, bb2));
+             z < std::min(l, std::min(l - aa2, l + bb2)) + 1; z++) {
           int ifac = 1;
           if (z % 2) {
             ifac = -1;
@@ -264,7 +265,7 @@ int _get_idx(const std::vector<int>& llist)
   for (int il = 0; il < llist.size(); il++) {
     const int l = llist[il];
     for (int m1 = 0; m1 < 2 * l + 1; m1++) {
-      for (int m2 = max(0, l - m1); m2 < min(2 * l + 1, 3 * l - m1 + 1); m2++) {
+      for (int m2 = std::max(0, l - m1); m2 < std::min(2 * l + 1, 3 * l - m1 + 1); m2++) {
         idxcg_count++;
       }
     }

@@ -39,17 +39,26 @@ public:
     double gamma,
     double mobility,
     double spin_temperature,
+    double midpoint_tolerance,
     int seed,
     const std::vector<int>& spin_types,
     Atom& atom);
   void compute1(const double time_step, Atom& atom) override;
   void compute2(const double time_step, Atom& atom) override;
+  bool converged() const { return converged_; }
+  void finish_step(Atom& atom);
+  void report_iterations() const;
 
 private:
   double gamma_;            // numerical magnetic-moment precession factor, g / hbar
   double mobility_;         // muB^2 / (eV ps); g^2 times the paper's gamma_s_prime
   double spin_temperature_; // -1: no noise, 0: follow ensemble, >0: fixed K
+  double midpoint_tolerance_;
+  double total_iterations_ = 0.0;
+  int iterations_ = 0, max_iterations_ = 0;
   std::uint64_t seed_, step_;
-  GPU_Vector<int> active_;
-  GPU_Vector<double> spin_start_, drift_start_, noise_increment_;
+  std::uint64_t unconverged_steps_ = 0;
+  bool converged_ = false;
+  GPU_Vector<int> active_, iteration_status_;
+  GPU_Vector<double> spin_start_, spin_endpoint_, noise_increment_;
 };
