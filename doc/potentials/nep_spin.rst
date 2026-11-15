@@ -91,29 +91,14 @@ simultaneous rotation, inversion and time-reversal invariance. Cartesian
 force, magnetic force and all nine virial components are analytical
 chain-rule derivatives of this energy.
 
-Parameter and checkpoint layout
--------------------------------
-
-The shared block-file syntax remains ``format_version 1``. The magnetic
-layout is determined by ``spin_soc`` and the descriptor settings. Parameters are stored
-as per-type ANN parameters, shared ANN bias, structural radial coefficients,
-structural angular coefficients, then these channel-last arrays:
-
-* angular-radial mixing, shape ``(n_max_angular+1, C)``;
-* coupling-path weights, shape ``(number_of_paths, C)``;
-* center-primitive mixing, shape ``(number_of_positive_degree_primitives, C)``.
-
-The sizes of these arrays follow from the descriptor settings. Primitive order is
-ascending degree then rank. In SOC mode, path order is geometry rank, primitive, site
-(center before neighbor), then output rank. Sectors are sorted by
-``(rank, spatial parity, time parity)``, with -1 before +1. Scalers follow
-in the ``@ q_scaler`` block.
+Supported settings
+------------------
 
 Current limits are :math:`1\leq C\leq9`, :math:`0\leq L\leq4`,
 :math:`1\leq S\leq4`, and ``spin_soc 0/1``. Every combination of these
 magnetic settings is supported, with at most 236 magnetic and 339 total
 coordinates. The structural limits remain 90 angular and 103 total coordinates.
-The training optimizer is SNES.
+Training uses SNES and a single hidden ANN layer.
 
 Non-SOC descriptors
 -------------------
@@ -137,13 +122,6 @@ exchange-sensitive responses. Rotating only one spin generally changes the
 energy, while rotating every spin by the same orthogonal transformation does
 not. No normalization by spin length is required at zero spin.
 
-Product sectors are ordered by ascending ``(g,j)``. Paths are ordered by
-``g, j, primitive (degree then rank), site (center then neighbor)``; within
-a product sector the spatial component m precedes spin component a. Center
-coefficients keep the positive-degree primitive ordering of the SOC mode,
-but only enter spatial-rank-zero sectors. This ordering is part of the
-``spin_soc 0`` checkpoint contract.
-
 .. _nep_spin_dimensions:
 
 Descriptor dimensions
@@ -151,11 +129,9 @@ Descriptor dimensions
 
 For maximum angular rank L, order S and C channels, the non-SOC dimension is
 ``floor(S/2) + C * ((L+1)*(min(L,S)+1) + 1)``. For C=3, L=S=2 this is 31,
-with 81 tensor components per channel. At C=9, L=S=4 it reaches the maximum
+and at C=9, L=S=4 it reaches the maximum
 236 magnetic coordinates (339 with the maximal structural shape).
-The largest supported product basis
-has 625 components per channel; large layouts retain the generic CUDA
-fallback. SOC at L=S=2 has ``1+11*C`` spin coordinates.
+SOC at L=S=2 has ``1+11*C`` spin coordinates.
 
 .. _nep_spin_scaling:
 
@@ -230,12 +206,6 @@ component, the chain rule gives
      \frac{\partial U_i}{\partial q^i_\nu}
      \frac{\partial q^i_\nu}{\partial\boldsymbol{s}_k}.
 
-The implementation first evaluates
-:math:`\partial U_i/\partial q^i_\nu` through the neural network and then
-applies the analytical vector--Jacobian product of every NEP-spin contraction,
-moment reduction, and radial basis function. The same position derivative
-produces the full per-atom virial. No finite-difference force path is used.
-
 The spin torque used for training diagnostics is
 
 .. math::
@@ -280,7 +250,7 @@ where :math:`N_\mathrm{m}` counts labeled active spins and
 
 The magnetic-force loss always includes all three Cartesian components and
 includes zero spins. Both the torque-error sum and its count exclude spins at
-or below the squared-magnitude threshold, evaluated in double precision.
+or below the squared-magnitude threshold; both use the same threshold.
 To supervise only spin rotation, set ``lambda_m 0`` and a positive ``lambda_tau``.
 For nonzero spins, the squared torque error equals the squared transverse magnetic-force
 error multiplied by :math:`|\boldsymbol{s}_i|^2`.
@@ -307,49 +277,31 @@ at :math:`10^{-6}`, normalizes its shape term and a second Huber term comparing
 group means; the mean term is multiplied by 0.25. ``response_coordinate``
 defines the path derivative but does not add a separate reliability weight.
 
-The group coordinate is explicit because Cartesian spin snapshots alone do
-not determine their path ordering or parameterization. The trainer sorts each
-group and derives
-:math:`\partial\boldsymbol{s}/\partial\theta` from the final constrained-DFT
-spins with second-order, three-point nonuniform weights applied to sphere-log
-angular displacements and separate magnitude differences. This preserves
-longitudinal moment relaxation without injecting the radial chord error of
-Cartesian interpolation into constant-length rotations. Stencils must resolve
-angular separations below pi. Atom types excluded by ``spin_type`` are
-masked from the derived tangent. At zero moment, the tangent uses Cartesian
-differences. Constant-rate great-circle rotations are differentiated exactly
-apart from floating-point rounding; other paths retain the finite-stencil
-approximation. Antipodal samples require intermediate frames. Input labels
-and group metadata are specified in :ref:`response_xyz`; the loss weight is
-set by :ref:`lambda_spin_response <kw_lambda_spin_response>`.
+Each group requires an explicit path coordinate and at least three distinct
+samples. Tangents are derived from the final constrained-DFT spins, including
+changes in moment magnitude. Neighboring samples must have angular separations
+below pi; add intermediate frames near antipodal spins. Atom types excluded by
+``spin_type`` do not contribute to the response. Input labels and group metadata
+are specified in :ref:`response_xyz`; the loss weight is set by
+:ref:`lambda_spin_response <kw_lambda_spin_response>`.
 
 NEP-spin uses the shared SNES lifecycle: generation zero prepares training scalers
 and uses regularization-only fitness. Physical losses are evaluated from the
 next generation. All magnetic descriptor orders participate throughout training.
 
-Both native and runtime-compiled NEP-spin training evaluate ANN dot products,
-activations, energy sums, and descriptor-gradient accumulation in double
-precision. This limits cancellation errors in small magnetic energy differences
-while keeping the energy and its derivatives on the same arithmetic path.
-Model parameters and ANN descriptor gradients are stored in single precision.
-The spin neighbor list uses the original double-precision positions and cell.
-For non-SOC models with spin angular rank four and spin order four, the spin
-descriptor and force kernels share double-precision contracted radial
-coefficients.
-
 Model formats and input
 =======================
 
-.. list-table::
-   :header-rows: 1
-   :widths: 25 30 45
+The block-format model file uses ``format_version 1`` and ``model nep_spin``.
+For the parameter blocks and their ordering, see
+`the NEP model format specification <https://github.com/brucefan1983/GPUMD/blob/master/potentials/nep/nep_model_format.md>`_.
 
-   * - Header in ``nep.txt``
-     - Training mode
-     - Description
-   * - ``nep`` / ``model nep_spin``
-     - ``model nep_spin``
-     - Current block format with ``spin_version 1``; optional :ref:`zbl <kw_zbl>` field.
+Every training frame must include Cartesian ``spin:R:3`` in Bohr magnetons.
+Use ``mforce:R:3`` in eV/Bohr magneton for magnetic-force labels. Missing
+magnetic-force labels are permitted for energy/force training; torque loss
+requires magnetic-force labels. Spin vectors are not normalized by the reader.
+Virial and stress labels are symmetrized before reduction to six components;
+the shear components are the averages of the corresponding tensor pair.
 
 See :ref:`spin_version <kw_spin_version>` and the neighboring ``spin_*`` keyword
 pages for descriptor configuration. See :ref:`train_test_xyz` for ordinary
@@ -366,11 +318,8 @@ The ``nve`` and ``nvt_nhc`` ensembles evolve positions and velocities while
 keeping the magnetic moments fixed. Only one potential is allowed, and all
 three cell directions must be periodic.
 
-MD stores and integrates Cartesian positions in double precision. Most NEP-spin
-layouts convert relative displacements to single precision for descriptor and
-force evaluation. The non-SOC rank-four, order-four spin kernels evaluate
-these displacements in double precision. Use ``dump_xyz ... precision double``
-to retain coordinate precision in trajectory output.
+Use ``dump_xyz ... precision double`` when coordinate precision is important
+for trajectory output.
 
 Atoms whose elements are absent from ``spin_type`` have zero effective spin.
 Their input spin values are ignored; they still contribute geometric
@@ -400,5 +349,4 @@ although spins are fixed. For spin dynamics, see :ref:`SIB <kw_ensemble_sib>`,
 
 Multi-GPU execution uses every visible GPU in a single process. Use
 ``potential nep.txt x`` (or ``y``/``z``) to select the spatial partition
-direction. Small cells may require replicated geometry and offer little
-speedup. GPU 0 retains the global arrays.
+direction. Small cells may offer little speedup.

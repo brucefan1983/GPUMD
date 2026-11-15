@@ -12,7 +12,7 @@ Syntax
 
 ::
 
-  spin_type Fe
+  spin_type <element_1> [<element_2> ...]
 
 Parameters
 ----------
@@ -45,7 +45,12 @@ None.
 Examples
 --------
 
-For example, with ``type 3 Fe Bi O`` and ``spin_type Fe``, Bi and O centers
+Select multiple magnetic elements with, for example::
+
+  type 3 Fe Co O
+  spin_type Fe Co
+
+With ``type 3 Fe Bi O`` and ``spin_type Fe``, Bi and O centers
 respond to neighboring Fe spins and contribute magnetic energy and atomic
 forces without acquiring independent spin degrees of freedom.
 

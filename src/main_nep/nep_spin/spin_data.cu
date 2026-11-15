@@ -1,6 +1,16 @@
 /*
     Copyright 2017 Zheyong Fan and GPUMD development team
-    This file is part of GPUMD and is distributed under LGPLv3 or later.
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "spin_data.cuh"
@@ -40,19 +50,24 @@ static __global__ void gpu_find_spin_neighbors(
           for (int ic = 0; ic < num_cell[2]; ++ic) {
             if (ia == 0 && ib == 0 && ic == 0 && n1 == n2)
               continue;
-            const double x12_image = box_original[0]*ia + box_original[1]*ib + box_original[2]*ic;
-            const double y12_image = box_original[3]*ia + box_original[4]*ib + box_original[5]*ic;
-            const double z12_image = box_original[6]*ia + box_original[7]*ib + box_original[8]*ic;
+            const double x12_image =
+              box_original[0] * ia + box_original[1] * ib + box_original[2] * ic;
+            const double y12_image =
+              box_original[3] * ia + box_original[4] * ib + box_original[5] * ic;
+            const double z12_image =
+              box_original[6] * ia + box_original[7] * ib + box_original[8] * ic;
             double x12 = x[n2] + x12_image - x1;
             double y12 = y[n2] + y12_image - y1;
             double z12 = z[n2] + z12_image - z1;
             // The inverse selects the image; form its Cartesian displacement from the input cell.
-            const double sx = num_cell[0]*nearbyint(box[9]*x12 + box[10]*y12 + box[11]*z12);
-            const double sy = num_cell[1]*nearbyint(box[12]*x12 + box[13]*y12 + box[14]*z12);
-            const double sz = num_cell[2]*nearbyint(box[15]*x12 + box[16]*y12 + box[17]*z12);
-            x12 -= box_original[0]*sx + box_original[1]*sy + box_original[2]*sz;
-            y12 -= box_original[3]*sx + box_original[4]*sy + box_original[5]*sz;
-            z12 -= box_original[6]*sx + box_original[7]*sy + box_original[8]*sz;
+            const double sx = num_cell[0] * nearbyint(box[9] * x12 + box[10] * y12 + box[11] * z12);
+            const double sy =
+              num_cell[1] * nearbyint(box[12] * x12 + box[13] * y12 + box[14] * z12);
+            const double sz =
+              num_cell[2] * nearbyint(box[15] * x12 + box[16] * y12 + box[17] * z12);
+            x12 -= box_original[0] * sx + box_original[1] * sy + box_original[2] * sz;
+            y12 -= box_original[3] * sx + box_original[4] * sy + box_original[5] * sz;
+            z12 -= box_original[6] * sx + box_original[7] * sy + box_original[8] * sz;
             if (x12 * x12 + y12 * y12 + z12 * z12 < rc_spin * rc_spin) {
               if (Store) {
                 const int index = n1 + N * count;
@@ -71,7 +86,8 @@ static __global__ void gpu_find_spin_neighbors(
   }
 }
 
-void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::vector<FrameInput>& input)
+void Spin_Data::construct(
+  Spin_Parameters& para, Dataset& dataset, const std::vector<FrameInput>& input)
 {
   const int N = dataset.N, Nc = dataset.Nc;
   labels.reserve(Nc);
@@ -84,7 +100,7 @@ void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::ve
   for (int n = 0; n < Nc; ++n) {
     const auto& structure = dataset.structures[n];
     const auto& frame = input.at(structure.index_in_file);
-    std::copy(frame.geometry.cell.begin(), frame.geometry.cell.end(), cells.data() + 9*n);
+    std::copy(frame.geometry.cell.begin(), frame.geometry.cell.end(), cells.data() + 9 * n);
     labels.push_back(frame);
     const auto& label = labels.back();
     has_mforce_cpu[n] = label.has_mforce;
@@ -99,7 +115,8 @@ void Spin_Data::construct(Spin_Parameters& para, Dataset& dataset, const std::ve
           ++torque_active_count_cpu[n];
       }
       const int i = dataset.Na_sum_cpu[n] + a;
-      for (int d = 0; d < 3; ++d) position[d*N+i] = frame.geometry.position[a][d];
+      for (int d = 0; d < 3; ++d)
+        position[d * N + i] = frame.geometry.position[a][d];
       moments[i] = label.sx[a];
       moments[N + i] = label.sy[a];
       moments[2 * N + i] = label.sz[a];

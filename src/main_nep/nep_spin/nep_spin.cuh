@@ -46,7 +46,6 @@ public:
   void read_model(float*) override;
   void write_restart(const char*, const std::vector<float>&, const std::vector<float>&) override;
 
-
 private:
   class ResponseLoss
   {
@@ -78,7 +77,6 @@ private:
     void prepare_test(const std::vector<Structure>&, bool) override;
     void prepare_dataset(Dataset&) override;
     const char* energy_difference_conflict(const Structure&, const Structure&) const override;
-    XYZ_Geometry* precise_geometry() override { return &labels.back().geometry; }
     void begin_reading() override { labels.clear(); }
     void read_structure(const XYZ_Record&, Structure&) override;
     struct Frame {

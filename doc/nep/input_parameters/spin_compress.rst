@@ -25,10 +25,6 @@ angular radial channels into :math:`C` spin channels. All combinations of
 103 structural coordinates, the total limit is 339. The structural angular
 limit remains 90; the training input and model reader enforce the same limits.
 
-Models with at most 199 total coordinates keep the smaller ANN workspace;
-only larger models use the expanded workspace. The model format and parameter
-ordering are unchanged.
-
 For ``spin_l_max 2`` and ``spin_order 2``, SOC gives :math:`1+11C` spin
 coordinates; non-SOC gives :math:`1+10C`. See :ref:`nep_spin_dimensions`.
 

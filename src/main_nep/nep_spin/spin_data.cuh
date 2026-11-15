@@ -1,13 +1,27 @@
 /*
     Copyright 2017 Zheyong Fan and GPUMD development team
-    This file is part of GPUMD and is distributed under LGPLv3 or later.
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #pragma once
 #include "main_nep/dataset.cuh"
 #include "spin_parameters.cuh"
-#include "main_nep/xyz_reader.cuh"
+#include <array>
 struct Spin_Data {
+  struct Geometry {
+    std::array<double, 9> cell;
+    std::vector<std::array<double, 3>> position;
+  };
   struct Labels {
     int has_mforce = 0, has_spin_response_metadata = 0, has_spin_response = 0;
     double spin_response_coordinate = 0.0;
@@ -17,7 +31,7 @@ struct Spin_Data {
     std::vector<float> spin_tangent_x, spin_tangent_y, spin_tangent_z;
   };
   struct FrameInput : Labels {
-    XYZ_Geometry geometry;
+    Geometry geometry;
   };
   int max_NN_spin = 0;
   std::vector<Labels> labels;

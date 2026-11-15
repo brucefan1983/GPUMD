@@ -1,6 +1,16 @@
 /*
     Copyright 2017 Zheyong Fan and GPUMD development team
-    This file is part of GPUMD and is distributed under LGPLv3 or later.
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "nep_spin.cuh"
@@ -76,7 +86,8 @@ void NEP_Spin_Model::initialize_search(
 
   const int radial_mix_end = spin_offset + angular_channel_count * para.spin_compress;
   for (int index = spin_offset; index < para.number_of_variables; ++index) {
-    const float scale = index < radial_mix_end ? 1.0f / std::sqrt(float(angular_channel_count)) : 0.2f;
+    const float scale =
+      index < radial_mix_end ? 1.0f / std::sqrt(float(angular_channel_count)) : 0.2f;
     mu[index] = normal(rng) * scale;
     sigma[index] = para.sigma0 * scale;
   }

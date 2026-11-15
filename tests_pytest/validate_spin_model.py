@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+# Copyright 2017 Zheyong Fan and GPUMD development team
+# This file is part of GPUMD.
+# GPUMD is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# GPUMD is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+# You should have received a copy of the GNU Lesser General Public License
+# along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
+
 """Native spin oracle, training/prediction, restart and type-mask checks."""
 import argparse
 import copy
@@ -7,6 +20,7 @@ import json
 import math
 import re
 import shutil
+import struct
 from pathlib import Path
 
 from spin_force_helpers import run_case, max_error
@@ -106,6 +120,50 @@ def main():
             errors['training_prediction_'+field]=err
             assert err < 1e-4, (name,field,err)
         report[name]=errors
+    # Isolate spin geometry from the ordinary structural float descriptor.
+    geometry_model = (FIXTURE/'c3l2s2.nep').read_text().splitlines()
+    start = next(i+1 for i,line in enumerate(geometry_model) if line.startswith('@ parameters '))
+    for t in range(3):
+        for neuron in range(32):
+            for d in range(30):
+                geometry_model[start+t*32*(64+2)+neuron*64+d] = '0'
+    geometry_model = '\n'.join(geometry_model)+'\n'
+    original = json.loads((FIXTURE/'c3l2s2.json').read_text())['cases']['large']
+    geometry = {}
+    length = 300995.893159187
+    rounded = {}
+    for triclinic in (False, True):
+        states = {}
+        for jit in (0, 1):
+            for index,shift in enumerate((-1., length/2)):
+                case = copy.deepcopy(original)
+                case['cell'] = [length,0.,0.,2. if triclinic else 0.,20.,0.,
+                                0.,1. if triclinic else 0.,20.]
+                for row in case['positions']:
+                    row[0] = (row[0]+shift) % case['cell'][0]
+                directory = args.workdir/f'geometry-{triclinic}-{jit}-{index}'
+                execute(directory, INPUT.format(C=3,L=2,S=2)+f'prediction 1\nnep_compile {jit}\n',
+                        training_xyz(case), geometry_model)
+                states[jit,index] = sum((sum(columns(directory/(field+'_train.out'),width), [])
+                    for field,width in (('energy',2),('force',6),('mforce',6),('virial',12))), [])
+                if args.require_jit and jit:
+                    assert 'Spin aggregate JIT ready:' in (directory/'stdout.log').read_text()
+                if not triclinic and not jit:
+                    # A float-rounding negative control must fail the translation gate.
+                    quantized = copy.deepcopy(case)
+                    f32 = lambda value: struct.unpack('f', struct.pack('f', value))[0]
+                    quantized['cell'] = list(map(f32, case['cell']))
+                    quantized['positions'] = [list(map(f32, row)) for row in case['positions']]
+                    quantized_dir = args.workdir/f'geometry-rounded-{index}'
+                    execute(quantized_dir, INPUT.format(C=3,L=2,S=2)+'prediction 1\nnep_compile 0\n',
+                            training_xyz(quantized), geometry_model)
+                    rounded[index] = columns(quantized_dir/'mforce_train.out', 6)
+        errors = {str(key):max_error(states[0,0],value) for key,value in states.items()}
+        assert max(errors.values()) < 2e-7, (triclinic, errors)
+        geometry[str(triclinic)] = errors
+    geometry['float_rounding_negative_control'] = max_error(rounded[0], rounded[1])
+    assert geometry['float_rounding_negative_control'] > 2e-7, geometry
+    report['raw_double_geometry'] = geometry
     # Joint rotations, spatial inversion and time reversal are model symmetries.
     reference = json.loads((FIXTURE/'c3l2s2.json').read_text())
     fixed_model = (FIXTURE/'c3l2s2.nep').read_text()

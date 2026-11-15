@@ -233,7 +233,7 @@ __global__ void find_neighbor_list_spin_small_box(
   atomicMax(required_capacity, max(count_radial, max(count_angular, count_spin)));
 }
 
-template<bool DefaultAngular = false>
+template <bool DefaultAngular = false>
 __global__ void find_structural_descriptor(
   const NEP_Spin::ParaMB paramb,
   const NEP_Spin::ANN ann,
@@ -322,8 +322,7 @@ __global__ void find_structural_descriptor(
       float gn12 = 0.0f;
       for (int k = 0; k <= basis; ++k) {
         int c_index = paramb.num_c_radial;
-        c_index += (t1 * paramb.num_types + t2) *
-                   ((paramb.n_max_angular + 1) * (basis + 1));
+        c_index += (t1 * paramb.num_types + t2) * ((paramb.n_max_angular + 1) * (basis + 1));
         c_index += n * (basis + 1) + k;
         gn12 += fn12[k] * ann.c_type_pair[c_index];
       }
@@ -350,7 +349,7 @@ __global__ void find_structural_descriptor(
     descriptor[static_cast<size_t>(N) * (paramb.n_max_radial + 1 + d * channels + n) + n1] = q[d];
 }
 
-template<class Real = float, int Capacity = NEP_Spin_Model_File::COMPACT_ANN_DIM>
+template <class Real = float, int Capacity = NEP_Spin_Model_File::COMPACT_ANN_DIM>
 __global__ void find_potential(
   const int N,
   const int descriptor_dim,
@@ -363,7 +362,8 @@ __global__ void find_potential(
   const double* energy_reference,
   double* potential,
   float* Fp,
-  const double* wide_spin = nullptr, int structural_dim = 0)
+  const double* wide_spin = nullptr,
+  int structural_dim = 0)
 {
   const int atom = blockIdx.x * blockDim.x + threadIdx.x;
   if (atom >= N) {
@@ -378,8 +378,8 @@ __global__ void find_potential(
   Real q[Capacity] = {0.0f};
   for (int d = 0; d < descriptor_dim; ++d) {
     q[d] = wide_spin && d >= structural_dim
-      ? wide_spin[static_cast<std::size_t>(N) * (d-structural_dim) + atom] * q_scaler[d]
-      : descriptor[static_cast<std::size_t>(N) * d + atom] * q_scaler[d];
+             ? wide_spin[static_cast<std::size_t>(N) * (d - structural_dim) + atom] * q_scaler[d]
+             : descriptor[static_cast<std::size_t>(N) * d + atom] * q_scaler[d];
   }
   Real energy = 0.0f;
   Real fp[Capacity] = {0.0f};
@@ -551,11 +551,11 @@ __global__ void find_force_angular_warp(
     const int t2 = type[n2];
     const float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
     const float rcinv = 1.0f / rc;
-    find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
+    nep_spin::find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
 
     float fn12[MAX_NUM_N];
     float fnp12[MAX_NUM_N];
-    find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
+    nep_spin::find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
       float gn12 = 0.0f;
       float gnp12 = 0.0f;
@@ -684,10 +684,10 @@ static __global__ void find_force_radial(
       float fc12, fcp12;
       float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
-      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
+      nep_spin::find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
+      nep_spin::find_fn_and_fnp(paramb.basis_size_radial, rcinv, d12, fc12, fcp12, fn12, fnp12);
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gnp12 = 0.0f;
         float gnp21 = 0.0f;
@@ -790,11 +790,11 @@ static __global__ void find_partial_force_angular(
       int t2 = g_type[n2];
       float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
       float rcinv = 1.0f / rc;
-      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
+      nep_spin::find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
 
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
+      nep_spin::find_fn_and_fnp(paramb.basis_size_angular, rcinv, d12, fc12, fcp12, fn12, fnp12);
       for (int n = 0; n <= paramb.n_max_angular; ++n) {
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
@@ -999,8 +999,6 @@ void NEP_Spin::launch_force_angular_warp(
       virial.data());
 }
 
-
-
 void NEP_Spin::launch_structural_descriptors(
   const Box& box,
   const GPU_Vector<int>& type,
@@ -1015,10 +1013,23 @@ void NEP_Spin::launch_structural_descriptors(
   const dim3 grid((n + 63) / 64, paramb_.n_max_radial + paramb_.n_max_angular + 2);
   auto launch = [&](auto shape) {
     find_structural_descriptor<decltype(shape)::value><<<grid, 64, 0, stream>>>(
-      paramb_, ann_, n, box, data.NN_radial.data(), data.NL_radial.data(),
-      data.NN_angular.data(), data.NL_angular.data(), radial_edges, angular_edges, plane,
-      type.data(), position.data(), position.data() + n, position.data() + 2 * n,
-      data.descriptor.data(), data.sum_fxyz.data());
+      paramb_,
+      ann_,
+      n,
+      box,
+      data.NN_radial.data(),
+      data.NL_radial.data(),
+      data.NN_angular.data(),
+      data.NL_angular.data(),
+      radial_edges,
+      angular_edges,
+      plane,
+      type.data(),
+      position.data(),
+      position.data() + n,
+      position.data() + 2 * n,
+      data.descriptor.data(),
+      data.sum_fxyz.data());
   };
   if (paramb_.L_max == 4 && paramb_.basis_size_angular == 8)
     launch(std::true_type{});
@@ -1027,19 +1038,25 @@ void NEP_Spin::launch_structural_descriptors(
   GPU_CHECK_KERNEL
 }
 
-static bool use_md_edge_cache(nep_spin::View v, int basis) {
+static bool use_md_edge_cache(nep_spin::View v, int basis)
+{
   return v.channels == 3 && v.lmax == 2 && v.order == 2 && basis == 8;
 }
 
-template<class Launch>
-static void launch_md_layout(nep_spin::View v, bool soc, int basis, Launch launch) {
+template <class Launch>
+static void launch_md_layout(nep_spin::View v, bool soc, int basis, Launch launch)
+{
   if (v.channels == 3 && v.lmax == 2 && v.order == 2) {
     if (use_md_edge_cache(v, basis)) {
-      if (soc) launch(nep_spin::MDLayoutSOC<2, true>());
-      else launch(nep_spin::MDLayoutNoSOC<2, true>());
+      if (soc)
+        launch(nep_spin::MDLayoutSOC<2, true>());
+      else
+        launch(nep_spin::MDLayoutNoSOC<2, true>());
     } else {
-      if (soc) launch(nep_spin::MDLayoutSOC<2>());
-      else launch(nep_spin::MDLayoutNoSOC<2>());
+      if (soc)
+        launch(nep_spin::MDLayoutSOC<2>());
+      else
+        launch(nep_spin::MDLayoutNoSOC<2>());
     }
   } else {
     nep_spin::launch_runtime_layout(v, launch);
@@ -1060,39 +1077,69 @@ void NEP_Spin::launch_spin_descriptors(
   const int plane = r12_plane_size ? r12_plane_size : static_cast<int>(data.NL_spin.size());
   if (use_md_edge_cache(data.spin_layout.view, model.basis_size_angular)) {
     const std::size_t count = static_cast<std::size_t>(plane) * 6;
-    if (data.radial_edges.size() < count) data.radial_edges.resize(count);
+    if (data.radial_edges.size() < count)
+      data.radial_edges.resize(count);
     nep_spin::cache_radial_edges<nep_spin::MDLayoutSOC<2, true>, 8>
       <<<(plane + 127) / 128, 128, 0, stream>>>(
-        type.size(), plane, model.num_types, type.data(), data.NN_spin.data(),
-        data.NL_spin.data(), slot_r12, data.spin_cutoff_pair.data(),
-        data.radial_coefficients.data(), data.radial_edges.data(), box, position.data());
+        type.size(),
+        plane,
+        model.num_types,
+        type.data(),
+        data.NN_spin.data(),
+        data.NL_spin.data(),
+        slot_r12,
+        data.spin_cutoff_pair.data(),
+        data.radial_coefficients.data(),
+        data.radial_edges.data(),
+        box,
+        position.data());
     GPU_CHECK_KERNEL
   }
   auto evaluate = [&](auto layout, auto* radial, auto* output, int offset) {
-    if (decltype(layout)::edge_cached) layout.edge_radial = data.radial_edges.data();
-    nep_spin::descriptors<<<(type.size()*model.spin_compress*decltype(layout)::tile+63)/64, 64, 0, stream>>>(
-      layout, static_cast<int>(type.size()), offset,
-      model.num_types, model.n_max_angular, model.basis_size_angular, box,
-      type.data(), data.spin_type_active.data(), position.data(), spin.data(),
-      data.NN_spin.data(), data.NL_spin.data(), slot_r12, plane,
-      data.spin_cutoff_pair.data(), radial,
+    if (decltype(layout)::edge_cached)
+      layout.edge_radial = data.radial_edges.data();
+    nep_spin::descriptors<<<
+      (type.size() * model.spin_compress * decltype(layout)::tile + 63) / 64,
+      64,
+      0,
+      stream>>>(
+      layout,
+      static_cast<int>(type.size()),
+      offset,
+      model.num_types,
+      model.n_max_angular,
+      model.basis_size_angular,
+      box,
+      type.data(),
+      data.spin_type_active.data(),
+      position.data(),
+      spin.data(),
+      data.NN_spin.data(),
+      data.NL_spin.data(),
+      slot_r12,
+      plane,
+      data.spin_cutoff_pair.data(),
+      radial,
       data.parameters.data() + model.model_parameter_count - model.spin_projection_parameter_count,
-      data.spin_moments.data(), output);
+      data.spin_moments.data(),
+      output);
   };
   if (data.wide_spin_descriptors.size()) {
-    evaluate(nep_spin::WideLayout(data.spin_layout.view), data.wide_radial.data(),
-             data.wide_spin_descriptors.data(), 0);
+    evaluate(
+      nep_spin::WideLayout(data.spin_layout.view),
+      data.wide_radial.data(),
+      data.wide_spin_descriptors.data(),
+      0);
     GPU_CHECK_KERNEL
     return;
   }
   auto launch = [&](auto layout) {
-    evaluate(layout, data.radial_coefficients.data(), data.descriptor.data(), model.struct_descriptor_dim);
+    evaluate(
+      layout, data.radial_coefficients.data(), data.descriptor.data(), model.struct_descriptor_dim);
   };
   launch_md_layout(data.spin_layout.view, model.spin_soc, model.basis_size_angular, launch);
   GPU_CHECK_KERNEL
 }
-
-
 
 void NEP_Spin::launch_spin_forces(
   const NEP_Spin::Model& model,
@@ -1109,22 +1156,43 @@ void NEP_Spin::launch_spin_forces(
 {
   const int plane = r12_plane_size ? r12_plane_size : static_cast<int>(data.NL_spin.size());
   auto launch = [&](auto layout, auto* radial) {
-    if (decltype(layout)::edge_cached) layout.edge_radial = data.radial_edges.data();
-    nep_spin::forces<decltype(layout), true, (decltype(layout)::tile > 1)><<<(type.size()*model.spin_compress*decltype(layout)::tile+63)/64, 64>>>(
-      layout, static_cast<int>(type.size()), model.struct_descriptor_dim,
-      model.num_types, model.n_max_angular, model.basis_size_angular, box,
-      type.data(), data.spin_type_active.data(), position.data(), spin.data(),
-      data.NN_spin.data(), data.NL_spin.data(), slot_r12, plane,
-      data.spin_cutoff_pair.data(), radial,
-      data.parameters.data() + model.model_parameter_count - model.spin_projection_parameter_count,
-      data.spin_moments.data(), data.Fp.data(), force.data(), mforce.data(), virial.data(), false);
+    if (decltype(layout)::edge_cached)
+      layout.edge_radial = data.radial_edges.data();
+    nep_spin::forces<decltype(layout), true, (decltype(layout)::tile > 1)>
+      <<<(type.size() * model.spin_compress * decltype(layout)::tile + 63) / 64, 64>>>(
+        layout,
+        static_cast<int>(type.size()),
+        model.struct_descriptor_dim,
+        model.num_types,
+        model.n_max_angular,
+        model.basis_size_angular,
+        box,
+        type.data(),
+        data.spin_type_active.data(),
+        position.data(),
+        spin.data(),
+        data.NN_spin.data(),
+        data.NL_spin.data(),
+        slot_r12,
+        plane,
+        data.spin_cutoff_pair.data(),
+        radial,
+        data.parameters.data() + model.model_parameter_count -
+          model.spin_projection_parameter_count,
+        data.spin_moments.data(),
+        data.Fp.data(),
+        force.data(),
+        mforce.data(),
+        virial.data(),
+        false);
   };
   if (data.wide_radial.size())
     launch(nep_spin::WideLayout(data.spin_layout.view), data.wide_radial.data());
   else
-    launch_md_layout(data.spin_layout.view, model.spin_soc, model.basis_size_angular, [&](auto layout) {
-      launch(layout, data.radial_coefficients.data());
-    });
+    launch_md_layout(
+      data.spin_layout.view, model.spin_soc, model.basis_size_angular, [&](auto layout) {
+        launch(layout, data.radial_coefficients.data());
+      });
   GPU_CHECK_KERNEL
 }
 
@@ -1225,7 +1293,8 @@ void NEP_Spin::resize_domain(int num_atoms)
   const std::size_t N = static_cast<std::size_t>(num_atoms_);
   if (data_.wide_radial.size()) {
     const auto count = N * model_.spin_descriptor_dim;
-    if (data_.wide_spin_descriptors.size() != count) data_.wide_spin_descriptors.resize(count);
+    if (data_.wide_spin_descriptors.size() != count)
+      data_.wide_spin_descriptors.resize(count);
   }
   const std::size_t spin_state_size = N * static_cast<std::size_t>(model_.spin_moment_count);
   if (data_.spin_moments.size() != (spin_state_size)) {
@@ -1288,7 +1357,8 @@ void NEP_Spin::read_model(const char* file_potential)
   model_.struct_descriptor_dim = file.dim_struct;
   model_.spin_descriptor_dim = file.dim_spin;
   model_.descriptor_dim = file.dim;
-  data_.spin_layout.initialize(model_.spin_compress, file.spin_l_max, model_.spin_order, model_.spin_soc);
+  data_.spin_layout.initialize(
+    model_.spin_compress, file.spin_l_max, model_.spin_order, model_.spin_soc);
   model_.spin_moment_count = data_.spin_layout.view.components * model_.spin_compress;
   zbl_.enabled = file.enable_zbl;
   zbl_.num_types = model_.num_types;
@@ -1313,7 +1383,8 @@ void NEP_Spin::read_model(const char* file_potential)
     static_cast<std::size_t>(model_.n_max_radial + 1) * (model_.basis_size_radial + 1) * type_pairs;
   model_.angular_parameter_count = static_cast<std::size_t>(model_.n_max_angular + 1) *
                                    (model_.basis_size_angular + 1) * type_pairs;
-  model_.spin_projection_parameter_count = static_cast<std::size_t>(file.projection_parameter_count);
+  model_.spin_projection_parameter_count =
+    static_cast<std::size_t>(file.projection_parameter_count);
   model_.model_parameter_count = model_.ann_parameter_count + model_.radial_parameter_count +
                                  model_.angular_parameter_count +
                                  model_.spin_projection_parameter_count;
@@ -1327,13 +1398,18 @@ void NEP_Spin::read_model(const char* file_potential)
   data_.energy_reference.resize(energy_reference.size());
   data_.energy_reference.copy_from_host(energy_reference.data());
   // MD keeps model parameters fixed: contract once, then reuse on every step.
-  const int radial_count = model_.num_types * model_.num_types * model_.spin_compress *
-                           (model_.basis_size_angular + 1);
+  const int radial_count =
+    model_.num_types * model_.num_types * model_.spin_compress * (model_.basis_size_angular + 1);
   auto contract = [&](auto* output) {
     nep_spin::contract_radial<<<(radial_count + 127) / 128, 128>>>(
-      radial_count, model_.spin_compress, model_.n_max_angular, model_.basis_size_angular,
+      radial_count,
+      model_.spin_compress,
+      model_.n_max_angular,
+      model_.basis_size_angular,
       data_.parameters.data() + model_.ann_parameter_count + model_.radial_parameter_count,
-      data_.parameters.data() + model_.model_parameter_count - model_.spin_projection_parameter_count, output);
+      data_.parameters.data() + model_.model_parameter_count -
+        model_.spin_projection_parameter_count,
+      output);
     GPU_CHECK_KERNEL
   };
   if (nep_spin::needs_wide_forward(model_.spin_soc, file.spin_l_max, model_.spin_order)) {
@@ -1535,19 +1611,29 @@ void NEP_Spin::compute(
     auto launch = [&](auto precision, const double* wide) {
       auto launch_dim = [&](auto capacity) {
         find_potential<decltype(precision), decltype(capacity)::value><<<grid_size, block_size>>>(
-          N, model_.descriptor_dim, model_.hidden_neurons, model_.num_types, type.data(),
-          data_.descriptor.data(), data_.parameters.data(),
-          data_.parameters.data() + model_.model_parameter_count, data_.energy_reference.data(),
-          potential.data(), data_.Fp.data(),
-          wide, model_.struct_descriptor_dim);
+          N,
+          model_.descriptor_dim,
+          model_.hidden_neurons,
+          model_.num_types,
+          type.data(),
+          data_.descriptor.data(),
+          data_.parameters.data(),
+          data_.parameters.data() + model_.model_parameter_count,
+          data_.energy_reference.data(),
+          potential.data(),
+          data_.Fp.data(),
+          wide,
+          model_.struct_descriptor_dim);
       };
       if (model_.descriptor_dim <= NEP_Spin_Model_File::COMPACT_ANN_DIM)
         launch_dim(std::integral_constant<int, NEP_Spin_Model_File::COMPACT_ANN_DIM>{});
       else
         launch_dim(std::integral_constant<int, NEP_Spin_Model_File::MAX_DIM_SPIN>{});
     };
-    if (data_.wide_spin_descriptors.size()) launch(double{}, data_.wide_spin_descriptors.data());
-    else launch(float{}, nullptr);
+    if (data_.wide_spin_descriptors.size())
+      launch(double{}, data_.wide_spin_descriptors.data());
+    else
+      launch(float{}, nullptr);
   };
   if (is_small_box) {
     initialize_small_box(box);
@@ -1710,7 +1796,8 @@ void NEP_Spin::compute(
                                             (model_.descriptor_dim + model_.hidden_neurons) *
                                             sizeof(float);
   constexpr std::size_t maximum_potential_shared_size = 48 * 1024;
-  if (!data_.wide_spin_descriptors.size() && potential_shared_size <= maximum_potential_shared_size) {
+  if (
+    !data_.wide_spin_descriptors.size() && potential_shared_size <= maximum_potential_shared_size) {
     find_potential_warp<potential_lanes_per_atom>
       <<<potential_grid_size, potential_block_size, potential_shared_size>>>(
         N,

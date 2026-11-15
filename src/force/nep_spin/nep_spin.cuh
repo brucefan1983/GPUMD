@@ -258,8 +258,6 @@ private:
     const int block_size,
     const std::size_t shared_size);
 
-
-
   void launch_structural_descriptors(
     const Box& box,
     const GPU_Vector<int>& type,
@@ -280,8 +278,6 @@ private:
     const double* slot_r12 = nullptr,
     int r12_plane_size = 0,
     gpuStream_t stream = nullptr);
-
-
 
   void launch_spin_forces(
     const Model& model,

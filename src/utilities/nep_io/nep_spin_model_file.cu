@@ -1,11 +1,24 @@
-/* This file is part of GPUMD. SPDX-License-Identifier: LGPL-3.0-or-later */
+/*
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
+*/
+#include "force/nep_spin/spin_layout.cuh"
 #include "nep_file.cuh"
 #include "nep_spin_model_file.cuh"
 #include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <limits>
-#include "force/nep_spin/spin_layout.cuh"
 
 namespace
 {
@@ -68,7 +81,8 @@ bool NEP_Spin_Model_File::read(std::istream& input, std::string& error)
   if (!f)
     return false;
   int spin_version;
-  if (!integer(f, 0, 1, 1, spin_version)) return false;
+  if (!integer(f, 0, 1, 1, spin_version))
+    return false;
 
   f = field("cutoff", 4, 4);
   if (
@@ -101,15 +115,13 @@ bool NEP_Spin_Model_File::read(std::istream& input, std::string& error)
 
   int scaler_flag;
   if (
-    !scalar("spin_basis_size", basis_size[1],
-            basis_size[1], spin_basis_size) ||
-    !scalar("spin_l_max", 0, 4, spin_l_max) ||
-    !scalar("spin_compress", 1, 9, spin_compress) ||
-    !scalar("spin_order", 1, 4, spin_order) ||
-    !scalar("spin_soc", 0, 1, spin_soc) ||
-    !scalar("spin_scaler", 1, 1, scaler_flag)) return false;
+    !scalar("spin_basis_size", basis_size[1], basis_size[1], spin_basis_size) ||
+    !scalar("spin_l_max", 0, 4, spin_l_max) || !scalar("spin_compress", 1, 9, spin_compress) ||
+    !scalar("spin_order", 1, 4, spin_order) || !scalar("spin_soc", 0, 1, spin_soc) ||
+    !scalar("spin_scaler", 1, 1, scaler_flag))
+    return false;
   projection_parameter_count =
-    nep_spin::Layout(spin_compress, spin_l_max, spin_order, spin_soc).parameter_count(n_max[1]+1);
+    nep_spin::Layout(spin_compress, spin_l_max, spin_order, spin_soc).parameter_count(n_max[1] + 1);
   f = field("spin_cutoff", 1, types);
   if (!f)
     return false;
@@ -179,8 +191,7 @@ bool NEP_Spin_Model_File::read(std::istream& input, std::string& error)
     return fail(error, "descriptor dimensions exceed the supported Spin shape.");
   const int parameter_count =
     (dim + 2) * num_neurons * types + 1 +
-    types * types *
-      ((n_max[0] + 1) * (basis_size[0] + 1) + (n_max[1] + 1) * (basis_size[1] + 1)) +
+    types * types * ((n_max[0] + 1) * (basis_size[0] + 1) + (n_max[1] + 1) * (basis_size[1] + 1)) +
     projection_parameter_count;
   auto block = [&](const char* name, int count, std::vector<float>& values, bool positive) {
     const auto* b = doc.find_block(name);

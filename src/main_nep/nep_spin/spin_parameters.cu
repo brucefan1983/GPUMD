@@ -1,8 +1,19 @@
 /*
     Copyright 2017 Zheyong Fan and GPUMD development team
-    This file is part of GPUMD and is distributed under LGPLv3 or later.
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "force/nep_spin/spin_layout.cuh"
 #include "main_nep/common/nep_model.cuh"
 #include "spin_parameters.cuh"
 #include "utilities/common.cuh"
@@ -13,14 +24,14 @@
 #include <cmath>
 #include <cstring>
 #include <limits>
-#include "force/nep_spin/spin_layout.cuh"
 Spin_Parameters::Spin_Parameters(const ParameterInput& input)
 {
   if (input.model_type != 0 || input.charge_mode || input.vdw || input.charge_vdw) {
     PRINT_INPUT_ERROR("Spin NEP only supports a NEP4 potential model without charge/vdW.");
   }
   read(input);
-  if (!is_spin_basis_size_set) spin_basis_size = basis_size_angular;
+  if (!is_spin_basis_size_set)
+    spin_basis_size = basis_size_angular;
   if (!is_spin_cutoff_set) {
     spin_cutoff = rc_radial_max;
     spin_cutoff_by_type.assign(num_types, spin_cutoff);
@@ -33,8 +44,11 @@ Spin_Parameters::Spin_Parameters(const ParameterInput& input)
   nep_spin::Layout layout(spin_compress, spin_l_max, spin_order, spin_soc);
   number_of_variables_spin_projection = layout.parameter_count(n_max_angular + 1);
   number_of_variables_descriptor += number_of_variables_spin_projection;
-  printf("Spin layout: %d paths, %d tensor components, %d output columns.\n",
-         layout.path_count, layout.components * spin_compress, layout.dimension);
+  printf(
+    "Spin layout: %d paths, %d tensor components, %d output columns.\n",
+    layout.path_count,
+    layout.components * spin_compress,
+    layout.dimension);
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
   model_name = "nep_spin";
   set_regularization_defaults();
@@ -131,7 +145,8 @@ void Spin_Parameters::validate_spin_parameters()
     PRINT_INPUT_ERROR("Spin NEP only supports a NEP4 potential model.\n");
   }
   if (has_multiple_cutoffs) {
-    PRINT_INPUT_ERROR("NEP-spin does not support charge/vdW or type-dependent structural cutoffs.\n");
+    PRINT_INPUT_ERROR(
+      "NEP-spin does not support charge/vdW or type-dependent structural cutoffs.\n");
   }
   if (spin_cutoff > rc_radial_max) {
     PRINT_INPUT_ERROR("spin_cutoff must not exceed the NEP radial cutoff.\n");
@@ -143,15 +158,16 @@ void Spin_Parameters::validate_spin_parameters()
     PRINT_INPUT_ERROR("Spin NEP fine_tune is not supported until the "
                       "species-transfer checkpoint reader is implemented.\n");
   }
-  if (const char* message = NEP_Spin_Model_File::angular_rank_error(L_max, has_q_123, has_q_233, has_q_134))
+  if (
+    const char* message =
+      NEP_Spin_Model_File::angular_rank_error(L_max, has_q_123, has_q_233, has_q_134))
     PRINT_INPUT_ERROR(message);
   if (spin_basis_size != basis_size_angular) {
     PRINT_INPUT_ERROR("spin_basis_size must be equal to the structural angular basis_size.\n");
   }
   if (
-    spin_compress < 1 || spin_compress > 9 ||
-    spin_l_max < 0 || spin_l_max > 4 ||
-    spin_order < 1 || spin_order > 4 || (spin_soc != 0 && spin_soc != 1) || spin_cutoff <= 0.0f) {
+    spin_compress < 1 || spin_compress > 9 || spin_l_max < 0 || spin_l_max > 4 || spin_order < 1 ||
+    spin_order > 4 || (spin_soc != 0 && spin_soc != 1) || spin_cutoff <= 0.0f) {
     PRINT_INPUT_ERROR("Unsupported Spin NEP shape in nep.in.\n");
   }
 #ifdef USE_CJ

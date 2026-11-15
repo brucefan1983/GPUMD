@@ -1,4 +1,17 @@
-/* This file is part of GPUMD. SPDX-License-Identifier: LGPL-3.0-or-later */
+/*
+    Copyright 2017 Zheyong Fan and GPUMD development team
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
+*/
 #pragma once
 #include <iosfwd>
 #include <string>
@@ -8,7 +21,7 @@
 // and the @ parameters block.
 struct NEP_Spin_Model_File {
   static constexpr int COMPACT_ANN_DIM = 199; // Preserve the existing common-shape workspace.
-  static constexpr int MAX_DIM_SPIN = 339; // structural 103 + magnetic 236 (C9/L4/O4, no SOC)
+  static constexpr int MAX_DIM_SPIN = 339;    // structural 103 + magnetic 236 (C9/L4/O4, no SOC)
   std::vector<std::string> elements;
   float rc_radial = 0, rc_angular = 0;
   int max_radial = 0, max_angular = 0;
@@ -24,9 +37,12 @@ struct NEP_Spin_Model_File {
   std::vector<double> energy_reference;
   std::vector<float> parameters, q_scaler;
 
-  static const char* angular_rank_error(int rank, int q123, int q233, int q134) {
-    if ((q123 || q233) && rank < 3) return "q_123 and q_233 require structural l_max >= 3.";
-    if (q134 && rank < 4) return "q_134 requires structural l_max >= 4.";
+  static const char* angular_rank_error(int rank, int q123, int q233, int q134)
+  {
+    if ((q123 || q233) && rank < 3)
+      return "q_123 and q_233 require structural l_max >= 3.";
+    if (q134 && rank < 4)
+      return "q_134 requires structural l_max >= 4.";
     return nullptr;
   }
   static bool is_spin_model(const std::string& filename);

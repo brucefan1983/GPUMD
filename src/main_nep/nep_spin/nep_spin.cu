@@ -1,15 +1,25 @@
 /*
     Copyright 2017 Zheyong Fan and GPUMD development team
-    This file is part of GPUMD and is distributed under LGPLv3 or later.
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "force/nep_spin/spin_warp.cuh"
 #include "main_nep/common/nep_init.cuh"
 #include "main_nep/common/nep_io.cuh"
 #include "main_nep/common/nep_model.cuh"
 #include "main_nep/common/nep_output.cuh"
 #include "nep_spin.cuh"
 #include "spin_io.cuh"
-#include "force/nep_spin/spin_warp.cuh"
 #include "utilities/error.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <algorithm>
@@ -84,8 +94,7 @@ void NEP_Spin_Model::initialize_compiled_kernel(const Spin_Parameters& para)
     CHECK(gpuSetDevice(0));
     auto config = make_nep_compile_config(para);
     config.model_name = "NEP-spin";
-    config.source_file = "main_nep/nep/nep_specialized.cu";
-    config.extra_config = "#define NEP_SPIN_ANN_FP64\n";
+    config.source_file = "main_nep/nep_spin/spin_structural_specialized.cu";
     compiled_kernel_.reset(new NEP_Compiled_Evaluation(config));
     if (!compiled_kernel_->is_valid())
       compiled_kernel_.reset();
@@ -183,9 +192,9 @@ static __global__ void apply_ann_one_layer_warp(
     const int d = lane + k * warp_size;
     if (d < dim) {
       if (WideSpin && d >= structural_dim)
-        q[k] = wide_spin_descriptors[atom + (d - structural_dim)*N] * g_q_scaler[d];
+        q[k] = wide_spin_descriptors[atom + (d - structural_dim) * N] * g_q_scaler[d];
       else
-        q[k] = g_descriptors[atom + d*N] * g_q_scaler[d];
+        q[k] = g_descriptors[atom + d * N] * g_q_scaler[d];
     }
   }
 
@@ -225,8 +234,9 @@ static __global__ void apply_ann_one_layer_warp(
 
 static __global__ void copy_spin_descriptors(int count, const double* spin, float* output)
 {
-  const int index = blockIdx.x*blockDim.x + threadIdx.x;
-  if (index < count) output[index] = spin[index];
+  const int index = blockIdx.x * blockDim.x + threadIdx.x;
+  if (index < count)
+    output[index] = spin[index];
 }
 
 Spin_Data& NEP_Spin_Model::magnetic(Dataset& dataset)
@@ -263,10 +273,14 @@ void NEP_Spin_Model::find_force(
 
     find_additional_descriptors(para, dataset[device_id], device_id);
     const auto& wide = spin_data_[device_id].wide_spin_descriptors;
-    if (wide.size() && (calculate_q_scaler || (para.prediction == 1 && para.output_descriptor >= 1))) {
+    if (
+      wide.size() &&
+      (calculate_q_scaler || (para.prediction == 1 && para.output_descriptor >= 1))) {
       const int count = dataset[device_id].N * para.dim_spin;
-      copy_spin_descriptors<<<(count+127)/128, 128>>>(count, wide.data(),
-        nep_data[device_id].descriptors.data() + size_t(struct_dim_)*dataset[device_id].N);
+      copy_spin_descriptors<<<(count + 127) / 128, 128>>>(
+        count,
+        wide.data(),
+        nep_data[device_id].descriptors.data() + size_t(struct_dim_) * dataset[device_id].N);
       GPU_CHECK_KERNEL
     }
     if (para.prediction == 1 && para.output_descriptor >= 1) {
@@ -308,17 +322,26 @@ void NEP_Spin_Model::find_force(
       auto launch = [&](auto wide_input) {
         auto launch_dim = [&](auto capacity) {
           apply_ann_one_layer_warp<decltype(capacity)::value, decltype(wide_input)::value>
-            <<<(data.N + 3) / 4, 128>>>(data.N, annmb[device_id], data.type.data(),
-              work.descriptors.data(), para.q_scaler_gpu[device_id].data(), data.energy.data(),
-              work.Fp.data(), struct_dim_, wide.size() ? wide.data() : nullptr);
+            <<<(data.N + 3) / 4, 128>>>(
+              data.N,
+              annmb[device_id],
+              data.type.data(),
+              work.descriptors.data(),
+              para.q_scaler_gpu[device_id].data(),
+              data.energy.data(),
+              work.Fp.data(),
+              struct_dim_,
+              wide.size() ? wide.data() : nullptr);
         };
         if (annmb[device_id].dim <= NEP_Spin_Model_File::COMPACT_ANN_DIM)
           launch_dim(std::integral_constant<int, NEP_Spin_Model_File::COMPACT_ANN_DIM>{});
         else
           launch_dim(std::integral_constant<int, NEP_Spin_Model_File::MAX_DIM_SPIN>{});
       };
-      if (wide.size()) launch(std::true_type{});
-      else launch(std::false_type{});
+      if (wide.size())
+        launch(std::true_type{});
+      else
+        launch(std::false_type{});
       GPU_CHECK_KERNEL
     }
     compute_nep_forces(

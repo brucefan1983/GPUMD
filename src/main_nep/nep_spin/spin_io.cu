@@ -1,6 +1,16 @@
 /*
     Copyright 2017 Zheyong Fan and GPUMD development team
-    This file is part of GPUMD and is distributed under LGPLv3 or later.
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+    You should have received a copy of the GNU Lesser General Public License
+    along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 #include "main_nep/common/nep_io.cuh"
@@ -30,8 +40,8 @@ void validate_model(Spin_Parameters& para, const NEP_Spin_Model_File& model)
     !std::equal(model.l_max, model.l_max + 7, l_max) || model.num_neurons != para.num_neurons1 ||
     model.spin_basis_size != para.spin_basis_size || model.spin_l_max != para.spin_l_max ||
     model.spin_compress != para.spin_compress || model.spin_order != para.spin_order ||
-    model.spin_soc != para.spin_soc ||
-    model.dim != para.dim || model.parameters.size() != size_t(para.number_of_variables)) {
+    model.spin_soc != para.spin_soc || model.dim != para.dim ||
+    model.parameters.size() != size_t(para.number_of_variables)) {
     PRINT_INPUT_ERROR("nep.in is inconsistent with the Spin model in nep.txt.");
   }
   const auto same = [](float a, float b) {
