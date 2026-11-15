@@ -3,30 +3,26 @@
    single: spin_compress (keyword in nep.in)
 
 :attr:`spin_compress`
-=======================
+======================
 
-Set the number of learned radial channels.
+This keyword sets the shared latent radial rank of the spin descriptor.
 
 Syntax
 ------
 
 ::
 
-  spin_compress C
+  spin_compress <count>
 
 Parameters
 ----------
 
-The default is 3 and the range is 1--9. A learned matrix mixes the structural
-angular radial channels into :math:`C` spin channels. All combinations of
-``spin_compress 1--9``, ``spin_l_max 0--4``, ``spin_order 1--4`` and
-``spin_soc 0/1`` are supported. They require at most 236 magnetic coordinates
-(``C=9, L=4, order=4, spin_soc=0``). Together with the existing maximum of
-103 structural coordinates, the total limit is 339. The structural angular
-limit remains 90; the training input and model reader enforce the same limits.
-
-For ``spin_l_max 2`` and ``spin_order 2``, SOC gives :math:`1+11C` spin
-coordinates; non-SOC gives :math:`1+10C`. See :ref:`nep_spin_dimensions`.
+The default is 3 and the input range is 1--9. The symbol :math:`C` denotes
+this value in :ref:`nep_spin`. Each channel is a learned combination of the
+structural angular radial channels. It controls descriptor size and cost;
+it does not select a fixed list of Hamiltonian terms.
+The resulting dimension also depends on :ref:`spin_order <kw_spin_order>`,
+:ref:`spin_l_max <kw_spin_l_max>`, and :ref:`spin_soc <kw_spin_soc>`; see :ref:`nep_spin_dimensions`.
 
 Output
 ------
@@ -43,4 +39,4 @@ Examples
 Notes
 -----
 
-See :ref:`nep_spin` for the descriptor definition and model contract.
+None.

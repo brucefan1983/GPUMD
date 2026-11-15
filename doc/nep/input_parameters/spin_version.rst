@@ -3,43 +3,38 @@
    single: spin_version (keyword in nep.in)
 
 :attr:`spin_version`
-======================
+====================
 
-Select the spin descriptor and parameter layout.
+This keyword specifies the magnetic descriptor version
+of the spin-dependent energy model.
 
 Syntax
 ------
 
 ::
 
-  model nep_spin
-  spin_version 1
+  spin_version <version>
 
 Parameters
 ----------
 
-The supported value is 1, which is also the default for ``model nep_spin``.
-Spin training uses NEP ``version 4`` and one hidden layer. ``format_version``
-identifies the model-file syntax and is not an input keyword in ``nep.in``.
-
-Every training frame must contain Cartesian ``spin:R:3``. Add ``mforce:R:3``
-to train magnetic forces; see :ref:`train_test_xyz` for aliases and units.
-Type-dependent :ref:`spin_cutoff <kw_spin_cutoff>` and universal
-:ref:`zbl <kw_zbl>` are supported. Charge models, type-dependent structural
-cutoffs, flexible ZBL and ``fine_tune`` are unsupported.
+The only supported value is ``1``, which is also the default for
+``model nep_spin``. Omit this keyword for other models.
+Version 1 uses the magnetic descriptor described in :ref:`nep_spin`.
+The :ref:`spin_order <kw_spin_order>` keyword independently sets the maximum polynomial degree of the spin inputs.
 
 Output
 ------
 
-The exported ``nep.txt`` records the spin descriptor settings.
-
-.. _spin_training_example:
+None.
 
 Examples
 --------
 
-This setup has 30 structural and 34 spin coordinates (64 total), with 6874
-parameters. All types are energy centers; only Fe has independent spins::
+.. _spin_training_example:
+
+The following NEP-spin setup uses the default spin descriptor settings.
+All atom types are energy centers; only Fe has independent spin degrees of freedom::
 
   model            nep_spin
   version          4
@@ -60,12 +55,22 @@ parameters. All types are energy centers; only Fe has independent spins::
   batch            512
   generation       100000
 
-Defaults are ``spin_compress 3``, ``spin_l_max 2``, ``spin_order 2`` and
-``spin_soc 1``. In this example, ``basis_size 8 8`` gives the spin
-descriptor nine radial basis functions.
-For ``spin_soc 0``, this example has 61 total coordinates and 6568 parameters.
+See :ref:`nep_spin_dimensions` before changing the descriptor shape.
 
 Notes
 -----
 
-See :ref:`nep_spin` for the model definition and restart requirements.
+Spin training requires ``version 4`` and one hidden layer.
+``version`` identifies the NEP architecture; ``spin_version`` identifies the
+magnetic descriptor version. The resulting ``nep.txt``
+contains ``model nep_spin`` and ``spin_version 1``. Prediction, scaler import,
+and restart require a compatible model. The shared model-file keyword
+``format_version`` does not belong in ``nep.in``.
+
+Every training frame must contain a Cartesian ``spin:R:3`` property. Add
+``mforce:R:3`` to train magnetic forces; see :ref:`train_test_xyz` for aliases
+and units. Charge models and type-dependent structural cutoffs are unsupported.
+Type-dependent :ref:`spin_cutoff <kw_spin_cutoff>` and universal
+:ref:`zbl <kw_zbl>` are supported; flexible ZBL and ``fine_tune`` are unsupported.
+See :ref:`import_q_scaler <kw_import_q_scaler>` for scaler import and restart
+behavior.

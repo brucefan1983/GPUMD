@@ -3,16 +3,16 @@
    single: spin_l_max (keyword in nep.in)
 
 :attr:`spin_l_max`
-====================
+===================
 
-Set the maximum tensor rank.
+This keyword controls the maximum tensor rank used by the spin descriptor.
 
 Syntax
 ------
 
 ::
 
-  spin_l_max L
+  spin_l_max <l_max>
 
 Parameters
 ----------
@@ -29,11 +29,11 @@ None.
 Examples
 --------
 
-::
+Use the default rank cutoff::
 
   spin_l_max 2
 
 Notes
 -----
 
-See :ref:`nep_spin` for the descriptor definition and model contract.
+None.

@@ -82,7 +82,7 @@ Keywords
    * - :ref:`spin_order <kw_spin_order>`
      - maximum polynomial degree of primitive spin inputs
    * - :ref:`spin_soc <kw_spin_soc>`
-     - enable joint spin--space rotation-invariant spin channels
+     - enable joint spin--space rotation-invariant magnetic channels
    * - :ref:`spin_type <kw_spin_type>`
      - atom types with independent spin degrees of freedom
    * - :ref:`use_typewise_cutoff_zbl <kw_use_typewise_cutoff_zbl>`
@@ -92,7 +92,7 @@ Keywords
    * - :ref:`n_max <kw_n_max>`
      - radial-function index limits for radial and angular descriptors
    * - :ref:`basis_size <kw_basis_size>`
-     - maximum radial (:math:`N_\mathrm{bas}^\mathrm{R}`) and angular (:math:`N_\mathrm{bas}^\mathrm{A}`) basis indices
+     - radial (:math:`N_\mathrm{bas}^\mathrm{R}`) and angular (:math:`N_\mathrm{bas}^\mathrm{A}`) basis sizes
    * - :ref:`l_max <kw_l_max>`
      - expansion order for angular terms
    * - :ref:`neuron <kw_neuron>`
