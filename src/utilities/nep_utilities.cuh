@@ -522,8 +522,6 @@ find_fn(const int n_max, const float rcinv, const float d12, const float fc12, f
   float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
   float half_fc12 = 0.5f * fc12;
   fn[0] = fc12;
-  if (n_max == 0)
-    return;
   fn[1] = (x + 1.0f) * half_fc12;
   float fn_m_minus_2 = 1.0f;
   float fn_m_minus_1 = x;
@@ -549,8 +547,6 @@ static __device__ __host__ __forceinline__ void find_fn_and_fnp(
   float x = 2.0f * (d12_mul_rcinv - 1.0f) * (d12_mul_rcinv - 1.0f) - 1.0f;
   fn[0] = fc12;
   fnp[0] = fcp12;
-  if (n_max == 0)
-    return;
   fn[1] = (x + 1.0f) * 0.5f * fc12;
   fnp[1] = 2.0f * (d12_mul_rcinv - 1.0f) * rcinv * fc12 + (x + 1.0f) * 0.5f * fcp12;
   float u0 = 1.0f;
