@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "gpu_macro.cuh"
 
 static __device__ __forceinline__ int get_c_index(
   const int type_index,
