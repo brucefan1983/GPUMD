@@ -47,8 +47,8 @@ void NEP_Hessian_Model::initialize(const char* file_potential)
   if (!model.read(input, error) || !model.validate_md(error)) {
     PRINT_INPUT_ERROR(error.c_str());
   }
-  if (model.name != "nep" && model.name != "nep_temperature") {
-    PRINT_INPUT_ERROR("Analytic Hessian requires model nep or nep_temperature.");
+  if (model.name != "nep") {
+    PRINT_INPUT_ERROR("Analytic Hessian requires the ordinary NEP energy model (nep).");
   }
   if (model.has_q_123 && model.L_max < 3) {
     PRINT_INPUT_ERROR("Analytic Hessian: q_123 requires L_max >= 3.");
@@ -59,7 +59,7 @@ void NEP_Hessian_Model::initialize(const char* file_potential)
   if (model.has_q_134 && model.L_max < 4) {
     PRINT_INPUT_ERROR("Analytic Hessian: q_134 requires L_max >= 4.");
   }
-  paramb.model_type = model.name == "nep_temperature" ? 3 : 0;
+  paramb.model_type = 0;
   paramb.num_types = model.num_types;
   paramb.num_types_sq = model.num_types * model.num_types;
   paramb.rc_radial_max = 0.0f;

@@ -347,7 +347,6 @@ void write_metadata(
   const nep_hessian::Diagnostics& raw_diagnostics,
   const nep_hessian::Diagnostics* sym_diagnostics,
   const std::string& storage_format, bool passed, const std::string& error,
-  bool temperature_dependent, double model_temperature,
   double potential_energy, const std::vector<double>& cartesian_force,
   const OutputPaths& outputs)
 {
@@ -358,7 +357,7 @@ void write_metadata(
   output << std::setprecision(17);
 
   output << "{\n";
-  output << "  \"schema_version\": 5,\n";
+  output << "  \"schema_version\": 6,\n";
   output << "  \"system\": {\n";
   output << "    \"N\": " << N << ",\n";
   output << "    \"atom_order\": [";
@@ -401,10 +400,6 @@ void write_metadata(
   output << "    \"status\": "
          << (passed ? "\"success\"" : "\"failed_validation\"") << ",\n";
   output << "    \"failure_reason\": " << nullable_string(error) << ",\n";
-  output << "    \"model_temperature_K\": ";
-  if (temperature_dependent) output << model_temperature;
-  else output << "null";
-  output << ",\n";
   output << "    \"potential_energy_eV\": " << potential_energy << ",\n";
   output << "    \"force_soa\": [";
   for (size_t i = 0; i < cartesian_force.size(); ++i) {
@@ -511,8 +506,10 @@ void NEP_Hessian_Command::compute(
   auto* nep = dynamic_cast<NEP*>(&potential);
   if (!nep)
     PRINT_INPUT_ERROR("compute_hessian requires the single-GPU NEP implementation; this potential implementation is unsupported.");
-  if (nep->nep_model_type != 0 && nep->nep_model_type != 3)
-    PRINT_INPUT_ERROR("compute_hessian supports only ordinary and temperature-dependent NEP models.");
+  if (nep->nep_model_type == 3)
+    PRINT_INPUT_ERROR("compute_hessian does not support temperature-dependent NEP models.");
+  if (nep->nep_model_type != 0)
+    PRINT_INPUT_ERROR("compute_hessian supports only ordinary NEP energy models.");
   if (nep->ilp_flag != 0)
     PRINT_INPUT_ERROR("compute_hessian does not support NEP with ILP.");
   if (run_input.contains("dftd3"))
@@ -531,11 +528,6 @@ void NEP_Hessian_Command::compute(
 
   NEP_Hessian_Model model;
   model.initialize(potential_filename.c_str());
-  const bool temperature_dependent = nep->nep_model_type == 3;
-  // The descriptor kernels receive the same float temperature as ordinary NEP.
-  const double model_temperature = static_cast<float>(force.get_temperature());
-  if (temperature_dependent)
-    printf("Analytic Hessian model temperature: %.17g K.\n", model_temperature);
   sparse_hessian::BlockPattern pattern;
   std::vector<double> matrix, analytic_force;
   nep_hessian::Diagnostics raw_diagnostics;
@@ -557,7 +549,7 @@ void NEP_Hessian_Command::compute(
   if (!passed) {
     if (!metadata_output_.empty())
       write_metadata(metadata_output_, box, atom, raw_diagnostics, nullptr,
-        output_format_, false, error, temperature_dependent, model_temperature,
+        output_format_, false, error,
         potential_energy, analytic_force, {"", raw_output_});
     PRINT_INPUT_ERROR(error.c_str());
   }
@@ -583,7 +575,7 @@ void NEP_Hessian_Command::compute(
   if (!metadata_output_.empty()) {
     const auto sym_diagnostics = nep_hessian::inspect(matrix, N, sparse ? &pattern : nullptr);
     write_metadata(metadata_output_, box, atom, raw_diagnostics, &sym_diagnostics,
-      output_format_, true, "", temperature_dependent, model_temperature,
+      output_format_, true, "",
       potential_energy, analytic_force, {output_, raw_output_});
   }
   printf("Analytic Hessian: N=%d format=%s raw_asymmetry_max=%.12g "

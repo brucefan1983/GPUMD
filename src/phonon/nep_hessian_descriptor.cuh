@@ -14,7 +14,7 @@
 */
 
 // Reconstruct the normalized ANN descriptors using NEP's public neighbor
-// arrays. Both ordinary and temperature-dependent models use this input.
+// arrays for the ordinary NEP energy model.
 
 #pragma once
 #include "force/nep/nep.cuh"
@@ -30,7 +30,6 @@ namespace nep_hessian {
 __global__ void find_descriptor_only(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
-  const float temperature,
   const int N,
   const int N1,
   const int N2,
@@ -113,8 +112,6 @@ __global__ void find_descriptor_only(
       s, q + (paramb.n_max_radial + 1));
   }
 
-  // Match the ANN input used by the temperature-dependent force kernels.
-  if (paramb.model_type == 3) q[annmb.dim - 1] = temperature;
   for (int d = 0; d < annmb.dim; ++d) {
     q[d] = q[d] * annmb.q_scaler[d];
     g_q_desc[static_cast<size_t>(d) * N + n1] = q[d];
@@ -127,7 +124,6 @@ __global__ void find_descriptor_only(
 __global__ void find_descriptor_only_small_box(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
-  const float temperature,
   const int N,
   const int N1,
   const int N2,
@@ -213,8 +209,6 @@ __global__ void find_descriptor_only_small_box(
       s, q + (paramb.n_max_radial + 1));
   }
 
-  // Match the ANN input used by the temperature-dependent force kernels.
-  if (paramb.model_type == 3) q[annmb.dim - 1] = temperature;
   for (int d = 0; d < annmb.dim; ++d) {
     q[d] = q[d] * annmb.q_scaler[d];
     g_q_desc[static_cast<size_t>(d) * N + n1] = q[d];

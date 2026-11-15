@@ -39,7 +39,7 @@ Parameters
 
 ``metadata <path>``
    Optional JSON file containing system information, energy, forces, matrix
-   diagnostics, storage format, and model temperature when applicable.
+   diagnostics and storage format.
    Default: no metadata file. Available with both matrix formats.
 
 ``structure_output <path>``
@@ -149,32 +149,16 @@ Also request the raw matrix and diagnostics (valid with either format)::
    potential nep.txt
    compute_hessian analytic raw_output hessian_raw.out metadata hessian.json
 
-For a temperature-dependent NEP model, run at a constant target temperature
-before evaluating the final current configuration::
-
-   potential nep.txt
-   velocity 300
-   ensemble nvt_ber 300 300 100
-   time_step 1
-   run 1000
-   compute_hessian analytic output hessian_300K.out metadata hessian_300K.json
-
 .. _hessian_analytic:
 
 Notes
 -----
 
-* Supported models are ordinary and temperature-dependent NEP energy models
-  on a single GPU, including their ZBL terms. Multiple potentials, multi-GPU
-  NEP, charge, spin, vdW, and ILP models are unsupported. DFT-D3 is rejected
-  wherever its command appears in ``run.in``. This command has no
+* Supported models are ordinary NEP energy models on a single GPU,
+  including their ZBL terms. Temperature-dependent NEP, multiple potentials,
+  multi-GPU NEP, charge, spin, vdW, and ILP models are unsupported. DFT-D3
+  is rejected wherever its command appears in ``run.in``. This command has no
   finite-difference mode or fallback.
-* For temperature-dependent NEP, the model temperature is held fixed at
-  the value reached by the preceding ``run``, as determined by its ensemble
-  target temperatures. Before any ``run`` it is zero; ``velocity`` alone
-  does not set it. The actual value is reported in the log and metadata.
-  The result describes the current configuration at this fixed model
-  temperature, without thermal averaging or phonon renormalization.
 * Neighbor distances, including periodic images, must be at least
   :math:`10^{-6}` Å. Closer neighbors terminate the calculation without
   writing Hessian or diagnostic files.

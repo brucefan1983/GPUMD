@@ -1779,9 +1779,9 @@ bool compute_nep_analytic_hessian(
   if (force.get_number_of_potentials() != 1)
     return fail("Analytic Hessian requires exactly one potential.");
   auto* nep = dynamic_cast<NEP*>(&force.get_potential(0));
-  if (nep == nullptr || (nep->nep_model_type != 0 && nep->nep_model_type != 3) ||
+  if (nep == nullptr || nep->nep_model_type != 0 ||
       nep->ilp_flag != 0)
-    return fail("Analytic Hessian requires ordinary single-GPU NEP or temperature NEP without ILP.");
+    return fail("Analytic Hessian requires ordinary single-GPU NEP without ILP.");
   const bool use_expanded_box = model_requires_expanded_box(model, box);
   if (model.paramb.L_max < 0 || model.paramb.L_max > 8 ||
       (model.paramb.L_max + 1) * (model.paramb.L_max + 1) - 1 >
@@ -1812,7 +1812,7 @@ bool compute_nep_analytic_hessian(
     return fail("Analytic Hessian descriptor count exceeds index range.");
   }
   const int expected_descriptor_count = radial_descriptor_count +
-    angular_descriptor_count + (nep->nep_model_type == 3 ? 1 : 0);
+    angular_descriptor_count;
   if (model.annmb.dim <= 0 || model.annmb.dim > MAX_DIM ||
       model.annmb.dim != expected_descriptor_count ||
       expected_descriptor_count > std::numeric_limits<int>::max() / N ||
@@ -2010,7 +2010,7 @@ bool compute_nep_analytic_hessian(
   if (use_expanded_box) {
     const size_t r12_plane_size = nep->small_box_data.r12.size() / 6;
     nep_hessian::find_descriptor_only_small_box<<<descriptor_grid, 64>>>(
-      model.paramb, model.annmb, static_cast<float>(force.get_temperature()), N, 0, N,
+      model.paramb, model.annmb, N, 0, N,
       radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
       angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
       atom.type.data(),
@@ -2023,7 +2023,7 @@ bool compute_nep_analytic_hessian(
       q_cache.data());
   } else {
     nep_hessian::find_descriptor_only<<<descriptor_grid, 64>>>(
-      model.paramb, model.annmb, static_cast<float>(force.get_temperature()), N, 0, N, box,
+      model.paramb, model.annmb, N, 0, N, box,
       radial_neighbor_counts_gpu.data(), radial_neighbor_list_gpu.data(),
       angular_neighbor_counts_gpu.data(), angular_neighbor_list_gpu.data(),
       atom.type.data(),
