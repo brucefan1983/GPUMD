@@ -48,6 +48,7 @@ conditions of replicas i and j (at labels a and b) is accepted with
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
+#include <iomanip>
 #include <limits>
 #include <random>
 #include <set>
@@ -645,6 +646,7 @@ void REMD_TP_Driver::initialize_slot(Replica_Slot& slot)
   barostat.compressibility = PRESSURE_UNIT_CONVERSION / barostat_input_.bulk_modulus;
   barostat.tau_p = barostat_input_.pressure_coupling;
   barostat.interval = barostat_input_.interval;
+  barostat.replica_id = slot.replica_id;
   for (int d = 0; d < 3; ++d)
     barostat.couple[d] = barostat_input_.couple[d];
   set_condition(slot, label);
@@ -719,6 +721,14 @@ void REMD_TP_Driver::attempt_pair(
   const double v_i = slot_i.box.get_volume();
   const double v_j = slot_j.box.get_volume();
   const double log_ratio = (beta_a - beta_b) * (e_i - e_j) + (beta_a * p_a - beta_b * p_b) * (v_i - v_j);
+  if (!std::isfinite(log_ratio)) {
+    std::ostringstream message;
+    message << std::setprecision(17) << "Non-finite REMD-TP log acceptance ratio at step " << step
+            << " (replicas " << replica_i << " and " << replica_j << ", labels " << label_a
+            << " and " << label_b << ", E " << e_i << " " << e_j << " eV, V " << v_i << " "
+            << v_j << " A^3).";
+    PRINT_INPUT_ERROR(message.str().c_str());
+  }
   const double probability = log_ratio >= 0.0 ? 1.0 : std::exp(log_ratio);
   std::uniform_real_distribution<double> uniform(0.0, 1.0);
   const bool accepted = log_ratio >= 0.0 || uniform(exchange_rng_) < probability;

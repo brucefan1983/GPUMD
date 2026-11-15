@@ -38,6 +38,7 @@ struct SCR_Barostat {
   double tau_p = 0.0;           // MD steps
   int interval = 1;             // MD steps between barostat updates
   int couple[3] = {1, 1, 1};    // directions scaled by the barostat
+  int replica_id = -1;          // for diagnostics only
   long long step_counter = 0;   // MD steps integrated by this replica
   // The pressure is measured at the end of every interval-th step and the box is
   // rescaled before the next step, so that the potential energy, positions, and

@@ -47,10 +47,17 @@ double SCR_Barostat::update_box(Box& box, const double target_temperature)
     -compressibility * dt_over_tau * (target_pressure - pressure) +
     std::sqrt(2.0 * kT * compressibility * dt_over_tau / volume) * normal(rng);
   const double scale = std::exp(d_epsilon / number_of_coupled);
-  if (!std::isfinite(scale) || scale < 0.95 || scale > 1.05)
-    PRINT_INPUT_ERROR(
-      "SCR barostat changed a box length by more than 5% in one update; "
-      "increase tau_p or the bulk modulus.");
+  if (!std::isfinite(scale) || scale < 0.95 || scale > 1.05) {
+    std::ostringstream message;
+    message << std::setprecision(10)
+            << "SCR barostat changed a box length by more than 5% in one update (replica "
+            << replica_id << ", replica MD step " << step_counter << ", length scale " << scale
+            << ", volume " << volume << " A^3, target pressure "
+            << target_pressure * PRESSURE_UNIT_CONVERSION << " GPa, measured pressure "
+            << pressure * PRESSURE_UNIT_CONVERSION
+            << " GPa); increase tau_p or the bulk modulus.";
+    PRINT_INPUT_ERROR(message.str().c_str());
+  }
   for (int d = 0; d < 3; ++d) {
     if (couple[d])
       box.cpu_h[d * 4] *= scale;

@@ -100,4 +100,4 @@ Use isotropic Berendsen pressure control at 0 GPa, with an estimated modulus of 
 Notes
 -----
 
-None.
+In a :ref:`multi_replica remd_tp <replica_remd_tp>` run, ``npt_scr`` takes a different set of parameters; see that page.

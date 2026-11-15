@@ -36,9 +36,12 @@ In this replica mode, the ``ensemble`` command uses the following syntax
   Each temperature row may use different pressures, for example centred on an estimated Widom or coexistence line, so that the replicas concentrate where the response functions are large.
   Temperature-direction exchanges then change both :math:`T` and :math:`P`; the acceptance rule below is exact for any pair of conditions.
   The ``npt_scr`` pressures must be the lowest and highest pressures in the file.
-* ``tau_T`` and ``tau_p`` are in MD steps; ``bulk_modulus`` (GPa) sets the barostat response and does not affect the sampled distribution.
+* ``tau_T`` and ``tau_p`` are in MD steps; ``bulk_modulus`` (GPa) sets the barostat response and does not affect the target distribution in the continuous-time limit.
+  With finite update steps, the sampling error can depend on it.
 * ``couple`` lists the periodic directions scaled together by the barostat (default ``xyz``, isotropic). ``couple z`` controls the axial pressure only, ``couple xy`` the lateral pressure only.
 * ``pcouple_interval``: MD steps between barostat updates (default 10). ``tau_p`` must be at least twice this value.
+  Each update waits for the replica's pressure on the host and, because the box changes, rebuilds its neighbor list.
+  A larger interval reduces this cost but makes each Euler barostat step larger.
 
 Replica labels are ``label = p_index * M_T + t_index``.
 Exchange rounds cycle through even temperature pairs, even pressure pairs, odd temperature pairs, and odd pressure pairs.
@@ -98,7 +101,7 @@ Caveats
 * Each replica has its own box, so batched integration is disabled in this mode.
 * Continuation restores atomic states, condition assignments, and random-number states.
   It does not promise the trajectory or exchange outcomes of an uninterrupted run.
-* REMD-TP restart format 3 is required. Older checkpoints use the previous SCR equation and thermostat convention and are rejected; do not change their version number to bypass this check.
 * On restart, PBC, atom properties, conditions and all metadata must match. The restored box must be orthogonal with positive finite lengths; uncoupled lengths must match ``model.xyz``, while coupled lengths are restored from the checkpoint.
 * Pressure spacing must match volume fluctuations: neighbouring pressures should satisfy :math:`\Delta P\,\sigma_V \lesssim k_BT`.
-* Too small ``bulk_modulus`` or ``tau_p`` makes the barostat unstable; the run stops if a box length changes by more than 5% in one update.
+* Too small ``bulk_modulus`` or ``tau_p`` makes the barostat unstable; the run stops if a box length changes by more than 5% in one update, reporting the replica, step, scale, volume, and target and measured pressures.
+  No restart file is written in that case.
