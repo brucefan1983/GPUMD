@@ -31,6 +31,7 @@ See :ref:`run.in <run_in>` for command order and how settings apply to successiv
    change_box
    compute_cohesive
    compute_elastic
+   compute_hessian
    compute_phonon
 
 .. rubric:: Ensembles
