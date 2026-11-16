@@ -14,7 +14,7 @@
 ###########################################################
 CC = hipcc
 HIP_ARCH ?= gfx1100
-CFLAGS = -O3 -std=c++17 -offload-arch=$(HIP_ARCH) -DUSE_HIP
+CFLAGS = -O3 -std=c++17 --offload-arch=$(HIP_ARCH) -DUSE_HIP
 CFLAGS += -Wno-inconsistent-missing-override -Wno-unused-result -Wno-pass-failed
 INC = -I./
 LDFLAGS = 
