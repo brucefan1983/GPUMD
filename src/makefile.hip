@@ -2,7 +2,7 @@
 # Note:
 # 1) Set HIP_ARCH to your GPU architecture, e.g.
 #    make -f makefile.hip HIP_ARCH=gfx1100
-#    (defaults to gfx90a).
+#    (defaults to gfx1100).
 # 2) Do not remove -DUSE_HIP.
 # 3) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
 #    and remove it otherwise.
@@ -13,11 +13,9 @@
 # some flags
 ###########################################################
 CC = hipcc
-HIP_ARCH ?= gfx90a
-# Leave the C++ standard at the compiler default (C++17): rocThrust/rocPRIM
-# (pulled in by thrust::exclusive_scan in neighbor.cu etc.) require C++17 and
-# hipcc defaults to it, so do not pin -std lower.
-CFLAGS = -O3 --offload-arch=$(HIP_ARCH) -DUSE_HIP
+HIP_ARCH ?= gfx1100
+CFLAGS = -O3 -std=c++17 -offload-arch=$(HIP_ARCH) -DUSE_HIP
+CFLAGS += -Wno-inconsistent-missing-override -Wno-unused-result -Wno-pass-failed
 INC = -I./
 LDFLAGS = 
 LIBS = -lhipblas -lhipsolver -lhipfft
