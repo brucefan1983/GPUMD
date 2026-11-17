@@ -3,12 +3,16 @@
 Compare two TB executables from the GPUMD repository root:
 
 ```sh
-python3 tests_tb/run_regression.py --old /path/to/tb_old --new ./src/tb
+python3 tests_regression/tb/run_regression.py --old ./src_old/tb --new ./src/tb
 ```
 
 The tests require Python 3.8+ and a GPU runtime compatible with the supplied
 executables. Each case runs both executables in separate directories with
 identical inputs, using the selected XYZ fixture as `train.xyz`.
+
+This suite runs independently of the GPUMD/NEP runner in the parent directory.
+Its 32 cases are separate from that runner's 255-case `full` suite. See the
+[regression overview](../README.md) for the other test collections.
 
 ## Cases
 
@@ -23,7 +27,7 @@ numerical regression; they do not assess convergence or fitting quality.
 To select cases and retain their files:
 
 ```sh
-python3 tests_tb/run_regression.py --old /path/to/tb_old --new ./src/tb \
+python3 tests_regression/tb/run_regression.py --old ./src_old/tb --new ./src/tb \
   --dataset graphene --basis sp3sstar --keep
 ```
 

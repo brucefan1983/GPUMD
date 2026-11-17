@@ -14,15 +14,20 @@ expected behavior rather than a baseline executable; they are in
 |---|---|
 | `gpumd/` | 231 simulation cases, their fixtures, all 25 cross-case relations, and PPPM checks |
 | `nep/` | 24 training and prediction cases and their fixtures |
+| `tb/` | 32 tight-binding training cases with their own comparison runner |
 | `manifest.json` | Shared schema version and default timeout |
 | `run_regression.py` | Shared command-line entry, execution, comparison, and reporting |
 | `post_checks.py` | Semantic checks used by both executables |
 
-Each executable directory has its own `manifest.json`, `cases/`, and `fixtures/`.
+The `gpumd/` and `nep/` directories each have their own `manifest.json`, `cases/`, and `fixtures/`.
 The runner combines the manifests and executes GPUMD cases followed by NEP cases;
 each case still has its own fresh working directory. `package:` paths remain
 relative to `tests_regression/`, including the executable directory name.
 The usual entry point and suite options apply to both collections.
+
+The TB suite has its own runner and comparison rules. Run its 32 cases separately
+using the commands in [tb/README.md](tb/README.md). The shared `--suite full`
+command covers the 255 GPUMD/NEP cases and 25 relations.
 
 ## Running the tests
 
