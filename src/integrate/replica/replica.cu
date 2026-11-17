@@ -143,10 +143,12 @@ void run_replica(const RunInput& run_input)
   CHECK(gpuGetDevice(&source_device));
   if (input.multi_replica_command[1] == "remd") {
     replica::run_remd(input, run_input, atom, box, group);
+  } else if (input.multi_replica_command[1] == "remd_tp") {
+    replica::run_remd_tp(input, run_input, atom, box, group);
   } else if (input.multi_replica_command[1] == "prd") {
     replica::run_prd(input, run_input, atom, box, group);
   } else {
-    PRINT_INPUT_ERROR("multi_replica supports remd and prd.");
+    PRINT_INPUT_ERROR("multi_replica supports remd, remd_tp, and prd.");
   }
   CHECK(gpuSetDevice(source_device));
 }

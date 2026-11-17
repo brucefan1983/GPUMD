@@ -269,6 +269,10 @@ Temperature ladders, ladder reports, and restart files are overwritten.
      - :ref:`multi_replica remd <replica_remd>`
      - Acceptance statistics
      - Overwrite
+   * - :ref:`remd_tp_*.out <replica_remd_tp_output>`
+     - :ref:`multi_replica remd_tp <replica_remd_tp>`
+     - Temperature-pressure conditions, exchanges, and thermodynamic states
+     - Append on resume; conditions and pair reports overwrite
    * - :ref:`prd_events.out <replica_prd_events>`
      - :ref:`multi_replica prd <replica_prd>`
      - Transitions and physical clock
@@ -290,6 +294,7 @@ Temperature ladders, ladder reports, and restart files are overwritten.
    remd_status
    remd_thermo
    remd_ladder
+   remd_tp
    prd_events
    replica_trajectory
    replica_restart

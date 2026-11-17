@@ -16,6 +16,7 @@
 #pragma once
 
 #include "ensemble_bdp_replica.cuh"
+#include "replica_scr.cuh"
 #include "force/replica/replica_force.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
@@ -61,6 +62,7 @@ struct Replica_Slot {
   std::vector<Group> group;
   GPU_Vector<double> thermo;
   std::unique_ptr<Ensemble_BDP_Replica> thermostat;
+  std::unique_ptr<SCR_Barostat> barostat; // only for NPT replica modes
   GPU_Pinned_Vector<double> host_thermo;
 };
 
@@ -72,6 +74,8 @@ bool extract_quoted_value(
   const std::string& line, const std::string& key, std::string& value);
 bool extract_token_value(
   const std::string& line, const std::string& key, std::string& value);
+void validate_xyz_pbc(
+  const std::string& comment, const Box& reference, const char* mode);
 void validate_xyz_box(
   const std::string& comment, const Box& reference, const char* mode);
 

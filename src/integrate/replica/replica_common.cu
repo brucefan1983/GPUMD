@@ -96,7 +96,7 @@ bool extract_token_value(
   return true;
 }
 
-void validate_xyz_box(
+void validate_xyz_pbc(
   const std::string& comment, const Box& reference, const char* mode)
 {
   std::string value;
@@ -118,6 +118,13 @@ void validate_xyz_box(
     PRINT_INPUT_ERROR(message.c_str());
   }
 
+}
+
+void validate_xyz_box(
+  const std::string& comment, const Box& reference, const char* mode)
+{
+  validate_xyz_pbc(comment, reference, mode);
+  std::string value, trailing;
   if (!extract_quoted_value(comment, "Lattice", value)) {
     const std::string message = std::string(mode) + " restart xyz is missing Lattice.";
     PRINT_INPUT_ERROR(message.c_str());
@@ -748,6 +755,13 @@ constexpr long long max_batched_atoms_per_gpu = 30000;
 
 void Replica_Runtime::initialize_batches()
 {
+  // Batched kernels currently share one box; NPT replicas have independent boxes.
+  for (const Replica_Slot* slot : replica_slots_) {
+    if (slot->barostat) {
+      printf("    batched integration: off (independent NPT replica boxes).\n");
+      return;
+    }
+  }
   const char* forced = std::getenv("GPUMD_REPLICA_BATCH");
   const bool is_forced = forced != nullptr && forced[0] != '\0';
   if (is_forced && std::string(forced) != "0" && std::string(forced) != "1")
@@ -881,6 +895,8 @@ void Replica_Runtime::advance_device(
       if (!active_slots[local_slot])
         continue;
       Replica_Slot& slot = *device.slots[local_slot];
+      if (slot.barostat && slot.barostat->pending)
+        apply_barostat(slot);
       slot.thermostat->compute1(time_step_, slot.atom, slot.stream.get());
       device.force.compute(
         slot.box,
@@ -892,6 +908,8 @@ void Replica_Runtime::advance_device(
         slot.stream.get());
       slot.thermostat->compute2(
         time_step_, slot.box.get_volume(), slot.atom, slot.thermo, slot.stream.get());
+      if (slot.barostat && ++slot.barostat->step_counter % slot.barostat->interval == 0)
+        refresh_barostat_pressure(slot);
     }
   }
 

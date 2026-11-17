@@ -62,6 +62,8 @@ private:
   double skin_ = 1.0;
   bool valid_ = false;
   int built_number_of_atoms_ = 0;
+  double last_box_[9] = {};
+  int last_pbc_[3] = {};
   GPU_Vector<int> cell_count_;
   GPU_Vector<int> cell_count_sum_;
   GPU_Vector<int> cell_contents_;
