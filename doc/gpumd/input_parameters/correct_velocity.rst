@@ -55,3 +55,7 @@ The first correction is performed before the first integration step, and subsequ
 For example, an interval of 10 gives corrections before steps 1, 11, 21, and so on.
 Periodic correction is disabled by default and only applies to the current :ref:`run <kw_run>` when enabled.
 Repeat this command before each subsequent run that needs it.
+
+For a collinear group, rotation about the line does not change the atomic velocities.
+The correction removes the two transverse rotational components using the nonzero moments of inertia and preserves internal motion along the line.
+A single-atom group has no rotational component; only its center-of-mass velocity is removed.

@@ -28,6 +28,7 @@ If DEBUG is off, the velocities are different in different runs.
 #include "utilities/gpu_vector.cuh"
 #include "velocity.cuh"
 #include <algorithm>
+#include <cfloat>
 #include <cstring>
 #include <vector>
 
@@ -158,7 +159,7 @@ static void get_inertia(
   I[2][0] = I[0][2];
 }
 
-static __host__ __device__ double
+static __host__ __device__ void
 get_angular_velocity(const double I[3][3], const double L[3], double w[3])
 {
   double inverse[3][3]; // inverse of I
@@ -174,9 +175,20 @@ get_angular_velocity(const double I[3][3], const double L[3], double w[3])
   double determinant = I[0][0] * I[1][1] * I[2][2] + I[0][1] * I[1][2] * I[2][0] +
                        I[0][2] * I[1][0] * I[2][1] - I[0][0] * I[1][2] * I[2][1] -
                        I[0][1] * I[1][0] * I[2][2] - I[2][0] * I[1][1] * I[0][2];
-  if (determinant > -1.0e-10 && determinant < 1.0e-10) {
+  const double trace = I[0][0] + I[1][1] + I[2][2];
+  if (trace == 0.0) {
     w[0] = w[1] = w[2] = 0.0;
-    return determinant;
+    return;
+  }
+  const double scaled_determinant = determinant / trace / trace / trace;
+  if (fabs(scaled_determinant) <= 64.0 * DBL_EPSILON) {
+    // A collinear group's inertia has eigenvalues (0, lambda, lambda).
+    // Its angular momentum is perpendicular to the line, so the minimum-norm
+    // solution is L / lambda, with lambda = trace(I) / 2.
+    for (int d = 0; d < 3; ++d) {
+      w[d] = 2.0 * L[d] / trace;
+    }
+    return;
   }
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
@@ -188,7 +200,6 @@ get_angular_velocity(const double I[3][3], const double L[3], double w[3])
   w[1] = inverse[1][0] * L[0] + inverse[1][1] * L[1] + inverse[1][2] * L[2];
   w[2] = inverse[2][0] * L[0] + inverse[2][1] * L[1] + inverse[2][2] * L[2];
 
-  return determinant;
 }
 
 // v_i = v_i - w x dr_i
@@ -259,10 +270,7 @@ void Velocity::correct_velocity(
     cpu_position_per_atom.data() + N * 2);
 
   double w[3]; // angular velocity
-  double determinant = get_angular_velocity(I, L, w);
-  if (determinant > -1.0e-10 && determinant < 1.0e-10) {
-    return; // do not correct the angular velocity to avoid NaN
-  }
+  get_angular_velocity(I, L, w);
 
   zero_angular_momentum(
     N,
