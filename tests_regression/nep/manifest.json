@@ -1,0 +1,649 @@
+{
+  "fixtures": {
+    "training_pbte": {
+      "stage": [
+        {
+          "source": "package:nep/fixtures/training/pbte.xyz",
+          "target": "train.xyz"
+        }
+      ]
+    },
+    "training_pbte_ediff": {
+      "stage": [
+        {
+          "source": "package:nep/fixtures/training/pbte.xyz",
+          "target": "train.xyz"
+        },
+        {
+          "source": "package:nep/fixtures/training/pbte.xyz",
+          "target": "test.xyz"
+        },
+        {
+          "source": "package:nep/fixtures/training/pbte_ediff.in",
+          "target": "ediff.in"
+        }
+      ]
+    },
+    "training_tnep": {
+      "stage": [
+        {
+          "source": "package:nep/fixtures/training/tnep_120.xyz",
+          "target": "train.xyz"
+        }
+      ]
+    },
+    "training_water_fff": {
+      "stage": [
+        {
+          "source": "package:nep/fixtures/training/water_12_fff.xyz",
+          "target": "train.xyz"
+        }
+      ]
+    },
+    "training_mixed": {
+      "stage": [
+        {
+          "source": "package:nep/fixtures/training/pbte_water_mixed.xyz",
+          "target": "train.xyz"
+        }
+      ]
+    }
+  },
+  "cases": [
+    {
+      "id": "predict_nep_pbte_batch",
+      "program": "nep",
+      "description": "NEP prediction from a fixed model on the three-batch PbTe TTT dataset",
+      "suites": [
+        "prediction",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "stage": [
+        {
+          "source": "repo:examples/nep_prediction/nep.txt",
+          "target": "nep.txt"
+        }
+      ],
+      "input": "package:nep/cases/prediction/nep_pbte_batch.in",
+      "covers": [
+        "prediction:nep",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "stdout_contains": "Started predicting.",
+      "outputs": [
+        "energy_train.out",
+        "force_train.out",
+        "virial_train.out",
+        "stress_train.out"
+      ],
+      "comparisons": {
+        "force_train.out": {
+          "mode": "numeric",
+          "rtol": 1e-05,
+          "atol": 2e-07,
+          "reason": "Prediction uses unordered single-precision atomic force accumulation. The relative bound allows the last of six significant digits written by %g to change; the absolute bound covers cancellation near zero, in eV/angstrom."
+        }
+      }
+    },
+    {
+      "id": "train_nep_pbte_full",
+      "program": "nep",
+      "description": "NEP training on the full-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:nep/cases/training/nep_pbte_full.in",
+      "covers": [
+        "training:nep",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_nep_pbte_batch",
+      "program": "nep",
+      "description": "NEP training on the three-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:nep/cases/training/nep_pbte_batch.in",
+      "covers": [
+        "training:nep",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_nep_pbte_ediff",
+      "program": "nep",
+      "description": "NEP energy-difference loss across batches with and without combinations, including test-set reporting",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte_ediff",
+      "input": "package:nep/cases/training/nep_pbte_ediff.in",
+      "covers": [
+        "training:nep",
+        "training:energy-difference",
+        "boundary:ttt",
+        "batch:multi",
+        "batch:no-energy-difference"
+      ],
+      "expect": "success",
+      "stdout_contains": "ediff.in: 2 combinations, 2 in train.xyz, 2 in test.xyz (2 in both), 0 skipped.",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart",
+        "energy_test.out",
+        "force_test.out",
+        "virial_test.out",
+        "stress_test.out"
+      ],
+      "comparisons": {
+        "force_test.out": {
+          "mode": "numeric",
+          "rtol": 1e-05,
+          "atol": 2e-07,
+          "reason": "Test-set reporting uses the same single-precision atomic force accumulation and six-significant-digit output as predict_nep_pbte_batch. Apply its force-only rounding bounds, in eV/angstrom."
+        }
+      },
+      "post_checks": [
+        {
+          "name": "nep_energy_difference",
+          "output": "loss.out",
+          "generations": 10,
+          "batches": 3,
+          "empty_batch": 2
+        }
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep1_pbte_full",
+      "program": "nep",
+      "description": "QNEP charge mode 1 training on the full-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:nep/cases/training/qnep1_pbte_full.in",
+      "covers": [
+        "training:qnep-mode1",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep1_pbte_batch",
+      "program": "nep",
+      "description": "QNEP charge mode 1 training on the three-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:nep/cases/training/qnep1_pbte_batch.in",
+      "covers": [
+        "training:qnep-mode1",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep2_pbte_full",
+      "program": "nep",
+      "description": "QNEP charge mode 2 training on the full-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:nep/cases/training/qnep2_pbte_full.in",
+      "covers": [
+        "training:qnep-mode2",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep2_pbte_batch",
+      "program": "nep",
+      "description": "QNEP charge mode 2 training on the three-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:nep/cases/training/qnep2_pbte_batch.in",
+      "covers": [
+        "training:qnep-mode2",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_vdw_pbte_full",
+      "program": "nep",
+      "description": "NEP-vdW training on the full-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:nep/cases/training/vdw_pbte_full.in",
+      "covers": [
+        "training:vdw",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_vdw_pbte_batch",
+      "program": "nep",
+      "description": "NEP-vdW training on the three-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:nep/cases/training/vdw_pbte_batch.in",
+      "covers": [
+        "training:vdw",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_charge_vdw_pbte_full",
+      "program": "nep",
+      "description": "charge-vdW training on the full-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:nep/cases/training/charge_vdw_pbte_full.in",
+      "covers": [
+        "training:charge-vdw",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_charge_vdw_pbte_batch",
+      "program": "nep",
+      "description": "charge-vdW training on the three-batch PbTe TTT dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_pbte",
+      "input": "package:nep/cases/training/charge_vdw_pbte_batch.in",
+      "covers": [
+        "training:charge-vdw",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_tnep_dipole_full",
+      "program": "nep",
+      "description": "TNEP dipole training on the 120-structure full batch",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_tnep",
+      "input": "package:nep/cases/training/tnep_dipole_full.in",
+      "covers": [
+        "training:tnep-dipole",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_tnep_dipole_batch",
+      "program": "nep",
+      "description": "TNEP dipole training on two batches of 61 and 59 structures",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_tnep",
+      "input": "package:nep/cases/training/tnep_dipole_batch.in",
+      "covers": [
+        "training:tnep-dipole",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_tnep_pol_full",
+      "program": "nep",
+      "description": "TNEP polarizability training on the 120-structure full batch",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_tnep",
+      "input": "package:nep/cases/training/tnep_pol_full.in",
+      "covers": [
+        "training:tnep-polarizability",
+        "boundary:ttt",
+        "batch:full"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_tnep_pol_batch",
+      "program": "nep",
+      "description": "TNEP polarizability training on two batches of 61 and 59 structures",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_tnep",
+      "input": "package:nep/cases/training/tnep_pol_batch.in",
+      "covers": [
+        "training:tnep-polarizability",
+        "boundary:ttt",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep1_water_fff",
+      "program": "nep",
+      "description": "QNEP charge mode 1 training on the three-batch 12-atom water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_water_fff",
+      "input": "package:nep/cases/training/qnep1_water_fff.in",
+      "covers": [
+        "training:qnep-mode1",
+        "boundary:fff",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep2_water_fff",
+      "program": "nep",
+      "description": "QNEP charge mode 2 training on the three-batch 12-atom water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_water_fff",
+      "input": "package:nep/cases/training/qnep2_water_fff.in",
+      "covers": [
+        "training:qnep-mode2",
+        "boundary:fff",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_vdw_water_fff",
+      "program": "nep",
+      "description": "NEP-vdW training on the three-batch 12-atom water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_water_fff",
+      "input": "package:nep/cases/training/vdw_water_fff.in",
+      "covers": [
+        "training:vdw",
+        "boundary:fff",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_charge_vdw_water_fff",
+      "program": "nep",
+      "description": "charge-vdW training on the three-batch 12-atom water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_water_fff",
+      "input": "package:nep/cases/training/charge_vdw_water_fff.in",
+      "covers": [
+        "training:charge-vdw",
+        "boundary:fff",
+        "batch:multi"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep1_mixed",
+      "program": "nep",
+      "description": "QNEP charge mode 1 training on the two-batch PbTe TTT + water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_mixed",
+      "input": "package:nep/cases/training/qnep1_mixed.in",
+      "covers": [
+        "training:qnep-mode1",
+        "boundary:mixed",
+        "batch:multi",
+        "species:pb-te-h-o"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_qnep2_mixed",
+      "program": "nep",
+      "description": "QNEP charge mode 2 training on the two-batch PbTe TTT + water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_mixed",
+      "input": "package:nep/cases/training/qnep2_mixed.in",
+      "covers": [
+        "training:qnep-mode2",
+        "boundary:mixed",
+        "batch:multi",
+        "species:pb-te-h-o"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_vdw_mixed",
+      "program": "nep",
+      "description": "NEP-vdW training on the two-batch PbTe TTT + water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_mixed",
+      "input": "package:nep/cases/training/vdw_mixed.in",
+      "covers": [
+        "training:vdw",
+        "boundary:mixed",
+        "batch:multi",
+        "species:pb-te-h-o"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    },
+    {
+      "id": "train_charge_vdw_mixed",
+      "program": "nep",
+      "description": "charge-vdW training on the two-batch PbTe TTT + water FFF dataset",
+      "suites": [
+        "training",
+        "full"
+      ],
+      "fixture": "training_mixed",
+      "input": "package:nep/cases/training/charge_vdw_mixed.in",
+      "covers": [
+        "training:charge-vdw",
+        "boundary:mixed",
+        "batch:multi",
+        "species:pb-te-h-o"
+      ],
+      "expect": "success",
+      "outputs": [
+        "loss.out",
+        "nep.txt",
+        "nep.restart"
+      ],
+      "timeout_s": 900
+    }
+  ]
+}

@@ -186,7 +186,7 @@ def test_active_requires_two_potentials(tmp_path, gpumd_command, potential):
 def test_active_with_temperature_nep(tmp_path, gpumd_command):
     """active evaluates a temperature-dependent NEP at the temperature of the step, which rises by
     100 K per step."""
-    fixtures = REPO_ROOT / 'tests_regression' / 'fixtures'
+    fixtures = REPO_ROOT / 'tests_regression' / 'gpumd' / 'fixtures'
     model = fixtures / 'potentials' / 'temperature_F_nep.txt'
     potentials = [model, write_scaled_nep_model(model, tmp_path / 'temperature_F_nep_scaled.txt')]
     keywords = ['velocity 300 seed 1', 'ensemble nvt_ber 300 600 100', 'time_step 1']

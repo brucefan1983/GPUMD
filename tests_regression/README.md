@@ -1,12 +1,35 @@
 # GPUMD regression tests
 
-This directory contains the long-term differential regression tests for the default
-`gpumd` executable and the `nep` training executable. It compares previously accepted
+This directory contains differential regression tests for the `gpumd`, `nep`, and
+`tb` executables. It compares previously accepted
 executables with candidate executables and is intended to be run after source changes.
 
 Tests of replica dynamics (`multi_replica` runs of `gpumd`) compare against
 expected behavior rather than a baseline executable; they are in
 [`tests_pytest/test_replica.py`](../tests_pytest/README.md#replica-dynamics).
+
+## Organization
+
+| Location | Contents |
+|---|---|
+| `gpumd/` | 231 simulation cases, their fixtures, all 25 cross-case relations, and PPPM checks |
+| `nep/` | 24 training and prediction cases and their fixtures |
+| `tb/` | 32 tight-binding training cases with their own comparison runner |
+| `manifest.json` | Shared schema version and default timeout |
+| `run_regression.py` | Shared command-line entry, execution, comparison, and reporting |
+| `post_checks.py` | Semantic checks used by both executables |
+
+The `gpumd/` and `nep/` directories each have their own `manifest.json`, `cases/`, and `fixtures/`.
+The runner combines the manifests and executes GPUMD cases followed by NEP cases;
+each case has its own fresh working directory. `package:` paths are
+relative to `tests_regression/`, including the executable directory name.
+The usual entry point and suite options apply to both collections.
+
+The TB suite has its own runner and comparison rules. Run its 32 cases separately
+using the commands in [tb/README.md](tb/README.md). The shared `--suite full`
+command covers the 255 GPUMD/NEP cases and 25 relations.
+
+## Running the tests
 
 The runner does not build GPUMD, infer revisions, or select a baseline. Supply
 the repository root and both executables explicitly:
@@ -31,7 +54,7 @@ python3 tests_regression/run_regression.py \
   --suite training
 ```
 
-Paths prefixed with `repo:` in `manifest.json` are resolved below
+Paths prefixed with `repo:` in either executable's manifest are resolved below
 `--repo-root`; paths prefixed with `package:` are resolved below this package.
 This permits reuse of public GPUMD examples and potentials while keeping
 regression-specific inputs self-contained.
@@ -175,7 +198,8 @@ python3 tests_regression/run_regression.py \
 
 Relations whose members are outside a focused selection are reported as
 skipped. This is expected for diagnostics; the acceptance run must report zero
-skipped relations. See `CONTRACT_SUITES.md` for the durable relation oracles.
+skipped relations. See [gpumd/CONTRACT_SUITES.md](gpumd/CONTRACT_SUITES.md)
+for the durable relation oracles.
 
 ## Execution and comparison contract
 
@@ -184,7 +208,7 @@ separate fresh working directories. The runner does not repeatedly execute a
 binary to establish self-repeatability. Both roles use the same expected exit
 code, diagnostics, output inventory and functional checks. All cases compare
 the two runs. Version-specific expectations and switches that disable a role
-or its result comparison are not supported. See [PPPM.md](PPPM.md) for PPPM
+or its result comparison are not supported. See [gpumd/PPPM.md](gpumd/PPPM.md) for PPPM
 checks and numerical bounds.
 
 Cases default to `program: gpumd`. Training and prediction cases declare
@@ -236,8 +260,8 @@ The manifest contains narrowly scoped zero-relative-tolerance numerical
 comparisons for qNEP outputs affected by unordered single-precision GPU
 accumulation. The comparator still requires identical token counts, token
 order, and nonnumeric text, and rejects non-finite or overflowing values.
-Restored PPPM comparisons reuse the existing same-mesh absolute bounds;
-`qnep_pppm_future_bec` restores its earlier BEC/DPDT atomic-noise bounds.
+PPPM comparisons use calibrated same-mesh absolute bounds, including separate
+BEC/DPDT bounds for `qnep_pppm_future_bec`.
 These bounds must be checked by self-comparison on the target GPU. Other
 outputs remain byte-exact unless their manifest entry explicitly says otherwise.
 
@@ -255,7 +279,7 @@ also compared byte for byte between baseline and candidate after execution.
 
 ### Cross-case relations
 
-The top-level `relations` list provides oracles involving multiple cases:
+The `relations` list in `gpumd/manifest.json` provides oracles involving multiple cases:
 
 - `equal` requires all referenced case/output members to be byte-identical;
 - `concat` requires a result output to equal the ordered bytewise
@@ -306,7 +330,9 @@ tests_regression/reports/
 ```
 
 Each report records the selected cases, results, durations, executable
-metadata, and staged/generated file hashes. Failed work directories are
+metadata, and staged/generated file hashes. `manifest_sha256` identifies the
+combined manifest data; `manifest_files` records the SHA-256 of each of the
+three source JSON files. Failed work directories are
 retained below:
 
 ```text

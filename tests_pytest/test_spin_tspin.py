@@ -1,6 +1,5 @@
 """TSPIN parser, initialization, splitting, and restart regression tests."""
 
-import json
 import math
 import os
 import re

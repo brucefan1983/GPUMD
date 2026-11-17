@@ -9,7 +9,7 @@ Most Cu cases run `replicate 6 6 6` before loading
 `potentials/eam/Cu_Zhou_2004.txt`, giving 6912 atoms and a box length of
 43.38 Angstrom. This is large enough to represent a normal GPU workload while
 remaining inexpensive for the short regression trajectories. The EAM cutoff
-is 5 Angstrom and the candidate neighbor list adds a 1 Angstrom skin. Wall
+is 5 Angstrom and the neighbor list adds a 1 Angstrom skin. Wall
 cases use `replicate 12 6 6`, giving 13824 atoms and an x length of
 86.76 Angstrom.
 

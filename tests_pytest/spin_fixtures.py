@@ -1,6 +1,5 @@
 """Frozen Spin model/oracle loaders; independent of runtime and integrators."""
 import hashlib
-import math
 from pathlib import Path
 
 FIXTURE = Path(__file__).parent / "fixtures" / "nep_spin"
