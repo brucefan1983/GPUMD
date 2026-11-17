@@ -16,6 +16,7 @@
 #pragma once
 #include "action.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "measure/uniform_time_step.cuh"
 #include <string>
 #include <vector>
 class Group;
@@ -37,6 +38,15 @@ public:
 
   virtual void pre_run(
     const int number_of_steps,
+    const double time_step,
+    Integrate& integrate,
+    std::vector<Group>& group,
+    Atom& atom,
+    Box& box,
+    Force& force);
+
+  virtual void pre_force(
+    const int step,
     const double time_step,
     Integrate& integrate,
     std::vector<Group>& group,
@@ -69,6 +79,7 @@ public:
 private:
   int num_atoms_;
   int num_groups_;
+  UniformTimeStep uniform_time_step_;
   double dt_in_natural_units_;
   double dt_in_ps_;
   const Group* group_;

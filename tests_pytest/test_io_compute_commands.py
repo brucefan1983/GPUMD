@@ -50,8 +50,11 @@ def _check_columns(path, ncols, exact=True):
 
 def _check_msd_format(path):
     df = read_msd(str(path))
-    assert 'msd_x' in df.columns
-    assert len(df) > 0
+    # The reader preserves the column labels written in GPUMD's MSD header.
+    columns = ['time_ps', 'msdx', 'msdy', 'msdz', 'sdcx', 'sdcy', 'sdcz']
+    assert list(df.columns) == columns
+    assert df.shape == (BASE_N_STEPS, len(columns))
+    assert np.isfinite(df.to_numpy()).all()
 
 
 def _check_dpdt_format(path):

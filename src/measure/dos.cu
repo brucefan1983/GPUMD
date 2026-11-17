@@ -213,6 +213,8 @@ void DOS::pre_run(
 {
   if (!compute_)
     return;
+  uniform_time_step_.reset();
+
   if (num_correlation_steps_ > number_of_steps / sample_interval_) {
     PRINT_INPUT_ERROR(
       "The number of DOS correlation steps should not exceed the number of sampled frames.\n");
@@ -220,6 +222,26 @@ void DOS::pre_run(
   initialize_parameters(time_step, group, atom.mass);
   allocate_memory();
   copy_mass(atom.mass);
+}
+
+void DOS::pre_force(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  if (!compute_)
+    return;
+  if (uniform_time_step_.observe(time_step, "compute_dos")) {
+    dt_in_natural_units_ = time_step * sample_interval_;
+    dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
+    if (1.0 / dt_in_ps_ < omega_max_ / PI) {
+      PRINT_INPUT_ERROR("Velocity sampling rate < Nyquist frequency.");
+    }
+  }
 }
 
 void DOS::end_of_step(
@@ -288,9 +310,6 @@ void DOS::initialize_parameters(
 {
   dt_in_natural_units_ = time_step * sample_interval_;
   dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
-  if (1.0 / dt_in_ps_ < omega_max_ / PI) {
-    PRINT_INPUT_ERROR("Velocity sampling rate < Nyquist frequency.");
-  }
 
   if (grouping_method_ < 0) {
     num_atoms_ = mass.size();

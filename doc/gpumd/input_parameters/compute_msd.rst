@@ -59,4 +59,8 @@ The final results are also appended to ``msd.out`` at the end of the run.
 Notes
 -----
 
-None.
+These step-indexed correlations require a constant actual integration time step throughout each run.
+An adaptive displacement limit is allowed if the resulting time step stays constant; the sampling interval is then based on that actual time step.
+If the actual time step changes during the run, GPUMD stops with an input error.
+Use a fixed :ref:`time_step <kw_time_step>` for correlations along trajectories with changing atomic speeds.
+The time interval is initialized separately for each run.

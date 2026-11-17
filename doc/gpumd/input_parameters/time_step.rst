@@ -44,3 +44,5 @@ Notes
 * The current time-step value is retained from one run to the next unless a new ``time_step`` command is given.
 * The displacement limit applies only to the current run.
   Repeat the full two-parameter command before each run that needs adaptive time stepping.
+* :ref:`compute_msd <kw_compute_msd>`, :ref:`compute_sdc <kw_compute_sdc>`, and :ref:`compute_dos <kw_compute_dos>` require a constant actual time step within each run.
+  They use the first actual time step and stop if it subsequently changes, even when an adaptive displacement limit is supplied.

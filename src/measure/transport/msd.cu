@@ -214,6 +214,8 @@ void MSD::pre_run(
   if (!compute_)
     return;
   
+  uniform_time_step_.reset();
+
   if (num_correlation_steps_ > number_of_steps / sample_interval_) {
     PRINT_INPUT_ERROR("MSD correlation times sampling interval should be <= number of MD steps.\n");
   }
@@ -264,6 +266,23 @@ void MSD::pre_run(
   msdz_out_.resize(num_correlation_steps_ * num_groups_, 0.0, Memory_Type::managed);
 
   num_time_origins_ = 0;
+}
+
+void MSD::pre_force(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  if (!compute_)
+    return;
+  if (uniform_time_step_.observe(time_step, "compute_msd")) {
+    dt_in_natural_units_ = time_step * sample_interval_;
+    dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
+  }
 }
 
 void MSD::end_of_step(

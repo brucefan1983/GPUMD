@@ -141,6 +141,8 @@ void SDC::pre_run(
   if (!compute_)
     return;
 
+  uniform_time_step_.reset();
+
   if (num_correlation_steps_ > number_of_steps / sample_interval_) {
     PRINT_INPUT_ERROR(
       "The number of SDC correlation steps should not exceed the number of sampled frames.\n");
@@ -157,6 +159,23 @@ void SDC::pre_run(
   vacz_.resize(num_correlation_steps_, 0.0, Memory_Type::managed);
 
   num_time_origins_ = 0;
+}
+
+void SDC::pre_force(
+  const int step,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
+{
+  if (!compute_)
+    return;
+  if (uniform_time_step_.observe(time_step, "compute_sdc")) {
+    dt_in_natural_units_ = time_step * sample_interval_;
+    dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
+  }
 }
 
 void SDC::end_of_step(
