@@ -92,7 +92,7 @@ See [examples/README.md](https://github.com/brucefan1983/GPUMD/blob/master/examp
 | [Development manual](https://gpumd.org/dev/) | Documentation for the development version; use this when working with `master`. |
 | [GPUMD-Tutorials](https://github.com/brucefan1983/GPUMD-Tutorials) | Worked examples of GPUMD applications and related tools. |
 | [Colab tutorial](https://colab.research.google.com/drive/1QnXAveZgzwut4Mvldsw-r2I0EWIsj1KA?usp=sharing) | A PbTe workflow covering NEP construction and atomistic simulations in Google Colab. |
-| [Developer guide](developer/) | Guidance for working on the GPUMD source code. |
+| [Development instructions](AGENTS.md) | Architecture, coding rules, and validation guidance for contributors and coding agents. |
 
 ## Potentials and datasets
 
@@ -116,7 +116,7 @@ Use [GitHub Discussions](https://github.com/brucefan1983/GPUMD/discussions) or t
 
 For a bug report, include the GPUMD version or commit, operating system, GPU model, toolkit and compiler versions, relevant input files, and the error output. A small reproducing example helps isolate the problem.
 
-Code, documentation, examples, and updates to the package list in `tools/readme.md` are welcome through pull requests. Consult the [developer guide](developer/) before making substantial code changes.
+Code, documentation, examples, and updates to the package list in `tools/readme.md` are welcome through pull requests. Read [AGENTS.md](AGENTS.md) before contributing, including when using AI coding tools.
 
 ## Citations
 
