@@ -1,7 +1,7 @@
 # GPUMD regression tests
 
-This directory contains the long-term differential regression tests for the default
-`gpumd` executable and the `nep` training executable. It compares previously accepted
+This directory contains differential regression tests for the `gpumd`, `nep`, and
+`tb` executables. It compares previously accepted
 executables with candidate executables and is intended to be run after source changes.
 
 Tests of replica dynamics (`multi_replica` runs of `gpumd`) compare against
@@ -21,7 +21,7 @@ expected behavior rather than a baseline executable; they are in
 
 The `gpumd/` and `nep/` directories each have their own `manifest.json`, `cases/`, and `fixtures/`.
 The runner combines the manifests and executes GPUMD cases followed by NEP cases;
-each case still has its own fresh working directory. `package:` paths remain
+each case has its own fresh working directory. `package:` paths are
 relative to `tests_regression/`, including the executable directory name.
 The usual entry point and suite options apply to both collections.
 
@@ -260,8 +260,8 @@ The manifest contains narrowly scoped zero-relative-tolerance numerical
 comparisons for qNEP outputs affected by unordered single-precision GPU
 accumulation. The comparator still requires identical token counts, token
 order, and nonnumeric text, and rejects non-finite or overflowing values.
-Restored PPPM comparisons reuse the existing same-mesh absolute bounds;
-`qnep_pppm_future_bec` restores its earlier BEC/DPDT atomic-noise bounds.
+PPPM comparisons use calibrated same-mesh absolute bounds, including separate
+BEC/DPDT bounds for `qnep_pppm_future_bec`.
 These bounds must be checked by self-comparison on the target GPU. Other
 outputs remain byte-exact unless their manifest entry explicitly says otherwise.
 

@@ -3633,19 +3633,19 @@
           "mode": "numeric",
           "rtol": 0,
           "atol": 1e-05,
-          "reason": "Restore the pre-transition same-mesh qNEP/PPPM BEC bound: repeated regression observed 6.07e-6 absolute atomicAdd drift. Both executables now use the same mesh."
+          "reason": "Same-mesh qNEP/PPPM BEC comparison: repeated regression observed 6.07e-6 absolute atomicAdd drift."
         },
         "thermo.out": {
           "mode": "numeric",
           "rtol": 0,
           "atol": 1e-07,
-          "reason": "Restore the pre-transition same-mesh PPPM bound: float mesh atomics caused up to 4.01e-8 same-binary thermodynamic drift."
+          "reason": "Same-mesh PPPM comparison: float mesh atomics caused up to 4.01e-8 same-binary thermodynamic drift."
         },
         "dpdt.out": {
           "mode": "numeric",
           "rtol": 0,
           "atol": 2e-06,
-          "reason": "Restore the pre-transition DPDT bound: full regression observed 1.0e-6 absolute drift from the float BEC tensor. Both executables now use the same mesh."
+          "reason": "Same-mesh DPDT comparison: full regression observed 1.0e-6 absolute drift from the float BEC tensor."
         }
       }
     },

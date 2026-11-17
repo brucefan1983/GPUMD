@@ -14,7 +14,6 @@ from pathlib import Path
 import shutil
 import subprocess
 import numpy as np
-from spin_fixtures import FIXTURE
 from spin_analytic_model import REFERENCE_MODEL, analytic_model, structure as small_structure
 from validate_spin_multigpu import frame, structure, write_xyz, sha
 

@@ -1,5 +1,4 @@
 import hashlib
-import json
 import os
 import re
 import subprocess
@@ -16,21 +15,9 @@ RUNNER = PACKAGE_ROOT / "run_regression.py"
 
 def find_repo_root() -> Path:
     """Find the GPUMD tree used to validate repo: manifest sources."""
-    candidates = []
-    configured = os.environ.get("GPUMD_REPO_ROOT")
-    if configured:
-        candidates.append(Path(configured))
-    candidates.extend(
-        [
-            PACKAGE_ROOT.parent,
-            PACKAGE_ROOT.parent / "gpumd_repo",
-            Path.cwd(),
-        ]
-    )
-    for candidate in candidates:
-        candidate = candidate.resolve()
-        if (candidate / "src").is_dir() and (candidate / "potentials").is_dir():
-            return candidate
+    root = Path(os.environ.get("GPUMD_REPO_ROOT", PACKAGE_ROOT.parent)).resolve()
+    if (root / "src").is_dir() and (root / "potentials").is_dir():
+        return root
     raise AssertionError(
         "Cannot find a GPUMD repository. Set GPUMD_REPO_ROOT to a tree "
         "containing src/ and potentials/."
@@ -491,17 +478,24 @@ def test_semantic_postchecks_preserve_cross_version_comparisons():
         assert case.get("compare_cross_version", True) is True
 
 
-def test_regression_has_no_dependency_on_migrated_gpumd_test_directories():
-    text = json.dumps(runner.read_manifest_data())
-    for directory in (
-        "active",
-        "dump_dipole",
-        "dump_observer",
-        "dump_polarizability",
-        "msd",
-        "ti-liquid",
-    ):
-        assert f"repo:tests/gpumd/{directory}/" not in text
+def test_manifest_has_no_unused_fixture_data():
+    manifest = runner.read_manifest_data()
+    assert set(manifest["fixtures"]) == {case["fixture"] for case in manifest["cases"]}
+    declared = {case["input"].removeprefix("package:") for case in manifest["cases"]}
+    for case in manifest["cases"]:
+        stage = manifest["fixtures"][case["fixture"]]["stage"] + case.get("stage", [])
+        declared.update(
+            item["source"].removeprefix("package:")
+            for item in stage if item["source"].startswith("package:")
+        )
+    present = {
+        path.relative_to(PACKAGE_ROOT).as_posix()
+        for program in ("gpumd", "nep")
+        for directory in ("cases", "fixtures")
+        for path in (PACKAGE_ROOT / program / directory).rglob("*")
+        if path.is_file() and path.name != "README.md"
+    }
+    assert declared == present, (sorted(present - declared), sorted(declared - present))
 
 
 def test_numeric_exceptions_are_explicit_per_output():
@@ -590,7 +584,7 @@ if __name__ == "__main__":
         test_default_runtime_consumers_are_full_cases,
         test_parsing_validation_cases_match_the_accepted_baseline,
         test_semantic_postchecks_preserve_cross_version_comparisons,
-        test_regression_has_no_dependency_on_migrated_gpumd_test_directories,
+        test_manifest_has_no_unused_fixture_data,
         test_numeric_exceptions_are_explicit_per_output,
     )
     for test in tests:

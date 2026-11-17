@@ -1,13 +1,13 @@
 # GPUMD pytest suite
 
-An automated pytest-based test suite for `gpumd`/`nep`, living alongside the existing manual
-`tests/` directory (which this suite does not touch or replace). See
-`gpumd_pytest_suite_spec.md` at the repo root for the full design rationale, fixture
-architecture, and numeric-validation strategy; this file only covers setup and how to run things.
+Automated tests for `gpumd` and `nep`, including numerical consistency, parser,
+output, training, spin and replica checks. These complement the executable
+comparisons in [tests_regression](../tests_regression/README.md).
 
 ## Prerequisites
 
-- A GPU-equipped machine — every test in this suite drives the real `gpumd` binary.
+- A GPU-equipped machine for executable-level tests. Parser and host-side checks
+  can run without a GPU.
 - Python packages: `ase`, `calorine`, `numpy`, `pytest`, `hypothesis`. Install with:
 
   ```bash
@@ -31,7 +31,9 @@ first — where the build above puts them, so a normal build needs no extra setu
 to `<repo root>/gpumd` and `<repo root>/nep` if nothing exists at the default location (e.g. a
 manually placed copy or symlink).
 
-`nep` is used only by `test_nep_model_consistency.py`; every other module drives `gpumd`.
+Training and prediction tests use `nep`; simulation tests use `gpumd`. Standalone
+validation scripts document their executable options in `--help` or their module
+docstrings.
 
 ## Running the tests
 
@@ -64,7 +66,19 @@ fixtures/
                 # that generates it
 ```
 
-`fixtures/sanitizer_inputs/` is generated on demand via `--dump-fixtures` above, not checked in.
+`fixtures/nep_spin/` contains spin models and independent reference data;
+`fixtures/replica/` contains the replica fixtures.
+
+`fixtures/sanitizer_inputs/` is generated on demand via `--dump-fixtures` above
+and ignored by Git. Python and pytest caches are also ignored. These generated
+files can be removed when their diagnostics are no longer needed; keep the
+tracked models, structures and golden reference files.
+
+The `generate_*.py` and `generate_*.cpp` tools reproduce fixtures or generated
+headers. The `validate_*.py` and `validate_*.cu` tools provide additional runtime,
+multi-GPU and kernel checks; some are also imported by pytest tests. They are
+maintained test tools and are not all run by `pytest` discovery. Their additional
+dependencies are documented in the scripts.
 
 ## Replica dynamics
 

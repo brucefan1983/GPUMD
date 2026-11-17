@@ -19,7 +19,6 @@ import hashlib
 import json
 import math
 import re
-import shutil
 import struct
 from pathlib import Path
 

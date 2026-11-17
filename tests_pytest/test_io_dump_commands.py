@@ -5,7 +5,7 @@ the expected shape -- not physical correctness. See io_helpers.py's module docst
 
 dump_dipole (and its rank-2 counterpart dump_polarizability) are covered in
 test_io_tnep_commands.py, not here -- both strictly require a genuine TNEP model (not a qNEP
-charge model, contrary to this suite's original Tier 1 scope) passed directly to the dump keyword,
+charge model) passed directly to the dump keyword,
 which doesn't fit this file's calculator/model_type fixture pattern the way the rest of these
 dump_* commands do.
 """
@@ -51,15 +51,6 @@ def _check_xyz_multi_frame(path, natoms):
 def _check_natoms_single_frame(path, natoms):
     atoms = read_xyz(str(path))
     assert len(atoms) == natoms
-
-
-def _check_columnar(path, ncols, natoms):
-    data = np.loadtxt(path)
-    if data.ndim == 1:
-        data = data.reshape(1, -1)
-    assert data.shape[1] == ncols
-    assert data.shape[0] % natoms == 0
-    assert data.shape[0] > 0
 
 
 def _significant_digits(token):
