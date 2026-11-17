@@ -5,13 +5,13 @@ import re
 import subprocess
 
 import run_regression as runner
+import post_checks
 import sys
 from pathlib import Path
 
 
 PACKAGE_ROOT = Path(__file__).resolve().parent
 RUNNER = PACKAGE_ROOT / "run_regression.py"
-MANIFEST = PACKAGE_ROOT / "manifest.json"
 
 
 def find_repo_root() -> Path:
@@ -57,7 +57,7 @@ def test_manifest_validation_cli():
 
 
 def test_manifest_suite_and_input_style_contract():
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest = runner.read_manifest_data()
     cases = manifest["cases"]
     assert cases
 
@@ -104,7 +104,7 @@ def test_manifest_rejects_asymmetric_contracts():
         ("compare_cross_version", False),
         ("candidate_only", True),
     ):
-        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        manifest = runner.read_manifest_data()
         manifest["cases"][0][key] = value
         try:
             runner.validate_manifest(manifest, find_repo_root())
@@ -115,7 +115,7 @@ def test_manifest_rejects_asymmetric_contracts():
 
 
 def test_manifest_uses_single_run_byte_exact_defaults():
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest = runner.read_manifest_data()
     assert set(manifest["defaults"]) == {"timeout_s"}
 
     deprecated_case_keys = {
@@ -130,7 +130,7 @@ def test_manifest_uses_single_run_byte_exact_defaults():
 
 
 def test_manifest_cross_case_relations_are_declarative():
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest = runner.read_manifest_data()
     cases = {case["id"]: case for case in manifest["cases"]}
     relations = manifest["relations"]
     assert relations
@@ -192,79 +192,80 @@ def test_runner_exposes_explicit_external_paths():
 
 
 def test_manifest_accounts_for_every_case_input():
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest = runner.read_manifest_data()
     declared = set()
     for case in manifest["cases"]:
         source = case["input"]
-        assert source.startswith("package:cases/"), source
+        assert source.startswith(f"package:{case.get('program', 'gpumd')}/cases/"), source
         declared.add(source.removeprefix("package:"))
     present = {
         path.relative_to(PACKAGE_ROOT).as_posix()
-        for path in (PACKAGE_ROOT / "cases").rglob("*.in")
+        for program in ("gpumd", "nep")
+        for path in (PACKAGE_ROOT / program / "cases").rglob("*.in")
     }
     assert declared == present
 
 
 def test_package_fixture_hashes_are_pinned():
     expected = {
-        "fixtures/potentials/temperature_F_nep.txt":
+        "gpumd/fixtures/potentials/temperature_F_nep.txt":
             "1c3340be87cd5f001ace48870c00fcb66e71d227998940451128e134e9dec8c4",
-        "fixtures/systems/temperature_F_512.xyz":
+        "gpumd/fixtures/systems/temperature_F_512.xyz":
             "44a76a943b6e1c419706e0f0b257200d38319194c80a60c589da977f7620b57c",
-        "fixtures/potentials/C_2022_NEP4_MODIFIED.txt":
+        "gpumd/fixtures/potentials/C_2022_NEP4_MODIFIED.txt":
             "c906656f8ca18e848b413792a6d2aeec3fc51b6b5cd79dcfded1dbb500379234",
-        "fixtures/potentials/neighbor_alias_lj.txt":
+        "gpumd/fixtures/potentials/neighbor_alias_lj.txt":
             "d058a4054474f8cc1daa260942e05e53b53654f0339bde6f72d2af331eba2a09",
-        "fixtures/systems/neighbor_alias_aliased.xyz":
+        "gpumd/fixtures/systems/neighbor_alias_aliased.xyz":
             "3a86e6e3b62bc15935e3e253be232dc6f2c44719d67b89823f6e019f4946e5a6",
-        "fixtures/systems/neighbor_alias_control.xyz":
+        "gpumd/fixtures/systems/neighbor_alias_control.xyz":
             "a3ab3c1eff0e29c96fdb5e706d3ae9412e9c79a7b2ac6adbf86faef27a96cfdb",
-        "fixtures/systems/replicate_lj_with_velocity.xyz":
+        "gpumd/fixtures/systems/replicate_lj_with_velocity.xyz":
             "de3338e0caf391f62d51bb86b242f7fb7eaaec53e78e73cb2e5a764a43e3ebcd",
-        "fixtures/phonon/cu_fcc_single_atom.xyz":
+        "gpumd/fixtures/phonon/cu_fcc_single_atom.xyz":
             "d1e93d2300c56307dee18b8a567f5f0e8b8ec38420066ad810bef5b8e3eab91d",
-        "fixtures/systems/deposition_lj_no_velocity.xyz":
+        "gpumd/fixtures/systems/deposition_lj_no_velocity.xyz":
             "a118421c14ee9d872af2c7d7e8aea0a2855c27f491eed0147eeb4b9f06ae0f67",
-        "fixtures/systems/deposition_lj_with_velocity.xyz":
+        "gpumd/fixtures/systems/deposition_lj_with_velocity.xyz":
             "fdb3374c3df124ffb9e14fd6b1273d96c7015b9908663298dea9d2961503fa91",
-        "fixtures/deposition/add_atoms_ar.txt":
+        "gpumd/fixtures/deposition/add_atoms_ar.txt":
             "3f31cf5c86aa3e15f912084def616cdd67b7e7c71c347441cabb612a7bbe23cd",
-        "fixtures/systems/qnep_batio3_group0.xyz":
+        "gpumd/fixtures/systems/qnep_batio3_group0.xyz":
             "f4a0e92a1b070938edd4c4b40a689aea4a8d0a81445aa4be7840e32888719c7a",
-        "fixtures/systems/carbon_grouped.xyz":
+        "gpumd/fixtures/systems/carbon_grouped.xyz":
             "f418c615f770a2b4f91fb08ac9771341bd7f13eac1a8b25e65e66781f104a1bf",
-        "fixtures/systems/bilayer_graphene_primitive.xyz":
+        "gpumd/fixtures/systems/bilayer_graphene_primitive.xyz":
             "816a1a4d18aa3e15d4b758b843ffb34cd05c604674acc642f5ee39f4f61e38ea",
-        "fixtures/systems/bilayer_mos2_primitive.xyz":
+        "gpumd/fixtures/systems/bilayer_mos2_primitive.xyz":
             "d86495b5cc3db5d98bfc678b1d97772c3ce3686d82ded53efc19e57fe23a4580",
-        "fixtures/potentials/graphene_nep_ilp.txt":
+        "gpumd/fixtures/potentials/graphene_nep_ilp.txt":
             "fd19e1228ee6627802f7be6cfe4f85e523885db36ff18ffd1e383f782a0e72f0",
-        "fixtures/potentials/graphene_tersoff_ilp.txt":
+        "gpumd/fixtures/potentials/graphene_tersoff_ilp.txt":
             "389896b88a0a901a82160f407d3b7d2146c3e0c5972c1632dcb8fd88b43d33d2",
-        "fixtures/potentials/graphene_tersoff_1988_params.txt":
+        "gpumd/fixtures/potentials/graphene_tersoff_1988_params.txt":
             "baf64d6b7f5bbfc32f7af38b64b601af9ce4b4417e8e6c2af320d00610f4f9ef",
-        "fixtures/training/pbte.xyz":
+        "nep/fixtures/training/pbte.xyz":
             "374154710cda7bb2d5ad6a05fbe4cfdc93b70910226d192705bd84654f7f8ed7",
-        "fixtures/training/pbte_water_mixed.xyz":
+        "nep/fixtures/training/pbte_water_mixed.xyz":
             "78cda019ae1243eda4764afc98b53abe287e4a84f2aeaf2c53d37a01b0c04743",
-        "fixtures/training/tnep_120.xyz":
+        "nep/fixtures/training/tnep_120.xyz":
             "0d98711fcbae5cc0af3df245fb6dd3117d7b1213289790152d039c1a81ad8aee",
-        "fixtures/training/water_12_fff.xyz":
+        "nep/fixtures/training/water_12_fff.xyz":
             "27a92bdbb864c8c1455eb770666283c9e77c1ee663cb02f9ed1b75beb950692a",
     }
-    expected["fixtures/systems/pppm_batio3_15p9.xyz"] = "6f81f06e8973b52795f8f1bc5f3e49651cc4c83fcbed0cc9b16d87f642476ed8"
-    expected["fixtures/systems/pppm_batio3_8.xyz"] = "d725a5e43e6596025bd2171a0be187b6b392332a6046504759005fd97554ebb5"
-    expected["fixtures/systems/pppm_batio3_above8.xyz"] = "e25849411b53c9361eb440b4d73f0bdccfbb72c70be202fc4445ae70541aa7dc"
-    expected["fixtures/systems/pppm_batio3_tilt.xyz"] = "c4d06e41bccf3b33c341be6a1640326f785eefcc49ea956c8d41ffd905054375"
-    expected["fixtures/systems/pppm_batio3_shear45.xyz"] = "43170c26dcfac9f4268fd1f1ed8966ab0c95a71221da2e4858a2560f6168a488"
-    expected["fixtures/systems/pppm_batio3_mesh_limit.xyz"] = "b0218360043739fe7663b93954daa366f01c5eeea26aac8b241ebf11f69361b3"
+    expected["gpumd/fixtures/systems/pppm_batio3_15p9.xyz"] = "6f81f06e8973b52795f8f1bc5f3e49651cc4c83fcbed0cc9b16d87f642476ed8"
+    expected["gpumd/fixtures/systems/pppm_batio3_8.xyz"] = "d725a5e43e6596025bd2171a0be187b6b392332a6046504759005fd97554ebb5"
+    expected["gpumd/fixtures/systems/pppm_batio3_above8.xyz"] = "e25849411b53c9361eb440b4d73f0bdccfbb72c70be202fc4445ae70541aa7dc"
+    expected["gpumd/fixtures/systems/pppm_batio3_tilt.xyz"] = "c4d06e41bccf3b33c341be6a1640326f785eefcc49ea956c8d41ffd905054375"
+    expected["gpumd/fixtures/systems/pppm_batio3_shear45.xyz"] = "43170c26dcfac9f4268fd1f1ed8966ab0c95a71221da2e4858a2560f6168a488"
+    expected["gpumd/fixtures/systems/pppm_batio3_mesh_limit.xyz"] = "b0218360043739fe7663b93954daa366f01c5eeea26aac8b241ebf11f69361b3"
     for relative_path, expected_digest in expected.items():
         digest = hashlib.sha256((PACKAGE_ROOT / relative_path).read_bytes()).hexdigest()
         assert digest == expected_digest, relative_path
 
 
 def test_successful_nep_cases_declare_neighbor_output():
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest = runner.read_manifest_data()
     nep_tags = {
         "potential:nep",
         "potential:qnep",
@@ -286,7 +287,7 @@ def test_successful_nep_cases_declare_neighbor_output():
 
 
 def test_training_cases_use_nep_program_and_minimal_inputs():
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest = runner.read_manifest_data()
     training_cases = [
         case for case in manifest["cases"] if "training" in case["suites"]
     ]
@@ -346,7 +347,7 @@ def test_training_cases_use_nep_program_and_minimal_inputs():
 
 
 def test_energy_difference_fixture_preserves_pbte_data():
-    path = PACKAGE_ROOT / "fixtures/training/pbte.xyz"
+    path = PACKAGE_ROOT / "nep/fixtures/training/pbte.xyz"
     text = path.read_text()
     names = re.findall(r" name=(pbte_\d+)$", text, re.MULTILINE)
     assert names == ["pbte_01", "pbte_02", "pbte_03", "pbte_04"]
@@ -354,7 +355,7 @@ def test_energy_difference_fixture_preserves_pbte_data():
     assert hashlib.sha256(original.encode()).hexdigest() == (
         "3b9f1d55fe61def164ab87370dce66b760d6740d3c1cc35ec6bc3db057572c5c"
     )
-    frames = runner.post_checks.read_extxyz(path)
+    frames = post_checks.read_extxyz(path)
     assert len(frames) == 25
     for a, b in ((0, 1), (2, 3)):
         left, right = frames[a], frames[b]
@@ -367,7 +368,7 @@ def test_energy_difference_fixture_preserves_pbte_data():
 
 
 def test_behavior_contract_cases_are_full_differential_cases():
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest = runner.read_manifest_data()
     cases = {case["id"]: case for case in manifest["cases"]}
     behavior_contract_ids = {
         "neighbor_alias_aliased",
@@ -403,7 +404,7 @@ def test_behavior_contract_cases_are_full_differential_cases():
 
 
 def test_default_runtime_consumers_are_full_cases():
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest = runner.read_manifest_data()
     cases = {case["id"]: case for case in manifest["cases"]}
     required = {
         "two_run_state_contract",
@@ -431,7 +432,7 @@ def test_default_runtime_consumers_are_full_cases():
 
 
 def test_parsing_validation_cases_match_the_accepted_baseline():
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest = runner.read_manifest_data()
     cases = {case["id"]: case for case in manifest["cases"]}
     parsing_cases = {
         case_id: case
@@ -480,7 +481,7 @@ def test_parsing_validation_cases_match_the_accepted_baseline():
 
 
 def test_semantic_postchecks_preserve_cross_version_comparisons():
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest = runner.read_manifest_data()
     post_checked = [case for case in manifest["cases"] if case.get("post_checks")]
     assert post_checked
     for case in post_checked:
@@ -491,7 +492,7 @@ def test_semantic_postchecks_preserve_cross_version_comparisons():
 
 
 def test_regression_has_no_dependency_on_migrated_gpumd_test_directories():
-    text = MANIFEST.read_text(encoding="utf-8")
+    text = json.dumps(runner.read_manifest_data())
     for directory in (
         "active",
         "dump_dipole",
@@ -504,7 +505,7 @@ def test_regression_has_no_dependency_on_migrated_gpumd_test_directories():
 
 
 def test_numeric_exceptions_are_explicit_per_output():
-    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest = runner.read_manifest_data()
     actual = {
         case["id"]: {
             output: (comparison["rtol"], comparison["atol"])

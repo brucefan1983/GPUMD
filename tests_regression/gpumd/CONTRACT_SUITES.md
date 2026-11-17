@@ -85,7 +85,7 @@ was reported.
 To inspect a failure with a focused suite:
 
 ```bash
-python3 run_regression.py \
+python3 tests_regression/run_regression.py \
   --repo-root /path/to/GPUMD \
   --baseline /path/to/gpumd_baseline \
   --candidate /path/to/gpumd_candidate \

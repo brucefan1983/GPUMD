@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import pppm_checks
+from gpumd import pppm_checks
 
 
 INITIAL = "PPPM mesh: 16 x 16 x 16 (target spacing 1 A; actual spacing 0.99375 0.5 0.5 A).\n"

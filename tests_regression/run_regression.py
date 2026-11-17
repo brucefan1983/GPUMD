@@ -26,10 +26,6 @@ import sys
 import time
 from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Sequence, Set, Tuple
 
-import post_checks
-import pppm_checks
-
-
 PACKAGE_ROOT = Path(__file__).resolve().parent
 MANIFEST_PATH = PACKAGE_ROOT / "manifest.json"
 WORK_ROOT = PACKAGE_ROOT / ".work"
@@ -116,22 +112,55 @@ def resolve_source(specification: str, repo_root: Path, description: str) -> Pat
     return path
 
 
-def read_manifest_data() -> Dict[str, Any]:
+def read_manifest_file(path: Path) -> Dict[str, Any]:
     def reject_duplicate_keys(pairs: Sequence[Tuple[str, Any]]) -> Dict[str, Any]:
         result: Dict[str, Any] = {}
         for key, value in pairs:
             if key in result:
-                raise ConfigurationError(f"Duplicate JSON key in manifest: {key!r}")
+                raise ConfigurationError(f"Duplicate JSON key in {path}: {key!r}")
             result[key] = value
         return result
 
     try:
-        return json.loads(
-            MANIFEST_PATH.read_text(encoding="utf-8"),
+        result = json.loads(
+            path.read_text(encoding="utf-8"),
             object_pairs_hook=reject_duplicate_keys,
         )
     except (OSError, json.JSONDecodeError) as exc:
-        raise ConfigurationError(f"Cannot read {MANIFEST_PATH}: {exc}") from exc
+        raise ConfigurationError(f"Cannot read {path}: {exc}") from exc
+    if not isinstance(result, dict):
+        raise ConfigurationError(f"Manifest must be a JSON object: {path}")
+    return result
+
+
+def read_manifest_data() -> Dict[str, Any]:
+    """Combine shared settings and the two executable-specific manifests."""
+    manifest = read_manifest_file(MANIFEST_PATH)
+    if set(manifest) != {"schema_version", "defaults"}:
+        raise ConfigurationError(
+            f"{MANIFEST_PATH} must contain exactly schema_version and defaults"
+        )
+    manifest.update(fixtures={}, cases=[])
+    for program in ("gpumd", "nep"):
+        path = PACKAGE_ROOT / program / "manifest.json"
+        section = read_manifest_file(path)
+        keys = {"fixtures", "cases"}
+        if program == "gpumd":
+            keys.update({"required_ensemble_keywords", "known_manual_gaps", "relations"})
+        if set(section) != keys:
+            raise ConfigurationError(f"{path} must contain exactly {sorted(keys)}")
+        if not isinstance(section["fixtures"], dict) or not isinstance(section["cases"], list):
+            raise ConfigurationError(f"{path} requires a fixtures object and a cases list")
+        duplicates = set(manifest["fixtures"]) & set(section["fixtures"])
+        if duplicates:
+            raise ConfigurationError(f"Duplicate fixture name(s): {sorted(duplicates)}")
+        for case in section["cases"]:
+            if not isinstance(case, dict) or case.get("program", "gpumd") != program:
+                raise ConfigurationError(f"{path} may contain only {program} cases")
+        manifest["fixtures"].update(section.pop("fixtures"))
+        manifest["cases"].extend(section.pop("cases"))
+        manifest.update(section)
+    return manifest
 
 
 def validate_stage(
@@ -645,6 +674,8 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
             )
 
         if "pppm" in case:
+            from gpumd import pppm_checks
+
             try:
                 pppm_checks.validate_spec(case["pppm"])
             except ValueError as exc:
@@ -655,6 +686,9 @@ def validate_manifest(manifest: Mapping[str, Any], repo_root: Path) -> None:
         post_check_specs = case.get("post_checks", [])
         if not isinstance(post_check_specs, list):
             raise ConfigurationError(f"Case {case_id} post_checks must be a list")
+        if post_check_specs:
+            import post_checks
+
         for index, spec in enumerate(post_check_specs):
             try:
                 post_checks.validate_spec(spec, f"Case {case_id} post_checks[{index}]")
@@ -1511,11 +1545,16 @@ def execute_case(
         try:
             validate_run_result(result, case)
             if "pppm" in case:
+                from gpumd import pppm_checks
+                import post_checks
+
                 try:
                     metrics.setdefault("pppm", {})[role] = pppm_checks.check(case["pppm"], result)
                 except (ValueError, OSError, post_checks.PostCheckError) as exc:
                     raise ComparisonError(f"{case['id']}:{role}: PPPM check failed: {exc}") from exc
             if case.get("post_checks"):
+                import post_checks
+
                 try:
                     post_check_metrics[role] = post_checks.run(
                         case["post_checks"], Path(result["workdir"])
@@ -1882,7 +1921,17 @@ def main() -> int:
                 }
                 for program, pair in executables.items()
             },
-            "manifest_sha256": sha256_file(MANIFEST_PATH),
+            "manifest_sha256": sha256_bytes(
+                json.dumps(manifest, sort_keys=True).encode("utf-8")
+            ),
+            "manifest_files": {
+                path.relative_to(PACKAGE_ROOT).as_posix(): sha256_file(path)
+                for path in (
+                    MANIFEST_PATH,
+                    PACKAGE_ROOT / "gpumd" / "manifest.json",
+                    PACKAGE_ROOT / "nep" / "manifest.json",
+                )
+            },
             "cases": [],
         }
         if "gpumd" in executables:
