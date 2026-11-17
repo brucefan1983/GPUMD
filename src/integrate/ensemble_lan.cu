@@ -244,7 +244,9 @@ void Ensemble_LAN::initialize_run(
     GPU_CHECK_KERNEL
     energy_transferred[0] = 0.0;
     energy_transferred[1] = 0.0;
-    initialize_group_kinetic_energy_workspace(4);
+    const int number_of_blocks = (number_of_atoms - 1) / 512 + 1;
+    // Four totals followed by the block partial sums, before and after thermostatting.
+    initialize_group_kinetic_energy_workspace(4 + 4 * number_of_blocks);
     return;
   }
 
@@ -375,10 +377,12 @@ void Ensemble_LAN::integrate_heat_lan_region_half(
   GPU_Vector<double>& velocity_per_atom)
 {
   const int number_of_atoms = mass.size();
+  const int number_of_blocks = (number_of_atoms - 1) / 512 + 1;
+  const dim3 grid_size(number_of_blocks, 2);
   std::vector<double>& ek2 = group_kinetic_energy_cpu_;
   GPU_Vector<double>& ke = group_kinetic_energy_;
 
-  find_ke_region<<<2, 512>>>(
+  find_ke_region<<<grid_size, 512>>>(
     number_of_atoms,
     box,
     source_region[0],
@@ -400,7 +404,7 @@ void Ensemble_LAN::integrate_heat_lan_region_half(
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms,
-    ke.data());
+    ke.data() + 4);
   GPU_CHECK_KERNEL
 
   gpu_langevin_region<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -431,7 +435,7 @@ void Ensemble_LAN::integrate_heat_lan_region_half(
     velocity_per_atom.data() + 2 * number_of_atoms);
   GPU_CHECK_KERNEL
 
-  find_ke_region<<<2, 512>>>(
+  find_ke_region<<<grid_size, 512>>>(
     number_of_atoms,
     box,
     source_region[0],
@@ -453,10 +457,13 @@ void Ensemble_LAN::integrate_heat_lan_region_half(
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms,
-    ke.data() + 2);
+    ke.data() + 4 + 2 * number_of_blocks);
   GPU_CHECK_KERNEL
 
-  ke.copy_to_host(ek2.data());
+  sum_ke_region<<<4, 512>>>(number_of_blocks, ke.data() + 4, ke.data());
+  GPU_CHECK_KERNEL
+
+  ke.copy_to_host(ek2.data(), 4);
   energy_transferred[0] += ek2[0] * 0.5;
   energy_transferred[1] += ek2[1] * 0.5;
   energy_transferred[0] -= ek2[2] * 0.5;
