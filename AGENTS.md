@@ -1,15 +1,13 @@
 # GPUMD development instructions
 
-These instructions apply to contributors and coding agents throughout this
-repository. Contributors are responsible for understanding their changes and
-checking the numerical results, including code produced with AI assistance.
+These instructions apply to contributors and coding agents throughout the
+repository. Contributors are responsible for understanding every change they
+submit, including AI-assisted work, and validating the results it affects.
 
 ## Working on a change
 
-Contributors must first propose changes to the maintainers and agree on their
-scope and place in the development plan before starting work. Pull requests
-outside the agreed development plan are generally not accepted. See the
-[contribution policy](README.md#support-and-contributions).
+Before starting work, agree on the change with the maintainers as described in
+the [contribution policy](README.md#support-and-contributions).
 
 - Read the relevant implementation, nearby code, tests, and user documentation
   before editing. Find an existing implementation with similar responsibilities.
@@ -18,41 +16,40 @@ outside the agreed development plan are generally not accepted. See the
   atom ordering, and list lifetime before reusing a neighbor list.
 - Keep each change focused. Avoid unrelated refactoring, renaming, formatting,
   new dependencies, or speculative abstraction.
-- Add functionality primarily through new module files and necessary registration.
-  Justify changes to shared code by identifying the affected files, necessity,
-  impact on existing behavior, and validation. Coordinate broader common
-  refactoring with maintainers in separate prerequisite PRs; then merge the
-  updated master and remove duplicate shared changes from the feature PR.
-- Preserve existing behavior outside the agreed scope. Distinguish an extension
-  of an existing method from a new method. Extensions should retain the existing
-  method name and command interface; add options only for distinct user choices,
-  without repeating information already expressed by other keywords. Keep shared
-  logic in one place.
+- Implement independent features in their own modules. Limit changes to shared
+  code to what registration and integration require. Explain why each shared
+  change is needed, which files and behaviors it affects, and how it was tested.
+  Coordinate broader refactoring with the maintainers in a separate prerequisite
+  PR. Once it merges, update the feature branch to use the shared implementation.
+- Extend an existing method in its owning module and keep its name and command
+  interface. Add an option only for a choice that existing keywords cannot
+  express. Reuse shared logic and preserve behavior outside the agreed scope.
 - Preserve local edits, reference executables, and datasets. Put generated
   inputs, logs, benchmarks, and temporary files in separate working directories.
 
 ## Build
 
-Run from the repository root. For CUDA, select an architecture supported by
-the target GPU and installed toolkit; `sm_89` is an example:
+Run from the repository root. Set `CUDA_ARCH` for the target GPU and installed
+CUDA toolkit. This example builds for compute capability 8.9.
 
 ```sh
 make -C src -j4 CUDA_ARCH=-arch=sm_89
 ```
 
-For HIP:
+For HIP, set `HIP_ARCH` to match the AMD GPU. This example targets `gfx1100`.
 
 ```sh
-make -C src -f makefile.hip -j4
+make -C src -f makefile.hip -j4 HIP_ARCH=gfx1100
 ```
 
 The default Make targets produce `gpumd`, `nep`, and `tb` in `src/`.
-Read [src/makefile](src/makefile) and [src/makefile.hip](src/makefile.hip) for
-source discovery, compiler flags, optional targets, and linked libraries.
-Check both build paths when adding source files or changing shared code.
-Clean the affected build when compiler options, toolkits, or architectures
-change. Keep new code compatible with the existing compiler settings; do not
-raise the required language standard as an incidental change.
+The two Makefiles share object files. Clean the build before switching backends
+in the same tree or changing compiler flags, toolkits, or architectures.
+When adding source files or changing shared code, check the applicable targets
+in [src/makefile](src/makefile), [src/makefile.hip](src/makefile.hip), and
+[CMakeLists.txt](CMakeLists.txt). Reconfigure an existing CMake build after
+adding sources so it picks up the new files. Keep new code compatible with the
+existing compiler settings.
 
 ## Architecture and extension points
 
@@ -66,22 +63,23 @@ raise the required language standard as an incidental change.
 | `src/minimize/`, `src/phonon/`, `src/mc/` | Minimization, phonons, and Monte Carlo |
 | `src/utilities/` | Shared GPU wrappers, containers, parsing, and error helpers |
 | `src/main_nep/` | NEP training and prediction |
-| `src/main_tb/` | Tight-binding training |
+| `src/main_tb/` | Tight-binding model training and prediction |
 | `doc/` | User documentation |
 
-For MD, `RunInput` tokenizes commands and `Run` dispatches them. Implement
-parsing and behavior in the module that owns the functionality. Put new
-potential, ensemble, or action state in its corresponding class. Reserve
-direct additions to `Run` for operations that control overall execution.
+For a standard MD run, `RunInput` tokenizes commands and `Run` dispatches them.
+Implement parsing and behavior in the module that owns the functionality.
+Put new potential, ensemble, or action state in its corresponding class.
+Reserve direct additions to `Run` for operations that control overall execution.
 
-The main MD lifecycle is:
+The main integration and measurement hooks run in the order shown below.
+See [`Run::perform_a_run()`](src/main_gpumd/run.cu) for the full sequence.
 
 ```text
 Integrate::initialize -> Measure::pre_run
-Force::compute -> Measure::setup_force
+Run::compute_force -> Measure::setup_force
 for each step:
     Integrate::compute1 -> Measure::post_integrate1
-    Measure::pre_force -> Force::compute -> Measure::post_force
+    Measure::pre_force -> Run::compute_force -> Measure::post_force
     Integrate::compute2 -> Measure::end_of_step
 Measure::post_run -> Integrate::finalize
 ```
@@ -105,8 +103,9 @@ Training data are prepared through `prepare_data()`, descriptor scaling through
 `accumulate_fitness()`. Prediction uses `read_model()` and `predict()`.
 Reuse suitable helpers in `src/main_nep/common/`; keep model-specific data in
 the corresponding model directory. Add selectors in `parameter_input` and
-register construction in `potential.cu`; parse ordinary model keywords within
-the selected model and reject unsupported keywords.
+register construction in `potential.cu`. Reuse common parsers for shared
+keywords. Parse model-specific keywords in the owning model and reject
+unsupported keywords.
 
 ## Code style and GPU work
 
@@ -128,14 +127,14 @@ the selected model and reject unsupported keywords.
   where this can be done without unrelated restructuring.
 - Follow existing ownership conventions, including `std::unique_ptr` for
   owned polymorphic objects and `GPU_Vector` for persistent device arrays.
-- Reuse allocated device workspaces. Avoid unnecessary allocation, host-device
-  transfers, and synchronization in MD and training loops.
+- Let the calculation or model own its GPU workspace. Reuse allocated storage
+  and avoid unnecessary host-device transfers and synchronization in MD and
+  training loops.
 - Use `src/utilities/gpu_macro.cuh` for shared CUDA/HIP code and localize
   unavoidable backend-specific implementations.
 - Remove temporary debugging output, obsolete transition code, and hidden
   switches that disable, zero, or change the sign of physical contributions.
-  Put reproducible diagnostic checks in tests, with temporary workspaces owned
-  by the calculation or model rather than process-lifetime static GPU caches.
+  Put reproducible diagnostic checks in tests.
 - Preserve the established precision, units, virial conventions, normalization,
   and accumulation semantics unless changing them is part of the task.
   Basic units include eV, angstrom, Dalton, K, and elementary charge; magnetic
@@ -159,10 +158,10 @@ contract; a focused subset does not replace the full run. The TB suite runs
 separately. Add or update a focused test for a new feature or bug fix, using
 physical expectations, an independent formula, or an accepted baseline.
 
-Test behavior primarily through real executables and public inputs and outputs.
+Test behavior primarily through the executables and their public inputs and
+outputs. Test public model-file interfaces directly where appropriate.
 Do not expose internal state or add `friend` declarations or accessors solely
-for testing; adapt the test to the public interface. Tests of genuinely public
-model-file interfaces remain appropriate.
+for tests.
 
 Build baseline and candidate executables with matching toolchains, backends,
 architectures, and flags. Follow each suite's reproducibility requirements,
@@ -170,11 +169,12 @@ including `-DDEBUG` for NEP differential training tests. Preserve the baseline
 and its matching source tree. Do not regenerate reference outputs from the
 candidate implementation or relax tolerances just to make a failure pass.
 
-When changing NEP evaluation code, compare native and runtime-specialized
-paths using identical parameters and descriptor scalers. Confirm that requested
-specialization actually compiled and loaded; a generic fallback is not a
-successful specialization check. Keep the matching source tree available
-(`GPUMD_SRC` can select `src/`, and `CUDACXX` can select the compiler).
+When changing `nep` evaluation code that supports runtime specialization,
+compare native and specialized kernels on Linux with CUDA using identical
+parameters and descriptor scalers. Confirm that the specialized kernels
+compiled and loaded. Keep the matching source tree available. If needed,
+use `GPUMD_SRC` to select its `src/` directory and `CUDACXX` to select the
+CUDA compiler.
 Use fixed seeds for training comparisons and inspect physical predictions as
 well as losses: small floating-point changes can alter population ranking.
 
@@ -196,7 +196,9 @@ documentation and avoid duplicating common explanations.
 Keep general development rules here and detailed test procedures with their
 tests. Keep user documentation focused on how to use the software.
 
-Before submitting, review the complete diff and run `git diff --check`.
+Before submitting, review the full PR diff and check it for whitespace errors.
+For example, with `origin/master` up to date as the target branch, run
+`git diff --check origin/master...HEAD`.
 Follow [.github/pull_request_template.md](.github/pull_request_template.md):
 explain the problem, resulting behavior, relevant validation, and remaining
 limitations. Keep development logs and intermediate proposals out of the PR
