@@ -20,7 +20,6 @@ The EAM potential. Currently two analytical versions:
 
 Major contributors:
   Zheyong Fan: Initial implementation.
-  Alexander J. Gabourie: Generalized spectral heat-current support.
 ------------------------------------------------------------------------------*/
 
 #include "eam.cuh"
