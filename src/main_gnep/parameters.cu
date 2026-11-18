@@ -13,6 +13,12 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Original NEP training implementation.
+  Hongfu Huang: Gradient-based NEP training.
+------------------------------------------------------------------------------*/
+
 #include "parameters.cuh"
 #include "device_guard.cuh"
 #include "utilities/common.cuh"

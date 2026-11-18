@@ -22,6 +22,10 @@ Computer Physics Communications. 320, 109994 (2026).
 Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
+
+Major contributors:
+  Zheyong Fan: Original NEP training implementation.
+  Hongfu Huang: Gradient-based NEP training.
 ------------------------------------------------------------------------------*/
 
 #include "dataset.cuh"
