@@ -55,6 +55,7 @@ The driver class dealing with measurement.
 #include "measure/structure/orientorder.cuh"
 #include "plumed.cuh"
 #include "measure/structure/rdf.cuh"
+#include "xrd.cuh"
 #include "measure/transport/sdc.cuh"
 #include "measure/transport/shc.cuh"
 #include "measure/transport/viscosity.cuh"
@@ -183,6 +184,8 @@ bool Measure::parse_action(
     std::unique_ptr<Action> action;
     action.reset(new RDF(tokens, box, atom.cpu_type_size));
     actions_.emplace_back(std::move(action));
+  } else if (tokens[0] == "compute_xrd") {
+    actions_.emplace_back(new XRD(tokens, group));
   } else if (tokens[0] == "compute_adf") {
     std::unique_ptr<Action> action;
     action.reset(new ADF(tokens, box, number_of_types));
