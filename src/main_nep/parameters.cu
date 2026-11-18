@@ -16,8 +16,8 @@
 /*----------------------------------------------------------------------------80
 Major contributors:
   Zheyong Fan: Initial implementation.
-  Eric Lindgren: Continuation of NEP training.
-  Paul Erhart: Reproducible training restarts.
+  Eric Lindgren: Configurable model and restart checkpoints.
+  Paul Erhart: Configurable random seeds and training output intervals.
 ------------------------------------------------------------------------------*/
 
 #include "parameters.cuh"

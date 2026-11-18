@@ -19,7 +19,7 @@ Get the fitness
 Major contributors:
   Zheyong Fan: Initial implementation.
   Yong Wang: Multi-GPU NEP training.
-  Eric Lindgren: Continuation of NEP training.
+  Eric Lindgren: Configurable model checkpoints.
   Paul Erhart: Training on energy differences and combinations.
 ------------------------------------------------------------------------------*/
 

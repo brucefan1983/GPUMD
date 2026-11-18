@@ -16,6 +16,7 @@
 /*----------------------------------------------------------------------------80
 Major contributors:
   Zheyong Fan: Initial implementation.
+  Paul Erhart: Model-file consistency checks.
 ------------------------------------------------------------------------------*/
 
 #include "nep_io.cuh"

@@ -17,6 +17,7 @@
 Major contributors:
   Zheyong Fan: Initial implementation.
   Yifan Li: Atomic dipole and polarizability output.
+  Paul Erhart: Per-structure prediction output.
 ------------------------------------------------------------------------------*/
 
 #include "nep_output.cuh"

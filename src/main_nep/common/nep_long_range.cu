@@ -16,6 +16,7 @@
 /*----------------------------------------------------------------------------80
 Major contributors:
   Zheyong Fan: Initial implementation.
+  Yong Wang: Corrected forces under the charge-neutrality constraint.
 ------------------------------------------------------------------------------*/
 
 #include "nep_long_range.cuh"

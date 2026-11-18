@@ -16,6 +16,7 @@
 /*----------------------------------------------------------------------------80
 Major contributors:
   Zheyong Fan: Initial implementation.
+  Jiahui Liu: Short-range ZBL repulsion.
 ------------------------------------------------------------------------------*/
 
 #include "nep_common.cuh"

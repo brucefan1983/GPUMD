@@ -22,6 +22,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 Major contributors:
   Zheyong Fan: Initial implementation.
   Jiahui Liu: Short-range ZBL repulsion.
+  Jiuyang Shi: Temperature-dependent NEP models.
   Benrui Tang: NEP models with two hidden layers.
   Zaixu Duan: Additional four-body NEP descriptors.
 ------------------------------------------------------------------------------*/

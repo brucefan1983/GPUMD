@@ -16,6 +16,8 @@
 /*----------------------------------------------------------------------------80
 Major contributors:
   Zheyong Fan: Initial implementation.
+  Yong Wang: Multi-GPU NEP training.
+  Paul Erhart: Energy-difference training and prediction output ordering.
 ------------------------------------------------------------------------------*/
 
 #include "nep_training.cuh"

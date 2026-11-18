@@ -25,8 +25,8 @@ https://doi.org/10.1145/2001576.2001692
 Major contributors:
   Zheyong Fan: Initial implementation.
   Yong Wang: Multi-GPU NEP training.
-  Eric Lindgren: Continuation of NEP training.
-  Paul Erhart: Reproducible training restarts.
+  Eric Lindgren: Configurable model and restart checkpoints.
+  Paul Erhart: Configurable random seeds and training output intervals.
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"

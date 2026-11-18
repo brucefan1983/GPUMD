@@ -21,7 +21,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 Major contributors:
   Zheyong Fan: Initial implementation.
-  Benrui Tang: Two-hidden-layer networks and charge self-energy models.
+  Benrui Tang: Charge self-energy correction.
   Yong Wang: Corrected forces under the charge-neutrality constraint.
   Zaixu Duan: Additional four-body NEP descriptors.
 ------------------------------------------------------------------------------*/
