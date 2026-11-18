@@ -60,7 +60,9 @@ existing compiler settings.
 | `src/force/` | `Force`, MD `Potential` implementations, and neighbor management |
 | `src/integrate/` | `Integrate`, `Ensemble` implementations, constraints, and motion control |
 | `src/measure/` | `Measure`, run-time `Action` implementations, measurements, and dumps |
-| `src/minimize/`, `src/phonon/`, `src/mc/` | Minimization, phonons, and Monte Carlo |
+| `src/minimize/` | Energy minimization and structural relaxation |
+| `src/phonon/` | Hessian and phonon calculations |
+| `src/mc/` | Monte Carlo moves for hybrid Monte Carlo and molecular dynamics |
 | `src/utilities/` | Shared GPU wrappers, containers, parsing, and error helpers |
 | `src/main_nep/` | NEP training and prediction |
 | `src/main_tb/` | Tight-binding model training and prediction |
@@ -117,14 +119,21 @@ unsupported keywords.
   substantially improves performance, or substantially refactors an existing
   file, update its header in the same change to credit the contributors
   responsible. Describe each contribution briefly and specifically.
-- Use existing input and error utilities, including
-  `src/utilities/error.cuh`. Validate argument counts, types, ranges, and
-  incompatible options before use; avoid introducing exception-based handling.
-- Keep mutable state in the owning object. Keep file-local kernels and helpers
-  `static` or in an anonymous namespace; do not wrap internal implementation in a
-  named namespace. Export only interfaces with actual cross-file users. Nest
-  helper types used by only one class within that class, and make members private
-  where this can be done without unrelated restructuring.
+- Use the existing input utilities to check argument counts, types, ranges, and
+  incompatible options. Do not introduce C++ exceptions for error handling.
+  Report fatal errors and exit through the appropriate project helper in
+  [src/utilities/error.cuh](src/utilities/error.cuh), such as `PRINT_INPUT_ERROR`
+  for invalid input or `PRINT_SCANF_ERROR` for a failed formatted read.
+- When reading structured numerical files, check that each required value was
+  read successfully. For malformed or truncated input, identify the input file
+  and the affected field or record in the diagnostic.
+- Keep mutable state in the owning object and make members private by default.
+  Keep helper types and functions used only by one class private to that class
+  where practical. Keep file-local kernels and helpers `static` or in an
+  anonymous namespace. Do not wrap internal implementation in a named namespace.
+  Export only interfaces with actual cross-file users.
+- Keep implementation-only includes in the `.cu` file. Use a forward
+  declaration in the header when the declaration needs only the type name.
 - Follow existing ownership conventions, including `std::unique_ptr` for
   owned polymorphic objects and `GPU_Vector` for persistent device arrays.
 - Let the calculation or model own its GPU workspace. Reuse allocated storage
