@@ -21,7 +21,7 @@ P and T are both set -> NPT ensemable
 
 Major contributors:
   Shuning Pan: Initial implementation.
-  Chengbing Chen: Corrected Nose-Hoover chain forces at initialization.
+  Chengbing Chen: Corrected Nose-Hoover chain force updates.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_mttk.cuh"

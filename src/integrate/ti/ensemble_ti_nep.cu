@@ -19,8 +19,7 @@ The first potential in run.in (lambda = 0) drives the regular force
 calculation and the second potential (lambda = 1) is evaluated here.
 
 Major contributors:
-  Shuning Pan: Original thermodynamic-integration implementation.
-  Tobias Hainer: Free-energy differences between NEP models.
+  Tobias Hainer: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_ti_nep.cuh"

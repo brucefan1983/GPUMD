@@ -16,6 +16,7 @@
 /*----------------------------------------------------------------------------80
 Major contributors:
   Shuning Pan: Initial implementation.
+  Zheyong Fan: Corrected switching endpoints and the switching derivative.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_ti_rs.cuh"

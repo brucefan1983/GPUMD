@@ -20,8 +20,7 @@ Equivalent to LAMMPS fix nph + fix qtb.
 [2] Martyna, G. J., et al. J. Chem. Phys. 101, 4177 (1994).
 
 Major contributors:
-  Shuning Pan: Original MTTK barostat implementation.
-  Wenhao Luo: Quantum thermal bath at constant pressure.
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_npt_qtb.cuh"

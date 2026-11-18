@@ -19,7 +19,7 @@ The Bussi-Parrinello integrator of the Langevin thermostat:
 
 Major contributors:
   Zheyong Fan: Initial implementation.
-  Jia Sun: Faster local Langevin heat baths.
+  Jia Sun: Faster region-based Langevin heat baths.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_lan.cuh"

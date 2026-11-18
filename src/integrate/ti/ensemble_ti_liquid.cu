@@ -15,8 +15,8 @@
 
 /*----------------------------------------------------------------------------80
 Major contributors:
-  Shuning Pan: Original thermodynamic-integration implementation.
-  Tobias Hainer: Liquid free energies.
+  Tobias Hainer: Initial implementation.
+  Zheyong Fan: Corrected force-kernel bounds and optimized GPU memory usage.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_ti_liquid.cuh"

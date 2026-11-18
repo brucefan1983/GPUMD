@@ -31,6 +31,7 @@
 Major contributors:
   Vivekkumar Panneerselvam: Initial implementation.
   Weikang: Initial implementation.
+  Zheyong Fan: Reduced thermostat memory allocations.
 ------------------------------------------------------------------------------------------------------------------------------*/
 
 #include "ensemble_heat_hybrid.cuh"
