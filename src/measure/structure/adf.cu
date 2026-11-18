@@ -19,6 +19,7 @@ Calculate:
 
 Major contributors:
   Yongchao Wu: Initial implementation.
+  Zheyong Fan: Corrected bond-angle counting for different radial ranges.
 --------------------------------------------------------------------------------------------------*/
 
 #include "adf.cuh"
