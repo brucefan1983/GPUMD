@@ -28,6 +28,7 @@ https://drive.google.com/open?id=1IHJ7x-bLZISX3I090dW_Y_y-Mqkn07zg
 
 Major contributors:
   Alexander J. Gabourie: Initial implementation.
+  Zheyong Fan: Corrected modal velocities and participating-atom ranges.
 ------------------------------------------------------------------------------*/
 
 #include "modal_analysis.cuh"

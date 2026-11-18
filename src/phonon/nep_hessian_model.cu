@@ -15,8 +15,7 @@
 
 /*----------------------------------------------------------------------------80
 Major contributors:
-  Zheyong Fan: Original NEP implementation.
-  Xi Wang: Analytic NEP force constants.
+  Xi Wang: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "nep_hessian_model.cuh"

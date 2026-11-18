@@ -17,8 +17,7 @@
 Spin minimizer spin fire implementation.
 
 Major contributors:
-  Shuning Pan: Original FIRE implementation.
-  Chengbing Chen: Coupled spin and atomic relaxation.
+  Chengbing Chen: Initial implementation.
 */
 
 #include "force/force.cuh"

@@ -19,8 +19,7 @@ Reference: PhysRevLett 97, 170201 (2006)
            Computational Materials Science 175 (2020) 109584
 
 Major contributors:
-  Shuning Pan: Original FIRE implementation.
-  Wenhao Luo: Replica quenching for parallel-replica dynamics.
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "force/replica/replica_force.cuh"
