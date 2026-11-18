@@ -6,6 +6,11 @@ checking the numerical results, including code produced with AI assistance.
 
 ## Working on a change
 
+Contributors must first propose changes to the maintainers and agree on their
+scope and place in the development plan before starting work. Pull requests
+outside the agreed development plan are generally not accepted. See the
+[contribution policy](README.md#support-and-contributions).
+
 - Read the relevant implementation, nearby code, tests, and user documentation
   before editing. Find an existing implementation with similar responsibilities.
 - Reuse existing interfaces, parsers, lifecycle hooks, GPU utilities, and neighbor
@@ -13,9 +18,16 @@ checking the numerical results, including code produced with AI assistance.
   atom ordering, and list lifetime before reusing a neighbor list.
 - Keep each change focused. Avoid unrelated refactoring, renaming, formatting,
   new dependencies, or speculative abstraction.
-- Preserve existing behavior outside the requested change. Extend an existing
-  method through its established interface when possible, keeping shared logic
-  in one place.
+- Add functionality primarily through new module files and necessary registration.
+  Justify changes to shared code by identifying the affected files, necessity,
+  impact on existing behavior, and validation. Coordinate broader common
+  refactoring with maintainers in separate prerequisite PRs; then merge the
+  updated master and remove duplicate shared changes from the feature PR.
+- Preserve existing behavior outside the agreed scope. Distinguish an extension
+  of an existing method from a new method. Extensions should retain the existing
+  method name and command interface; add options only for distinct user choices,
+  without repeating information already expressed by other keywords. Keep shared
+  logic in one place.
 - Preserve local edits, reference executables, and datasets. Put generated
   inputs, logs, benchmarks, and temporary files in separate working directories.
 
@@ -75,7 +87,10 @@ Measure::post_run -> Integrate::finalize
 ```
 
 Use the matching lifecycle hook. Check initialization, repeated `run` commands,
-cleanup, and restart when adding stateful behavior.
+cleanup, and restart when adding stateful behavior. Extend existing output and
+restart readers and writers where applicable, rather than maintaining parallel
+implementations. Save and restore all state needed for continuation, including
+algorithm counters and random-number state when required by the method.
 
 The training `Potential` in `src/main_nep/` is separate from the MD `Potential`.
 `ParameterInput` identifies model selectors and `create_potential()` constructs
@@ -102,13 +117,20 @@ the selected model and reject unsupported keywords.
   `src/utilities/error.cuh`. Validate argument counts, types, ranges, and
   incompatible options before use; avoid introducing exception-based handling.
 - Keep mutable state in the owning object. Keep file-local kernels and helpers
-  `static` or in an anonymous namespace; export only required interfaces.
+  `static` or in an anonymous namespace; do not wrap internal implementation in a
+  named namespace. Export only interfaces with actual cross-file users. Nest
+  helper types used by only one class within that class, and make members private
+  where this can be done without unrelated restructuring.
 - Follow existing ownership conventions, including `std::unique_ptr` for
   owned polymorphic objects and `GPU_Vector` for persistent device arrays.
 - Reuse allocated device workspaces. Avoid unnecessary allocation, host-device
   transfers, and synchronization in MD and training loops.
 - Use `src/utilities/gpu_macro.cuh` for shared CUDA/HIP code and localize
   unavoidable backend-specific implementations.
+- Remove temporary debugging output, obsolete transition code, and hidden
+  switches that disable, zero, or change the sign of physical contributions.
+  Put reproducible diagnostic checks in tests, with temporary workspaces owned
+  by the calculation or model rather than process-lifetime static GPU caches.
 - Preserve the established precision, units, virial conventions, normalization,
   and accumulation semantics unless changing them is part of the task.
   Basic units include eV, angstrom, Dalton, K, and elementary charge; magnetic
@@ -131,6 +153,11 @@ For source changes covered by GPUMD/NEP regression, follow its `full` acceptance
 contract; a focused subset does not replace the full run. The TB suite runs
 separately. Add or update a focused test for a new feature or bug fix, using
 physical expectations, an independent formula, or an accepted baseline.
+
+Test behavior primarily through real executables and public inputs and outputs.
+Do not expose internal state or add `friend` declarations or accessors solely
+for testing; adapt the test to the public interface. Tests of genuinely public
+model-file interfaces remain appropriate.
 
 Build baseline and candidate executables with matching toolchains, backends,
 architectures, and flags. Follow each suite's reproducibility requirements,
@@ -156,6 +183,10 @@ comparable workloads and numerical checks.
 Update `doc/` when changing keywords, defaults, units, physical definitions,
 file formats, output, or restart behavior. Reuse existing formats and manual
 sections where appropriate; check readers, writers, and examples together.
+Document extensions to an existing method in its existing manual page. Give
+independent functionality a dedicated page, with only necessary additions to
+shared pages. Keep model-specific restrictions local to that model's
+documentation and avoid duplicating common explanations.
 
 Keep general development rules here and detailed test procedures with their
 tests. Keep user documentation focused on how to use the software.

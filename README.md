@@ -116,7 +116,7 @@ Use [GitHub Discussions](https://github.com/brucefan1983/GPUMD/discussions) or t
 
 For a bug report, include the GPUMD version or commit, operating system, GPU model, toolkit and compiler versions, relevant input files, and the error output. A small reproducing example helps isolate the problem.
 
-Code, documentation, examples, and updates to the package list in `tools/readme.md` are welcome through pull requests. Read [AGENTS.md](AGENTS.md) before contributing, including when using AI coding tools.
+Contributors must first propose changes to the maintainers through a GitHub issue or discussion and agree on their scope and place in the development plan before starting work. **Pull requests outside the agreed development plan are generally not accepted.** Read [AGENTS.md](AGENTS.md) before contributing, including when using AI coding tools.
 
 ## Citations
 
