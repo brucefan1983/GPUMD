@@ -25,6 +25,10 @@ J. Chem. Phys. 132, 154104 (2010).
 Effect of the damping function in dispersion corrected density functional
 theory,
 J. Comput. Chem., 32, 1456 (2011).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Yuxiang Liu: Fixed D3 energy discontinuities at high coordination numbers.
 ------------------------------------------------------------------------------*/
 
 #include "dftd3.cuh"

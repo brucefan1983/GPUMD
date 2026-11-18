@@ -16,7 +16,8 @@
 /*----------------------------------------------------------------------------80
 The class dealing with the interlayer potential(ILP) and Tersoff.
 
-Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
+Major contributors:
+  Hekai Bu: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ilp_tersoff.cuh"

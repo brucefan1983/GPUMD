@@ -15,6 +15,11 @@
 
 /*----------------------------------------------------------------------------80
 The k-space part of the PPPM method.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Yingqin Lin: Fixed the zero-wavevector contribution to the virial.
+  Paul Erhart: Electrostatic force-error estimates.
 ------------------------------------------------------------------------------*/
 
 #include "pppm.cuh"

@@ -17,6 +17,9 @@
 The version of the Tersoff potential as described in
     [1] J. Tersoff, New empirical approach for the structure and energy
     of covalent systems, PRB 37, 6991 (1988).
+
+Major contributors:
+  Alexander J. Gabourie: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"

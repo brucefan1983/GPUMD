@@ -13,6 +13,9 @@
 
 /*----------------------------------------------------------------------------80
 The driver class calculating force and related quantities.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_DEEPMD

@@ -17,6 +17,10 @@
 The double-element version of the Tersoff potential as described in
     [1] J. Tersoff, Modeling solid-state chemistry: Interatomic potentials
         for multicomponent systems, PRB 39, 5566 (1989).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Alexander J. Gabourie: Spectral heat-current calculations.
 ------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"

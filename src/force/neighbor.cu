@@ -15,6 +15,11 @@
 
 /*----------------------------------------------------------------------------80
 neighbor list.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Hekai Bu: Separate intralayer and interlayer neighbors.
+  Ming-Yu Guo: Removed duplicate periodic neighbors.
 ------------------------------------------------------------------------------*/
 
 #include "neighbor.cuh"

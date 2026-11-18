@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The abstract base class (ABC) for the potential classes.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "potential.cuh"

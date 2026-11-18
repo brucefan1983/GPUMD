@@ -15,6 +15,11 @@
 
 /*----------------------------------------------------------------------------80
 The class dealing with the Deep Potential(DP).
+
+Major contributors:
+  Ke Xu: Initial DP support and periodic-image force corrections.
+  Hekai Bu: DP energy, force, and virial evaluation.
+  Ming-Yu Guo: PyTorch DP models and triclinic-cell support.
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_DEEPMD

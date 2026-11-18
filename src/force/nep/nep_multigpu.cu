@@ -21,6 +21,13 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 This is the multi-GPU (single-node) version. It has good parallel efficiency
 when there is NVlink, but is also not very bad when there is only PCI-E.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Bohan Zhang: Corrected multi-GPU NEP force evaluation on AMD GPUs.
+  Zaixu Duan: Additional four-body NEP descriptors.
+  Yixin Deng: Corrected NEP evaluation for very large atomic systems.
+  Erik Fransson: Larger NEP descriptor sets.
 ------------------------------------------------------------------------------*/
 
 #include "nep_multigpu.cuh"

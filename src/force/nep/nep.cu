@@ -18,6 +18,14 @@ The neuroevolution potential (NEP)
 Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Jiahui Liu: Short-range ZBL repulsion.
+  Denan Li: Faster NEP force evaluation in small cells.
+  Zaixu Duan: Additional four-body NEP descriptors.
+  Yixin Deng: Corrected NEP evaluation for very large atomic systems.
+  Erik Fransson: Larger NEP descriptor sets.
 ------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"

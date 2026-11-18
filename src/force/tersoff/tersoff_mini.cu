@@ -20,6 +20,9 @@ Z. Fan, Y. Wang, X. Gu, P. Qian, Y. Su, and T. Ala-Nissila,
 A minimal Tersoff potential for diamond silicon with improved
 descriptions of elastic and phonon transport properties,
 J. Phys.: Condens. Matter 32, 135901 (2020).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"

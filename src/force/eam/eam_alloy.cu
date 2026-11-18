@@ -13,6 +13,12 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Yongchao Wu: Initial implementation.
+  Zheyong Fan: Faster EAM force evaluation.
+------------------------------------------------------------------------------*/
+
 #include "eam_alloy.cuh"
 #include "force/neighbor.cuh"
 #include "utilities/error.cuh"

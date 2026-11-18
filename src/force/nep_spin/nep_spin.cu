@@ -17,13 +17,13 @@
 NEP-spin model loading and evaluation of energies, atomic forces,
 magnetic forces, and virials.
 
-Contributors:
-Chengbing Chen, 1747193328@qq.com
-
 References:
 Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
+
+Major contributors:
+  Chengbing Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "nep_spin.cuh"

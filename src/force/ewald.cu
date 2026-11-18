@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The k-space part of the Ewald summation
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ewald.cuh"
