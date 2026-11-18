@@ -13,8 +13,6 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Implemented by: Codex (OpenAI)
-
 #include "compute_cmass.cuh"
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"

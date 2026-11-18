@@ -13,8 +13,6 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Implemented by: Codex (OpenAI)
-
 #pragma once
 #include "measure/action.cuh"
 #include <cstdio>

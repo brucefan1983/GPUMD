@@ -1,30 +1,42 @@
 .. _kw_compute_cmass:
 .. index::
-   single: compute_cmass (keyword)
+   single: compute_cmass (keyword in run.in)
 
-``compute_cmass``
-=================
+:attr:`compute_cmass`
+=====================
 
-Writes the Cartesian center of mass to :ref:`cmass.out <cmass_out>`.
+This keyword computes the center of mass from the per-atom masses and unwrapped Cartesian positions.
 
 Syntax
 ------
 
-.. code-block::
+::
 
-   compute_cmass <sample_interval> [group <grouping_method> <group_id>]
+  compute_cmass <sample_interval> [group <group_method> <group>]
 
-The sampling interval is a positive integer in MD steps.
-The optional ``group`` arguments select a nonempty group using its zero-based grouping method and group ID.
-Omit ``group`` to compute the center of mass of all atoms.
+Parameters
+----------
 
-The center of mass is :math:`\sum_i m_i \mathbf{r}_i / \sum_i m_i`, using the simulation's per-atom masses and unwrapped Cartesian positions.
-The positions follow each atom across periodic boundaries, so the reported center of mass can lie outside the simulation box.
+* :attr:`sample_interval` is a positive integer giving the number of MD steps between samples.
+* ``group <group_method> <group>`` selects one nonempty group by its zero-based grouping method and group ID.
+  Omit ``group`` to include all atoms.
+
+Output
+------
+
+The results are written to the :ref:`cmass.out output file <cmass_out>`.
+
+Examples
+--------
+
+To sample group 0 of grouping method 0 every 10 MD steps, use::
+
+  compute_cmass 10 group 0 0
+
+Notes
+-----
+
+The center of mass is :math:`\sum_i m_i \mathbf{r}_i / \sum_i m_i`.
+The unwrapped positions follow each atom across periodic boundaries, so the center of mass can lie outside the simulation box.
 For a trajectory with matching positions, use :ref:`dump_xyz <kw_dump_xyz>` with ``unwrapped_position_only``.
 When a new GPUMD process starts from :ref:`restart.xyz <restart_xyz>`, periodic image tracking starts from the saved coordinates.
-
-For example, the following command samples group 0 of grouping method 0 every 10 MD steps.
-
-.. code-block::
-
-   compute_cmass 10 group 0 0
