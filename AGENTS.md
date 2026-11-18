@@ -113,6 +113,11 @@ the selected model and reject unsupported keywords.
 - Follow neighboring code and [.clang-format](.clang-format). Format changed
   code without reformatting unrelated files. Preserve existing copyright and
   license notices and use the project header for new source files.
+- Name the original implementers in the header of each new source file.
+  When a change adds major functionality, fixes a significant correctness issue,
+  substantially improves performance, or substantially refactors an existing
+  file, update its header in the same change to credit the contributors
+  responsible. Describe each contribution briefly and specifically.
 - Use existing input and error utilities, including
   `src/utilities/error.cuh`. Validate argument counts, types, ranges, and
   incompatible options before use; avoid introducing exception-based handling.
