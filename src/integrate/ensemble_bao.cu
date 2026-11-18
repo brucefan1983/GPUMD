@@ -18,6 +18,9 @@ The Langevin thermostat with the BAOAB splitting:
 [1] Leimkuhler, Benedict, and Charles Matthews. Applied Mathematics Research
     eXpress 2013.1 (2013): 34-56.
 [2] Fass, Josh, et al. Entropy 20.5 (2018): 318.
+
+Major contributors:
+  Lazemare: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_bao.cuh"

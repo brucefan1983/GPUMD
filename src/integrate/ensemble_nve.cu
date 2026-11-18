@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The NVE ensemble integrator.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_nve.cuh"

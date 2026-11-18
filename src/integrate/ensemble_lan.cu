@@ -16,6 +16,10 @@
 /*----------------------------------------------------------------------------80
 The Bussi-Parrinello integrator of the Langevin thermostat:
 [1] G. Bussi and M. Parrinello, Phys. Rev. E 75, 056707 (2007).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Jia Sun: Faster local Langevin heat baths.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_lan.cuh"

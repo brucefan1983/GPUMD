@@ -18,6 +18,10 @@ NPT-QTB: Parrinello-Rahman barostat (MTTK) with QTB colored noise thermostat.
 Equivalent to LAMMPS fix nph + fix qtb.
 [1] Dammak, T., et al. Phys. Rev. Lett. 103, 190601 (2009).
 [2] Martyna, G. J., et al. J. Chem. Phys. 101, 4177 (1994).
+
+Major contributors:
+  Shuning Pan: Original MTTK barostat implementation.
+  Wenhao Luo: Quantum thermal bath at constant pressure.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_npt_qtb.cuh"

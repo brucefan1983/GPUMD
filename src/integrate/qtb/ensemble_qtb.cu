@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 The QTB thermostat based on a colored noise filter:
 [1] Dammak, T., et al. Phys. Rev. Lett. 103, 190601 (2009).
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_qtb.cuh"

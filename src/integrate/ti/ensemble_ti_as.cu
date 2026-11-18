@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Shuning Pan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "ensemble_ti_as.cuh"
 #include "utilities/gpu_macro.cuh"
 

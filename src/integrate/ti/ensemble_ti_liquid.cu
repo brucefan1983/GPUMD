@@ -13,6 +13,12 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Shuning Pan: Original thermodynamic-integration implementation.
+  Tobias Hainer: Liquid free energies.
+------------------------------------------------------------------------------*/
+
 #include "ensemble_ti_liquid.cuh"
 #include "force/force.cuh"
 #include "integrate/langevin_utilities.cuh"

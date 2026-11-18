@@ -15,6 +15,10 @@
 
 /*----------------------------------------------------------------------------80
 The driver class for the various integrators.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Paul Erhart: Corrected temperature degrees of freedom and cell updates.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_bao.cuh"

@@ -18,6 +18,9 @@ The stochastic cell rescaling barostat (combined with the BDP thermostat):
 [1] Mattia Bernetti and Giovanni Bussi,
 Pressure control using stochastic cell rescaling,
 J. Chem. Phys. 153, 114107 (2020).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_npt_scr.cuh"
