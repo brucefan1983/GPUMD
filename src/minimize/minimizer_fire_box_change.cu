@@ -17,6 +17,10 @@
 The FIRE (fast inertial relaxation engine) minimizer
 Reference: PhysRevLett 97, 170201 (2006)
            Computational Materials Science 175 (2020) 109584
+
+Major contributors:
+  Shuning Pan: Original FIRE implementation.
+  Yongchao Wu: Simultaneous relaxation of atoms and the simulation cell.
 ------------------------------------------------------------------------------*/
 
 #include "minimizer_fire_box_change.cuh"

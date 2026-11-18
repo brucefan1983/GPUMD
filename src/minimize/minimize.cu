@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The driver class for minimizers.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "force/force.cuh"
