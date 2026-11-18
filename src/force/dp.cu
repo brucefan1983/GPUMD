@@ -599,6 +599,45 @@ static __global__ void dp_fill_edges(
   }
 }
 
+// Same edge schema as dp_fill_edges, with the float32 bond vectors required
+// by graph artifacts whose metadata records graph_edge_dtype=float32.
+static __global__ void dp_fill_edges_f32(
+  const int N,
+  const int nloc,
+  const int* __restrict__ NN,
+  const int* __restrict__ NL,
+  const int* __restrict__ edge_offset,
+  const double* __restrict__ x,
+  const double* __restrict__ y,
+  const double* __restrict__ z,
+  const Box box,
+  const int nedge,
+  int* edge_index,
+  float* edge_vec)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < nloc) {
+    const int count = NN[n1];
+    const int base = edge_offset[n1];
+    const double x1 = x[n1];
+    const double y1 = y[n1];
+    const double z1 = z[n1];
+    for (int c = 0; c < count; ++c) {
+      const int n2 = NL[c * N + n1];
+      double x12 = x[n2] - x1;
+      double y12 = y[n2] - y1;
+      double z12 = z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      const int e = base + c;
+      edge_index[e] = n2;
+      edge_index[nedge + e] = n1;
+      edge_vec[e * 3] = static_cast<float>(x12);
+      edge_vec[e * 3 + 1] = static_cast<float>(y12);
+      edge_vec[e * 3 + 2] = static_cast<float>(z12);
+    }
+  }
+}
+
 // Build the compact canonical graph ABI used by compressed DPA4C artifacts.
 // The neighbor list is already destination-major (one contiguous row per
 // center), so its exclusive offsets are the destination CSR.  This kernel
@@ -680,12 +719,12 @@ static __global__ void dp_build_canonical_source_order(
   const int nedge,
   const int* __restrict__ source,
   int* source_cursor,
-  int* source_order)
+  std::int64_t* source_order)
 {
   const int edge = blockIdx.x * blockDim.x + threadIdx.x;
   if (edge < nedge) {
     const int position = atomicAdd(source_cursor + source[edge], 1);
-    source_order[position] = edge;
+    source_order[position] = static_cast<std::int64_t>(edge);
   }
 }
 
@@ -694,7 +733,7 @@ static __global__ void dp_fill_canonical_guards(
   const int edge_storage,
   int* source,
   float* edge_vec,
-  int* source_order)
+  std::int64_t* source_order)
 {
   const int edge = edge_begin + blockIdx.x * blockDim.x + threadIdx.x;
   if (edge < edge_storage) {
@@ -702,7 +741,7 @@ static __global__ void dp_fill_canonical_guards(
     edge_vec[edge * 3] = 0.0f;
     edge_vec[edge * 3 + 1] = 0.0f;
     edge_vec[edge * 3 + 2] = 0.0f;
-    source_order[edge] = edge;
+    source_order[edge] = static_cast<std::int64_t>(edge);
   }
 }
 
@@ -797,31 +836,46 @@ void DP::compute_gpu_edges(
   dp_atom_virial_gpu.resize(N * 9);
 
   if (deep_pot.uses_canonical_graph_inference()) {
-    // Reuse existing DP scratch buffers for the additional canonical ABI
-    // arrays. Their element widths match the required int64/uint32 storage,
-    // so no class-layout or neighbor implementation change is needed.
+    // Compact canonical ABI (compressed DPA1 / DPA4C and the same family).
+    // Single rank, no domain halo: nall == nloc and the halo exchange is null.
+    // Source indices stay 32-bit because the neighbor list itself is int.
+    // Source CSR positions are int64. Scratch buffers are reused by width:
+    //   dp_position_gpu_trans  int64 atom type
+    //   dp_position_gpu        int64 destination row pointer
+    //   e_f_v_gpu              int64 source row pointer
+    //   dp_edge_index          uint32 source index
+    //   dp_edge_vec            float32 bond vector
+    //   f_ghost                int64 source order
+    //   v_ghost                float64 coordinates, only if the model has a
+    //                          long-range module
     const int edge_storage = nedge < 2 ? 2 : nedge;
-    if (dp_edge_index.size() < static_cast<size_t>(2 * edge_storage)) {
-      dp_edge_index.resize(2 * edge_storage);
+    if (deepmd_compat::canonical_index_width(static_cast<std::int64_t>(N)) !=
+        DP_CANONICAL_INDEX32) {
+      PRINT_INPUT_ERROR(
+        "DP canonical graph source indices do not fit in 32 bits.");
+    }
+    if (dp_edge_index.size() < static_cast<size_t>(edge_storage)) {
+      dp_edge_index.resize(edge_storage);
     }
     if (dp_edge_vec.size() < static_cast<size_t>(3 * edge_storage)) {
       dp_edge_vec.resize(3 * edge_storage);
     }
-    dp_position_gpu_trans.resize(N);  // int64 model type
-    dp_position_gpu.resize(N + 1);    // int64 destination row pointer
+    dp_position_gpu_trans.resize(N);
+    dp_position_gpu.resize(N + 1);
     if (e_f_v_gpu.size() < static_cast<size_t>(N + 1)) {
-      e_f_v_gpu.resize(N + 1);        // int64 source row pointer
+      e_f_v_gpu.resize(N + 1);
     }
-    ghost_count.resize(N);            // uint32 source counts
-    ghost_sum.resize(N);              // uint32 source cursors
+    f_ghost.resize(edge_storage);
+    ghost_count.resize(N);
+    ghost_sum.resize(N);
 
     auto* model_type =
       reinterpret_cast<std::int64_t*>(dp_position_gpu_trans.data());
     auto* destination_row_ptr =
       reinterpret_cast<std::int64_t*>(dp_position_gpu.data());
     auto* source_row_ptr = reinterpret_cast<std::int64_t*>(e_f_v_gpu.data());
+    auto* source_order = reinterpret_cast<std::int64_t*>(f_ghost.data());
     int* source = dp_edge_index.data();
-    int* source_order = dp_edge_index.data() + edge_storage;
     float* edge_vec = reinterpret_cast<float*>(dp_edge_vec.data());
 
     dp_prepare_canonical_nodes<<<grid_size, BLOCK_SIZE_FORCE>>>(
@@ -857,13 +911,42 @@ void DP::compute_gpu_edges(
       GPU_CHECK_KERNEL
     }
 
+    // A long-range module reads node positions and, for a fully periodic
+    // cell, the lattice with vectors as rows. Every other model ignores them.
+    double* d_coord = nullptr;
+    double host_box[9];
+    const double* box_ptr = nullptr;
+    if (deep_pot.has_long_range()) {
+      v_ghost.resize(static_cast<size_t>(N) * 3);
+      dp_position_transpose<<<grid_size, BLOCK_SIZE_FORCE>>>(
+        position_per_atom.data(), v_ghost.data(), N);
+      GPU_CHECK_KERNEL
+      d_coord = v_ghost.data();
+      if (box.pbc_x && box.pbc_y && box.pbc_z) {
+        host_box[0] = box.cpu_h[0];
+        host_box[1] = box.cpu_h[3];
+        host_box[2] = box.cpu_h[6];
+        host_box[3] = box.cpu_h[1];
+        host_box[4] = box.cpu_h[4];
+        host_box[5] = box.cpu_h[7];
+        host_box[6] = box.cpu_h[2];
+        host_box[7] = box.cpu_h[5];
+        host_box[8] = box.cpu_h[8];
+        box_ptr = host_box;
+      }
+    }
+
+    // Per-atom virial is what GPUMD reduces into the stress, so the source
+    // CSR is passed whenever the artifact can consume it. The total virial
+    // is left null; GPUMD sums the atomic contribution itself.
     deep_pot.compute_canonical_graph_gpu(
-      dp_atom_energy_gpu.data(), dp_force_rowmajor.data(),
+      dp_atom_energy_gpu.data(), dp_force_rowmajor.data(), nullptr,
       dp_atom_virial_gpu.data(), model_type,
-      reinterpret_cast<std::uint32_t*>(source), edge_vec,
-      destination_row_ptr, source_row_ptr,
-      reinterpret_cast<std::uint32_t*>(source_order), N, N,
-      static_cast<std::int64_t>(edge_storage));
+      reinterpret_cast<const std::uint32_t*>(source), DP_CANONICAL_INDEX32,
+      edge_vec, destination_row_ptr, source_row_ptr, source_order, d_coord,
+      nullptr, nullptr, box_ptr, static_cast<std::int64_t>(N),
+      static_cast<std::int64_t>(N), static_cast<std::int64_t>(edge_storage),
+      nullptr);
   } else {
     // Transpose positions from GPUMD SoA (x1..xN, y1..yN, z1..zN) to the
     // row-major (x1, y1, z1, ...) layout the edge model consumes.
@@ -871,6 +954,7 @@ void DP::compute_gpu_edges(
     dp_position_transpose<<<grid_size, BLOCK_SIZE_FORCE>>>(
       position_per_atom.data(), dp_position_gpu_trans.data(), N);
     GPU_CHECK_KERNEL
+    const bool edge_fp32 = deep_pot.uses_fp32_edge_vectors();
     if (nedge > 0) {
       if (dp_edge_index.size() < static_cast<size_t>(2 * nedge)) {
         dp_edge_index.resize(2 * nedge);
@@ -878,17 +962,35 @@ void DP::compute_gpu_edges(
       if (dp_edge_vec.size() < static_cast<size_t>(3 * nedge)) {
         dp_edge_vec.resize(3 * nedge);
       }
-      dp_fill_edges<<<grid_size, BLOCK_SIZE_FORCE>>>(
-        N, N, dp_NN_local.data(), dp_NL_local.data(), dp_edge_offset.data(),
-        position_per_atom.data(), position_per_atom.data() + N,
-        position_per_atom.data() + N * 2, box, nedge, dp_edge_index.data(),
-        dp_edge_vec.data());
+      if (edge_fp32) {
+        dp_fill_edges_f32<<<grid_size, BLOCK_SIZE_FORCE>>>(
+          N, N, dp_NN_local.data(), dp_NL_local.data(), dp_edge_offset.data(),
+          position_per_atom.data(), position_per_atom.data() + N,
+          position_per_atom.data() + N * 2, box, nedge, dp_edge_index.data(),
+          reinterpret_cast<float*>(dp_edge_vec.data()));
+      } else {
+        dp_fill_edges<<<grid_size, BLOCK_SIZE_FORCE>>>(
+          N, N, dp_NN_local.data(), dp_NL_local.data(), dp_edge_offset.data(),
+          position_per_atom.data(), position_per_atom.data() + N,
+          position_per_atom.data() + N * 2, box, nedge, dp_edge_index.data(),
+          dp_edge_vec.data());
+      }
       GPU_CHECK_KERNEL
     }
-    deep_pot.compute_edges_gpu(
-      dp_atom_energy_gpu.data(), dp_force_rowmajor.data(),
-      dp_atom_virial_gpu.data(), dp_position_gpu_trans.data(), type.data(),
-      dp_edge_index.data(), dp_edge_vec.data(), N, nedge);
+    if (edge_fp32) {
+      const std::vector<double> no_param;
+      deep_pot.compute_edges_gpu(
+        dp_atom_energy_gpu.data(), dp_force_rowmajor.data(),
+        dp_atom_virial_gpu.data(), dp_position_gpu_trans.data(), type.data(),
+        dp_edge_index.data(),
+        nedge > 0 ? reinterpret_cast<const float*>(dp_edge_vec.data()) : nullptr,
+        N, nedge, no_param, no_param);
+    } else {
+      deep_pot.compute_edges_gpu(
+        dp_atom_energy_gpu.data(), dp_force_rowmajor.data(),
+        dp_atom_virial_gpu.data(), dp_position_gpu_trans.data(), type.data(),
+        dp_edge_index.data(), dp_edge_vec.data(), N, nedge);
+    }
   }
 
   // Scatter the device outputs into GPUMD's per-atom arrays.
