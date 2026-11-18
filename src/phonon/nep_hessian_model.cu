@@ -13,6 +13,12 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Original NEP implementation.
+  Xi Wang: Analytic NEP force constants.
+------------------------------------------------------------------------------*/
+
 #include "nep_hessian_model.cuh"
 #include "utilities/error.cuh"
 #include "utilities/nep_io/nep_model_file.cuh"

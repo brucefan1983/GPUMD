@@ -12,6 +12,12 @@
     You should have received a copy of the GNU Lesser General Public License
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
+
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Xi Wang: Analytic NEP force constants.
+------------------------------------------------------------------------------*/
+
 #ifdef _WIN32
 #ifndef NOMINMAX
 #define NOMINMAX
