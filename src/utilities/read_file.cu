@@ -14,7 +14,10 @@
 */
 
 /*----------------------------------------------------------------------------80
-Some functions for dealing with text files. Written by Mikko Ervasti.
+Some functions for dealing with text files.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "error.cuh"

@@ -11,6 +11,11 @@
    <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "compact_nep.cuh"
 #include "utilities/error.cuh"
 #include "nep_file.cuh"
