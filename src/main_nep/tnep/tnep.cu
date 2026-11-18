@@ -20,6 +20,12 @@ Nicklas Österbacka, Mandi Fang, Wei Chen, Yi He, Zheyong Fan, Paul Erhart,
 Tensorial properties via the neuroevolution potential framework: 
 Fast simulation of infrared and Raman spectra, 
 J. Chem. Theory Comput. 20, 3273 (2024).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Yifan Li: Atomic dipole and polarizability training.
+  Benrui Tang: NEP models with two hidden layers.
+  Zaixu Duan: Additional four-body NEP descriptors.
 ------------------------------------------------------------------------------*/
 
 #include "main_nep/dataset.cuh"

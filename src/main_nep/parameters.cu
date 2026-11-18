@@ -13,6 +13,13 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Eric Lindgren: Continuation of NEP training.
+  Paul Erhart: Reproducible training restarts.
+------------------------------------------------------------------------------*/
+
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"

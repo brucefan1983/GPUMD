@@ -13,6 +13,12 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Yifan Li: Atomic dipole and polarizability training data.
+------------------------------------------------------------------------------*/
+
 #include "tnep_dataset.cuh"
 #include "main_nep/common/nep_parameters.cuh"
 #include "main_nep/common/nep_output.cuh"

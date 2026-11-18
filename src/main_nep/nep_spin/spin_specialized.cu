@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Chengbing Chen: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #ifdef NEP_SPECIALIZED_RUNTIME_BUILD
 #include "force/nep_spin/spin_kernels.cuh"
 #include "force/nep_spin/spin_layout.cuh"

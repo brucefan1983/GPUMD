@@ -21,6 +21,12 @@ Reference:
 T. Schaul, T. Glasmachers, and J. Schmidhuber,
 High Dimensions and Heavy Tails for Natural Evolution Strategies,
 https://doi.org/10.1145/2001576.2001692
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Yong Wang: Multi-GPU NEP training.
+  Eric Lindgren: Continuation of NEP training.
+  Paul Erhart: Reproducible training restarts.
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"

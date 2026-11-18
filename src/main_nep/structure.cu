@@ -13,6 +13,14 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Eric Lindgren: Stress-to-virial conversion for training data.
+  Jiahui Liu: Corrected reporting of missing virials.
+  Nan Xu: Tensor prediction with stress-labelled structures.
+------------------------------------------------------------------------------*/
+
 #include "main_nep/common/nep_parameters.cuh"
 #include "structure.cuh"
 #include "xyz_reader.cuh"

@@ -15,6 +15,12 @@
 
 /*----------------------------------------------------------------------------80
 Get the fitness
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Yong Wang: Multi-GPU NEP training.
+  Eric Lindgren: Continuation of NEP training.
+  Paul Erhart: Training on energy differences and combinations.
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
