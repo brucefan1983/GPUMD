@@ -16,6 +16,7 @@
 /*----------------------------------------------------------------------------80
 Major contributors:
   Shuning Pan: Initial implementation.
+  Zheyong Fan: Corrected shock profiles for noninteger bin widths.
 ------------------------------------------------------------------------------*/
 
 #include "dump_shock_nemd.cuh"

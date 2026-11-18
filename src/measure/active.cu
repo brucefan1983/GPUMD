@@ -17,7 +17,7 @@ Run active learning on-the-fly during MD
 
 Major contributors:
   Eric Lindgren: Initial implementation.
-  Daniel Hedman: Per-atom force uncertainty.
+  Daniel Hedman: Per-atom force-uncertainty output.
   Paul Erhart: Stable force uncertainty without changing the MD state.
 --------------------------------------------------------------------------------------------------*/
 

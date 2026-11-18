@@ -18,8 +18,8 @@ Apply electron stopping.
 
 Major contributors:
   Zheyong Fan: Initial implementation.
-  Jiahui Liu: Electronic stopping powers and energy loss.
-  Yixin Deng: Removed residual energy loss below the stopping threshold.
+  Jiahui Liu: Cumulative energy loss from electronic stopping.
+  Yixin Deng: Corrected energy-loss accumulation outside the stopping range.
 ------------------------------------------------------------------------------*/
 
 #include "electron_stop.cuh"

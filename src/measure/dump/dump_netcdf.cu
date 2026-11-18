@@ -28,8 +28,8 @@ https://ambermd.org/netcdf/nctraj.pdf
 Major contributors:
   Alexander J. Gabourie: Initial implementation.
   Ting Liang: Velocities and general-cell trajectories.
-  Ke Xu: Corrected triclinic cell angles.
-  Paul Erhart: Additional atomic observables and corrected force units.
+  Ke Xu: Corrected orthorhombic cell lengths.
+  Paul Erhart: Additional per-atom observables.
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_NETCDF

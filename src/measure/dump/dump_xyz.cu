@@ -17,12 +17,11 @@
 Dump per-atom data to user-specified file(s) in the extended XYZ format
 
 Major contributors:
-  Zheyong Fan: Original atomic trajectory output.
-  Alexander J. Gabourie: Extended XYZ trajectories.
-  Paul Erhart: Group-resolved atomic observables.
-  Xiangyang Liu: Separate trajectory files for individual frames.
-  Chengbing Chen: Spin trajectories.
-  Ting Liang: Unwrapped atomic coordinates.
+  Zheyong Fan: Initial implementation.
+  Paul Erhart: Configurable trajectory precision.
+  Xiangyang Liu: Trajectory splitting by frame count.
+  Chengbing Chen: Spin trajectories and magnetic forces.
+  Ting Liang: Output of unwrapped positions only.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_xyz.cuh"

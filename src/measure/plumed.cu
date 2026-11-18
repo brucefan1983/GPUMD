@@ -17,8 +17,8 @@
 Interface to the PLUMED plugin: https://www.plumed.org
 
 Major contributors:
-  Lazemare: Initial implementation.
-  Jintu Zhang: Corrected the virial from PLUMED bias forces.
+  Jintu Zhang: Initial implementation.
+  Zheyong Fan: Corrected biased dynamics and pressure.
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_PLUMED

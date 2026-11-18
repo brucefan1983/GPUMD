@@ -25,7 +25,7 @@ Reference for DOS:
 
 Major contributors:
   Zheyong Fan: Initial implementation.
-  Alexander J. Gabourie: Corrected vibrational spectra across successive runs.
+  Alexander J. Gabourie: Corrected DOS accumulation across successive runs.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dos.cuh"

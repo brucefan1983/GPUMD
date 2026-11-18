@@ -18,7 +18,7 @@ Dump thermo data to a file at a given interval.
 
 Major contributors:
   Zheyong Fan: Initial implementation.
-  Paul Erhart: Corrected temperature degrees of freedom.
+  Paul Erhart: Corrected kinetic-energy output with moving atom groups.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_thermo.cuh"
