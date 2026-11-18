@@ -17,6 +17,9 @@
 Calculate:
     Velocity AutoCorrelation (VAC) function
     Self Diffusion Coefficient (SDC)
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 --------------------------------------------------------------------------------------------------*/
 
 #include "model/group.cuh"

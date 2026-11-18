@@ -17,6 +17,10 @@
 Calculate:
     Mean-Square Displacement (MSD)
     Self Diffusion Coefficient (SDC)
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Eric Lindgren: Group-resolved diffusion.
 --------------------------------------------------------------------------------------------------*/
 
 #include "model/group.cuh"

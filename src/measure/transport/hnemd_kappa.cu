@@ -19,6 +19,9 @@ Reference:
 [1] Z. Fan, H. Dong, A. Harju, T. Ala-Nissila, Homogeneous nonequilibrium
 molecular dynamics method for heat transport and spectral decomposition
 with many-body potentials, Phys. Rev. B 99, 064308 (2019).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "compute_heat.cuh"

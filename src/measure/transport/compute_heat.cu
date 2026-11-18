@@ -22,6 +22,9 @@ Zheyong Fan, Luiz Felipe C. Pereira, Hui-Qiong Wang, Jin-Cheng Zheng, Davide Don
 Force and heat current formulas for many-body potentials in molecular dynamics simulations with
 applications to thermal conductivity calculations. Phys. Rev. B 92, 094301, (2015).
 https://doi.org/10.1103/PhysRevB.92.094301
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 --------------------------------------------------------------------------------------------------*/
 
 #include "compute_heat.cuh"
