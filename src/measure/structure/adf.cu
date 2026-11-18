@@ -16,10 +16,9 @@
 /*-----------------------------------------------------------------------------------------------100
 Calculate:
     Angular distribution function (ADF)
-Author:
-    Yongchao Wu 2025-01-18
-Email:
-    yongchao_wu@bit.edu.cn
+
+Major contributors:
+  Yongchao Wu: Initial implementation.
 --------------------------------------------------------------------------------------------------*/
 
 #include "adf.cuh"
