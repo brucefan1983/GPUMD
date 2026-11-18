@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Charge NEP for replica dynamics, see replica_nep_charge.cuh.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "replica_nep_charge.cuh"

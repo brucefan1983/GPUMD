@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 Parallel replica dynamics for infrequent-event systems. Basin identities are
 defined by FIRE quenches and an atom-displacement event criterion.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "replica.cuh"

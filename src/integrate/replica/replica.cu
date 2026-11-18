@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Entry of replica dynamics, see replica.cuh.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "model/atom.cuh"

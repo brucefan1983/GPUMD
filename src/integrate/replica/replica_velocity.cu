@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 Canonical velocity sampling for PRD. REMD initializes velocities with Velocity
 (main_gpumd/velocity.cu), as gpumd does.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "replica_velocity.cuh"

@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Energy NEP for replica dynamics, see replica_nep.cuh.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "replica_nep.cuh"
