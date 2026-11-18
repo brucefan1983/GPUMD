@@ -13,6 +13,10 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+GPUMD Contributing author: Zihan Yan (Westlake University)
+------------------------------------------------------------------------------*/
+
 #pragma once
 #include "measure/action.cuh"
 #include <cstdio>

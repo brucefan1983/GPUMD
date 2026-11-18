@@ -13,6 +13,10 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+GPUMD Contributing author: Zihan Yan (Westlake University)
+------------------------------------------------------------------------------*/
+
 #include "compute_cmass.cuh"
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
@@ -58,7 +62,8 @@ ComputeCmass::ComputeCmass(
 {
   action_name = "compute_cmass";
   if (tokens.size() != 2 && (tokens.size() != 5 || tokens[2] != "group")) {
-    PRINT_INPUT_ERROR("Expected compute_cmass <sample_interval> [group <method> <id>].\n");
+    PRINT_INPUT_ERROR(
+      "Expected compute_cmass <sample_interval> [group <group_method> <group>].\n");
   }
   if (!is_valid_int(tokens[1], &sample_interval_) || sample_interval_ <= 0) {
     PRINT_INPUT_ERROR("compute_cmass sampling interval must be a positive integer.\n");
