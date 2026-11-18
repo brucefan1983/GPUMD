@@ -6,8 +6,11 @@ submit, including AI-assisted work, and validating the results it affects.
 
 ## Working on a change
 
-Before starting work, agree on the change with the maintainers as described in
-the [contribution policy](README.md#support-and-contributions).
+Propose changes you need in your own work with GPUMD. Before starting work,
+agree on the change with the maintainers as described in the
+[contribution policy](README.md#support-and-contributions). If another
+contributor leads the affected module, raise the issue first so that developer
+can take the lead on a fix or performance improvement.
 
 - Read the relevant implementation, nearby code, tests, and user documentation
   before editing. Find an existing implementation with similar responsibilities.
