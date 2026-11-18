@@ -15,6 +15,10 @@
 
 /*----------------------------------------------------------------------------80
 Compute the cohesive energy curve with different deformations.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Benrui Tang: Elastic constants and anisotropic strain.
 ------------------------------------------------------------------------------*/
 
 #include "cohesive.cuh"

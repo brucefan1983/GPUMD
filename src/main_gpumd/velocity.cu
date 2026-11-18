@@ -19,6 +19,9 @@ Initialize the velocities of the system:
     total angular momentum is zero
 If DEBUG is on in the makefile, the velocities are the same from run to run.
 If DEBUG is off, the velocities are different in different runs.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "model/atom.cuh"
