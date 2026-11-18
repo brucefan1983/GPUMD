@@ -20,7 +20,7 @@ Calculate:
 
 Major contributors:
   Zheyong Fan: Initial implementation.
-  Eric Lindgren: Group-resolved diffusion.
+  Eric Lindgren: MSD calculations for multiple groups in one run.
 --------------------------------------------------------------------------------------------------*/
 
 #include "model/group.cuh"

@@ -25,6 +25,7 @@ https://doi.org/10.1103/PhysRevB.92.094301
 
 Major contributors:
   Zheyong Fan: Initial implementation.
+  Zhixin Liang: Convective contribution to the heat current.
 --------------------------------------------------------------------------------------------------*/
 
 #include "compute_heat.cuh"
