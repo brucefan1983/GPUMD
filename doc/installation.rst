@@ -78,9 +78,9 @@ Use ``src/makefile.hip`` with a ROCm installation that provides ``hipcc``, rocTh
   cd src
   make -f makefile.hip
 
-The target architecture defaults to ``gfx90a``. Select another AMD GPU with ``HIP_ARCH``, for example::
+The default target architecture is ``gfx1100``. To build for a different architecture, set ``HIP_ARCH``, for example::
 
-  make -f makefile.hip HIP_ARCH=gfx1100
+  make -f makefile.hip HIP_ARCH=gfx90a
 
 The executables are written to ``src``.
 After changing build options, clean with ``make -f makefile.hip clean`` before rebuilding.
