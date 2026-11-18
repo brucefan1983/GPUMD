@@ -23,8 +23,8 @@ Major contributors:
   Zheyong Fan: Initial implementation.
   Yong Wang: Corrected forces under the charge-neutrality constraint.
   Zaixu Duan: Additional four-body NEP descriptors.
-  Paul Erhart: Cutoff-dependent electrostatic mesh resolution.
-  Benrui Tang: Charge self-energy models.
+  Paul Erhart: Cutoff-dependent default PPPM mesh spacing.
+  Benrui Tang: Add qNEP mode 3.
 ------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"

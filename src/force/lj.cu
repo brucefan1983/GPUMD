@@ -18,7 +18,7 @@ The class dealing with the Lennard-Jones (LJ) pairwise potentials.
 
 Major contributors:
   Zheyong Fan: Original Lennard-Jones implementation.
-  Alexander J. Gabourie: Spectral heat-current calculations.
+  Alexander J. Gabourie: LJ module refactoring and generalized SHC support.
 ------------------------------------------------------------------------------*/
 
 #include "lj.cuh"

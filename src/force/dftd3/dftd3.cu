@@ -28,7 +28,7 @@ J. Comput. Chem., 32, 1456 (2011).
 
 Major contributors:
   Zheyong Fan: Initial implementation.
-  Yuxiang Liu: Fixed D3 energy discontinuities at high coordination numbers.
+  Yuxiang Liu: Stable C6 interpolation and caching of reference weights.
 ------------------------------------------------------------------------------*/
 
 #include "dftd3.cuh"

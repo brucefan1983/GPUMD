@@ -21,6 +21,9 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 Major contributors:
   Zheyong Fan: Initial implementation.
+  Yong Wang: Corrected forces under the charge-neutrality constraint.
+  Zaixu Duan: Additional four-body NEP descriptors.
+  Paul Erhart: Cutoff-dependent default PPPM mesh spacing.
 ------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"

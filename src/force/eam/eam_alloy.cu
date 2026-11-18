@@ -15,7 +15,7 @@
 
 /*----------------------------------------------------------------------------80
 Major contributors:
-  Yongchao Wu: Initial implementation.
+  Yongchao Wu: Initial implementation and spline-evaluation optimization.
   Zheyong Fan: Faster EAM force evaluation.
 ------------------------------------------------------------------------------*/
 

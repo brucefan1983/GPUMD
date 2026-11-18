@@ -24,6 +24,7 @@ J. Mech. Phys. Solids 210, 106540 (2026).
 
 Major contributors:
   Hekai Bu: Initial implementation.
+  Zheyong Fan: Extended NEP descriptor support.
 ------------------------------------------------------------------------------*/
 
 #include "ilp_nep.cuh"

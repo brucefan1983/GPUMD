@@ -20,7 +20,7 @@ The double-element version of the Tersoff potential as described in
 
 Major contributors:
   Zheyong Fan: Initial implementation.
-  Alexander J. Gabourie: Spectral heat-current calculations.
+  Alexander J. Gabourie: Generalized spectral heat-current support.
 ------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"
