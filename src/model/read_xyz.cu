@@ -15,6 +15,10 @@
 
 /*----------------------------------------------------------------------------80
 The class defining the simulation model.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Chengbing Chen: Reading atomic spins from model.xyz.
 ------------------------------------------------------------------------------*/
 
 #include "atom.cuh"
