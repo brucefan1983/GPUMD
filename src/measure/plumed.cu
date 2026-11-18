@@ -15,6 +15,10 @@
 
 /*----------------------------------------------------------------------------80
 Interface to the PLUMED plugin: https://www.plumed.org
+
+Major contributors:
+  Lazemare: Initial implementation.
+  Jintu Zhang: Corrected the virial from PLUMED bias forces.
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_PLUMED

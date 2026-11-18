@@ -15,6 +15,9 @@
 
 /*-----------------------------------------------------------------------------------------------100
 Functions parsing the options and the per-atom quantities shared by several keywords
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 --------------------------------------------------------------------------------------------------*/
 
 #include "model/group.cuh"

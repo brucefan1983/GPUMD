@@ -15,6 +15,11 @@
 
 /*----------------------------------------------------------------------------80
 Apply electron stopping.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Jiahui Liu: Electronic stopping powers and energy loss.
+  Yixin Deng: Removed residual energy loss below the stopping threshold.
 ------------------------------------------------------------------------------*/
 
 #include "electron_stop.cuh"

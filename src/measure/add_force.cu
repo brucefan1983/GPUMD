@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Add force to a group of atoms.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "add_force.cuh"

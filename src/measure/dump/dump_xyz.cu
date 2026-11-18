@@ -15,6 +15,14 @@
 
 /*-----------------------------------------------------------------------------------------------100
 Dump per-atom data to user-specified file(s) in the extended XYZ format
+
+Major contributors:
+  Zheyong Fan: Original atomic trajectory output.
+  Alexander J. Gabourie: Extended XYZ trajectories.
+  Paul Erhart: Group-resolved atomic observables.
+  Xiangyang Liu: Separate trajectory files for individual frames.
+  Chengbing Chen: Spin trajectories.
+  Ting Liang: Unwrapped atomic coordinates.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_xyz.cuh"

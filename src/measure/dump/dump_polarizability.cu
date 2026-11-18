@@ -14,6 +14,9 @@
 
 /*-----------------------------------------------------------------------------------------------100
 Dump polarizability at a given interval.
+
+Major contributors:
+  Eric Lindgren: Initial implementation.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_polarizability.cuh"

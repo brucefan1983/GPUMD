@@ -15,6 +15,10 @@
 
 /*----------------------------------------------------------------------------80
 Compute block (space) averages of various per-atom quantities.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Zhixin Liang: Species-resolved momentum for multicomponent transport.
 ------------------------------------------------------------------------------*/
 
 #include "compute.cuh"

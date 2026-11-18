@@ -15,6 +15,10 @@
 
 /*-----------------------------------------------------------------------------------------------100
 Dump thermo data to a file at a given interval.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Paul Erhart: Corrected temperature degrees of freedom.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_thermo.cuh"
