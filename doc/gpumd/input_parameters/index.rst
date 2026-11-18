@@ -97,6 +97,7 @@ See :ref:`run.in <run_in>` for command order and how settings apply to successiv
 
    compute
    compute_chunk
+   compute_cmass
    compute_rdf
    compute_angular_rdf
    compute_adf

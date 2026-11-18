@@ -28,6 +28,7 @@ The driver class dealing with measurement.
 #include "measure/structure/angular_rdf.cuh"
 #include "compute.cuh"
 #include "compute_chunk.cuh"
+#include "compute_cmass.cuh"
 #include "compute_dpdt.cuh"
 #include "compute_es.cuh"
 #include "deform.cuh"
@@ -175,6 +176,8 @@ bool Measure::parse_action(
     std::unique_ptr<Action> action;
     action.reset(new MSD(tokens, group, atom));
     actions_.emplace_back(std::move(action));
+  } else if (tokens[0] == "compute_cmass") {
+    actions_.emplace_back(std::make_unique<ComputeCmass>(tokens, group, atom));
   } else if (tokens[0] == "compute_ic") {
     std::unique_ptr<Action> action;
     action.reset(new IC(tokens, atom));
