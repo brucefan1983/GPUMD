@@ -28,7 +28,8 @@ static __global__ void bec_radial_jit(
   float* bec)
 {
   const int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 >= N) return;
+  if (n1 >= N)
+    return;
 
   const float* c = get_c_jit(parameters);
   const int t1 = (NUM_TYPES_JIT == 1) ? 0 : type[n1];
@@ -39,10 +40,8 @@ static __global__ void bec_radial_jit(
     const int n2 = NL[index];
     const int t2 = (NUM_TYPES_JIT == 1) ? 0 : type[n2];
 
-    const float r12[3] = {
-      x12_all[index], y12_all[index], z12_all[index]};
-    const float d12 =
-      sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+    const float r12[3] = {x12_all[index], y12_all[index], z12_all[index]};
+    const float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
     const float d12inv = 1.0f / d12;
 
     const float rc = get_rc_radial_jit(t1, t2);
@@ -52,14 +51,7 @@ static __global__ void bec_radial_jit(
 
     float fn12[BASIS_SIZE_RADIAL_JIT + 1];
     float fnp12[BASIS_SIZE_RADIAL_JIT + 1];
-    find_fn_and_fnp(
-      BASIS_SIZE_RADIAL_JIT,
-      rcinv,
-      d12,
-      fc12,
-      fcp12,
-      fn12,
-      fnp12);
+    find_fn_and_fnp(BASIS_SIZE_RADIAL_JIT, rcinv, d12, fc12, fcp12, fn12, fnp12);
 
     const int type_index = descriptor_type_index_jit(t1, t2);
     float f12[3] = {0.0f};
@@ -69,13 +61,11 @@ static __global__ void bec_radial_jit(
       float gnp12 = 0.0f;
 #pragma unroll
       for (int k = 0; k <= BASIS_SIZE_RADIAL_JIT; ++k) {
-        const int c_index =
-          get_c_index(type_index, n, k, N_MAX_RADIAL_JIT, BASIS_SIZE_RADIAL_JIT);
+        const int c_index = get_c_index(type_index, n, k, N_MAX_RADIAL_JIT, BASIS_SIZE_RADIAL_JIT);
         gnp12 += fnp12[k] * c[c_index];
       }
 
-      const float tmp12 =
-        charge_derivative[n1 + n * N] * gnp12 * d12inv;
+      const float tmp12 = charge_derivative[n1 + n * N] * gnp12 * d12inv;
       f12[0] += tmp12 * r12[0];
       f12[1] += tmp12 * r12[1];
       f12[2] += tmp12 * r12[2];
@@ -128,7 +118,8 @@ static __global__ void bec_angular_jit(
   float* bec)
 {
   const int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 >= N) return;
+  if (n1 >= N)
+    return;
 
   const float* c = get_c_jit(parameters);
   float Fp[DIM_ANGULAR_JIT] = {0.0f};
@@ -143,8 +134,7 @@ static __global__ void bec_angular_jit(
   for (int n = 0; n <= N_MAX_ANGULAR_JIT; ++n) {
 #pragma unroll
     for (int abc = 0; abc < NUM_ABC_JIT; ++abc) {
-      sum_fxyz[n * NUM_ABC_JIT + abc] =
-        sum_fxyz_in[(n * NUM_ABC_JIT + abc) * N + n1];
+      sum_fxyz[n * NUM_ABC_JIT + abc] = sum_fxyz_in[(n * NUM_ABC_JIT + abc) * N + n1];
     }
   }
 
@@ -156,10 +146,8 @@ static __global__ void bec_angular_jit(
     const int n2 = NL[index];
     const int t2 = (NUM_TYPES_JIT == 1) ? 0 : type[n2];
 
-    const float r12[3] = {
-      x12_all[index], y12_all[index], z12_all[index]};
-    const float d12 =
-      sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+    const float r12[3] = {x12_all[index], y12_all[index], z12_all[index]};
+    const float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
 
     const float rc = get_rc_angular_jit(t1, t2);
     const float rcinv = 1.0f / rc;
@@ -168,14 +156,7 @@ static __global__ void bec_angular_jit(
 
     float fn12[BASIS_SIZE_ANGULAR_JIT + 1];
     float fnp12[BASIS_SIZE_ANGULAR_JIT + 1];
-    find_fn_and_fnp(
-      BASIS_SIZE_ANGULAR_JIT,
-      rcinv,
-      d12,
-      fc12,
-      fcp12,
-      fn12,
-      fnp12);
+    find_fn_and_fnp(BASIS_SIZE_ANGULAR_JIT, rcinv, d12, fc12, fcp12, fn12, fnp12);
 
     const int type_index = descriptor_type_index_jit(t1, t2);
     float f12[3] = {0.0f};
@@ -187,12 +168,7 @@ static __global__ void bec_angular_jit(
 #pragma unroll
       for (int k = 0; k <= BASIS_SIZE_ANGULAR_JIT; ++k) {
         const int c_index = get_c_index(
-          type_index,
-          n,
-          k,
-          N_MAX_ANGULAR_JIT,
-          BASIS_SIZE_ANGULAR_JIT,
-          NUM_C_RADIAL_JIT);
+          type_index, n, k, N_MAX_ANGULAR_JIT, BASIS_SIZE_ANGULAR_JIT, NUM_C_RADIAL_JIT);
         const float c_value = c[c_index];
         gn12 += fn12[k] * c_value;
         gnp12 += fnp12[k] * c_value;
@@ -266,8 +242,7 @@ extern "C" int nep_train_launch_bec_radial(
   const int block_size = 32;
   const int grid_size = (N - 1) / block_size + 1;
   bec_radial_jit<<<grid_size, block_size>>>(
-    N, NN_sum, NN, NL, type, x12, y12, z12,
-    parameters, charge_derivative, bec);
+    N, NN_sum, NN, NL, type, x12, y12, z12, parameters, charge_derivative, bec);
   return static_cast<int>(cudaGetLastError());
 }
 
@@ -288,7 +263,6 @@ extern "C" int nep_train_launch_bec_angular(
   const int block_size = 32;
   const int grid_size = (N - 1) / block_size + 1;
   bec_angular_jit<<<grid_size, block_size>>>(
-    N, NN_sum, NN, NL, type, x12, y12, z12,
-    parameters, charge_derivative, sum_fxyz, bec);
+    N, NN_sum, NN, NL, type, x12, y12, z12, parameters, charge_derivative, sum_fxyz, bec);
   return static_cast<int>(cudaGetLastError());
 }

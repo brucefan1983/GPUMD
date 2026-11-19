@@ -24,8 +24,7 @@ class NEP_Parameters;
 class NEP_Energy_Parameters;
 class EnergyDifference;
 
-struct NEP_Energy_Error
-{
+struct NEP_Energy_Error {
   double energy = 0.0;
   float force = 0.0f;
   float virial = 0.0f;
@@ -70,12 +69,21 @@ class NEP_Energy_Loss
 {
 public:
   void initialize(const NEP_Energy_Parameters& para);
-  void evaluate(NEP_Energy_Parameters& para, Dataset& data, EnergyDifference& energy_difference,
-    int batch, int candidate, int device_id);
+  void evaluate(
+    NEP_Energy_Parameters& para,
+    Dataset& data,
+    EnergyDifference& energy_difference,
+    int batch,
+    int candidate,
+    int device_id);
   void accumulate_fitness(const NEP_Energy_Parameters& para, float* fitness_total);
   void accumulate_energy_difference(const NEP_Energy_Parameters& para, float* fitness_total);
-  NEP_Energy_Error get_error(NEP_Energy_Parameters& para, Dataset& data,
-    EnergyDifference& energy_difference, bool is_train, int batch);
+  NEP_Energy_Error get_error(
+    NEP_Energy_Parameters& para,
+    Dataset& data,
+    EnergyDifference& energy_difference,
+    bool is_train,
+    int batch);
 
 private:
   std::vector<float> fitness_energy;

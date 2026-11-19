@@ -23,8 +23,8 @@ Major contributors:
 #define HAS_VDW_JIT 1
 #define TENSOR_VIRIAL_JIT 0
 #define INITIALIZE_RADIAL_SHEAR_JIT 0
-#include "main_nep/common/nep_specialized.cuh"
 #include "main_nep/common/nep_bec_specialized.cuh"
+#include "main_nep/common/nep_specialized.cuh"
 
 static __global__ void ann_charge_vdw_jit(
   const int N,
@@ -40,7 +40,8 @@ static __global__ void ann_charge_vdw_jit(
   float* C6_derivative_out)
 {
   const int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 >= N) return;
+  if (n1 >= N)
+    return;
 
   const int t = (NUM_TYPES_JIT == 1) ? 0 : type[n1];
   float q[ANN_DIM_JIT] = {0.0f};
@@ -79,17 +80,14 @@ static __global__ void ann_charge_vdw_jit(
 
   pe[n1] = static_cast<double>(F);
   charge_out[n1] = charge;
-  const float C6_exp =
-    C6_REF_SQRT_JIT[t] * expf(C6 * C6_SCALING_FACTOR_JIT);
+  const float C6_exp = C6_REF_SQRT_JIT[t] * expf(C6 * C6_SCALING_FACTOR_JIT);
   C6_out[n1] = C6_exp;
 
 #pragma unroll
   for (int d = 0; d < ANN_DIM_JIT; ++d) {
     Fp_out[n1 + d * N] = Fp[d] * q_scaler[d];
-    charge_derivative_out[n1 + d * N] =
-      charge_derivative[d] * q_scaler[d];
-    C6_derivative_out[n1 + d * N] =
-      C6_exp * C6_SCALING_FACTOR_JIT * C6_derivative[d] * q_scaler[d];
+    charge_derivative_out[n1 + d * N] = charge_derivative[d] * q_scaler[d];
+    C6_derivative_out[n1 + d * N] = C6_exp * C6_SCALING_FACTOR_JIT * C6_derivative[d] * q_scaler[d];
   }
 }
 

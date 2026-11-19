@@ -12,6 +12,7 @@ agree on the change with the maintainers as described in the
 contributor leads the affected module, raise the issue first so that developer
 can take the lead on a fix or performance improvement.
 
+- Keep the PR branch up to date with `master` throughout development and review.
 - Read the relevant implementation, nearby code, tests, and user documentation
   before editing. Find an existing implementation with similar responsibilities.
 - Reuse existing interfaces, parsers, lifecycle hooks, GPU utilities, and neighbor
@@ -114,9 +115,11 @@ unsupported keywords.
 
 ## Code style and GPU work
 
-- Follow neighboring code and [.clang-format](.clang-format). Format changed
-  code without reformatting unrelated files. Preserve existing copyright and
-  license notices and use the project header for new source files.
+- Follow neighboring code. Use clang-format 18 or 19 with the repository's
+  [.clang-format](.clang-format) configuration. For every PR, format all added
+  or modified C++/CUDA source and header files in full, and add contributor
+  information as appropriate. Do not reformat unrelated files. Preserve existing
+  copyright and license notices and use the project header for new source files.
 - Name the original implementers in the header of each new source file.
   When a change adds major functionality, fixes a significant correctness issue,
   substantially improves performance, or substantially refactors an existing

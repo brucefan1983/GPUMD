@@ -20,8 +20,7 @@
 
 class NEP_Parameters;
 
-void read_nep_model(
-  const std::string& filename, NEP_Parameters& para, float* parameters);
+void read_nep_model(const std::string& filename, NEP_Parameters& para, float* parameters);
 
 bool read_nep_restart(
   const char* filename,
@@ -46,10 +45,8 @@ void read_nep_prediction_zbl(NEP_Parameters& para);
 void write_nep_model(
   FILE* file, NEP_Parameters& para, const float* parameters, int max_radial, int max_angular);
 
-void write_nep_header(
-  FILE* file, const NEP_Parameters& para, int max_radial, int max_angular);
+void write_nep_header(FILE* file, const NEP_Parameters& para, int max_radial, int max_angular);
 
-void write_nep_model_parameters(
-  FILE* file, const NEP_Parameters& para, const float* parameters);
+void write_nep_model_parameters(FILE* file, const NEP_Parameters& para, const float* parameters);
 
 void check_existing_nep_model(NEP_Parameters& para);

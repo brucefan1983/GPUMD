@@ -23,15 +23,14 @@ Major contributors:
   Eric Lindgren: MSD calculations for multiple groups in one run.
 --------------------------------------------------------------------------------------------------*/
 
+#include "measure/parse_utilities.cuh"
 #include "model/group.cuh"
 #include "msd.cuh"
-#include "measure/parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
-
 
 #ifdef USE_KEPLER
 #if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
@@ -152,59 +151,60 @@ __global__ void gpu_find_msd(
   }
 }
 
-  __global__ void gpu_find_msd_per_group(
-    const int num_atoms,
-    const int num_groups,
-    const int correlation_step,
-    const int num_correlation_steps,
-    const int* group_ids,
-    const double* g_x,
-    const double* g_y,
-    const double* g_z,
-    const double* g_x_start,
-    const double* g_y_start,
-    const double* g_z_start,
-    double* g_msd_x,  // [num_groups * time_lags]
-    double* g_msd_y,
-    double* g_msd_z)
-  {
-    // Do not use a reduction, instead handle each atom independently.
-    // Reduction does not work well, since atoms in the same group are not necessarily
-    // close in memory.
+__global__ void gpu_find_msd_per_group(
+  const int num_atoms,
+  const int num_groups,
+  const int correlation_step,
+  const int num_correlation_steps,
+  const int* group_ids,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  const double* g_x_start,
+  const double* g_y_start,
+  const double* g_z_start,
+  double* g_msd_x, // [num_groups * time_lags]
+  double* g_msd_y,
+  double* g_msd_z)
+{
+  // Do not use a reduction, instead handle each atom independently.
+  // Reduction does not work well, since atoms in the same group are not necessarily
+  // close in memory.
 
-    // Rewrite as a reduction over each group?
-    // Need the size_sum! Sum 0 to l, 1 to l, etc.
-    int tid = threadIdx.x;
-    int bid = blockIdx.x;
-    int size_sum = bid * num_atoms;
-    int number_of_rounds = (num_atoms - 1) / blockDim.x + 1;  // rounds needed to sum over all atoms
+  // Rewrite as a reduction over each group?
+  // Need the size_sum! Sum 0 to l, 1 to l, etc.
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int size_sum = bid * num_atoms;
+  int number_of_rounds = (num_atoms - 1) / blockDim.x + 1; // rounds needed to sum over all atoms
 
-    for (int round = 0; round < number_of_rounds; ++round) {
-      int n = tid + round * blockDim.x;
-      if (n < num_atoms) {
+  for (int round = 0; round < number_of_rounds; ++round) {
+    int n = tid + round * blockDim.x;
+    if (n < num_atoms) {
 
-        int group = group_ids[n];
-        if (group < 0 || group >= num_groups) return;
+      int group = group_ids[n];
+      if (group < 0 || group >= num_groups)
+        return;
 
-        double dx = g_x[n] - g_x_start[size_sum + n];
-        double dy = g_y[n] - g_y_start[size_sum + n];
-        double dz = g_z[n] - g_z_start[size_sum + n];
+      double dx = g_x[n] - g_x_start[size_sum + n];
+      double dy = g_y[n] - g_y_start[size_sum + n];
+      double dz = g_z[n] - g_z_start[size_sum + n];
 
-        if (bid <= correlation_step) {
-          int offset = group * num_correlation_steps + correlation_step - bid;
-          atomicAdd(&g_msd_x[offset], dx * dx);
-          atomicAdd(&g_msd_y[offset], dy * dy);
-          atomicAdd(&g_msd_z[offset], dz * dz);
-        } else {
-          int offset = group * num_correlation_steps + correlation_step + gridDim.x - bid;
-          atomicAdd(&g_msd_x[offset], dx * dx);
-          atomicAdd(&g_msd_y[offset], dy * dy);
-          atomicAdd(&g_msd_z[offset], dz * dz);
-        }
+      if (bid <= correlation_step) {
+        int offset = group * num_correlation_steps + correlation_step - bid;
+        atomicAdd(&g_msd_x[offset], dx * dx);
+        atomicAdd(&g_msd_y[offset], dy * dy);
+        atomicAdd(&g_msd_z[offset], dz * dz);
+      } else {
+        int offset = group * num_correlation_steps + correlation_step + gridDim.x - bid;
+        atomicAdd(&g_msd_x[offset], dx * dx);
+        atomicAdd(&g_msd_y[offset], dy * dy);
+        atomicAdd(&g_msd_z[offset], dz * dz);
       }
     }
   }
-} //namespace
+}
+} // namespace
 
 void MSD::pre_run(
   const int number_of_steps,
@@ -217,11 +217,11 @@ void MSD::pre_run(
 {
   if (!compute_)
     return;
-  
+
   if (num_correlation_steps_ > number_of_steps / sample_interval_) {
     PRINT_INPUT_ERROR("MSD correlation times sampling interval should be <= number of MD steps.\n");
   }
-    
+
   if (grouping_method_ < 0) {
     num_atoms_ = atom.number_of_atoms;
     num_groups_ = 1;
@@ -233,26 +233,26 @@ void MSD::pre_run(
     num_atoms_per_group_.resize(num_groups_);
     group_per_atom_cpu_.resize(num_atoms_);
     group_per_atom_gpu_.resize(num_atoms_);
-    
-    for (int i=0; i<num_groups_; i++) {
+
+    for (int i = 0; i < num_groups_; i++) {
       int atoms_in_group = groups[grouping_method_].cpu_size[i];
       int group_offset = groups[grouping_method_].cpu_size_sum[i];
       num_atoms_per_group_[i] = atoms_in_group;
 
-      for (int j=0; j<atoms_in_group; j++) {
+      for (int j = 0; j < atoms_in_group; j++) {
         int atom_id = groups[grouping_method_].cpu_contents[group_offset + j];
         group_per_atom_cpu_[atom_id] = i;
       }
     }
     group_per_atom_gpu_.copy_from_host(group_per_atom_cpu_.data());
-    
+
   } else {
     num_atoms_per_group_.resize(1);
     num_atoms_ = groups[grouping_method_].cpu_size[group_id_];
     num_groups_ = 1;
     num_atoms_per_group_[0] = num_atoms_;
   }
-  
+
   dt_in_natural_units_ = time_step * sample_interval_;
   dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
   for (int i = 0; i < 9; ++i)
@@ -365,25 +365,24 @@ void MSD::end_of_step(
   }
 }
 
-
 void MSD::write(const char* filename)
 {
   CHECK(gpuDeviceSynchronize()); // needed for pre-Pascal GPU
-    
+
   std::vector<double> sdc_x(num_correlation_steps_ * num_groups_, 0.0);
   std::vector<double> sdc_y(num_correlation_steps_ * num_groups_, 0.0);
   std::vector<double> sdc_z(num_correlation_steps_ * num_groups_, 0.0);
 
   // normalize by the number of atoms and number of time origins
-  for (int group_id=0; group_id < num_groups_; group_id++) {
+  for (int group_id = 0; group_id < num_groups_; group_id++) {
     int num_atoms = num_atoms_per_group_[group_id];
-    
+
     // This is the case for empty groups and if the msd has yet to be computed
     double msd_scaler = 0.0;
     if (num_atoms > 0 && num_time_origins_ > 0) {
       // num_time_origins_ should be different for each nc
       msd_scaler = 1.0 / ((double)num_atoms * (double)num_time_origins_);
-    } 
+    }
 
     int group_index = group_id * num_correlation_steps_;
     for (int nc = group_index + 0; nc < group_index + num_correlation_steps_; nc++) {
@@ -418,11 +417,18 @@ void MSD::write(const char* filename)
   for (int g = 0; g < num_groups_; ++g)
     fprintf(fid, " %d", num_atoms_per_group_[g]);
   fprintf(fid, "\n");
-  fprintf(fid,
+  fprintf(
+    fid,
     "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
-    cpu_h_[0], cpu_h_[3], cpu_h_[6],
-    cpu_h_[1], cpu_h_[4], cpu_h_[7],
-    cpu_h_[2], cpu_h_[5], cpu_h_[8]);
+    cpu_h_[0],
+    cpu_h_[3],
+    cpu_h_[6],
+    cpu_h_[1],
+    cpu_h_[4],
+    cpu_h_[7],
+    cpu_h_[2],
+    cpu_h_[5],
+    cpu_h_[8]);
   fprintf(fid, "# dt_output %.10e ps\n", dt_in_ps_);
   fprintf(fid, "# columns time_ps");
   if (!msd_over_all_groups_) {
@@ -451,8 +457,6 @@ void MSD::write(const char* filename)
   fflush(fid);
   fclose(fid);
 }
-
-
 
 void MSD::post_run(
   Atom& atom,

@@ -29,10 +29,7 @@ public:
   Ensemble_MTTK(void);
 
   void initialize_run(
-    const double time_step,
-    Atom& atom,
-    Box& box,
-    const std::vector<Group>& group) override;
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
 
   void initialize_before_first_step(
     const double time_step,
@@ -66,15 +63,9 @@ public:
 protected:
   void initialize_nose_hoover_chains();
   virtual void init_mttk(
-    const std::vector<Group>& group,
-    const Box& box,
-    const Atom& atom,
-    GPU_Vector<double>& thermo);
+    const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo);
   void nhc_temp_integrate(
-    const std::vector<Group>& group,
-    const Box& box,
-    Atom& atom,
-    GPU_Vector<double>& thermo);
+    const std::vector<Group>& group, const Box& box, Atom& atom, GPU_Vector<double>& thermo);
   void nhc_press_integrate(const Atom& atom);
   virtual void get_target_temp(
     const int step,
@@ -93,29 +84,17 @@ protected:
   double get_delta(const int step, const int number_of_steps);
   void get_sigma(const int step, const Box& box);
   double find_current_temperature(
-    const std::vector<Group>& group,
-    const Box& box,
-    const Atom& atom,
-    GPU_Vector<double>& thermo);
+    const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo);
   void find_current_pressure(
-    const std::vector<Group>& group,
-    const Box& box,
-    const Atom& atom,
-    GPU_Vector<double>& thermo);
+    const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo);
   void find_thermo(
-    const std::vector<Group>& group,
-    const Box& box,
-    const Atom& atom,
-    GPU_Vector<double>& thermo);
+    const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo);
   void get_h_matrix_from_box(Box& box);
   void copy_h_matrix_to_box(Box& box);
   void get_p_hydro();
   void get_deviatoric();
   void nh_omega_dot(
-    const std::vector<Group>& group,
-    const Box& box,
-    const Atom& atom,
-    GPU_Vector<double>& thermo);
+    const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo);
   void propagate_box(Box& box, Atom& atom);
   void propagate_box_off_diagonal();
   void propagate_box_diagonal();

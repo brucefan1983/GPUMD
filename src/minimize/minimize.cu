@@ -21,12 +21,12 @@ Major contributors:
 ------------------------------------------------------------------------------*/
 
 #include "force/force.cuh"
-#include "model/atom.cuh"
 #include "minimize.cuh"
 #include "minimizer_fire.cuh"
 #include "minimizer_fire_box_change.cuh"
 #include "minimizer_sd.cuh"
 #include "minimizer_spin_fire.cuh"
+#include "model/atom.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
@@ -119,8 +119,12 @@ void Minimize::parse_minimize(
       printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
       printf("    for maximally %d steps.\n", number_of_steps);
 
-      minimizer.reset(
-        new Minimizer_SD(fixed_group, fixed_grouping_method, atom.number_of_atoms, number_of_steps, force_tolerance));
+      minimizer.reset(new Minimizer_SD(
+        fixed_group,
+        fixed_grouping_method,
+        atom.number_of_atoms,
+        number_of_steps,
+        force_tolerance));
 
       minimizer->compute(force, box, atom, atom.position_per_atom, group);
 

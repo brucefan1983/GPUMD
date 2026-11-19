@@ -27,9 +27,9 @@ Major contributors:
 #include "nep_charge_vdw.cuh"
 #include "nep_charge_vdw_small_box.cuh"
 #include "utilities/common.cuh"
-#include "utilities/nep_io/compact_nep.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_io/compact_nep.cuh"
 #include "utilities/nep_io/nep_model_file.cuh"
 #include "utilities/nep_utilities.cuh"
 #include "utilities/nep_vdw_parameters.cuh"
@@ -270,8 +270,7 @@ NEP_Charge_VDW::NEP_Charge_VDW(
   // Native model files already store descriptor parameters in type-pair-major order.
   nep_data.parameters.resize(annmb.num_para + annmb.dim);
   nep_data.parameters.copy_from_host(model.parameters.data(), model.parameters.size());
-  nep_data.parameters.copy_from_host(
-    model.q_scaler.data(), model.q_scaler.size(), annmb.num_para);
+  nep_data.parameters.copy_from_host(model.q_scaler.data(), model.q_scaler.size(), annmb.num_para);
   update_potential(nep_data.parameters.data(), annmb);
   annmb.q_scaler = nep_data.parameters.data() + annmb.num_para;
   nep_data.energy_reference.resize(model.energy_reference.size());

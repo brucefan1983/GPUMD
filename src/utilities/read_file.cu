@@ -22,11 +22,11 @@ Major contributors:
 ------------------------------------------------------------------------------*/
 
 #include "error.cuh"
-#include "utilities/nep_io/nep_file.cuh"
 #include "read_file.cuh"
+#include "utilities/nep_io/nep_file.cuh"
+#include <cstring>
 #include <ctype.h>
 #include <errno.h>
-#include <cstring>
 #include <fstream>
 
 int is_valid_int(const char* s, int* result)
@@ -46,10 +46,7 @@ int is_valid_int(const char* s, int* result)
   }
 }
 
-int is_valid_int(const std::string& s, int* result)
-{
-  return is_valid_int(s.c_str(), result);
-}
+int is_valid_int(const std::string& s, int* result) { return is_valid_int(s.c_str(), result); }
 
 int is_valid_real(const char* s, double* result)
 {
@@ -68,10 +65,7 @@ int is_valid_real(const char* s, double* result)
   }
 }
 
-int is_valid_real(const std::string& s, double* result)
-{
-  return is_valid_real(s.c_str(), result);
-}
+int is_valid_real(const std::string& s, double* result) { return is_valid_real(s.c_str(), result); }
 
 bool is_nep_charge_potential(const std::string& potential_file_name)
 {

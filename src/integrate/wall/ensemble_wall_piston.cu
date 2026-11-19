@@ -135,12 +135,7 @@ void Ensemble_wall_piston::init(Box& box, Atom& atom)
 }
 
 void Ensemble_wall_piston::initialize_before_first_step(
-  const double,
-  const int,
-  const std::vector<Group>&,
-  Box& box,
-  Atom& atom,
-  GPU_Vector<double>&)
+  const double, const int, const std::vector<Group>&, Box& box, Atom& atom, GPU_Vector<double>&)
 {
   init(box, atom);
 }

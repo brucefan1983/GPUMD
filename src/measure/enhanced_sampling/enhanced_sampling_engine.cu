@@ -28,9 +28,7 @@ Major contributors:
 #include <utility>
 
 static __global__ void gpu_enhanced_sampling_sum_potential(
-  const int number_of_atoms,
-  const double* g_potential,
-  double* g_sum)
+  const int number_of_atoms, const double* g_potential, double* g_sum)
 {
   const int number_of_rounds = (number_of_atoms - 1) / 1024 + 1;
   __shared__ double s_sum[1024];
@@ -57,9 +55,7 @@ static __global__ void gpu_enhanced_sampling_sum_potential(
 }
 
 static __global__ void gpu_enhanced_sampling_sum_bias_energy(
-  const int number_of_biases,
-  const double* g_bias_energies,
-  double* g_total_bias_energy)
+  const int number_of_biases, const double* g_bias_energies, double* g_total_bias_energy)
 {
   if (blockIdx.x == 0 && threadIdx.x == 0) {
     double sum = 0.0;
@@ -71,9 +67,7 @@ static __global__ void gpu_enhanced_sampling_sum_bias_energy(
 }
 
 static __global__ void gpu_enhanced_sampling_add_bias_energy(
-  const int number_of_atoms,
-  const double* g_total_bias_energy,
-  double* g_potential)
+  const int number_of_atoms, const double* g_total_bias_energy, double* g_potential)
 {
   const int atom_index = blockIdx.x * blockDim.x + threadIdx.x;
   if (atom_index < number_of_atoms) {
@@ -81,8 +75,7 @@ static __global__ void gpu_enhanced_sampling_add_bias_energy(
   }
 }
 
-EnhancedSamplingEngine::EnhancedSamplingEngine()
-  : number_of_atoms_(0), cpu_total_bias_energy_(0.0)
+EnhancedSamplingEngine::EnhancedSamplingEngine() : number_of_atoms_(0), cpu_total_bias_energy_(0.0)
 {
   for (int component = 0; component < 9; ++component) {
     cpu_total_bias_virial_[component] = 0.0;
@@ -115,8 +108,7 @@ void EnhancedSamplingEngine::add_bias(std::unique_ptr<EnhancedSamplingBias> bias
     PRINT_INPUT_ERROR("Bias names must be unique.\n");
   }
   if (
-    bias->get_argument_index() < 0 ||
-    bias->get_argument_index() >= static_cast<int>(cvs_.size())) {
+    bias->get_argument_index() < 0 || bias->get_argument_index() >= static_cast<int>(cvs_.size())) {
     PRINT_INPUT_ERROR("A bias refers to an undefined collective variable.\n");
   }
   const int index = static_cast<int>(biases_.size());
@@ -143,10 +135,7 @@ int EnhancedSamplingEngine::get_cv_index(const std::string& name) const
   return iterator->second;
 }
 
-int EnhancedSamplingEngine::get_number_of_cvs() const
-{
-  return static_cast<int>(cvs_.size());
-}
+int EnhancedSamplingEngine::get_number_of_cvs() const { return static_cast<int>(cvs_.size()); }
 
 int EnhancedSamplingEngine::get_number_of_biases() const
 {
@@ -184,16 +173,11 @@ void EnhancedSamplingEngine::prepare(const int number_of_atoms)
   cpu_bias_derivatives_.resize(biases_.size());
 }
 
-void EnhancedSamplingEngine::calculate(
-  const Box& box,
-  Atom& atom,
-  const bool collect_output_energy)
+void EnhancedSamplingEngine::calculate(const Box& box, Atom& atom, const bool collect_output_energy)
 {
   if (collect_output_energy) {
     gpu_enhanced_sampling_sum_potential<<<1, 1024>>>(
-      number_of_atoms_,
-      atom.potential_per_atom.data(),
-      potential_before_after_.data());
+      number_of_atoms_, atom.potential_per_atom.data(), potential_before_after_.data());
     GPU_CHECK_KERNEL
   }
 
@@ -201,10 +185,7 @@ void EnhancedSamplingEngine::calculate(
   total_bias_virial_.fill(0.0);
 
   for (int cv_index = 0; cv_index < cvs_.size(); ++cv_index) {
-    cvs_[cv_index]->compute(
-      box,
-      atom.position_per_atom,
-      cv_values_.data() + cv_index);
+    cvs_[cv_index]->compute(box, atom.position_per_atom, cv_values_.data() + cv_index);
   }
 
   // These kernels are launched in the default stream. Their order is what
@@ -218,9 +199,7 @@ void EnhancedSamplingEngine::calculate(
   }
 
   gpu_enhanced_sampling_sum_bias_energy<<<1, 1>>>(
-    static_cast<int>(biases_.size()),
-    bias_energies_.data(),
-    total_bias_energy_.data());
+    static_cast<int>(biases_.size()), bias_energies_.data(), total_bias_energy_.data());
   GPU_CHECK_KERNEL
 
   for (int cv_index = 0; cv_index < cvs_.size(); ++cv_index) {
@@ -234,16 +213,12 @@ void EnhancedSamplingEngine::calculate(
   const int block_size = 128;
   const int grid_size = (number_of_atoms_ - 1) / block_size + 1;
   gpu_enhanced_sampling_add_bias_energy<<<grid_size, block_size>>>(
-    number_of_atoms_,
-    total_bias_energy_.data(),
-    atom.potential_per_atom.data());
+    number_of_atoms_, total_bias_energy_.data(), atom.potential_per_atom.data());
   GPU_CHECK_KERNEL
 
   if (collect_output_energy) {
     gpu_enhanced_sampling_sum_potential<<<1, 1024>>>(
-      number_of_atoms_,
-      atom.potential_per_atom.data(),
-      potential_before_after_.data() + 1);
+      number_of_atoms_, atom.potential_per_atom.data(), potential_before_after_.data() + 1);
     GPU_CHECK_KERNEL
   }
 }
@@ -259,9 +234,7 @@ void EnhancedSamplingEngine::write_header(FILE* fid) const
 {
   fprintf(fid, "# enhanced_sampling\n");
   fprintf(fid, "# format_version 1\n");
-  fprintf(
-    fid,
-    "# units distance=A energy=eV derivative=eV/A virial=eV\n");
+  fprintf(fid, "# units distance=A energy=eV derivative=eV/A virial=eV\n");
   fprintf(fid, "# columns step");
   for (int cv_index = 0; cv_index < cvs_.size(); ++cv_index) {
     fprintf(fid, " cv_%s", cvs_[cv_index]->get_name().c_str());

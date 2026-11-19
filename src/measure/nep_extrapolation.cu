@@ -23,12 +23,12 @@ Major contributors:
   Shuning Pan: NEP extrapolation grades.
 ------------------------------------------------------------------------------*/
 
-#include "nep_extrapolation.cuh"
 #include "model/atom.cuh"
+#include "nep_extrapolation.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include "utilities/nep_utilities.cuh"
 #include "utilities/nep_io/nep_model_file.cuh"
+#include "utilities/nep_utilities.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
 #include <fstream>
@@ -72,7 +72,6 @@ static __device__ void apply_ann_one_layer(
   }
   energy -= b1[0];
 }
-
 
 #include "nep_extrapolation_small_box.cuh"
 
@@ -217,10 +216,21 @@ static __global__ void find_descriptor(
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
       find_q(
-        paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
-        paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+        paramb.L_max,
+        paramb.has_q_222,
+        paramb.has_q_1111,
+        paramb.has_q_112,
+        paramb.has_q_123,
+        paramb.has_q_233,
+        paramb.has_q_134,
+        paramb.n_max_angular + 1,
+        n,
+        s,
+        q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        g_sum_fxyz[static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1] = s[abc];
+        g_sum_fxyz
+          [static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) +
+           n1] = s[abc];
       }
     }
 
@@ -324,7 +334,6 @@ static bool get_expanded_box(const double rc, const Box& box, NEP_Extrapolation:
   return is_small_box;
 }
 
-
 NEP_Extrapolation::NEP_Extrapolation(const char* file_potential, const Atom& atom)
   : num_atoms_(atom.number_of_atoms)
 {
@@ -338,8 +347,7 @@ NEP_Extrapolation::NEP_Extrapolation(const char* file_potential, const Atom& ato
   if (!model.read(input, error) || !model.validate_md(error)) {
     PRINT_INPUT_ERROR(error.c_str());
   }
-  if (
-    model.name != "nep" && model.name != "nep_dipole" && model.name != "nep_polarizability") {
+  if (model.name != "nep" && model.name != "nep_dipole" && model.name != "nep_polarizability") {
     PRINT_INPUT_ERROR(
       "compute_extrapolation supports model nep, nep_dipole or nep_polarizability.");
   }
@@ -395,8 +403,7 @@ NEP_Extrapolation::NEP_Extrapolation(const char* file_potential, const Atom& ato
   // Store ANN parameters, type-pair-major descriptor coefficients and scalers in one buffer.
   data_.parameters.resize(annmb_.num_para + annmb_.dim);
   data_.parameters.copy_from_host(model.parameters.data(), model.parameters.size());
-  data_.parameters.copy_from_host(
-    model.q_scaler.data(), model.q_scaler.size(), annmb_.num_para);
+  data_.parameters.copy_from_host(model.q_scaler.data(), model.q_scaler.size(), annmb_.num_para);
   update_potential(data_.parameters.data());
   annmb_.q_scaler = data_.parameters.data() + annmb_.num_para;
 
@@ -430,7 +437,6 @@ void NEP_Extrapolation::update_potential(float* parameters)
   annmb_.b1 = pointer;
   annmb_.c_type_pair = parameters + annmb_.num_para_ann;
 }
-
 
 void NEP_Extrapolation::compute_large_box(Box& box, const GPU_Vector<double>& position)
 {

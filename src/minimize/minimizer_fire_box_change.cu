@@ -264,7 +264,13 @@ void Minimizer_FIRE_Box_Change::compute(
   for (int step = 0; step < number_of_steps_; ++step) {
 
     force.compute(
-      box, position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
+      box,
+      position_per_atom,
+      atom.type,
+      group,
+      atom.potential_per_atom,
+      atom.force_per_atom,
+      atom.virial_per_atom);
 
     gpu_sum_virial<<<9, 1024>>>(
       number_of_atoms_,
@@ -312,7 +318,10 @@ void Minimizer_FIRE_Box_Change::compute(
     }
 
     gpuMemcpy(
-      force_temp.data(), atom.force_per_atom.data(), size * sizeof(double), gpuMemcpyDeviceToDevice);
+      force_temp.data(),
+      atom.force_per_atom.data(),
+      size * sizeof(double),
+      gpuMemcpyDeviceToDevice);
     gpuMemcpy(force_temp.data() + size, virial_cpu, 9 * sizeof(double), gpuMemcpyHostToDevice);
 
     calculate_force_square_max(atom.force_per_atom);

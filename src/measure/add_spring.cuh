@@ -22,10 +22,7 @@
 class Add_Spring : public Action
 {
 public:
-  Add_Spring(
-    const std::vector<std::string>& tokens,
-    const std::vector<Group>& groups,
-    Atom& atom);
+  Add_Spring(const std::vector<std::string>& tokens, const std::vector<Group>& groups, Atom& atom);
   ~Add_Spring() override;
 
   void setup_force(
@@ -54,16 +51,9 @@ public:
     const double temperature) override;
 
 private:
-  enum SpringMode {
-    MODE_GHOST_COM = 0,
-    MODE_GHOST_ATOM = 1,
-    MODE_COM_COM = 2
-  };
+  enum SpringMode { MODE_GHOST_COM = 0, MODE_GHOST_ATOM = 1, MODE_COM_COM = 2 };
 
-  enum StiffnessMode {
-    STIFFNESS_COUPLE = 0,
-    STIFFNESS_DECOUPLE = 1
-  };
+  enum StiffnessMode { STIFFNESS_COUPLE = 0, STIFFNESS_DECOUPLE = 1 };
 
   void save_restart();
   void load_restart();

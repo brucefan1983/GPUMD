@@ -100,7 +100,7 @@ public:
   using ExpandedBox = Replica_Expanded_Box;
   using Small_Box_Data = Replica_Small_Box_Data;
 
-  double rc = 0.0;         // largest cutoff
+  double rc = 0.0; // largest cutoff
 
   // Reads the model; verbose prints the model information.
   NEP_Replica_Model(const char* file_potential, const bool verbose);

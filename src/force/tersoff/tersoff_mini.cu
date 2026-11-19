@@ -339,11 +339,7 @@ void Tersoff_mini::compute(
   neighbor_manager.update(box, type, position_per_atom);
 
   neighbor_manager.find_local_neighbor(
-    rc,
-    box, 
-    position_per_atom,
-    tersoff_mini_data.NN,
-    tersoff_mini_data.NL);
+    rc, box, position_per_atom, tersoff_mini_data.NN, tersoff_mini_data.NL);
 
   // pre-compute the bond order functions and their derivatives
   find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(

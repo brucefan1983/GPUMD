@@ -25,8 +25,8 @@ Major contributors:
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
-#include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 

@@ -14,10 +14,10 @@
 */
 
 #pragma once
+#include "gradients.cuh"
 #include "potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "gradients.cuh"
 #include <memory>
 #include <vector>
 class Parameters;
@@ -34,13 +34,13 @@ struct GNEP_Data {
   GPU_Vector<float> x12_angular;
   GPU_Vector<float> y12_angular;
   GPU_Vector<float> z12_angular;
-  GPU_Vector<float> descriptors; // descriptors
-  GPU_Vector<float> Fp;          // gradient of descriptors
-  GPU_Vector<float> Fp2;         // second gradient of descriptors
-  GPU_Vector<float> sum_fxyz;  // Snlm
-  GPU_Vector<float> sum_s2xyz; // Snlm_xyz
+  GPU_Vector<float> descriptors;  // descriptors
+  GPU_Vector<float> Fp;           // gradient of descriptors
+  GPU_Vector<float> Fp2;          // second gradient of descriptors
+  GPU_Vector<float> sum_fxyz;     // Snlm
+  GPU_Vector<float> sum_s2xyz;    // Snlm_xyz
   GPU_Vector<float> sum_s2xyz123; // Snlm_xyz * xyz
-  GPU_Vector<float> parameters; // parameters to be optimized
+  GPU_Vector<float> parameters;   // parameters to be optimized
 };
 
 struct GNEPDeviceCapacity {
@@ -73,10 +73,10 @@ public:
   };
 
   struct ANN {
-    int dim = 0;                    // dimension of the descriptor
-    int num_neurons1 = 0;           // number of neurons in the hidden layer
-    int num_ann = 0;                // number of ANN
-    int num_para = 0;               // number of parameters
+    int dim = 0;                   // dimension of the descriptor
+    int num_neurons1 = 0;          // number of neurons in the hidden layer
+    int num_ann = 0;               // number of ANN
+    int num_para = 0;              // number of parameters
     const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
     const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
     const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
@@ -102,9 +102,7 @@ public:
     Gradients gradients;
   };
 
-  GNEP(
-    Parameters& para,
-    const std::vector<GNEPDeviceCapacity>& capacities);
+  GNEP(Parameters& para, const std::vector<GNEPDeviceCapacity>& capacities);
   void find_force(
     Parameters& para,
     const float* parameters,

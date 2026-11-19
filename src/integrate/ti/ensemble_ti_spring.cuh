@@ -52,14 +52,10 @@ public:
     Force& force) override;
 
   void find_thermo(
-    const Box& box,
-    const std::vector<Group>& group,
-    const Atom& atom,
-    GPU_Vector<double>& thermo);
+    const Box& box, const std::vector<Group>& group, const Atom& atom, GPU_Vector<double>& thermo);
   double get_espring_sum(const int number_of_atoms);
   void add_spring_force(const Box& box, Atom& atom);
-  void init(
-    const int number_of_steps, const Atom& atom, const GPU_Vector<double>& thermo);
+  void init(const int number_of_steps, const Atom& atom, const GPU_Vector<double>& thermo);
   void find_lambda(
     const int step,
     const Box& box,

@@ -15,16 +15,10 @@
 
 #pragma once
 static __device__ __forceinline__ void apply_scalar_ann_jit(
-  const float* parameters,
-  const int set_offset,
-  const int type,
-  float* q,
-  float& F,
-  float* Fp)
+  const float* parameters, const int set_offset, const int type, float* q, float& F, float* Fp)
 {
   const float* wb = parameters + set_offset + type * ONE_ANN_NO_BIAS_JIT;
-  const float* b =
-    parameters + set_offset + NUM_TYPES_JIT * ONE_ANN_NO_BIAS_JIT;
+  const float* b = parameters + set_offset + NUM_TYPES_JIT * ONE_ANN_NO_BIAS_JIT;
 
   if (NUM_HIDDEN_LAYERS_JIT == 2) {
     apply_ann_two_layers(
@@ -35,8 +29,7 @@ static __device__ __forceinline__ void apply_scalar_ann_jit(
       wb + NUM_NEURONS1_JIT * ANN_DIM_JIT,
       wb + NUM_NEURONS1_JIT * (ANN_DIM_JIT + 1),
       wb + NUM_NEURONS1_JIT * (ANN_DIM_JIT + 1 + NUM_NEURONS2_JIT),
-      wb + NUM_NEURONS1_JIT * (ANN_DIM_JIT + 1 + NUM_NEURONS2_JIT) +
-        NUM_NEURONS2_JIT,
+      wb + NUM_NEURONS1_JIT * (ANN_DIM_JIT + 1 + NUM_NEURONS2_JIT) + NUM_NEURONS2_JIT,
       b,
       q,
       F,
@@ -65,7 +58,8 @@ static __global__ void ann_nep_jit(
   float* Fp_out)
 {
   const int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 >= N) return;
+  if (n1 >= N)
+    return;
 
   const int t = (NUM_TYPES_JIT == 1) ? 0 : type[n1];
   float q[ANN_DIM_JIT] = {0.0f};
@@ -96,7 +90,6 @@ extern "C" int nep_train_launch_ann_nep(
 {
   const int block_size = 32;
   const int grid_size = (N - 1) / block_size + 1;
-  ann_nep_jit<<<grid_size, block_size>>>(
-    N, type, descriptors, q_scaler, parameters, pe, Fp);
+  ann_nep_jit<<<grid_size, block_size>>>(N, type, descriptors, q_scaler, parameters, pe, Fp);
   return static_cast<int>(cudaGetLastError());
 }

@@ -29,15 +29,15 @@ struct NEP_Charge_Labels {
 class NEP_Charge_Dataset
 {
 public:
-  GPU_Vector<float> charge;      // calculated charge in GPU
-  GPU_Vector<float> charge_shifted;      // shifted charge in GPU
-  GPU_Vector<float> bec;         // Born effective charge in GPU
-  std::vector<float> charge_cpu;  // calculated charge in CPU
-  std::vector<float> bec_cpu;     // calculated BEC in CPU
-  GPU_Vector<float> charge_ref_gpu;       // reference charge in GPU
-  GPU_Vector<float> bec_ref_gpu;          // reference BEC in GPU
-  std::vector<float> charge_ref_cpu;      // reference charge in CPU
-  std::vector<float> bec_ref_cpu;         // reference BEC in CPU
+  GPU_Vector<float> charge;          // calculated charge in GPU
+  GPU_Vector<float> charge_shifted;  // shifted charge in GPU
+  GPU_Vector<float> bec;             // Born effective charge in GPU
+  std::vector<float> charge_cpu;     // calculated charge in CPU
+  std::vector<float> bec_cpu;        // calculated BEC in CPU
+  GPU_Vector<float> charge_ref_gpu;  // reference charge in GPU
+  GPU_Vector<float> bec_ref_gpu;     // reference BEC in GPU
+  std::vector<float> charge_ref_cpu; // reference charge in CPU
+  std::vector<float> bec_ref_cpu;    // reference BEC in CPU
 
   std::vector<bool> has_bec;
 
@@ -47,6 +47,8 @@ public:
 };
 
 void copy_nep_charge_predictions(NEP_Charge_Dataset& data, bool has_bec);
-void write_nep_charge_predictions(const std::string& label,
+void write_nep_charge_predictions(
+  const std::string& label,
   const std::vector<std::pair<Dataset*, int>>& structures,
-  NEP_Batch_Data<NEP_Charge_Dataset>& charge_data, bool has_bec);
+  NEP_Batch_Data<NEP_Charge_Dataset>& charge_data,
+  bool has_bec);

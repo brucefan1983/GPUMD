@@ -16,8 +16,8 @@
 #pragma once
 
 #ifdef USE_HIP // HIP for AMD card
-#include <hipfft/hipfft.h>
 #include <hip/hip_runtime.h>
+#include <hipfft/hipfft.h>
 
 // memory manipulation
 #define gpuMalloc hipMalloc
@@ -115,7 +115,7 @@
 #define gpufftHandle hipfftHandle
 #define gpufftComplex hipfftComplex
 #define gpufftExecC2C hipfftExecC2C
-#define gpufftPlan3d hipfftPlan3d 
+#define gpufftPlan3d hipfftPlan3d
 #define gpufftPlanMany hipfftPlanMany
 #define gpufftDestroy hipfftDestroy
 #define gpufftSetStream hipfftSetStream
@@ -225,7 +225,7 @@
 #define gpufftHandle cufftHandle
 #define gpufftComplex cufftComplex
 #define gpufftExecC2C cufftExecC2C
-#define gpufftPlan3d cufftPlan3d 
+#define gpufftPlan3d cufftPlan3d
 #define gpufftPlanMany cufftPlanMany
 #define gpufftDestroy cufftDestroy
 #define gpufftSetStream cufftSetStream

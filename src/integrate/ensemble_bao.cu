@@ -32,10 +32,7 @@ Major contributors:
 #include <cstdlib>
 #include <cstring>
 
-Ensemble_BAO::Ensemble_BAO(const std::vector<std::string>& tokens)
-{
-  parse(tokens);
-}
+Ensemble_BAO::Ensemble_BAO(const std::vector<std::string>& tokens) { parse(tokens); }
 
 void Ensemble_BAO::parse(const std::vector<std::string>& tokens)
 {
@@ -75,18 +72,11 @@ void Ensemble_BAO::parse(const std::vector<std::string>& tokens)
   printf("    tau_T is %g time_step.\n", temperature_coupling);
 }
 
-double Ensemble_BAO::get_temperature1() const
-{
-  return temperature1_;
-}
+double Ensemble_BAO::get_temperature1() const { return temperature1_; }
 
-double Ensemble_BAO::get_temperature2() const
-{
-  return temperature2_;
-}
+double Ensemble_BAO::get_temperature2() const { return temperature2_; }
 
-void Ensemble_BAO::initialize_run(
-  const double, Atom& atom, Box&, const std::vector<Group>&)
+void Ensemble_BAO::initialize_run(const double, Atom& atom, Box&, const std::vector<Group>&)
 {
   if (type != EnsembleType::NVT_BAO) {
     return;
@@ -97,8 +87,7 @@ void Ensemble_BAO::initialize_run(
   const int number_of_atoms = atom.number_of_atoms;
   curand_states.resize(number_of_atoms);
   int grid_size = (number_of_atoms - 1) / 128 + 1;
-  initialize_curand_states<<<grid_size, 128>>>(
-    curand_states.data(), number_of_atoms, rand());
+  initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), number_of_atoms, rand());
   GPU_CHECK_KERNEL
 }
 

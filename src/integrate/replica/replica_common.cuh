@@ -26,8 +26,8 @@
 #include <condition_variable>
 #include <cstdio>
 #include <fstream>
-#include <istream>
 #include <functional>
+#include <istream>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -68,12 +68,9 @@ bool values_match(double first, double second);
 bool file_has_content(const std::string& filename);
 std::string trim_left(const std::string& value);
 unsigned long long hash_file(const std::string& filename);
-bool extract_quoted_value(
-  const std::string& line, const std::string& key, std::string& value);
-bool extract_token_value(
-  const std::string& line, const std::string& key, std::string& value);
-void validate_xyz_box(
-  const std::string& comment, const Box& reference, const char* mode);
+bool extract_quoted_value(const std::string& line, const std::string& key, std::string& value);
+bool extract_token_value(const std::string& line, const std::string& key, std::string& value);
+void validate_xyz_box(const std::string& comment, const Box& reference, const char* mode);
 
 // Replica restart xyz files store velocities as vel in A/fs. Older files with
 // an additional vel_natural property are accepted, using that internal-unit value.
@@ -193,10 +190,8 @@ public:
 
   void save(Replica_Slot& slot);
   void restore(Replica_Slot& slot);
-  void copy_position_to_host(
-    GPU_Pinned_Vector<double>& host_position, Replica_Slot& slot);
-  void copy_position_from_host(
-    const GPU_Pinned_Vector<double>& host_position, Replica_Slot& slot);
+  void copy_position_to_host(GPU_Pinned_Vector<double>& host_position, Replica_Slot& slot);
+  void copy_position_from_host(const GPU_Pinned_Vector<double>& host_position, Replica_Slot& slot);
 
   const GPU_Vector<double>& position() const { return position_; }
   GPU_Vector<double>& position() { return position_; }
@@ -278,10 +273,8 @@ private:
   void report_batches() const;
   void compute_force(Device_Context& device, Replica_Slot& slot);
   void worker_loop(Device_Context& device);
-  void advance_device(
-    Device_Context& device,
-    const std::vector<unsigned char>& active_slots,
-    int steps);
+  void
+  advance_device(Device_Context& device, const std::vector<unsigned char>& active_slots, int steps);
   void advance(const std::vector<unsigned char>& active_replicas, int steps);
   void compute_forces(const std::vector<unsigned char>& active_replicas);
 };

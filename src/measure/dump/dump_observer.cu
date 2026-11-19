@@ -8,8 +8,8 @@
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details. You should have received a copy of the GNU Lesser General
-   Public License along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details. You should have received a copy of the GNU
+   Lesser General Public License along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
@@ -22,8 +22,8 @@ Major contributors:
 
 #include "dump_observer.cuh"
 #include "dump_thermo.cuh"
-#include "model/box.cuh"
 #include "measure/parse_utilities.cuh"
+#include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"

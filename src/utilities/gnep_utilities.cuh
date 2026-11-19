@@ -15,7 +15,7 @@
 
 /*----------------------------------------------------------------------------80
 1. The Gradient-optimized Neuroevolution Potential (GNEP)
-Ref: Hongfu Huang, Junhao Peng, Kaiqi Li, Jian Zhou, Zhimei Sun, 
+Ref: Hongfu Huang, Junhao Peng, Kaiqi Li, Jian Zhou, Zhimei Sun,
 Efficient GPU-Accelerated Training of a Neuroevolution Potential with Analytical Gradients,
 Computer Physics Communications. 320, 109994 (2026).
 2. The neuroevolution potential (NEP)
@@ -47,34 +47,25 @@ __constant__ float C3B[NUM_OF_ABC] = {
   0.005944996653579f, 0.005944996653579f, 0.104037441437634f, 0.104037441437634f,
   0.762941237209318f, 0.762941237209318f, 0.114441185581398f, 0.114441185581398f,
   5.950941650232678f, 5.950941650232678f, 0.141689086910302f, 0.141689086910302f,
-  4.250672607309055f, 4.250672607309055f, 0.265667037956816f, 0.265667037956816f
-};
+  4.250672607309055f, 4.250672607309055f, 0.265667037956816f, 0.265667037956816f};
 
-__constant__ float Z_COEFFICIENT_1[2][2] = {
-  {0.0f, 1.0f},
-  {1.0f, 0.0f}
-};
+__constant__ float Z_COEFFICIENT_1[2][2] = {{0.0f, 1.0f}, {1.0f, 0.0f}};
 
 __constant__ float Z_COEFFICIENT_2[3][3] = {
-  {-1.0f, 0.0f, 3.0f},
-  {0.0f, 1.0f, 0.0f},
-  {1.0f, 0.0f, 0.0f}
-};
+  {-1.0f, 0.0f, 3.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}};
 
 __constant__ float Z_COEFFICIENT_3[4][4] = {
   {0.0f, -3.0f, 0.0f, 5.0f},
   {-1.0f, 0.0f, 5.0f, 0.0f},
   {0.0f, 1.0f, 0.0f, 0.0f},
-  {1.0f, 0.0f, 0.0f, 0.0f}
-};
+  {1.0f, 0.0f, 0.0f, 0.0f}};
 
 __constant__ float Z_COEFFICIENT_4[5][5] = {
   {3.0f, 0.0f, -30.0f, 0.0f, 35.0f},
   {0.0f, -3.0f, 0.0f, 7.0f, 0.0f},
   {-1.0f, 0.0f, 7.0f, 0.0f, 0.0f},
   {0.0f, 1.0f, 0.0f, 0.0f, 0.0f},
-  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f}
-};
+  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
 
 __constant__ float Z_COEFFICIENT_5[6][6] = {
   {0.0f, 15.0f, 0.0f, -70.0f, 0.0f, 63.0f},
@@ -82,8 +73,7 @@ __constant__ float Z_COEFFICIENT_5[6][6] = {
   {0.0f, -1.0f, 0.0f, 3.0f, 0.0f, 0.0f},
   {-1.0f, 0.0f, 9.0f, 0.0f, 0.0f, 0.0f},
   {0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f},
-  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}
-};
+  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
 
 __constant__ float Z_COEFFICIENT_6[7][7] = {
   {-5.0f, 0.0f, 105.0f, 0.0f, -315.0f, 0.0f, 231.0f},
@@ -92,8 +82,7 @@ __constant__ float Z_COEFFICIENT_6[7][7] = {
   {0.0f, -3.0f, 0.0f, 11.0f, 0.0f, 0.0f, 0.0f},
   {-1.0f, 0.0f, 11.0f, 0.0f, 0.0f, 0.0f, 0.0f},
   {0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
-  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}
-};
+  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
 
 __constant__ float Z_COEFFICIENT_7[8][8] = {
   {0.0f, -35.0f, 0.0f, 315.0f, 0.0f, -693.0f, 0.0f, 429.0f},
@@ -103,8 +92,7 @@ __constant__ float Z_COEFFICIENT_7[8][8] = {
   {0.0f, -3.0f, 0.0f, 13.0f, 0.0f, 0.0f, 0.0f, 0.0f},
   {-1.0f, 0.0f, 13.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
   {0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
-  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}
-};
+  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
 
 __constant__ float Z_COEFFICIENT_8[9][9] = {
   {35.0f, 0.0f, -1260.0f, 0.0f, 6930.0f, 0.0f, -12012.0f, 0.0f, 6435.0f},
@@ -115,8 +103,7 @@ __constant__ float Z_COEFFICIENT_8[9][9] = {
   {0.0f, -1.0f, 0.0f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
   {-1.0f, 0.0f, 15.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
   {0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f},
-  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}
-};
+  {1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f}};
 
 __constant__ float COVALENT_RADIUS[94] = {
   0.426667f, 0.613333f, 1.6f,     1.25333f, 1.02667f, 1.0f,     0.946667f, 0.84f,    0.853333f,
@@ -142,45 +129,52 @@ template <int L>
 static __device__ __forceinline__ float get_z_coefficient(const int n1, const int n2);
 
 template <>
-__device__ __forceinline__ float get_z_coefficient<1>(const int n1, const int n2) {
+__device__ __forceinline__ float get_z_coefficient<1>(const int n1, const int n2)
+{
   return Z_COEFFICIENT_1[n1][n2];
 }
 
 template <>
-__device__ __forceinline__ float get_z_coefficient<2>(const int n1, const int n2) {
+__device__ __forceinline__ float get_z_coefficient<2>(const int n1, const int n2)
+{
   return Z_COEFFICIENT_2[n1][n2];
 }
 
 template <>
-__device__ __forceinline__ float get_z_coefficient<3>(const int n1, const int n2) {
+__device__ __forceinline__ float get_z_coefficient<3>(const int n1, const int n2)
+{
   return Z_COEFFICIENT_3[n1][n2];
 }
 
 template <>
-__device__ __forceinline__ float get_z_coefficient<4>(const int n1, const int n2) {
+__device__ __forceinline__ float get_z_coefficient<4>(const int n1, const int n2)
+{
   return Z_COEFFICIENT_4[n1][n2];
 }
 
 template <>
-__device__ __forceinline__ float get_z_coefficient<5>(const int n1, const int n2) {
+__device__ __forceinline__ float get_z_coefficient<5>(const int n1, const int n2)
+{
   return Z_COEFFICIENT_5[n1][n2];
 }
 
 template <>
-__device__ __forceinline__ float get_z_coefficient<6>(const int n1, const int n2) {
+__device__ __forceinline__ float get_z_coefficient<6>(const int n1, const int n2)
+{
   return Z_COEFFICIENT_6[n1][n2];
 }
 
 template <>
-__device__ __forceinline__ float get_z_coefficient<7>(const int n1, const int n2) {
+__device__ __forceinline__ float get_z_coefficient<7>(const int n1, const int n2)
+{
   return Z_COEFFICIENT_7[n1][n2];
 }
 
 template <>
-__device__ __forceinline__ float get_z_coefficient<8>(const int n1, const int n2) {
+__device__ __forceinline__ float get_z_coefficient<8>(const int n1, const int n2)
+{
   return Z_COEFFICIENT_8[n1][n2];
 }
-
 
 static __device__ __forceinline__ void
 complex_product(const float a, const float b, float& real_part, float& imag_part)
@@ -227,7 +221,7 @@ static __device__ void apply_ann_one_layer_w2nd(
   float& energy,
   float* energy_derivative,
   float* energy_derivative2,
-  float* ep_wb,   // derivative of e_wb_grad w.r.t q[n]
+  float* ep_wb,     // derivative of e_wb_grad w.r.t q[n]
   float* e_wb_grad) // energy w.r.t. w0, b0, w1, b1
 {
   const int offset_b0 = N_des * N_neu;
@@ -240,17 +234,17 @@ static __device__ void apply_ann_one_layer_w2nd(
     }
     const float x1 = tanh(w0_times_q - b0[j]);
     const float tanh_der = 1.0f - x1 * x1;
-    const float tanh_der2 = -2.0f * x1 * tanh_der;  // second derivative of tanh
+    const float tanh_der2 = -2.0f * x1 * tanh_der; // second derivative of tanh
     const float w1j = w1[j];
     const float delta_1 = w1j * tanh_der;
     energy += w1j * x1;
     for (int n = 0; n < N_des; ++n) {
       const int idx_w0 = j_N_des + n;
-      const float w0jn = w0[idx_w0]; 
+      const float w0jn = w0[idx_w0];
       float tmp1 = tanh_der * w0jn; // derivative of tanh w.r.t. q[n]
       float tmp2 = w1j * tanh_der2;
       energy_derivative[n] += w1j * tmp1;
-      ep_wb[(offset_w1 + j) * N_des + n] = tmp1; // derivative of e_wb_grad[w1] w.r.t. q[n]
+      ep_wb[(offset_w1 + j) * N_des + n] = tmp1;         // derivative of e_wb_grad[w1] w.r.t. q[n]
       ep_wb[(offset_b0 + j) * N_des + n] = -tmp2 * w0jn; // derivative of e_wb_grad[b0] w.r.t. q[n]
       // second derivative
       const float tmp2_qn = tmp2 * q[n];
@@ -260,12 +254,12 @@ static __device__ void apply_ann_one_layer_w2nd(
         const float tmp3 = tanh_der2 * w0jn * w0jm;
         energy_derivative2[(n * N_des + m) * N] += w1j * tmp3;
         ep_wb[idx_w0 * N_des + m] = tmp2_qn * w0jm; // derivative of e_wb_grad[w0] w.r.t. q[n]
-        ep_wb[idx_w0 * N_des + m] += (m == n) ? delta_1 : 0.0f; 
+        ep_wb[idx_w0 * N_des + m] += (m == n) ? delta_1 : 0.0f;
       }
       e_wb_grad[idx_w0] += delta_1 * q[n]; // energy w.r.t. w0
     }
     e_wb_grad[offset_b0 + j] -= delta_1; // energy w.r.t. b0
-    e_wb_grad[offset_w1 + j] += x1; // energy w.r.t. w1
+    e_wb_grad[offset_w1 + j] += x1;      // energy w.r.t. w1
     // w0 (N_neu * N_des), b0 (N_neu), w1 (N_neu), b1 (1)
   }
   e_wb_grad[offset_w1 + N_neu] = -1.0f; // energy w.r.t. b1
@@ -540,11 +534,7 @@ static __device__ __forceinline__ void calculate_s_one(
 
 template <int L>
 static __device__ __forceinline__ void calculate_s_one(
-  const int N,
-  const int n,
-  const int n_max_angular_plus_1,
-  const float* sum_fxyz,
-  float* s)
+  const int N, const int n, const int n_max_angular_plus_1, const float* sum_fxyz, float* s)
 {
   const int L_twice_plus_1 = 2 * L + 1;
   const int L_square_minus_1 = L * L - 1;
@@ -678,16 +668,14 @@ static __device__ __forceinline__ void calculate_qc_one(
 
 template <int L>
 static __device__ __forceinline__ void accumulate_f12_one(
-  const float d12inv,
-  const float fn,
-  const float fnp,
-  const float* s,
-  const float* r12,
-  float* f12)
+  const float d12inv, const float fn, const float fnp, const float* s, const float* r12, float* f12)
 {
-  const float dx[3] = {(1.0f - r12[0] * r12[0]) * d12inv, -r12[0] * r12[1] * d12inv, -r12[0] * r12[2] * d12inv};
-  const float dy[3] = {-r12[0] * r12[1] * d12inv, (1.0f - r12[1] * r12[1]) * d12inv, -r12[1] * r12[2] * d12inv};
-  const float dz[3] = {-r12[0] * r12[2] * d12inv, -r12[1] * r12[2] * d12inv, (1.0f - r12[2] * r12[2]) * d12inv};
+  const float dx[3] = {
+    (1.0f - r12[0] * r12[0]) * d12inv, -r12[0] * r12[1] * d12inv, -r12[0] * r12[2] * d12inv};
+  const float dy[3] = {
+    -r12[0] * r12[1] * d12inv, (1.0f - r12[1] * r12[1]) * d12inv, -r12[1] * r12[2] * d12inv};
+  const float dz[3] = {
+    -r12[0] * r12[2] * d12inv, -r12[1] * r12[2] * d12inv, (1.0f - r12[2] * r12[2]) * d12inv};
 
   float z_pow[L + 1] = {1.0f};
   for (int n = 1; n <= L; ++n) {
@@ -745,9 +733,12 @@ static __device__ __forceinline__ void accumulate_f12_one(
   float* f12,
   float* f123)
 {
-  const float dx[3] = {(1.0f - r12[0] * r12[0]) * d12inv, -r12[0] * r12[1] * d12inv, -r12[0] * r12[2] * d12inv};
-  const float dy[3] = {-r12[0] * r12[1] * d12inv, (1.0f - r12[1] * r12[1]) * d12inv, -r12[1] * r12[2] * d12inv};
-  const float dz[3] = {-r12[0] * r12[2] * d12inv, -r12[1] * r12[2] * d12inv, (1.0f - r12[2] * r12[2]) * d12inv};
+  const float dx[3] = {
+    (1.0f - r12[0] * r12[0]) * d12inv, -r12[0] * r12[1] * d12inv, -r12[0] * r12[2] * d12inv};
+  const float dy[3] = {
+    -r12[0] * r12[1] * d12inv, (1.0f - r12[1] * r12[1]) * d12inv, -r12[1] * r12[2] * d12inv};
+  const float dz[3] = {
+    -r12[0] * r12[2] * d12inv, -r12[1] * r12[2] * d12inv, (1.0f - r12[2] * r12[2]) * d12inv};
 
   float z_pow[L + 1] = {1.0f};
   for (int n = 1; n <= L; ++n) {
@@ -774,7 +765,7 @@ static __device__ __forceinline__ void accumulate_f12_one(
         int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
         f12[d] += s[0] * (factor1 * r12[d] + factor2 * dz[d]);
         f123[d] += s[0] * r12_original[d] * (factor1 * r12[d] + factor2 * dz[d]);
-        f123[d1+3] += s[0] * r12_original[d1] * (factor1 * r12[d] + factor2 * dz[d]);
+        f123[d1 + 3] += s[0] * r12_original[d1] * (factor1 * r12[d] + factor2 * dz[d]);
       }
     } else {
       float real_part_n1 = n1 * real_part;
@@ -786,8 +777,10 @@ static __device__ __forceinline__ void accumulate_f12_one(
         float imag_part_dy = dy[d];
         complex_product(real_part_n1, imag_part_n1, real_part_dx, imag_part_dy);
         f12[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn;
-        f123[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn * r12_original[d];
-        f123[d1+3] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn * r12_original[d1];
+        f123[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn *
+                   r12_original[d];
+        f123[d1 + 3] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) *
+                        z_factor_fn * r12_original[d1];
       }
       complex_product(r12[0], r12[1], real_part, imag_part);
       float xy_temp = s[2 * n1 - 1] * real_part + s[2 * n1 - 0] * imag_part;
@@ -797,7 +790,7 @@ static __device__ __forceinline__ void accumulate_f12_one(
         int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
         f12[d] += factor1 * r12[d] + factor2 * dz[d];
         f123[d] += (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d];
-        f123[d1+3] += (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d1];
+        f123[d1 + 3] += (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d1];
       }
     }
   }
@@ -813,9 +806,12 @@ static __device__ __forceinline__ void calculate_fxyz_one(
   const float* r12_original,
   float* f12)
 {
-  const float dx[3] = {(1.0f - r12[0] * r12[0]) * d12inv, -r12[0] * r12[1] * d12inv, -r12[0] * r12[2] * d12inv};
-  const float dy[3] = {-r12[0] * r12[1] * d12inv, (1.0f - r12[1] * r12[1]) * d12inv, -r12[1] * r12[2] * d12inv};
-  const float dz[3] = {-r12[0] * r12[2] * d12inv, -r12[1] * r12[2] * d12inv, (1.0f - r12[2] * r12[2]) * d12inv};
+  const float dx[3] = {
+    (1.0f - r12[0] * r12[0]) * d12inv, -r12[0] * r12[1] * d12inv, -r12[0] * r12[2] * d12inv};
+  const float dy[3] = {
+    -r12[0] * r12[1] * d12inv, (1.0f - r12[1] * r12[1]) * d12inv, -r12[1] * r12[2] * d12inv};
+  const float dz[3] = {
+    -r12[0] * r12[2] * d12inv, -r12[1] * r12[2] * d12inv, (1.0f - r12[2] * r12[2]) * d12inv};
   float z_pow[L + 1] = {1.0f};
   for (int n = 1; n <= L; ++n) {
     z_pow[n] = r12[2] * z_pow[n - 1];
@@ -871,9 +867,12 @@ static __device__ __forceinline__ void calculate_s_i1_one(
   float* s_i1,
   float* sf)
 {
-  const float dx[3] = {(1.0f - r12[0] * r12[0]) * d12inv, -r12[0] * r12[1] * d12inv, -r12[0] * r12[2] * d12inv};
-  const float dy[3] = {-r12[0] * r12[1] * d12inv, (1.0f - r12[1] * r12[1]) * d12inv, -r12[1] * r12[2] * d12inv};
-  const float dz[3] = {-r12[0] * r12[2] * d12inv, -r12[1] * r12[2] * d12inv, (1.0f - r12[2] * r12[2]) * d12inv};
+  const float dx[3] = {
+    (1.0f - r12[0] * r12[0]) * d12inv, -r12[0] * r12[1] * d12inv, -r12[0] * r12[2] * d12inv};
+  const float dy[3] = {
+    -r12[0] * r12[1] * d12inv, (1.0f - r12[1] * r12[1]) * d12inv, -r12[1] * r12[2] * d12inv};
+  const float dz[3] = {
+    -r12[0] * r12[2] * d12inv, -r12[1] * r12[2] * d12inv, (1.0f - r12[2] * r12[2]) * d12inv};
   const int start_index = L * L - 1;
   int s_index = L * L - 1;
   float z_pow[L + 1] = {1.0f};
@@ -931,7 +930,6 @@ static __device__ __forceinline__ void calculate_s_i1_one(
   }
 }
 
-
 static __device__ __forceinline__ void calculate_s_i1(
   const int L_max,
   const float d12_i1,
@@ -943,7 +941,7 @@ static __device__ __forceinline__ void calculate_s_i1(
   float* sum_s2xyz)
 {
   const float d12inv_i1 = 1.0f / d12_i1;
-  const float r12unit_i1[3] = {r12_i1[0]*d12inv_i1, r12_i1[1]*d12inv_i1, r12_i1[2]*d12inv_i1};
+  const float r12unit_i1[3] = {r12_i1[0] * d12inv_i1, r12_i1[1] * d12inv_i1, r12_i1[2] * d12inv_i1};
   if (L_max >= 1) {
     calculate_s_i1_one<1>(d12inv_i1, gn, gnp, sum_fxyz, r12unit_i1, s_i1, sum_s2xyz);
   }
@@ -991,9 +989,12 @@ static __device__ __forceinline__ void accumulate_f12_one(
   float* sf123,
   float* f12)
 {
-  const float dx[3] = {(1.0f - r12[0] * r12[0]) * d12inv, -r12[0] * r12[1] * d12inv, -r12[0] * r12[2] * d12inv};
-  const float dy[3] = {-r12[0] * r12[1] * d12inv, (1.0f - r12[1] * r12[1]) * d12inv, -r12[1] * r12[2] * d12inv};
-  const float dz[3] = {-r12[0] * r12[2] * d12inv, -r12[1] * r12[2] * d12inv, (1.0f - r12[2] * r12[2]) * d12inv};
+  const float dx[3] = {
+    (1.0f - r12[0] * r12[0]) * d12inv, -r12[0] * r12[1] * d12inv, -r12[0] * r12[2] * d12inv};
+  const float dy[3] = {
+    -r12[0] * r12[1] * d12inv, (1.0f - r12[1] * r12[1]) * d12inv, -r12[1] * r12[2] * d12inv};
+  const float dz[3] = {
+    -r12[0] * r12[2] * d12inv, -r12[1] * r12[2] * d12inv, (1.0f - r12[2] * r12[2]) * d12inv};
   const int N_ABC = 3 * NUM_OF_ABC * n_max;
   const int N_ABC123 = 2 * N_ABC;
   const int start_index = L * L - 1;
@@ -1022,8 +1023,10 @@ static __device__ __forceinline__ void accumulate_f12_one(
         int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
         f12[d] += s[0] * (factor1 * r12[d] + factor2 * dz[d]);
         sf[N * (d + 3 * start_index + N_ABC)] += factor1 * r12[d] + factor2 * dz[d];
-        sf123[N * (d + 6 * start_index + N_ABC123)] += (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d];
-        sf123[N * ((d1 + 3) + 6 * start_index + N_ABC123)] += (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d1];
+        sf123[N * (d + 6 * start_index + N_ABC123)] +=
+          (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d];
+        sf123[N * ((d1 + 3) + 6 * start_index + N_ABC123)] +=
+          (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d1];
       }
     } else {
       float real_part_n1 = n1 * real_part;
@@ -1037,7 +1040,7 @@ static __device__ __forceinline__ void accumulate_f12_one(
         int index = N * (d + abc + N_ABC);
         int index123 = N * (d + abc123 + N_ABC123);
         int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
-        int index123_off = N * ((d1 + 3) + abc123 + N_ABC123); 
+        int index123_off = N * ((d1 + 3) + abc123 + N_ABC123);
         complex_product(real_part_n1, imag_part_n1, real_part_dx, imag_part_dy);
         f12[d] += (s[2 * n1 - 1] * real_part_dx + s[2 * n1 - 0] * imag_part_dy) * z_factor_fn;
         sf[index] += real_part_dx * z_factor_fn;
@@ -1055,14 +1058,16 @@ static __device__ __forceinline__ void accumulate_f12_one(
         int index = N * (d + abc + N_ABC);
         int index123 = N * (d + abc123 + N_ABC123);
         int d1 = (d + 2) % 3; // 0 -> 2, 1 -> 0, 2 -> 1
-        int index123_off = N * ((d1 + 3) + abc123 + N_ABC123); 
+        int index123_off = N * ((d1 + 3) + abc123 + N_ABC123);
         f12[d] += xy_temp * (factor1 * r12[d] + factor2 * dz[d]);
         sf[index] += real_part * (factor1 * r12[d] + factor2 * dz[d]);
         sf[index + 3 * N] += imag_part * (factor1 * r12[d] + factor2 * dz[d]);
         sf123[index123] += real_part * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d];
-        sf123[index123 + 6 * N] += imag_part * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d];
+        sf123[index123 + 6 * N] +=
+          imag_part * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d];
         sf123[index123_off] += real_part * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d1];
-        sf123[index123_off + 6 * N] += imag_part * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d1];
+        sf123[index123_off + 6 * N] +=
+          imag_part * (factor1 * r12[d] + factor2 * dz[d]) * r12_original[d1];
       }
     }
   }
@@ -1084,7 +1089,7 @@ static __device__ __forceinline__ void accumulate_dfe(
   float* feat_z)
 {
   const float d12inv = 1.0f / d12;
-  const float r12unit[3] = {r12[0]*d12inv, r12[1]*d12inv, r12[2]*d12inv};
+  const float r12unit[3] = {r12[0] * d12inv, r12[1] * d12inv, r12[2] * d12inv};
   // const int NM_nmax = n_max_angular_plus_1 * NM;
 
   if (L_max >= 1) {
@@ -1185,7 +1190,7 @@ static __device__ __forceinline__ void accumulate_f12(
   float* f12)
 {
   const float d12inv = 1.0f / d12;
-  const float r12unit[3] = {r12[0]*d12inv, r12[1]*d12inv, r12[2]*d12inv};
+  const float r12unit[3] = {r12[0] * d12inv, r12[1] * d12inv, r12[2] * d12inv};
 
   if (L_max >= 1) {
     float s1[3];
@@ -1268,15 +1273,9 @@ static __device__ __forceinline__ void accumulate_f12(
   }
 }
 
-
 template <int L>
 static __device__ __forceinline__ void
-calculate_sc_one(
-  const float x12,
-  const float y12,
-  const float z12,
-  const float fn,
-  float* s)
+calculate_sc_one(const float x12, const float y12, const float z12, const float fn, float* s)
 {
   int s_index = 0;
   float z_pow[L + 1] = {1.0f};
@@ -1321,14 +1320,15 @@ static __device__ __forceinline__ void accumulate_ec(
   float* qp_c123)
 {
   const float d12inv = 1.0f / d12;
-  const float r12unit[3] = {r12[0]*d12inv, r12[1]*d12inv, r12[2]*d12inv};
+  const float r12unit[3] = {r12[0] * d12inv, r12[1] * d12inv, r12[2] * d12inv};
   if (L_max >= 1) {
     float s1[3];
     float sc1[3];
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_sc_one<1>(r12unit[0], r12unit[1], r12unit[2], fn, sc1);
-    calculate_ec_one<1>(N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc1, s1, e_c, f, f123);
+    calculate_ec_one<1>(
+      N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc1, s1, e_c, f, f123);
     accumulate_f12_one<1>(d12inv, fn, fnp, s1, r12unit, r12, f, f123);
     qp_c[0] = f[0];
     qp_c[1] = f[1];
@@ -1347,7 +1347,8 @@ static __device__ __forceinline__ void accumulate_ec(
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_sc_one<2>(r12unit[0], r12unit[1], r12unit[2], fn, sc2);
-    calculate_ec_one<2>(N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc2, s2, e_c, f, f123);
+    calculate_ec_one<2>(
+      N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc2, s2, e_c, f, f123);
     accumulate_f12_one<2>(d12inv, fn, fnp, s2, r12unit, r12, f, f123);
     qp_c[0] += f[0];
     qp_c[1] += f[1];
@@ -1366,7 +1367,8 @@ static __device__ __forceinline__ void accumulate_ec(
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_sc_one<3>(r12unit[0], r12unit[1], r12unit[2], fn, sc3);
-    calculate_ec_one<3>(N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc3, s3, e_c, f, f123);
+    calculate_ec_one<3>(
+      N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc3, s3, e_c, f, f123);
     accumulate_f12_one<3>(d12inv, fn, fnp, s3, r12unit, r12, f, f123);
     qp_c[0] += f[0];
     qp_c[1] += f[1];
@@ -1385,7 +1387,8 @@ static __device__ __forceinline__ void accumulate_ec(
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_sc_one<4>(r12unit[0], r12unit[1], r12unit[2], fn, sc4);
-    calculate_ec_one<4>(N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc4, s4, e_c, f, f123);
+    calculate_ec_one<4>(
+      N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc4, s4, e_c, f, f123);
     accumulate_f12_one<4>(d12inv, fn, fnp, s4, r12unit, r12, f, f123);
     qp_c[0] += f[0];
     qp_c[1] += f[1];
@@ -1404,7 +1407,8 @@ static __device__ __forceinline__ void accumulate_ec(
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_sc_one<5>(r12unit[0], r12unit[1], r12unit[2], fn, sc5);
-    calculate_ec_one<5>(N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc5, s5, e_c, f, f123);
+    calculate_ec_one<5>(
+      N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc5, s5, e_c, f, f123);
     accumulate_f12_one<5>(d12inv, fn, fnp, s5, r12unit, r12, f, f123);
     qp_c[0] += f[0];
     qp_c[1] += f[1];
@@ -1423,7 +1427,8 @@ static __device__ __forceinline__ void accumulate_ec(
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_sc_one<6>(r12unit[0], r12unit[1], r12unit[2], fn, sc6);
-    calculate_ec_one<6>(N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc6, s6, e_c, f, f123);
+    calculate_ec_one<6>(
+      N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc6, s6, e_c, f, f123);
     accumulate_f12_one<6>(d12inv, fn, fnp, s6, r12unit, r12, f, f123);
     qp_c[0] += f[0];
     qp_c[1] += f[1];
@@ -1442,7 +1447,8 @@ static __device__ __forceinline__ void accumulate_ec(
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_sc_one<7>(r12unit[0], r12unit[1], r12unit[2], fn, sc7);
-    calculate_ec_one<7>(N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc7, s7, e_c, f, f123);
+    calculate_ec_one<7>(
+      N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc7, s7, e_c, f, f123);
     accumulate_f12_one<7>(d12inv, fn, fnp, s7, r12unit, r12, f, f123);
     qp_c[0] += f[0];
     qp_c[1] += f[1];
@@ -1461,7 +1467,8 @@ static __device__ __forceinline__ void accumulate_ec(
     float f[3] = {0.0f};
     float f123[6] = {0.0f};
     calculate_sc_one<8>(r12unit[0], r12unit[1], r12unit[2], fn, sc8);
-    calculate_ec_one<8>(N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc8, s8, e_c, f, f123);
+    calculate_ec_one<8>(
+      N, n, n_max_angular_plus_1, Fp, sum_fxyz, sum_s2xyz, sum_s2xyz123, sc8, s8, e_c, f, f123);
     accumulate_f12_one<8>(d12inv, fn, fnp, s8, r12unit, r12, f, f123);
     qp_c[0] += f[0];
     qp_c[1] += f[1];
@@ -1492,7 +1499,7 @@ static __device__ __forceinline__ void accumulate_fc(
   float* qp_c2)
 {
   const float d12inv = 1.0f / d12;
-  const float r12unit[3] = {r12[0]*d12inv, r12[1]*d12inv, r12[2]*d12inv};
+  const float r12unit[3] = {r12[0] * d12inv, r12[1] * d12inv, r12[2] * d12inv};
   if (L_max >= 1) {
     float s1[3];
     float sc1[3];
@@ -1606,8 +1613,8 @@ static __device__ __forceinline__ void accumulate_qc(
   float* q_c)
 {
   const float d12inv = 1.0f / d12;
-  const float r12unit[3] = {r12[0]*d12inv, r12[1]*d12inv, r12[2]*d12inv};
-  switch(L) {
+  const float r12unit[3] = {r12[0] * d12inv, r12[1] * d12inv, r12[2] * d12inv};
+  switch (L) {
     case 1: {
       float sc1[3];
       calculate_sc_one<1>(r12unit[0], r12unit[1], r12unit[2], fn, sc1);
@@ -1661,12 +1668,7 @@ static __device__ __forceinline__ void accumulate_qc(
 
 template <int L>
 static __device__ __forceinline__ void
-accumulate_s_one(
-  const float x12,
-  const float y12,
-  const float z12,
-  const float fn,
-  float* s)
+accumulate_s_one(const float x12, const float y12, const float z12, const float fn, float* s)
 {
   int s_index = L * L - 1;
   float z_pow[L + 1] = {1.0f};
@@ -1715,8 +1717,8 @@ accumulate_s_one(
   }
 }
 
-static __device__ __forceinline__ void
-accumulate_s(const int L_max, const float d12, float x12, float y12, float z12, const float fn, float* s)
+static __device__ __forceinline__ void accumulate_s(
+  const int L_max, const float d12, float x12, float y12, float z12, const float fn, float* s)
 {
   float d12inv = 1.0f / d12;
   x12 *= d12inv;
@@ -1748,10 +1750,10 @@ accumulate_s(const int L_max, const float d12, float x12, float y12, float z12, 
   }
 }
 
-template<int L>
+template <int L>
 static __device__ __forceinline__ float find_q_one(const float* s)
 {
-  const int start_index = L * L-1;
+  const int start_index = L * L - 1;
   const int num_terms = 2 * L + 1;
   float q = 0.0f;
   for (int k = 1; k < num_terms; ++k) {
@@ -1763,12 +1765,7 @@ static __device__ __forceinline__ float find_q_one(const float* s)
 }
 
 static __device__ __forceinline__ void
-find_q(
-  const int L_max, 
-  const int n_max_angular_plus_1, 
-  const int n, 
-  const float* s, 
-  float* q)
+find_q(const int L_max, const int n_max_angular_plus_1, const int n, const float* s, float* q)
 {
   if (L_max >= 1) {
     q[0 * n_max_angular_plus_1 + n] = find_q_one<1>(s);

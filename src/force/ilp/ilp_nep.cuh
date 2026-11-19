@@ -18,19 +18,17 @@
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
-#include <stdio.h>
 #include <cstdint>
+#include <stdio.h>
 #include <vector>
 
 // C, h-BN, TMD
 #define MAX_TYPE_ILP_NEP 7
-#define CUDA_MAX_NL_ILP_NEP_CBN 1024   // neighs in different layer
-#define CUDA_MAX_NL_ILP_NEP_TMD 2048  // neighs in different layer
-#define MAX_ILP_NEIGHBOR_CBN 3 // neighs to calc normal
-#define MAX_ILP_NEIGHBOR_TMD 6 // neighs to calc normal
+#define CUDA_MAX_NL_ILP_NEP_CBN 1024 // neighs in different layer
+#define CUDA_MAX_NL_ILP_NEP_TMD 2048 // neighs in different layer
+#define MAX_ILP_NEIGHBOR_CBN 3       // neighs to calc normal
+#define MAX_ILP_NEIGHBOR_TMD 6       // neighs to calc normal
 #define MAX_BIG_ILP_NEIGHBOR_CBN 128
-
-
 
 // this nep data struct is just for ILP+NEP potential
 struct NEP_Data_ {
@@ -39,28 +37,27 @@ struct NEP_Data_ {
   GPU_Vector<float> f12z; // 3-body or manybody partial forces
   GPU_Vector<float> Fp;
   GPU_Vector<float> sum_fxyz;
-  GPU_Vector<int> NN_radial;    // radial neighbor list
-  GPU_Vector<int> NL_radial;    // radial neighbor list
-  GPU_Vector<int> NN_angular;   // angular neighbor list
-  GPU_Vector<int> NL_angular;   // angular neighbor list
+  GPU_Vector<int> NN_radial;  // radial neighbor list
+  GPU_Vector<int> NL_radial;  // radial neighbor list
+  GPU_Vector<int> NN_angular; // angular neighbor list
+  GPU_Vector<int> NL_angular; // angular neighbor list
   GPU_Vector<char> para_buffer_gpu;
   std::vector<int> cpu_NN_radial;
   std::vector<int> cpu_NN_angular;
 };
 
-
 struct ILP_Para {
   float rcutsq_ilp[MAX_TYPE_ILP_NEP][MAX_TYPE_ILP_NEP];
   float d[MAX_TYPE_ILP_NEP][MAX_TYPE_ILP_NEP];
-  float d_Seff[MAX_TYPE_ILP_NEP][MAX_TYPE_ILP_NEP];      // d / S_R / r_eff
+  float d_Seff[MAX_TYPE_ILP_NEP][MAX_TYPE_ILP_NEP]; // d / S_R / r_eff
   float C_6[MAX_TYPE_ILP_NEP][MAX_TYPE_ILP_NEP];
-  float z0[MAX_TYPE_ILP_NEP][MAX_TYPE_ILP_NEP];          // beta
-  float lambda[MAX_TYPE_ILP_NEP][MAX_TYPE_ILP_NEP];      // alpha / beta
+  float z0[MAX_TYPE_ILP_NEP][MAX_TYPE_ILP_NEP];     // beta
+  float lambda[MAX_TYPE_ILP_NEP][MAX_TYPE_ILP_NEP]; // alpha / beta
   float epsilon[MAX_TYPE_ILP_NEP][MAX_TYPE_ILP_NEP];
   float C[MAX_TYPE_ILP_NEP][MAX_TYPE_ILP_NEP];
   float delta2inv[MAX_TYPE_ILP_NEP][MAX_TYPE_ILP_NEP];   // 1 / delta ^ 2
   float S[MAX_TYPE_ILP_NEP][MAX_TYPE_ILP_NEP];           // scale
-  float rcut_global[MAX_TYPE_ILP_NEP][MAX_TYPE_ILP_NEP];           // scale
+  float rcut_global[MAX_TYPE_ILP_NEP][MAX_TYPE_ILP_NEP]; // scale
 };
 
 struct ILP_Data {
@@ -79,52 +76,52 @@ struct ILP_Data {
 };
 
 // define paramb memory location
-#define UTC             0     // use_typewise_cutoff
-#define TCRF            1     // typewise_cutoff_radial_factor
-#define TCAF            2     // typewise_cutoff_angular_factor
-#define VERSION         3     // nep version
-#define RCR             4     // rc_radial
-#define RCA             5     // rc_angular     
-#define RCIR            6     // rcinv_radial
-#define RCIA            7     // rcinv_angular
-#define MNR             8     // MN_radial
-#define MNA             9     // MN_angular
-#define NMAXR           10    // n_max_radial
-#define NMAXA           11    // n_max_angular
-#define LMAX            12    // L_max
-#define DIMA            13    // dim_angular
-#define NUML            14    // num_L
-#define BSR             15    // basis_size_radial
-#define BSA             16    // basis_size_angular
-#define NTS             17    // num_types_sq
-#define NCR             18    // num_c_radial
-#define NT              19    // num_types
-#define HAS_Q_222       20    // has_q_222
-#define HAS_Q_1111      21    // has_q_1111
-#define HAS_Q_112       22    // has_q_112
-#define HAS_Q_123       23    // has_q_123
-#define HAS_Q_233       24    // has_q_233
-#define HAS_Q_134       25    // has_q_134
-#define PTRQS           26    // pointer of q_scaler
-#define PTRAN           (PTRQS + PTR_OFFSET)  // pointer of atomic number
-#define H_PAR_OFFSET    (PTRAN + PTR_OFFSET)  // ptr offset of head of paramb            
+#define UTC 0                             // use_typewise_cutoff
+#define TCRF 1                            // typewise_cutoff_radial_factor
+#define TCAF 2                            // typewise_cutoff_angular_factor
+#define VERSION 3                         // nep version
+#define RCR 4                             // rc_radial
+#define RCA 5                             // rc_angular
+#define RCIR 6                            // rcinv_radial
+#define RCIA 7                            // rcinv_angular
+#define MNR 8                             // MN_radial
+#define MNA 9                             // MN_angular
+#define NMAXR 10                          // n_max_radial
+#define NMAXA 11                          // n_max_angular
+#define LMAX 12                           // L_max
+#define DIMA 13                           // dim_angular
+#define NUML 14                           // num_L
+#define BSR 15                            // basis_size_radial
+#define BSA 16                            // basis_size_angular
+#define NTS 17                            // num_types_sq
+#define NCR 18                            // num_c_radial
+#define NT 19                             // num_types
+#define HAS_Q_222 20                      // has_q_222
+#define HAS_Q_1111 21                     // has_q_1111
+#define HAS_Q_112 22                      // has_q_112
+#define HAS_Q_123 23                      // has_q_123
+#define HAS_Q_233 24                      // has_q_233
+#define HAS_Q_134 25                      // has_q_134
+#define PTRQS 26                          // pointer of q_scaler
+#define PTRAN (PTRQS + PTR_OFFSET)        // pointer of atomic number
+#define H_PAR_OFFSET (PTRAN + PTR_OFFSET) // ptr offset of head of paramb
 
 // define annmb memory location
-#define SIZEOF_POINTER  (UINTPTR_MAX / 255 % 255)  // size of pointer
-#define SIZEOF_INT      4     // size of int
-#define PTR_OFFSET      (SIZEOF_POINTER / SIZEOF_INT) // ptr offset by int ptr
-#define ANNDIM          0     // ann dim
-#define NNEUR           1     // num_neurous1
-#define OUTB1           2     // bias for output layer
-#define EPT             3     // empty
-#define PTRC            4     // pointer of c
-#define PTRW0           (PTRC + PTR_OFFSET)   // pointer of w0 of type0
-#define PTRB0           (PTRW0 + PTR_OFFSET)  // pointer of b0 of type0
-#define PTRW1           (PTRB0 + PTR_OFFSET)  // pointer of w1 of type0
-#define H_ANN_OFFSET    (PTRW1 + PTR_OFFSET)  // ptr offset of head of annmb
+#define SIZEOF_POINTER (UINTPTR_MAX / 255 % 255) // size of pointer
+#define SIZEOF_INT 4                             // size of int
+#define PTR_OFFSET (SIZEOF_POINTER / SIZEOF_INT) // ptr offset by int ptr
+#define ANNDIM 0                                 // ann dim
+#define NNEUR 1                                  // num_neurous1
+#define OUTB1 2                                  // bias for output layer
+#define EPT 3                                    // empty
+#define PTRC 4                                   // pointer of c
+#define PTRW0 (PTRC + PTR_OFFSET)                // pointer of w0 of type0
+#define PTRB0 (PTRW0 + PTR_OFFSET)               // pointer of b0 of type0
+#define PTRW1 (PTRB0 + PTR_OFFSET)               // pointer of w1 of type0
+#define H_ANN_OFFSET (PTRW1 + PTR_OFFSET)        // ptr offset of head of annmb
 
-#define INT_PTR(m)      ((int*) *((uintptr_t*) (m)))
-#define FLT_PTR(m)      ((float*) *((uintptr_t*) (m)))
+#define INT_PTR(m) ((int*)*((uintptr_t*)(m)))
+#define FLT_PTR(m) ((float*)*((uintptr_t*)(m)))
 
 class ILP_NEP : public Potential
 {
@@ -162,14 +159,12 @@ public:
     int atomic_numbers[NUM_ELEMENTS];
   };
 
-
   struct ANN {
-    int dim = 0;                   // dimension of the descriptor
-    int num_neurons1 = 0;          // number of neurons in the 1st hidden layer
-    int num_para = 0;              // number of parameters
-    int num_para_ann = 0;          // number of parameters for the ANN part
+    int dim = 0;          // dimension of the descriptor
+    int num_neurons1 = 0; // number of neurons in the 1st hidden layer
+    int num_para = 0;     // number of parameters
+    int num_para_ann = 0; // number of parameters for the ANN part
   };
-
 
   using Potential::compute;
   ILP_NEP(FILE*, FILE*, int, int);
@@ -181,7 +176,7 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
-  
+
   virtual void compute_ilp(
     Box& box,
     const GPU_Vector<int>& type,
@@ -190,27 +185,26 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial,
     const std::vector<Group>& group) override;
-  
 
 protected:
   ILP_Para ilp_para;
   ILP_Data ilp_data;
 
 private:
-  int num_nep = 0; // number of NEP file
-  int max_MN_angular = 0;     // max of parambs[i].MN_angular
-  int max_MN_radial = 0;      // max of parambs[i].MN_radial
-  int max_n_max_angular = 0;  // max of parambs[i].n_max_angular
-  int max_dim = 0;            // max of annmbs[i].dim
+  int num_nep = 0;           // number of NEP file
+  int max_MN_angular = 0;    // max of parambs[i].MN_angular
+  int max_MN_radial = 0;     // max of parambs[i].MN_radial
+  int max_n_max_angular = 0; // max of parambs[i].n_max_angular
+  int max_dim = 0;           // max of annmbs[i].dim
   std::vector<ParaMB> parambs;
   std::vector<ANN> annmbs;
   GPU_Vector<double> energy_reference;
-  char* h_parambs;                  // pointer to the head of parambs in gpu
-  char* h_annmbs;                   // pointer to the head of annmbs in gpu
-  std::vector<int> nep_map_cpu;     // map nep group to nep parameters (cpu)
-  GPU_Vector<int> nep_map;          // map nep group to nep parameters (gpu)
-  std::vector<int> type_map_cpu;    // map ilp type to nep type (cpu)
-  GPU_Vector<int> type_map;         // map ilp type to nep type (gpu)
+  char* h_parambs;               // pointer to the head of parambs in gpu
+  char* h_annmbs;                // pointer to the head of annmbs in gpu
+  std::vector<int> nep_map_cpu;  // map nep group to nep parameters (cpu)
+  GPU_Vector<int> nep_map;       // map nep group to nep parameters (gpu)
+  std::vector<int> type_map_cpu; // map ilp type to nep type (cpu)
+  GPU_Vector<int> type_map;      // map ilp type to nep type (gpu)
   NEP_Data_ nep_data;
 
   // two group methods for ilp and nep

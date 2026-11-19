@@ -120,7 +120,7 @@ Ensemble_MTTK::Ensemble_MTTK(const std::vector<std::string>& tokens) : Ensemble_
       if (!is_valid_real(tokens[i + 1], &p_period[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for pperiod keyword.");
       if (p_period[0][0] < 200) {
-        PRINT_INPUT_ERROR("pperiod should >= 200 timestep."); 
+        PRINT_INPUT_ERROR("pperiod should >= 200 timestep.");
       }
       i += 2;
       for (int i = 0; i < 3; i++) {
@@ -138,8 +138,7 @@ Ensemble_MTTK::Ensemble_MTTK(const std::vector<std::string>& tokens) : Ensemble_
         PRINT_INPUT_ERROR("Wrong inputs for t_stop keyword.");
       t_target = t_start;
       i += 3;
-    } else if (
-      tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
+    } else if (tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
       if (i + 2 >= num_params)
         PRINT_INPUT_ERROR("Pressure keyword requires two values.");
       use_barostat = true;
@@ -336,20 +335,13 @@ void Ensemble_MTTK::initialize_nose_hoover_chains()
   eta_dot[tchain] = eta_p_dot[pchain] = 0;
 }
 
-void Ensemble_MTTK::initialize_run(
-  const double time_step,
-  Atom&,
-  Box&,
-  const std::vector<Group>&)
+void Ensemble_MTTK::initialize_run(const double time_step, Atom&, Box&, const std::vector<Group>&)
 {
   dt = time_step;
 }
 
 void Ensemble_MTTK::init_mttk(
-  const std::vector<Group>& group,
-  const Box& box,
-  const Atom& atom,
-  GPU_Vector<double>& thermo)
+  const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo)
 {
   printf("MTTK initializing...\n");
   // from GPa to eV/A^2
@@ -491,10 +483,7 @@ void Ensemble_MTTK::couple()
 }
 
 void Ensemble_MTTK::find_current_pressure(
-  const std::vector<Group>& group,
-  const Box& box,
-  const Atom& atom,
-  GPU_Vector<double>& thermo)
+  const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo)
 {
   find_thermo(group, box, atom, thermo);
   double t[8];
@@ -512,10 +501,7 @@ void Ensemble_MTTK::find_current_pressure(
 }
 
 void Ensemble_MTTK::nh_omega_dot(
-  const std::vector<Group>& group,
-  const Box& box,
-  const Atom& atom,
-  GPU_Vector<double>& thermo)
+  const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo)
 {
   // Eq. (1) of Shinoda2004
   find_current_pressure(group, box, atom, thermo);
@@ -659,10 +645,7 @@ void Ensemble_MTTK::propagate_box_diagonal()
 }
 
 void Ensemble_MTTK::find_thermo(
-  const std::vector<Group>& group,
-  const Box& box,
-  const Atom& atom,
-  GPU_Vector<double>& thermo)
+  const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo)
 {
   Ensemble::find_thermo(
     box.get_volume(),
@@ -675,10 +658,7 @@ void Ensemble_MTTK::find_thermo(
 }
 
 double Ensemble_MTTK::find_current_temperature(
-  const std::vector<Group>& group,
-  const Box& box,
-  const Atom& atom,
-  GPU_Vector<double>& thermo)
+  const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo)
 {
   if (t_current_from_thermo) {
     t_current_from_thermo = false;
@@ -692,10 +672,7 @@ double Ensemble_MTTK::find_current_temperature(
 
 // propagate eta_dot by 1/2 step
 void Ensemble_MTTK::nhc_temp_integrate(
-  const std::vector<Group>& group,
-  const Box& box,
-  Atom& atom,
-  GPU_Vector<double>& thermo)
+  const std::vector<Group>& group, const Box& box, Atom& atom, GPU_Vector<double>& thermo)
 {
   double expfac = 0;
   for (int n = 0; n < tchain; n++)

@@ -30,8 +30,8 @@
  *   - compute(context) is the hot path
  */
 
-#include <stdint.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #if defined(__GNUC__) || defined(__clang__)
 #define WPE_API __attribute__((visibility("default")))
@@ -139,21 +139,21 @@ typedef struct WpeBinding {
   uint32_t reserved0;
   uint32_t reserved1;
 
-  const void* position_device;       /* double[3N], GPUMD SoA */
-  const void* type_device;           /* int[N] */
+  const void* position_device; /* double[3N], GPUMD SoA */
+  const void* type_device;     /* int[N] */
 
-  void* force_device;                /* double[3N], host-prepared output */
-  void* potential_device;            /* double[N], host-prepared output */
-  void* atomic_virial_device;        /* double[9N], host-prepared/zeroed output */
-  void* total_virial_device;         /* optional double[6]; NULL = WPE-owned scratch */
+  void* force_device;         /* double[3N], host-prepared output */
+  void* potential_device;     /* double[N], host-prepared output */
+  void* atomic_virial_device; /* double[9N], host-prepared/zeroed output */
+  void* total_virial_device;  /* optional double[6]; NULL = WPE-owned scratch */
 
-  const double* box_h18_host;        /* borrowed Box::cpu_h */
+  const double* box_h18_host; /* borrowed Box::cpu_h */
   const int32_t* pbc_x_host;
   const int32_t* pbc_y_host;
   const int32_t* pbc_z_host;
 
-  void* charge_device;               /* float[N] or NULL */
-  void* bec_device;                  /* float[9N] or NULL */
+  void* charge_device; /* float[N] or NULL */
+  void* bec_device;    /* float[9N] or NULL */
 } WpeBinding;
 
 /*
@@ -161,31 +161,23 @@ typedef struct WpeBinding {
  * Future ABI-1-compatible fields may only be appended; these V1 minimums
  * must never be advanced to include appended fields.
  */
-#define WPE_INFO_V1_MIN_SIZE \
-  ((uint32_t)(offsetof(WpeInfo, library_soname) + sizeof(const char*)))
-#define WPE_CREATE_INFO_V1_MIN_SIZE \
+#define WPE_INFO_V1_MIN_SIZE ((uint32_t)(offsetof(WpeInfo, library_soname) + sizeof(const char*)))
+#define WPE_CREATE_INFO_V1_MIN_SIZE                                                                \
   ((uint32_t)(offsetof(WpeCreateInfo, reserved1) + sizeof(uint32_t)))
-#define WPE_CREATE_RESULT_V1_MIN_SIZE \
+#define WPE_CREATE_RESULT_V1_MIN_SIZE                                                              \
   ((uint32_t)(offsetof(WpeCreateResult, cutoff) + sizeof(double)))
-#define WPE_STAGE_INFO_V1_MIN_SIZE \
+#define WPE_STAGE_INFO_V1_MIN_SIZE                                                                 \
   ((uint32_t)(offsetof(WpeStageInfo, reserved3) + sizeof(uint32_t)))
-#define WPE_BINDING_V1_MIN_SIZE \
-  ((uint32_t)(offsetof(WpeBinding, bec_device) + sizeof(void*)))
+#define WPE_BINDING_V1_MIN_SIZE ((uint32_t)(offsetof(WpeBinding, bec_device) + sizeof(void*)))
 
 WPE_API WpeStatus wpe_get_info(WpeInfo* info);
 
-WPE_API WpeStatus wpe_create(
-  const WpeCreateInfo* info,
-  WpeCreateResult* result,
-  WpeContext** context);
+WPE_API WpeStatus
+wpe_create(const WpeCreateInfo* info, WpeCreateResult* result, WpeContext** context);
 
-WPE_API WpeStatus wpe_activate_stage(
-  WpeContext* context,
-  const WpeStageInfo* stage);
+WPE_API WpeStatus wpe_activate_stage(WpeContext* context, const WpeStageInfo* stage);
 
-WPE_API WpeStatus wpe_bind(
-  WpeContext* context,
-  const WpeBinding* binding);
+WPE_API WpeStatus wpe_bind(WpeContext* context, const WpeBinding* binding);
 
 WPE_API WpeStatus wpe_compute(WpeContext* context);
 

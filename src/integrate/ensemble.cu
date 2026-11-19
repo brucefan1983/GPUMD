@@ -309,9 +309,7 @@ static __global__ void gpu_velocity_verlet_v(
 }
 
 void Ensemble::velocity_verlet_v(
-  const double time_step,
-  const std::vector<Group>& group,
-  Atom& atom)
+  const double time_step, const std::vector<Group>& group, Atom& atom)
 {
   int n = atom.number_of_atoms;
   const int* group_pointer;
@@ -337,9 +335,7 @@ void Ensemble::velocity_verlet_v(
 }
 
 void Ensemble::velocity_verlet_x(
-  const double time_step,
-  const std::vector<Group>& group,
-  Atom& atom)
+  const double time_step, const std::vector<Group>& group, Atom& atom)
 {
   int n = atom.number_of_atoms;
   const int* group_pointer;
@@ -559,7 +555,6 @@ static __global__ void gpu_find_vc_and_ke(
     }
   }
   __syncthreads();
-
 
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {

@@ -16,17 +16,18 @@
 /*----------------------------------------------------------------------------80
 The class dealing with the interlayer potential(ILP) and SW.
 
-Ref: Wenwu Jiang, Ting Liang, Hekai Bu, Jianbin Xu, and Wengen Ouyang, 
-Moiré-driven interfacial thermal transport in twisted transition metal dichalcogenides, ACS Nano 19, 16287 (2025).
+Ref: Wenwu Jiang, Ting Liang, Hekai Bu, Jianbin Xu, and Wengen Ouyang,
+Moiré-driven interfacial thermal transport in twisted transition metal dichalcogenides, ACS Nano 19,
+16287 (2025).
 
 Major contributors:
   Hekai Bu: Initial implementation.
 ------------------------------------------------------------------------------*/
 
-#include "ilp_tmd_sw.cuh"
 #include "force/neighbor.cuh"
-#include "utilities/error.cuh"
+#include "ilp_tmd_sw.cuh"
 #include "utilities/common.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cstring>
@@ -35,7 +36,6 @@ Major contributors:
 
 // there are most 6 intra-layer neighbors for TMD
 #define NNEI 6
-
 
 ILP_TMD_SW::ILP_TMD_SW(FILE* fid_ilp, FILE* fid_sw, int num_types, int num_atoms)
 {
@@ -58,9 +58,21 @@ ILP_TMD_SW::ILP_TMD_SW(FILE* fid_ilp, FILE* fid_sw, int num_types, int num_atoms
   rc = 0.0;
   for (int n = 0; n < num_types; ++n) {
     for (int m = 0; m < num_types; ++m) {
-      int count = fscanf(fid_ilp, "%f%f%f%f%f%f%f%f%f%f%f%f", \
-      &beta, &alpha, &delta, &epsilon, &C, &d, &sR, &reff, &C6, &S, \
-      &rcut_ilp, &rcut_global);
+      int count = fscanf(
+        fid_ilp,
+        "%f%f%f%f%f%f%f%f%f%f%f%f",
+        &beta,
+        &alpha,
+        &delta,
+        &epsilon,
+        &C,
+        &d,
+        &sR,
+        &reff,
+        &C6,
+        &S,
+        &rcut_ilp,
+        &rcut_global);
       PRINT_SCANF_ERROR(count, 12, "Reading error for ILP_TMD_SW potential.");
 
       ilp_para.C[n][m] = C;
@@ -132,8 +144,7 @@ ILP_TMD_SW::ILP_TMD_SW(FILE* fid_ilp, FILE* fid_sw, int num_types, int num_atoms
   sw2_data.f12z.resize(num_of_neighbors);
 
   // init constant cutoff coeff
-  float h_tap_coeff[8] = \
-    {1.0f, 0.0f, 0.0f, 0.0f, -35.0f, 84.0f, -70.0f, 20.0f};
+  float h_tap_coeff[8] = {1.0f, 0.0f, 0.0f, 0.0f, -35.0f, 84.0f, -70.0f, 20.0f};
   CHECK(gpuMemcpyToSymbol(Tap_coeff_tmd, h_tap_coeff, 8 * sizeof(float)));
 
   // set ilp_flag to 1
@@ -255,10 +266,11 @@ static __device__ __forceinline__ float calc_Tap(const float r_ij, const float R
 }
 
 // calculate the derivatives of long-range cutoff term
-static __device__ __forceinline__ float calc_dTap(const float r_ij, const float Rcut, const float Rcutinv)
+static __device__ __forceinline__ float
+calc_dTap(const float r_ij, const float Rcut, const float Rcutinv)
 {
   float dTap, r;
-  
+
   r = r_ij * Rcutinv;
   if (r >= Rcut) {
     dTap = 0.0f;
@@ -279,16 +291,16 @@ static __global__ void ILP_neighbor(
   const int N1,
   const int N2,
   const Box box,
-  const int *g_neighbor_number,
-  const int *g_neighbor_list,
-  const int *g_type,
+  const int* g_neighbor_number,
+  const int* g_neighbor_list,
+  const int* g_type,
   ILP_TMD_Para ilp_para,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
-  int *ilp_neighbor_number,
-  int *ilp_neighbor_list,
-  const int *group_label)
+  int* ilp_neighbor_number,
+  int* ilp_neighbor_list,
+  const int* group_label)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
 
@@ -319,7 +331,6 @@ static __global__ void ILP_neighbor(
       double d12sq = x12 * x12 + y12 * y12 + z12 * z12;
       double rcutsq = ilp_para.rcutsq_ilp[type1][type2];
 
-
       if (group_label[n1] == group_label[n2] && d12sq < rcutsq && type1 == type2 && d12sq != 0) {
         // ilp_neighbor_list[count++ * number_of_particles + n1] = n2;
         neighptr[count++] = n2;
@@ -344,7 +355,8 @@ static __global__ void ILP_neighbor(
         for (int ll = 0; ll < count; ++ll) {
           int l = neighptr[ll];
           int ltype = g_type[l];
-          if (l == j) continue;
+          if (l == j)
+            continue;
           double deljx = g_x[l] - g_x[j];
           double deljy = g_y[l] - g_y[j];
           double deljz = g_z[l] - g_z[j];
@@ -353,7 +365,6 @@ static __global__ void ILP_neighbor(
           if (rsqlj != 0 && rsqlj < ilp_para.rcutsq_ilp[ltype][jtype]) {
             ++count_temp;
           }
-
         }
         if (count_temp == 1) {
           neighsort[0] = neighptr[jj];
@@ -385,7 +396,7 @@ static __global__ void ILP_neighbor(
         double deljz = g_z[l] - g_z[j];
         apply_mic(box, deljx, deljy, deljz);
         double rsqlj = deljx * deljx + deljy * deljy + deljz * deljz;
-        
+
         if (abs(rsqlj) >= 1e-6 && rsqlj < ilp_para.rcutsq_ilp[ltype][jtype]) {
           neighsort[jj + 1] = l;
           check[ll] = -1;
@@ -402,10 +413,7 @@ static __global__ void ILP_neighbor(
 }
 
 // modulo func to change atom index
-static __device__ __forceinline__ int modulo(int k, int range)
-{
-  return (k + range) % range;
-}
+static __device__ __forceinline__ int modulo(int k, int range) { return (k + range) % range; }
 
 // calculate the normals and its derivatives
 static __device__ void calc_normal(
@@ -416,8 +424,8 @@ static __device__ void calc_normal(
   float (&dnormal)[3][NNEI][3])
 {
   int id, ip, m;
-  float  dni[3];
-  float  dnn[3][3], dpvdri[3][3];
+  float dni[3];
+  float dnn[3][3], dpvdri[3][3];
   float Nave[3], pvet[NNEI][3], dpvet1[NNEI][3][3], dpvet2[NNEI][3][3], dNave[3][NNEI][3];
 
   float nninv;
@@ -455,11 +463,10 @@ static __device__ void calc_normal(
     for (int k = 0; k < cont - 1; ++k) {
       for (ip = 0; ip < 3; ++ip) {
         pvet[k][ip] = vect[k][modulo(ip + 1, 3)] * vect[k + 1][modulo(ip + 2, 3)] -
-                vect[k][modulo(ip + 2, 3)] * vect[k + 1][modulo(ip + 1, 3)];
+                      vect[k][modulo(ip + 2, 3)] * vect[k + 1][modulo(ip + 1, 3)];
       }
-      // dpvet1[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l
-      // derivatives respect to atom l
-      // dNik,x/drl
+      // dpvet1[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component
+      // of atom l derivatives respect to atom l dNik,x/drl
       dpvet1[k][0][0] = 0.0f;
       dpvet1[k][0][1] = vect[modulo(k + 1, NNEI)][2];
       dpvet1[k][0][2] = -vect[modulo(k + 1, NNEI)][1];
@@ -472,9 +479,8 @@ static __device__ void calc_normal(
       dpvet1[k][2][1] = -vect[modulo(k + 1, NNEI)][0];
       dpvet1[k][2][2] = 0.0f;
 
-      // dpvet2[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
-      // derivatives respect to atom l+1
-      // dNik,x/drl+1
+      // dpvet2[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component
+      // of atom l+1 derivatives respect to atom l+1 dNik,x/drl+1
       dpvet2[k][0][0] = 0.0f;
       dpvet2[k][0][1] = -vect[modulo(k, NNEI)][2];
       dpvet2[k][0][2] = vect[modulo(k, NNEI)][1];
@@ -497,14 +503,15 @@ static __device__ void calc_normal(
       Nave[ip] /= (cont - 1);
     }
     nninv = rnorm3df(Nave[0], Nave[1], Nave[2]);
-    
+
     // the unit normal vector
     normal[0] = Nave[0] * nninv;
     normal[1] = Nave[1] * nninv;
     normal[2] = Nave[2] * nninv;
 
     // derivatives of non-normalized normal vector, dNave:3xcontx3 array
-    // dNave[id][m][ip]: the derivative of the id component of Nave respect to the ip component of atom m
+    // dNave[id][m][ip]: the derivative of the id component of Nave respect to the ip component of
+    // atom m
     for (id = 0; id < 3; id++) {
       for (ip = 0; ip < 3; ip++) {
         for (m = 0; m < cont; m++) {
@@ -512,7 +519,8 @@ static __device__ void calc_normal(
             dNave[id][m][ip] = dpvet1[m][id][ip] / (cont - 1);
           } else if (m == cont - 1) {
             dNave[id][m][ip] = dpvet2[m - 1][id][ip] / (cont - 1);
-          } else {    // sum of the derivatives of the mth and (m-1)th normal vector respect to the atom m
+          } else { // sum of the derivatives of the mth and (m-1)th normal vector respect to the
+                   // atom m
             dNave[id][m][ip] = (dpvet1[m][id][ip] + dpvet2[m - 1][id][ip]) / (cont - 1);
           }
         }
@@ -523,8 +531,9 @@ static __device__ void calc_normal(
     // r[m][id]: the id's component of atom m
     for (m = 0; m < cont; m++) {
       for (id = 0; id < 3; id++) {
-        dnn[m][id] = (Nave[0] * dNave[0][m][id] + Nave[1] * dNave[1][m][id] +
-                      Nave[2] * dNave[2][m][id]) * nninv;
+        dnn[m][id] =
+          (Nave[0] * dNave[0][m][id] + Nave[1] * dNave[1][m][id] + Nave[2] * dNave[2][m][id]) *
+          nninv;
       }
     }
     // dnormal[i][id][m][ip]: the derivative of normal[i][id] respect to r[m][ip], id,ip=0,1,2.
@@ -560,14 +569,12 @@ static __device__ void calc_normal(
     // derivatives of Ni[l] respect to the NNEI neighbors
     for (int k = 0; k < NNEI; ++k) {
       for (ip = 0; ip < 3; ++ip) {
-        pvet[k][ip] = vect[modulo(k, NNEI)][modulo(ip + 1, 3)] *
-                vect[modulo(k + 1, NNEI)][modulo(ip + 2, 3)] -
-            vect[modulo(k, NNEI)][modulo(ip + 2, 3)] *
-                vect[modulo(k + 1, NNEI)][modulo(ip + 1, 3)];
+        pvet[k][ip] =
+          vect[modulo(k, NNEI)][modulo(ip + 1, 3)] * vect[modulo(k + 1, NNEI)][modulo(ip + 2, 3)] -
+          vect[modulo(k, NNEI)][modulo(ip + 2, 3)] * vect[modulo(k + 1, NNEI)][modulo(ip + 1, 3)];
       }
-      // dpvet1[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l
-      // derivatives respect to atom l
-      // dNik,x/drl
+      // dpvet1[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component
+      // of atom l derivatives respect to atom l dNik,x/drl
       dpvet1[k][0][0] = 0.0f;
       dpvet1[k][0][1] = vect[modulo(k + 1, NNEI)][2];
       dpvet1[k][0][2] = -vect[modulo(k + 1, NNEI)][1];
@@ -580,9 +587,8 @@ static __device__ void calc_normal(
       dpvet1[k][2][1] = -vect[modulo(k + 1, NNEI)][0];
       dpvet1[k][2][2] = 0.0f;
 
-      // dpvet2[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component of atom l+1
-      // derivatives respect to atom l+1
-      // dNik,x/drl+1
+      // dpvet2[k][l][ip]: the derivative of the k (=0,...cont-1)th Nik respect to the ip component
+      // of atom l+1 derivatives respect to atom l+1 dNik,x/drl+1
       dpvet2[k][0][0] = 0.0f;
       dpvet2[k][0][1] = -vect[modulo(k, NNEI)][2];
       dpvet2[k][0][2] = vect[modulo(k, NNEI)][1];
@@ -620,14 +626,14 @@ static __device__ void calc_normal(
     }
 
     // derivatives of non-normalized normal vector, dNave:3xNNEIx3 array
-    // dNave[id][m][ip]: the derivative of the id component of Nave respect to the ip component of atom m
+    // dNave[id][m][ip]: the derivative of the id component of Nave respect to the ip component of
+    // atom m
     for (id = 0; id < 3; ++id) {
       for (ip = 0; ip < 3; ++ip) {
-        for (
-            m = 0; m < NNEI;
-            ++m) {    // sum of the derivatives of the mth and (m-1)th normal vector respect to the atom m
+        for (m = 0; m < NNEI; ++m) { // sum of the derivatives of the mth and (m-1)th normal vector
+                                     // respect to the atom m
           dNave[id][m][ip] =
-              (dpvet1[modulo(m, NNEI)][id][ip] + dpvet2[modulo(m - 1, NNEI)][id][ip]) / NNEI;
+            (dpvet1[modulo(m, NNEI)][id][ip] + dpvet2[modulo(m - 1, NNEI)][id][ip]) / NNEI;
         }
       }
     }
@@ -637,8 +643,8 @@ static __device__ void calc_normal(
     for (m = 0; m < NNEI; ++m) {
       for (id = 0; id < 3; ++id) {
         dnn[m][id] =
-            (Nave[0] * dNave[0][m][id] + Nave[1] * dNave[1][m][id] + Nave[2] * dNave[2][m][id]) *
-            nninv;
+          (Nave[0] * dNave[0][m][id] + Nave[1] * dNave[1][m][id] + Nave[2] * dNave[2][m][id]) *
+          nninv;
       }
     }
     // dnormal[i][id][m][ip]: the derivative of normal[i][id] respect to r[m][ip], id,ip=0,1,2.
@@ -666,8 +672,8 @@ static __device__ void calc_vdW(
   float C_6,
   float Tap,
   float dTap,
-  float &p2_vdW,
-  float &f2_vdW)
+  float& p2_vdW,
+  float& f2_vdW)
 {
   float r2inv, r6inv, r8inv;
   double TSvdw, TSvdwinv_double;
@@ -680,18 +686,17 @@ static __device__ void calc_vdW(
 
   // TSvdw = 1.0 + exp(-d_Seff * r + d);
   // use double to avoid inf from exp function
-  TSvdw = 1.0 + exp((double) (-d_Seff * r + d));
+  TSvdw = 1.0 + exp((double)(-d_Seff * r + d));
   TSvdwinv_double = 1.0 / TSvdw;
-  TSvdwinv_float = (float) TSvdwinv_double;
+  TSvdwinv_float = (float)TSvdwinv_double;
   Vilp = -C_6 * r6inv * TSvdwinv_float;
 
   // derivatives
-  fpair = (-6.0f + d_Seff * (1.0f - TSvdwinv_float) * r ) * C_6 * TSvdwinv_float * r8inv;
+  fpair = (-6.0f + d_Seff * (1.0f - TSvdwinv_float) * r) * C_6 * TSvdwinv_float * r8inv;
   fsum = fpair * Tap - Vilp * dTap * rinv;
 
   p2_vdW = Tap * Vilp;
   f2_vdW = fsum;
-  
 }
 
 // force evaluation kernel
@@ -701,26 +706,26 @@ static __global__ void gpu_find_force(
   const int N1,
   const int N2,
   const Box box,
-  const int *g_neighbor_number,
-  const int *g_neighbor_list,
-  int *g_ilp_neighbor_number,
-  int *g_ilp_neighbor_list,
-  const int *group_label,
-  const int *g_type,
-  const double *__restrict__ g_x,
-  const double *__restrict__ g_y,
-  const double *__restrict__ g_z,
-  double *g_fx,
-  double *g_fy,
-  double *g_fz,
-  double *g_virial,
-  double *g_potential,
-  float *g_f12x,
-  float *g_f12y,
-  float *g_f12z,
-  float *g_f12x_ilp_neigh,
-  float *g_f12y_ilp_neigh,
-  float *g_f12z_ilp_neigh)
+  const int* g_neighbor_number,
+  const int* g_neighbor_list,
+  int* g_ilp_neighbor_number,
+  int* g_ilp_neighbor_list,
+  const int* group_label,
+  const int* g_type,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_virial,
+  double* g_potential,
+  float* g_f12x,
+  float* g_f12y,
+  float* g_f12z,
+  float* g_f12x_ilp_neigh,
+  float* g_f12y_ilp_neigh,
+  float* g_f12z_ilp_neigh)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
   float s_fx = 0.0f;                                   // force_x
@@ -789,11 +794,11 @@ static __global__ void gpu_find_force(
       delkiy_half[i1] = float(y12d) * 0.5f;
       delkiz_half[i1] = float(z12d) * 0.5f;
     }
-    
+
     calc_normal(vet, cont, normal, dnormdri, dnormal);
 
     // calculate energy and force
-    double tt1,tt2,tt3;
+    double tt1, tt2, tt3;
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = n1 + number_of_particles * i1;
       int n2 = g_neighbor_list[index];
@@ -840,7 +845,7 @@ static __global__ void gpu_find_force(
         dTap,
         p2_vdW,
         f2_vdW);
-      
+
       float f12x = -f2_vdW * x12f * 0.5f;
       float f12y = -f2_vdW * y12f * 0.5f;
       float f12z = -f2_vdW * z12f * 0.5f;
@@ -863,7 +868,6 @@ static __global__ void gpu_find_force(
       s_szy += z12f * f21y;
       s_szz += z12f * f21z;
 
-      
       // calc rep
       float C = ilp_para.C[type1][type2];
       float lambda_ = ilp_para.lambda[type1][type2];
@@ -910,12 +914,9 @@ static __global__ void gpu_find_force(
       float Vilp_m_dTap_m_rinv = Vilp * dTap * rinv;
 
       // derivatives of the product of rij and ni, the result is a vector
-      dprodnorm1[0] = 
-        dnormdri[0][0] * delx + dnormdri[1][0] * dely + dnormdri[2][0] * delz;
-      dprodnorm1[1] = 
-        dnormdri[0][1] * delx + dnormdri[1][1] * dely + dnormdri[2][1] * delz;
-      dprodnorm1[2] = 
-        dnormdri[0][2] * delx + dnormdri[1][2] * dely + dnormdri[2][2] * delz;
+      dprodnorm1[0] = dnormdri[0][0] * delx + dnormdri[1][0] * dely + dnormdri[2][0] * delz;
+      dprodnorm1[1] = dnormdri[0][1] * delx + dnormdri[1][1] * dely + dnormdri[2][1] * delz;
+      dprodnorm1[2] = dnormdri[0][2] * delx + dnormdri[1][2] * dely + dnormdri[2][2] * delz;
       fp1[0] = prodnorm1_m_fpair1 * normal[0];
       fp1[1] = prodnorm1_m_fpair1 * normal[1];
       fp1[2] = prodnorm1_m_fpair1 * normal[2];
@@ -937,12 +938,12 @@ static __global__ void gpu_find_force(
 
       float minus_prodnorm1_m_fpair1_m_Tap = -prodnorm1 * fpair1 * Tap;
       for (int kk = 0; kk < ilp_neighbor_number; ++kk) {
-        dprodnorm1[0] = dnormal[0][kk][0] * delx + dnormal[1][kk][0] * dely +
-            dnormal[2][kk][0] * delz;
-        dprodnorm1[1] = dnormal[0][kk][1] * delx + dnormal[1][kk][1] * dely +
-            dnormal[2][kk][1] * delz;
-        dprodnorm1[2] = dnormal[0][kk][2] * delx + dnormal[1][kk][2] * dely +
-            dnormal[2][kk][2] * delz;
+        dprodnorm1[0] =
+          dnormal[0][kk][0] * delx + dnormal[1][kk][0] * dely + dnormal[2][kk][0] * delz;
+        dprodnorm1[1] =
+          dnormal[0][kk][1] * delx + dnormal[1][kk][1] * dely + dnormal[2][kk][1] * delz;
+        dprodnorm1[2] =
+          dnormal[0][kk][2] * delx + dnormal[1][kk][2] * dely + dnormal[2][kk][2] * delz;
         fk[0] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[0];
         fk[1] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[1];
         fk[2] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[2];
@@ -994,7 +995,6 @@ static __global__ void gpu_find_force(
 
     // save potential
     g_potential[n1] += s_pe;
-
   }
 }
 
@@ -1003,9 +1003,9 @@ static __global__ void build_reduce_neighbor_list(
   const int number_of_particles,
   const int N1,
   const int N2,
-  const int *g_neighbor_number,
-  const int *g_neighbor_list,
-  int *g_reduce_neighbor_list)
+  const int* g_neighbor_number,
+  const int* g_neighbor_list,
+  int* g_reduce_neighbor_list)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (N1 < N2) {
@@ -1039,24 +1039,24 @@ static __global__ void reduce_force_many_body(
   const int N1,
   const int N2,
   const Box box,
-  const int *g_neighbor_number,
-  const int *g_neighbor_list,
-  int *g_reduce_neighbor_list,
-  int *g_ilp_neighbor_number,
-  int *g_ilp_neighbor_list,
-  const double *__restrict__ g_x,
-  const double *__restrict__ g_y,
-  const double *__restrict__ g_z,
-  double *g_fx,
-  double *g_fy,
-  double *g_fz,
-  double *g_virial,
-  float *g_f12x,
-  float *g_f12y,
-  float *g_f12z,
-  float *g_f12x_ilp_neigh,
-  float *g_f12y_ilp_neigh,
-  float *g_f12z_ilp_neigh)
+  const int* g_neighbor_number,
+  const int* g_neighbor_list,
+  int* g_reduce_neighbor_list,
+  int* g_ilp_neighbor_number,
+  int* g_ilp_neighbor_list,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_virial,
+  float* g_f12x,
+  float* g_f12y,
+  float* g_f12z,
+  float* g_f12x_ilp_neigh,
+  float* g_f12y_ilp_neigh,
+  float* g_f12z_ilp_neigh)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
   float s_fx = 0.0f;                                   // force_x
@@ -1071,7 +1071,6 @@ static __global__ void reduce_force_many_body(
   float s_szx = 0.0f;                                  // virial_stress_zx
   float s_szy = 0.0f;                                  // virial_stress_zy
   float s_szz = 0.0f;                                  // virial_stress_zz
-
 
   if (n1 < N2) {
     double x12d, y12d, z12d;
@@ -1310,12 +1309,12 @@ static __global__ void gpu_find_force_sw3_partial(
 
 // define the pure virtual func
 void ILP_TMD_SW::compute(
-  Box &box,
-  const GPU_Vector<int> &type,
-  const GPU_Vector<double> &position_per_atom,
-  GPU_Vector<double> &potential_per_atom,
-  GPU_Vector<double> &force_per_atom,
-  GPU_Vector<double> &virial_per_atom)
+  Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom)
 {
   // nothing
 }
@@ -1325,19 +1324,19 @@ void ILP_TMD_SW::compute(
 #define BIG_ILP_CUTOFF_SQUARE 50.0
 // find force and related quantities
 void ILP_TMD_SW::compute_ilp(
-  Box &box,
-  const GPU_Vector<int> &type,
-  const GPU_Vector<double> &position_per_atom,
-  GPU_Vector<double> &potential_per_atom,
-  GPU_Vector<double> &force_per_atom,
-  GPU_Vector<double> &virial_per_atom,
-  const std::vector<Group> &group)
+  Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom,
+  const std::vector<Group>& group)
 {
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
   // assume the first group column is for ILP
-  const int *group_label = group[0].label.data();
+  const int* group_label = group[0].label.data();
 
 #ifdef USE_FIXED_NEIGHBOR
   static int num_calls = 0;
@@ -1361,7 +1360,7 @@ void ILP_TMD_SW::compute_ilp(
       ilp_data.NL,
       ilp_data.big_ilp_NN,
       ilp_data.big_ilp_NL);
-    
+
     find_neighbor_SW(
       N1,
       N2,
@@ -1374,16 +1373,10 @@ void ILP_TMD_SW::compute_ilp(
       sw2_data.cell_count_sum,
       sw2_data.cell_contents,
       sw2_data.NN,
-      sw2_data.NL
-    );
+      sw2_data.NL);
 
     build_reduce_neighbor_list<<<grid_size, BLOCK_SIZE_FORCE>>>(
-      number_of_atoms,
-      N1,
-      N2,
-      ilp_data.NN.data(),
-      ilp_data.NL.data(),
-      ilp_data.reduce_NL.data());
+      number_of_atoms, N1, N2, ilp_data.NN.data(), ilp_data.NL.data(), ilp_data.reduce_NL.data());
 #ifdef USE_FIXED_NEIGHBOR
   }
   num_calls %= UPDATE_TEMP;
@@ -1392,13 +1385,13 @@ void ILP_TMD_SW::compute_ilp(
   const double* x = position_per_atom.data();
   const double* y = position_per_atom.data() + number_of_atoms;
   const double* z = position_per_atom.data() + number_of_atoms * 2;
-  const int *NN = ilp_data.NN.data();
-  const int *NL = ilp_data.NL.data();
+  const int* NN = ilp_data.NN.data();
+  const int* NL = ilp_data.NL.data();
   const int* big_ilp_NN = ilp_data.big_ilp_NN.data();
   const int* big_ilp_NL = ilp_data.big_ilp_NL.data();
-  int *reduce_NL = ilp_data.reduce_NL.data();
-  int *ilp_NL = ilp_data.ilp_NL.data();
-  int *ilp_NN = ilp_data.ilp_NN.data();
+  int* reduce_NL = ilp_data.reduce_NL.data();
+  int* ilp_NL = ilp_data.ilp_NL.data();
+  int* ilp_NN = ilp_data.ilp_NN.data();
 
   const int* NN_sw = sw2_data.NN.data();
   const int* NL_sw = sw2_data.NL.data();
@@ -1408,9 +1401,20 @@ void ILP_TMD_SW::compute_ilp(
 
   // find ILP neighbor list
   ILP_neighbor<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    number_of_atoms, N1, N2, box, big_ilp_NN, big_ilp_NL, \
-    type.data(), ilp_para, x, y, z, ilp_NN, \
-    ilp_NL, group[1].label.data());
+    number_of_atoms,
+    N1,
+    N2,
+    box,
+    big_ilp_NN,
+    big_ilp_NL,
+    type.data(),
+    ilp_para,
+    x,
+    y,
+    z,
+    ilp_NN,
+    ilp_NL,
+    group[1].label.data());
   GPU_CHECK_KERNEL
 
   // initialize force of ilp neighbor temporary vector
@@ -1425,17 +1429,17 @@ void ILP_TMD_SW::compute_ilp(
   sw2_data.f12y.fill(0);
   sw2_data.f12z.fill(0);
 
-  double *g_fx = force_per_atom.data();
-  double *g_fy = force_per_atom.data() + number_of_atoms;
-  double *g_fz = force_per_atom.data() + number_of_atoms * 2;
-  double *g_virial = virial_per_atom.data();
-  double *g_potential = potential_per_atom.data();
-  float *g_f12x = ilp_data.f12x.data();
-  float *g_f12y = ilp_data.f12y.data();
-  float *g_f12z = ilp_data.f12z.data();
-  float *g_f12x_ilp_neigh = ilp_data.f12x_ilp_neigh.data();
-  float *g_f12y_ilp_neigh = ilp_data.f12y_ilp_neigh.data();
-  float *g_f12z_ilp_neigh = ilp_data.f12z_ilp_neigh.data();
+  double* g_fx = force_per_atom.data();
+  double* g_fy = force_per_atom.data() + number_of_atoms;
+  double* g_fz = force_per_atom.data() + number_of_atoms * 2;
+  double* g_virial = virial_per_atom.data();
+  double* g_potential = potential_per_atom.data();
+  float* g_f12x = ilp_data.f12x.data();
+  float* g_f12y = ilp_data.f12y.data();
+  float* g_f12z = ilp_data.f12z.data();
+  float* g_f12x_ilp_neigh = ilp_data.f12x_ilp_neigh.data();
+  float* g_f12y_ilp_neigh = ilp_data.f12y_ilp_neigh.data();
+  float* g_f12z_ilp_neigh = ilp_data.f12z_ilp_neigh.data();
 
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
     ilp_para,
@@ -1488,18 +1492,36 @@ void ILP_TMD_SW::compute_ilp(
     g_f12x_ilp_neigh,
     g_f12y_ilp_neigh,
     g_f12z_ilp_neigh);
-    GPU_CHECK_KERNEL
+  GPU_CHECK_KERNEL
 
   // step 1: calculate the partial forces
   gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    number_of_atoms, N1, N2, box, sw2_para, sw2_data.NN.data(), sw2_data.NL.data(),
-    type.data(), position_per_atom.data(), position_per_atom.data() + number_of_atoms,
-    position_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(), sw2_data.f12x.data(),
-    sw2_data.f12y.data(), sw2_data.f12z.data());
+    number_of_atoms,
+    N1,
+    N2,
+    box,
+    sw2_para,
+    sw2_data.NN.data(),
+    sw2_data.NL.data(),
+    type.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + number_of_atoms * 2,
+    potential_per_atom.data(),
+    sw2_data.f12x.data(),
+    sw2_data.f12y.data(),
+    sw2_data.f12z.data());
   GPU_CHECK_KERNEL
 
   // step 2: calculate force and related quantities
   find_properties_many_body(
-    box, sw2_data.NN.data(), sw2_data.NL.data(), sw2_data.f12x.data(),
-    sw2_data.f12y.data(), sw2_data.f12z.data(), position_per_atom, force_per_atom, virial_per_atom);
+    box,
+    sw2_data.NN.data(),
+    sw2_data.NL.data(),
+    sw2_data.f12x.data(),
+    sw2_data.f12y.data(),
+    sw2_data.f12z.data(),
+    position_per_atom,
+    force_per_atom,
+    virial_per_atom);
 }

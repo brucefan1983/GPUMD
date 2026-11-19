@@ -31,7 +31,8 @@ Major contributors:
 #include <iostream>
 #include <vector>
 
-namespace{
+namespace
+{
 
 constexpr int max_mesh_points = 512 * 512 * 512;
 
@@ -61,15 +62,16 @@ int get_best_K(const double required)
   return n;
 }
 
-__constant__ float sinc_coeff[6] = {1.0f, -1.6666667e-1f, 8.3333333e-3f, -1.9841270e-4f, 2.7557319e-6f, -2.5052108e-8f};
-__constant__ float G_coeff[5] = {1.0000000e+00f, -1.6666667e+00f, 7.7777778e-01f, -8.9947090e-02f, 7.0546737e-04f};
+__constant__ float sinc_coeff[6] = {
+  1.0f, -1.6666667e-1f, 8.3333333e-3f, -1.9841270e-4f, 2.7557319e-6f, -2.5052108e-8f};
+__constant__ float G_coeff[5] = {
+  1.0000000e+00f, -1.6666667e+00f, 7.7777778e-01f, -8.9947090e-02f, 7.0546737e-04f};
 __constant__ float W_coeff[5][5] = {
   {2.6041667e-03f, -2.0833333e-02f, 6.2500000e-02f, -8.3333333e-02f, 4.1666667e-02f},
   {1.9791667e-01f, -4.5833333e-01f, 2.5000000e-01f, 1.6666667e-01f, -1.6666667e-01f},
   {5.9895833e-01f, 0.0000000e+00f, -6.2500000e-01f, 0.0000000e+00f, 2.5000000e-01f},
   {1.9791667e-01f, 4.5833333e-01f, 2.5000000e-01f, -1.6666667e-01f, -1.6666667e-01f},
-  {2.6041667e-03f, 2.0833333e-02f, 6.2500000e-02f, 8.3333333e-02f, 4.1666667e-02f}
-};
+  {2.6041667e-03f, 2.0833333e-02f, 6.2500000e-02f, 8.3333333e-02f, 4.1666667e-02f}};
 
 __device__ inline float sinc(const float x)
 {
@@ -86,12 +88,8 @@ __device__ inline float sinc(const float x)
   return y;
 }
 
-void __global__ find_k_and_G_opt(
-  const PPPM::Para para,
-  float* g_kx,
-  float* g_ky,
-  float* g_kz,
-  float* g_G)
+void __global__
+find_k_and_G_opt(const PPPM::Para para, float* g_kx, float* g_ky, float* g_kz, float* g_G)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < para.K0K1K2) {
@@ -180,24 +178,30 @@ __global__ void find_mesh(
     const int ix = int(sx + 0.5f); // can be 0, ..., K[0]
     const int iy = int(sy + 0.5f); // can be 0, ..., K[1]
     const int iz = int(sz + 0.5f); // can be 0, ..., K[2]
-    const float dx = sx - ix; // (-0.5, 0.5)
-    const float dy = sy - iy; // (-0.5, 0.5)
-    const float dz = sz - iz; // (-0.5, 0.5)
+    const float dx = sx - ix;      // (-0.5, 0.5)
+    const float dy = sy - iy;      // (-0.5, 0.5)
+    const float dz = sz - iz;      // (-0.5, 0.5)
     // Appendix E in M. Deserno and C. Holm, JCP 109, 7678 (1998)
     float Wx[5] = {0.0f};
     float Wy[5] = {0.0f};
     float Wz[5] = {0.0f};
     for (int d = 0; d < 5; ++d) {
-      Wx[d] = (((W_coeff[d][4] * dx + W_coeff[d][3]) * dx + W_coeff[d][2]) * dx + W_coeff[d][1]) * dx + W_coeff[d][0];
-      Wy[d] = (((W_coeff[d][4] * dy + W_coeff[d][3]) * dy + W_coeff[d][2]) * dy + W_coeff[d][1]) * dy + W_coeff[d][0];
-      Wz[d] = (((W_coeff[d][4] * dz + W_coeff[d][3]) * dz + W_coeff[d][2]) * dz + W_coeff[d][1]) * dz + W_coeff[d][0];
+      Wx[d] =
+        (((W_coeff[d][4] * dx + W_coeff[d][3]) * dx + W_coeff[d][2]) * dx + W_coeff[d][1]) * dx +
+        W_coeff[d][0];
+      Wy[d] =
+        (((W_coeff[d][4] * dy + W_coeff[d][3]) * dy + W_coeff[d][2]) * dy + W_coeff[d][1]) * dy +
+        W_coeff[d][0];
+      Wz[d] =
+        (((W_coeff[d][4] * dz + W_coeff[d][3]) * dz + W_coeff[d][2]) * dz + W_coeff[d][1]) * dz +
+        W_coeff[d][0];
     }
     for (int n0 = -2; n0 <= 2; ++n0) {
-      const int neighbor0 = get_index_within_mesh(para.K[0], ix + n0);  // can be 0, ..., K[0]-1
+      const int neighbor0 = get_index_within_mesh(para.K[0], ix + n0); // can be 0, ..., K[0]-1
       for (int n1 = -2; n1 <= 2; ++n1) {
-        const int neighbor1 = get_index_within_mesh(para.K[1], iy + n1);  // can be 0, ..., K[1]-1
+        const int neighbor1 = get_index_within_mesh(para.K[1], iy + n1); // can be 0, ..., K[1]-1
         for (int n2 = -2; n2 <= 2; ++n2) {
-          const int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
+          const int neighbor2 = get_index_within_mesh(para.K[2], iz + n2); // can be 0, ..., K[2]-1
           const int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
           const float W = Wx[n0 + 2] * Wy[n1 + 2] * Wz[n2 + 2];
           atomicAdd(&g_mesh[neighbor012].x, q * W);
@@ -232,10 +236,7 @@ void __global__ ik_times_mesh_times_G(
 }
 
 void __global__ find_mesh_G(
-  const PPPM::Para para,
-  const float* g_G,
-  const gpufftComplex* g_mesh,
-  gpufftComplex* g_mesh_G)
+  const PPPM::Para para, const float* g_G, const gpufftComplex* g_mesh, gpufftComplex* g_mesh_G)
 {
   const int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < para.K0K1K2) {
@@ -326,26 +327,32 @@ __global__ void find_force_from_field(
     const int ix = int(sx + 0.5f); // can be 0, ..., K[0]
     const int iy = int(sy + 0.5f); // can be 0, ..., K[1]
     const int iz = int(sz + 0.5f); // can be 0, ..., K[2]
-    const float dx = sx - ix; // (-0.5, 0.5)
-    const float dy = sy - iy; // (-0.5, 0.5)
-    const float dz = sz - iz; // (-0.5, 0.5)
+    const float dx = sx - ix;      // (-0.5, 0.5)
+    const float dy = sy - iy;      // (-0.5, 0.5)
+    const float dz = sz - iz;      // (-0.5, 0.5)
     // Appendix E in M. Deserno and C. Holm, JCP 109, 7678 (1998)
     float Wx[5] = {0.0f};
     float Wy[5] = {0.0f};
     float Wz[5] = {0.0f};
     for (int d = 0; d < 5; ++d) {
-      Wx[d] = (((W_coeff[d][4] * dx + W_coeff[d][3]) * dx + W_coeff[d][2]) * dx + W_coeff[d][1]) * dx + W_coeff[d][0];
-      Wy[d] = (((W_coeff[d][4] * dy + W_coeff[d][3]) * dy + W_coeff[d][2]) * dy + W_coeff[d][1]) * dy + W_coeff[d][0];
-      Wz[d] = (((W_coeff[d][4] * dz + W_coeff[d][3]) * dz + W_coeff[d][2]) * dz + W_coeff[d][1]) * dz + W_coeff[d][0];
+      Wx[d] =
+        (((W_coeff[d][4] * dx + W_coeff[d][3]) * dx + W_coeff[d][2]) * dx + W_coeff[d][1]) * dx +
+        W_coeff[d][0];
+      Wy[d] =
+        (((W_coeff[d][4] * dy + W_coeff[d][3]) * dy + W_coeff[d][2]) * dy + W_coeff[d][1]) * dy +
+        W_coeff[d][0];
+      Wz[d] =
+        (((W_coeff[d][4] * dz + W_coeff[d][3]) * dz + W_coeff[d][2]) * dz + W_coeff[d][1]) * dz +
+        W_coeff[d][0];
     }
     float D_real = 0.0f;
     float E[3] = {0.0f, 0.0f, 0.0f};
     for (int n0 = -2; n0 <= 2; ++n0) {
-      const int neighbor0 = get_index_within_mesh(para.K[0], ix + n0);  // can be 0, ..., K[0]-1
+      const int neighbor0 = get_index_within_mesh(para.K[0], ix + n0); // can be 0, ..., K[0]-1
       for (int n1 = -2; n1 <= 2; ++n1) {
-        const int neighbor1 = get_index_within_mesh(para.K[1], iy + n1);  // can be 0, ..., K[1]-1
+        const int neighbor1 = get_index_within_mesh(para.K[1], iy + n1); // can be 0, ..., K[1]-1
         for (int n2 = -2; n2 <= 2; ++n2) {
-          const int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
+          const int neighbor2 = get_index_within_mesh(para.K[2], iz + n2); // can be 0, ..., K[2]-1
           const int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
           const float W = Wx[n0 + 2] * Wy[n1 + 2] * Wz[n2 + 2];
           D_real += W * g_mesh_G[neighbor012].x;
@@ -359,7 +366,7 @@ __global__ void find_force_from_field(
     g_fx[n] += q * E[0];
     g_fy[n] += q * E[1];
     g_fz[n] += q * E[2];
-  } 
+  }
 }
 
 __global__ void find_force_virial_potential_from_field(
@@ -401,27 +408,33 @@ __global__ void find_force_virial_potential_from_field(
     const int ix = int(sx + 0.5f); // can be 0, ..., K[0]
     const int iy = int(sy + 0.5f); // can be 0, ..., K[1]
     const int iz = int(sz + 0.5f); // can be 0, ..., K[2]
-    const float dx = sx - ix; // (-0.5, 0.5)
-    const float dy = sy - iy; // (-0.5, 0.5)
-    const float dz = sz - iz; // (-0.5, 0.5)
+    const float dx = sx - ix;      // (-0.5, 0.5)
+    const float dy = sy - iy;      // (-0.5, 0.5)
+    const float dz = sz - iz;      // (-0.5, 0.5)
     // Appendix E in M. Deserno and C. Holm, JCP 109, 7678 (1998)
     float Wx[5] = {0.0f};
     float Wy[5] = {0.0f};
     float Wz[5] = {0.0f};
     for (int d = 0; d < 5; ++d) {
-      Wx[d] = (((W_coeff[d][4] * dx + W_coeff[d][3]) * dx + W_coeff[d][2]) * dx + W_coeff[d][1]) * dx + W_coeff[d][0];
-      Wy[d] = (((W_coeff[d][4] * dy + W_coeff[d][3]) * dy + W_coeff[d][2]) * dy + W_coeff[d][1]) * dy + W_coeff[d][0];
-      Wz[d] = (((W_coeff[d][4] * dz + W_coeff[d][3]) * dz + W_coeff[d][2]) * dz + W_coeff[d][1]) * dz + W_coeff[d][0];
+      Wx[d] =
+        (((W_coeff[d][4] * dx + W_coeff[d][3]) * dx + W_coeff[d][2]) * dx + W_coeff[d][1]) * dx +
+        W_coeff[d][0];
+      Wy[d] =
+        (((W_coeff[d][4] * dy + W_coeff[d][3]) * dy + W_coeff[d][2]) * dy + W_coeff[d][1]) * dy +
+        W_coeff[d][0];
+      Wz[d] =
+        (((W_coeff[d][4] * dz + W_coeff[d][3]) * dz + W_coeff[d][2]) * dz + W_coeff[d][1]) * dz +
+        W_coeff[d][0];
     }
     float D_real = 0.0f;
     float E[3] = {0.0f, 0.0f, 0.0f};
     float V[6] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
     for (int n0 = -2; n0 <= 2; ++n0) {
-      const int neighbor0 = get_index_within_mesh(para.K[0], ix + n0);  // can be 0, ..., K[0]-1
+      const int neighbor0 = get_index_within_mesh(para.K[0], ix + n0); // can be 0, ..., K[0]-1
       for (int n1 = -2; n1 <= 2; ++n1) {
-        const int neighbor1 = get_index_within_mesh(para.K[1], iy + n1);  // can be 0, ..., K[1]-1
+        const int neighbor1 = get_index_within_mesh(para.K[1], iy + n1); // can be 0, ..., K[1]-1
         for (int n2 = -2; n2 <= 2; ++n2) {
-          const int neighbor2 = get_index_within_mesh(para.K[2], iz + n2);  // can be 0, ..., K[2]-1
+          const int neighbor2 = get_index_within_mesh(para.K[2], iz + n2); // can be 0, ..., K[2]-1
           const int neighbor012 = neighbor0 + para.K[0] * (neighbor1 + para.K[1] * neighbor2);
           const float W = Wx[n0 + 2] * Wy[n1 + 2] * Wz[n2 + 2];
           D_real += W * g_mesh_G[neighbor012].x;
@@ -455,7 +468,7 @@ __global__ void find_force_virial_potential_from_field(
     g_virial[n + 4 * N] += q * V[5]; // xz
     g_virial[n + 7 * N] += q * V[5]; // zx
     g_pe[n] += q * D_real;
-  } 
+  }
 }
 
 void __global__ find_potential_and_virial(
@@ -487,26 +500,26 @@ void __global__ find_potential_and_virial(
         const float alpha_k_factor = 2.0f * para.alpha_factor + 2.0f / ksq;
         switch (blockIdx.x) {
           case 0:
-          data += GSS * (1.0f - alpha_k_factor * kx * kx); // xx
-          break;
+            data += GSS * (1.0f - alpha_k_factor * kx * kx); // xx
+            break;
           case 1:
-          data += GSS * (1.0f - alpha_k_factor * ky * ky); // yy
-          break;
+            data += GSS * (1.0f - alpha_k_factor * ky * ky); // yy
+            break;
           case 2:
-          data += GSS * (1.0f - alpha_k_factor * kz * kz); // zz
-          break;
+            data += GSS * (1.0f - alpha_k_factor * kz * kz); // zz
+            break;
           case 3:
-          data -= GSS * (alpha_k_factor * kx * ky); // xy
-          break;
+            data -= GSS * (alpha_k_factor * kx * ky); // xy
+            break;
           case 4:
-          data -= GSS * (alpha_k_factor * ky * kz); // yz
-          break;
+            data -= GSS * (alpha_k_factor * ky * kz); // yz
+            break;
           case 5:
-          data -= GSS * (alpha_k_factor * kz * kx); // zx
-          break;
+            data -= GSS * (alpha_k_factor * kz * kx); // zx
+            break;
           case 6:
-          data += GSS; // potential
-          break;
+            data += GSS; // potential
+            break;
         }
       }
     }
@@ -559,17 +572,14 @@ void __global__ find_potential_and_virial(
   }
 }
 
-}
+} // namespace
 
 PPPM::PPPM()
 {
   // nothing
 }
 
-PPPM::~PPPM()
-{
-  destroy_plans();
-}
+PPPM::~PPPM() { destroy_plans(); }
 
 void PPPM::destroy_plans()
 {
@@ -605,7 +615,10 @@ void PPPM::allocate_memory()
   if (need_peratom_virial) {
     mesh_virial.resize(para.K0K1K2 * 6);
     int n[3] = {para.K[2], para.K[1], para.K[0]};
-    if (gpufftPlanMany(&plan_virial, 3, n, NULL, 1, para.K0K1K2, NULL, 1, para.K0K1K2, GPUFFT_C2C, 6) != GPUFFT_SUCCESS) {
+    if (
+      gpufftPlanMany(
+        &plan_virial, 3, n, NULL, 1, para.K0K1K2, NULL, 1, para.K0K1K2, GPUFFT_C2C, 6) !=
+      GPUFFT_SUCCESS) {
       std::cout << "GPUFFT error: plan_virial creation failed" << std::endl;
       exit(1);
     }
@@ -723,11 +736,7 @@ void PPPM::find_force(
   }
 
   find_k_and_G_opt<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
-    para, 
-    kx.data(), 
-    ky.data(), 
-    kz.data(), 
-    G.data());
+    para, kx.data(), ky.data(), kz.data(), G.data());
   GPU_CHECK_KERNEL
 
   set_mesh_to_zero<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(para, mesh.data());
@@ -762,11 +771,7 @@ void PPPM::find_force(
     mesh_z.data());
   GPU_CHECK_KERNEL
 
-  find_mesh_G<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(
-    para,
-    G.data(),
-    mesh.data(),
-    mesh_G.data());
+  find_mesh_G<<<(para.K0K1K2 - 1) / 64 + 1, 64>>>(para, G.data(), mesh.data(), mesh_G.data());
   GPU_CHECK_KERNEL
 
   if (need_peratom_virial) {
@@ -807,7 +812,9 @@ void PPPM::find_force(
   }
 
   if (need_peratom_virial) {
-    if (gpufftExecC2C(plan_virial, mesh_virial.data(), mesh_virial.data(), GPUFFT_INVERSE) != GPUFFT_SUCCESS) {
+    if (
+      gpufftExecC2C(plan_virial, mesh_virial.data(), mesh_virial.data(), GPUFFT_INVERSE) !=
+      GPUFFT_SUCCESS) {
       std::cout << "GPUFFT error: ExecC2C Inverse failed" << std::endl;
       exit(1);
     }

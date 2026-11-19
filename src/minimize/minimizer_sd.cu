@@ -21,8 +21,8 @@ Major contributors:
 ------------------------------------------------------------------------------*/
 
 #include "force/force.cuh"
-#include "model/atom.cuh"
 #include "minimizer_sd.cuh"
+#include "model/atom.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cstring>
 
@@ -78,7 +78,13 @@ void Minimizer_SD::compute(
   std::vector<Group>& group)
 {
   force.compute(
-    box, position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
+    box,
+    position_per_atom,
+    atom.type,
+    group,
+    atom.potential_per_atom,
+    atom.force_per_atom,
+    atom.virial_per_atom);
 
   int number_of_force_evaluations = 1;
   double position_step = 0.1;
@@ -137,7 +143,6 @@ void Minimizer_SD::compute(
       potential_per_atom_temp_.copy_to_device(atom.potential_per_atom.data());
       position_step *= increasing_factor;
     }
-
 
     double total_potential_smaller = (cpu_total_potential_[1] > cpu_total_potential_[0])
                                        ? cpu_total_potential_[0]

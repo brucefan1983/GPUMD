@@ -229,10 +229,7 @@ void Ensemble_TI_Spring::init(
 }
 
 void Ensemble_TI_Spring::find_thermo(
-  const Box& box,
-  const std::vector<Group>& group,
-  const Atom& atom,
-  GPU_Vector<double>& thermo)
+  const Box& box, const std::vector<Group>& group, const Atom& atom, GPU_Vector<double>& thermo)
 {
   Ensemble::find_thermo(
     box.get_volume(),
@@ -247,10 +244,7 @@ void Ensemble_TI_Spring::find_thermo(
   pressure = (thermo_cpu[2] + thermo_cpu[3] + thermo_cpu[4]) / 3;
 }
 
-Ensemble_TI_Spring::~Ensemble_TI_Spring(void)
-{
-  close_output_file(false);
-}
+Ensemble_TI_Spring::~Ensemble_TI_Spring(void) { close_output_file(false); }
 
 void Ensemble_TI_Spring::finalize_run(const Atom& atom, const Box& box)
 {
@@ -431,8 +425,7 @@ void Ensemble_TI_Spring::compute2(
   find_lambda(step, box, group, atoms, thermo);
   add_spring_force(box, atoms);
 
-  Ensemble_LAN::compute2(
-    time_step, step, number_of_steps, group, box, atoms, thermo, force);
+  Ensemble_LAN::compute2(time_step, step, number_of_steps, group, box, atoms, thermo, force);
 }
 
 double Ensemble_TI_Spring::switch_func(double t)

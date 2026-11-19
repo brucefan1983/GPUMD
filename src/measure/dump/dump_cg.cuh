@@ -36,18 +36,18 @@ public:
     Force& force);
 
   virtual void end_of_step(
-      const int number_of_steps,
-      int step,
-      const int fixed_group,
-      const int move_group,
-      const double global_time,
-      const double temperature,
-      Integrate& integrate,
-      Box& box,
-      std::vector<Group>& group,
-      GPU_Vector<double>& thermo,
-      Atom& atom,
-      Force& force);
+    const int number_of_steps,
+    int step,
+    const int fixed_group,
+    const int move_group,
+    const double global_time,
+    const double temperature,
+    Integrate& integrate,
+    Box& box,
+    std::vector<Group>& group,
+    GPU_Vector<double>& thermo,
+    Atom& atom,
+    Force& force);
 
   virtual void post_run(
     Atom& atom,
@@ -65,8 +65,8 @@ private:
 
   void accumulate_force(const int num_beads, const int num_atoms_total, Group& g);
   void find_position_bead(
-    const int num_beads, 
-    const int num_atoms_total, 
+    const int num_beads,
+    const int num_atoms_total,
     const int max_bead_size,
     const Group& g,
     Box& box,
@@ -76,9 +76,7 @@ private:
     std::vector<double>& xyz_bead);
   void find_rdf(const int num_beads, Box& box);
 
-  void find_energy_and_virial(
-    GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& gpu_thermo);
+  void find_energy_and_virial(GPU_Vector<double>& virial_per_atom, GPU_Vector<double>& gpu_thermo);
   void output_line2(FILE* fid, const Box& box, double relative_step, double extra_virial);
   std::vector<double> cpu_force_per_atom_;
   GPU_Vector<double> gpu_total_virial_;

@@ -36,12 +36,12 @@ Major contributors:
 
 #include "dump_netcdf.cuh"
 #include "force/force.cuh"
+#include "measure/parse_utilities.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "netcdf.h"
 #include "netcdf_meta.h"
-#include "measure/parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -276,8 +276,7 @@ DUMP_NETCDF::DUMP_NETCDF(
   action_name = "dump_netcdf";
 }
 
-void DUMP_NETCDF::parse(
-  const std::vector<std::string>& tokens, const std::vector<Group>& groups)
+void DUMP_NETCDF::parse(const std::vector<std::string>& tokens, const std::vector<Group>& groups)
 {
   dump_ = true;
   printf("Dump per-atom data in NetCDF format.\n");
@@ -291,9 +290,7 @@ void DUMP_NETCDF::parse(
   // tokens[3] were both integers. In the current syntax tokens[2] is the file name and tokens[3]
   // is an option or a quantity keyword, neither of which is an integer.
   int scratch;
-  if (num_param >= 4 &&
-      is_valid_int(tokens[2], &scratch) &&
-      is_valid_int(tokens[3], &scratch)) {
+  if (num_param >= 4 && is_valid_int(tokens[2], &scratch) && is_valid_int(tokens[3], &scratch)) {
     PRINT_INPUT_ERROR(
       "dump_netcdf no longer takes <grouping_method> <group_id> as its first two parameters, and "
       "<has_velocity> is now the optional quantity 'velocity'. Use dump_netcdf <interval> "
@@ -334,7 +331,8 @@ void DUMP_NETCDF::parse(
       group_seen = true;
     } else if (tokens[k] == "unwrapped_position_only") {
       if (use_unwrapped_position_) {
-        PRINT_INPUT_ERROR("Option 'unwrapped_position_only' is specified more than once in dump_netcdf.\n");
+        PRINT_INPUT_ERROR(
+          "Option 'unwrapped_position_only' is specified more than once in dump_netcdf.\n");
       }
       use_unwrapped_position_ = true;
       printf("    unwrapped positions only.\n");
@@ -378,7 +376,8 @@ void DUMP_NETCDF::parse(
   }
 
   if (use_unwrapped_position_ && quantities_.has_unwrapped_position_) {
-    PRINT_INPUT_ERROR("Options 'unwrapped_position' and 'unwrapped_position_only' are mutually exclusive in dump_netcdf.\n");
+    PRINT_INPUT_ERROR("Options 'unwrapped_position' and 'unwrapped_position_only' are mutually "
+                      "exclusive in dump_netcdf.\n");
   }
 
   // A canonical listing of what was requested, independent of the order the arguments came in.

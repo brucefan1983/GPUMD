@@ -23,18 +23,19 @@ public:
   bool parse_keyword(const char** param, int num_param);
   void set_regularization_defaults();
 
-  int batch_size;         // number of configurations in one batch
-  int num_types;          // number of atom types
-  int population_size;    // population size for SNES
-  int seed;               // seed of the SNES random draws; negative keeps the built-in seeds
-  int maximum_generation; // maximum number of generations for SNES;
-  int save_potential;     // number of generations between writing a checkpoint nep.txt file.
-  int save_potential_format;   // format of checkpoint nep.txt file name
-  int save_potential_restart;  // if restart files should be written or not. 0=no, 1=yes
-  int output_interval;    // number of generations between writing loss.out, nep.txt, nep.restart and related output
-  float lambda_1;         // weight parameter for L1 regularization loss
-  float lambda_2;         // weight parameter for L2 regularization loss
-  int prediction; // 0=no, 1=yes
+  int batch_size;             // number of configurations in one batch
+  int num_types;              // number of atom types
+  int population_size;        // population size for SNES
+  int seed;                   // seed of the SNES random draws; negative keeps the built-in seeds
+  int maximum_generation;     // maximum number of generations for SNES;
+  int save_potential;         // number of generations between writing a checkpoint nep.txt file.
+  int save_potential_format;  // format of checkpoint nep.txt file name
+  int save_potential_restart; // if restart files should be written or not. 0=no, 1=yes
+  int output_interval; // number of generations between writing loss.out, nep.txt, nep.restart and
+                       // related output
+  float lambda_1;      // weight parameter for L1 regularization loss
+  float lambda_2;      // weight parameter for L2 regularization loss
+  int prediction;      // 0=no, 1=yes
   float sigma0;
   bool is_prediction_set;
   bool is_lambda_1_set;
@@ -45,7 +46,7 @@ public:
   bool is_generation_set;
   bool is_save_potential_set;
   bool is_output_interval_set;
-  int number_of_variables;            // total number of parameters (NN and descriptor)
+  int number_of_variables; // total number of parameters (NN and descriptor)
 
 private:
   void parse_prediction(const char** param, int num_param);

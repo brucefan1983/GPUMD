@@ -173,10 +173,7 @@ void Ensemble_TI_Nep::init(
 }
 
 void Ensemble_TI_Nep::find_thermo(
-  const Box& box,
-  const std::vector<Group>& group,
-  const Atom& atom,
-  GPU_Vector<double>& thermo)
+  const Box& box, const std::vector<Group>& group, const Atom& atom, GPU_Vector<double>& thermo)
 {
   Ensemble::find_thermo(
     box.get_volume(),

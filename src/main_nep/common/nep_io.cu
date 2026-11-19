@@ -19,8 +19,8 @@ Major contributors:
   Paul Erhart: Model-file consistency checks.
 ------------------------------------------------------------------------------*/
 
-#include "nep_io.cuh"
 #include "nep_elements.cuh"
+#include "nep_io.cuh"
 #include "nep_parameters.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -44,7 +44,10 @@ static void read_nep_file(const std::string& filename, NEP_Model_File& model)
 }
 
 static std::vector<float> get_nep_parameters(
-  int num_types, int ann_size, int num_radial_basis, int num_angular_basis,
+  int num_types,
+  int ann_size,
+  int num_radial_basis,
+  int num_angular_basis,
   const std::vector<float>& values)
 {
 #ifdef USE_CJ
@@ -73,11 +76,12 @@ static std::vector<float> get_nep_parameters(
 #endif
 }
 
-static void read_nep_parameters(
-  const NEP_Model_File& model, const NEP_Parameters& para, float* parameters)
+static void
+read_nep_parameters(const NEP_Model_File& model, const NEP_Parameters& para, float* parameters)
 {
   const std::vector<float> parsed = get_nep_parameters(
-    model.num_types, model.layout.number_of_variables_ann * model.layout.ann_count,
+    model.num_types,
+    model.layout.number_of_variables_ann * model.layout.ann_count,
     (model.n_max_radial + 1) * (model.basis_size_radial + 1),
     (model.n_max_angular + 1) * (model.basis_size_angular + 1),
     model.parameters);
@@ -93,8 +97,7 @@ static void read_nep_parameters(
   std::copy(parsed.begin(), parsed.end(), parameters);
 }
 
-void read_nep_model(
-  const std::string& filename, NEP_Parameters& para, float* parameters)
+void read_nep_model(const std::string& filename, NEP_Parameters& para, float* parameters)
 {
   NEP_Model_File model;
   read_nep_file(filename, model);
@@ -120,17 +123,22 @@ static float read_nep_restart_value(std::istream& input, const std::string& file
   char* end;
   errno = 0;
   const float value = std::strtof(token.c_str(), &end);
-  if (end == token.c_str() || *end != '\0' || !std::isfinite(value) ||
-      (errno == ERANGE && value == 0.0f)) {
+  if (
+    end == token.c_str() || *end != '\0' || !std::isfinite(value) ||
+    (errno == ERANGE && value == 0.0f)) {
     PRINT_INPUT_ERROR((filename + ": invalid mu/sigma value.").c_str());
   }
   return value;
 }
 
 static void read_nep_restart_file(
-  const std::string& filename, const NEP_Parameters& para, int num_types,
-  std::vector<double>& reference, std::vector<float>* mu = nullptr,
-  std::vector<float>* sigma = nullptr, int expected_count = 0)
+  const std::string& filename,
+  const NEP_Parameters& para,
+  int num_types,
+  std::vector<double>& reference,
+  std::vector<float>* mu = nullptr,
+  std::vector<float>* sigma = nullptr,
+  int expected_count = 0)
 {
   std::ifstream input(filename);
   if (!input.is_open()) {
@@ -156,8 +164,9 @@ static void read_nep_restart_file(
     (num_types * para.number_of_variables_ann_1 + para.global_parameters) * para.ann_count;
   const int num_radial_basis = (para.n_max_radial + 1) * (para.basis_size_radial + 1);
   const int num_angular_basis = (para.n_max_angular + 1) * (para.basis_size_angular + 1);
-  const int num_parameters = expected_count ? expected_count :
-    ann_size + (num_radial_basis + num_angular_basis) * num_types * num_types;
+  const int num_parameters =
+    expected_count ? expected_count
+                   : ann_size + (num_radial_basis + num_angular_basis) * num_types * num_types;
   if (!(input >> token >> count) || token != "parameters" || count != num_parameters) {
     PRINT_INPUT_ERROR((filename + ": invalid parameter count.").c_str());
   }
@@ -176,10 +185,9 @@ static void read_nep_restart_file(
     if (input.bad() || !input.eof()) {
       PRINT_INPUT_ERROR((filename + ": input stream failure.").c_str());
     }
-    *mu = get_nep_parameters(
-      num_types, ann_size, num_radial_basis, num_angular_basis, parsed_mu);
-    *sigma = get_nep_parameters(
-      num_types, ann_size, num_radial_basis, num_angular_basis, parsed_sigma);
+    *mu = get_nep_parameters(num_types, ann_size, num_radial_basis, num_angular_basis, parsed_mu);
+    *sigma =
+      get_nep_parameters(num_types, ann_size, num_radial_basis, num_angular_basis, parsed_sigma);
   }
   reference.swap(parsed_reference);
 }
@@ -250,8 +258,7 @@ void read_nep_prediction_zbl(NEP_Parameters& para)
   }
 }
 
-void write_nep_header(
-  FILE* file, const NEP_Parameters& para, int max_radial, int max_angular)
+void write_nep_header(FILE* file, const NEP_Parameters& para, int max_radial, int max_angular)
 {
   fprintf(file, "nep %d", para.num_types);
   for (const std::string& element : para.elements) {
@@ -267,10 +274,17 @@ void write_nep_header(
   fprintf(file, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
   fprintf(file, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
   fprintf(
-    file, "l_max %d %d %d %d %d %d %d\n", para.L_max, para.has_q_222 ? 2 : 0,
-    para.has_q_1111, para.has_q_112, para.has_q_123, para.has_q_233, para.has_q_134);
-  fprintf(file, "ann %d %d\n", para.num_neurons1,
-    para.num_hidden_layers == 2 ? para.num_neurons2 : 0);
+    file,
+    "l_max %d %d %d %d %d %d %d\n",
+    para.L_max,
+    para.has_q_222 ? 2 : 0,
+    para.has_q_1111,
+    para.has_q_112,
+    para.has_q_123,
+    para.has_q_233,
+    para.has_q_134);
+  fprintf(
+    file, "ann %d %d\n", para.num_neurons1, para.num_hidden_layers == 2 ? para.num_neurons2 : 0);
   if (!para.energy_reference.empty()) {
     fprintf(file, "energy_reference");
     for (const double reference : para.energy_reference) {
@@ -282,8 +296,12 @@ void write_nep_header(
     if (para.flexible_zbl) {
       fprintf(file, "zbl 0 0\n");
     } else if (para.use_typewise_cutoff_zbl) {
-      fprintf(file, "zbl %.9g %.9g %.9g\n",
-        para.zbl_rc_inner, para.zbl_rc_outer, para.typewise_cutoff_zbl_factor);
+      fprintf(
+        file,
+        "zbl %.9g %.9g %.9g\n",
+        para.zbl_rc_inner,
+        para.zbl_rc_outer,
+        para.typewise_cutoff_zbl_factor);
     } else {
       fprintf(file, "zbl %.9g %.9g\n", para.zbl_rc_inner, para.zbl_rc_outer);
     }
@@ -298,8 +316,8 @@ static void write_nep_block(FILE* file, const char* name, const float* values, i
   }
 }
 
-static std::vector<float> get_nep_file_parameters(
-  const NEP_Parameters& para, const float* parameters)
+static std::vector<float>
+get_nep_file_parameters(const NEP_Parameters& para, const float* parameters)
 {
   std::vector<float> values(parameters, parameters + para.number_of_variables);
 #ifdef USE_CJ
@@ -316,7 +334,8 @@ static std::vector<float> get_nep_file_parameters(
       for (int t2 = 0; t2 < para.num_types; ++t2) {
         const int offset = input_offset + t2 * num_basis;
         std::copy(
-          values.begin() + offset, values.begin() + offset + num_basis,
+          values.begin() + offset,
+          values.begin() + offset + num_basis,
           expanded.begin() + output_offset + (t1 * para.num_types + t2) * num_basis);
       }
     }
@@ -366,8 +385,8 @@ void write_nep_model_parameters(FILE* file, const NEP_Parameters& para, const fl
   write_nep_block(file, "parameters", values.data(), values.size());
   write_nep_block(file, "q_scaler", para.q_scaler_cpu.data(), para.dim);
   if (para.flexible_zbl) {
-    write_nep_block(file, "zbl_parameters", para.zbl_para.data(),
-      5 * para.num_types * (para.num_types + 1));
+    write_nep_block(
+      file, "zbl_parameters", para.zbl_para.data(), 5 * para.num_types * (para.num_types + 1));
   }
   if (ferror(file)) {
     PRINT_INPUT_ERROR("Failed to write the NEP model.");
@@ -406,13 +425,16 @@ static void compare_float(
 }
 
 static void compare_with_nep_txt_fine_tune(
-  const NEP_Parameters& para, const NEP_Model_File& header,
-  const std::string& filename, std::vector<std::string>& mismatches)
+  const NEP_Parameters& para,
+  const NEP_Model_File& header,
+  const std::string& filename,
+  std::vector<std::string>& mismatches)
 {
   std::vector<std::string> elements_nep89;
   for (int n = 0; n < NUM_ELEMENTS; ++n) {
-    if (NEP_ELEMENTS[n] != "Po" && NEP_ELEMENTS[n] != "At" && NEP_ELEMENTS[n] != "Rn" &&
-        NEP_ELEMENTS[n] != "Fr" && NEP_ELEMENTS[n] != "Ra") {
+    if (
+      NEP_ELEMENTS[n] != "Po" && NEP_ELEMENTS[n] != "At" && NEP_ELEMENTS[n] != "Rn" &&
+      NEP_ELEMENTS[n] != "Fr" && NEP_ELEMENTS[n] != "Ra") {
       elements_nep89.push_back(NEP_ELEMENTS[n]);
     }
   }
@@ -435,20 +457,20 @@ static void compare_with_nep_txt_fine_tune(
 
   const std::string& expected_model = para.model_name;
   if (header.name != expected_model) {
-    mismatches.push_back("model: nep.in implies " + expected_model + ", " + filename +
-      " holds " + header.name + ".");
+    mismatches.push_back(
+      "model: nep.in implies " + expected_model + ", " + filename + " holds " + header.name + ".");
   }
 
   if (para.enable_zbl != header.enable_zbl) {
     mismatches.push_back(
-      std::string("zbl: nep.in has ZBL ") + (para.enable_zbl ? "enabled" : "disabled") +
-      ", " + filename + " has it " + (header.enable_zbl ? "enabled" : "disabled") + ".");
+      std::string("zbl: nep.in has ZBL ") + (para.enable_zbl ? "enabled" : "disabled") + ", " +
+      filename + " has it " + (header.enable_zbl ? "enabled" : "disabled") + ".");
   } else if (para.enable_zbl) {
     if (para.flexible_zbl != header.flexible_zbl) {
       mismatches.push_back(
-        std::string("zbl: nep.in requests a ") +
-        (para.flexible_zbl ? "flexible" : "universal") + " ZBL potential, " + filename +
-        " holds a " + (header.flexible_zbl ? "flexible" : "universal") + " one.");
+        std::string("zbl: nep.in requests a ") + (para.flexible_zbl ? "flexible" : "universal") +
+        " ZBL potential, " + filename + " holds a " +
+        (header.flexible_zbl ? "flexible" : "universal") + " one.");
     } else if (!para.flexible_zbl) {
       compare_float(
         "zbl (inner cutoff)",
@@ -525,8 +547,7 @@ static void compare_with_nep_txt_fine_tune(
     filename,
     mismatches);
 
-  compare_int(
-    "L_max", para.L_max, para.is_l_max_set, header.L_max, filename, mismatches);
+  compare_int("L_max", para.L_max, para.is_l_max_set, header.L_max, filename, mismatches);
   compare_int(
     "L_max_4body",
     para.has_q_222 ? 2 : 0,
@@ -535,48 +556,18 @@ static void compare_with_nep_txt_fine_tune(
     filename,
     mismatches);
   compare_int(
-    "L_max_5body",
-    para.has_q_1111,
-    para.is_l_max_set,
-    header.has_q_1111,
-    filename,
-    mismatches);
+    "L_max_5body", para.has_q_1111, para.is_l_max_set, header.has_q_1111, filename, mismatches);
   compare_int(
-    "has_q_112",
-    para.has_q_112,
-    para.is_l_max_set,
-    header.has_q_112,
-    filename,
-    mismatches);
+    "has_q_112", para.has_q_112, para.is_l_max_set, header.has_q_112, filename, mismatches);
   compare_int(
-    "has_q_123",
-    para.has_q_123,
-    para.is_l_max_set,
-    header.has_q_123,
-    filename,
-    mismatches);
+    "has_q_123", para.has_q_123, para.is_l_max_set, header.has_q_123, filename, mismatches);
   compare_int(
-    "has_q_233",
-    para.has_q_233,
-    para.is_l_max_set,
-    header.has_q_233,
-    filename,
-    mismatches);
+    "has_q_233", para.has_q_233, para.is_l_max_set, header.has_q_233, filename, mismatches);
   compare_int(
-    "has_q_134",
-    para.has_q_134,
-    para.is_l_max_set,
-    header.has_q_134,
-    filename,
-    mismatches);
+    "has_q_134", para.has_q_134, para.is_l_max_set, header.has_q_134, filename, mismatches);
 
   compare_int(
-    "neuron",
-    para.num_neurons1,
-    para.is_neuron_set,
-    header.num_neurons1,
-    filename,
-    mismatches);
+    "neuron", para.num_neurons1, para.is_neuron_set, header.num_neurons1, filename, mismatches);
   compare_int(
     "neuron (second hidden layer)",
     (para.num_hidden_layers == 2) ? para.num_neurons2 : 0,
@@ -587,16 +578,23 @@ static void compare_with_nep_txt_fine_tune(
 }
 
 static void compare_with_nep_txt(
-  const NEP_Parameters& para, const NEP_Model_File& header,
-  const std::string& filename, std::vector<std::string>& mismatches)
+  const NEP_Parameters& para,
+  const NEP_Model_File& header,
+  const std::string& filename,
+  std::vector<std::string>& mismatches)
 {
   const std::string& expected_model = para.model_name;
   if (header.name != expected_model) {
-    mismatches.push_back("model: nep.in implies " + expected_model + ", " + filename +
-      " holds " + header.name + ".");
+    mismatches.push_back(
+      "model: nep.in implies " + expected_model + ", " + filename + " holds " + header.name + ".");
   }
   compare_int(
-    "type (number of types)", para.num_types, para.is_type_set, header.num_types, filename, mismatches);
+    "type (number of types)",
+    para.num_types,
+    para.is_type_set,
+    header.num_types,
+    filename,
+    mismatches);
   if (para.num_types == header.num_types && para.elements != header.elements) {
     std::string from_nep_in, from_file;
     for (int n = 0; n < para.num_types; ++n) {
@@ -664,9 +662,19 @@ static void compare_with_nep_txt(
   }
 
   compare_int(
-    "n_max_radial", para.n_max_radial, para.is_n_max_set, header.n_max_radial, filename, mismatches);
+    "n_max_radial",
+    para.n_max_radial,
+    para.is_n_max_set,
+    header.n_max_radial,
+    filename,
+    mismatches);
   compare_int(
-    "n_max_angular", para.n_max_angular, para.is_n_max_set, header.n_max_angular, filename, mismatches);
+    "n_max_angular",
+    para.n_max_angular,
+    para.is_n_max_set,
+    header.n_max_angular,
+    filename,
+    mismatches);
   compare_int(
     "basis_size_radial",
     para.basis_size_radial,
@@ -685,15 +693,25 @@ static void compare_with_nep_txt(
   compare_int("L_max", para.L_max, para.is_l_max_set, header.L_max, filename, mismatches);
   // the 4-body flag is written as 2 or 0 rather than as 1 or 0
   compare_int(
-    "L_max_4body", para.has_q_222 ? 2 : 0, para.is_l_max_set,
-    header.has_q_222 ? 2 : 0, filename, mismatches);
-  compare_int("L_max_5body", para.has_q_1111, para.is_l_max_set, header.has_q_1111, filename, mismatches);
-  compare_int("has_q_112", para.has_q_112, para.is_l_max_set, header.has_q_112, filename, mismatches);
-  compare_int("has_q_123", para.has_q_123, para.is_l_max_set, header.has_q_123, filename, mismatches);
-  compare_int("has_q_233", para.has_q_233, para.is_l_max_set, header.has_q_233, filename, mismatches);
-  compare_int("has_q_134", para.has_q_134, para.is_l_max_set, header.has_q_134, filename, mismatches);
+    "L_max_4body",
+    para.has_q_222 ? 2 : 0,
+    para.is_l_max_set,
+    header.has_q_222 ? 2 : 0,
+    filename,
+    mismatches);
+  compare_int(
+    "L_max_5body", para.has_q_1111, para.is_l_max_set, header.has_q_1111, filename, mismatches);
+  compare_int(
+    "has_q_112", para.has_q_112, para.is_l_max_set, header.has_q_112, filename, mismatches);
+  compare_int(
+    "has_q_123", para.has_q_123, para.is_l_max_set, header.has_q_123, filename, mismatches);
+  compare_int(
+    "has_q_233", para.has_q_233, para.is_l_max_set, header.has_q_233, filename, mismatches);
+  compare_int(
+    "has_q_134", para.has_q_134, para.is_l_max_set, header.has_q_134, filename, mismatches);
 
-  compare_int("neuron", para.num_neurons1, para.is_neuron_set, header.num_neurons1, filename, mismatches);
+  compare_int(
+    "neuron", para.num_neurons1, para.is_neuron_set, header.num_neurons1, filename, mismatches);
   compare_int(
     "neuron (second hidden layer)",
     (para.num_hidden_layers == 2) ? para.num_neurons2 : 0,
@@ -703,8 +721,7 @@ static void compare_with_nep_txt(
     mismatches);
 }
 
-static void check_nep_file(
-  const NEP_Parameters& para, const std::string& filename, bool fine_tune)
+static void check_nep_file(const NEP_Parameters& para, const std::string& filename, bool fine_tune)
 {
   NEP_Model_File model;
   read_nep_file(filename, model);

@@ -20,21 +20,24 @@ Major contributors:
   Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
-#include "measure.cuh"
 #include "active.cuh"
 #include "add_efield.cuh"
-#include "force/nep_spin/mfield.cuh"
 #include "add_force.cuh"
 #include "add_random_force.cuh"
 #include "add_spring.cuh"
-#include "measure/structure/adf.cuh"
-#include "measure/structure/angular_rdf.cuh"
 #include "compute.cuh"
 #include "compute_chunk.cuh"
 #include "compute_dpdt.cuh"
 #include "compute_es.cuh"
 #include "deform.cuh"
 #include "dos.cuh"
+#include "electron_stop.cuh"
+#include "extrapolation.cuh"
+#include "force/force.cuh"
+#include "force/nep_spin/mfield.cuh"
+#include "integrate/integrate.cuh"
+#include "mc/mc.cuh"
+#include "measure.cuh"
 #include "measure/dump/dump_beads.cuh"
 #include "measure/dump/dump_cg.cuh"
 #include "measure/dump/dump_dipole.cuh"
@@ -45,28 +48,25 @@ Major contributors:
 #include "measure/dump/dump_shock_nemd.cuh"
 #include "measure/dump/dump_thermo.cuh"
 #include "measure/dump/dump_xyz.cuh"
-#include "electron_stop.cuh"
 #include "measure/enhanced_sampling/enhanced_sampling.cuh"
-#include "extrapolation.cuh"
+#include "measure/structure/adf.cuh"
+#include "measure/structure/angular_rdf.cuh"
+#include "measure/structure/orientorder.cuh"
+#include "measure/structure/rdf.cuh"
 #include "measure/transport/hac.cuh"
-#include "measure/transport/hnemdec_kappa.cuh"
 #include "measure/transport/hnemd_kappa.cuh"
+#include "measure/transport/hnemdec_kappa.cuh"
 #include "measure/transport/iron_conductivity.cuh"
 #include "measure/transport/lsqt.cuh"
 #include "measure/transport/modal_analysis.cuh"
 #include "measure/transport/msd.cuh"
-#include "measure/structure/orientorder.cuh"
-#include "plumed.cuh"
-#include "measure/structure/rdf.cuh"
 #include "measure/transport/sdc.cuh"
 #include "measure/transport/shc.cuh"
 #include "measure/transport/viscosity.cuh"
-#include "force/force.cuh"
-#include "integrate/integrate.cuh"
-#include "mc/mc.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
+#include "plumed.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>
@@ -89,14 +89,13 @@ bool Measure::parse_action(
     action.reset(new Dump_Thermo(tokens));
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "dump_position") {
-    PRINT_INPUT_ERROR(
-      "dump_position has been removed. "
-      "Use dump_xyz <interval> <filename> instead.");
+    PRINT_INPUT_ERROR("dump_position has been removed. "
+                      "Use dump_xyz <interval> <filename> instead.");
   } else if (tokens[0] == "dump_netcdf") {
 #ifdef USE_NETCDF
     std::unique_ptr<Action> action;
-    action.reset(new DUMP_NETCDF(
-      tokens, group, atom, is_nep_charge_potential(first_potential_filename)));
+    action.reset(
+      new DUMP_NETCDF(tokens, group, atom, is_nep_charge_potential(first_potential_filename)));
     actions_.emplace_back(std::move(action));
 #else
     PRINT_INPUT_ERROR("dump_netcdf is available only when USE_NETCDF flag is set.\n");
@@ -118,21 +117,18 @@ bool Measure::parse_action(
     action.reset(new Dump_Restart(tokens));
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "dump_velocity") {
-    PRINT_INPUT_ERROR(
-      "dump_velocity has been removed. "
-      "Use dump_xyz <interval> <filename> velocity instead.");
+    PRINT_INPUT_ERROR("dump_velocity has been removed. "
+                      "Use dump_xyz <interval> <filename> velocity instead.");
   } else if (tokens[0] == "dump_force") {
-    PRINT_INPUT_ERROR(
-      "dump_force has been removed. "
-      "Use dump_xyz <interval> <filename> force instead.");
+    PRINT_INPUT_ERROR("dump_force has been removed. "
+                      "Use dump_xyz <interval> <filename> force instead.");
   } else if (tokens[0] == "dump_exyz") {
-    PRINT_INPUT_ERROR(
-      "dump_exyz has been removed. "
-      "Use dump_xyz <interval> <filename> velocity force potential instead.");
+    PRINT_INPUT_ERROR("dump_exyz has been removed. "
+                      "Use dump_xyz <interval> <filename> velocity force potential instead.");
   } else if (tokens[0] == "dump_xyz") {
     std::unique_ptr<Action> action;
-    action.reset(new Dump_XYZ(
-      tokens, group, atom, is_nep_charge_potential(first_potential_filename)));
+    action.reset(
+      new Dump_XYZ(tokens, group, atom, is_nep_charge_potential(first_potential_filename)));
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "dump_cg") {
     std::unique_ptr<Action> action;
@@ -200,8 +196,7 @@ bool Measure::parse_action(
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "compute_dpdt") {
     std::unique_ptr<Action> action;
-    action.reset(new Compute_dpdt(
-      tokens, is_nep_charge_potential(first_potential_filename)));
+    action.reset(new Compute_dpdt(tokens, is_nep_charge_potential(first_potential_filename)));
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "compute_es") {
     std::unique_ptr<Action> action;
@@ -276,8 +271,7 @@ bool Measure::parse_action(
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "add_efield") {
     std::unique_ptr<Action> action;
-    action.reset(new Add_Efield(
-      tokens, group, is_nep_charge_potential(first_potential_filename)));
+    action.reset(new Add_Efield(tokens, group, is_nep_charge_potential(first_potential_filename)));
     actions_.emplace_back(std::move(action));
   } else if (tokens[0] == "mc") {
     std::unique_ptr<Action> action;
@@ -317,25 +311,23 @@ void Measure::pre_run(
     // add_mfield are allowed to be called multiple times; others are not
     if (
       action->action_name != "dump_xyz" && action->action_name != "dump_netcdf" &&
-      action->action_name != "compute_chunk" &&
-      action->action_name != "add_force" && action->action_name != "add_spring" &&
-      action->action_name != "add_efield" && action->action_name != "add_mfield") {
+      action->action_name != "compute_chunk" && action->action_name != "add_force" &&
+      action->action_name != "add_spring" && action->action_name != "add_efield" &&
+      action->action_name != "add_mfield") {
       for (auto& action_name : action_names) {
         if (action_name == action->action_name) {
-          std::cout << "There are multiple " << action->action_name << " keywords within one run.\n";
+          std::cout << "There are multiple " << action->action_name
+                    << " keywords within one run.\n";
           exit(1);
         }
       }
     }
     if (
-      action->action_name == "compute_hnemd" ||
-      action->action_name == "compute_hnemdec" ||
+      action->action_name == "compute_hnemd" || action->action_name == "compute_hnemdec" ||
       action->action_name == "compute_hnema") {
       ++number_of_hnemd_methods;
     }
-    if (
-      action->action_name == "compute_gkma" ||
-      action->action_name == "compute_hnema") {
+    if (action->action_name == "compute_gkma" || action->action_name == "compute_hnema") {
       ++number_of_modal_methods;
     }
     if (action->action_name == "deform") {
@@ -358,14 +350,7 @@ void Measure::pre_run(
   }
 
   for (auto& action : actions_) {
-    action->pre_run(
-      number_of_steps,
-      time_step,
-      integrate,
-      group,
-      atom,
-      box,
-      force);
+    action->pre_run(number_of_steps, time_step, integrate, group, atom, box, force);
   }
 }
 
@@ -392,13 +377,7 @@ void Measure::post_run(
 {
 
   for (auto& action : actions_) {
-    action->post_run(
-      atom,
-      box,
-      integrate,
-      number_of_steps,
-      time_step,
-      temperature);
+    action->post_run(atom, box, integrate, number_of_steps, time_step, temperature);
   }
 
   actions_.clear();

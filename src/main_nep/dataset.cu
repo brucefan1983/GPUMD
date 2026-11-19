@@ -21,8 +21,8 @@ Major contributors:
 
 #include "dataset.cuh"
 #include "main_nep/common/nep_energy_reference.cuh"
-#include "mic.cuh"
 #include "main_nep/common/nep_parameters.cuh"
+#include "mic.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -130,7 +130,7 @@ void Dataset::initialize_gpu_data(NEP_Parameters& para)
   }
 
   type_weight_gpu.resize(NUM_ELEMENTS);
-  
+
   energy_ref_gpu.resize(Nc);
   energy_weight_gpu.resize(Nc);
   virial_ref_gpu.resize(Nc * 6);
@@ -159,9 +159,9 @@ void Dataset::set_energy_reference(const std::vector<double>& reference)
 {
   std::vector<double> residual_energy(Nc);
   for (int n = 0; n < Nc; ++n) {
-    residual_energy[n] = reference.empty()
-      ? energy_ref_cpu[n]
-      : get_nep_energy_residual(structures[n], reference) / structures[n].num_atom;
+    residual_energy[n] = reference.empty() ? energy_ref_cpu[n]
+                                           : get_nep_energy_residual(structures[n], reference) /
+                                               structures[n].num_atom;
     if (!std::isfinite(residual_energy[n])) {
       PRINT_INPUT_ERROR("Shifted reference energy is outside the double range.");
     }
@@ -478,8 +478,12 @@ void Dataset::find_neighbor(NEP_Parameters& para)
 }
 
 void Dataset::construct(
-  NEP_Parameters& para, std::vector<Structure>& structures_input,
-  int n1, int n2, int device_id, int batch_index)
+  NEP_Parameters& para,
+  std::vector<Structure>& structures_input,
+  int n1,
+  int n2,
+  int device_id,
+  int batch_index)
 {
   this->device_id = device_id;
   this->batch_index = batch_index;
@@ -550,7 +554,8 @@ static __global__ void gpu_sum_force_error(
   }
 }
 
-std::vector<float> Dataset::get_rmse_force(NEP_Parameters& para, const bool use_weight, int device_id)
+std::vector<float>
+Dataset::get_rmse_force(NEP_Parameters& para, const bool use_weight, int device_id)
 {
   CHECK(gpuSetDevice(device_id));
   const int block_size = 256;
@@ -591,8 +596,7 @@ std::vector<float> Dataset::get_rmse_force(NEP_Parameters& para, const bool use_
   return rmse_array;
 }
 
-static __global__ void
-gpu_get_energy_shift(
+static __global__ void gpu_get_energy_shift(
   const int* g_Na,
   const int* g_Na_sum,
   const double* g_pe,

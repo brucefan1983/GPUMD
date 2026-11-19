@@ -35,18 +35,18 @@ Major contributors:
 #include "nep_multigpu.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
-#include "utilities/nep_io/nep_model_file.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_io/nep_model_file.cuh"
 #include "utilities/nep_utilities.cuh"
 #include "utilities/run_input.cuh"
 #include <cstddef>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
 #include <vector>
-#include <cstring>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
@@ -119,7 +119,8 @@ NEP_MULTIGPU::NEP_MULTIGPU(
     if (zbl.flexible) {
       printf("    has the flexible ZBL potential\n");
     } else if (paramb.use_typewise_cutoff_zbl) {
-      printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
+      printf(
+        "    has the universal ZBL with typewise cutoff with a factor of %g.\n",
         paramb.typewise_cutoff_zbl_factor);
     } else {
       printf(
@@ -263,11 +264,13 @@ void NEP_MULTIGPU::allocate_memory()
     nep_data[gpu].f12y.resize(nep_temp_data.num_atoms_per_gpu * paramb.MN_angular);
     nep_data[gpu].f12z.resize(nep_temp_data.num_atoms_per_gpu * paramb.MN_angular);
     nep_data[gpu].NN_radial.resize(nep_temp_data.num_atoms_per_gpu);
-    nep_data[gpu].NL_radial.resize(static_cast<size_t>(nep_temp_data.num_atoms_per_gpu) * paramb.MN_radial);
+    nep_data[gpu].NL_radial.resize(
+      static_cast<size_t>(nep_temp_data.num_atoms_per_gpu) * paramb.MN_radial);
     nep_data[gpu].NN_angular.resize(nep_temp_data.num_atoms_per_gpu);
     nep_data[gpu].NL_angular.resize(nep_temp_data.num_atoms_per_gpu * paramb.MN_angular);
     nep_data[gpu].Fp.resize(static_cast<size_t>(nep_temp_data.num_atoms_per_gpu) * annmb[gpu].dim);
-    nep_data[gpu].sum_fxyz.resize(static_cast<size_t>(nep_temp_data.num_atoms_per_gpu) * (paramb.n_max_angular + 1) *
+    nep_data[gpu].sum_fxyz.resize(
+      static_cast<size_t>(nep_temp_data.num_atoms_per_gpu) * (paramb.n_max_angular + 1) *
       ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
     nep_data[gpu].type.resize(nep_temp_data.num_atoms_per_gpu);
     nep_data[gpu].position.resize(nep_temp_data.num_atoms_per_gpu * 3);
@@ -728,10 +731,22 @@ static __global__ void find_descriptor(
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
-      find_q(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
-        paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q(
+        paramb.L_max,
+        paramb.has_q_222,
+        paramb.has_q_1111,
+        paramb.has_q_112,
+        paramb.has_q_123,
+        paramb.has_q_233,
+        paramb.has_q_134,
+        paramb.n_max_angular + 1,
+        n,
+        s,
+        q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        g_sum_fxyz[static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1] = s[abc];
+        g_sum_fxyz
+          [static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) +
+           n1] = s[abc];
       }
     }
 
@@ -744,15 +759,7 @@ static __global__ void find_descriptor(
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
     apply_ann_one_layer(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.w0[t1],
-      annmb.b0[t1],
-      annmb.w1[t1],
-      annmb.b1,
-      q,
-      F,
-      Fp);
+      annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
 
     g_pe[n1] = double(F) + annmb.energy_reference[t1];
 
@@ -897,8 +904,8 @@ static __global__ void find_partial_force_angular(
     }
     for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        sum_fxyz[n * NUM_OF_ABC + abc] = 
-          g_sum_fxyz[static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1];
+        sum_fxyz[n * NUM_OF_ABC + abc] = g_sum_fxyz
+          [static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1];
       }
     }
 
@@ -939,8 +946,24 @@ static __global__ void find_partial_force_angular(
           gn12 += fn12[k] * annmb.c_type_pair[c_index];
           gnp12 += fnp12[k] * annmb.c_type_pair[c_index];
         }
-        accumulate_f12(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
-          paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(
+          paramb.L_max,
+          paramb.has_q_222,
+          paramb.has_q_1111,
+          paramb.has_q_112,
+          paramb.has_q_123,
+          paramb.has_q_233,
+          paramb.has_q_134,
+          paramb.num_L,
+          n,
+          paramb.n_max_angular + 1,
+          d12,
+          r12,
+          gn12,
+          gnp12,
+          Fp,
+          sum_fxyz,
+          f12);
       }
       g_f12x[index] = f12[0];
       g_f12y[index] = f12[1];
@@ -1706,10 +1729,22 @@ static __global__ void find_descriptor(
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
-      find_q(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
-        paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q(
+        paramb.L_max,
+        paramb.has_q_222,
+        paramb.has_q_1111,
+        paramb.has_q_112,
+        paramb.has_q_123,
+        paramb.has_q_233,
+        paramb.has_q_134,
+        paramb.n_max_angular + 1,
+        n,
+        s,
+        q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        g_sum_fxyz[static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1] = s[abc];
+        g_sum_fxyz
+          [static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) +
+           n1] = s[abc];
       }
     }
 

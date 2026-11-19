@@ -24,16 +24,33 @@ struct NEP_Energy_Error;
 
 void print_nep_energy_header(bool has_ediff);
 void print_nep_charge_header(bool has_ediff);
-void write_nep_energy_error(FILE* file, const TrainingReport& report,
-  const NEP_Energy_Error& train, const NEP_Energy_Error& test, bool has_ediff);
-void write_nep_charge_error(FILE* file, const TrainingReport& report,
-  const NEP_Energy_Error& train, const NEP_Energy_Error& test,
-  float charge_train, float bec_train, float charge_test, float bec_test, bool has_ediff);
+void write_nep_energy_error(
+  FILE* file,
+  const TrainingReport& report,
+  const NEP_Energy_Error& train,
+  const NEP_Energy_Error& test,
+  bool has_ediff);
+void write_nep_charge_error(
+  FILE* file,
+  const TrainingReport& report,
+  const NEP_Energy_Error& train,
+  const NEP_Energy_Error& test,
+  float charge_train,
+  float bec_train,
+  float charge_test,
+  float bec_test,
+  bool has_ediff);
 
 void copy_nep_energy_predictions(Dataset& data, const std::vector<double>& energy_reference);
-void write_nep_structure_predictions(bool is_stress, int num_components, FILE* fid,
-  float* prediction, float* reference, Dataset& dataset, int nc);
-void write_nep_atomic_predictions(int num_components, FILE* fid, float* prediction,
-  float* reference, Dataset& dataset, int nc);
+void write_nep_structure_predictions(
+  bool is_stress,
+  int num_components,
+  FILE* fid,
+  float* prediction,
+  float* reference,
+  Dataset& dataset,
+  int nc);
+void write_nep_atomic_predictions(
+  int num_components, FILE* fid, float* prediction, float* reference, Dataset& dataset, int nc);
 void write_nep_energy_predictions(
   const std::string& label, const std::vector<std::pair<Dataset*, int>>& structures);
