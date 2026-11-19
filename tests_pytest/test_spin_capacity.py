@@ -21,13 +21,130 @@ SOURCE = r'''
 #include "force/nep_spin/spin_layout.cuh"
 #include "utilities/nep_io/nep_spin_model_file.cuh"
 #include <cassert>
+#include <cmath>
 #include <iostream>
 #include <sstream>
+void check_projection(const nep_spin::Layout& layout, bool transpose, bool paired = false, bool candidate = false) {
+  const int channels = layout.channels;
+  std::vector<float> weights(layout.path_count * channels);
+  for (size_t i = 0; i < weights.size(); ++i) weights[i] = 0.25f + i;
+  nep_spin::SpinProjection projection(layout, candidate ? nullptr : weights.data(), transpose, paired);
+  const int harmonics = (layout.lmax + 1) * (layout.lmax + 1);
+  const int outputs = transpose ? harmonics * layout.spin_components : layout.components;
+  std::vector<std::vector<nep_spin::Term>> expected(outputs);
+  for (auto term : layout.terms) {
+    const int density = term.geometry * layout.spin_components + (term.neighbor ? term.spin : 0);
+    expected[transpose ? density : term.output].push_back(term);
+  }
+  if (paired) {
+    const auto& rows = projection.rows;
+    if (std::all_of(rows.begin(), rows.end(), [](const nep_spin::ProjectionRow& row) { return row.count == 1; })) {
+      for (int m = 0; m < outputs; ++m) {
+        assert(rows[m].output == m);
+        assert(rows[m].begin == (candidate ? m : (m / projection.width) * channels * projection.width + m % projection.width));
+      }
+    }
+    // Multiply the packed and original tables by the same adjoint, separately for each site.
+    for (int c = 0; c < channels; ++c) {
+      std::vector<double> actual[2], reference[2];
+      for (int site = 0; site < 2; ++site) {
+        actual[site].resize(outputs);
+        reference[site].resize(outputs);
+      }
+      for (auto term : layout.terms) {
+        const float weight = weights[term.path * channels + c] * term.coefficient;
+        reference[term.neighbor][term.geometry * layout.spin_components + term.spin] +=
+          double(weight) * (1 + term.output);
+      }
+      for (auto row : projection.rows) {
+        for (int k = 0; k < row.count; ++k) {
+          const auto index = row.begin + (candidate ? k : k * channels + c) * projection.width;
+          const auto term = projection.packed.at(index);
+          float center = term.weight, neighbor = projection.neighbor_weights.at(index);
+          if (candidate) {
+            center *= weights.at(projection.paths.at(2 * index) * channels + c);
+            neighbor *= weights.at(projection.paths.at(2 * index + 1) * channels + c);
+          }
+          actual[0][row.output] += double(center) * (1 + term.input);
+          actual[1][row.output] += double(neighbor) * (1 + term.input);
+        }
+      }
+      for (int site = 0; site < 2; ++site)
+        for (int k = 0; k < outputs; ++k)
+          assert(std::abs(actual[site][k] - reference[site][k]) < 1e-8);
+    }
+    return;
+  }
+  std::vector<int> visits(outputs);
+  for (auto row : projection.rows) {
+    const auto& terms = expected.at(row.output);
+    assert(++visits[row.output] == 1 && row.count == int(terms.size()));
+    for (int k = 0; k < row.count; ++k) for (int c = 0; c < channels; ++c) {
+      const int index = row.begin + (candidate ? k : k * channels + c) * projection.width;
+      auto packed = projection.packed.at(index);
+      auto term = terms[k];
+      const int density = term.geometry * layout.spin_components + (term.neighbor ? term.spin : 0);
+      assert(packed.input == (transpose ? term.output : density));
+      assert(packed.center_spin == (term.neighbor ? -1 : term.spin));
+      if (candidate) {
+        assert(projection.paths.at(index) == term.path && packed.weight == term.coefficient);
+      } else {
+        assert(packed.weight == weights[term.path * channels + c] * term.coefficient);
+      }
+    }
+  }
+  assert(std::count(visits.begin(), visits.end(), 1) == outputs);
+}
+void check_harmonic_derivatives() {
+  // Compare coefficients of every monomial in the Cartesian derivative polynomials.
+  double expected[25][3][5][5][5] = {}, actual[25][3][5][5][5] = {};
+  for (auto h : nep_spin::harmonics) {
+    for (int axis = 0; axis < 3; ++axis) {
+      int p[] = {h.x, h.y, h.z};
+      if (p[axis] == 0) continue;
+      double coefficient = h.value * p[axis]--;
+      expected[h.component][axis][p[0]][p[1]][p[2]] += coefficient;
+    }
+  }
+  for (auto t : nep_spin::harmonic_derivatives)
+    for (auto h : nep_spin::harmonics)
+      if (t.input == h.component)
+        actual[t.output][t.axis][h.x][h.y][h.z] += t.coefficient * h.value;
+  for (int g = 0; g < 25; ++g) for (int axis = 0; axis < 3; ++axis)
+    for (int x = 0; x <= 4; ++x) for (int y = 0; y <= 4-x; ++y)
+      for (int z = 0; z <= 4-x-y; ++z)
+        assert(std::abs(actual[g][axis][x][y][z] - expected[g][axis][x][y][z]) < 1e-12);
+}
+template<int Tile>
+void check_radial_edge_indices() {
+  constexpr int atoms = 5, neighbors = 37;
+  for (int channels = 1; channels <= 9; ++channels) {
+    std::vector<bool> used((neighbors + Tile - 1) / Tile * Tile * atoms * channels);
+    for (int i = 0; i < atoms; ++i)
+      for (int c = 0; c < channels; ++c)
+        for (int j = 0; j < neighbors; ++j) {
+          const auto index = nep_spin::radial_edge_index<Tile>(atoms, channels, i, c, j);
+          assert(!used.at(index));
+          used[index] = true;
+        }
+  }
+}
 int main() {
+  check_harmonic_derivatives();
+  check_radial_edge_indices<1>();
+  check_radial_edge_indices<2>();
+  check_radial_edge_indices<4>();
+  check_radial_edge_indices<32>();
   int count=0, extended=0, max_dim=0, max_components=0, max_spins=0;
   for(int c=1;c<=9;c++) for(int l=0;l<=4;l++)
   for(int o=1;o<=4;o++) for(int soc=0;soc<=1;soc++) {
     nep_spin::Layout v(c,l,o,soc);
+    check_projection(v, false);
+    check_projection(v, false, false, true);
+    check_projection(v, true);
+    check_projection(v, true, false, true);
+    check_projection(v, true, true);
+    check_projection(v, true, true, true);
     for(auto t:v.terms) {
       assert(t.geometry>=0 && t.geometry<(l+1)*(l+1));
       assert(t.spin>=0 && t.spin<v.spin_components);

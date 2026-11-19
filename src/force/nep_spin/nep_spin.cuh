@@ -33,6 +33,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -128,6 +129,15 @@ public:
   };
 
 private:
+  struct RadialCache {
+    struct Free {
+      void operator()(void* ptr) const { CHECK(gpuFree(ptr)); }
+    };
+    std::unique_ptr<void, Free> storage;
+    std::size_t bytes = 0;
+    void reserve(std::size_t requested);
+  };
+
   struct Data {
     nep_spin::Storage spin_layout;
     GPU_Vector<float> parameters;
@@ -143,7 +153,7 @@ private:
     GPU_Vector<float> spin_moments;
     GPU_Vector<float> radial_coefficients;
     GPU_Vector<double> wide_radial, wide_spin_descriptors;
-    GPU_Vector<float> radial_edges;
+    RadialCache radial_edges;
     GPU_Vector<int> NN_radial;
     GPU_Vector<int> NL_radial;
     GPU_Vector<int> NN_angular;
@@ -239,6 +249,8 @@ private:
     void initialize(double rc, int atoms, int capacity);
     void invalidate() { valid_ = false; }
     int get_capacity() const { return capacity_; }
+    // The local spin list is a subset of this buffered list until its next rebuild.
+    int occupied_slots() const { return max_neighbors_; }
     double minimum_safe_box_thickness(double rc) const { return 2.5 * (rc + skin_); }
     void find_neighbor_global(
       double rc, Box& box, const GPU_Vector<int>& type, const GPU_Vector<double>& position);
@@ -246,6 +258,7 @@ private:
   private:
     static constexpr double skin_ = 1.0;
     int capacity_ = 0;
+    int max_neighbors_ = 0;
     bool valid_ = false;
     double box_[9] = {};
     GPU_Vector<int> cell_count_, cell_sum_, cell_contents_, flag_;

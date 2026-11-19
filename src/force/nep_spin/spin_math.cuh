@@ -13,6 +13,8 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+// Chengbing Chen: streaming evaluation of the radial basis and its derivatives.
+
 #pragma once
 #ifdef USE_HIP
 #include <hip/hip_runtime.h>
@@ -39,24 +41,24 @@ find_fc_and_fcp(double rc, double rcinv, double d12, double& fc, double& fcp)
   }
 }
 
-template <typename Real>
-static __device__ __host__ __forceinline__ void find_fn_and_fnp(
+template <typename Real, class Consume>
+static __device__ __host__ __forceinline__ void for_each_radial_basis(
   const int n_max,
   const Real rcinv,
   const Real d12,
   const Real fc12,
   const Real fcp12,
-  Real* fn,
-  Real* fnp)
+  Consume consume)
 {
   Real d12_mul_rcinv = d12 * rcinv;
   Real x = 2.0f * (d12_mul_rcinv - 1.0f) * (d12_mul_rcinv - 1.0f) - 1.0f;
-  fn[0] = fc12;
-  fnp[0] = fcp12;
+  consume(0, fc12, fcp12);
   if (n_max == 0)
     return;
-  fn[1] = (x + 1.0f) * 0.5f * fc12;
-  fnp[1] = 2.0f * (d12_mul_rcinv - 1.0f) * rcinv * fc12 + (x + 1.0f) * 0.5f * fcp12;
+  consume(
+    1,
+    (x + 1.0f) * 0.5f * fc12,
+    2.0f * (d12_mul_rcinv - 1.0f) * rcinv * fc12 + (x + 1.0f) * 0.5f * fcp12);
   Real u0 = 1.0f;
   Real u1 = 2.0f * x;
   Real u2;
@@ -72,9 +74,25 @@ static __device__ __host__ __forceinline__ void find_fn_and_fnp(
     u1 = u2;
 
     Real fn_tmp2 = (fn_tmp1 + 1.0f) * 0.5f;
-    fnp[m] = (fnp_tmp * 2.0f * (d12 * rcinv - 1.0f) * rcinv) * fc12 + fn_tmp2 * fcp12;
-    fn[m] = fn_tmp2 * fc12;
+    consume(
+      m, fn_tmp2 * fc12, (fnp_tmp * 2.0f * (d12 * rcinv - 1.0f) * rcinv) * fc12 + fn_tmp2 * fcp12);
   }
+}
+
+template <typename Real>
+static __device__ __host__ __forceinline__ void find_fn_and_fnp(
+  const int n_max,
+  const Real rcinv,
+  const Real d12,
+  const Real fc12,
+  const Real fcp12,
+  Real* fn,
+  Real* fnp)
+{
+  for_each_radial_basis(n_max, rcinv, d12, fc12, fcp12, [&](int k, Real f, Real df) {
+    fn[k] = f;
+    fnp[k] = df;
+  });
 }
 
 template <typename Input>
