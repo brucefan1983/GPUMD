@@ -74,7 +74,10 @@ static __global__ void descriptor_radial_jit(
   const float* parameters,
   float* descriptors)
 {
-  const int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  // Eight lanes own one center and load consecutive CSR neighbors.
+  const int lane = threadIdx.x % 8;
+  const unsigned mask = 0xffu << ((threadIdx.x % 32) / 8 * 8);
+  const int n1 = (threadIdx.x + blockIdx.x * blockDim.x) / 8;
   if (n1 >= N) return;
 
   const float* c = get_c_jit(parameters);
@@ -82,34 +85,48 @@ static __global__ void descriptor_radial_jit(
   const int neighbor_number = NN[n1];
   float q[DIM_RADIAL_JIT] = {0.0f};
 
-  for (int i1 = 0; i1 < neighbor_number; ++i1) {
-    const int index = NN_sum[n1] + i1;
-    const int n2 = NL[index];
-    const int t2 = (NUM_TYPES_JIT == 1) ? 0 : type[n2];
-    const float x12 = x12_all[index];
-    const float y12 = y12_all[index];
-    const float z12 = z12_all[index];
-    const float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-    const float rc = get_rc_radial_jit(t1, t2);
-    const float rcinv = 1.0f / rc;
-    float fc12;
-    find_fc(rc, rcinv, d12, fc12);
-    float fn12[BASIS_SIZE_RADIAL_JIT + 1];
-    find_fn(BASIS_SIZE_RADIAL_JIT, rcinv, d12, fc12, fn12);
+  for (int first = 0; first < neighbor_number; first += 8) {
+    float edge_q[DIM_RADIAL_JIT] = {0.0f};
+    const int i1 = first + lane;
+    if (i1 < neighbor_number) {
+      const int index = NN_sum[n1] + i1;
+      const int n2 = NL[index];
+      const int t2 = (NUM_TYPES_JIT == 1) ? 0 : type[n2];
+      const float x12 = x12_all[index];
+      const float y12 = y12_all[index];
+      const float z12 = z12_all[index];
+      const float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      const float rc = get_rc_radial_jit(t1, t2);
+      const float rcinv = 1.0f / rc;
+      float fc12;
+      find_fc(rc, rcinv, d12, fc12);
+      float fn12[BASIS_SIZE_RADIAL_JIT + 1];
+      find_fn(BASIS_SIZE_RADIAL_JIT, rcinv, d12, fc12, fn12);
 
-    const int type_index = descriptor_type_index_jit(t1, t2);
+      const int type_index = descriptor_type_index_jit(t1, t2);
 #pragma unroll
-    for (int n = 0; n <= N_MAX_RADIAL_JIT; ++n) {
-      float gn12 = 0.0f;
+      for (int n = 0; n <= N_MAX_RADIAL_JIT; ++n) {
+        float gn12 = 0.0f;
 #pragma unroll
-      for (int k = 0; k <= BASIS_SIZE_RADIAL_JIT; ++k) {
-        const int c_index =
-          get_c_index(type_index, n, k, N_MAX_RADIAL_JIT, BASIS_SIZE_RADIAL_JIT);
-        gn12 += fn12[k] * c[c_index];
+        for (int k = 0; k <= BASIS_SIZE_RADIAL_JIT; ++k) {
+          const int c_index =
+            get_c_index(type_index, n, k, N_MAX_RADIAL_JIT, BASIS_SIZE_RADIAL_JIT);
+          gn12 += fn12[k] * c[c_index];
+        }
+        edge_q[n] = gn12;
       }
-      q[n] += gn12;
+    }
+    // Preserve the baseline neighbor and basis contraction order.
+    for (int source_lane = 0;
+         source_lane < 8 && first + source_lane < neighbor_number;
+         ++source_lane) {
+#pragma unroll
+      for (int n = 0; n <= N_MAX_RADIAL_JIT; ++n) {
+        q[n] += __shfl_sync(mask, edge_q[n], source_lane, 8);
+      }
     }
   }
+  if (lane != 0) return;
 
 #pragma unroll
   for (int n = 0; n <= N_MAX_RADIAL_JIT; ++n) {
@@ -139,8 +156,9 @@ static __global__ void descriptor_angular_jit(
   float q[DIM_ANGULAR_JIT] = {0.0f};
 
 #pragma unroll
-  for (int n = 0; n <= N_MAX_ANGULAR_JIT; ++n) {
-    float s[NUM_ABC_JIT] = {0.0f};
+  // Share edge geometry and radial basis across five angular channels.
+  for (int base = 0; base <= N_MAX_ANGULAR_JIT; base += 5) {
+    float sums[5][NUM_ABC_JIT] = {0.0f};
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       const int index = NN_sum[n1] + i1;
       const int n2 = NL[index];
@@ -157,37 +175,48 @@ static __global__ void descriptor_angular_jit(
       find_fn(BASIS_SIZE_ANGULAR_JIT, rcinv, d12, fc12, fn12);
 
       const int type_index = descriptor_type_index_jit(t1, t2);
-      float gn12 = 0.0f;
 #pragma unroll
-      for (int k = 0; k <= BASIS_SIZE_ANGULAR_JIT; ++k) {
-        const int c_index = get_c_index(
-          type_index,
-          n,
-          k,
-          N_MAX_ANGULAR_JIT,
-          BASIS_SIZE_ANGULAR_JIT,
-          NUM_C_RADIAL_JIT);
-        gn12 += fn12[k] * c[c_index];
+      for (int lane = 0; lane < 5; ++lane) {
+        const int n = base + lane;
+        if (n > N_MAX_ANGULAR_JIT) continue;
+        float gn12 = 0.0f;
+#pragma unroll
+        for (int k = 0; k <= BASIS_SIZE_ANGULAR_JIT; ++k) {
+          const int c_index = get_c_index(
+            type_index,
+            n,
+            k,
+            N_MAX_ANGULAR_JIT,
+            BASIS_SIZE_ANGULAR_JIT,
+            NUM_C_RADIAL_JIT);
+          gn12 += fn12[k] * c[c_index];
+        }
+        accumulate_s(L_MAX_JIT, d12, x12, y12, z12, gn12, sums[lane]);
       }
-      accumulate_s(L_MAX_JIT, d12, x12, y12, z12, gn12, s);
     }
 
-    find_q(
-      L_MAX_JIT,
-      HAS_Q_222_JIT,
-      HAS_Q_1111_JIT,
-      HAS_Q_112_JIT,
-      HAS_Q_123_JIT,
-      HAS_Q_233_JIT,
-      HAS_Q_134_JIT,
-      N_MAX_ANGULAR_JIT + 1,
-      n,
-      s,
-      q);
+#pragma unroll
+    for (int lane = 0; lane < 5; ++lane) {
+      const int n = base + lane;
+      if (n > N_MAX_ANGULAR_JIT) continue;
+      float* s = sums[lane];
+      find_q(
+        L_MAX_JIT,
+        HAS_Q_222_JIT,
+        HAS_Q_1111_JIT,
+        HAS_Q_112_JIT,
+        HAS_Q_123_JIT,
+        HAS_Q_233_JIT,
+        HAS_Q_134_JIT,
+        N_MAX_ANGULAR_JIT + 1,
+        n,
+        s,
+        q);
 
 #pragma unroll
-    for (int abc = 0; abc < NUM_ABC_JIT; ++abc) {
-      sum_fxyz[(n * NUM_ABC_JIT + abc) * N + n1] = s[abc];
+      for (int abc = 0; abc < NUM_ABC_JIT; ++abc) {
+        sum_fxyz[(n * NUM_ABC_JIT + abc) * N + n1] = s[abc];
+      }
     }
   }
 
@@ -229,6 +258,42 @@ static __device__ __forceinline__ float effective_fp_jit(
   return value;
 }
 
+static __device__ __forceinline__ void find_fn_and_fnp_radial_jit(
+  const int n_max,
+  const float rcinv,
+  const float d12,
+  const float fc12,
+  const float fcp12,
+  float* fn,
+  float* fnp)
+{
+  // Keep coordinate rounding independent of the cooperative kernel layout.
+  const float shifted = __fmaf_rn(d12, rcinv, -1.0f);
+  float x = 2.0f * shifted * shifted - 1.0f;
+  fn[0] = fc12;
+  fnp[0] = fcp12;
+  fn[1] = (x + 1.0f) * 0.5f * fc12;
+  fnp[1] = 2.0f * shifted * rcinv * fc12 + (x + 1.0f) * 0.5f * fcp12;
+  float u0 = 1.0f;
+  float u1 = 2.0f * x;
+  float u2;
+  float fn_m_minus_2 = 1.0f;
+  float fn_m_minus_1 = x;
+  for (int m = 2; m <= n_max; ++m) {
+    float fn_tmp1 = 2.0f * x * fn_m_minus_1 - fn_m_minus_2;
+    fn_m_minus_2 = fn_m_minus_1;
+    fn_m_minus_1 = fn_tmp1;
+    float fnp_tmp = m * u1;
+    u2 = 2.0f * x * u1 - u0;
+    u0 = u1;
+    u1 = u2;
+
+    float fn_tmp2 = (fn_tmp1 + 1.0f) * 0.5f;
+    fnp[m] = (fnp_tmp * 2.0f * shifted * rcinv) * fc12 + fn_tmp2 * fcp12;
+    fn[m] = fn_tmp2 * fc12;
+  }
+}
+
 static __global__ void force_radial_jit(
   const int N,
   const int* NN_sum,
@@ -250,13 +315,17 @@ static __global__ void force_radial_jit(
   float* fz,
   float* virial)
 {
-  const int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  // Eight lanes own one center and load consecutive CSR neighbors.
+  const int lane = threadIdx.x % 8;
+  const unsigned mask = 0xffu << ((threadIdx.x % 32) / 8 * 8);
+  const int n1 = (threadIdx.x + blockIdx.x * blockDim.x) / 8;
   if (n1 >= N) return;
 
   const float* c = get_c_jit(parameters);
   const int t1 = (NUM_TYPES_JIT == 1) ? 0 : type[n1];
   const int neighbor_number = NN[n1];
 
+  float center_force[3] = {0.0f};
   float sxx = 0.0f;
   float syy = 0.0f;
   float szz = 0.0f;
@@ -264,90 +333,117 @@ static __global__ void force_radial_jit(
   float syz = 0.0f;
   float szx = 0.0f;
 
-  for (int i1 = 0; i1 < neighbor_number; ++i1) {
-    const int index = NN_sum[n1] + i1;
-    const int n2 = NL[index];
-    const int t2 = (NUM_TYPES_JIT == 1) ? 0 : type[n2];
-    const float r12[3] = {
-      x12_all[index], y12_all[index], z12_all[index]};
-    const float d12 =
-      sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-    const float d12inv = 1.0f / d12;
+  for (int first = 0; first < neighbor_number; first += 8) {
+    float edge_r[3] = {0.0f};
+    float edge_f[3] = {0.0f};
+    const int i1 = first + lane;
+    if (i1 < neighbor_number) {
+      const int index = NN_sum[n1] + i1;
+      const int n2 = NL[index];
+      const int t2 = (NUM_TYPES_JIT == 1) ? 0 : type[n2];
+      const float r12[3] = {
+        x12_all[index], y12_all[index], z12_all[index]};
+      const float d12 =
+        sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      const float d12inv = 1.0f / d12;
 
-    const float rc = get_rc_radial_jit(t1, t2);
-    const float rcinv = 1.0f / rc;
-    float fc12, fcp12;
-    find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
+      const float rc = get_rc_radial_jit(t1, t2);
+      const float rcinv = 1.0f / rc;
+      float fc12, fcp12;
+      find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
 
-    float fn12[BASIS_SIZE_RADIAL_JIT + 1];
-    float fnp12[BASIS_SIZE_RADIAL_JIT + 1];
-    find_fn_and_fnp(
-      BASIS_SIZE_RADIAL_JIT,
-      rcinv,
-      d12,
-      fc12,
-      fcp12,
-      fn12,
-      fnp12);
+      float fn12[BASIS_SIZE_RADIAL_JIT + 1];
+      float fnp12[BASIS_SIZE_RADIAL_JIT + 1];
+      find_fn_and_fnp_radial_jit(
+        BASIS_SIZE_RADIAL_JIT,
+        rcinv,
+        d12,
+        fc12,
+        fcp12,
+        fn12,
+        fnp12);
 
-    const int type_index = descriptor_type_index_jit(t1, t2);
-    float f12[3] = {0.0f};
+      const int type_index = descriptor_type_index_jit(t1, t2);
+      float f12[3] = {0.0f};
 
 #pragma unroll
-    for (int n = 0; n <= N_MAX_RADIAL_JIT; ++n) {
-      float gnp12 = 0.0f;
+      for (int n = 0; n <= N_MAX_RADIAL_JIT; ++n) {
+        float gnp12 = 0.0f;
 #pragma unroll
-      for (int k = 0; k <= BASIS_SIZE_RADIAL_JIT; ++k) {
-        const int c_index =
-          get_c_index(type_index, n, k, N_MAX_RADIAL_JIT, BASIS_SIZE_RADIAL_JIT);
-        gnp12 += fnp12[k] * c[c_index];
+        for (int k = 0; k <= BASIS_SIZE_RADIAL_JIT; ++k) {
+          const int c_index =
+            get_c_index(type_index, n, k, N_MAX_RADIAL_JIT, BASIS_SIZE_RADIAL_JIT);
+          gnp12 += fnp12[k] * c[c_index];
+        }
+
+        const int fp_index = n1 + n * N;
+        float tmp12 = effective_fp_jit(
+          fp_index,
+          n1,
+          Fp,
+          charge_derivative,
+          D_real,
+          C6_derivative,
+          D_C6);
+        tmp12 *= gnp12 * d12inv;
+
+        f12[0] += tmp12 * r12[0];
+        f12[1] += tmp12 * r12[1];
+        f12[2] += tmp12 * r12[2];
       }
 
-      const int fp_index = n1 + n * N;
-      float tmp12 = effective_fp_jit(
-        fp_index,
-        n1,
-        Fp,
-        charge_derivative,
-        D_real,
-        C6_derivative,
-        D_C6);
-      tmp12 *= gnp12 * d12inv;
-
-      f12[0] += tmp12 * r12[0];
-      f12[1] += tmp12 * r12[1];
-      f12[2] += tmp12 * r12[2];
+      atomicAdd(&fx[n2], -f12[0]);
+      atomicAdd(&fy[n2], -f12[1]);
+      atomicAdd(&fz[n2], -f12[2]);
+#pragma unroll
+      for (int axis = 0; axis < 3; ++axis) {
+        edge_r[axis] = r12[axis];
+        edge_f[axis] = f12[axis];
+      }
     }
-
-    atomicAdd(&fx[n1], f12[0]);
-    atomicAdd(&fy[n1], f12[1]);
-    atomicAdd(&fz[n1], f12[2]);
-    atomicAdd(&fx[n2], -f12[0]);
-    atomicAdd(&fy[n2], -f12[1]);
-    atomicAdd(&fz[n2], -f12[2]);
-
+    // Lane zero consumes edges in their original order, including virial FMAs.
+    for (int source_lane = 0;
+         source_lane < 8 && first + source_lane < neighbor_number;
+         ++source_lane) {
+      float r12[3], f12[3];
+#pragma unroll
+      for (int axis = 0; axis < 3; ++axis) {
+        r12[axis] = __shfl_sync(mask, edge_r[axis], source_lane, 8);
+        f12[axis] = __shfl_sync(mask, edge_f[axis], source_lane, 8);
+      }
+      if (lane == 0) {
+        center_force[0] += f12[0];
+        center_force[1] += f12[1];
+        center_force[2] += f12[2];
 #if TENSOR_VIRIAL_JIT
-    if (is_dipole) {
-      const float r2 =
-        r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
-      sxx -= r2 * f12[0];
-      syy -= r2 * f12[1];
-      szz -= r2 * f12[2];
-    } else {
-      sxx -= r12[0] * f12[0];
-      syy -= r12[1] * f12[1];
-      szz -= r12[2] * f12[2];
-    }
+        if (is_dipole) {
+          const float r2 =
+            r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
+          sxx -= r2 * f12[0];
+          syy -= r2 * f12[1];
+          szz -= r2 * f12[2];
+        } else {
+          sxx -= r12[0] * f12[0];
+          syy -= r12[1] * f12[1];
+          szz -= r12[2] * f12[2];
+        }
 #else
-    (void)is_dipole;
-    sxx -= r12[0] * f12[0];
-    syy -= r12[1] * f12[1];
-    szz -= r12[2] * f12[2];
+        (void)is_dipole;
+        sxx -= r12[0] * f12[0];
+        syy -= r12[1] * f12[1];
+        szz -= r12[2] * f12[2];
 #endif
-    sxy -= r12[0] * f12[1];
-    syz -= r12[1] * f12[2];
-    szx -= r12[2] * f12[0];
+        sxy -= r12[0] * f12[1];
+        syz -= r12[1] * f12[2];
+        szx -= r12[2] * f12[0];
+      }
+    }
   }
+  if (lane != 0) return;
+
+  atomicAdd(&fx[n1], center_force[0]);
+  atomicAdd(&fy[n1], center_force[1]);
+  atomicAdd(&fz[n1], center_force[2]);
 
   virial[n1] += sxx;
   virial[n1 + N] += syy;
@@ -550,8 +646,8 @@ extern "C" int nep_train_launch_descriptor_radial(
   const float* parameters,
   float* descriptors)
 {
-  const int block_size = 32;
-  const int grid_size = (N - 1) / block_size + 1;
+  const int block_size = 128;
+  const int grid_size = (N * 8 - 1) / block_size + 1;
   descriptor_radial_jit<<<grid_size, block_size>>>(
     N, NN_sum, NN, NL, type, x12, y12, z12, parameters, descriptors);
   return static_cast<int>(cudaGetLastError());
@@ -608,8 +704,8 @@ extern "C" int nep_train_launch_force_radial(
   float* fz,
   float* virial)
 {
-  const int block_size = 32;
-  const int grid_size = (N - 1) / block_size + 1;
+  const int block_size = 128;
+  const int grid_size = (N * 8 - 1) / block_size + 1;
   force_radial_jit<<<grid_size, block_size>>>(
     N,
     NN_sum,
