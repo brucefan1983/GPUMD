@@ -14,7 +14,8 @@
 */
 
 /*----------------------------------------------------------------------------80
-GPUMD Contributing author: Zihan Yan (Westlake University)
+Major contributors:
+  Zihan Yan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #pragma once
