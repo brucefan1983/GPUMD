@@ -53,8 +53,7 @@ Ensemble_NPHug::Ensemble_NPHug(const std::vector<std::string>& tokens)
           p_period[i][j] = p_period[0][0];
         }
       }
-    } else if (
-      tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
+    } else if (tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
       if (i + 2 >= num_params)
         PRINT_INPUT_ERROR("Pressure keyword requires two values.");
       uniaxial_compress = -1;
@@ -174,10 +173,7 @@ Ensemble_NPHug::Ensemble_NPHug(const std::vector<std::string>& tokens)
 }
 
 void Ensemble_NPHug::init_mttk(
-  const std::vector<Group>& group,
-  const Box& box,
-  const Atom& atom,
-  GPU_Vector<double>& thermo)
+  const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo)
 {
   // from GPa to eV/A^2
   matrix_scale(p_start, 1 / PRESSURE_UNIT_CONVERSION, p_start);
@@ -218,10 +214,7 @@ void Ensemble_NPHug::init_mttk(
 }
 
 void Ensemble_NPHug::get_thermo(
-  const std::vector<Group>& group,
-  const Box& box,
-  const Atom& atom,
-  GPU_Vector<double>& thermo)
+  const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo)
 {
   find_thermo(group, box, atom, thermo);
   thermo.copy_to_host(thermo_info, 8);

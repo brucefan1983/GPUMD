@@ -34,9 +34,7 @@ Native enhanced sampling action.
 #include <vector>
 
 static void enhanced_sampling_input_error(
-  const std::string& filename,
-  const int line,
-  const std::string& message)
+  const std::string& filename, const int line, const std::string& message)
 {
   const std::string error_message =
     "In " + filename + ", line " + std::to_string(line) + ": " + message + "\n";
@@ -63,17 +61,12 @@ static bool enhanced_sampling_valid_name(const std::string& name)
 
 static bool enhanced_sampling_is_orthogonal(const Box& box)
 {
-  return
-    box.cpu_h[1] == 0.0 && box.cpu_h[2] == 0.0 && box.cpu_h[3] == 0.0 &&
-    box.cpu_h[5] == 0.0 && box.cpu_h[6] == 0.0 && box.cpu_h[7] == 0.0;
+  return box.cpu_h[1] == 0.0 && box.cpu_h[2] == 0.0 && box.cpu_h[3] == 0.0 && box.cpu_h[5] == 0.0 &&
+         box.cpu_h[6] == 0.0 && box.cpu_h[7] == 0.0;
 }
 
 EnhancedSamplingAction::EnhancedSamplingAction(const std::vector<std::string>& tokens)
-  : input_line_(0),
-    output_interval_(0),
-    output_is_set_(false),
-    start_is_set_(false),
-    output_(NULL)
+  : input_line_(0), output_interval_(0), output_is_set_(false), start_is_set_(false), output_(NULL)
 {
   action_name = "enhanced_sampling";
   if (tokens.size() != 2) {
@@ -90,10 +83,7 @@ EnhancedSamplingAction::EnhancedSamplingAction(const std::vector<std::string>& t
   printf("    number of biases: %d.\n", engine_.get_number_of_biases());
 }
 
-EnhancedSamplingAction::~EnhancedSamplingAction()
-{
-  close_output();
-}
+EnhancedSamplingAction::~EnhancedSamplingAction() { close_output(); }
 
 void EnhancedSamplingAction::parse_input_file()
 {
@@ -126,8 +116,7 @@ void EnhancedSamplingAction::parse_input_file()
   input.close();
 
   if (!output_is_set_) {
-    enhanced_sampling_input_error(
-      input_filename_, input_line_, "An output line is required.");
+    enhanced_sampling_input_error(input_filename_, input_line_, "An output line is required.");
   }
   if (input_filename_ == output_filename_) {
     enhanced_sampling_input_error(
@@ -138,8 +127,7 @@ void EnhancedSamplingAction::parse_input_file()
       input_filename_, input_line_, "At least one collective variable is required.");
   }
   if (engine_.get_number_of_biases() == 0) {
-    enhanced_sampling_input_error(
-      input_filename_, input_line_, "At least one bias is required.");
+    enhanced_sampling_input_error(input_filename_, input_line_, "At least one bias is required.");
   }
 }
 
@@ -172,8 +160,7 @@ void EnhancedSamplingAction::parse_start(const std::vector<std::string>& tokens)
       input_filename_, input_line_, "The start line can only be specified once.");
   }
   if (tokens.size() != 2 || tokens[1] != "fresh") {
-    enhanced_sampling_input_error(
-      input_filename_, input_line_, "V1A only accepts: start fresh.");
+    enhanced_sampling_input_error(input_filename_, input_line_, "V1A only accepts: start fresh.");
   }
   start_is_set_ = true;
 }
@@ -195,8 +182,7 @@ void EnhancedSamplingAction::parse_cv(const std::vector<std::string>& tokens)
       "start with a digit.");
   }
   if (engine_.has_cv(name)) {
-    enhanced_sampling_input_error(
-      input_filename_, input_line_, "CV names must be unique.");
+    enhanced_sampling_input_error(input_filename_, input_line_, "CV names must be unique.");
   }
   if (tokens[2] != "distance" || tokens[3] != "atoms" || tokens[6] != "pbc") {
     enhanced_sampling_input_error(
@@ -252,8 +238,7 @@ void EnhancedSamplingAction::parse_bias(const std::vector<std::string>& tokens)
       "start with a digit.");
   }
   if (engine_.has_bias(name)) {
-    enhanced_sampling_input_error(
-      input_filename_, input_line_, "Bias names must be unique.");
+    enhanced_sampling_input_error(input_filename_, input_line_, "Bias names must be unique.");
   }
   if (
     tokens[2] != "harmonic" || tokens[3] != "arg" || tokens[5] != "center" ||
@@ -283,8 +268,7 @@ void EnhancedSamplingAction::parse_bias(const std::vector<std::string>& tokens)
 
   const int argument_index = engine_.get_cv_index(argument_name);
   std::unique_ptr<EnhancedSamplingBias> bias;
-  bias.reset(new EnhancedSamplingHarmonicBias(
-    name, argument_name, argument_index, center, kappa));
+  bias.reset(new EnhancedSamplingHarmonicBias(name, argument_name, argument_index, center, kappa));
   engine_.add_bias(std::move(bias));
 }
 
@@ -303,22 +287,16 @@ void EnhancedSamplingAction::pre_run(
   Force& force)
 {
   const EnsembleType type = integrate.get_type();
-  if (
-    type != EnsembleType::NVE &&
-    type != EnsembleType::NVT_NHC &&
-    type != EnsembleType::NVT_BDP) {
-    PRINT_INPUT_ERROR(
-      "Enhanced sampling V1A only supports NVE, NVT-NHC, and NVT-BDP.\n");
+  if (type != EnsembleType::NVE && type != EnsembleType::NVT_NHC && type != EnsembleType::NVT_BDP) {
+    PRINT_INPUT_ERROR("Enhanced sampling V1A only supports NVE, NVT-NHC, and NVT-BDP.\n");
   }
   if (
     (type == EnsembleType::NVT_NHC || type == EnsembleType::NVT_BDP) &&
     integrate.get_temperature1() != integrate.get_temperature2()) {
-    PRINT_INPUT_ERROR(
-      "Enhanced sampling V1A requires a constant target temperature.\n");
+    PRINT_INPUT_ERROR("Enhanced sampling V1A requires a constant target temperature.\n");
   }
   if (integrate.get_fixed_group() >= 0 || integrate.get_move_group() >= 0) {
-    PRINT_INPUT_ERROR(
-      "Enhanced sampling V1A does not support fixed or moving atom groups.\n");
+    PRINT_INPUT_ERROR("Enhanced sampling V1A does not support fixed or moving atom groups.\n");
   }
   if (!enhanced_sampling_is_orthogonal(box)) {
     PRINT_INPUT_ERROR("Enhanced sampling V1A requires an orthogonal simulation box.\n");

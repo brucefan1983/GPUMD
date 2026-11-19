@@ -13,9 +13,9 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "nep_charge_reader.cuh"
-#include "nep_charge_parameters.cuh"
 #include "main_nep/xyz_reader.cuh"
+#include "nep_charge_parameters.cuh"
+#include "nep_charge_reader.cuh"
 #include "utilities/error.cuh"
 
 void NEP_Charge_Reader::read_structure(const XYZ_Record& record, Structure& structure)
@@ -55,12 +55,13 @@ void NEP_Charge_Reader::print_summary(const std::vector<Structure>& structures) 
   print_nep_boundaries(structures);
 }
 
-const char* NEP_Charge_Reader::energy_difference_conflict(
-  const Structure& a, const Structure& b) const
+const char*
+NEP_Charge_Reader::energy_difference_conflict(const Structure& a, const Structure& b) const
 {
   const char* conflict = NEP_Energy_Reader::energy_difference_conflict(a, b);
   if (conflict && labels[a.index_in_file].charge != labels[b.index_in_file].charge) {
-    return "differ only in charge=, for which a qNEP model predicts no meaningful energy difference.";
+    return "differ only in charge=, for which a qNEP model predicts no meaningful energy "
+           "difference.";
   }
   return conflict;
 }

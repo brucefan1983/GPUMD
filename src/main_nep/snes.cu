@@ -24,8 +24,8 @@ https://doi.org/10.1145/2001576.2001692
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
-#include "potential.cuh"
 #include "parameters.cuh"
+#include "potential.cuh"
 #include "snes.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"

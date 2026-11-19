@@ -17,9 +17,9 @@
 #include "gpu_macro.cuh"
 #include "main_common.cuh"
 #include <chrono>
+#include <cstring>
 #include <stdio.h>
 #include <stdlib.h>
-#include <cstring>
 
 void print_compile_information(void)
 {

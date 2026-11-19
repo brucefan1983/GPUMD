@@ -37,8 +37,8 @@ static __global__ void gpu_enhanced_sampling_compute_distance(
 {
   if (blockIdx.x == 0 && threadIdx.x == 0) {
     double dx = g_position_per_atom[atom_j] - g_position_per_atom[atom_i];
-    double dy = g_position_per_atom[atom_j + number_of_atoms] -
-                g_position_per_atom[atom_i + number_of_atoms];
+    double dy =
+      g_position_per_atom[atom_j + number_of_atoms] - g_position_per_atom[atom_i + number_of_atoms];
     double dz = g_position_per_atom[atom_j + number_of_atoms * 2] -
                 g_position_per_atom[atom_i + number_of_atoms * 2];
 
@@ -112,10 +112,7 @@ static __global__ void gpu_enhanced_sampling_add_distance_force_virial(
 }
 
 EnhancedSamplingDistanceCV::EnhancedSamplingDistanceCV(
-  const std::string& name,
-  const int atom_i,
-  const int atom_j,
-  const bool use_pbc)
+  const std::string& name, const int atom_i, const int atom_j, const bool use_pbc)
   : EnhancedSamplingCV(name),
     atom_i_(atom_i),
     atom_j_(atom_j),
@@ -129,8 +126,7 @@ void EnhancedSamplingDistanceCV::prepare(const int number_of_atoms)
   if (number_of_atoms <= 0) {
     PRINT_INPUT_ERROR("The number of atoms should be positive.\n");
   }
-  if (atom_i_ < 0 || atom_i_ >= number_of_atoms || atom_j_ < 0 ||
-      atom_j_ >= number_of_atoms) {
+  if (atom_i_ < 0 || atom_i_ >= number_of_atoms || atom_j_ < 0 || atom_j_ >= number_of_atoms) {
     PRINT_INPUT_ERROR("Atom index for a distance CV is out of range.\n");
   }
   if (atom_i_ == atom_j_) {
@@ -143,9 +139,7 @@ void EnhancedSamplingDistanceCV::prepare(const int number_of_atoms)
 }
 
 void EnhancedSamplingDistanceCV::compute(
-  const Box& box,
-  const GPU_Vector<double>& position_per_atom,
-  double* g_value)
+  const Box& box, const GPU_Vector<double>& position_per_atom, double* g_value)
 {
   gpu_enhanced_sampling_compute_distance<<<1, 1>>>(
     number_of_atoms_,

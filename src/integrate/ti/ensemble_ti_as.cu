@@ -48,8 +48,7 @@ Ensemble_TI_AS::Ensemble_TI_AS(const std::vector<std::string>& tokens)
       t_stop = t_start;
       t_target = t_start;
       i += 2;
-    } else if (
-      tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
+    } else if (tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
       if (i + 2 >= num_params)
         PRINT_INPUT_ERROR("Pressure keyword requires two values.");
       use_barostat = true;
@@ -136,8 +135,7 @@ Ensemble_TI_AS::Ensemble_TI_AS(const std::vector<std::string>& tokens)
   p_max /= PRESSURE_UNIT_CONVERSION;
 }
 
-void Ensemble_TI_AS::init(
-  const int number_of_steps, const GPU_Vector<double>& thermo)
+void Ensemble_TI_AS::init(const int number_of_steps, const GPU_Vector<double>& thermo)
 {
   if (auto_switch) {
     t_switch = (int)(number_of_steps * 0.4);
@@ -161,10 +159,7 @@ void Ensemble_TI_AS::init(
 }
 
 void Ensemble_TI_AS::find_ti_thermo(
-  const Box& box,
-  const std::vector<Group>& group,
-  const Atom& atom,
-  GPU_Vector<double>& thermo)
+  const Box& box, const std::vector<Group>& group, const Atom& atom, GPU_Vector<double>& thermo)
 {
   Ensemble::find_thermo(
     box.get_volume(),
@@ -178,15 +173,9 @@ void Ensemble_TI_AS::find_ti_thermo(
   pressure = (thermo_cpu[2] + thermo_cpu[3] + thermo_cpu[4]) / 3;
 }
 
-Ensemble_TI_AS::~Ensemble_TI_AS(void)
-{
-  close_output_file(false);
-}
+Ensemble_TI_AS::~Ensemble_TI_AS(void) { close_output_file(false); }
 
-void Ensemble_TI_AS::finalize_run(const Atom&, const Box&)
-{
-  close_output_file(true);
-}
+void Ensemble_TI_AS::finalize_run(const Atom&, const Box&) { close_output_file(true); }
 
 void Ensemble_TI_AS::close_output_file(const bool print_message)
 {
@@ -208,8 +197,7 @@ void Ensemble_TI_AS::initialize_before_first_step(
   GPU_Vector<double>& thermo)
 {
   init(number_of_steps, thermo);
-  Ensemble_MTTK::initialize_before_first_step(
-    time_step, number_of_steps, group, box, atom, thermo);
+  Ensemble_MTTK::initialize_before_first_step(time_step, number_of_steps, group, box, atom, thermo);
 }
 
 void Ensemble_TI_AS::get_target_pressure(

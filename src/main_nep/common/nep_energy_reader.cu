@@ -13,11 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "energy_difference.cuh"
+#include "main_nep/xyz_reader.cuh"
 #include "nep_energy_reader.cuh"
 #include "nep_energy_reference.cuh"
-#include "energy_difference.cuh"
 #include "nep_parameters.cuh"
-#include "main_nep/xyz_reader.cuh"
 #include "utilities/error.cuh"
 #include <cmath>
 
@@ -35,15 +35,18 @@ bool NEP_Energy_Reader::uses_grouped_batches() const
   return para.prediction == 0 && energy_parameters.lambda_d > 0.0f;
 }
 
-void NEP_Energy_Reader::prepare_train(std::vector<Structure>& structures, int batch_size,
-  int& num_batches, std::vector<int>& batch_sizes)
+void NEP_Energy_Reader::prepare_train(
+  std::vector<Structure>& structures,
+  int batch_size,
+  int& num_batches,
+  std::vector<int>& batch_sizes)
 {
   if (para.prediction == 0) {
     if (para.energy_reference.empty()) {
       int rank;
       std::string error;
       if (!fit_nep_energy_reference(
-        structures, para.num_types, para.energy_reference, rank, error)) {
+            structures, para.num_types, para.energy_reference, rank, error)) {
         PRINT_INPUT_ERROR(error.c_str());
       }
       printf("Energy reference fit rank = %d of %d.\n", rank, para.num_types);
@@ -53,14 +56,15 @@ void NEP_Energy_Reader::prepare_train(std::vector<Structure>& structures, int ba
     for (int t = 0; t < para.num_types; ++t) {
       printf(
         "Energy reference for %s = %.17g eV.\n",
-        para.elements[t].c_str(), para.energy_reference[t]);
+        para.elements[t].c_str(),
+        para.energy_reference[t]);
     }
   }
-  energy_difference.read_train(energy_parameters, structures, batch_size, num_batches, batch_sizes, *this);
+  energy_difference.read_train(
+    energy_parameters, structures, batch_size, num_batches, batch_sizes, *this);
 }
 
-void NEP_Energy_Reader::prepare_test(
-  const std::vector<Structure>& structures, bool has_test_set)
+void NEP_Energy_Reader::prepare_test(const std::vector<Structure>& structures, bool has_test_set)
 {
   energy_difference.read_test(energy_parameters, structures, has_test_set, *this);
 }

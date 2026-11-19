@@ -23,16 +23,17 @@
 
 struct ADP_Data {
   GPU_Vector<int> NN, NL;
-  GPU_Vector<int> NL_shift;       // encoded periodic image shifts per neighbor entry
+  GPU_Vector<int> NL_shift; // encoded periodic image shifts per neighbor entry
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
-  GPU_Vector<double> Fp;          // derivative of embedding function F'(rho)
-  GPU_Vector<double> mu;          // dipole distortion terms (3 components per atom)
-  GPU_Vector<double> lambda;      // quadruple distortion terms (6 components per atom: xx,yy,zz,yz,xz,xy)
-  
-  GPU_Vector<int> pair_index_map_g;      // Lookup table for pair indices (size Nelements*Nelements)
-  
+  GPU_Vector<double> Fp; // derivative of embedding function F'(rho)
+  GPU_Vector<double> mu; // dipole distortion terms (3 components per atom)
+  GPU_Vector<double>
+    lambda; // quadruple distortion terms (6 components per atom: xx,yy,zz,yz,xz,xy)
+
+  GPU_Vector<int> pair_index_map_g; // Lookup table for pair indices (size Nelements*Nelements)
+
   // Tabulated functions from ADP file
   int Nelements;
   std::vector<std::string> elements_list;
@@ -43,23 +44,23 @@ struct ADP_Data {
   double rc;
   double inv_drho = 0.0;
   double inv_dr = 0.0;
-  
+
   // EAM-like functions
-  std::vector<double> F_rho;      // embedding function F(rho)
-  std::vector<double> rho_r;      // electron density function rho(r)
-  std::vector<double> phi_r;      // pair potential r*phi(r)
-  
+  std::vector<double> F_rho; // embedding function F(rho)
+  std::vector<double> rho_r; // electron density function rho(r)
+  std::vector<double> phi_r; // pair potential r*phi(r)
+
   // ADP-specific functions
-  std::vector<double> u_r;        // u(r) function for dipole term
-  std::vector<double> w_r;        // w(r) function for quadruple term
-  
+  std::vector<double> u_r; // u(r) function for dipole term
+  std::vector<double> w_r; // w(r) function for quadruple term
+
   // Spline coefficients for interpolation
   std::vector<double> F_rho_a, F_rho_b, F_rho_c, F_rho_d;
   std::vector<double> rho_r_a, rho_r_b, rho_r_c, rho_r_d;
   std::vector<double> phi_r_a, phi_r_b, phi_r_c, phi_r_d;
   std::vector<double> u_r_a, u_r_b, u_r_c, u_r_d;
   std::vector<double> w_r_a, w_r_b, w_r_c, w_r_d;
-  
+
   // GPU versions of spline coefficients
   GPU_Vector<double> F_rho_a_g, F_rho_b_g, F_rho_c_g, F_rho_d_g;
   GPU_Vector<double> rho_r_a_g, rho_r_b_g, rho_r_c_g, rho_r_d_g;
@@ -86,12 +87,17 @@ public:
 
 protected:
   ADP_Data adp_data;
-  
+
   // File reading and initialization
   void read_adp_file(const char* file_potential);
   void setup_spline();
   void calculate_spline(
-    const double* y, double dx,
-    double* a, double* b, double* c, double* d,
-    int n_functions, int n_points);
+    const double* y,
+    double dx,
+    double* a,
+    double* b,
+    double* c,
+    double* d,
+    int n_functions,
+    int n_points);
 };

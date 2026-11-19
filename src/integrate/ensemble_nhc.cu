@@ -28,8 +28,7 @@ Oxford University Press, 2010.
 #include <cstring>
 #define DIM 3
 
-Ensemble_NHC::Ensemble_NHC(
-  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+Ensemble_NHC::Ensemble_NHC(const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
   parse(tokens, group);
 }
@@ -63,8 +62,7 @@ void Ensemble_NHC::parse_heat_groups(
   }
 }
 
-void Ensemble_NHC::parse(
-  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+void Ensemble_NHC::parse(const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
   const int num_param = tokens.size();
   if (tokens[1] == "nvt_nhc") {
@@ -161,8 +159,7 @@ void Ensemble_NHC::parse(
     printf("    choose the custom constant-power velocity-scaling method (heat_nhc_power).\n");
     printf("    average temperature is %g K (no thermostat acts on source/sink).\n", temperature);
     printf(
-      "    tau_T is %g time_step (parsed but NOT used by this command).\n",
-      temperature_coupling);
+      "    tau_T is %g time_step (parsed but NOT used by this command).\n", temperature_coupling);
     printf(
       "    heating power is %g eV/fs (total for the whole group, not per atom).\n",
       delta_temperature);
@@ -175,15 +172,9 @@ void Ensemble_NHC::parse(
   }
 }
 
-double Ensemble_NHC::get_temperature1() const
-{
-  return temperature1_;
-}
+double Ensemble_NHC::get_temperature1() const { return temperature1_; }
 
-double Ensemble_NHC::get_temperature2() const
-{
-  return temperature2_;
-}
+double Ensemble_NHC::get_temperature2() const { return temperature2_; }
 
 void Ensemble_NHC::initialize_run(
   const double time_step, Atom& atom, Box&, const std::vector<Group>& group)
@@ -524,7 +515,7 @@ void Ensemble_NHC::integrate_heat_nhc_power_2(
     dE_out = 0.0;
   }
   double factor_1 = (K_source > 0.0) ? sqrt(1.0 + dE_in / K_source) : 1.0; // energy in
-  double factor_2 = (K_sink > 0.0) ? sqrt(1.0 - dE_out / K_sink) : 0.0; // energy out
+  double factor_2 = (K_sink > 0.0) ? sqrt(1.0 - dE_out / K_sink) : 0.0;    // energy out
 
   // accumulate the energies transferred from the system to the baths
   energy_transferred[0] -= dE_in;

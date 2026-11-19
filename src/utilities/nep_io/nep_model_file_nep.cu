@@ -25,7 +25,6 @@ bool NEP_Model_File::read_nep(
     return false;
   }
   calculate_layout(name == "nep_temperature" ? 1 : 0, 0, 1, 1);
-  return read_reference(document, fields, error) &&
-         read_zbl(document, fields, blocks, error) &&
+  return read_reference(document, fields, error) && read_zbl(document, fields, blocks, error) &&
          read_parameters(document, blocks, error);
 }

@@ -52,7 +52,8 @@ void Replica_Velocity::generate_canonical(
   const unsigned int seed)
 {
   if (mass.size() < 2 || !std::isfinite(temperature) || temperature <= 0.0)
-    PRINT_INPUT_ERROR("Canonical velocity sampling requires at least two atoms and a positive finite temperature.");
+    PRINT_INPUT_ERROR(
+      "Canonical velocity sampling requires at least two atoms and a positive finite temperature.");
   for (const double m : mass) {
     if (!std::isfinite(m) || m <= 0.0)
       PRINT_INPUT_ERROR("Canonical velocity sampling requires positive finite masses.");

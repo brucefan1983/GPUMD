@@ -38,8 +38,7 @@ void NEP_Compiled_Kernels::launch_descriptor_radial(
   float* descriptors)
 {
   check_nep_launch(
-    descriptor_radial_(
-      N, NN_sum, NN, NL, type, x12, y12, z12, parameters, descriptors),
+    descriptor_radial_(N, NN_sum, NN, NL, type, x12, y12, z12, parameters, descriptors),
     "descriptor_radial_jit");
 }
 
@@ -57,9 +56,7 @@ void NEP_Compiled_Kernels::launch_descriptor_angular(
   float* sum_fxyz)
 {
   check_nep_launch(
-    descriptor_angular_(
-      N, NN_sum, NN, NL, type, x12, y12, z12,
-      parameters, descriptors, sum_fxyz),
+    descriptor_angular_(N, NN_sum, NN, NL, type, x12, y12, z12, parameters, descriptors, sum_fxyz),
     "descriptor_angular_jit");
 }
 
@@ -72,26 +69,39 @@ bool NEP_Compiled_BEC::load(NEP_Compile& library)
 }
 
 void NEP_Compiled_BEC::launch_bec_radial(
-  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-  const float* x12, const float* y12, const float* z12,
-  const float* parameters, const float* charge_derivative, float* bec)
+  int N,
+  const int* NN_sum,
+  const int* NN,
+  const int* NL,
+  const int* type,
+  const float* x12,
+  const float* y12,
+  const float* z12,
+  const float* parameters,
+  const float* charge_derivative,
+  float* bec)
 {
   check_nep_launch(
-    bec_radial_(
-      N, NN_sum, NN, NL, type, x12, y12, z12,
-      parameters, charge_derivative, bec),
+    bec_radial_(N, NN_sum, NN, NL, type, x12, y12, z12, parameters, charge_derivative, bec),
     "bec_radial_jit");
 }
 
 void NEP_Compiled_BEC::launch_bec_angular(
-  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-  const float* x12, const float* y12, const float* z12,
-  const float* parameters, const float* charge_derivative,
-  const float* sum_fxyz, float* bec)
+  int N,
+  const int* NN_sum,
+  const int* NN,
+  const int* NL,
+  const int* type,
+  const float* x12,
+  const float* y12,
+  const float* z12,
+  const float* parameters,
+  const float* charge_derivative,
+  const float* sum_fxyz,
+  float* bec)
 {
   check_nep_launch(
     bec_angular_(
-      N, NN_sum, NN, NL, type, x12, y12, z12,
-      parameters, charge_derivative, sum_fxyz, bec),
+      N, NN_sum, NN, NL, type, x12, y12, z12, parameters, charge_derivative, sum_fxyz, bec),
     "bec_angular_jit");
 }

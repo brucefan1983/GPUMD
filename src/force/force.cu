@@ -21,32 +21,32 @@ The driver class calculating force and related quantities.
 #ifdef USE_NNAP
 #include "nnap.cuh"
 #endif
+#include "fcp.cuh"
+#include "force.cuh"
 #include "force/eam/adp.cuh"
 #include "force/eam/eam.cuh"
 #include "force/eam/eam_alloy.cuh"
-#include "fcp.cuh"
-#include "force.cuh"
 #include "model/atom.cuh"
 #ifdef GPUMD_WPE_ENABLED
 #include "wpe_adapter.cuh"
 #endif
 #include "force/ilp/ilp_nep.cuh"
-#include "force/ilp/ilp_tmd_sw.cuh"
 #include "force/ilp/ilp_tersoff.cuh"
-#include "lj.cuh"
+#include "force/ilp/ilp_tmd_sw.cuh"
 #include "force/nep/nep.cuh"
 #include "force/nep/nep_multigpu.cuh"
 #include "force/nep_charge/nep_charge.cuh"
-#include "nep_charge_vdw/nep_charge_vdw.cuh"
-#include "potential.cuh"
 #include "force/tersoff/tersoff1988.cuh"
 #include "force/tersoff/tersoff1989.cuh"
 #include "force/tersoff/tersoff_mini.cuh"
+#include "lj.cuh"
+#include "nep_charge_vdw/nep_charge_vdw.cuh"
+#include "nep_spin/runtime.cuh"
+#include "potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_io/nep_file.cuh"
-#include "nep_spin/runtime.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include <cstring>
@@ -68,9 +68,8 @@ void Force::check_types(const std::string& file_potential)
       atom_types[n] = token;
     } else {
       if (token != atom_types[n]) {
-        PRINT_INPUT_ERROR(
-          "The atomic species and/or the order of the species are not consistent "
-          "between the multiple potentials.\n");
+        PRINT_INPUT_ERROR("The atomic species and/or the order of the species are not consistent "
+                          "between the multiple potentials.\n");
       }
     }
   }
@@ -103,8 +102,7 @@ std::unique_ptr<Potential> Force::create_potential(
     int max_neigh = 400;
     if (num_param == 3) {
       if (!is_valid_int(tokens[2], &max_neigh) || max_neigh <= 0 || max_neigh > 1024) {
-        PRINT_INPUT_ERROR(
-          "max_neighbor for eam/alloy must be a positive integer in (0, 1024].");
+        PRINT_INPUT_ERROR("max_neighbor for eam/alloy must be a positive integer in (0, 1024].");
       }
     }
     potential.reset(new EAMAlloy(tokens[1].c_str(), number_of_atoms, max_neigh));
@@ -113,8 +111,7 @@ std::unique_ptr<Potential> Force::create_potential(
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
-  } else if (strcmp(potential_name, "nep_vdw") == 0 ||
-             strcmp(potential_name, "qnep3_vdw") == 0) {
+  } else if (strcmp(potential_name, "nep_vdw") == 0 || strcmp(potential_name, "qnep3_vdw") == 0) {
     potential.reset(new NEP_Charge_VDW(tokens[1].c_str(), number_of_atoms, run_input));
     is_nep = true;
   } else if (strcmp(potential_name, "nep_spin") == 0) {
@@ -129,8 +126,7 @@ std::unique_ptr<Potential> Force::create_potential(
     strcmp(potential_name, "qnep3") == 0) {
     potential.reset(new NEP_Charge(tokens[1].c_str(), number_of_atoms, run_input));
     is_nep = true;
-  } else if (
-    strcmp(potential_name, "nep") == 0 || strcmp(potential_name, "nep_temperature") == 0) {
+  } else if (strcmp(potential_name, "nep") == 0 || strcmp(potential_name, "nep_temperature") == 0) {
     int num_gpus;
     CHECK(gpuGetDeviceCount(&num_gpus));
 #ifdef ZHEYONG
@@ -151,24 +147,23 @@ std::unique_ptr<Potential> Force::create_potential(
           PRINT_INPUT_ERROR("partition direction for multi-GPU NEP can only be x or y or z.\n");
         }
       }
-      potential.reset(
-        new NEP_MULTIGPU(
-          num_gpus, tokens[1].c_str(), number_of_atoms, partition_direction, run_input));
+      potential.reset(new NEP_MULTIGPU(
+        num_gpus, tokens[1].c_str(), number_of_atoms, partition_direction, run_input));
     }
     is_nep = true;
 #ifdef USE_DEEPMD
   } else if (strcmp(potential_name, "dp") == 0) {
     if (num_param != 3) {
-      PRINT_INPUT_ERROR(
-        "The potential command should contain two parameters, the setting file and the DP potential file.\n");
+      PRINT_INPUT_ERROR("The potential command should contain two parameters, the setting file and "
+                        "the DP potential file.\n");
     }
     potential.reset(new DP(tokens[2].c_str(), number_of_atoms));
 #endif
 #ifdef USE_NNAP
   } else if (strcmp(potential_name, "nnap") == 0 || strcmp(potential_name, "nnap_zbl") == 0) {
     if (num_param != 3) {
-      PRINT_INPUT_ERROR(
-        "The potential command should contain two parameters, the setting file and the NNAP potential file.\n");
+      PRINT_INPUT_ERROR("The potential command should contain two parameters, the setting file and "
+                        "the NNAP potential file.\n");
     }
     potential.reset(new NNAP(tokens[1].c_str(), tokens[2].c_str(), number_of_atoms));
 #endif
@@ -183,7 +178,8 @@ std::unique_ptr<Potential> Force::create_potential(
     fclose(fid_nep_map);
   } else if (strcmp(potential_name, "tersoff_ilp") == 0) {
     if (num_param != 3) {
-      PRINT_INPUT_ERROR("potential should contain ILP potential file and Tersoff potential file.\n");
+      PRINT_INPUT_ERROR(
+        "potential should contain ILP potential file and Tersoff potential file.\n");
     }
     FILE* fid_tersoff = my_fopen(tokens[2].c_str(), "r");
     potential.reset(new ILP_TERSOFF(fid_potential, fid_tersoff, num_types, number_of_atoms));
@@ -203,25 +199,21 @@ std::unique_ptr<Potential> Force::create_potential(
 }
 
 void Force::parse_potential(
-  const std::vector<std::string>& tokens,
-  const Box& box,
-  Atom& atom,
-  const RunInput& run_input)
+  const std::vector<std::string>& tokens, const Box& box, Atom& atom, const RunInput& run_input)
 {
   const int number_of_atoms = atom.type.size();
 #ifdef GPUMD_WPE_ENABLED
   if (tokens.size() != 2u) {
-    PRINT_INPUT_ERROR(
-      "Wisevolve Potential Engine integration supports exactly one potential file and no additional potential parameters.\n");
+    PRINT_INPUT_ERROR("Wisevolve Potential Engine integration supports exactly one potential file "
+                      "and no additional potential parameters.\n");
   }
   if (!potentials.empty()) {
-    PRINT_INPUT_ERROR(
-      "Wisevolve Potential Engine integration supports exactly one potential. Use standard GPUMD for multiple potentials.\n");
+    PRINT_INPUT_ERROR("Wisevolve Potential Engine integration supports exactly one potential. Use "
+                      "standard GPUMD for multiple potentials.\n");
   }
   (void)box;
   (void)run_input;
-  std::unique_ptr<Potential> wpe_potential(new WpePotential(
-    tokens[1].c_str(), number_of_atoms));
+  std::unique_ptr<Potential> wpe_potential(new WpePotential(tokens[1].c_str(), number_of_atoms));
   wpe_potential->N1 = 0;
   wpe_potential->N2 = number_of_atoms;
   potentials.push_back(std::move(wpe_potential));
@@ -253,14 +245,7 @@ void Force::parse_potential(
   }
   bool is_nep = false;
   std::unique_ptr<Potential> potential = create_potential(
-    tokens,
-    fid_potential,
-    potential_name,
-    num_types,
-    box,
-    number_of_atoms,
-    run_input,
-    is_nep);
+    tokens, fid_potential, potential_name, num_types, box, number_of_atoms, run_input, is_nep);
 
   if (is_nep) {
     // Check if the types for this potential are compatible with the possibly other potentials
@@ -289,8 +274,7 @@ void Force::parse_potential(
 
 #ifdef GPUMD_WPE_ENABLED
 void Force::wpe_process_command(
-  const std::vector<std::string>& tokens,
-  const int current_number_of_atoms)
+  const std::vector<std::string>& tokens, const int current_number_of_atoms)
 {
   WpeStageInfo stage{};
   if (wpe_stage_state_.process_command(tokens, current_number_of_atoms, stage))
@@ -327,13 +311,10 @@ static __global__ void initialize_properties(
   }
 }
 
-void Force::finalize()
-{
-  multiple_potentials_mode_ = "observe";
-}
+void Force::finalize() { multiple_potentials_mode_ = "observe"; }
 
-static __global__ void gpu_apply_pbc(
-  int N, Box box, double* g_x, double* g_y, double* g_z, int* g_position_image)
+static __global__ void
+gpu_apply_pbc(int N, Box box, double* g_x, double* g_y, double* g_z, int* g_position_image)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
@@ -582,7 +563,6 @@ void Force::compute(
     potential_per_atom,
     force_per_atom,
     virial_per_atom);
-
 }
 
 void Force::compute(
@@ -615,7 +595,6 @@ void Force::compute(
     potential_per_atom,
     force_per_atom,
     virial_per_atom);
-
 }
 
 void Force::compute(Box& box, Atom& atom, const std::vector<Group>& group)

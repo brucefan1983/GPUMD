@@ -18,8 +18,7 @@
 #include <string>
 #include <vector>
 
-struct RunInputLine
-{
+struct RunInputLine {
   std::string raw_line;
   std::vector<std::string> tokens;
   int line_number = 0;

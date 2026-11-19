@@ -81,8 +81,7 @@ Ensemble_TI_RS::Ensemble_TI_RS(const std::vector<std::string>& tokens)
       t_stop = t_start;
       t_target = t_start;
       i += 3;
-    } else if (
-      tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
+    } else if (tokens[i] == "iso" || tokens[i] == "aniso" || tokens[i] == "tri") {
       if (i + 1 >= num_params)
         PRINT_INPUT_ERROR("Missing value for pressure keyword.");
       use_barostat = true;
@@ -166,8 +165,7 @@ Ensemble_TI_RS::Ensemble_TI_RS(const std::vector<std::string>& tokens)
   printf("    final lambda value is %f.\n", lambda_f);
 }
 
-void Ensemble_TI_RS::init(
-  const int number_of_steps, const GPU_Vector<double>& thermo)
+void Ensemble_TI_RS::init(const int number_of_steps, const GPU_Vector<double>& thermo)
 {
   if (auto_switch) {
     t_switch = (int)(number_of_steps * 0.4);
@@ -191,10 +189,7 @@ void Ensemble_TI_RS::init(
 }
 
 void Ensemble_TI_RS::find_ti_thermo(
-  const Box& box,
-  const std::vector<Group>& group,
-  const Atom& atom,
-  GPU_Vector<double>& thermo)
+  const Box& box, const std::vector<Group>& group, const Atom& atom, GPU_Vector<double>& thermo)
 {
   Ensemble::find_thermo(
     box.get_volume(),
@@ -208,15 +203,9 @@ void Ensemble_TI_RS::find_ti_thermo(
   pe = thermo_cpu[1];
 }
 
-Ensemble_TI_RS::~Ensemble_TI_RS(void)
-{
-  close_output_file(false);
-}
+Ensemble_TI_RS::~Ensemble_TI_RS(void) { close_output_file(false); }
 
-void Ensemble_TI_RS::finalize_run(const Atom&, const Box&)
-{
-  close_output_file(true);
-}
+void Ensemble_TI_RS::finalize_run(const Atom&, const Box&) { close_output_file(true); }
 
 void Ensemble_TI_RS::close_output_file(const bool print_message)
 {
@@ -255,8 +244,7 @@ void Ensemble_TI_RS::initialize_before_first_step(
   GPU_Vector<double>& thermo)
 {
   init(number_of_steps, thermo);
-  Ensemble_MTTK::initialize_before_first_step(
-    time_step, number_of_steps, group, box, atom, thermo);
+  Ensemble_MTTK::initialize_before_first_step(time_step, number_of_steps, group, box, atom, thermo);
 }
 
 void Ensemble_TI_RS::compute2(
@@ -272,8 +260,7 @@ void Ensemble_TI_RS::compute2(
   find_lambda(step, box, group, atoms, thermo);
   scale_force(atoms);
 
-  Ensemble_MTTK::compute2(
-    time_step, step, number_of_steps, group, box, atoms, thermo, force);
+  Ensemble_MTTK::compute2(time_step, step, number_of_steps, group, box, atoms, thermo, force);
 }
 
 void Ensemble_TI_RS::find_lambda(

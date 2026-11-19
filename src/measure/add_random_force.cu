@@ -22,9 +22,9 @@ Add random forces with zero mean and specified variance.
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <vector>
-#include <cstring>
 
 static __global__ void initialize_curand_states(gpurandState* state, int N, int seed)
 {
@@ -89,7 +89,6 @@ static __global__ void gpu_sum_force(int N, double* g_fx, double* g_fy, double* 
   }
   s_f[tid] = f;
   __syncthreads();
-
 
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
@@ -165,8 +164,7 @@ void Add_Random_Force::post_force(
   apply_random_force(atom);
 }
 
-Add_Random_Force::Add_Random_Force(
-  const std::vector<std::string>& tokens, int number_of_atoms)
+Add_Random_Force::Add_Random_Force(const std::vector<std::string>& tokens, int number_of_atoms)
 {
   const int num_param = tokens.size();
   action_name = "add_random_force";

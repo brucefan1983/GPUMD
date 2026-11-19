@@ -19,8 +19,7 @@
 #include <vector>
 
 // One frame as written in an extended XYZ file, before model-specific interpretation.
-struct XYZ_Record
-{
+struct XYZ_Record {
   int index;
   int num_atoms;
   int comment_line_number;
@@ -36,8 +35,9 @@ struct XYZ_Record
 class XYZ_Reader
 {
 public:
-  XYZ_Reader(std::ifstream& input, const std::string& filename)
-    : input(input), filename(filename) {}
+  XYZ_Reader(std::ifstream& input, const std::string& filename) : input(input), filename(filename)
+  {
+  }
   bool read(XYZ_Record& record);
 
 private:

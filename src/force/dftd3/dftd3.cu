@@ -29,16 +29,16 @@ J. Comput. Chem., 32, 1456 (2011).
 
 #include "dftd3.cuh"
 #include "dftd3para.cuh"
-#include "model/box.cuh"
 #include "force/neighbor.cuh"
+#include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <cstring>
 
 namespace
 {
@@ -353,8 +353,8 @@ bool get_expanded_box(const double rc, const Box& box, DFTD3::ExpandedBox& ebox)
     ebox.h[16] = ebox.h[1] * ebox.h[6] - ebox.h[0] * ebox.h[7];
     ebox.h[17] = ebox.h[0] * ebox.h[4] - ebox.h[1] * ebox.h[3];
     double det = ebox.h[0] * (ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7]) +
-                  ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
-                  ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
+                 ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
+                 ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
     for (int n = 9; n < 18; n++) {
       ebox.h[n] /= det;
     }

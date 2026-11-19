@@ -13,11 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "nep_training.cuh"
-#include "nep_io.cuh"
 #include "energy_difference.cuh"
-#include "nep_parameters.cuh"
 #include "main_nep/structure.cuh"
+#include "nep_io.cuh"
+#include "nep_parameters.cuh"
+#include "nep_training.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include <algorithm>
@@ -87,7 +87,8 @@ void NEP_Training::prepare_datasets(
   num_batches = (structures_train.size() - 1) / para.batch_size + 1;
   const bool uses_grouped_batches = reader.uses_grouped_batches();
   if (
-    (para.prediction == 0) && (para.batch_size < structures_train.size()) && !uses_grouped_batches) {
+    (para.prediction == 0) && (para.batch_size < structures_train.size()) &&
+    !uses_grouped_batches) {
     reorder(num_batches, structures_train);
   }
   printf("Number of devices = %d\n", deviceCount);
@@ -134,7 +135,8 @@ void NEP_Training::prepare_datasets(
       print_line_1();
       printf("Constructing test_set in device  %d.\n", device_id);
       CHECK(gpuSetDevice(device_id));
-      test_set[device_id].construct(para, structures_test, 0, structures_test.size(), device_id, -1);
+      test_set[device_id].construct(
+        para, structures_test, 0, structures_test.size(), device_id, -1);
       reader.prepare_dataset(test_set[device_id]);
       print_line_2();
     }
@@ -203,8 +205,7 @@ void NEP_Training::write_model(NEP_Parameters& para, const TrainingReport& repor
   }
 }
 
-void NEP_Training::align_energy_reference(
-  NEP_Parameters& para, EnergyDifference& energy_difference)
+void NEP_Training::align_energy_reference(NEP_Parameters& para, EnergyDifference& energy_difference)
 {
   CHECK(gpuSetDevice(0));
   std::vector<double> weighted_energy(para.num_types, 0.0);
@@ -214,8 +215,8 @@ void NEP_Training::align_energy_reference(
     data.energy.copy_to_host(data.energy_cpu.data());
     for (int nc = 0; nc < data.Nc; ++nc) {
       const Structure& structure = data.structures[nc];
-      const double weight = double(structure.weight) * structure.weight *
-                            structure.energy_weight / structure.num_atom;
+      const double weight =
+        double(structure.weight) * structure.weight * structure.energy_weight / structure.num_atom;
       if (weight == 0.0) {
         continue;
       }
@@ -235,10 +236,14 @@ void NEP_Training::align_energy_reference(
     if (!std::isfinite(para.energy_reference[t])) {
       PRINT_INPUT_ERROR("Aligned energy reference is outside the double range.");
     }
-    printf("Fine-tune energy reference shift for %s = %.17g eV/atom.\n",
-      para.elements[t].c_str(), shift);
-    printf("Aligned energy reference for %s = %.17g eV.\n",
-      para.elements[t].c_str(), para.energy_reference[t]);
+    printf(
+      "Fine-tune energy reference shift for %s = %.17g eV/atom.\n",
+      para.elements[t].c_str(),
+      shift);
+    printf(
+      "Aligned energy reference for %s = %.17g eV.\n",
+      para.elements[t].c_str(),
+      para.energy_reference[t]);
   }
   for (int batch = 0; batch < num_batches; ++batch) {
     energy_difference.set_energy_reference(train_set[batch][0], para.energy_reference);
@@ -284,8 +289,12 @@ void NEP_Energy_Loss::initialize(const NEP_Energy_Parameters& para)
 }
 
 void NEP_Energy_Loss::evaluate(
-  NEP_Energy_Parameters& para, Dataset& data, EnergyDifference& energy_difference,
-  int batch, int candidate, int device_id)
+  NEP_Energy_Parameters& para,
+  Dataset& data,
+  EnergyDifference& energy_difference,
+  int batch,
+  int candidate,
+  int device_id)
 {
   double energy_shift_per_structure_not_used;
   auto rmse_energy_array =
@@ -307,8 +316,8 @@ void NEP_Energy_Loss::accumulate_fitness(const NEP_Energy_Parameters& para, floa
   for (int t = 0; t <= para.num_types; ++t) {
     for (int p = 0; p < para.population_size; ++p) {
       int index = p + t * para.population_size;
-      fitness_total[index] = fitness_total[index] + fitness_energy[index] +
-                             fitness_force[index] + fitness_virial[index];
+      fitness_total[index] =
+        fitness_total[index] + fitness_energy[index] + fitness_force[index] + fitness_virial[index];
     }
   }
 }
@@ -324,15 +333,19 @@ void NEP_Energy_Loss::accumulate_energy_difference(
 }
 
 NEP_Energy_Error NEP_Energy_Loss::get_error(
-  NEP_Energy_Parameters& para, Dataset& data, EnergyDifference& energy_difference, bool is_train, int batch)
+  NEP_Energy_Parameters& para,
+  Dataset& data,
+  EnergyDifference& energy_difference,
+  bool is_train,
+  int batch)
 {
   NEP_Energy_Error error;
   error.energy = data.get_rmse_energy(para, error.energy_shift, false, is_train, 0).back();
   error.force = data.get_rmse_force(para, false, 0).back();
   error.virial = data.get_rmse_virial(para, false, 0).back();
   if (para.has_ediff_combinations) {
-    error.ediff = is_train ? energy_difference.get_rmse_train(data, batch, 0) :
-                            energy_difference.get_rmse_test(data, 0);
+    error.ediff = is_train ? energy_difference.get_rmse_train(data, batch, 0)
+                           : energy_difference.get_rmse_test(data, 0);
   }
   return error;
 }

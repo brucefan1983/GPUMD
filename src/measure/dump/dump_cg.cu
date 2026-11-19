@@ -27,8 +27,8 @@ Dump training data for NEP-CG
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <iostream>
-#include <vector>
 #include <string>
+#include <vector>
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
 {
@@ -145,8 +145,8 @@ void Dump_CG::accumulate_force(const int num_beads, const int num_atoms_total, G
 }
 
 void Dump_CG::find_position_bead(
-  const int num_beads, 
-  const int num_atoms_total, 
+  const int num_beads,
+  const int num_atoms_total,
   const int max_bead_size,
   const Group& g,
   Box& box,
@@ -155,40 +155,40 @@ void Dump_CG::find_position_bead(
   std::vector<double>& mass_bead,
   std::vector<double>& xyz_bead)
 {
-    for (int b = 0; b < num_beads; b++) {
+  for (int b = 0; b < num_beads; b++) {
 
-      for (int k = 0; k < g.cpu_size[b]; ++k) {
-        int n = g.cpu_contents[g.cpu_size_sum[b] + k];
-        mass_bead[k] = cpu_mass[n];
-        for (int d = 0; d < 3; ++d) {
-          xyz_bead[k + max_bead_size * d] = cpu_position_per_atom[n + num_atoms_total * d];
-        }
-      }
-
-      for (int k = 1; k < g.cpu_size[b]; ++k) {
-        double pos_diff[3];
-        for (int d = 0; d < 3; ++d) {
-          pos_diff[d] = xyz_bead[k + max_bead_size * d] - xyz_bead[0 + max_bead_size * d];
-        }
-        apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
-        for (int d = 0; d < 3; ++d) {
-          xyz_bead[k + max_bead_size * d] = xyz_bead[0 + max_bead_size * d] + pos_diff[d];
-        }
-      }
-   
-      double r_com[3] = {0.0, 0.0, 0.0};
-      double m_com = 0;
-      for (int k = 0; k < g.cpu_size[b]; ++k) {
-        m_com += mass_bead[k];
-        for (int d = 0; d < 3; ++d) {
-          r_com[d] += xyz_bead[k + max_bead_size * d] * mass_bead[k];
-        }
-      }
-
+    for (int k = 0; k < g.cpu_size[b]; ++k) {
+      int n = g.cpu_contents[g.cpu_size_sum[b] + k];
+      mass_bead[k] = cpu_mass[n];
       for (int d = 0; d < 3; ++d) {
-        cpu_position_bead_[num_beads * d + b] = r_com[d] / m_com;
+        xyz_bead[k + max_bead_size * d] = cpu_position_per_atom[n + num_atoms_total * d];
       }
     }
+
+    for (int k = 1; k < g.cpu_size[b]; ++k) {
+      double pos_diff[3];
+      for (int d = 0; d < 3; ++d) {
+        pos_diff[d] = xyz_bead[k + max_bead_size * d] - xyz_bead[0 + max_bead_size * d];
+      }
+      apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
+      for (int d = 0; d < 3; ++d) {
+        xyz_bead[k + max_bead_size * d] = xyz_bead[0 + max_bead_size * d] + pos_diff[d];
+      }
+    }
+
+    double r_com[3] = {0.0, 0.0, 0.0};
+    double m_com = 0;
+    for (int k = 0; k < g.cpu_size[b]; ++k) {
+      m_com += mass_bead[k];
+      for (int d = 0; d < 3; ++d) {
+        r_com[d] += xyz_bead[k + max_bead_size * d] * mass_bead[k];
+      }
+    }
+
+    for (int d = 0; d < 3; ++d) {
+      cpu_position_bead_[num_beads * d + b] = r_com[d] / m_com;
+    }
+  }
 }
 
 void Dump_CG::find_rdf(const int num_beads, Box& box)
@@ -225,8 +225,7 @@ void Dump_CG::find_rdf(const int num_beads, Box& box)
 }
 
 void Dump_CG::find_energy_and_virial(
-  GPU_Vector<double>& virial_per_atom, 
-  GPU_Vector<double>& gpu_thermo)
+  GPU_Vector<double>& virial_per_atom, GPU_Vector<double>& gpu_thermo)
 {
   // energy and virial (symmetric tensor) in eV
   double cpu_thermo[8];
@@ -319,8 +318,8 @@ void Dump_CG::end_of_step(
   std::vector<double> mass_bead(max_bead_size);
 
   find_position_bead(
-    num_beads, 
-    num_atoms_total, 
+    num_beads,
+    num_atoms_total,
     max_bead_size,
     g,
     box,
@@ -360,15 +359,13 @@ void Dump_CG::end_of_step(
       fprintf(fid_, "\n");
     }
     fflush(fid_);
-
-
   }
 
 #ifdef CG_RDF
   if ((step + 1) == number_of_steps) {
     FILE* fid_rdf = my_fopen("rdf_cg.out", "a");
     for (int n = 0; n < Ng_; ++n) {
-      fprintf(fid_rdf, "%.8f %.8f\n", (n+1) * rc_ / Ng_, rdf_[n] * relative_step);
+      fprintf(fid_rdf, "%.8f %.8f\n", (n + 1) * rc_ / Ng_, rdf_[n] * relative_step);
     }
     fclose(fid_rdf);
   }

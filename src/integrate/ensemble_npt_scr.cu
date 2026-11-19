@@ -39,8 +39,7 @@ void Ensemble_NPT_SCR::initialize_rng()
 #endif
 };
 
-Ensemble_NPT_SCR::Ensemble_NPT_SCR(
-  const std::vector<std::string>& tokens, const Box& box)
+Ensemble_NPT_SCR::Ensemble_NPT_SCR(const std::vector<std::string>& tokens, const Box& box)
 {
   const int num_param = tokens.size();
   type = EnsembleType::NPT_SCR;
@@ -182,23 +181,16 @@ Ensemble_NPT_SCR::Ensemble_NPT_SCR(
   }
 }
 
-double Ensemble_NPT_SCR::get_temperature1() const
-{
-  return temperature1_;
-}
+double Ensemble_NPT_SCR::get_temperature1() const { return temperature1_; }
 
-double Ensemble_NPT_SCR::get_temperature2() const
-{
-  return temperature2_;
-}
+double Ensemble_NPT_SCR::get_temperature2() const { return temperature2_; }
 
 int Ensemble_NPT_SCR::get_num_target_pressure_components() const
 {
   return num_target_pressure_components;
 }
 
-void Ensemble_NPT_SCR::initialize_run(
-  const double, Atom&, Box&, const std::vector<Group>&)
+void Ensemble_NPT_SCR::initialize_run(const double, Atom&, Box&, const std::vector<Group>&)
 {
   initialize_rng();
 }
@@ -221,8 +213,7 @@ static void cpu_pressure_orthogonal(
   if (deform_x) {
     scale_factor[0] = 1.0;
   } else if (box.pbc_x == 1) {
-    const double scale_factor_Berendsen =
-      1.0 - p_coupling[0] * (p0[0] - pressure[0]);
+    const double scale_factor_Berendsen = 1.0 - p_coupling[0] * (p0[0] - pressure[0]);
     const double scale_factor_stochastic =
       sqrt(2.0 * p_coupling[0] * K_B * target_temperature / volume) * gasdev(rng);
     scale_factor[0] = scale_factor_Berendsen + scale_factor_stochastic;
@@ -234,8 +225,7 @@ static void cpu_pressure_orthogonal(
   if (deform_y) {
     scale_factor[1] = 1.0;
   } else if (box.pbc_y == 1) {
-    const double scale_factor_Berendsen =
-      1.0 - p_coupling[1] * (p0[1] - pressure[1]);
+    const double scale_factor_Berendsen = 1.0 - p_coupling[1] * (p0[1] - pressure[1]);
     const double scale_factor_stochastic =
       sqrt(2.0 * p_coupling[1] * K_B * target_temperature / volume) * gasdev(rng);
     scale_factor[1] = scale_factor_Berendsen + scale_factor_stochastic;
@@ -247,8 +237,7 @@ static void cpu_pressure_orthogonal(
   if (deform_z) {
     scale_factor[2] = 1.0;
   } else if (box.pbc_z == 1) {
-    const double scale_factor_Berendsen =
-      1.0 - p_coupling[2] * (p0[2] - pressure[2]);
+    const double scale_factor_Berendsen = 1.0 - p_coupling[2] * (p0[2] - pressure[2]);
     const double scale_factor_stochastic =
       sqrt(2.0 * p_coupling[2] * K_B * target_temperature / volume) * gasdev(rng);
     scale_factor[2] = scale_factor_Berendsen + scale_factor_stochastic;
@@ -269,8 +258,7 @@ static void cpu_pressure_isotropic(
   const double* pressure,
   double& scale_factor)
 {
-  const double pressure_instant =
-    (pressure[0] + pressure[1] + pressure[2]) * 0.3333333333333333;
+  const double pressure_instant = (pressure[0] + pressure[1] + pressure[2]) * 0.3333333333333333;
   const double scale_factor_Berendsen =
     1.0 - p_coupling[0] * (target_pressure[0] - pressure_instant);
   // The factor 0.666666666666667 is 2/3, where 3 means the number of directions that are coupled
@@ -311,12 +299,9 @@ static void cpu_pressure_triclinic(
   mu[0] += sqrt(2.0 * p_coupling[0] * K_B * target_temperature / volume) * gasdev(rng);
   mu[4] += sqrt(2.0 * p_coupling[1] * K_B * target_temperature / volume) * gasdev(rng);
   mu[8] += sqrt(2.0 * p_coupling[2] * K_B * target_temperature / volume) * gasdev(rng);
-  const double noise_yz =
-    sqrt(p_coupling[3] * K_B * target_temperature / volume) * gasdev(rng);
-  const double noise_xz =
-    sqrt(p_coupling[4] * K_B * target_temperature / volume) * gasdev(rng);
-  const double noise_xy =
-    sqrt(p_coupling[5] * K_B * target_temperature / volume) * gasdev(rng);
+  const double noise_yz = sqrt(p_coupling[3] * K_B * target_temperature / volume) * gasdev(rng);
+  const double noise_xz = sqrt(p_coupling[4] * K_B * target_temperature / volume) * gasdev(rng);
+  const double noise_xy = sqrt(p_coupling[5] * K_B * target_temperature / volume) * gasdev(rng);
   mu[5] += noise_yz;
   mu[7] += noise_yz;
   mu[2] += noise_xz;

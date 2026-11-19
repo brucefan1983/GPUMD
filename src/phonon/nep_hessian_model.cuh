@@ -38,8 +38,7 @@ inline bool model_requires_expanded_box(const NEP_Hessian_Model& model, const Bo
 {
   const double volume = box.get_volume();
   const double cutoff = model.paramb.rc_radial_max;
-  return
-    (box.pbc_x && volume / box.get_area(0) <= 2.5 * (cutoff + 1.0)) ||
-    (box.pbc_y && volume / box.get_area(1) <= 2.5 * (cutoff + 1.0)) ||
-    (box.pbc_z && volume / box.get_area(2) <= 2.5 * (cutoff + 1.0));
+  return (box.pbc_x && volume / box.get_area(0) <= 2.5 * (cutoff + 1.0)) ||
+         (box.pbc_y && volume / box.get_area(1) <= 2.5 * (cutoff + 1.0)) ||
+         (box.pbc_z && volume / box.get_area(2) <= 2.5 * (cutoff + 1.0));
 }

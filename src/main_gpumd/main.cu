@@ -23,8 +23,8 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
-#include <ctime>
 #include <cstring>
+#include <ctime>
 
 void print_welcome_information();
 

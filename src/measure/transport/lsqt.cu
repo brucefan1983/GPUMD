@@ -950,7 +950,10 @@ void LSQT::post_run(
   Integrate& integrate,
   const int number_of_steps,
   const double time_step,
-  const double temperature) { compute = false; };
+  const double temperature)
+{
+  compute = false;
+};
 
 LSQT::LSQT(const std::vector<std::string>& tokens)
 {

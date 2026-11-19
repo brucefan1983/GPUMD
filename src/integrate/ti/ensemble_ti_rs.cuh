@@ -51,10 +51,7 @@ public:
 
   void init(const int number_of_steps, const GPU_Vector<double>& thermo);
   void find_ti_thermo(
-    const Box& box,
-    const std::vector<Group>& group,
-    const Atom& atom,
-    GPU_Vector<double>& thermo);
+    const Box& box, const std::vector<Group>& group, const Atom& atom, GPU_Vector<double>& thermo);
   void scale_force(Atom& atom);
   void find_lambda(
     const int step,

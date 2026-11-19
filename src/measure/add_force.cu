@@ -21,9 +21,9 @@ Add force to a group of atoms.
 #include "model/atom.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 #include <iostream>
 #include <vector>
-#include <cstring>
 
 static void __global__ add_force(
   const int group_size,
@@ -46,32 +46,18 @@ static void __global__ add_force(
 }
 
 void Add_Force::setup_force(
-  const double,
-  Integrate&,
-  std::vector<Group>& group,
-  Atom& atom,
-  Box&,
-  Force&)
+  const double, Integrate&, std::vector<Group>& group, Atom& atom, Box&, Force&)
 {
   apply_force(0, group, atom);
 }
 
 void Add_Force::post_force(
-  const int step,
-  const double,
-  Integrate&,
-  std::vector<Group>& group,
-  Atom& atom,
-  Box&,
-  Force&)
+  const int step, const double, Integrate&, std::vector<Group>& group, Atom& atom, Box&, Force&)
 {
   apply_force(step + 1, group, atom);
 }
 
-void Add_Force::apply_force(
-  const int md_step,
-  std::vector<Group>& group,
-  Atom& atom)
+void Add_Force::apply_force(const int md_step, std::vector<Group>& group, Atom& atom)
 {
   const int table_index = md_step % table_length_;
   const double added_fx = force_table_[0 * table_length_ + table_index];
@@ -93,8 +79,7 @@ void Add_Force::apply_force(
   GPU_CHECK_KERNEL
 }
 
-Add_Force::Add_Force(
-  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+Add_Force::Add_Force(const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
   const int num_param = tokens.size();
   action_name = "add_force";
@@ -127,10 +112,7 @@ Add_Force::Add_Force(
     PRINT_INPUT_ERROR("group id should < maximum number of groups in the grouping method.\n");
   }
 
-  printf(
-    "    for atoms in group %d of grouping method %d.\n",
-    group_id_,
-    grouping_method_);
+  printf("    for atoms in group %d of grouping method %d.\n", group_id_, grouping_method_);
 
   if (num_param == 6) {
     table_length_ = 1;
@@ -170,8 +152,7 @@ Add_Force::Add_Force(
         PRINT_INPUT_ERROR("Number of force components at each step should be 3.");
       }
       for (int t = 0; t < 3; ++t) {
-        force_table_[t * table_length_ + n] =
-          get_double_from_token(tokens[t], __FILE__, __LINE__);
+        force_table_[t * table_length_ + n] = get_double_from_token(tokens[t], __FILE__, __LINE__);
       }
     }
   }

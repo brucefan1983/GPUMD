@@ -16,12 +16,11 @@
 #include "action.cuh"
 #include <cstring>
 
-
 Action::Action(void)
 {
   // nothing now
 }
-  
+
 Action::~Action(void)
 {
   // nothing now

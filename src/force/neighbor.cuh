@@ -73,8 +73,8 @@ void find_neighbor_SW(
   GPU_Vector<int>& NN,
   GPU_Vector<int>& NL);
 
-static __device__ void get_neighbor_cell_offset_range(
-  const int pbc, const int num_bins, int& begin, int& end)
+static __device__ void
+get_neighbor_cell_offset_range(const int pbc, const int num_bins, int& begin, int& end)
 {
   if (pbc) {
     const int count = num_bins < 5 ? num_bins : 5;
@@ -156,12 +156,12 @@ public:
   int get_capacity() const;
   void find_neighbor_global(
     const double rc,
-    Box& box, 
-    const GPU_Vector<int>& type, 
+    Box& box,
+    const GPU_Vector<int>& type,
     const GPU_Vector<double>& position_per_atom);
   void find_local_neighbor_from_global(
     const double rc,
-    Box& box, 
+    Box& box,
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& NN_local,
     GPU_Vector<int>& NL_local);
@@ -175,8 +175,7 @@ private:
   int check_atom_distance(Box& box, const double* x, const double* y, const double* z);
 };
 
-struct NeighborRequirement
-{
+struct NeighborRequirement {
   double rc;
   double skin;
   int num_atoms;
@@ -188,10 +187,7 @@ class NeighborManager
 public:
   NeighborManager();
   void initialize(const double rc, const int num_atoms, const int num_neighbors);
-  void update(
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position_per_atom);
+  void update(Box& box, const GPU_Vector<int>& type, const GPU_Vector<double>& position_per_atom);
   const GPU_Vector<int>& get_candidate_NN() const;
   const GPU_Vector<int>& get_candidate_NL() const;
   void set_candidate_capacity(const int capacity);

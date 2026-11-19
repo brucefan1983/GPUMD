@@ -24,7 +24,8 @@ Calculate the time derivative of the polarization of the system and output to dp
 #include "utilities/read_file.cuh"
 #include <vector>
 
-namespace{
+namespace
+{
 
 void __global__ gpu_compute_dpdt(
   const int num_atoms,
@@ -79,7 +80,7 @@ void __global__ gpu_sum_dpdt(const int N, const float* g_dpdt_per_atom, float* g
   }
 }
 
-}
+} // namespace
 
 void Compute_dpdt::pre_run(
   const int number_of_steps,
@@ -97,9 +98,15 @@ void Compute_dpdt::pre_run(
   fprintf(
     fid,
     "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
-    box.cpu_h[0], box.cpu_h[3], box.cpu_h[6],
-    box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
-    box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+    box.cpu_h[0],
+    box.cpu_h[3],
+    box.cpu_h[6],
+    box.cpu_h[1],
+    box.cpu_h[4],
+    box.cpu_h[7],
+    box.cpu_h[2],
+    box.cpu_h[5],
+    box.cpu_h[8]);
   fprintf(fid, "# dt_output %.10e fs\n", time_step * sample_interval * TIME_UNIT_CONVERSION);
   fprintf(fid, "# columns time_fs dpdt_x dpdt_y dpdt_z P_x P_y P_z\n");
   gpu_dpdt_per_atom.resize(3 * atom.number_of_atoms);
@@ -149,15 +156,17 @@ void Compute_dpdt::end_of_step(
   gpu_dpdt_total.copy_to_host(cpu_dpdt_total.data());
   for (int d = 0; d < 3; ++d) {
     p_integral[d] += cpu_dpdt_total[d] * p_integral_dt; //  e A
-    cpu_dpdt_total[d] /= TIME_UNIT_CONVERSION; // e A / fs
+    cpu_dpdt_total[d] /= TIME_UNIT_CONVERSION;          // e A / fs
   }
-  fprintf(fid, "%15.8e %g %g %g %g %g %g\n", 
+  fprintf(
+    fid,
+    "%15.8e %g %g %g %g %g %g\n",
     p_integral_time,
-    cpu_dpdt_total[0], 
-    cpu_dpdt_total[1], 
-    cpu_dpdt_total[2], 
-    p_integral[0], 
-    p_integral[1], 
+    cpu_dpdt_total[0],
+    cpu_dpdt_total[1],
+    cpu_dpdt_total[2],
+    p_integral[0],
+    p_integral[1],
     p_integral[2]);
   fflush(fid);
 }

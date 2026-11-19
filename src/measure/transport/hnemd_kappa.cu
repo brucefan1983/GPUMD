@@ -22,8 +22,8 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 ------------------------------------------------------------------------------*/
 
 #include "compute_heat.cuh"
-#include "hnemd_kappa.cuh"
 #include "hnemd_force.cuh"
+#include "hnemd_kappa.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -62,13 +62,7 @@ void HNEMD::post_force(
     return;
 
   apply_hnemd_force(
-    atom.number_of_atoms,
-    fe_x,
-    fe_y,
-    fe_z,
-    atom.virial_per_atom,
-    atom.force_per_atom,
-    force_sum_);
+    atom.number_of_atoms, fe_x, fe_y, fe_z, atom.virial_per_atom, atom.force_per_atom, force_sum_);
 }
 
 static __global__ void
@@ -87,7 +81,6 @@ gpu_sum_heat(const int N, const int step, const double* g_heat, double* g_heat_s
     }
   }
   __syncthreads();
-
 
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
@@ -124,7 +117,8 @@ void HNEMD::end_of_step(
 
   compute_heat(atom.virial_per_atom, atom.velocity_per_atom, atom.heat_per_atom);
 
-  gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(N, step, atom.heat_per_atom.data(), heat_all.data());
+  gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(
+    N, step, atom.heat_per_atom.data(), heat_all.data());
   GPU_CHECK_KERNEL
 
   if (output_flag) {
@@ -159,7 +153,10 @@ void HNEMD::post_run(
   Integrate& integrate,
   const int number_of_steps,
   const double time_step,
-  const double temperature) { compute = 0; }
+  const double temperature)
+{
+  compute = 0;
+}
 
 HNEMD::HNEMD(const std::vector<std::string>& tokens)
 {

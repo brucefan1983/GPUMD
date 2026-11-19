@@ -22,7 +22,7 @@ void calculate_nep_model_parameters(
 {
   para.ann_count = ann_count;
   para.global_parameters = global_parameters;
-  para.dim_radial = para.n_max_radial + 1;                // 2-body descriptors q^i_n
+  para.dim_radial = para.n_max_radial + 1;                  // 2-body descriptors q^i_n
   para.dim_angular = (para.n_max_angular + 1) * para.L_max; // 3-body descriptors q^i_nl
   if (para.has_q_222) {
     para.dim_angular += para.n_max_angular + 1;
@@ -62,14 +62,12 @@ void calculate_nep_model_parameters(
 
 #ifdef USE_CJ
   para.number_of_variables_descriptor =
-    para.num_types *
-    (para.dim_radial * (para.basis_size_radial + 1) +
-     (para.n_max_angular + 1) * (para.basis_size_angular + 1));
+    para.num_types * (para.dim_radial * (para.basis_size_radial + 1) +
+                      (para.n_max_angular + 1) * (para.basis_size_angular + 1));
 #else
-  para.number_of_variables_descriptor =
-    para.num_types * para.num_types *
-    (para.dim_radial * (para.basis_size_radial + 1) +
-     (para.n_max_angular + 1) * (para.basis_size_angular + 1));
+  para.number_of_variables_descriptor = para.num_types * para.num_types *
+                                        (para.dim_radial * (para.basis_size_radial + 1) +
+                                         (para.n_max_angular + 1) * (para.basis_size_angular + 1));
 #endif
 
   para.number_of_variables = para.number_of_variables_ann + para.number_of_variables_descriptor;

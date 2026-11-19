@@ -32,7 +32,8 @@ static __global__ void ann_vdw_jit(
   float* C6_derivative_out)
 {
   const int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 >= N) return;
+  if (n1 >= N)
+    return;
 
   const int t = (NUM_TYPES_JIT == 1) ? 0 : type[n1];
   float q[ANN_DIM_JIT] = {0.0f};
@@ -53,28 +54,16 @@ static __global__ void ann_vdw_jit(
   float C6_derivative[ANN_DIM_JIT] = {0.0f};
 
   apply_ann_one_layer_vdw(
-    ANN_DIM_JIT,
-    NUM_NEURONS1_JIT,
-    w0,
-    b0,
-    w1,
-    b1,
-    q,
-    F,
-    Fp,
-    C6,
-    C6_derivative);
+    ANN_DIM_JIT, NUM_NEURONS1_JIT, w0, b0, w1, b1, q, F, Fp, C6, C6_derivative);
 
   pe[n1] = static_cast<double>(F);
-  const float C6_exp =
-    C6_REF_SQRT_JIT[t] * expf(C6 * C6_SCALING_FACTOR_JIT);
+  const float C6_exp = C6_REF_SQRT_JIT[t] * expf(C6 * C6_SCALING_FACTOR_JIT);
   C6_out[n1] = C6_exp;
 
 #pragma unroll
   for (int d = 0; d < ANN_DIM_JIT; ++d) {
     Fp_out[n1 + d * N] = Fp[d] * q_scaler[d];
-    C6_derivative_out[n1 + d * N] =
-      C6_exp * C6_SCALING_FACTOR_JIT * C6_derivative[d] * q_scaler[d];
+    C6_derivative_out[n1 + d * N] = C6_exp * C6_SCALING_FACTOR_JIT * C6_derivative[d] * q_scaler[d];
   }
 }
 
@@ -92,15 +81,7 @@ extern "C" int nep_train_launch_ann_vdw(
   const int block_size = 32;
   const int grid_size = (N - 1) / block_size + 1;
   ann_vdw_jit<<<grid_size, block_size>>>(
-    N,
-    type,
-    descriptors,
-    q_scaler,
-    parameters,
-    pe,
-    Fp,
-    C6,
-    C6_derivative);
+    N, type, descriptors, q_scaler, parameters, pe, Fp, C6, C6_derivative);
   return static_cast<int>(cudaGetLastError());
 }
 

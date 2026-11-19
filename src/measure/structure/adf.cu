@@ -24,10 +24,10 @@ Email:
 
 #include "adf.cuh"
 #include "force/neighbor.cuh"
+#include "measure/parse_utilities.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
-#include "measure/parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -130,8 +130,8 @@ static __global__ void gpu_find_adf_local(
     for (int m = 0; m < Ntriples; m++) {
       if (i_type == itype[m]) {
         const bool same_jk_type = (jtype[m] == ktype[m]);
-        const bool same_jk_selection = same_jk_type && rc_min_j[m] == rc_min_k[m] &&
-                                       rc_max_j[m] == rc_max_k[m];
+        const bool same_jk_selection =
+          same_jk_type && rc_min_j[m] == rc_min_k[m] && rc_max_j[m] == rc_max_k[m];
         for (int jj = 0; jj < i_neigh; jj++) {
           const int j = NL[i + jj * N];
           const int j_type = type[j];
@@ -159,10 +159,8 @@ static __global__ void gpu_find_adf_local(
                     dik_sq > 0.0 && dik_sq >= rc_min_k[m] * rc_min_k[m] &&
                     dik_sq < rc_max_k[m] * rc_max_k[m]) {
                     if (
-                      same_jk_type && kk < jj &&
-                      dij_sq >= rc_min_k[m] * rc_min_k[m] &&
-                      dij_sq < rc_max_k[m] * rc_max_k[m] &&
-                      dik_sq >= rc_min_j[m] * rc_min_j[m] &&
+                      same_jk_type && kk < jj && dij_sq >= rc_min_k[m] * rc_min_k[m] &&
+                      dij_sq < rc_max_k[m] * rc_max_k[m] && dik_sq >= rc_min_j[m] * rc_min_j[m] &&
                       dik_sq < rc_max_j[m] * rc_max_j[m]) {
                       continue;
                     }
@@ -382,8 +380,7 @@ void ADF::post_run(
 // compute_adf <interval> <num_bins> <rc_min> <rc_max>
 // compute_adf <interval> <num_bins> <itype1> <jtype1> <ktype1> <rc_min_j1> <rc_max_j1> <rc_min_k1>
 // <rc_max_k1> ...
-void ADF::parse(
-  const std::vector<std::string>& tokens, Box& box, const int number_of_types)
+void ADF::parse(const std::vector<std::string>& tokens, Box& box, const int number_of_types)
 {
   printf("Compute angular distribution functions (ADF).\n");
   compute_ = true;

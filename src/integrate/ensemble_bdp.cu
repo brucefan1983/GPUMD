@@ -37,8 +37,7 @@ void Ensemble_BDP::initialize_rng()
 #endif
 };
 
-Ensemble_BDP::Ensemble_BDP(
-  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+Ensemble_BDP::Ensemble_BDP(const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
   parse(tokens, group);
 }
@@ -72,8 +71,7 @@ void Ensemble_BDP::parse_heat_groups(
   }
 }
 
-void Ensemble_BDP::parse(
-  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+void Ensemble_BDP::parse(const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
   const int num_param = tokens.size();
   if (tokens[1] == "nvt_bdp") {
@@ -150,18 +148,11 @@ void Ensemble_BDP::parse(
   printf("    heat sink is group %d in grouping method 0.\n", sink);
 }
 
-double Ensemble_BDP::get_temperature1() const
-{
-  return temperature1_;
-}
+double Ensemble_BDP::get_temperature1() const { return temperature1_; }
 
-double Ensemble_BDP::get_temperature2() const
-{
-  return temperature2_;
-}
+double Ensemble_BDP::get_temperature2() const { return temperature2_; }
 
-void Ensemble_BDP::initialize_run(
-  const double, Atom&, Box&, const std::vector<Group>& group)
+void Ensemble_BDP::initialize_run(const double, Atom&, Box&, const std::vector<Group>& group)
 {
   initialize_rng();
   if (type == EnsembleType::HEAT_BDP) {

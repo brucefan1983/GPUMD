@@ -26,8 +26,7 @@
 class Ensemble_Heat_Hybrid : public Ensemble
 {
 public:
-  Ensemble_Heat_Hybrid(
-    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  Ensemble_Heat_Hybrid(const std::vector<std::string>& tokens, const std::vector<Group>& group);
 
   void initialize_run(
     const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;

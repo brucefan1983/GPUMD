@@ -13,8 +13,8 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "run_input.cuh"
 #include "error.cuh"
+#include "run_input.cuh"
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -84,7 +84,4 @@ std::vector<const RunInputLine*> RunInput::find_all(const std::string& keyword) 
   return matches;
 }
 
-bool RunInput::contains(const std::string& keyword) const
-{
-  return find_first(keyword) != nullptr;
-}
+bool RunInput::contains(const std::string& keyword) const { return find_first(keyword) != nullptr; }

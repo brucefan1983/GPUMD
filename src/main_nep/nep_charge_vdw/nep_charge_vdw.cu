@@ -20,23 +20,23 @@ Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
 ------------------------------------------------------------------------------*/
 
-#include "main_nep/dataset.cuh"
-#include "nep_charge_vdw.cuh"
-#include "main_nep/common/nep_output.cuh"
+#include "main_nep/common/nep_charge_parameters.cuh"
 #include "main_nep/common/nep_charge_reader.cuh"
-#include "main_nep/common/nep_model.cuh"
 #include "main_nep/common/nep_init.cuh"
 #include "main_nep/common/nep_io.cuh"
 #include "main_nep/common/nep_long_range.cuh"
-#include "utilities/nep_vdw_parameters.cuh"
-#include "main_nep/common/nep_charge_parameters.cuh"
+#include "main_nep/common/nep_model.cuh"
+#include "main_nep/common/nep_output.cuh"
+#include "main_nep/dataset.cuh"
+#include "nep_charge_vdw.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
-#include <cstring>
+#include "utilities/nep_vdw_parameters.cuh"
 #include <algorithm>
+#include <cstring>
 
 static __global__ void find_descriptors_radial(
   const int N,
@@ -136,7 +136,18 @@ static __global__ void find_descriptors_angular(
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
-      find_q(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134, paramb.n_max_angular + 1, n, s, q);
+      find_q(
+        paramb.L_max,
+        paramb.has_q_222,
+        paramb.has_q_1111,
+        paramb.has_q_112,
+        paramb.has_q_123,
+        paramb.has_q_233,
+        paramb.has_q_134,
+        paramb.n_max_angular + 1,
+        n,
+        s,
+        q);
       int num_abc = (paramb.L_max + 1) * (paramb.L_max + 1) - 1;
       for (int abc = 0; abc < num_abc; ++abc) {
         g_sum_fxyz[(n * num_abc + abc) * N + n1] = s[abc];
@@ -198,7 +209,8 @@ void NEP_Charge_VDW::initialize_model(const NEP_Charge_Parameters& para)
   charge_para.alpha_factor = 0.25f / (charge_para.alpha * charge_para.alpha);
 }
 
-void NEP_Charge_VDW::initialize_device(const NEP_Charge_Parameters& para, int N, int Nc, int device_id)
+void NEP_Charge_VDW::initialize_device(
+  const NEP_Charge_Parameters& para, int N, int Nc, int device_id)
 {
   CHECK(gpuSetDevice(device_id));
   annmb[device_id].dim = para.dim;
@@ -220,13 +232,11 @@ void NEP_Charge_VDW::initialize_device(const NEP_Charge_Parameters& para, int N,
 
 namespace
 {
-NEP_Compile_Config make_compile_config(
-  const NEP_Charge_Parameters& para, const float* c6_ref_sqrt)
+NEP_Compile_Config make_compile_config(const NEP_Charge_Parameters& para, const float* c6_ref_sqrt)
 {
 #ifdef USE_CJ
-  warning_nep_compile(
-    "qNEP, charge-vdW, and TNEP specialization is not available in "
-    "this USE_CJ configuration.");
+  warning_nep_compile("qNEP, charge-vdW, and TNEP specialization is not available in "
+                      "this USE_CJ configuration.");
   return NEP_Compile_Config();
 #endif
   NEP_Compile_Config config = make_nep_compile_config(para);
@@ -240,8 +250,7 @@ NEP_Compile_Config make_compile_config(
 }
 } // namespace
 
-NEP_Charge_VDW::Compiled_Kernel::Compiled_Kernel(const NEP_Compile_Config& config)
-  : library(config)
+NEP_Charge_VDW::Compiled_Kernel::Compiled_Kernel(const NEP_Compile_Config& config) : library(config)
 {
   if (!library.is_valid()) {
     return;
@@ -266,44 +275,107 @@ void NEP_Charge_VDW::Compiled_Kernel::launch_ann_charge_vdw(
 {
   check_nep_launch(
     ann_charge_vdw_(
-      N, type, descriptors, q_scaler, parameters,
-      pe, Fp, charge, charge_derivative,
-      C6, C6_derivative),
+      N,
+      type,
+      descriptors,
+      q_scaler,
+      parameters,
+      pe,
+      Fp,
+      charge,
+      charge_derivative,
+      C6,
+      C6_derivative),
     "ann_charge_vdw_jit");
 }
 
 void NEP_Charge_VDW::Compiled_Kernel::launch_force_charge_vdw_radial(
-  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-  const float* x12, const float* y12, const float* z12,
-  const float* parameters, const float* Fp,
-  const float* charge_derivative, const float* D_real,
-  const float* C6_derivative, const float* D_C6,
-  float* fx, float* fy, float* fz, float* virial)
+  int N,
+  const int* NN_sum,
+  const int* NN,
+  const int* NL,
+  const int* type,
+  const float* x12,
+  const float* y12,
+  const float* z12,
+  const float* parameters,
+  const float* Fp,
+  const float* charge_derivative,
+  const float* D_real,
+  const float* C6_derivative,
+  const float* D_C6,
+  float* fx,
+  float* fy,
+  float* fz,
+  float* virial)
 {
   check_nep_launch(
     common.force_radial_(
-      N, NN_sum, NN, NL, type, x12, y12, z12,
-      parameters, Fp,
-      charge_derivative, D_real, C6_derivative, D_C6,
-      0, fx, fy, fz, virial),
+      N,
+      NN_sum,
+      NN,
+      NL,
+      type,
+      x12,
+      y12,
+      z12,
+      parameters,
+      Fp,
+      charge_derivative,
+      D_real,
+      C6_derivative,
+      D_C6,
+      0,
+      fx,
+      fy,
+      fz,
+      virial),
     "force_charge_vdw_radial_jit");
 }
 
 void NEP_Charge_VDW::Compiled_Kernel::launch_force_charge_vdw_angular(
-  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-  const float* x12, const float* y12, const float* z12,
-  const float* parameters, const float* Fp,
-  const float* charge_derivative, const float* D_real,
-  const float* C6_derivative, const float* D_C6,
+  int N,
+  const int* NN_sum,
+  const int* NN,
+  const int* NL,
+  const int* type,
+  const float* x12,
+  const float* y12,
+  const float* z12,
+  const float* parameters,
+  const float* Fp,
+  const float* charge_derivative,
+  const float* D_real,
+  const float* C6_derivative,
+  const float* D_C6,
   const float* sum_fxyz,
-  float* fx, float* fy, float* fz, float* virial)
+  float* fx,
+  float* fy,
+  float* fz,
+  float* virial)
 {
   check_nep_launch(
     common.force_angular_(
-      N, NN_sum, NN, NL, type, x12, y12, z12,
-      parameters, Fp,
-      charge_derivative, D_real, C6_derivative, D_C6,
-      sum_fxyz, 0, fx, fy, fz, virial),
+      N,
+      NN_sum,
+      NN,
+      NL,
+      type,
+      x12,
+      y12,
+      z12,
+      parameters,
+      Fp,
+      charge_derivative,
+      D_real,
+      C6_derivative,
+      D_C6,
+      sum_fxyz,
+      0,
+      fx,
+      fy,
+      fz,
+      virial),
     "force_charge_vdw_angular_jit");
 }
 
@@ -311,8 +383,7 @@ void NEP_Charge_VDW::initialize_compiled_kernel(const NEP_Charge_Parameters& par
 {
   if (para.nep_compile && para.prediction == 0) {
     CHECK(gpuSetDevice(0));
-    compiled_kernel_.reset(new Compiled_Kernel(
-      make_compile_config(para, paramb.c6_ref_sqrt)));
+    compiled_kernel_.reset(new Compiled_Kernel(make_compile_config(para, paramb.c6_ref_sqrt)));
     if (!compiled_kernel_->is_valid()) {
       compiled_kernel_.reset();
     }
@@ -392,8 +463,7 @@ static __global__ void apply_ann(
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
       g_charge_derivative[n1 + d * N] = charge_derivative[d] * g_q_scaler[d];
-      g_C6_derivative[n1 + d * N] =
-        C6_exp * SCALING_FACTOR * C6_derivative[d] * g_q_scaler[d];
+      g_C6_derivative[n1 + d * N] = C6_exp * SCALING_FACTOR * C6_derivative[d] * g_q_scaler[d];
     }
   }
 }
@@ -518,16 +588,15 @@ static __global__ void find_force_angular(
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < paramb.dim_angular; ++d) {
-      float tmp = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1]
-        + g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_real[n1];
+      float tmp = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] +
+                  g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_real[n1];
       tmp += g_C6_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_C6[n1];
       Fp[d] = tmp;
     }
     int num_abc = (paramb.L_max + 1) * (paramb.L_max + 1) - 1;
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
       for (int abc = 0; abc < num_abc; ++abc) {
-        sum_fxyz[n * NUM_OF_ABC + abc] =
-          g_sum_fxyz[(n * num_abc + abc) * N + n1];
+        sum_fxyz[n * NUM_OF_ABC + abc] = g_sum_fxyz[(n * num_abc + abc) * N + n1];
       }
     }
     int neighbor_number = g_NN[n1];
@@ -561,8 +630,24 @@ static __global__ void find_force_angular(
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        accumulate_f12(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134, 
-          paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(
+          paramb.L_max,
+          paramb.has_q_222,
+          paramb.has_q_1111,
+          paramb.has_q_112,
+          paramb.has_q_123,
+          paramb.has_q_233,
+          paramb.has_q_134,
+          paramb.num_L,
+          n,
+          paramb.n_max_angular + 1,
+          d12,
+          r12,
+          gn12,
+          gnp12,
+          Fp,
+          sum_fxyz,
+          f12);
       }
 
       atomicAdd(&g_fx[n1], f12[0]);
@@ -635,15 +720,15 @@ static __global__ void find_bec_radial(
         }
       }
 
-      float bec_xx = 0.5f* (r12[0] * f12[0]);
-      float bec_xy = 0.5f* (r12[0] * f12[1]);
-      float bec_xz = 0.5f* (r12[0] * f12[2]);
-      float bec_yx = 0.5f* (r12[1] * f12[0]);
-      float bec_yy = 0.5f* (r12[1] * f12[1]);
-      float bec_yz = 0.5f* (r12[1] * f12[2]);
-      float bec_zx = 0.5f* (r12[2] * f12[0]);
-      float bec_zy = 0.5f* (r12[2] * f12[1]);
-      float bec_zz = 0.5f* (r12[2] * f12[2]);
+      float bec_xx = 0.5f * (r12[0] * f12[0]);
+      float bec_xy = 0.5f * (r12[0] * f12[1]);
+      float bec_xz = 0.5f * (r12[0] * f12[2]);
+      float bec_yx = 0.5f * (r12[1] * f12[0]);
+      float bec_yy = 0.5f * (r12[1] * f12[1]);
+      float bec_yz = 0.5f * (r12[1] * f12[2]);
+      float bec_zx = 0.5f * (r12[2] * f12[0]);
+      float bec_zy = 0.5f * (r12[2] * f12[1]);
+      float bec_zz = 0.5f * (r12[2] * f12[2]);
 
       atomicAdd(&g_bec[n1], bec_xx);
       atomicAdd(&g_bec[n1 + N], bec_xy);
@@ -693,8 +778,7 @@ static __global__ void find_bec_angular(
     int num_abc = (paramb.L_max + 1) * (paramb.L_max + 1) - 1;
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
       for (int abc = 0; abc < num_abc; ++abc) {
-        sum_fxyz[n * NUM_OF_ABC + abc] =
-          g_sum_fxyz[(n * num_abc + abc) * N + n1];
+        sum_fxyz[n * NUM_OF_ABC + abc] = g_sum_fxyz[(n * num_abc + abc) * N + n1];
       }
     }
     int neighbor_number = g_NN[n1];
@@ -728,19 +812,35 @@ static __global__ void find_bec_angular(
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        accumulate_f12(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134, 
-          paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(
+          paramb.L_max,
+          paramb.has_q_222,
+          paramb.has_q_1111,
+          paramb.has_q_112,
+          paramb.has_q_123,
+          paramb.has_q_233,
+          paramb.has_q_134,
+          paramb.num_L,
+          n,
+          paramb.n_max_angular + 1,
+          d12,
+          r12,
+          gn12,
+          gnp12,
+          Fp,
+          sum_fxyz,
+          f12);
       }
 
-      float bec_xx = 0.5f* (r12[0] * f12[0]);
-      float bec_xy = 0.5f* (r12[0] * f12[1]);
-      float bec_xz = 0.5f* (r12[0] * f12[2]);
-      float bec_yx = 0.5f* (r12[1] * f12[0]);
-      float bec_yy = 0.5f* (r12[1] * f12[1]);
-      float bec_yz = 0.5f* (r12[1] * f12[2]);
-      float bec_zx = 0.5f* (r12[2] * f12[0]);
-      float bec_zy = 0.5f* (r12[2] * f12[1]);
-      float bec_zz = 0.5f* (r12[2] * f12[2]);
+      float bec_xx = 0.5f * (r12[0] * f12[0]);
+      float bec_xy = 0.5f * (r12[0] * f12[1]);
+      float bec_xz = 0.5f * (r12[0] * f12[2]);
+      float bec_yx = 0.5f * (r12[1] * f12[0]);
+      float bec_yy = 0.5f * (r12[1] * f12[1]);
+      float bec_yz = 0.5f * (r12[1] * f12[2]);
+      float bec_zx = 0.5f * (r12[2] * f12[0]);
+      float bec_zy = 0.5f * (r12[2] * f12[1]);
+      float bec_zz = 0.5f * (r12[2] * f12[2]);
 
       atomicAdd(&g_bec[n1], bec_xx);
       atomicAdd(&g_bec[n1 + N], bec_xy);
@@ -800,8 +900,7 @@ static __global__ void find_force_charge_long_range(
     int n = threadIdx.x + batch * 1024 + N1;
     if (n < N2) {
       const float q1 = g_charge[n];
-      const float two_alpha_over_sqrt_pi =
-        2.0f * alpha / 1.77245385f;
+      const float two_alpha_over_sqrt_pi = 2.0f * alpha / 1.77245385f;
       if (!is_periodic) {
         const float alpha_squared = alpha * alpha;
         double temp_energy_sum = 0.0;
@@ -815,21 +914,16 @@ static __global__ void find_force_charge_long_range(
           const float x12 = g_x[n2] - g_x[n];
           const float y12 = g_y[n2] - g_y[n];
           const float z12 = g_z[n2] - g_z[n];
-          const float distance_square =
-            x12 * x12 + y12 * y12 + z12 * z12;
+          const float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
           const float distance = sqrt(distance_square);
           const float distance_inv = 1.0f / distance;
           const float q2 = g_charge[n2];
           const float qq = q1 * q2;
           const float exp_alpha = exp(-alpha_squared * distance_square);
           const float erf_r = erf(alpha * distance) * distance_inv;
-          const float force_factor = -K_C_SP * qq *
-            (erf_r - two_alpha_over_sqrt_pi * exp_alpha) /
-            distance_square;
-          const float f12[3] = {
-            x12 * force_factor,
-            y12 * force_factor,
-            z12 * force_factor};
+          const float force_factor =
+            -K_C_SP * qq * (erf_r - two_alpha_over_sqrt_pi * exp_alpha) / distance_square;
+          const float f12[3] = {x12 * force_factor, y12 * force_factor, z12 * force_factor};
           temp_energy_sum += 0.5 * qq * erf_r;
           temp_D_real_sum += q2 * erf_r;
           temp_force_sum[0] += f12[0];
@@ -879,23 +973,20 @@ static __global__ void find_force_charge_long_range(
         temp_virial_sum[0] += GSS * (1.0f - alpha_k_factor * kx * kx); // xx
         temp_virial_sum[1] += GSS * (1.0f - alpha_k_factor * ky * ky); // yy
         temp_virial_sum[2] += GSS * (1.0f - alpha_k_factor * kz * kz); // zz
-        temp_virial_sum[3] -= GSS * (alpha_k_factor * kx * ky); // xy
-        temp_virial_sum[4] -= GSS * (alpha_k_factor * ky * kz); // yz
-        temp_virial_sum[5] -= GSS * (alpha_k_factor * kz * kx); // zx
+        temp_virial_sum[3] -= GSS * (alpha_k_factor * kx * ky);        // xy
+        temp_virial_sum[4] -= GSS * (alpha_k_factor * ky * kz);        // yz
+        temp_virial_sum[5] -= GSS * (alpha_k_factor * kz * kx);        // zx
         temp_D_real_sum += G * (S_real * cos_kr - S_imag * sin_kr);
         temp_force_sum[0] += kx * imag_term;
         temp_force_sum[1] += ky * imag_term;
         temp_force_sum[2] += kz * imag_term;
       }
       // Remove the r=0 self interaction contained in the structure factor.
-      g_pe[n] += K_C_SP *
-        (temp_energy_sum / (N2 - N1) -
-         0.5 * q1 * q1 * two_alpha_over_sqrt_pi);
+      g_pe[n] += K_C_SP * (temp_energy_sum / (N2 - N1) - 0.5 * q1 * q1 * two_alpha_over_sqrt_pi);
       for (int d = 0; d < 6; ++d) {
         g_virial[n + N * d] += K_C_SP * temp_virial_sum[d] / (N2 - N1);
       }
-      g_D_real[n] = K_C_SP *
-        (2.0f * temp_D_real_sum - q1 * two_alpha_over_sqrt_pi);
+      g_D_real[n] = K_C_SP * (2.0f * temp_D_real_sum - q1 * two_alpha_over_sqrt_pi);
       const float charge_factor = K_C_SP * 2.0f * q1;
       g_fx[n] += charge_factor * temp_force_sum[0];
       g_fy[n] += charge_factor * temp_force_sum[1];
@@ -906,9 +997,9 @@ static __global__ void find_force_charge_long_range(
 
 static __device__ void cross_product(const float a[3], const float b[3], float c[3])
 {
-  c[0] =  a[1] * b [2] - a[2] * b [1];
-  c[1] =  a[2] * b [0] - a[0] * b [2];
-  c[2] =  a[0] * b [1] - a[1] * b [0];
+  c[0] = a[1] * b[2] - a[2] * b[1];
+  c[1] = a[2] * b[0] - a[0] * b[2];
+  c[2] = a[0] * b[1] - a[1] * b[0];
 }
 
 static __device__ float get_area(const float* a, const float* b)
@@ -955,7 +1046,7 @@ static __global__ void find_k_and_G(
     cross_product(a2, a3, b1);
     cross_product(a3, a1, b2);
     cross_product(a1, a2, b3);
-    
+
     const float two_pi = 6.2831853f;
     const float two_pi_over_det = two_pi / det;
     for (int d = 0; d < 3; ++d) {
@@ -972,9 +1063,10 @@ static __global__ void find_k_and_G(
 
     int nk = 0;
     for (int n1 = 0; n1 <= n1_max; ++n1) {
-      for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
-        for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
-          if (n1 == 0 && (n2 < 0 || (n2 == 0 && n3 < 0))) continue;
+      for (int n2 = -n2_max; n2 <= n2_max; ++n2) {
+        for (int n3 = -n3_max; n3 <= n3_max; ++n3) {
+          if (n1 == 0 && (n2 < 0 || (n2 == 0 && n3 < 0)))
+            continue;
           const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
           const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
           const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
@@ -989,22 +1081,17 @@ static __global__ void find_k_and_G(
               if (ksq == 0.0f) {
                 g_G[nc_nk] = 0.0f;
                 // k=0 occurs once, unlike each nonzero +/-k pair.
-                g_G_vdw[nc_nk] =
-                  -abs(two_pi_over_det) * sqrt_pi *
-                  alpha * alpha * alpha / 12.0f;
+                g_G_vdw[nc_nk] = -abs(two_pi_over_det) * sqrt_pi * alpha * alpha * alpha / 12.0f;
                 g_G_vdw_virial[nc_nk] = 0.0f;
               } else {
-                g_G[nc_nk] =
-                  2.0f * abs(two_pi_over_det) / ksq *
-                  exp(-ksq * alpha_factor);
+                g_G[nc_nk] = 2.0f * abs(two_pi_over_det) / ksq * exp(-ksq * alpha_factor);
                 const float b2 = ksq * alpha_factor;
                 const float b = sqrt(b2);
                 const float exp_b2 = exp(-b2);
                 const float k = sqrt(ksq);
                 const float erfc_b = erfc(b);
                 const float prefactor = abs(two_pi_over_det) * sqrt_pi / 24.0f;
-                const float c1 = -k * ksq *
-                  (sqrt_pi * erfc_b + (0.5f / b2 - 1.0f) * exp_b2 / b);
+                const float c1 = -k * ksq * (sqrt_pi * erfc_b + (0.5f / b2 - 1.0f) * exp_b2 / b);
                 const float c2 = 3.0f * k * (sqrt_pi * erfc_b - exp_b2 / b);
                 g_G_vdw[nc_nk] = prefactor * c1;
                 g_G_vdw_virial[nc_nk] = prefactor * c2;
@@ -1049,8 +1136,7 @@ void NEP_Charge_VDW::prepare_kpoints(Dataset& dataset, int device_id)
 
   const int total_num_kpoints = update_nep_kpoint_offsets(dataset.Nc, data.kpoint_offset);
 
-  const int required_capacity =
-    total_num_kpoints > 0 ? total_num_kpoints : 1;
+  const int required_capacity = total_num_kpoints > 0 ? total_num_kpoints : 1;
   if (required_capacity > static_cast<int>(data.kx.size())) {
     data.kx.resize(required_capacity);
     data.ky.resize(required_capacity);
@@ -1081,8 +1167,7 @@ void NEP_Charge_VDW::prepare_kpoints(Dataset& dataset, int device_id)
 }
 
 void NEP_Charge_VDW::compute_descriptors(
-  const ANN& ann, const Dataset& data, const NEP_Neighbor& neighbors,
-  NEP_Charge_VDW_Data& storage)
+  const ANN& ann, const Dataset& data, const NEP_Neighbor& neighbors, NEP_Charge_VDW_Data& storage)
 {
   const int block_size = 32;
   const int grid_size = (data.N - 1) / block_size + 1;
@@ -1147,8 +1232,7 @@ void NEP_Charge_VDW::compute_descriptors(
 }
 
 void NEP_Charge_VDW::evaluate_ann(
-  const ANN& ann, Dataset& data,
-  NEP_Charge_VDW_Data& storage, const float* q_scaler)
+  const ANN& ann, Dataset& data, NEP_Charge_VDW_Data& storage, const float* q_scaler)
 {
   auto& charge_dataset = charge_data.get(data);
   const int block_size = 32;
@@ -1186,8 +1270,7 @@ void NEP_Charge_VDW::evaluate_ann(
 }
 
 void NEP_Charge_VDW::compute_bec(
-  const ANN& ann, Dataset& data, const NEP_Neighbor& neighbors,
-  NEP_Charge_VDW_Data& storage)
+  const ANN& ann, Dataset& data, const NEP_Neighbor& neighbors, NEP_Charge_VDW_Data& storage)
 {
   auto& charge_dataset = charge_data.get(data);
   const int block_size = 32;
@@ -1264,8 +1347,7 @@ void NEP_Charge_VDW::compute_bec(
   scale_nep_bec(data, charge_dataset, ann.sqrt_epsilon_inf);
 }
 
-void NEP_Charge_VDW::compute_charge_long_range(
-  Dataset& data, NEP_Charge_VDW_Data& storage)
+void NEP_Charge_VDW::compute_charge_long_range(Dataset& data, NEP_Charge_VDW_Data& storage)
 {
   auto& charge_dataset = charge_data.get(data);
   find_force_charge_long_range<<<data.Nc, 1024>>>(
@@ -1296,8 +1378,7 @@ void NEP_Charge_VDW::compute_charge_long_range(
 }
 
 void NEP_Charge_VDW::compute_forces(
-  const ANN& ann, Dataset& data, const NEP_Neighbor& neighbors,
-  NEP_Charge_VDW_Data& storage)
+  const ANN& ann, Dataset& data, const NEP_Neighbor& neighbors, NEP_Charge_VDW_Data& storage)
 {
   const int block_size = 32;
   const int grid_size = (data.N - 1) / block_size + 1;
@@ -1404,8 +1485,7 @@ void NEP_Charge_VDW::find_force(
     CHECK(gpuSetDevice(device_id));
     auto& storage = nep_data[device_id];
     auto& ann = annmb[device_id];
-    storage.parameters.copy_from_host(
-      parameters + device_id * para.number_of_variables);
+    storage.parameters.copy_from_host(parameters + device_id * para.number_of_variables);
     bind_parameters(storage.parameters.data(), ann);
   }
 
@@ -1427,8 +1507,11 @@ void NEP_Charge_VDW::find_force(
 
     if (calculate_q_scaler) {
       update_nep_q_scaler(
-        data.N, ann.dim, storage.descriptors.data(),
-        para.q_scaler_gpu[device_id].data(), para.q_scaler_max[device_id].data(),
+        data.N,
+        ann.dim,
+        storage.descriptors.data(),
+        para.q_scaler_gpu[device_id].data(),
+        para.q_scaler_max[device_id].data(),
         para.q_scaler_min[device_id].data());
     }
 
@@ -1447,9 +1530,14 @@ void NEP_Charge_VDW::find_force(
     prepare_kpoints(data, device_id);
 
     compute_nep_structure_factor(
-      data, charge_dataset.charge_shifted.data(), storage.kpoint_offset.data(),
-      storage.kx.data(), storage.ky.data(), storage.kz.data(),
-      storage.S_real.data(), storage.S_imag.data());
+      data,
+      charge_dataset.charge_shifted.data(),
+      storage.kpoint_offset.data(),
+      storage.kx.data(),
+      storage.ky.data(),
+      storage.kz.data(),
+      storage.S_real.data(),
+      storage.S_imag.data());
 
     compute_charge_long_range(data, storage);
 
@@ -1458,15 +1546,28 @@ void NEP_Charge_VDW::find_force(
 
     // Long-range vdW
     compute_nep_structure_factor(
-      data, storage.C6.data(), storage.kpoint_offset.data(),
-      storage.kx.data(), storage.ky.data(), storage.kz.data(),
-      storage.S_real.data(), storage.S_imag.data());
+      data,
+      storage.C6.data(),
+      storage.kpoint_offset.data(),
+      storage.kx.data(),
+      storage.ky.data(),
+      storage.kz.data(),
+      storage.S_real.data(),
+      storage.S_imag.data());
 
     add_nep_vdw_long_range(
-      data, charge_para.alpha, storage.C6.data(), storage.kpoint_offset.data(),
-      storage.kx.data(), storage.ky.data(), storage.kz.data(),
-      storage.G_vdw.data(), storage.G_vdw_virial.data(),
-      storage.S_real.data(), storage.S_imag.data(), storage.D_C6.data());
+      data,
+      charge_para.alpha,
+      storage.C6.data(),
+      storage.kpoint_offset.data(),
+      storage.kx.data(),
+      storage.ky.data(),
+      storage.kz.data(),
+      storage.G_vdw.data(),
+      storage.G_vdw_virial.data(),
+      storage.S_real.data(),
+      storage.S_imag.data(),
+      storage.D_C6.data());
 
     compute_forces(ann, data, neighbors, storage);
 
@@ -1483,16 +1584,14 @@ void NEP_Charge_VDW::configure(NEP_Charge_Parameters& para)
 }
 
 void NEP_Charge_VDW::initialize_parameters(
-  std::mt19937& rng,
-  std::vector<float>& mu, std::vector<float>& sigma)
+  std::mt19937& rng, std::vector<float>& mu, std::vector<float>& sigma)
 {
   NEP_Charge_Parameters& para = *model_parameters;
   NEP_Initialization initialization = initialize_nep_mu_and_sigma(para, rng, mu, sigma, 2);
   if (initialization == NEP_Initialization::RANDOM) {
     // make sure the initial charge and vdW output weights are zero
     for (int t = 0; t < para.num_types; ++t) {
-      int charge_begin =
-        para.number_of_variables_ann_1 * t + (para.dim + 2) * para.num_neurons1;
+      int charge_begin = para.number_of_variables_ann_1 * t + (para.dim + 2) * para.num_neurons1;
       int vdw_end = charge_begin + 2 * para.num_neurons1;
       for (int n = charge_begin; n < vdw_end; ++n) {
         mu[n] = 0.0f;
@@ -1501,8 +1600,7 @@ void NEP_Charge_VDW::initialize_parameters(
     mu[para.number_of_variables_ann_1 * para.num_types] = 2.0f; // initial sqrt(epsilon_inf)
   } else if (initialization == NEP_Initialization::RESTART && para.flip_charge) {
     for (int t = 0; t < para.num_types; ++t) {
-      int charge_begin =
-        para.number_of_variables_ann_1 * t + (para.dim + 2) * para.num_neurons1;
+      int charge_begin = para.number_of_variables_ann_1 * t + (para.dim + 2) * para.num_neurons1;
       int charge_end = charge_begin + para.num_neurons1;
       for (int n = charge_begin; n < charge_end; ++n) {
         mu[n] = -mu[n];
@@ -1558,7 +1656,8 @@ int NEP_Charge_VDW::prepare_data()
     energy_loss.initialize(para);
     fitness_charge.resize(para.population_size * (para.num_types + 1));
     fitness_bec.resize(para.population_size * (para.num_types + 1));
-    training->open_loss_file(para,
+    training->open_loss_file(
+      para,
       " rmse_energy_train rmse_force_train rmse_virial_train rmse_charge_train rmse_bec_train"
       " rmse_energy_test rmse_force_test rmse_virial_test rmse_charge_test rmse_bec_test",
       para.has_ediff_combinations);
@@ -1572,8 +1671,12 @@ void NEP_Charge_VDW::prepare_training()
   int devices = training->device_count;
   std::vector<float> dummy_solution(para.number_of_variables * devices, 1.0f);
   for (int batch = 0; batch < training->num_batches; ++batch) {
-    find_force(para, dummy_solution.data(), training->train_set[batch],
-      (para.fine_tune || para.import_q_scaler) ? false : true, devices);
+    find_force(
+      para,
+      dummy_solution.data(),
+      training->train_set[batch],
+      (para.fine_tune || para.import_q_scaler) ? false : true,
+      devices);
   }
 }
 
@@ -1583,8 +1686,12 @@ void NEP_Charge_VDW::evaluate(int batch, const float* population)
   int devices = training->device_count;
   for (int first = 0; first < para.population_size; first += devices) {
     int count = std::min(devices, para.population_size - first);
-    find_force(para, population + first * para.number_of_variables,
-      training->train_set[batch], false, count);
+    find_force(
+      para,
+      population + first * para.number_of_variables,
+      training->train_set[batch],
+      false,
+      count);
     for (int device = 0; device < count; ++device) {
       Dataset& data = training->train_set[batch][device];
       energy_loss.evaluate(para, data, energy_difference, batch, first + device, device);
@@ -1619,8 +1726,8 @@ void NEP_Charge_VDW::report_error(const TrainingReport& report)
   NEP_Charge_Parameters& para = *model_parameters;
   find_force(para, report.parameters, training->train_set[report.batch], false, 1);
   Dataset& train_data = training->train_set[report.batch][0];
-  NEP_Energy_Error train = energy_loss.get_error(
-    para, train_data, energy_difference, true, report.batch);
+  NEP_Energy_Error train =
+    energy_loss.get_error(para, train_data, energy_difference, true, report.batch);
   float charge_train = charge_data.get(train_data).get_rmse_charge(para, train_data, 0).back();
   float bec_train = charge_data.get(train_data).get_rmse_bec(para, train_data, 0).back();
   float charge_test = 0.0f;
@@ -1636,10 +1743,26 @@ void NEP_Charge_VDW::report_error(const TrainingReport& report)
     bec_test = charge_data.get(test_data).get_rmse_bec(para, test_data, 0).back();
   }
   training->write_model(para, report);
-  write_nep_charge_error(stdout, report, train, test,
-    charge_train, bec_train, charge_test, bec_test, para.has_ediff_combinations);
-  write_nep_charge_error(training->fid_loss_out, report, train, test,
-    charge_train, bec_train, charge_test, bec_test, para.has_ediff_combinations);
+  write_nep_charge_error(
+    stdout,
+    report,
+    train,
+    test,
+    charge_train,
+    bec_train,
+    charge_test,
+    bec_test,
+    para.has_ediff_combinations);
+  write_nep_charge_error(
+    training->fid_loss_out,
+    report,
+    train,
+    test,
+    charge_train,
+    bec_train,
+    charge_test,
+    bec_test,
+    para.has_ediff_combinations);
   if (training->has_test_set) {
     Dataset& data = training->test_set[0];
     copy_nep_energy_predictions(data, para.energy_reference);

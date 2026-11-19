@@ -13,9 +13,9 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "adam.cuh"
 #include "fitness.cuh"
 #include "parameters.cuh"
-#include "adam.cuh"
 #include "utilities/error.cuh"
 #include "utilities/main_common.cuh"
 #include <stdio.h>
@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
 
   clock_t time_begin = clock();
   Parameters para;
-  Adam adam(para); 
+  Adam adam(para);
   Fitness fitness(para, &adam);
   clock_t time_finish = clock();
 

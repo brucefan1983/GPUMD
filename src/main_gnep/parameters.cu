@@ -13,8 +13,8 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "parameters.cuh"
 #include "device_guard.cuh"
+#include "parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
@@ -51,10 +51,7 @@ Parameters::Parameters()
   print_line_2();
 }
 
-Parameters::~Parameters()
-{
-  cudaSetDevice(0);
-}
+Parameters::~Parameters() { cudaSetDevice(0); }
 
 void Parameters::set_default_parameters()
 {
@@ -79,25 +76,25 @@ void Parameters::set_default_parameters()
   is_lr_cos_restart_set = false;
   is_seed_set = false;
 
-  prediction = 0;              // not prediction mode
-  basis_size_radial = 8;       // large enough in most cases
-  basis_size_angular = 8;      // large enough in most cases
-  n_max_radial = 4;            // a relatively small value to achieve high speed
-  n_max_angular = 4;           // a relatively small value to achieve high speed
-  L_max = 4;                   // the only supported value
-  num_neurons1 = 30;           // a relatively small value to achieve high speed
-  weight_decay = 0.0f;         // no weight decay by default (Adam). In general, 1e-6 ~ 1e-4 for AdamW
-  lr = 1e-3f;                 
-  start_lr = 1e-3f;   
-  stop_lr = 1e-7f;             
-  lambda_e = 1.0f;           // energy important
-  lambda_f = 2.0f;         // force is more important
-  lambda_v = 0.1f;             // virial is less important, virial is inaccuracy in most cases
-  lambda_shear = 1.0f;         // do not weight shear virial more by default
-  force_delta = 0.0f;          // no modification of force loss
-  batch_size = 2;           // mini-batch for adam optimizer
-  use_full_batch = 0;          // default is not to enable effective full-batch
-  epoch = 50;               
+  prediction = 0;         // not prediction mode
+  basis_size_radial = 8;  // large enough in most cases
+  basis_size_angular = 8; // large enough in most cases
+  n_max_radial = 4;       // a relatively small value to achieve high speed
+  n_max_angular = 4;      // a relatively small value to achieve high speed
+  L_max = 4;              // the only supported value
+  num_neurons1 = 30;      // a relatively small value to achieve high speed
+  weight_decay = 0.0f;    // no weight decay by default (Adam). In general, 1e-6 ~ 1e-4 for AdamW
+  lr = 1e-3f;
+  start_lr = 1e-3f;
+  stop_lr = 1e-7f;
+  lambda_e = 1.0f;     // energy important
+  lambda_f = 2.0f;     // force is more important
+  lambda_v = 0.1f;     // virial is less important, virial is inaccuracy in most cases
+  lambda_shear = 1.0f; // do not weight shear virial more by default
+  force_delta = 0.0f;  // no modification of force loss
+  batch_size = 2;      // mini-batch for adam optimizer
+  use_full_batch = 0;  // default is not to enable effective full-batch
+  epoch = 50;
   use_typewise_cutoff_zbl = false;
   typewise_cutoff_zbl_factor = -1.0f;
   energy_shift = 0;
@@ -107,10 +104,9 @@ void Parameters::set_default_parameters()
   // default for lr cosine restart scheduler
   lr_restart_enable = 0;
   lr_warmup_epochs = 1;
-  lr_restart_initial_period_epochs = 10; 
+  lr_restart_initial_period_epochs = 10;
   lr_restart_period_factor = 2.0f;
   lr_restart_decay_factor = 0.8f;
-  
 
   type_weight_cpu.resize(NUM_ELEMENTS);
   rc_radial.resize(NUM_ELEMENTS);
@@ -219,10 +215,7 @@ GPU_Vector<float>& Parameters::s_min_gpu(const int device_id)
   return device_scalers.at(device_id)->s_min;
 }
 
-int Parameters::num_devices() const
-{
-  return static_cast<int>(device_scalers.size());
-}
+int Parameters::num_devices() const { return static_cast<int>(device_scalers.size()); }
 
 void Parameters::reduce_and_broadcast_scaler()
 {
@@ -418,9 +411,7 @@ void Parameters::report_inputs()
   printf("    number of angular descriptor components = %d.\n", dim_angular);
   printf("    total number of descriptor components = %d.\n", dim);
   printf("    NN architecture = %d-%d-1.\n", dim, num_neurons1);
-  printf(
-    "    number of NN parameters to be optimized = %d.\n",
-    number_of_variables_ann);
+  printf("    number of NN parameters to be optimized = %d.\n", number_of_variables_ann);
   printf(
     "    number of descriptor parameters to be optimized = %d.\n", number_of_variables_descriptor);
   printf("    total number of parameters to be optimized = %d.\n", number_of_variables);
@@ -612,7 +603,7 @@ void Parameters::parse_cutoff(const char** param, int num_param)
     if (!is_valid_real(param[1], &rc_radial_tmp)) {
       PRINT_INPUT_ERROR("radial cutoff should be a number.\n");
     }
-    for (int n = 0; n < num_types; ++ n) {
+    for (int n = 0; n < num_types; ++n) {
       rc_radial[n] = rc_radial_tmp;
     }
 
@@ -620,7 +611,7 @@ void Parameters::parse_cutoff(const char** param, int num_param)
     if (!is_valid_real(param[2], &rc_angular_tmp)) {
       PRINT_INPUT_ERROR("angular cutoff should be a number.\n");
     }
-    for (int n = 0; n < num_types; ++ n) {
+    for (int n = 0; n < num_types; ++n) {
       rc_angular[n] = rc_angular_tmp;
     }
 
@@ -635,7 +626,7 @@ void Parameters::parse_cutoff(const char** param, int num_param)
     }
   } else {
     has_multiple_cutoffs = true;
-    
+
     for (int n = 0; n < num_types; ++n) {
       double rc_radial_tmp = 0.0;
       if (!is_valid_real(param[1 + n * 2], &rc_radial_tmp)) {
@@ -663,7 +654,7 @@ void Parameters::parse_cutoff(const char** param, int num_param)
 
   rc_radial_max = 0.0f;
   rc_angular_max = 0.0f;
-  for (int n = 0; n < num_types; ++ n) {
+  for (int n = 0; n < num_types; ++n) {
     if (rc_radial[n] > rc_radial_max) {
       rc_radial_max = rc_radial[n];
     }

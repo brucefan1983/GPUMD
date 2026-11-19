@@ -21,9 +21,9 @@ The abstract base class (ABC) for the potential classes.
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #define BLOCK_SIZE_FORCE 64
+#include <cstring>
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
-#include <cstring>
 
 Potential::Potential(void) { rc = 0.0; }
 

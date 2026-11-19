@@ -30,23 +30,24 @@ Reference: PhysRevLett 97, 170201 (2006)
 namespace
 {
 
-__global__ void gpu_multiply(const int size, const double factor, const double* input, double* output)
+__global__ void
+gpu_multiply(const int size, const double factor, const double* input, double* output)
 {
   const int n = blockDim.x * blockIdx.x + threadIdx.x;
   if (n < size)
     output[n] = input[n] * factor;
 }
 
-__global__ void gpu_vector_sum(
-  const int size, const double* first, const double* second, double* output)
+__global__ void
+gpu_vector_sum(const int size, const double* first, const double* second, double* output)
 {
   const int n = blockDim.x * blockIdx.x + threadIdx.x;
   if (n < size)
     output[n] = first[n] + second[n];
 }
 
-__global__ void gpu_pairwise_product(
-  const int size, const double* first, const double* second, double* output)
+__global__ void
+gpu_pairwise_product(const int size, const double* first, const double* second, double* output)
 {
   const int n = blockDim.x * blockIdx.x + threadIdx.x;
   if (n < size)
@@ -114,8 +115,7 @@ Minimizer_FIRE_Replica::Minimizer_FIRE_Replica(
 {
 }
 
-void Minimizer_FIRE_Replica::compute(
-  Force&, Box&, Atom&, GPU_Vector<double>&, std::vector<Group>&)
+void Minimizer_FIRE_Replica::compute(Force&, Box&, Atom&, GPU_Vector<double>&, std::vector<Group>&)
 {
   PRINT_INPUT_ERROR("Minimizer_FIRE_Replica requires the replica force evaluation.");
 }
@@ -138,8 +138,7 @@ double Minimizer_FIRE_Replica::sum(const GPU_Vector<double>& input, const gpuStr
   return scalar_to_host(stream);
 }
 
-double Minimizer_FIRE_Replica::max_square(
-  const GPU_Vector<double>& input, const gpuStream_t stream)
+double Minimizer_FIRE_Replica::max_square(const GPU_Vector<double>& input, const gpuStream_t stream)
 {
   gpu_max_square<<<1, 1024, 0, stream>>>(int(input.size()), input.data(), scalar_result_.data());
   GPU_CHECK_KERNEL
@@ -160,8 +159,7 @@ void Minimizer_FIRE_Replica::scalar_multiply(
   const gpuStream_t stream)
 {
   const int size = input.size();
-  gpu_multiply<<<(size - 1) / 128 + 1, 128, 0, stream>>>(
-    size, factor, input.data(), output.data());
+  gpu_multiply<<<(size - 1) / 128 + 1, 128, 0, stream>>>(size, factor, input.data(), output.data());
   GPU_CHECK_KERNEL
 }
 

@@ -13,9 +13,9 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "nep_compile.cuh"
 #include "nep_compile_config.cuh"
 #include "nep_parameters.cuh"
-#include "nep_compile.cuh"
 #include <iomanip>
 #include <sstream>
 
@@ -49,14 +49,16 @@ namespace
 #if !defined(USE_HIP) && !defined(_WIN32)
 bool all_equal(const std::vector<float>& values)
 {
-  if (values.empty()) return true;
+  if (values.empty())
+    return true;
   for (size_t i = 1; i < values.size(); ++i) {
-    if (values[i] != values[0]) return false;
+    if (values[i] != values[0])
+      return false;
   }
   return true;
 }
 #endif
-}
+} // namespace
 
 NEP_Compile_Config make_nep_compile_config(const NEP_Parameters& para)
 {
@@ -95,10 +97,7 @@ NEP_Compile_Config make_nep_compile_config(const NEP_Parameters& para)
 
   const int num_descriptor_types =
     c.descriptor_use_cj ? para.num_types : para.num_types * para.num_types;
-  c.num_c_radial =
-    num_descriptor_types *
-    (para.n_max_radial + 1) *
-    (para.basis_size_radial + 1);
+  c.num_c_radial = num_descriptor_types * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
 
   c.rc_radial.assign(para.rc_radial.begin(), para.rc_radial.begin() + para.num_types);
   c.rc_angular.assign(para.rc_angular.begin(), para.rc_angular.begin() + para.num_types);
@@ -136,8 +135,8 @@ std::string make_nep_compile_config_text(const NEP_Compile_Config& c)
 
   std::ostringstream output;
   output << "#pragma once\n";
-  output << "#define NEP_SPECIAL_CONFIG_INTERFACE_VERSION "
-         << NEP_SPECIALIZED_INTERFACE_VERSION << "\n";
+  output << "#define NEP_SPECIAL_CONFIG_INTERFACE_VERSION " << NEP_SPECIALIZED_INTERFACE_VERSION
+         << "\n";
   output << "#define NUM_TYPES_JIT " << c.num_types << "\n";
   output << "#define ANN_DIM_JIT " << c.ann_dim << "\n";
   output << "#define NUM_NEURONS1_JIT " << c.num_neurons1 << "\n";
@@ -162,14 +161,11 @@ std::string make_nep_compile_config_text(const NEP_Compile_Config& c)
   output << "#define HAS_Q_134_JIT " << c.has_q_134 << "\n";
   output << "#define NUM_L_JIT " << c.num_L << "\n";
   output << "#define NUM_C_RADIAL_JIT " << c.num_c_radial << "\n";
-  output << "#define DESCRIPTOR_USE_CJ_JIT "
-         << (c.descriptor_use_cj ? 1 : 0) << "\n";
+  output << "#define DESCRIPTOR_USE_CJ_JIT " << (c.descriptor_use_cj ? 1 : 0) << "\n";
   output << "#define RC_RADIAL_COMMON_JIT " << (common_radial ? 1 : 0) << "\n";
   output << "#define RC_ANGULAR_COMMON_JIT " << (common_angular ? 1 : 0) << "\n";
-  output << "#define RC_RADIAL_COMMON_VALUE_JIT "
-         << float_literal(c.rc_radial[0]) << "\n";
-  output << "#define RC_ANGULAR_COMMON_VALUE_JIT "
-         << float_literal(c.rc_angular[0]) << "\n";
+  output << "#define RC_RADIAL_COMMON_VALUE_JIT " << float_literal(c.rc_radial[0]) << "\n";
+  output << "#define RC_ANGULAR_COMMON_VALUE_JIT " << float_literal(c.rc_angular[0]) << "\n";
   output << "static __device__ __constant__ float RC_RADIAL_JIT[NUM_TYPES_JIT] = "
          << make_nep_compile_array(c.rc_radial) << ";\n";
   output << "static __device__ __constant__ float RC_ANGULAR_JIT[NUM_TYPES_JIT] = "

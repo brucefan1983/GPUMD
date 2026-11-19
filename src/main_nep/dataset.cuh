@@ -24,11 +24,11 @@ class Dataset
 public:
   int batch_index; // training batch index; -1 denotes the test set
   int device_id;
-  int Nc;             // number of configurations
-  int N;              // total number of atoms (sum of Na[])
-  int max_Na;         // number of atoms in the largest configuration
-  int max_NN_radial;  // radial neighbor list size
-  int max_NN_angular; // angular neighbor list size
+  int Nc;               // number of configurations
+  int N;                // total number of atoms (sum of Na[])
+  int max_Na;           // number of atoms in the largest configuration
+  int max_NN_radial;    // radial neighbor list size
+  int max_NN_angular;   // angular neighbor list size
   int total_NN_radial;  // total number of radial neighbors
   int total_NN_angular; // total number of angular neighbors
 
@@ -77,8 +77,13 @@ public:
 
   std::vector<Structure> structures;
 
-  void construct(NEP_Parameters& para, std::vector<Structure>& structures,
-    int n1, int n2, int device_id, int batch_index);
+  void construct(
+    NEP_Parameters& para,
+    std::vector<Structure>& structures,
+    int n1,
+    int n2,
+    int device_id,
+    int batch_index);
   void set_energy_reference(const std::vector<double>& reference);
   std::vector<float> get_rmse_force(NEP_Parameters& para, const bool use_weight, int device_id);
   std::vector<double> get_rmse_energy(

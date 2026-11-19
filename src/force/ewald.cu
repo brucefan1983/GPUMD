@@ -47,9 +47,9 @@ void Ewald::initialize(const float alpha_input)
 
 static void cross_product(const float a[3], const float b[3], float c[3])
 {
-  c[0] =  a[1] * b [2] - a[2] * b [1];
-  c[1] =  a[2] * b [0] - a[0] * b [2];
-  c[2] =  a[0] * b [1] - a[1] * b [0];
+  c[0] = a[1] * b[2] - a[2] * b[1];
+  c[1] = a[2] * b[0] - a[0] * b[2];
+  c[2] = a[0] * b[1] - a[1] * b[0];
 }
 
 static float get_area(const float* a, const float* b)
@@ -66,8 +66,8 @@ void Ewald::find_k_and_G(const double* box)
   float a2[3] = {0.0f};
   float a3[3] = {0.0f};
   float det = box[0] * (box[4] * box[8] - box[5] * box[7]) +
-    box[1] * (box[5] * box[6] - box[3] * box[8]) +
-    box[2] * (box[3] * box[7] - box[4] * box[6]);
+              box[1] * (box[5] * box[6] - box[3] * box[8]) +
+              box[2] * (box[3] * box[7] - box[4] * box[6]);
   a1[0] = box[0];
   a1[1] = box[3];
   a1[2] = box[6];
@@ -104,10 +104,11 @@ void Ewald::find_k_and_G(const double* box)
   std::vector<float> cpu_G;
 
   for (int n1 = 0; n1 <= n1_max; ++n1) {
-    for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
-      for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
+    for (int n2 = -n2_max; n2 <= n2_max; ++n2) {
+      for (int n3 = -n3_max; n3 <= n3_max; ++n3) {
         const int nsq = n1 * n1 + n2 * n2 + n3 * n3;
-        if (nsq == 0 || (n1 == 0 && n2 < 0) || (n1 == 0 && n2 == 0 && n3 < 0)) continue;
+        if (nsq == 0 || (n1 == 0 && n2 < 0) || (n1 == 0 && n2 == 0 && n3 < 0))
+          continue;
         const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
         const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
         const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
@@ -220,9 +221,9 @@ static __global__ void find_force_charge_reciprocal_space(
       temp_virial_sum[0] += qGSE * (1.0f - alpha_k_factor * kx * kx); // xx
       temp_virial_sum[1] += qGSE * (1.0f - alpha_k_factor * ky * ky); // yy
       temp_virial_sum[2] += qGSE * (1.0f - alpha_k_factor * kz * kz); // zz
-      temp_virial_sum[3] -= qGSE * (alpha_k_factor * kx * ky); // xy
-      temp_virial_sum[4] -= qGSE * (alpha_k_factor * ky * kz); // yz
-      temp_virial_sum[5] -= qGSE * (alpha_k_factor * kz * kx); // zx
+      temp_virial_sum[3] -= qGSE * (alpha_k_factor * kx * ky);        // xy
+      temp_virial_sum[4] -= qGSE * (alpha_k_factor * ky * kz);        // yz
+      temp_virial_sum[5] -= qGSE * (alpha_k_factor * kz * kx);        // zx
       temp_D_real_sum += GSE;
       temp_force_sum[0] += kx * imag_term;
       temp_force_sum[1] += ky * imag_term;

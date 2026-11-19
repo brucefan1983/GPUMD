@@ -21,8 +21,8 @@ Add electric field to a group of atoms.
 #include "force/force.cuh"
 #include "model/atom.cuh"
 #include "model/group.cuh"
-#include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <iostream>
@@ -75,8 +75,7 @@ static void __global__ add_efield_bec(
       g_bec[atom_id + 5 * num_atoms],
       g_bec[atom_id + 6 * num_atoms],
       g_bec[atom_id + 7 * num_atoms],
-      g_bec[atom_id + 8 * num_atoms]
-    };
+      g_bec[atom_id + 8 * num_atoms]};
     g_fx[atom_id] += bec[0] * Ex + bec[3] * Ey + bec[6] * Ez;
     g_fy[atom_id] += bec[1] * Ex + bec[4] * Ey + bec[7] * Ez;
     g_fz[atom_id] += bec[2] * Ex + bec[5] * Ey + bec[8] * Ez;
@@ -84,12 +83,7 @@ static void __global__ add_efield_bec(
 }
 
 void Add_Efield::setup_force(
-  const double,
-  Integrate&,
-  std::vector<Group>& group,
-  Atom& atom,
-  Box&,
-  Force& force)
+  const double, Integrate&, std::vector<Group>& group, Atom& atom, Box&, Force& force)
 {
   apply_field(0, group, atom, force);
 }
@@ -106,11 +100,7 @@ void Add_Efield::post_force(
   apply_field(step + 1, group, atom, force);
 }
 
-void Add_Efield::apply_field(
-  const int md_step,
-  std::vector<Group>& group,
-  Atom& atom,
-  Force& force)
+void Add_Efield::apply_field(const int md_step, std::vector<Group>& group, Atom& atom, Force& force)
 {
   const int table_index = md_step % table_length_;
   const double Ex = efield_table_[0 * table_length_ + table_index];
@@ -164,9 +154,7 @@ void Add_Efield::apply_field(
 }
 
 Add_Efield::Add_Efield(
-  const std::vector<std::string>& tokens,
-  const std::vector<Group>& group,
-  bool is_nep_charge)
+  const std::vector<std::string>& tokens, const std::vector<Group>& group, bool is_nep_charge)
 {
   const int num_param = tokens.size();
   action_name = "add_efield";
@@ -233,10 +221,7 @@ Add_Efield::Add_Efield(
     PRINT_INPUT_ERROR("group id should < maximum number of groups in the grouping method.\n");
   }
 
-  printf(
-    "    for atoms in group %d of grouping method %d.\n",
-    group_id_,
-    grouping_method_);
+  printf("    for atoms in group %d of grouping method %d.\n", group_id_, grouping_method_);
 
   if (!use_file_input) {
     table_length_ = 1;
@@ -278,8 +263,7 @@ Add_Efield::Add_Efield(
         PRINT_INPUT_ERROR("Number of electric field components at each step should be 3.");
       }
       for (int t = 0; t < 3; ++t) {
-        efield_table_[t * table_length_ + n] =
-          get_double_from_token(tokens[t], __FILE__, __LINE__);
+        efield_table_[t * table_length_ + n] = get_double_from_token(tokens[t], __FILE__, __LINE__);
       }
     }
   }

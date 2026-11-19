@@ -46,13 +46,11 @@ static __global__ void gpu_update_unwrapped_position(
     const int ix = image[n];
     const int iy = image[n + number_of_atoms];
     const int iz = image[n + number_of_atoms * 2];
-    unwrapped_position[n] =
-      position[n] + box.cpu_h[0] * ix + box.cpu_h[1] * iy + box.cpu_h[2] * iz;
+    unwrapped_position[n] = position[n] + box.cpu_h[0] * ix + box.cpu_h[1] * iy + box.cpu_h[2] * iz;
     unwrapped_position[n + number_of_atoms] =
       position[n + number_of_atoms] + box.cpu_h[3] * ix + box.cpu_h[4] * iy + box.cpu_h[5] * iz;
     unwrapped_position[n + number_of_atoms * 2] =
-      position[n + number_of_atoms * 2] +
-      box.cpu_h[6] * ix + box.cpu_h[7] * iy + box.cpu_h[8] * iz;
+      position[n + number_of_atoms * 2] + box.cpu_h[6] * ix + box.cpu_h[7] * iy + box.cpu_h[8] * iz;
   }
 }
 

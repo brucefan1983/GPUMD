@@ -19,8 +19,8 @@ Calculate:
     Self Diffusion Coefficient (SDC)
 --------------------------------------------------------------------------------------------------*/
 
-#include "model/group.cuh"
 #include "measure/parse_utilities.cuh"
+#include "model/group.cuh"
 #include "sdc.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -146,7 +146,8 @@ void SDC::pre_run(
       "The number of SDC correlation steps should not exceed the number of sampled frames.\n");
   }
 
-  num_atoms_ = (grouping_method_ < 0) ? atom.number_of_atoms : groups[grouping_method_].cpu_size[group_id_];
+  num_atoms_ =
+    (grouping_method_ < 0) ? atom.number_of_atoms : groups[grouping_method_].cpu_size[group_id_];
   dt_in_natural_units_ = time_step * sample_interval_;
   dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
   vx_.resize(num_atoms_ * num_correlation_steps_);
@@ -272,9 +273,15 @@ void SDC::post_run(
   fprintf(
     fid,
     "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
-    box.cpu_h[0], box.cpu_h[3], box.cpu_h[6],
-    box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
-    box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+    box.cpu_h[0],
+    box.cpu_h[3],
+    box.cpu_h[6],
+    box.cpu_h[1],
+    box.cpu_h[4],
+    box.cpu_h[7],
+    box.cpu_h[2],
+    box.cpu_h[5],
+    box.cpu_h[8]);
   fprintf(fid, "# dt_output %.10e ps\n", dt_in_ps_);
   fprintf(fid, "# columns time_ps vacx vacy vacz sdcx sdcy sdcz\n");
   for (int nc = 0; nc < num_correlation_steps_; nc++) {

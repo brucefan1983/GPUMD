@@ -17,12 +17,12 @@
 The energy-difference loss over the linear combinations of named structures in ediff.in
 ------------------------------------------------------------------------------*/
 
-#include "main_nep/dataset.cuh"
 #include "energy_difference.cuh"
-#include "nep_energy_reference.cuh"
-#include "nep_parameters.cuh"
+#include "main_nep/dataset.cuh"
 #include "main_nep/structure.cuh"
 #include "nep_energy_reader.cuh"
+#include "nep_energy_reference.cuh"
+#include "nep_parameters.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <algorithm>
@@ -444,14 +444,16 @@ void EnergyDifference::set_energy_reference(
     }
     combination.ref_total_eV = 0.0;
     for (int k = 0; k < combination.local.size(); ++k) {
-      combination.ref_total_eV += combination.coefficient[k] *
+      combination.ref_total_eV +=
+        combination.coefficient[k] *
         get_nep_energy_residual(dataset.structures[combination.local[k]], reference);
     }
   }
 }
 
 // Sum in double to retain precision for the total energies of large structures.
-static __global__ void gpu_sum_total_energy(const int* g_Na, const int* g_Na_sum, const double* g_pe, double* g_total_pe)
+static __global__ void
+gpu_sum_total_energy(const int* g_Na, const int* g_Na_sum, const double* g_pe, double* g_total_pe)
 {
   int tid = threadIdx.x;
   int bid = blockIdx.x;
@@ -508,8 +510,7 @@ double EnergyDifference::get_rmse(
     }
     double difference = -combination.ref_total_eV;
     for (int i = 0; i < (int)combination.local.size(); ++i) {
-      difference +=
-        combination.coefficient[i] * total.cpu[combination.local[i]];
+      difference += combination.coefficient[i] * total.cpu[combination.local[i]];
     }
     sum_sq += combination.weight * difference * difference;
     ++num_combinations;
@@ -639,8 +640,8 @@ void EnergyDifference::read_train(
         const auto groups = find_groups(linked_indices, structures_train.size());
         batch_sizes = place_groups_in_batches(groups, structures_train, batch_size, num_batches);
       }
-      combinations_train =
-        resolve(entries, structures_train, para, batch_sizes, "train.xyz", is_entry_in_train, reader);
+      combinations_train = resolve(
+        entries, structures_train, para, batch_sizes, "train.xyz", is_entry_in_train, reader);
       if (combinations_train.empty()) {
         PRINT_INPUT_ERROR("No combination in ediff.in has all its structures in train.xyz.");
       }
@@ -652,7 +653,9 @@ void EnergyDifference::read_train(
 }
 
 void EnergyDifference::read_test(
-  const NEP_Energy_Parameters& para, const std::vector<Structure>& structures_test, const bool has_test_set,
+  const NEP_Energy_Parameters& para,
+  const std::vector<Structure>& structures_test,
+  const bool has_test_set,
   const NEP_Energy_Reader& reader)
 {
   if (!para.has_ediff_combinations) {
@@ -660,7 +663,13 @@ void EnergyDifference::read_test(
   }
   if (has_test_set) {
     combinations_test = resolve(
-      entries, structures_test, para, {(int)structures_test.size()}, "test.xyz", is_entry_in_test, reader);
+      entries,
+      structures_test,
+      para,
+      {(int)structures_test.size()},
+      "test.xyz",
+      is_entry_in_test,
+      reader);
   }
   int num_in_both = 0;
   int num_skipped = 0;
@@ -693,8 +702,7 @@ void EnergyDifference::read_test(
   }
 }
 
-double EnergyDifference::get_rmse_train(
-  Dataset& dataset, const int batch_id, const int device_id)
+double EnergyDifference::get_rmse_train(Dataset& dataset, const int batch_id, const int device_id)
 {
   return get_rmse(combinations_train, dataset, batch_id, device_id);
 }

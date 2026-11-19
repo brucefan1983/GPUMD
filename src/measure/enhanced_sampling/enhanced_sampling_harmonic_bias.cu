@@ -45,9 +45,7 @@ EnhancedSamplingHarmonicBias::EnhancedSamplingHarmonicBias(
   const int argument_index,
   const double center,
   const double kappa)
-  : EnhancedSamplingBias(name, argument_name, argument_index),
-    center_(center),
-    kappa_(kappa)
+  : EnhancedSamplingBias(name, argument_name, argument_index), center_(center), kappa_(kappa)
 {
   if (argument_index < 0) {
     PRINT_INPUT_ERROR("The argument index for a harmonic bias should be non-negative.\n");

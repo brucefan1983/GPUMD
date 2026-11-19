@@ -13,8 +13,8 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "nep_common.cuh"
 #include "main_nep/dataset.cuh"
+#include "nep_common.cuh"
 #include "nep_parameters.cuh"
 #include "utilities/error.cuh"
 #include "utilities/nep_utilities.cuh"
@@ -29,7 +29,7 @@ void initialize_nep_zbl(const NEP_Parameters& para, NEP_ZBL& zbl)
   zbl.rc_inner = para.zbl_rc_inner;
   zbl.rc_outer = para.zbl_rc_outer;
   for (int n = 0; n < para.atomic_numbers.size(); ++n) {
-    zbl.atomic_numbers[n] = para.atomic_numbers[n];        // starting from 1
+    zbl.atomic_numbers[n] = para.atomic_numbers[n]; // starting from 1
   }
   if (zbl.flexible) {
     zbl.num_types = para.num_types;
@@ -40,7 +40,8 @@ void initialize_nep_zbl(const NEP_Parameters& para, NEP_ZBL& zbl)
   }
 }
 
-static void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler, float* g_q_scaler_max, float* g_q_scaler_min)
+static void __global__ find_max_min(
+  const int N, const float* g_q, float* g_q_scaler, float* g_q_scaler_max, float* g_q_scaler_min)
 {
   const int tid = threadIdx.x;
   const int bid = blockIdx.x;
@@ -96,7 +97,8 @@ static __global__ void zero_force(
   }
 }
 
-static __global__ void zero_force_long_range(const int N, float* g_fx, float* g_fy, float* g_fz, float* g_v)
+static __global__ void
+zero_force_long_range(const int N, float* g_fx, float* g_fy, float* g_fz, float* g_v)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
@@ -204,8 +206,12 @@ static __global__ void find_force_ZBL(
 }
 
 void update_nep_q_scaler(
-  int N, int dim, const float* descriptors,
-  float* q_scaler, float* q_scaler_max, float* q_scaler_min)
+  int N,
+  int dim,
+  const float* descriptors,
+  float* q_scaler,
+  float* q_scaler_max,
+  float* q_scaler_min)
 {
   find_max_min<<<dim, 1024>>>(N, descriptors, q_scaler, q_scaler_max, q_scaler_min);
   GPU_CHECK_KERNEL

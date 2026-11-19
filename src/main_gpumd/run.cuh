@@ -41,14 +41,13 @@ private:
   void execute_run_in(const RunInput& run_input);
   void perform_a_run(const int number_of_steps);
   void compute_force();
-  void parse_one_keyword(
-    const std::vector<std::string>& tokens, const RunInput& run_input);
+  void parse_one_keyword(const std::vector<std::string>& tokens, const RunInput& run_input);
 
   // keyword parsing functions
   void parse_velocity(const std::vector<std::string>& tokens);
   void parse_change_box(const std::vector<std::string>& tokens);
-  void parse_correct_velocity(
-    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void
+  parse_correct_velocity(const std::vector<std::string>& tokens, const std::vector<Group>& group);
   void parse_time_step(const std::vector<std::string>& tokens);
   void parse_run(const std::vector<std::string>& tokens);
 

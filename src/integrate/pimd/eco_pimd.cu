@@ -27,27 +27,23 @@ stops iterations in the flat valley of an already-converged fit.
 ------------------------------------------------------------------------------*/
 
 #include "eco_pimd.cuh"
-#include <cstddef>
 #include "utilities/cusolver_wrapper.cuh"
 #include "utilities/error.cuh"
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <utility>
 #include <vector>
 
 namespace
 {
-struct Objective
-{
+struct Objective {
   double value = 0.0;
   std::vector<double> gradient;
   std::vector<double> hessian;
 };
 
-int matrix_index(const int row, const int column, const int size)
-{
-  return row + column * size;
-}
+int matrix_index(const int row, const int column, const int size) { return row + column * size; }
 
 Objective evaluate_objective(
   const std::vector<double>& target,
@@ -70,12 +66,10 @@ Objective evaluate_objective(
     double residual = -1.0;
 
     for (int k = 0; k < number_of_modes; ++k) {
-      const double denominator_inverse =
-        1.0 / (frequencies[k] * frequencies[k] + x_squared);
+      const double denominator_inverse = 1.0 / (frequencies[k] * frequencies[k] + x_squared);
       const double contribution = target[j] * weights[k] * denominator_inverse;
       residual += contribution;
-      first_derivatives[k] =
-        -2.0 * denominator_inverse * contribution * frequencies[k];
+      first_derivatives[k] = -2.0 * denominator_inverse * contribution * frequencies[k];
       second_derivatives[k] = 2.0 * denominator_inverse * denominator_inverse * contribution *
                               (3.0 * frequencies[k] * frequencies[k] - x_squared);
     }
@@ -88,8 +82,7 @@ Objective evaluate_objective(
         objective.hessian[matrix_index(i, k, number_of_modes)] +=
           first_derivatives[i] * first_derivatives[k];
       }
-      objective.hessian[matrix_index(k, k, number_of_modes)] +=
-        residual * second_derivatives[k];
+      objective.hessian[matrix_index(k, k, number_of_modes)] += residual * second_derivatives[k];
     }
   }
 
@@ -100,8 +93,7 @@ Objective evaluate_objective(
     for (int i = 0; i <= k; ++i) {
       const int upper_index = matrix_index(i, k, number_of_modes);
       objective.hessian[upper_index] *= normalization;
-      objective.hessian[matrix_index(k, i, number_of_modes)] =
-        objective.hessian[upper_index];
+      objective.hessian[matrix_index(k, i, number_of_modes)] = objective.hessian[upper_index];
     }
   }
 
@@ -139,8 +131,7 @@ void validate_eigendecomposition(
         hessian_times_vector +=
           hessian[matrix_index(i, k, size)] * eigenvectors[matrix_index(k, j, size)];
       }
-      const double residual =
-        hessian_times_vector - eigenvalues[j] * eigenvector_element;
+      const double residual = hessian_times_vector - eigenvalues[j] * eigenvector_element;
       residual_norm_squared += residual * residual;
     }
   }
@@ -149,8 +140,7 @@ void validate_eigendecomposition(
     for (int j = 0; j < size; ++j) {
       double overlap = 0.0;
       for (int k = 0; k < size; ++k) {
-        overlap += eigenvectors[matrix_index(k, i, size)] *
-                   eigenvectors[matrix_index(k, j, size)];
+        overlap += eigenvectors[matrix_index(k, i, size)] * eigenvectors[matrix_index(k, j, size)];
       }
       if (i == j) {
         overlap -= 1.0;
@@ -161,8 +151,7 @@ void validate_eigendecomposition(
 
   const double residual_error =
     std::sqrt(residual_norm_squared) / std::max(1.0, std::sqrt(hessian_norm_squared));
-  const double orthogonality_error =
-    std::sqrt(orthogonality_error_squared) / std::max(1, size);
+  const double orthogonality_error = std::sqrt(orthogonality_error_squared) / std::max(1, size);
   if (residual_error > 1.0e-8 || orthogonality_error > 1.0e-8) {
     PRINT_INPUT_ERROR("Inaccurate eigendecomposition in the Eco-PIMD Newton step.");
   }
@@ -176,10 +165,7 @@ std::vector<double> find_newton_direction(const Objective& objective)
   std::vector<double> hessian_for_solver = objective.hessian;
 
   eigenvectors_symmetric_Jacobi(
-    number_of_modes,
-    hessian_for_solver.data(),
-    eigenvalues.data(),
-    eigenvectors.data());
+    number_of_modes, hessian_for_solver.data(), eigenvalues.data(), eigenvectors.data());
   validate_eigendecomposition(objective.hessian, eigenvalues, eigenvectors);
 
   std::vector<double> gradient_in_eigenbasis(number_of_modes, 0.0);
@@ -190,8 +176,7 @@ std::vector<double> find_newton_direction(const Objective& objective)
     }
   }
 
-  const double shift =
-    std::max(1.0e-16 * eigenvalues.back(), -2.0 * eigenvalues.front());
+  const double shift = std::max(1.0e-16 * eigenvalues.back(), -2.0 * eigenvalues.front());
   for (int k = 0; k < number_of_modes; ++k) {
     const double shifted_eigenvalue = eigenvalues[k] + shift;
     if (!(shifted_eigenvalue > 0.0) || !std::isfinite(shifted_eigenvalue)) {
@@ -203,8 +188,8 @@ std::vector<double> find_newton_direction(const Objective& objective)
   std::vector<double> direction(number_of_modes, 0.0);
   for (int row = 0; row < number_of_modes; ++row) {
     for (int column = 0; column < number_of_modes; ++column) {
-      direction[row] += eigenvectors[matrix_index(row, column, number_of_modes)] *
-                        gradient_in_eigenbasis[column];
+      direction[row] +=
+        eigenvectors[matrix_index(row, column, number_of_modes)] * gradient_in_eigenbasis[column];
     }
   }
   return direction;
@@ -242,13 +227,13 @@ bool take_newton_step(
       trial_frequencies[k] = frequencies[k] + step_size * direction[k];
     }
 
-    if (!(trial_frequencies.front() > 0.0) ||
-        !std::is_sorted(trial_frequencies.begin(), trial_frequencies.end())) {
+    if (
+      !(trial_frequencies.front() > 0.0) ||
+      !std::is_sorted(trial_frequencies.begin(), trial_frequencies.end())) {
       continue;
     }
 
-    Objective trial_objective =
-      evaluate_objective(target, grid, weights, trial_frequencies);
+    Objective trial_objective = evaluate_objective(target, grid, weights, trial_frequencies);
     if (trial_objective.value <= objective.value) {
       frequencies.swap(trial_frequencies);
       objective = std::move(trial_objective);
@@ -259,14 +244,12 @@ bool take_newton_step(
   return false;
 }
 
-void validate_initial_frequencies(
-  const std::vector<double>& frequencies, const int number_of_modes)
+void validate_initial_frequencies(const std::vector<double>& frequencies, const int number_of_modes)
 {
   if (static_cast<int>(frequencies.size()) != number_of_modes) {
     PRINT_INPUT_ERROR("Incorrect number of initial frequencies for Eco-PIMD.");
   }
-  if (!(frequencies.front() > 0.0) ||
-      !std::is_sorted(frequencies.begin(), frequencies.end())) {
+  if (!(frequencies.front() > 0.0) || !std::is_sorted(frequencies.begin(), frequencies.end())) {
     PRINT_INPUT_ERROR("Eco-PIMD initial frequencies must be positive and ordered.");
   }
   for (const double frequency : frequencies) {
@@ -278,9 +261,7 @@ void validate_initial_frequencies(
 } // namespace
 
 Eco_PIMD_Result find_eco_pimd_frequencies(
-  const int number_of_beads,
-  const double x_max,
-  const std::vector<double>& initial_frequencies)
+  const int number_of_beads, const double x_max, const std::vector<double>& initial_frequencies)
 {
   if (number_of_beads < 2) {
     PRINT_INPUT_ERROR("Eco-PIMD requires at least two beads.");
@@ -290,8 +271,7 @@ Eco_PIMD_Result find_eco_pimd_frequencies(
   }
 
   const int number_of_modes = number_of_beads / 2;
-  const int number_of_grid_points =
-    std::max(100, static_cast<int>(std::floor(10.0 * x_max + 0.5)));
+  const int number_of_grid_points = std::max(100, static_cast<int>(std::floor(10.0 * x_max + 0.5)));
   const double grid_spacing = x_max / static_cast<double>(number_of_grid_points);
   const double pi = std::acos(-1.0);
 
@@ -302,10 +282,9 @@ Eco_PIMD_Result find_eco_pimd_frequencies(
     const double half_x = 0.5 * grid[j];
     if (half_x < 0.25) {
       const double half_x_squared = half_x * half_x;
-      target[j] = 4.0 /
-                  (1.0 / 3.0 - half_x_squared / 45.0 +
-                   2.0 * half_x_squared * half_x_squared / 945.0 -
-                   half_x_squared * half_x_squared * half_x_squared / 4725.0);
+      target[j] =
+        4.0 / (1.0 / 3.0 - half_x_squared / 45.0 + 2.0 * half_x_squared * half_x_squared / 945.0 -
+               half_x_squared * half_x_squared * half_x_squared / 4725.0);
     } else {
       target[j] = grid[j] * grid[j] / (half_x / std::tanh(half_x) - 1.0);
     }

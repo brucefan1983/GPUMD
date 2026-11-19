@@ -26,10 +26,7 @@ The driver class for the various MC ensembles.
 #include "utilities/read_file.cuh"
 #include <cstring>
 
-MC::MC(void)
-{
-  action_name = "mc";
-}
+MC::MC(void) { action_name = "mc"; }
 
 MC::MC(
   const std::vector<std::string>& tokens,
@@ -60,33 +57,19 @@ void MC::compute(int step, int num_steps, Atom& atom, Box& box, std::vector<Grou
 }
 
 void MC::pre_run(
-  const int number_of_steps,
-  const double,
-  Integrate&,
-  std::vector<Group>&,
-  Atom&,
-  Box&,
-  Force&)
+  const int number_of_steps, const double, Integrate&, std::vector<Group>&, Atom&, Box&, Force&)
 {
   number_of_steps_run = number_of_steps;
 }
 
 void MC::pre_force(
-  const int step,
-  const double,
-  Integrate&,
-  std::vector<Group>& group,
-  Atom& atom,
-  Box& box,
-  Force&)
+  const int step, const double, Integrate&, std::vector<Group>& group, Atom& atom, Box& box, Force&)
 {
   compute(step, number_of_steps_run, atom, box, group);
 }
 
 void MC::parse_group(
-  const std::vector<std::string>& tokens,
-  std::vector<Group>& groups,
-  int num_param_before_group)
+  const std::vector<std::string>& tokens, std::vector<Group>& groups, int num_param_before_group)
 {
   if (tokens[num_param_before_group] != "group") {
     PRINT_INPUT_ERROR("invalid option for mc.\n");

@@ -27,10 +27,7 @@ public:
   Ensemble_MSST(const std::vector<std::string>& tokens);
 
   void initialize_run(
-    const double time_step,
-    Atom& atom,
-    Box& box,
-    const std::vector<Group>& group) override;
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
 
   void initialize_before_first_step(
     const double time_step,
@@ -60,22 +57,13 @@ public:
     Force& force) override;
 
   void remap(const double dilation, Box& box, Atom& atom);
-  void init(
-    const Box& box,
-    const std::vector<Group>& group,
-    Atom& atom,
-    GPU_Vector<double>& thermo);
+  void
+  init(const Box& box, const std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo);
   void find_thermo(
-    const Box& box,
-    const std::vector<Group>& group,
-    const Atom& atom,
-    GPU_Vector<double>& thermo);
+    const Box& box, const std::vector<Group>& group, const Atom& atom, GPU_Vector<double>& thermo);
   void get_omega();
   void get_conserved(
-    const Box& box,
-    const std::vector<Group>& group,
-    const Atom& atom,
-    GPU_Vector<double>& thermo);
+    const Box& box, const std::vector<Group>& group, const Atom& atom, GPU_Vector<double>& thermo);
   void get_vsum(const Atom& atom);
   void msst_v(Atom& atom);
 

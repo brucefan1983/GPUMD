@@ -20,80 +20,53 @@ The driver class for the various integrators.
 #include "ensemble_bao.cuh"
 #include "ensemble_bdp.cuh"
 #include "ensemble_ber.cuh"
-#include "ensemble_lan.cuh"
 #include "ensemble_heat_hybrid.cuh"
-#include "integrate/shock/ensemble_msst.cuh"
+#include "ensemble_lan.cuh"
 #include "ensemble_mttk.cuh"
 #include "ensemble_nhc.cuh"
-#include "integrate/shock/ensemble_nphug.cuh"
-#include "integrate/qtb/ensemble_npt_qtb.cuh"
 #include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
+#include "ensemble_ttm.cuh"
+#include "integrate.cuh"
 #include "integrate/pimd/ensemble_pimd.cuh"
+#include "integrate/qtb/ensemble_npt_qtb.cuh"
 #include "integrate/qtb/ensemble_qtb.cuh"
+#include "integrate/shock/ensemble_msst.cuh"
+#include "integrate/shock/ensemble_nphug.cuh"
 #include "integrate/ti/ensemble_ti.cuh"
 #include "integrate/ti/ensemble_ti_as.cuh"
 #include "integrate/ti/ensemble_ti_liquid.cuh"
 #include "integrate/ti/ensemble_ti_nep.cuh"
 #include "integrate/ti/ensemble_ti_rs.cuh"
 #include "integrate/ti/ensemble_ti_spring.cuh"
-#include "ensemble_ttm.cuh"
 #include "integrate/wall/ensemble_wall_harmonic.cuh"
 #include "integrate/wall/ensemble_wall_mirror.cuh"
 #include "integrate/wall/ensemble_wall_piston.cuh"
-#include "integrate.cuh"
-#include "spin/spin_ensemble.cuh"
 #include "model/atom.cuh"
+#include "spin/spin_ensemble.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 #include <utility>
 
-bool Integrate::has_ensemble() const
-{
-  return ensemble_ != nullptr;
-}
+bool Integrate::has_ensemble() const { return ensemble_ != nullptr; }
 
-EnsembleType Integrate::get_type() const
-{
-  return type;
-}
+EnsembleType Integrate::get_type() const { return type; }
 
-int Integrate::get_fixed_group() const
-{
-  return fixed_group;
-}
+int Integrate::get_fixed_group() const { return fixed_group; }
 
-int Integrate::get_move_group() const
-{
-  return move_group;
-}
+int Integrate::get_move_group() const { return move_group; }
 
-int Integrate::get_fixed_grouping_method() const
-{
-  return fixed_grouping_method;
-}
+int Integrate::get_fixed_grouping_method() const { return fixed_grouping_method; }
 
-int Integrate::get_move_grouping_method() const
-{
-  return move_grouping_method;
-}
+int Integrate::get_move_grouping_method() const { return move_grouping_method; }
 
-double Integrate::get_temperature1() const
-{
-  return temperature1;
-}
+double Integrate::get_temperature1() const { return temperature1; }
 
-double Integrate::get_temperature2() const
-{
-  return temperature2;
-}
+double Integrate::get_temperature2() const { return temperature2; }
 
-double Integrate::get_temperature() const
-{
-  return temperature;
-}
+double Integrate::get_temperature() const { return temperature; }
 
 double Integrate::get_target_temperature_of_step() const { return ensemble_->temperature; }
 
@@ -103,20 +76,11 @@ int Integrate::get_number_of_atoms_for_temperature(
   return ensemble_->get_number_of_atoms_for_temperature(number_of_atoms, group);
 }
 
-int Integrate::get_num_target_pressure_components() const
-{
-  return num_target_pressure_components;
-}
+int Integrate::get_num_target_pressure_components() const { return num_target_pressure_components; }
 
-int Integrate::get_number_of_beads() const
-{
-  return number_of_beads;
-}
+int Integrate::get_number_of_beads() const { return number_of_beads; }
 
-const double* Integrate::get_energy_transferred() const
-{
-  return ensemble_->energy_transferred;
-}
+const double* Integrate::get_energy_transferred() const { return ensemble_->energy_transferred; }
 
 const std::vector<double>& Integrate::get_energy_transferred_n() const
 {
@@ -133,13 +97,7 @@ void Integrate::find_thermo(
   GPU_Vector<double>& thermo)
 {
   ensemble_->find_thermo(
-    volume,
-    group,
-    mass,
-    potential_per_atom,
-    velocity_per_atom,
-    virial_per_atom,
-    thermo);
+    volume, group, mass, potential_per_atom, velocity_per_atom, virial_per_atom, thermo);
 }
 
 void Integrate::set_deform(
@@ -158,11 +116,7 @@ void Integrate::set_deform(
   deform_yz = new_deform_yz;
 }
 
-void Integrate::initialize(
-  double time_step,
-  Atom& atom,
-  Box& box,
-  const std::vector<Group>& group)
+void Integrate::initialize(double time_step, Atom& atom, Box& box, const std::vector<Group>& group)
 {
   if (move_group >= 0) {
     if (fixed_group < 0) {
@@ -231,18 +185,14 @@ void Integrate::compute1(
 {
   Ensemble& ensemble = *ensemble_;
   const double step_over_number_of_steps = double(step) / number_of_steps;
-  if (
-    type == EnsembleType::NVE || type == EnsembleType::RPMD ||
-    type == EnsembleType::TRPMD) {
+  if (type == EnsembleType::NVE || type == EnsembleType::RPMD || type == EnsembleType::TRPMD) {
     ensemble.temperature = temperature2;
   } else if (is_standard_nvt(type) || is_standard_npt(type) || type == EnsembleType::PIMD) {
-    ensemble.temperature =
-      temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
+    ensemble.temperature = temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
 
   if (step == 0) {
-    ensemble.initialize_before_first_step(
-      time_step, number_of_steps, group, box, atom, thermo);
+    ensemble.initialize_before_first_step(time_step, number_of_steps, group, box, atom, thermo);
   }
 
   ensemble.compute1(time_step, step, number_of_steps, group, box, atom, thermo);
@@ -260,13 +210,10 @@ void Integrate::compute2(
 {
   Ensemble& ensemble = *ensemble_;
   const double step_over_number_of_steps = double(step) / number_of_steps;
-  if (
-    type == EnsembleType::NVE || type == EnsembleType::RPMD ||
-    type == EnsembleType::TRPMD) {
+  if (type == EnsembleType::NVE || type == EnsembleType::RPMD || type == EnsembleType::TRPMD) {
     ensemble.temperature = temperature2;
   } else if (is_standard_nvt(type) || is_standard_npt(type) || type == EnsembleType::PIMD) {
-    ensemble.temperature =
-      temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
+    ensemble.temperature = temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
 
   ensemble.compute2(time_step, step, number_of_steps, group, box, atom, thermo, force);
@@ -295,9 +242,9 @@ void Integrate::parse_ensemble(
     ensemble_ = std::make_unique<Ensemble_NVE>(tokens);
     type = EnsembleType::NVE;
   } else if (
-    tokens[1] == "nvt_tspin" || tokens[1] == "npt_tspin" ||
-    tokens[1] == "nve_sib" || tokens[1] == "nvt_sib" || tokens[1] == "npt_sib" ||
-    tokens[1] == "nve_glsd" || tokens[1] == "nvt_glsd" || tokens[1] == "npt_glsd") {
+    tokens[1] == "nvt_tspin" || tokens[1] == "npt_tspin" || tokens[1] == "nve_sib" ||
+    tokens[1] == "nvt_sib" || tokens[1] == "npt_sib" || tokens[1] == "nve_glsd" ||
+    tokens[1] == "nvt_glsd" || tokens[1] == "npt_glsd") {
     auto ensemble_spin = std::make_unique<Spin_Ensemble>(tokens, atom, box, group, force);
     type = ensemble_spin->type;
     temperature1 = ensemble_spin->get_temperature1();
@@ -314,9 +261,7 @@ void Integrate::parse_ensemble(
       num_target_pressure_components = ensemble_ber->get_num_target_pressure_components();
     }
     ensemble_ = std::move(ensemble_ber);
-  } else if (
-    tokens[1] == "nvt_nhc" || tokens[1] == "heat_nhc" ||
-    tokens[1] == "heat_nhc_power") {
+  } else if (tokens[1] == "nvt_nhc" || tokens[1] == "heat_nhc" || tokens[1] == "heat_nhc_power") {
     auto ensemble_nhc = std::make_unique<Ensemble_NHC>(tokens, group);
     type = ensemble_nhc->type;
     temperature = ensemble_nhc->temperature;
@@ -365,9 +310,7 @@ void Integrate::parse_ensemble(
     temperature = ensemble_scr->temperature;
     num_target_pressure_components = ensemble_scr->get_num_target_pressure_components();
     ensemble_ = std::move(ensemble_scr);
-  } else if (
-    tokens[1] == "nvt_mttk" || tokens[1] == "npt_mttk" ||
-    tokens[1] == "nph_mttk") {
+  } else if (tokens[1] == "nvt_mttk" || tokens[1] == "npt_mttk" || tokens[1] == "nph_mttk") {
     type = EnsembleType::MTTK;
     auto ensemble_mttk = std::make_unique<Ensemble_MTTK>(tokens);
     temperature1 = ensemble_mttk->t_start;
@@ -380,28 +323,24 @@ void Integrate::parse_ensemble(
     temperature2 = ensemble_npt_qtb->t_stop;
     ensemble_ = std::move(ensemble_npt_qtb);
   } else if (tokens[1] == "heat_ttm") {
-    auto ensemble_ttm =
-      std::make_unique<Ensemble_TTM>(tokens, atom, box, group);
+    auto ensemble_ttm = std::make_unique<Ensemble_TTM>(tokens, atom, box, group);
     type = ensemble_ttm->type;
     temperature = ensemble_ttm->temperature;
     ensemble_ = std::move(ensemble_ttm);
   } else if (tokens[1] == "ttm") {
-    auto ensemble_ttm =
-      std::make_unique<Ensemble_TTM>(tokens, atom, box, group);
+    auto ensemble_ttm = std::make_unique<Ensemble_TTM>(tokens, atom, box, group);
     type = ensemble_ttm->type;
     temperature = ensemble_ttm->temperature;
     temperature1 = 0.0;
     temperature2 = 0.0;
     ensemble_ = std::move(ensemble_ttm);
   } else if (tokens[1] == "heat_hybrid") {
-    auto ensemble_hybrid =
-      std::make_unique<Ensemble_Heat_Hybrid>(tokens, group);
+    auto ensemble_hybrid = std::make_unique<Ensemble_Heat_Hybrid>(tokens, group);
     type = ensemble_hybrid->type;
     temperature = ensemble_hybrid->temperature;
     ensemble_ = std::move(ensemble_hybrid);
   } else if (
-    tokens[1] == "rpmd" || tokens[1] == "trpmd" || tokens[1] == "pimd" ||
-    tokens[1] == "pimd_scr") {
+    tokens[1] == "rpmd" || tokens[1] == "trpmd" || tokens[1] == "pimd" || tokens[1] == "pimd_scr") {
     auto ensemble_pimd = std::make_unique<Ensemble_PIMD>(tokens, box);
     type = ensemble_pimd->type;
     number_of_beads = ensemble_pimd->get_number_of_beads();
@@ -409,8 +348,7 @@ void Integrate::parse_ensemble(
       temperature1 = ensemble_pimd->get_temperature1();
       temperature2 = ensemble_pimd->get_temperature2();
       temperature = ensemble_pimd->temperature;
-      num_target_pressure_components =
-        ensemble_pimd->get_num_target_pressure_components();
+      num_target_pressure_components = ensemble_pimd->get_num_target_pressure_components();
     }
     ensemble_ = std::move(ensemble_pimd);
   } else if (tokens[1] == "msst") {
@@ -451,8 +389,7 @@ void Integrate::parse_ensemble(
   }
 }
 
-void Integrate::parse_fix(
-  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+void Integrate::parse_fix(const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
   const int num_param = tokens.size();
   if (num_param != 2 && num_param != 3) {
@@ -496,8 +433,7 @@ void Integrate::parse_fix(
   printf("Group %d in grouping method %d will be fixed.\n", fixed_group, fixed_grouping_method);
 }
 
-void Integrate::parse_move(
-  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+void Integrate::parse_move(const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
   const int num_param = tokens.size();
   if (num_param != 5 && num_param != 6) {

@@ -22,11 +22,11 @@ The class defining the simulation model.
 #include "group.cuh"
 #include "read_xyz.cuh"
 #include "utilities/common.cuh"
-#include "utilities/nep_io/compact_nep.cuh"
 #include "utilities/error.cuh"
-#include "utilities/run_input.cuh"
-#include "utilities/nep_io/nep_spin_model_file.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_io/compact_nep.cuh"
+#include "utilities/nep_io/nep_spin_model_file.cuh"
+#include "utilities/run_input.cuh"
 #include <algorithm>
 #include <cctype>
 #include <cstring>
@@ -248,8 +248,7 @@ static void read_xyz_line_2(
   const int num_properties = 8;
   std::string property_name[num_properties] = {
     "species", "pos", "mass", "charge", "vel", "group", "spin", "spin_vel"};
-  int property_position[num_properties] = {
-    -1, -1, -1, -1, -1, -1, -1, -1};
+  int property_position[num_properties] = {-1, -1, -1, -1, -1, -1, -1, -1};
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string properties_string = "properties=";
     if (tokens[n].substr(0, properties_string.length()) == properties_string) {
@@ -275,8 +274,9 @@ static void read_xyz_line_2(
       for (int prop : {6, 7}) {
         if (property_position[prop] >= 0) {
           const int base = property_position[prop] * 3;
-          if (sub_tokens[base + 1] != "r" ||
-              get_int_from_token(sub_tokens[base + 2], __FILE__, __LINE__) != 3) {
+          if (
+            sub_tokens[base + 1] != "r" ||
+            get_int_from_token(sub_tokens[base + 2], __FILE__, __LINE__) != 3) {
             PRINT_INPUT_ERROR(prop == 6 ? "spin must be R:3." : "spin_vel must be R:3.");
           }
         }
@@ -525,7 +525,11 @@ std::vector<std::string> get_atom_symbols(std::string& filename_potential)
 
 void initialize_position(
   const RunInput& run_input,
-  int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom)
+  int& has_velocity_in_xyz,
+  int& number_of_types,
+  Box& box,
+  std::vector<Group>& group,
+  Atom& atom)
 {
   std::string filename("model.xyz");
   std::ifstream input(filename);

@@ -106,7 +106,8 @@ void HAC::end_of_step(
 
   int nd = (step + 1) / sample_interval - 1;
   int Nd = number_of_steps / sample_interval;
-  gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(N, Nd, nd, atom.heat_per_atom.data(), heat_all.data());
+  gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(
+    N, Nd, nd, atom.heat_per_atom.data(), heat_all.data());
   GPU_CHECK_KERNEL
 }
 
@@ -147,7 +148,6 @@ static __global__ void gpu_find_hac(const int Nc, const int Nd, const double* g_
     }
   }
   __syncthreads();
-
 
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
