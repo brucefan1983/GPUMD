@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "nep_charge_dataset.cuh"
 #include "nep_charge_parameters.cuh"
 #include "nep_output.cuh"
@@ -48,11 +53,7 @@ void NEP_Charge_Dataset::construct(
 }
 
 static __global__ void gpu_sum_charge_error(
-  int* g_Na,
-  int* g_Na_sum,
-  float* g_charge,
-  float* g_charge_ref,
-  float* error_gpu)
+  int* g_Na, int* g_Na_sum, float* g_charge, float* g_charge_ref, float* error_gpu)
 {
   int tid = threadIdx.x;
   int bid = blockIdx.x;
@@ -81,12 +82,7 @@ static __global__ void gpu_sum_charge_error(
 }
 
 static __global__ void gpu_sum_bec_error(
-  const int N,
-  int* g_Na,
-  int* g_Na_sum,
-  float* g_bec,
-  float* g_bec_ref,
-  float* error_gpu)
+  const int N, int* g_Na, int* g_Na_sum, float* g_bec, float* g_bec_ref, float* error_gpu)
 {
   int tid = threadIdx.x;
   int bid = blockIdx.x;
@@ -117,8 +113,8 @@ static __global__ void gpu_sum_bec_error(
   }
 }
 
-std::vector<float> NEP_Charge_Dataset::get_rmse_charge(
-  NEP_Charge_Parameters& para, Dataset& dataset, int device_id)
+std::vector<float>
+NEP_Charge_Dataset::get_rmse_charge(NEP_Charge_Parameters& para, Dataset& dataset, int device_id)
 {
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
 
@@ -154,8 +150,8 @@ std::vector<float> NEP_Charge_Dataset::get_rmse_charge(
   return rmse_array;
 }
 
-std::vector<float> NEP_Charge_Dataset::get_rmse_bec(
-  NEP_Charge_Parameters& para, Dataset& dataset, int device_id)
+std::vector<float>
+NEP_Charge_Dataset::get_rmse_bec(NEP_Charge_Parameters& para, Dataset& dataset, int device_id)
 {
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
   if (!para.has_bec) {
@@ -197,16 +193,16 @@ std::vector<float> NEP_Charge_Dataset::get_rmse_bec(
   return rmse_array;
 }
 
-static void update_charge(
-  FILE* fid_charge, Dataset& dataset, NEP_Charge_Dataset& charge_dataset, const int nc)
+static void
+update_charge(FILE* fid_charge, Dataset& dataset, NEP_Charge_Dataset& charge_dataset, const int nc)
 {
   for (int m = 0; m < dataset.Na_cpu[nc]; ++m) {
     fprintf(fid_charge, "%g\n", charge_dataset.charge_cpu[dataset.Na_sum_cpu[nc] + m]);
   }
 }
 
-static void update_bec(
-  FILE* fid_bec, Dataset& dataset, NEP_Charge_Dataset& charge_dataset, const int nc)
+static void
+update_bec(FILE* fid_bec, Dataset& dataset, NEP_Charge_Dataset& charge_dataset, const int nc)
 {
   write_nep_atomic_predictions(
     9, fid_bec, charge_dataset.bec_cpu.data(), charge_dataset.bec_ref_cpu.data(), dataset, nc);
@@ -221,13 +217,16 @@ void copy_nep_charge_predictions(NEP_Charge_Dataset& data, bool has_bec)
 }
 
 void write_nep_charge_predictions(
-  const std::string& label, const std::vector<std::pair<Dataset*, int>>& structures,
-  NEP_Batch_Data<NEP_Charge_Dataset>& charge_data, bool has_bec)
+  const std::string& label,
+  const std::vector<std::pair<Dataset*, int>>& structures,
+  NEP_Batch_Data<NEP_Charge_Dataset>& charge_data,
+  bool has_bec)
 {
   FILE* fid_charge = my_fopen(("charge_" + label + ".out").c_str(), "w");
   FILE* fid_bec = has_bec ? my_fopen(("bec_" + label + ".out").c_str(), "w") : nullptr;
   for (const auto& structure : structures) {
-    update_charge(fid_charge, *structure.first, charge_data.get(*structure.first), structure.second);
+    update_charge(
+      fid_charge, *structure.first, charge_data.get(*structure.first), structure.second);
     if (fid_bec) {
       update_bec(fid_bec, *structure.first, charge_data.get(*structure.first), structure.second);
     }

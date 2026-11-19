@@ -15,7 +15,8 @@
 /*----------------------------------------------------------------------------80
 Add spring forces for a group of atoms.
 
-Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
+Major contributors:
+  Hekai Bu: Initial implementation.
 ------------------------------------------------------------------------------*/
 #include "add_spring.cuh"
 #include "model/atom.cuh"
@@ -308,8 +309,8 @@ static std::map<std::pair<int, int>, std::set<int>>& active_spring_ids()
 
 static std::string spring_stem(const int grouping_method, const int group_id, const int spring_id)
 {
-  return "spring_gm" + std::to_string(grouping_method) + "_g" + std::to_string(group_id) +
-         "_s" + std::to_string(spring_id);
+  return "spring_gm" + std::to_string(grouping_method) + "_g" + std::to_string(group_id) + "_s" +
+         std::to_string(spring_id);
 }
 
 static bool file_exists(const std::string& filename)
@@ -318,35 +319,30 @@ static bool file_exists(const std::string& filename)
   return input.good();
 }
 
-static int reserve_spring_id(
-  const int grouping_method,
-  const int group_id,
-  const int requested_spring_id)
+static int
+reserve_spring_id(const int grouping_method, const int group_id, const int requested_spring_id)
 {
   std::set<int>& ids = active_spring_ids()[std::make_pair(grouping_method, group_id)];
   if (requested_spring_id >= 0) {
     if (ids.count(requested_spring_id) != 0) {
-      PRINT_INPUT_ERROR("The same add_spring spring id cannot be used more than once for one group within a run.\n");
+      PRINT_INPUT_ERROR("The same add_spring spring id cannot be used more than once for one group "
+                        "within a run.\n");
     }
     ids.insert(requested_spring_id);
     return requested_spring_id;
   }
 
   int spring_id = 0;
-  while (
-    ids.count(spring_id) != 0 ||
-    file_exists(spring_stem(grouping_method, group_id, spring_id) + ".restart") ||
-    file_exists(spring_stem(grouping_method, group_id, spring_id) + ".out")) {
+  while (ids.count(spring_id) != 0 ||
+         file_exists(spring_stem(grouping_method, group_id, spring_id) + ".restart") ||
+         file_exists(spring_stem(grouping_method, group_id, spring_id) + ".out")) {
     ++spring_id;
   }
   ids.insert(spring_id);
   return spring_id;
 }
 
-static void release_spring_id(
-  const int grouping_method,
-  const int group_id,
-  const int spring_id)
+static void release_spring_id(const int grouping_method, const int group_id, const int spring_id)
 {
   auto key = std::make_pair(grouping_method, group_id);
   auto map_it = active_spring_ids().find(key);
@@ -359,16 +355,15 @@ static void release_spring_id(
   }
 }
 
-static int parse_continue_option(
-  const std::vector<std::string>& tokens, const int base_num_param)
+static int parse_continue_option(const std::vector<std::string>& tokens, const int base_num_param)
 {
   const int num_param = tokens.size();
   if (num_param == base_num_param) {
     return -1;
   }
   if (num_param != base_num_param + 2) {
-    PRINT_INPUT_ERROR(
-      "add_spring has an invalid number of parameters. Optional continuation syntax is: continue <spring_id>.\n");
+    PRINT_INPUT_ERROR("add_spring has an invalid number of parameters. Optional continuation "
+                      "syntax is: continue <spring_id>.\n");
   }
   if (tokens[base_num_param] != "continue") {
     PRINT_INPUT_ERROR("The optional add_spring arguments should be: continue <spring_id>.\n");
@@ -393,9 +388,7 @@ static bool read_labeled_int(std::ifstream& input, const char* expected_label, i
 }
 
 Add_Spring::Add_Spring(
-  const std::vector<std::string>& tokens,
-  const std::vector<Group>& groups,
-  Atom& atom)
+  const std::vector<std::string>& tokens, const std::vector<Group>& groups, Atom& atom)
 {
   const int num_param = tokens.size();
   action_name = "add_spring";
@@ -428,9 +421,9 @@ Add_Spring::Add_Spring(
     if (restart_group_size_ <= 0) {
       PRINT_INPUT_ERROR("The group for add_spring is empty.\n");
     }
-    if (!is_valid_real(tokens[4], &velocity_[0]) ||
-        !is_valid_real(tokens[5], &velocity_[1]) ||
-        !is_valid_real(tokens[6], &velocity_[2])) {
+    if (
+      !is_valid_real(tokens[4], &velocity_[0]) || !is_valid_real(tokens[5], &velocity_[1]) ||
+      !is_valid_real(tokens[6], &velocity_[2])) {
       PRINT_INPUT_ERROR("velocity should be three numbers.\n");
     }
 
@@ -444,38 +437,51 @@ Add_Spring::Add_Spring(
       if (!is_valid_real(tokens[9], &R0_) || R0_ < -1.0e-20) {
         PRINT_INPUT_ERROR("R0 should be a non-negative number.\n");
       }
-      if (!is_valid_real(tokens[10], &offset_[0]) ||
-          !is_valid_real(tokens[11], &offset_[1]) ||
-          !is_valid_real(tokens[12], &offset_[2])) {
+      if (
+        !is_valid_real(tokens[10], &offset_[0]) || !is_valid_real(tokens[11], &offset_[1]) ||
+        !is_valid_real(tokens[12], &offset_[2])) {
         PRINT_INPUT_ERROR("offset (x0, y0, z0) should be numbers.\n");
       }
-      if (continue_spring_id_ < 0 &&
-          offset_[0] == 0.0 && offset_[1] == 0.0 && offset_[2] == 0.0 && R0_ > 1.0e-20) {
-        printf("    Warning: zero offset with positive R0 may lead to weird forces at the beginning of the simulation. So the forces are set to zero initially.\n");
+      if (
+        continue_spring_id_ < 0 && offset_[0] == 0.0 && offset_[1] == 0.0 && offset_[2] == 0.0 &&
+        R0_ > 1.0e-20) {
+        printf("    Warning: zero offset with positive R0 may lead to weird forces at the "
+               "beginning of the simulation. So the forces are set to zero initially.\n");
       }
-      printf("    ghost_com couple: grouping_method=%d, group_id=%d\n", grouping_method_, group_id_);
+      printf(
+        "    ghost_com couple: grouping_method=%d, group_id=%d\n", grouping_method_, group_id_);
       printf(
         "    velocity=(%g,%g,%g) Å/step, k=%g eV/Å^2, R0=%g Å\n",
-        velocity_[0], velocity_[1], velocity_[2], k_couple_, R0_);
+        velocity_[0],
+        velocity_[1],
+        velocity_[2],
+        k_couple_,
+        R0_);
       printf("    offset=(%g,%g,%g) Å\n", offset_[0], offset_[1], offset_[2]);
     } else if (stiff_str == "decouple") {
       continue_spring_id_ = parse_continue_option(tokens, 14);
       stiffness_mode_ = STIFFNESS_DECOUPLE;
-      if (!is_valid_real(tokens[8], &k_decouple_[0]) || k_decouple_[0] < -1.0e-20 ||
-          !is_valid_real(tokens[9], &k_decouple_[1]) || k_decouple_[1] < -1.0e-20 ||
-          !is_valid_real(tokens[10], &k_decouple_[2]) || k_decouple_[2] < -1.0e-20) {
+      if (
+        !is_valid_real(tokens[8], &k_decouple_[0]) || k_decouple_[0] < -1.0e-20 ||
+        !is_valid_real(tokens[9], &k_decouple_[1]) || k_decouple_[1] < -1.0e-20 ||
+        !is_valid_real(tokens[10], &k_decouple_[2]) || k_decouple_[2] < -1.0e-20) {
         PRINT_INPUT_ERROR("k components should be non-negative numbers.\n");
       }
-      if (!is_valid_real(tokens[11], &offset_[0]) ||
-          !is_valid_real(tokens[12], &offset_[1]) ||
-          !is_valid_real(tokens[13], &offset_[2])) {
+      if (
+        !is_valid_real(tokens[11], &offset_[0]) || !is_valid_real(tokens[12], &offset_[1]) ||
+        !is_valid_real(tokens[13], &offset_[2])) {
         PRINT_INPUT_ERROR("offset (x0, y0, z0) should be numbers.\n");
       }
-      printf("    ghost_com decouple: grouping_method=%d, group_id=%d\n", grouping_method_, group_id_);
+      printf(
+        "    ghost_com decouple: grouping_method=%d, group_id=%d\n", grouping_method_, group_id_);
       printf(
         "    velocity=(%g,%g,%g) Å/step, k=(%g,%g,%g) eV/Å^2\n",
-        velocity_[0], velocity_[1], velocity_[2],
-        k_decouple_[0], k_decouple_[1], k_decouple_[2]);
+        velocity_[0],
+        velocity_[1],
+        velocity_[2],
+        k_decouple_[0],
+        k_decouple_[1],
+        k_decouple_[2]);
       printf("    offset=(%g,%g,%g) Å\n", offset_[0], offset_[1], offset_[2]);
     } else {
       PRINT_INPUT_ERROR("stiffness mode should be 'couple' or 'decouple'.\n");
@@ -501,9 +507,9 @@ Add_Spring::Add_Spring(
     if (restart_group_size_ <= 0) {
       PRINT_INPUT_ERROR("The group for add_spring is empty.\n");
     }
-    if (!is_valid_real(tokens[4], &velocity_[0]) ||
-        !is_valid_real(tokens[5], &velocity_[1]) ||
-        !is_valid_real(tokens[6], &velocity_[2])) {
+    if (
+      !is_valid_real(tokens[4], &velocity_[0]) || !is_valid_real(tokens[5], &velocity_[1]) ||
+      !is_valid_real(tokens[6], &velocity_[2])) {
       PRINT_INPUT_ERROR("velocity should be three numbers.\n");
     }
 
@@ -520,27 +526,34 @@ Add_Spring::Add_Spring(
       if (!is_valid_real(tokens[9], &R0_) || R0_ < -1.0e-20) {
         PRINT_INPUT_ERROR("R0 should be a non-negative number.\n");
       }
-      if (!is_valid_real(tokens[10], &offset_[0]) ||
-          !is_valid_real(tokens[11], &offset_[1]) ||
-          !is_valid_real(tokens[12], &offset_[2])) {
+      if (
+        !is_valid_real(tokens[10], &offset_[0]) || !is_valid_real(tokens[11], &offset_[1]) ||
+        !is_valid_real(tokens[12], &offset_[2])) {
         PRINT_INPUT_ERROR("offset (x0, y0, z0) should be numbers.\n");
       }
-      if (continue_spring_id_ < 0 &&
-          offset_[0] == 0.0 && offset_[1] == 0.0 && offset_[2] == 0.0 && R0_ > 1.0e-20) {
-        printf("    Warning: zero offset with positive R0 may lead to weird forces at the beginning of the simulation. So the forces are set to zero initially.\n");
+      if (
+        continue_spring_id_ < 0 && offset_[0] == 0.0 && offset_[1] == 0.0 && offset_[2] == 0.0 &&
+        R0_ > 1.0e-20) {
+        printf("    Warning: zero offset with positive R0 may lead to weird forces at the "
+               "beginning of the simulation. So the forces are set to zero initially.\n");
       }
-      printf("    ghost_atom couple: grouping_method=%d, group_id=%d\n", grouping_method_, group_id_);
+      printf(
+        "    ghost_atom couple: grouping_method=%d, group_id=%d\n", grouping_method_, group_id_);
       printf(
         "    velocity=(%g,%g,%g) Å/step, k=%g eV/Å^2, R0=%g Å\n",
-        velocity_[0], velocity_[1], velocity_[2], k_couple_, R0_);
+        velocity_[0],
+        velocity_[1],
+        velocity_[2],
+        k_couple_,
+        R0_);
       printf("    offset=(%g,%g,%g) Å\n", offset_[0], offset_[1], offset_[2]);
     } else if (stiff_str == "decouple") {
       continue_spring_id_ = parse_continue_option(tokens, 14);
       stiffness_mode_ = STIFFNESS_DECOUPLE;
-      if (!is_valid_real(tokens[8], &k_decouple_[0]) ||
-          !is_valid_real(tokens[9], &k_decouple_[1]) ||
-          !is_valid_real(tokens[10], &k_decouple_[2]) ||
-          k_decouple_[0] < -1.0e-20 || k_decouple_[1] < -1.0e-20 || k_decouple_[2] < -1.0e-20) {
+      if (
+        !is_valid_real(tokens[8], &k_decouple_[0]) || !is_valid_real(tokens[9], &k_decouple_[1]) ||
+        !is_valid_real(tokens[10], &k_decouple_[2]) || k_decouple_[0] < -1.0e-20 ||
+        k_decouple_[1] < -1.0e-20 || k_decouple_[2] < -1.0e-20) {
         PRINT_INPUT_ERROR("k components should be non-negative numbers.\n");
       }
       const double k_total[3] = {k_decouple_[0], k_decouple_[1], k_decouple_[2]};
@@ -549,18 +562,27 @@ Add_Spring::Add_Spring(
       k_decouple_[2] /= restart_group_size_;
       printf(
         "    total k=(%g,%g,%g) eV/Å^2, k per atom=(%g,%g,%g) eV/Å^2\n",
-        k_total[0], k_total[1], k_total[2],
-        k_decouple_[0], k_decouple_[1], k_decouple_[2]);
-      if (!is_valid_real(tokens[11], &offset_[0]) ||
-          !is_valid_real(tokens[12], &offset_[1]) ||
-          !is_valid_real(tokens[13], &offset_[2])) {
+        k_total[0],
+        k_total[1],
+        k_total[2],
+        k_decouple_[0],
+        k_decouple_[1],
+        k_decouple_[2]);
+      if (
+        !is_valid_real(tokens[11], &offset_[0]) || !is_valid_real(tokens[12], &offset_[1]) ||
+        !is_valid_real(tokens[13], &offset_[2])) {
         PRINT_INPUT_ERROR("offset (x0, y0, z0) should be numbers.\n");
       }
-      printf("    ghost_atom decouple: grouping_method=%d, group_id=%d\n", grouping_method_, group_id_);
+      printf(
+        "    ghost_atom decouple: grouping_method=%d, group_id=%d\n", grouping_method_, group_id_);
       printf(
         "    velocity=(%g,%g,%g) Å/step, k=(%g,%g,%g) eV/Å^2\n",
-        velocity_[0], velocity_[1], velocity_[2],
-        k_decouple_[0], k_decouple_[1], k_decouple_[2]);
+        velocity_[0],
+        velocity_[1],
+        velocity_[2],
+        k_decouple_[0],
+        k_decouple_[1],
+        k_decouple_[2]);
       printf("    offset=(%g,%g,%g) Å\n", offset_[0], offset_[1], offset_[2]);
     } else {
       PRINT_INPUT_ERROR("stiffness mode should be 'couple' or 'decouple'.\n");
@@ -613,20 +635,25 @@ Add_Spring::Add_Spring(
       if (!is_valid_real(tokens[7], &R0_) || R0_ < -1.0e-20) {
         PRINT_INPUT_ERROR("R0 should be a non-negative number.\n");
       }
-      printf("    com_com couple: gm=%d, gid1=%d, gid2=%d\n", grouping_method_, group_id_, group_id_2_);
+      printf(
+        "    com_com couple: gm=%d, gid1=%d, gid2=%d\n", grouping_method_, group_id_, group_id_2_);
       printf("    k=%g eV/Å^2, R0=%g Å\n", k_couple_, R0_);
     } else if (stiff_str == "decouple") {
       if (num_param != 9) {
         PRINT_INPUT_ERROR("add_spring com_com decouple requires 9 parameters.\n");
       }
       stiffness_mode_ = STIFFNESS_DECOUPLE;
-      if (!is_valid_real(tokens[6], &k_decouple_[0]) ||
-          !is_valid_real(tokens[7], &k_decouple_[1]) ||
-          !is_valid_real(tokens[8], &k_decouple_[2]) ||
-          k_decouple_[0] < -1.0e-20 || k_decouple_[1] < -1.0e-20 || k_decouple_[2] < -1.0e-20) {
+      if (
+        !is_valid_real(tokens[6], &k_decouple_[0]) || !is_valid_real(tokens[7], &k_decouple_[1]) ||
+        !is_valid_real(tokens[8], &k_decouple_[2]) || k_decouple_[0] < -1.0e-20 ||
+        k_decouple_[1] < -1.0e-20 || k_decouple_[2] < -1.0e-20) {
         PRINT_INPUT_ERROR("k components should be non-negative numbers.\n");
       }
-      printf("    com_com decouple: gm=%d, gid1=%d, gid2=%d\n", grouping_method_, group_id_, group_id_2_);
+      printf(
+        "    com_com decouple: gm=%d, gid1=%d, gid2=%d\n",
+        grouping_method_,
+        group_id_,
+        group_id_2_);
       printf("    k=(%g,%g,%g) eV/Å^2\n", k_decouple_[0], k_decouple_[1], k_decouple_[2]);
     } else {
       PRINT_INPUT_ERROR("stiffness mode should be 'couple' or 'decouple'.\n");
@@ -676,7 +703,8 @@ void Add_Spring::save_restart()
   const std::string tmp_filename = filename + ".tmp";
   std::ofstream output(tmp_filename.c_str(), std::ios::out | std::ios::trunc);
   if (!output) {
-    std::string error_msg = "Failed to open add_spring restart file for writing: " + tmp_filename + "\n";
+    std::string error_msg =
+      "Failed to open add_spring restart file for writing: " + tmp_filename + "\n";
     PRINT_INPUT_ERROR(error_msg.c_str());
   }
 
@@ -696,9 +724,8 @@ void Add_Spring::save_restart()
     std::vector<double> host_pos(state_size);
     ghost_atom_pos_.copy_to_host(host_pos.data());
     for (int n = 0; n < ghost_atom_group_size_; ++n) {
-      output << host_pos[n * 3 + 0] << " "
-             << host_pos[n * 3 + 1] << " "
-             << host_pos[n * 3 + 2] << "\n";
+      output << host_pos[n * 3 + 0] << " " << host_pos[n * 3 + 1] << " " << host_pos[n * 3 + 2]
+             << "\n";
     }
   }
   output.close();
@@ -719,9 +746,8 @@ void Add_Spring::save_restart()
       PRINT_INPUT_ERROR(error_msg.c_str());
     }
     if (std::rename(tmp_filename.c_str(), filename.c_str()) != 0) {
-      std::string error_msg =
-        "Failed to finalize add_spring restart file: " + filename +
-        ". The new state is kept in " + tmp_filename + "\n";
+      std::string error_msg = "Failed to finalize add_spring restart file: " + filename +
+                              ". The new state is kept in " + tmp_filename + "\n";
       PRINT_INPUT_ERROR(error_msg.c_str());
     }
   }
@@ -748,12 +774,13 @@ void Add_Spring::load_restart()
   int saved_spring_id = -1;
   int saved_group_size = -1;
   int state_size = -1;
-  if (!read_labeled_int(input, "mode", saved_mode) ||
-      !read_labeled_int(input, "grouping_method", saved_grouping_method) ||
-      !read_labeled_int(input, "group_id", saved_group_id) ||
-      !read_labeled_int(input, "spring_id", saved_spring_id) ||
-      !read_labeled_int(input, "group_size", saved_group_size) ||
-      !read_labeled_int(input, "state_size", state_size)) {
+  if (
+    !read_labeled_int(input, "mode", saved_mode) ||
+    !read_labeled_int(input, "grouping_method", saved_grouping_method) ||
+    !read_labeled_int(input, "group_id", saved_group_id) ||
+    !read_labeled_int(input, "spring_id", saved_spring_id) ||
+    !read_labeled_int(input, "group_size", saved_group_size) ||
+    !read_labeled_int(input, "state_size", state_size)) {
     PRINT_INPUT_ERROR("Malformed add_spring restart metadata.\n");
   }
 
@@ -763,7 +790,8 @@ void Add_Spring::load_restart()
     PRINT_INPUT_ERROR("Malformed add_spring restart state section.\n");
   }
   if (saved_mode != static_cast<int>(mode_)) {
-    PRINT_INPUT_ERROR("add_spring continuation requires the same ghost mode (ghost_com or ghost_atom).\n");
+    PRINT_INPUT_ERROR(
+      "add_spring continuation requires the same ghost mode (ghost_com or ghost_atom).\n");
   }
   if (saved_grouping_method != grouping_method_ || saved_group_id != group_id_) {
     PRINT_INPUT_ERROR("add_spring continuation requires the same grouping method and group id.\n");
@@ -812,47 +840,26 @@ void Add_Spring::advance_ghost()
     const int block_size = 64;
     const int grid_size = (ghost_atom_group_size_ - 1) / block_size + 1;
     gpu_update_ghost_atom_pos<<<grid_size, block_size>>>(
-      ghost_atom_group_size_,
-      ghost_atom_pos_.data(),
-      velocity_[0],
-      velocity_[1],
-      velocity_[2]);
+      ghost_atom_group_size_, ghost_atom_pos_.data(), velocity_[0], velocity_[1], velocity_[2]);
     GPU_CHECK_KERNEL
   }
 }
 
 void Add_Spring::setup_force(
-  const double,
-  Integrate&,
-  std::vector<Group>& group,
-  Atom& atom,
-  Box&,
-  Force&)
+  const double, Integrate&, std::vector<Group>& group, Atom& atom, Box&, Force&)
 {
   apply_force(group, atom);
 }
 
 void Add_Spring::post_force(
-  const int step,
-  const double,
-  Integrate&,
-  std::vector<Group>& group,
-  Atom& atom,
-  Box&,
-  Force&)
+  const int step, const double, Integrate&, std::vector<Group>& group, Atom& atom, Box&, Force&)
 {
   advance_ghost();
   apply_force(group, atom);
   write_output(step);
 }
 
-void Add_Spring::post_run(
-  Atom&,
-  Box&,
-  Integrate&,
-  const int,
-  const double,
-  const double)
+void Add_Spring::post_run(Atom&, Box&, Integrate&, const int, const double, const double)
 {
   save_restart();
   if (fp_out_) {
@@ -949,8 +956,7 @@ void Add_Spring::apply_force(std::vector<Group>& groups, Atom& atom)
       fx = k_decouple_[0] * dx;
       fy = k_decouple_[1] * dy;
       fz = k_decouple_[2] * dz;
-      e = 0.5 *
-          (k_decouple_[0] * dx * dx + k_decouple_[1] * dy * dy + k_decouple_[2] * dz * dz);
+      e = 0.5 * (k_decouple_[0] * dx * dx + k_decouple_[1] * dy * dy + k_decouple_[2] * dz * dz);
     }
 
     gpu_add_force_to_group_mass_weighted<<<grid_size, block_size>>>(
@@ -992,8 +998,7 @@ void Add_Spring::apply_force(std::vector<Group>& groups, Atom& atom)
     d_tmp_force3_.fill(0.0);
     d_tmp_scalar_.fill(0.0);
     if (stiffness_mode_ == STIFFNESS_COUPLE) {
-      gpu_add_spring_ghost_atom_couple
-      <<<grid_size, block_size, block_size * 4 * sizeof(double)>>>(
+      gpu_add_spring_ghost_atom_couple<<<grid_size, block_size, block_size * 4 * sizeof(double)>>>(
         group_size,
         group_size_sum,
         groups[grouping_method_].contents.data(),
@@ -1009,8 +1014,10 @@ void Add_Spring::apply_force(std::vector<Group>& groups, Atom& atom)
         d_tmp_force3_.data(),
         d_tmp_scalar_.data());
     } else {
-      gpu_add_spring_ghost_atom_decouple
-      <<<grid_size, block_size, block_size * 4 * sizeof(double)>>>(
+      gpu_add_spring_ghost_atom_decouple<<<
+        grid_size,
+        block_size,
+        block_size * 4 * sizeof(double)>>>(
         group_size,
         group_size_sum,
         groups[grouping_method_].contents.data(),
@@ -1036,13 +1043,13 @@ void Add_Spring::apply_force(std::vector<Group>& groups, Atom& atom)
     force_[0] = h_force[0];
     force_[1] = h_force[1];
     force_[2] = h_force[2];
-    total_force_ = sqrt(h_force[0] * h_force[0] + h_force[1] * h_force[1] + h_force[2] * h_force[2]);
+    total_force_ =
+      sqrt(h_force[0] * h_force[0] + h_force[1] * h_force[1] + h_force[2] * h_force[2]);
     energy_ = h_energy;
   } else {
     d_tmp_vec3_.fill(0.0);
     d_tmp_scalar_.fill(0.0);
-    gpu_sum_group_mass_pos_reduce
-    <<<grid_size, block_size, block_size * 4 * sizeof(double)>>>(
+    gpu_sum_group_mass_pos_reduce<<<grid_size, block_size, block_size * 4 * sizeof(double)>>>(
       group_size,
       group_size_sum,
       groups[grouping_method_].contents.data(),
@@ -1063,8 +1070,7 @@ void Add_Spring::apply_force(std::vector<Group>& groups, Atom& atom)
     const int grid_size_2 = (group2_size - 1) / block_size + 1;
     d_tmp_vec3_.fill(0.0);
     d_tmp_scalar_.fill(0.0);
-    gpu_sum_group_mass_pos_reduce
-    <<<grid_size_2, block_size, block_size * 4 * sizeof(double)>>>(
+    gpu_sum_group_mass_pos_reduce<<<grid_size_2, block_size, block_size * 4 * sizeof(double)>>>(
       group2_size,
       group2_size_sum,
       groups[grouping_method_].contents.data(),
@@ -1109,8 +1115,7 @@ void Add_Spring::apply_force(std::vector<Group>& groups, Atom& atom)
       fx = k_decouple_[0] * dx;
       fy = k_decouple_[1] * dy;
       fz = k_decouple_[2] * dz;
-      e = 0.5 *
-          (k_decouple_[0] * dx * dx + k_decouple_[1] * dy * dy + k_decouple_[2] * dz * dz);
+      e = 0.5 * (k_decouple_[0] * dx * dx + k_decouple_[1] * dy * dy + k_decouple_[2] * dz * dz);
     }
 
     const int max_size = std::max(group_size, group2_size);

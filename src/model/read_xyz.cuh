@@ -26,7 +26,11 @@ class RunInput;
 
 void initialize_position(
   const RunInput& run_input,
-  int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom);
+  int& has_velocity_in_xyz,
+  int& number_of_types,
+  Box& box,
+  std::vector<Group>& group,
+  Atom& atom);
 
 void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo);
 

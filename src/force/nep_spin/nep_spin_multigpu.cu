@@ -16,8 +16,8 @@
 /*----------------------------------------------------------------------------80
 Single-process spatial decomposition and multi-GPU evaluation for NEP-spin.
 
-Contributors:
-Chengbing Chen, 1747193328@qq.com
+Major contributors:
+  Chengbing Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "model/box.cuh"

@@ -15,6 +15,10 @@
 
 /*----------------------------------------------------------------------------80
 Interface to the PLUMED plugin: https://www.plumed.org
+
+Major contributors:
+  Jintu Zhang: Initial implementation.
+  Zheyong Fan: Corrected biased dynamics and pressure.
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_PLUMED

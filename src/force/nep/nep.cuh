@@ -47,9 +47,9 @@ public:
     float typewise_cutoff_zbl_factor = 0.0f;
     int model_type = 0; // 0=potential, 3=temperature-dependent free energy
     float rc_radial_max = 0.0f;
-    float rc_radial_max_inv = 0.0f; 
-    float rc_radial[NUM_ELEMENTS];     // radial cutoff
-    float rc_angular[NUM_ELEMENTS];    // angular cutoff
+    float rc_radial_max_inv = 0.0f;
+    float rc_radial[NUM_ELEMENTS];  // radial cutoff
+    float rc_angular[NUM_ELEMENTS]; // angular cutoff
     int MN_radial = 200;
     int MN_angular = 100;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
@@ -100,12 +100,12 @@ public:
   };
 
   struct Small_Box_Data {
-        GPU_Vector<int> NN_radial;
-        GPU_Vector<int> NL_radial;
-        GPU_Vector<int> NN_angular;
-        GPU_Vector<int> NL_angular;
-        GPU_Vector<float> r12;
-    } small_box_data;
+    GPU_Vector<int> NN_radial;
+    GPU_Vector<int> NL_radial;
+    GPU_Vector<int> NN_angular;
+    GPU_Vector<int> NL_angular;
+    GPU_Vector<float> r12;
+  } small_box_data;
 
   NEP(const char* file_potential, const int num_atoms, const RunInput& run_input);
   virtual ~NEP(void);

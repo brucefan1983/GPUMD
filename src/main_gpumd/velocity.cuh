@@ -18,6 +18,7 @@
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
+class Atom;
 class Group;
 
 class Velocity

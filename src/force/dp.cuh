@@ -18,9 +18,9 @@
 #include "DeepPot.h"
 #include "neighbor.cuh"
 #include "potential.cuh"
+#include <cstddef>
 #include <stdio.h>
 #include <vector>
-#include <cstddef>
 
 namespace deepmd_compat = deepmd;
 
@@ -34,20 +34,20 @@ struct DP_NL {
 };
 
 enum {
-  GHOST_X = 0,      // 0b001
-  GHOST_Y = 1,      // 0b010
-  GHOST_XY = 2,     // 0b011
-  GHOST_Z = 3,      // 0b100
-  GHOST_XZ = 4,     // 0b101
-  GHOST_YZ = 5,     // 0b110
-  GHOST_XYZ = 6     // 0b111
+  GHOST_X = 0,  // 0b001
+  GHOST_Y = 1,  // 0b010
+  GHOST_XY = 2, // 0b011
+  GHOST_Z = 3,  // 0b100
+  GHOST_XZ = 4, // 0b101
+  GHOST_YZ = 5, // 0b110
+  GHOST_XYZ = 6 // 0b111
 };
 
 class DP : public Potential
 {
 public:
   using Potential::compute;
-  DP(const char* , int);
+  DP(const char*, int);
   virtual ~DP(void);
   virtual void compute(
     Box& box,
@@ -85,24 +85,24 @@ protected:
   // reused across steps until an atom drifts more than skin/2, then filtered
   // to the true cutoff rc each step.
   Neighbor dp_neighbor;
-  GPU_Vector<int> dp_NN_local;   // per-step neighbor counts within rc
-  GPU_Vector<int> dp_NL_local;   // per-step neighbor list within rc (stride N)
+  GPU_Vector<int> dp_NN_local; // per-step neighbor counts within rc
+  GPU_Vector<int> dp_NL_local; // per-step neighbor list within rc (stride N)
   DP_NL dp_nl;
   GPU_Vector<double> dp_position_gpu;
   std::vector<int> type_cpu;
-  GPU_Vector<double> e_f_v_gpu;     // a temporary variable to save dp energy, force and virial
+  GPU_Vector<double> e_f_v_gpu; // a temporary variable to save dp energy, force and virial
 
   // Atoms that need periodic DP image atoms are marked as dangerous.
   // Ghost atoms are translated by lattice-vector shifts, including triclinic cells.
-  int nghost;                       // number of ghost atoms
-  int ndanger;                      // number of dangerous atoms
-  GPU_Vector<int> type_ghost;       // type of ghost atoms, nghost x 1
-  GPU_Vector<int> ghost_count;      // count of ghost atoms for each local atom, number_of_atoms x 1
-  GPU_Vector<int> ghost_sum;        // exclusive scan of ghost_count
-  GPU_Vector<int> ghost_id_map;     // dangerous-atom ghost ids, ndanger x max_ghost_num_each_danger
-  GPU_Vector<int> danger_flag;      // 1 if dangerous, 0 if not, number_of_atoms x 1
-  GPU_Vector<int> danger_list;      // for each local atom: -1 or dense index in dangerous atom list
-  GPU_Vector<int> danger_atoms;     // reverse map: dangerous atom list -> local atom index
+  int nghost;                   // number of ghost atoms
+  int ndanger;                  // number of dangerous atoms
+  GPU_Vector<int> type_ghost;   // type of ghost atoms, nghost x 1
+  GPU_Vector<int> ghost_count;  // count of ghost atoms for each local atom, number_of_atoms x 1
+  GPU_Vector<int> ghost_sum;    // exclusive scan of ghost_count
+  GPU_Vector<int> ghost_id_map; // dangerous-atom ghost ids, ndanger x max_ghost_num_each_danger
+  GPU_Vector<int> danger_flag;  // 1 if dangerous, 0 if not, number_of_atoms x 1
+  GPU_Vector<int> danger_list;  // for each local atom: -1 or dense index in dangerous atom list
+  GPU_Vector<int> danger_atoms; // reverse map: dangerous atom list -> local atom index
 
   // dp instance
   deepmd_compat::DeepPot deep_pot;
@@ -117,12 +117,12 @@ protected:
   // the compact edge schema on the GPU, run the exported model on those device
   // tensors, and scatter the device outputs back into GPUMD arrays.  No host
   // neighbor-list build and no per-step host-device coordinate/result copies.
-  GPU_Vector<int> dp_edge_index;     // [2 * nedge]: row 0 = src, row 1 = dst
-  GPU_Vector<double> dp_edge_vec;    // [nedge * 3] minimum-image bond vectors
-  GPU_Vector<int> dp_edge_offset;    // [nloc] exclusive scan of NN
-  GPU_Vector<double> dp_atom_energy_gpu;  // [nloc]
-  GPU_Vector<double> dp_force_rowmajor;   // [nloc * 3] row-major model force
-  GPU_Vector<double> dp_atom_virial_gpu;  // [nloc * 9] row-major model virial
+  GPU_Vector<int> dp_edge_index;         // [2 * nedge]: row 0 = src, row 1 = dst
+  GPU_Vector<double> dp_edge_vec;        // [nedge * 3] minimum-image bond vectors
+  GPU_Vector<int> dp_edge_offset;        // [nloc] exclusive scan of NN
+  GPU_Vector<double> dp_atom_energy_gpu; // [nloc]
+  GPU_Vector<double> dp_force_rowmajor;  // [nloc * 3] row-major model force
+  GPU_Vector<double> dp_atom_virial_gpu; // [nloc * 9] row-major model virial
   void compute_gpu_edges(
     Box& box,
     const GPU_Vector<int>& type,

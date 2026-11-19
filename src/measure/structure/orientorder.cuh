@@ -14,8 +14,8 @@
 */
 
 #pragma once
-#include "model/box.cuh"
 #include "measure/action.cuh"
+#include "model/box.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>

@@ -26,8 +26,7 @@ void parse_group(
   int& grouping_method,
   int& group_id);
 
-void parse_precision(
-  const std::vector<std::string>& tokens, int& k, int& precision);
+void parse_precision(const std::vector<std::string>& tokens, int& k, int& precision);
 
 // The per-atom quantities that dump_xyz and dump_netcdf can write. Shared so that the two
 // keywords accept the same names and cannot drift apart.

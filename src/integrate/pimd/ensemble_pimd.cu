@@ -21,6 +21,11 @@ References for implementation:
     Mariana Rossi et al., J. Chem. Phys. 140, 234116 (2014).
 [3] More stable free-polymer integration based on Cayley modification:
     Roman Korol et al., J. Chem Phys. 151, 124103 (2019).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Zezhu Zeng: Economised path-integral dynamics.
+  Hekai Bu: Faster bead dynamics and centroid-virial estimates.
 ------------------------------------------------------------------------------*/
 
 #include "eco_pimd.cuh"
@@ -276,8 +281,7 @@ Ensemble_PIMD::Ensemble_PIMD(const std::vector<std::string>& tokens, const Box& 
   }
 }
 
-void Ensemble_PIMD::initialize_run(
-  const double, Atom& atom, Box&, const std::vector<Group>&)
+void Ensemble_PIMD::initialize_run(const double, Atom& atom, Box&, const std::vector<Group>&)
 {
   number_of_atoms = atom.number_of_atoms;
   initialize(atom);
@@ -390,8 +394,7 @@ void Ensemble_PIMD::update_eco_modes()
     PRINT_INPUT_ERROR("Eco-PIMD requires a positive finite temperature.");
   }
 
-  const double temperature_tolerance =
-    1.0e-12 * std::max(1.0, std::fabs(temperature));
+  const double temperature_tolerance = 1.0e-12 * std::max(1.0, std::fabs(temperature));
   if (std::fabs(temperature - eco_last_temperature) <= temperature_tolerance) {
     return;
   }
@@ -477,8 +480,7 @@ static __global__ void gpu_nve_forward(
       // double cos_factor = cos(omega_k * time_step);
       // double sin_factor = sin(omega_k * time_step);
       // The approximate solution based on Cayley is more stable:
-      const double cayley =
-        1.0 / (1 + (omega_k * half_time_step) * (omega_k * half_time_step));
+      const double cayley = 1.0 / (1 + (omega_k * half_time_step) * (omega_k * half_time_step));
       const double cos_factor =
         cayley * (1 - (omega_k * half_time_step) * (omega_k * half_time_step));
       const double sin_factor = cayley * omega_k * time_step;
@@ -607,8 +609,7 @@ static __global__ void gpu_langevin_thermostat(
     } else {
       s_c1 = exp(-time_step * omega_n * sin(k * PI / number_of_beads));
     }
-    s_thermal_numerator =
-      (1 - s_c1 * s_c1) * K_B * temperature * number_of_beads;
+    s_thermal_numerator = (1 - s_c1 * s_c1) * K_B * temperature * number_of_beads;
   }
   __syncthreads();
 
@@ -697,14 +698,12 @@ static __global__ void gpu_correct_momentum_beads(
   if (i < number_of_atoms && k < number_of_beads) {
     double inverse_of_total_mass = 1.0 / device_momentum_beads[0][3];
     for (int d = 0; d < 3; ++d) {
-      g_velocity[k][i + d * number_of_atoms] -=
-        device_momentum_beads[k][d] * inverse_of_total_mass;
+      g_velocity[k][i + d * number_of_atoms] -= device_momentum_beads[k][d] * inverse_of_total_mass;
     }
   }
 }
 
-static __global__ void gpu_quantize_reference_position(
-  const int number_of_atoms, double** position)
+static __global__ void gpu_quantize_reference_position(const int number_of_atoms, double** position)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < number_of_atoms) {
@@ -742,8 +741,8 @@ static __global__ void gpu_apply_pbc(
   }
 }
 
-static void apply_pbc(
-  const Box& box, const int number_of_atoms, const int number_of_beads, double** position)
+static void
+apply_pbc(const Box& box, const int number_of_atoms, const int number_of_beads, double** position)
 {
   int grid_size = (number_of_atoms - 1) / 64 + 1;
   gpu_quantize_reference_position<<<grid_size, 64>>>(number_of_atoms, position);
@@ -895,8 +894,7 @@ static __global__ void gpu_find_kinetic_energy_virial_part(
   }
 
   if (k == 0 && valid) {
-    kinetic_energy_virial_part[n] =
-      0.5f * diagonal_sum * number_of_beads_inverse;
+    kinetic_energy_virial_part[n] = 0.5f * diagonal_sum * number_of_beads_inverse;
   }
 }
 
@@ -1076,12 +1074,9 @@ static void cpu_pressure_triclinic(
     mu[0] += sqrt(2.0 * p_coupling[0] * K_B * target_temperature / volume) * gasdev(rng);
     mu[4] += sqrt(2.0 * p_coupling[1] * K_B * target_temperature / volume) * gasdev(rng);
     mu[8] += sqrt(2.0 * p_coupling[2] * K_B * target_temperature / volume) * gasdev(rng);
-    const double noise_yz =
-      sqrt(p_coupling[3] * K_B * target_temperature / volume) * gasdev(rng);
-    const double noise_xz =
-      sqrt(p_coupling[4] * K_B * target_temperature / volume) * gasdev(rng);
-    const double noise_xy =
-      sqrt(p_coupling[5] * K_B * target_temperature / volume) * gasdev(rng);
+    const double noise_yz = sqrt(p_coupling[3] * K_B * target_temperature / volume) * gasdev(rng);
+    const double noise_xz = sqrt(p_coupling[4] * K_B * target_temperature / volume) * gasdev(rng);
+    const double noise_xy = sqrt(p_coupling[5] * K_B * target_temperature / volume) * gasdev(rng);
     mu[5] += noise_yz;
     mu[7] += noise_yz;
     mu[2] += noise_xz;

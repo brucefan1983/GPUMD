@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Deform the simulation box during a run.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "deform.cuh"
@@ -125,8 +128,7 @@ void Deform::parse_general(const std::vector<std::string>& tokens)
 {
   const int num_param = tokens.size();
   if (num_param < 3 || num_param > 13 || num_param % 2 == 0) {
-    PRINT_INPUT_ERROR(
-      "The general form of keyword 'deform' should contain component-rate pairs.");
+    PRINT_INPUT_ERROR("The general form of keyword 'deform' should contain component-rate pairs.");
   }
 
   const char* component_name[6] = {"xx", "yy", "zz", "xy", "xz", "yz"};
@@ -151,40 +153,21 @@ void Deform::parse_general(const std::vector<std::string>& tokens)
     }
 
     deform_component_[component] = 1;
-    printf(
-      "    deform %s at %g A / step.\n", component_name[component], deform_rate_[component]);
+    printf("    deform %s at %g A / step.\n", component_name[component], deform_rate_[component]);
   }
 }
 
-int Deform::get_deform_x() const
-{
-  return deform_component_[0];
-}
+int Deform::get_deform_x() const { return deform_component_[0]; }
 
-int Deform::get_deform_y() const
-{
-  return deform_component_[1];
-}
+int Deform::get_deform_y() const { return deform_component_[1]; }
 
-int Deform::get_deform_z() const
-{
-  return deform_component_[2];
-}
+int Deform::get_deform_z() const { return deform_component_[2]; }
 
-int Deform::get_deform_xy() const
-{
-  return deform_component_[3];
-}
+int Deform::get_deform_xy() const { return deform_component_[3]; }
 
-int Deform::get_deform_xz() const
-{
-  return deform_component_[4];
-}
+int Deform::get_deform_xz() const { return deform_component_[4]; }
 
-int Deform::get_deform_yz() const
-{
-  return deform_component_[5];
-}
+int Deform::get_deform_yz() const { return deform_component_[5]; }
 
 void Deform::pre_run(
   const int number_of_steps,
@@ -200,8 +183,8 @@ void Deform::pre_run(
   if (
     integrate.get_type() != EnsembleType::NVE && !is_standard_nvt(integrate.get_type()) &&
     !is_standard_npt(integrate.get_type())) {
-    PRINT_INPUT_ERROR(
-      "The current deform implementation only supports NVE, standard NVT, NPT-Berendsen, and NPT-SCR ensembles.");
+    PRINT_INPUT_ERROR("The current deform implementation only supports NVE, standard NVT, "
+                      "NPT-Berendsen, and NPT-SCR ensembles.");
   }
 
   if (deform_component_[0] && box.pbc_x != 1) {
@@ -238,8 +221,7 @@ void Deform::pre_run(
       if (!box.is_orthogonal) {
         PRINT_INPUT_ERROR("Deformation with 3-component NPT requires an orthogonal box.");
       }
-    } else if (
-      integrate.get_num_target_pressure_components() == 6 && use_legacy_format_) {
+    } else if (integrate.get_num_target_pressure_components() == 6 && use_legacy_format_) {
       PRINT_INPUT_ERROR(
         "The legacy deform format cannot be combined with 6-component NPT pressure control.");
     }

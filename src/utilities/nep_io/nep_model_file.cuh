@@ -73,9 +73,7 @@ public:
   bool validate_md(std::string& error) const;
   // document must be the records returned by read() for this model.
   bool compact(
-    const std::vector<std::string>& active_species,
-    NEP_File& document,
-    std::string& error) const;
+    const std::vector<std::string>& active_species, NEP_File& document, std::string& error) const;
 
 private:
   bool parse(const NEP_File& document, std::string& error);
@@ -88,8 +86,8 @@ private:
     int maximum,
     int& value,
     std::string& error);
-  static bool read_float(
-    const NEP_File::Field& field, std::size_t index, float& value, std::string& error);
+  static bool
+  read_float(const NEP_File::Field& field, std::size_t index, float& value, std::string& error);
   static const NEP_File::Field* require_field(
     const NEP_File& document,
     const char* name,
@@ -105,20 +103,19 @@ private:
     std::vector<std::string>& handled,
     std::string& error);
 
-  bool read_descriptor(
-    const NEP_File& document, std::vector<std::string>& handled, std::string& error);
-  bool read_ann(
-    const NEP_File& document, std::vector<std::string>& handled, std::string& error);
-  bool read_reference(
-    const NEP_File& document, std::vector<std::string>& handled, std::string& error);
+  bool
+  read_descriptor(const NEP_File& document, std::vector<std::string>& handled, std::string& error);
+  bool read_ann(const NEP_File& document, std::vector<std::string>& handled, std::string& error);
+  bool
+  read_reference(const NEP_File& document, std::vector<std::string>& handled, std::string& error);
   bool read_zbl(
     const NEP_File& document,
     std::vector<std::string>& fields,
     std::vector<std::string>& blocks,
     std::string& error);
   void calculate_layout(int extra_inputs, int extra_outputs, int globals, int ann_count);
-  bool read_parameters(
-    const NEP_File& document, std::vector<std::string>& blocks, std::string& error);
+  bool
+  read_parameters(const NEP_File& document, std::vector<std::string>& blocks, std::string& error);
 
   bool read_nep(
     const NEP_File& document,

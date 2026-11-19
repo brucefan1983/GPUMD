@@ -35,6 +35,9 @@ Training and prediction tests use `nep`; simulation tests use `gpumd`. Standalon
 validation scripts document their executable options in `--help` or their module
 docstrings.
 
+For spin validator setup and executable selection, see
+[Spin validation](SPIN_VALIDATION.md).
+
 ## Running the tests
 
 From this directory (`tests_pytest/`):
@@ -153,6 +156,12 @@ A missing executable, unavailable GPU, process timeout (120 seconds per run),
 or failed assertion fails the test. The suite does not modify CI and
 does not cover multiple GPUs, long-time sampling accuracy, or performance.
 
+## Spin validation
+
+See [SPIN_VALIDATION.md](SPIN_VALIDATION.md) for CPU checks, single-GPU model
+evaluation and training, integration/restart checks, and four-GPU comparisons.
+It also documents how to run the ordinary GPUMD/NEP regression alongside spin checks.
+
 ## Spin training precision
 
 From the repository root, with CUDA `nvcc` on `PATH` and an appropriate GPU
@@ -160,14 +169,13 @@ selected in `CUDA_VISIBLE_DEVICES`:
 
 ```bash
 python tests_pytest/validate_spin_ann_precision.py --arch sm_89
-python tests_pytest/validate_spin_training.py --nep src/nep --check-jit
 ```
 
-Choose `--arch` for the target GPU. The first check compares the spin-private ANN
+Choose `--arch` for the target GPU. This check compares the spin-private ANN
 accumulator with an independent host long-double oracle, including small energy
 differences and finite-difference derivatives for its supported single hidden layer.
-The second exercises the full training/restart/prediction lifecycle and requires
-actual JIT compilation for native/compiled parity. ANN-only precision is not a
+For training/restart/prediction and native/JIT checks, follow
+[Spin validation](SPIN_VALIDATION.md#training-prediction-and-restart). ANN-only precision is not a
 bound on geometry or descriptor rounding in a full potential evaluation.
 
 ## Spin generated headers

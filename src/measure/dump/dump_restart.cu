@@ -15,6 +15,10 @@
 
 /*-----------------------------------------------------------------------------------------------100
 Dump a restart file
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Chengbing Chen: Spin-state restart data.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_restart.cuh"
@@ -25,8 +29,8 @@ Dump a restart file
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
-#include <vector>
 #include <cstring>
+#include <vector>
 
 Dump_Restart::Dump_Restart(const std::vector<std::string>& tokens)
 {

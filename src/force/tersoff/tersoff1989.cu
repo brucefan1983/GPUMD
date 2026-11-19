@@ -17,6 +17,9 @@
 The double-element version of the Tersoff potential as described in
     [1] J. Tersoff, Modeling solid-state chemistry: Interatomic potentials
         for multicomponent systems, PRB 39, 5566 (1989).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"
@@ -520,11 +523,7 @@ void Tersoff1989::compute(
   neighbor_manager.update(box, type, position_per_atom);
 
   neighbor_manager.find_local_neighbor(
-    rc,
-    box, 
-    position_per_atom,
-    tersoff_data.NN,
-    tersoff_data.NL);
+    rc, box, position_per_atom, tersoff_data.NN, tersoff_data.NL);
 
   // pre-compute the bond order functions and their derivatives
   find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(

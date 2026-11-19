@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Shuning Pan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "ensemble_wall_piston.cuh"
 #include "utilities/gpu_macro.cuh"
 
@@ -130,12 +135,7 @@ void Ensemble_wall_piston::init(Box& box, Atom& atom)
 }
 
 void Ensemble_wall_piston::initialize_before_first_step(
-  const double,
-  const int,
-  const std::vector<Group>&,
-  Box& box,
-  Atom& atom,
-  GPU_Vector<double>&)
+  const double, const int, const std::vector<Group>&, Box& box, Atom& atom, GPU_Vector<double>&)
 {
   init(box, atom);
 }

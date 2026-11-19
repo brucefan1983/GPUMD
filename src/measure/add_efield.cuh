@@ -23,9 +23,7 @@ class Add_Efield : public Action
 {
 public:
   Add_Efield(
-    const std::vector<std::string>& tokens,
-    const std::vector<Group>& group,
-    bool is_nep_charge);
+    const std::vector<std::string>& tokens, const std::vector<Group>& group, bool is_nep_charge);
 
   void setup_force(
     const double time_step,
@@ -45,11 +43,7 @@ public:
     Force& force) override;
 
 private:
-  void apply_field(
-    const int md_step,
-    std::vector<Group>& group,
-    Atom& atom,
-    Force& force);
+  void apply_field(const int md_step, std::vector<Group>& group, Atom& atom, Force& force);
 
   int table_length_ = 0;
   std::vector<double> efield_table_;

@@ -17,6 +17,9 @@
 The EAM potential. Currently two analytical versions:
 [1] X. W. Zhou et al. Phys. Rev. B 69, 144113 (2004).
 [2] X. D. Dai et al. JPCM 18, 4527 (2006).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "eam.cuh"
@@ -133,11 +136,11 @@ find_phi(const EAM2004Zhou& eam, const int type, const float d12, float& phi, fl
 {
   float r_ratio = d12 * eam.re_inv[type];
   float tmp1 = (r_ratio - eam.kappa[type]) * (r_ratio - eam.kappa[type]);   // 2
-  tmp1 *= tmp1;                                                              // 4
-  tmp1 *= tmp1 * tmp1 * tmp1 * tmp1;                                         // 20
+  tmp1 *= tmp1;                                                             // 4
+  tmp1 *= tmp1 * tmp1 * tmp1 * tmp1;                                        // 20
   float tmp2 = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
-  tmp2 *= tmp2;                                                              // 4
-  tmp2 *= tmp2 * tmp2 * tmp2 * tmp2;                                         // 20
+  tmp2 *= tmp2;                                                             // 4
+  tmp2 *= tmp2 * tmp2 * tmp2 * tmp2;                                        // 20
   float phi1 = 0.5f * eam.A[type] * exp(-eam.alpha[type] * (r_ratio - 1.0f)) / (1.0f + tmp1);
   float phi2 = 0.5f * eam.B[type] * exp(-eam.beta[type] * (r_ratio - 1.0f)) / (1.0f + tmp2);
   phi = phi1 - phi2;
@@ -152,8 +155,8 @@ static __device__ void find_f(const EAM2004Zhou& eam, const int type, const floa
 {
   float r_ratio = d12 * eam.re_inv[type];
   float tmp = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
-  tmp *= tmp;                                                               // 4
-  tmp *= tmp * tmp * tmp * tmp;                                             // 20
+  tmp *= tmp;                                                              // 4
+  tmp *= tmp * tmp * tmp * tmp;                                            // 20
   f = eam.fe[type] * exp(-eam.beta[type] * (r_ratio - 1.0f)) / (1.0f + tmp);
 }
 
@@ -162,8 +165,8 @@ static __device__ void find_fp(const EAM2004Zhou& eam, const int type, const flo
 {
   float r_ratio = d12 * eam.re_inv[type];
   float tmp = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
-  tmp *= tmp;                                                               // 4
-  tmp *= tmp * tmp * tmp * tmp;                                             // 20
+  tmp *= tmp;                                                              // 4
+  tmp *= tmp * tmp * tmp * tmp;                                            // 20
   float f = eam.fe[type] * exp(-eam.beta[type] * (r_ratio - 1.0f)) / (1.0f + tmp);
   fp = -(f * eam.re_inv[type]) *
        (eam.beta[type] + 20.0f * tmp / (r_ratio - eam.lambda[type]) / (1.0f + tmp));
@@ -174,8 +177,8 @@ find_f_and_fp(const EAM2004Zhou& eam, const int type, const float d12, float& f,
 {
   float r_ratio = d12 * eam.re_inv[type];
   float tmp = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
-  tmp *= tmp;                                                               // 4
-  tmp *= tmp * tmp * tmp * tmp;                                             // 20
+  tmp *= tmp;                                                              // 4
+  tmp *= tmp * tmp * tmp * tmp;                                            // 20
   f = eam.fe[type] * exp(-eam.beta[type] * (r_ratio - 1.0f)) / (1.0f + tmp);
   fp = -(f * eam.re_inv[type]) *
        (eam.beta[type] + 20.0f * tmp / (r_ratio - eam.lambda[type]) / (1.0f + tmp));
@@ -242,8 +245,8 @@ static __device__ void find_phi(const EAM2006Dai& fs, const float d12, float& ph
     phi = 0.5f * (d12 - fs.c) * (d12 - fs.c) * tmp;
 
     phip = 2.0f * (d12 - fs.c) * tmp;
-    phip += (((4.0f * fs.c4 * d12 + 3.0f * fs.c3) * d12 + 2.0f * fs.c2) * d12 + fs.c1) * (d12 - fs.c) *
-            (d12 - fs.c);
+    phip += (((4.0f * fs.c4 * d12 + 3.0f * fs.c3) * d12 + 2.0f * fs.c2) * d12 + fs.c1) *
+            (d12 - fs.c) * (d12 - fs.c);
     phip *= 0.5f;
   }
 }

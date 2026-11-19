@@ -15,24 +15,29 @@
 
 /*----------------------------------------------------------------------------80
 The class dealing with the Deep Potential(DP).
+
+Major contributors:
+  Ke Xu: Initial DP support and periodic-image force corrections.
+  Hekai Bu: DP interface rewrite with ghost-atom handling.
+  Ming-Yu Guo: PyTorch models, GPU edge inference, and triclinic-cell support.
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_DEEPMD
 #include "dp.cuh"
-#include "neighbor.cuh"
 #include "model/box.cuh"
+#include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <cmath>
+#include <cstdint>
+#include <cstring>
+#include <sstream>
 #include <thrust/execution_policy.h>
 #include <thrust/reduce.h>
 #include <thrust/scan.h>
-#include <cmath>
-#include <cstdint>
-#include <sstream>
-#include <cstring>
 
 #define BLOCK_SIZE_FORCE 128
-#define MAX_NEIGH_NUM_DP 512    // max neighbor number of an atom for DP
+#define MAX_NEIGH_NUM_DP 512 // max neighbor number of an atom for DP
 
 DP::DP(const char* filename_dp, int num_atoms)
 {
@@ -42,7 +47,6 @@ DP::DP(const char* filename_dp, int num_atoms)
   // init DP from potential file
   initialize_dp(filename_dp);
 
-
   // Global neighbor list at rc + skin (Neighbor owns the cell-list and
   // reference-position buffers); MAX_NEIGH_NUM_DP is the rc-cutoff estimate
   // that Neighbor pads by (rc + skin)^3 / rc^3. The per-step rc-filtered list
@@ -51,7 +55,7 @@ DP::DP(const char* filename_dp, int num_atoms)
   dp_NN_local.resize(num_atoms);
   dp_NL_local.resize(dp_neighbor.NL.size());
   type_cpu.resize(num_atoms);
-  e_f_v_gpu.resize(num_atoms * (1 + 3 + 9));    // energy: 1; force: 3; virial: 9
+  e_f_v_gpu.resize(num_atoms * (1 + 3 + 9)); // energy: 1; force: 3; virial: 9
 
   // init dp neighbor list
   dp_nl.inum = num_atoms;
@@ -59,7 +63,7 @@ DP::DP(const char* filename_dp, int num_atoms)
   dp_nl.numneigh.resize(num_atoms);
   dp_nl.firstneigh.resize(num_atoms);
   dp_nl.neigh_storage.resize(num_atoms * MAX_NEIGH_NUM_DP);
-  
+
   // init ghost lists
   danger_list.resize(num_atoms);
   ghost_count.resize(num_atoms);
@@ -87,7 +91,8 @@ void DP::initialize_dp(const char* filename_dp)
   std::string type_name;
   int i = 0;
   while (iss >> type_name) {
-    if (i >= numb_types) break;
+    if (i >= numb_types)
+      break;
     type_map[i] = strdup(type_name.c_str());
     i++;
   }
@@ -98,8 +103,7 @@ void DP::initialize_dp(const char* filename_dp)
   printf("  ++ numb_types_spin: %d ++ \n", numb_types_spin);
   printf("  ++ dim_fparam: %d ++ \n", dim_fparam);
   printf("  ++ dim_aparam: %d ++ \n  ++ ", dim_aparam);
-  for (int i = 0; i < numb_types; ++i)
-  {
+  for (int i = 0; i < numb_types; ++i) {
     printf("%s ", type_map[i]);
   }
   printf("++\n---------------------------------------------------------------\n");
@@ -110,20 +114,19 @@ DP::~DP(void)
   // none
 }
 
-void DP::set_dp_coeff(void) {
-  ener_unit_cvt_factor=1;      // 1.0 / 8.617343e-5;
-  dist_unit_cvt_factor=1;      // gpumd: angstrom, dp: angstrom;
-  force_unit_cvt_factor=ener_unit_cvt_factor / dist_unit_cvt_factor;
-  virial_unit_cvt_factor=1;    // ener_unit_cvt_factor
+void DP::set_dp_coeff(void)
+{
+  ener_unit_cvt_factor = 1; // 1.0 / 8.617343e-5;
+  dist_unit_cvt_factor = 1; // gpumd: angstrom, dp: angstrom;
+  force_unit_cvt_factor = ener_unit_cvt_factor / dist_unit_cvt_factor;
+  virial_unit_cvt_factor = 1; // ener_unit_cvt_factor
   single_model = true;
   atom_spin_flag = false;
 }
 
-namespace {
-static __global__ void dp_position_transpose(
-  const double* position,
-  double* position_trans,
-  int N)
+namespace
+{
+static __global__ void dp_position_transpose(const double* position, double* position_trans, int N)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
   if (n1 < N) {
@@ -160,7 +163,7 @@ static __global__ void transpose_and_update_unit_no_ghost(
 
     // virial layout from DeePMD atomic virial (same convention as old path):
     // Index mapping: xx=0, yy=4, zz=8, xy=3, xz=6, yz=7, yx=1, zx=2, zy=5
-    double vxx = e_f_v_in[v_in_offset + n1 * 9]     * v_factor;
+    double vxx = e_f_v_in[v_in_offset + n1 * 9] * v_factor;
     double vyy = e_f_v_in[v_in_offset + n1 * 9 + 4] * v_factor;
     double vzz = e_f_v_in[v_in_offset + n1 * 9 + 8] * v_factor;
     double vxy = e_f_v_in[v_in_offset + n1 * 9 + 3] * v_factor;
@@ -171,8 +174,8 @@ static __global__ void transpose_and_update_unit_no_ghost(
     double vzy = e_f_v_in[v_in_offset + n1 * 9 + 5] * v_factor;
 
     // GPUMD virial_per_atom layout (SoA): xx, yy, zz, xy, xz, yz, yx, zx, zy
-    v_out[n1]         = vxx;
-    v_out[n1 + N]     = vyy;
+    v_out[n1] = vxx;
+    v_out[n1 + N] = vyy;
     v_out[n1 + N * 2] = vzz;
     v_out[n1 + N * 3] = vxy;
     v_out[n1 + N * 4] = vxz;
@@ -231,27 +234,27 @@ static __global__ void transpose_and_update_unit(
         int ghost_id = ghost_id_map[ghost_idx + ndanger * i];
         if (ghost_id != -1) {
           ghost_id -= N;
-          if ((unsigned int) ghost_id < (unsigned int) nghost) {
+          if ((unsigned int)ghost_id < (unsigned int)nghost) {
             fx += f_ghost_in[ghost_id * 3];
             fy += f_ghost_in[ghost_id * 3 + 1];
             fz += f_ghost_in[ghost_id * 3 + 2];
 
-            vxx +=  v_ghost_in[ghost_id * 9];
-            vyy +=  v_ghost_in[ghost_id * 9 + 4];
-            vzz +=  v_ghost_in[ghost_id * 9 + 8];
-            vxy +=  v_ghost_in[ghost_id * 9 + 3];
-            vxz +=  v_ghost_in[ghost_id * 9 + 6];
-            vyz +=  v_ghost_in[ghost_id * 9 + 7];
-            vyx +=  v_ghost_in[ghost_id * 9 + 1];
-            vzx +=  v_ghost_in[ghost_id * 9 + 2];
-            vzy +=  v_ghost_in[ghost_id * 9 + 5];
+            vxx += v_ghost_in[ghost_id * 9];
+            vyy += v_ghost_in[ghost_id * 9 + 4];
+            vzz += v_ghost_in[ghost_id * 9 + 8];
+            vxy += v_ghost_in[ghost_id * 9 + 3];
+            vxz += v_ghost_in[ghost_id * 9 + 6];
+            vyz += v_ghost_in[ghost_id * 9 + 7];
+            vyx += v_ghost_in[ghost_id * 9 + 1];
+            vzx += v_ghost_in[ghost_id * 9 + 2];
+            vzy += v_ghost_in[ghost_id * 9 + 5];
           }
         }
       }
     }
-    f_out[n1] = fx * f_factor;            // fx
-    f_out[n1 + N] = fy * f_factor;        // fy
-    f_out[n1 + N * 2] = fz * f_factor;    // fz
+    f_out[n1] = fx * f_factor;         // fx
+    f_out[n1 + N] = fy * f_factor;     // fy
+    f_out[n1 + N * 2] = fz * f_factor; // fz
 
     v_out[n1] = vxx * v_factor;
     v_out[n1 + N] = vyy * v_factor;
@@ -265,8 +268,8 @@ static __global__ void transpose_and_update_unit(
   }
 }
 
-static __host__ __device__ double get_dp_padding_fraction(
-  const int pbc, const double rc, const double thickness)
+static __host__ __device__ double
+get_dp_padding_fraction(const int pbc, const double rc, const double thickness)
 {
   return (pbc == 1 && thickness > 0.0) ? rc / thickness : 0.0;
 }
@@ -284,17 +287,16 @@ static __host__ __device__ void get_fractional_position(
   sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
   sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
 
-  if (box.pbc_x == 1) sx -= floor(sx);
-  if (box.pbc_y == 1) sy -= floor(sy);
-  if (box.pbc_z == 1) sz -= floor(sz);
+  if (box.pbc_x == 1)
+    sx -= floor(sx);
+  if (box.pbc_y == 1)
+    sy -= floor(sy);
+  if (box.pbc_z == 1)
+    sz -= floor(sz);
 }
 
 static __device__ void get_ghost_shift_bounds(
-  const int pbc,
-  const double s,
-  const double padding,
-  int& min_shift,
-  int& max_shift)
+  const int pbc, const double s, const double padding, int& min_shift, int& max_shift)
 {
   if (pbc == 1) {
     min_shift = static_cast<int>(ceil(-padding - s));
@@ -414,8 +416,7 @@ static __global__ void calc_ghost_atom_number_each_atom(
     get_ghost_shift_bounds(box.pbc_y, sy, padding_y, min_y, max_y);
     get_ghost_shift_bounds(box.pbc_z, sz, padding_z, min_z, max_z);
 
-    const int nghost =
-      (max_x - min_x + 1) * (max_y - min_y + 1) * (max_z - min_z + 1) - 1;
+    const int nghost = (max_x - min_x + 1) * (max_y - min_y + 1) * (max_z - min_z + 1) - 1;
     ghost_count[n1] = nghost;
     danger_flag[n1] = nghost != 0;
   }
@@ -433,22 +434,10 @@ static int calc_ghost_atom_number(
   const Box& box)
 {
   calc_ghost_atom_number_each_atom<<<grid_size, block_size>>>(
-    N,
-    rc,
-    position,
-    position + N,
-    position + 2 * N,
-    ghost_count,
-    danger_flag,
-    box);
+    N, rc, position, position + N, position + 2 * N, ghost_count, danger_flag, box);
   GPU_CHECK_KERNEL
 
-  return thrust::reduce(
-    thrust::device,
-    ghost_count,
-    ghost_count + N,
-    0,
-    thrust::plus<int>());
+  return thrust::reduce(thrust::device, ghost_count, ghost_count + N, 0, thrust::plus<int>());
 }
 
 static __global__ void create_ghost_map(
@@ -505,7 +494,8 @@ static __global__ void create_ghost_map(
     for (int iz = min_z; iz <= max_z; ++iz) {
       for (int iy = min_y; iy <= max_y; ++iy) {
         for (int ix = min_x; ix <= max_x; ++ix) {
-          if (ix == 0 && iy == 0 && iz == 0) continue;
+          if (ix == 0 && iy == 0 && iz == 0)
+            continue;
           if (ghost_slot < max_ghost_num_each_danger) {
             ghost_id_map[ghost_idx + ndanger * ghost_slot] = ghost_id;
           }
@@ -530,11 +520,7 @@ static __global__ void create_ghost_map(
 // by atom index before turning it into graph edges.  The GPU-edge path is only
 // used when each periodic box thickness exceeds twice the neighbor cutoff, so
 // distinct periodic images of the same atom cannot be valid separate edges.
-static __global__ void dp_compact_duplicate_neighbors(
-  const int N,
-  const int nloc,
-  int* NN,
-  int* NL)
+static __global__ void dp_compact_duplicate_neighbors(const int N, const int nloc, int* NN, int* NL)
 {
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < nloc) {
@@ -650,8 +636,7 @@ static __global__ void dp_prepare_canonical_nodes(
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
     model_type[n1] = static_cast<std::int64_t>(type[n1]);
-    destination_row_ptr[n1] =
-      static_cast<std::int64_t>(destination_offset[n1]);
+    destination_row_ptr[n1] = static_cast<std::int64_t>(destination_offset[n1]);
   }
   if (n1 == N - 1) {
     destination_row_ptr[N] = static_cast<std::int64_t>(nedge);
@@ -677,10 +662,7 @@ static __global__ void dp_prepare_canonical_source_rows(
 }
 
 static __global__ void dp_build_canonical_source_order(
-  const int nedge,
-  const int* __restrict__ source,
-  int* source_cursor,
-  int* source_order)
+  const int nedge, const int* __restrict__ source, int* source_cursor, int* source_order)
 {
   const int edge = blockIdx.x * blockDim.x + threadIdx.x;
   if (edge < nedge) {
@@ -690,11 +672,7 @@ static __global__ void dp_build_canonical_source_order(
 }
 
 static __global__ void dp_fill_canonical_guards(
-  const int edge_begin,
-  const int edge_storage,
-  int* source,
-  float* edge_vec,
-  int* source_order)
+  const int edge_begin, const int edge_storage, int* source, float* edge_vec, int* source_order)
 {
   const int edge = edge_begin + blockIdx.x * blockDim.x + threadIdx.x;
   if (edge < edge_storage) {
@@ -745,7 +723,7 @@ static __global__ void dp_scatter_outputs(
   }
 }
 
-}
+} // namespace
 
 void DP::compute_gpu_edges(
   Box& box,
@@ -763,8 +741,7 @@ void DP::compute_gpu_edges(
   // edges. The rebuild is amortized over many steps instead of running every
   // step.
   dp_neighbor.find_neighbor_global(rc, box, type, position_per_atom);
-  dp_neighbor.find_local_neighbor_from_global(
-    rc, box, position_per_atom, dp_NN_local, dp_NL_local);
+  dp_neighbor.find_local_neighbor_from_global(rc, box, position_per_atom, dp_NN_local, dp_NL_local);
 
   // find_neighbor_global uses cells of width (rc + skin) / 2 and a five-cell
   // stencil.  Wrapped cells can alias only when a periodic direction has
@@ -772,10 +749,8 @@ void DP::compute_gpu_edges(
   // non-aliasing case.  The 1.0 A skin must match Neighbor::skin.
   int num_bins[3];
   box.get_num_bins(0.5 * (rc + 1.0), num_bins);
-  const bool wrapped_cells_alias =
-    (box.pbc_x && num_bins[0] < 5) ||
-    (box.pbc_y && num_bins[1] < 5) ||
-    (box.pbc_z && num_bins[2] < 5);
+  const bool wrapped_cells_alias = (box.pbc_x && num_bins[0] < 5) ||
+                                   (box.pbc_y && num_bins[1] < 5) || (box.pbc_z && num_bins[2] < 5);
   if (wrapped_cells_alias) {
     dp_compact_duplicate_neighbors<<<grid_size, BLOCK_SIZE_FORCE>>>(
       N, N, dp_NN_local.data(), dp_NL_local.data());
@@ -786,11 +761,9 @@ void DP::compute_gpu_edges(
   // offset; the total edge count is the reduction of the counts.
   dp_edge_offset.resize(N);
   thrust::exclusive_scan(
-    thrust::device, dp_NN_local.data(), dp_NN_local.data() + N,
-    dp_edge_offset.data());
+    thrust::device, dp_NN_local.data(), dp_NN_local.data() + N, dp_edge_offset.data());
   const int nedge = thrust::reduce(
-    thrust::device, dp_NN_local.data(), dp_NN_local.data() + N, 0,
-    thrust::plus<int>());
+    thrust::device, dp_NN_local.data(), dp_NN_local.data() + N, 0, thrust::plus<int>());
 
   dp_atom_energy_gpu.resize(N);
   dp_force_rowmajor.resize(N * 3);
@@ -807,39 +780,42 @@ void DP::compute_gpu_edges(
     if (dp_edge_vec.size() < static_cast<size_t>(3 * edge_storage)) {
       dp_edge_vec.resize(3 * edge_storage);
     }
-    dp_position_gpu_trans.resize(N);  // int64 model type
-    dp_position_gpu.resize(N + 1);    // int64 destination row pointer
+    dp_position_gpu_trans.resize(N); // int64 model type
+    dp_position_gpu.resize(N + 1);   // int64 destination row pointer
     if (e_f_v_gpu.size() < static_cast<size_t>(N + 1)) {
-      e_f_v_gpu.resize(N + 1);        // int64 source row pointer
+      e_f_v_gpu.resize(N + 1); // int64 source row pointer
     }
-    ghost_count.resize(N);            // uint32 source counts
-    ghost_sum.resize(N);              // uint32 source cursors
+    ghost_count.resize(N); // uint32 source counts
+    ghost_sum.resize(N);   // uint32 source cursors
 
-    auto* model_type =
-      reinterpret_cast<std::int64_t*>(dp_position_gpu_trans.data());
-    auto* destination_row_ptr =
-      reinterpret_cast<std::int64_t*>(dp_position_gpu.data());
+    auto* model_type = reinterpret_cast<std::int64_t*>(dp_position_gpu_trans.data());
+    auto* destination_row_ptr = reinterpret_cast<std::int64_t*>(dp_position_gpu.data());
     auto* source_row_ptr = reinterpret_cast<std::int64_t*>(e_f_v_gpu.data());
     int* source = dp_edge_index.data();
     int* source_order = dp_edge_index.data() + edge_storage;
     float* edge_vec = reinterpret_cast<float*>(dp_edge_vec.data());
 
     dp_prepare_canonical_nodes<<<grid_size, BLOCK_SIZE_FORCE>>>(
-      N, nedge, type.data(), dp_edge_offset.data(), model_type,
-      destination_row_ptr);
+      N, nedge, type.data(), dp_edge_offset.data(), model_type, destination_row_ptr);
     GPU_CHECK_KERNEL
     CHECK(gpuMemset(ghost_count.data(), 0, sizeof(int) * N));
     if (nedge > 0) {
       dp_fill_canonical_edges<<<grid_size, BLOCK_SIZE_FORCE>>>(
-        N, dp_NN_local.data(), dp_NL_local.data(), dp_edge_offset.data(),
-        position_per_atom.data(), position_per_atom.data() + N,
-        position_per_atom.data() + N * 2, box, source, edge_vec,
+        N,
+        dp_NN_local.data(),
+        dp_NL_local.data(),
+        dp_edge_offset.data(),
+        position_per_atom.data(),
+        position_per_atom.data() + N,
+        position_per_atom.data() + N * 2,
+        box,
+        source,
+        edge_vec,
         ghost_count.data());
       GPU_CHECK_KERNEL
     }
     thrust::exclusive_scan(
-      thrust::device, ghost_count.data(), ghost_count.data() + N,
-      dp_edge_offset.data());
+      thrust::device, ghost_count.data(), ghost_count.data() + N, dp_edge_offset.data());
     dp_prepare_canonical_source_rows<<<grid_size, BLOCK_SIZE_FORCE>>>(
       N, nedge, dp_edge_offset.data(), source_row_ptr, ghost_sum.data());
     GPU_CHECK_KERNEL
@@ -850,19 +826,24 @@ void DP::compute_gpu_edges(
       GPU_CHECK_KERNEL
     }
     if (edge_storage > nedge) {
-      const int guard_grid =
-        (edge_storage - nedge - 1) / BLOCK_SIZE_FORCE + 1;
+      const int guard_grid = (edge_storage - nedge - 1) / BLOCK_SIZE_FORCE + 1;
       dp_fill_canonical_guards<<<guard_grid, BLOCK_SIZE_FORCE>>>(
         nedge, edge_storage, source, edge_vec, source_order);
       GPU_CHECK_KERNEL
     }
 
     deep_pot.compute_canonical_graph_gpu(
-      dp_atom_energy_gpu.data(), dp_force_rowmajor.data(),
-      dp_atom_virial_gpu.data(), model_type,
-      reinterpret_cast<std::uint32_t*>(source), edge_vec,
-      destination_row_ptr, source_row_ptr,
-      reinterpret_cast<std::uint32_t*>(source_order), N, N,
+      dp_atom_energy_gpu.data(),
+      dp_force_rowmajor.data(),
+      dp_atom_virial_gpu.data(),
+      model_type,
+      reinterpret_cast<std::uint32_t*>(source),
+      edge_vec,
+      destination_row_ptr,
+      source_row_ptr,
+      reinterpret_cast<std::uint32_t*>(source_order),
+      N,
+      N,
       static_cast<std::int64_t>(edge_storage));
   } else {
     // Transpose positions from GPUMD SoA (x1..xN, y1..yN, z1..zN) to the
@@ -879,23 +860,43 @@ void DP::compute_gpu_edges(
         dp_edge_vec.resize(3 * nedge);
       }
       dp_fill_edges<<<grid_size, BLOCK_SIZE_FORCE>>>(
-        N, N, dp_NN_local.data(), dp_NL_local.data(), dp_edge_offset.data(),
-        position_per_atom.data(), position_per_atom.data() + N,
-        position_per_atom.data() + N * 2, box, nedge, dp_edge_index.data(),
+        N,
+        N,
+        dp_NN_local.data(),
+        dp_NL_local.data(),
+        dp_edge_offset.data(),
+        position_per_atom.data(),
+        position_per_atom.data() + N,
+        position_per_atom.data() + N * 2,
+        box,
+        nedge,
+        dp_edge_index.data(),
         dp_edge_vec.data());
       GPU_CHECK_KERNEL
     }
     deep_pot.compute_edges_gpu(
-      dp_atom_energy_gpu.data(), dp_force_rowmajor.data(),
-      dp_atom_virial_gpu.data(), dp_position_gpu_trans.data(), type.data(),
-      dp_edge_index.data(), dp_edge_vec.data(), N, nedge);
+      dp_atom_energy_gpu.data(),
+      dp_force_rowmajor.data(),
+      dp_atom_virial_gpu.data(),
+      dp_position_gpu_trans.data(),
+      type.data(),
+      dp_edge_index.data(),
+      dp_edge_vec.data(),
+      N,
+      nedge);
   }
 
   // Scatter the device outputs into GPUMD's per-atom arrays.
   dp_scatter_outputs<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    N, dp_atom_energy_gpu.data(), dp_force_rowmajor.data(),
-    dp_atom_virial_gpu.data(), ener_unit_cvt_factor, force_unit_cvt_factor,
-    virial_unit_cvt_factor, potential_per_atom.data(), force_per_atom.data(),
+    N,
+    dp_atom_energy_gpu.data(),
+    dp_force_rowmajor.data(),
+    dp_atom_virial_gpu.data(),
+    ener_unit_cvt_factor,
+    force_unit_cvt_factor,
+    virial_unit_cvt_factor,
+    potential_per_atom.data(),
+    force_per_atom.data(),
     virial_per_atom.data());
   GPU_CHECK_KERNEL
 }
@@ -909,7 +910,8 @@ void DP::compute(
   GPU_Vector<double>& virial_per_atom)
 {
   const int number_of_atoms = type.size();
-  if (number_of_atoms <= 0) return;
+  if (number_of_atoms <= 0)
+    return;
   dp_nl.inum = number_of_atoms;
   int grid_size = (number_of_atoms - 1) / BLOCK_SIZE_FORCE + 1;
 
@@ -937,8 +939,7 @@ void DP::compute(
                            (box.pbc_z == 0 || thickness_z > 2.0 * neighbor_rc);
     if (mic_valid && deep_pot.supports_device_edge_inference()) {
       compute_gpu_edges(
-        box, type, position_per_atom, potential_per_atom, force_per_atom,
-        virial_per_atom);
+        box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
       return;
     }
   }
@@ -963,7 +964,8 @@ void DP::compute(
 
     // Copy types to CPU (type is const, so use gpuMemcpy directly)
     type_cpu.resize(number_of_atoms);
-    CHECK(gpuMemcpy(type_cpu.data(), type.data(), sizeof(int) * number_of_atoms, gpuMemcpyDeviceToHost));
+    CHECK(gpuMemcpy(
+      type_cpu.data(), type.data(), sizeof(int) * number_of_atoms, gpuMemcpyDeviceToHost));
 
     // Build the box for DeePMD, handling non-periodic directions.
     // For non-periodic directions, inflate box vectors so that the effective
@@ -978,7 +980,8 @@ void DP::compute(
     // Thickness of direction d = Volume / Area(d).
 
     double dp_h[9]; // local copy of box matrix for DeePMD
-    for (int i = 0; i < 9; ++i) dp_h[i] = box.cpu_h[i];
+    for (int i = 0; i < 9; ++i)
+      dp_h[i] = box.cpu_h[i];
 
     if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
       if (box.is_orthogonal) {
@@ -991,9 +994,18 @@ void DP::compute(
           double x = dp_position_cpu[i * 3];
           double y = dp_position_cpu[i * 3 + 1];
           double z = dp_position_cpu[i * 3 + 2];
-          if (x < xmin) xmin = x; if (x > xmax) xmax = x;
-          if (y < ymin) ymin = y; if (y > ymax) ymax = y;
-          if (z < zmin) zmin = z; if (z > zmax) zmax = z;
+          if (x < xmin)
+            xmin = x;
+          if (x > xmax)
+            xmax = x;
+          if (y < ymin)
+            ymin = y;
+          if (y > ymax)
+            ymax = y;
+          if (z < zmin)
+            zmin = z;
+          if (z > zmax)
+            zmax = z;
         }
 
         double shift_x = 0.0, shift_y = 0.0, shift_z = 0.0;
@@ -1028,7 +1040,7 @@ void DP::compute(
 
         // Apply shifts only to non-periodic directions
         for (int i = 0; i < number_of_atoms; ++i) {
-          dp_position_cpu[i * 3]     += shift_x;
+          dp_position_cpu[i * 3] += shift_x;
           dp_position_cpu[i * 3 + 1] += shift_y;
           dp_position_cpu[i * 3 + 2] += shift_z;
         }
@@ -1041,7 +1053,7 @@ void DP::compute(
           double x = dp_position_cpu[i * 3];
           double y = dp_position_cpu[i * 3 + 1];
           double z = dp_position_cpu[i * 3 + 2];
-          frac[i * 3]     = box.cpu_h[9]  * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+          frac[i * 3] = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
           frac[i * 3 + 1] = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
           frac[i * 3 + 2] = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
         }
@@ -1051,13 +1063,14 @@ void DP::compute(
         for (int i = 0; i < number_of_atoms; ++i) {
           for (int d = 0; d < 3; ++d) {
             double s = frac[i * 3 + d];
-            if (s < smin[d]) smin[d] = s;
-            if (s > smax[d]) smax[d] = s;
+            if (s < smin[d])
+              smin[d] = s;
+            if (s > smax[d])
+              smax[d] = s;
           }
         }
 
-        auto cross_norm = [](double u0, double u1, double u2,
-                             double v0, double v1, double v2) {
+        auto cross_norm = [](double u0, double u1, double u2, double v0, double v1, double v2) {
           double c0 = u1 * v2 - u2 * v1;
           double c1 = u2 * v0 - u0 * v2;
           double c2 = u0 * v1 - u1 * v0;
@@ -1081,7 +1094,7 @@ void DP::compute(
             double needed = cart_extent + 4.0 * rc;
             if (needed > thickness[d]) {
               double scale = needed / thickness[d];
-              dp_h[d]     *= scale;
+              dp_h[d] *= scale;
               dp_h[d + 3] *= scale;
               dp_h[d + 6] *= scale;
               thickness[d] = needed;
@@ -1104,7 +1117,7 @@ void DP::compute(
           double sx = frac[i * 3];
           double sy = frac[i * 3 + 1];
           double sz = frac[i * 3 + 2];
-          dp_position_cpu[i * 3]     = dp_h[0] * sx + dp_h[1] * sy + dp_h[2] * sz;
+          dp_position_cpu[i * 3] = dp_h[0] * sx + dp_h[1] * sy + dp_h[2] * sz;
           dp_position_cpu[i * 3 + 1] = dp_h[3] * sx + dp_h[4] * sy + dp_h[5] * sz;
           dp_position_cpu[i * 3 + 2] = dp_h[6] * sx + dp_h[7] * sy + dp_h[8] * sz;
         }
@@ -1114,9 +1127,15 @@ void DP::compute(
     // Construct dp_box in DeePMD row-major format from (possibly inflated) dp_h
     // DeePMD box layout: row0=a, row1=b, row2=c (each as x,y,z)
     std::vector<double> dp_box(9, 0.0);
-    dp_box[0] = dp_h[0]; dp_box[1] = dp_h[3]; dp_box[2] = dp_h[6];
-    dp_box[3] = dp_h[1]; dp_box[4] = dp_h[4]; dp_box[5] = dp_h[7];
-    dp_box[6] = dp_h[2]; dp_box[7] = dp_h[5]; dp_box[8] = dp_h[8];
+    dp_box[0] = dp_h[0];
+    dp_box[1] = dp_h[3];
+    dp_box[2] = dp_h[6];
+    dp_box[3] = dp_h[1];
+    dp_box[4] = dp_h[4];
+    dp_box[5] = dp_h[7];
+    dp_box[6] = dp_h[2];
+    dp_box[7] = dp_h[5];
+    dp_box[8] = dp_h[8];
 
     // Allocate output buffers
     dp_ene_all.resize(1, 0.0);
@@ -1126,8 +1145,15 @@ void DP::compute(
     dp_vir_atom.resize(number_of_atoms * 9, 0.0);
 
     // Call DeePMD compute WITHOUT neighbor list — DeePMD handles PBC internally
-    deep_pot.compute(dp_ene_all, dp_force, dp_vir_all, dp_ene_atom, dp_vir_atom,
-                     dp_position_cpu, type_cpu, dp_box);
+    deep_pot.compute(
+      dp_ene_all,
+      dp_force,
+      dp_vir_all,
+      dp_ene_atom,
+      dp_vir_atom,
+      dp_position_cpu,
+      type_cpu,
+      dp_box);
 
     // Copy results to GPU
     // Memory layout of e_f_v_gpu: e1..eN, fx1,fy1,fz1,...fxN,fyN,fzN, vxx1...

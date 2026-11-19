@@ -13,11 +13,17 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "nep_long_range.cuh"
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Yong Wang: Corrected forces under the charge-neutrality constraint.
+------------------------------------------------------------------------------*/
+
 #include "main_nep/dataset.cuh"
 #include "nep_charge_dataset.cuh"
-#include "utilities/nep_vdw_parameters.cuh"
+#include "nep_long_range.cuh"
 #include "utilities/error.cuh"
+#include "utilities/nep_vdw_parameters.cuh"
 #include <climits>
 #include <stdexcept>
 #include <vector>
@@ -98,10 +104,7 @@ static __global__ void zero_total_charge(
 // Per-structure mean subtraction of D_real for training.
 // Chain rule correction for zero_total_charge (see MD-side comment for derivation).
 // Launch: <<<Nc, 1024>>>
-static __global__ void zero_mean_D_real_train(
-  const int* Na,
-  const int* Na_sum,
-  float* g_D_real)
+static __global__ void zero_mean_D_real_train(const int* Na, const int* Na_sum, float* g_D_real)
 {
   int tid = threadIdx.x;
   int N1 = Na_sum[blockIdx.x];
@@ -196,8 +199,7 @@ static __global__ void find_force_vdw_long_range(
     if (n < N2) {
       const float C6_1 = g_C6[n];
       const float alpha_squared = alpha * alpha;
-      const float alpha_sixth =
-        alpha_squared * alpha_squared * alpha_squared;
+      const float alpha_sixth = alpha_squared * alpha_squared * alpha_squared;
       if (!is_periodic) {
         double temp_energy_sum = 0.0;
         float temp_D_C6_sum = 0.0f;
@@ -210,16 +212,10 @@ static __global__ void find_force_vdw_long_range(
           const float x12 = g_x[n2] - g_x[n];
           const float y12 = g_y[n2] - g_y[n];
           const float z12 = g_z[n2] - g_z[n];
-          const float distance_square =
-            x12 * x12 + y12 * y12 + z12 * z12;
+          const float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
           float potential;
           float force_factor;
-          find_vdw_long_range(
-            alpha_squared,
-            alpha_sixth,
-            distance_square,
-            potential,
-            force_factor);
+          find_vdw_long_range(alpha_squared, alpha_sixth, distance_square, potential, force_factor);
           const float C6_2 = g_C6[n2];
           const float C6_product = C6_1 * C6_2;
           const float f12[3] = {
@@ -273,22 +269,20 @@ static __global__ void find_force_vdw_long_range(
         temp_virial_sum[0] += GSS - HSS * kx * kx; // xx
         temp_virial_sum[1] += GSS - HSS * ky * ky; // yy
         temp_virial_sum[2] += GSS - HSS * kz * kz; // zz
-        temp_virial_sum[3] -= HSS * kx * ky; // xy
-        temp_virial_sum[4] -= HSS * ky * kz; // yz
-        temp_virial_sum[5] -= HSS * kz * kx; // zx
+        temp_virial_sum[3] -= HSS * kx * ky;       // xy
+        temp_virial_sum[4] -= HSS * ky * kz;       // yz
+        temp_virial_sum[5] -= HSS * kz * kx;       // zx
         temp_D_C6_sum += G * (S_real * cos_kr - S_imag * sin_kr);
         temp_force_sum[0] += kx * imag_term;
         temp_force_sum[1] += ky * imag_term;
         temp_force_sum[2] += kz * imag_term;
       }
       // Remove the r=0 self interaction contained in the structure factor.
-      g_pe[n] += temp_energy_sum / (N2 - N1) +
-        double(alpha_sixth) * C6_1 * C6_1 / 12.0;
+      g_pe[n] += temp_energy_sum / (N2 - N1) + double(alpha_sixth) * C6_1 * C6_1 / 12.0;
       for (int d = 0; d < 6; ++d) {
         g_virial[n + N * d] += temp_virial_sum[d] / (N2 - N1);
       }
-      g_D_C6[n] = 2.0f * temp_D_C6_sum +
-        alpha_sixth * C6_1 / 6.0f;
+      g_D_C6[n] = 2.0f * temp_D_C6_sum + alpha_sixth * C6_1 / 6.0f;
       const float C6_factor = 2.0f * C6_1;
       g_fx[n] += C6_factor * temp_force_sum[0];
       g_fy[n] += C6_factor * temp_force_sum[1];
@@ -300,15 +294,17 @@ static __global__ void find_force_vdw_long_range(
 void enforce_nep_total_charge(Dataset& dataset, NEP_Charge_Dataset& charge_dataset)
 {
   zero_total_charge<<<dataset.Nc, 1024>>>(
-    dataset.Na.data(), dataset.Na_sum.data(), charge_dataset.charge_ref_gpu.data(),
-    charge_dataset.charge.data(), charge_dataset.charge_shifted.data());
+    dataset.Na.data(),
+    dataset.Na_sum.data(),
+    charge_dataset.charge_ref_gpu.data(),
+    charge_dataset.charge.data(),
+    charge_dataset.charge_shifted.data());
   GPU_CHECK_KERNEL
 }
 
 void subtract_nep_charge_derivative_mean(const Dataset& dataset, float* D_real)
 {
-  zero_mean_D_real_train<<<dataset.Nc, 1024>>>(
-    dataset.Na.data(), dataset.Na_sum.data(), D_real);
+  zero_mean_D_real_train<<<dataset.Nc, 1024>>>(dataset.Na.data(), dataset.Na_sum.data(), D_real);
   GPU_CHECK_KERNEL
 }
 
@@ -321,7 +317,8 @@ void initialize_nep_bec(Dataset& dataset, NEP_Charge_Dataset& charge_dataset)
   GPU_CHECK_KERNEL
 }
 
-void scale_nep_bec(Dataset& dataset, NEP_Charge_Dataset& charge_dataset, const float* sqrt_epsilon_inf)
+void scale_nep_bec(
+  Dataset& dataset, NEP_Charge_Dataset& charge_dataset, const float* sqrt_epsilon_inf)
 {
   const int block_size = 32;
   const int grid_size = (dataset.N - 1) / block_size + 1;
@@ -333,13 +330,25 @@ void compute_nep_structure_factor(
   const Dataset& dataset,
   const float* weights,
   const int* kpoint_offset,
-  const float* kx, const float* ky, const float* kz,
-  float* S_real, float* S_imag)
+  const float* kx,
+  const float* ky,
+  const float* kz,
+  float* S_real,
+  float* S_imag)
 {
   find_structure_factor<<<dataset.Nc, 1024>>>(
-    dataset.Na.data(), dataset.Na_sum.data(), weights,
-    dataset.r.data(), dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2,
-    kpoint_offset, kx, ky, kz, S_real, S_imag);
+    dataset.Na.data(),
+    dataset.Na_sum.data(),
+    weights,
+    dataset.r.data(),
+    dataset.r.data() + dataset.N,
+    dataset.r.data() + dataset.N * 2,
+    kpoint_offset,
+    kx,
+    ky,
+    kz,
+    S_real,
+    S_imag);
   GPU_CHECK_KERNEL
 }
 
@@ -348,18 +357,39 @@ void add_nep_vdw_long_range(
   float alpha,
   const float* C6,
   const int* kpoint_offset,
-  const float* kx, const float* ky, const float* kz,
-  const float* G_vdw, const float* G_vdw_virial,
-  const float* S_real, const float* S_imag,
+  const float* kx,
+  const float* ky,
+  const float* kz,
+  const float* G_vdw,
+  const float* G_vdw_virial,
+  const float* S_real,
+  const float* S_imag,
   float* D_C6)
 {
   find_force_vdw_long_range<<<dataset.Nc, 1024>>>(
-    dataset.N, alpha,
-    dataset.Na.data(), dataset.Na_sum.data(), dataset.pbc.data(), C6,
-    dataset.r.data(), dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2,
-    kpoint_offset, kx, ky, kz, G_vdw, G_vdw_virial, S_real, S_imag, D_C6,
-    dataset.force.data(), dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2,
-    dataset.virial.data(), dataset.energy.data());
+    dataset.N,
+    alpha,
+    dataset.Na.data(),
+    dataset.Na_sum.data(),
+    dataset.pbc.data(),
+    C6,
+    dataset.r.data(),
+    dataset.r.data() + dataset.N,
+    dataset.r.data() + dataset.N * 2,
+    kpoint_offset,
+    kx,
+    ky,
+    kz,
+    G_vdw,
+    G_vdw_virial,
+    S_real,
+    S_imag,
+    D_C6,
+    dataset.force.data(),
+    dataset.force.data() + dataset.N,
+    dataset.force.data() + dataset.N * 2,
+    dataset.virial.data(),
+    dataset.energy.data());
   GPU_CHECK_KERNEL
 }
 

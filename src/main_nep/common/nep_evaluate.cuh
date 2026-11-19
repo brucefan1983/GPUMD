@@ -14,15 +14,14 @@
 */
 
 #pragma once
-#include "utilities/common.cuh"
 #include "main_nep/common/nep_compiled_kernels.cuh"
+#include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 
 class Dataset;
 class NEP_Neighbor;
 
-struct NEP_Compiled_Evaluation
-{
+struct NEP_Compiled_Evaluation {
   NEP_Compile library;
   NEP_Compiled_Kernels common;
   using AnnNepFunction =
@@ -52,15 +51,36 @@ struct NEP_Compiled_Evaluation
     double* pe,
     float* Fp);
   void launch_force_radial(
-    int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-    const float* x12, const float* y12, const float* z12,
-    const float* parameters, const float* Fp,
-    float* fx, float* fy, float* fz, float* virial);
+    int N,
+    const int* NN_sum,
+    const int* NN,
+    const int* NL,
+    const int* type,
+    const float* x12,
+    const float* y12,
+    const float* z12,
+    const float* parameters,
+    const float* Fp,
+    float* fx,
+    float* fy,
+    float* fz,
+    float* virial);
   void launch_force_angular(
-    int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-    const float* x12, const float* y12, const float* z12,
-    const float* parameters, const float* Fp, const float* sum_fxyz,
-    float* fx, float* fy, float* fz, float* virial);
+    int N,
+    const int* NN_sum,
+    const int* NN,
+    const int* NL,
+    const int* type,
+    const float* x12,
+    const float* y12,
+    const float* z12,
+    const float* parameters,
+    const float* Fp,
+    const float* sum_fxyz,
+    float* fx,
+    float* fy,
+    float* fz,
+    float* virial);
 };
 
 struct NEP_Descriptor_Parameters {
@@ -86,15 +106,15 @@ struct NEP_Descriptor_Parameters {
 };
 
 struct NEP_ANN {
-  int dim = 0;                    // full ANN input dimension
-  int num_neurons1 = 0;           // number of neurons in the hidden layer
-  int num_neurons2 = 0;           // number of neurons in the second hidden layer
-  int num_hidden_layers = 0;      // number of hidden layers
-  int one_ann_no_bias = 0;        // number of parameters in the ANN without bias
-  int num_para = 0;               // number of parameters
-  const float* wb[NUM_ELEMENTS];  // weights and biases for the hidden layer
-  const float* b;                 // bias for the output layer
-  const float* c;                 // for elements in descriptor
+  int dim = 0;                   // full ANN input dimension
+  int num_neurons1 = 0;          // number of neurons in the hidden layer
+  int num_neurons2 = 0;          // number of neurons in the second hidden layer
+  int num_hidden_layers = 0;     // number of hidden layers
+  int one_ann_no_bias = 0;       // number of parameters in the ANN without bias
+  int num_para = 0;              // number of parameters
+  const float* wb[NUM_ELEMENTS]; // weights and biases for the hidden layer
+  const float* b;                // bias for the output layer
+  const float* c;                // for elements in descriptor
 };
 
 struct NEP_Data {

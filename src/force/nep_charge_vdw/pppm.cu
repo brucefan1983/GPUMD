@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The k-space part of the PPPM method for charge and C6 dispersion.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "pppm.cuh"

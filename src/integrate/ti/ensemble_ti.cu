@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Shuning Pan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "ensemble_ti.cuh"
 #include "utilities/gpu_macro.cuh"
 
@@ -159,10 +164,7 @@ void Ensemble_TI::init(const Atom& atom, const GPU_Vector<double>& thermo)
 }
 
 void Ensemble_TI::find_thermo(
-  const Box& box,
-  const std::vector<Group>& group,
-  const Atom& atom,
-  GPU_Vector<double>& thermo)
+  const Box& box, const std::vector<Group>& group, const Atom& atom, GPU_Vector<double>& thermo)
 {
   Ensemble::find_thermo(
     box.get_volume(),
@@ -177,15 +179,9 @@ void Ensemble_TI::find_thermo(
   espring = get_espring_sum(atom.number_of_atoms);
 }
 
-Ensemble_TI::~Ensemble_TI(void)
-{
-  close_output_file(false);
-}
+Ensemble_TI::~Ensemble_TI(void) { close_output_file(false); }
 
-void Ensemble_TI::finalize_run(const Atom&, const Box&)
-{
-  close_output_file(true);
-}
+void Ensemble_TI::finalize_run(const Atom&, const Box&) { close_output_file(true); }
 
 void Ensemble_TI::close_output_file(const bool print_message)
 {
@@ -227,12 +223,7 @@ double Ensemble_TI::get_espring_sum(const int number_of_atoms)
 }
 
 void Ensemble_TI::initialize_before_first_step(
-  const double,
-  const int,
-  const std::vector<Group>&,
-  Box&,
-  Atom& atom,
-  GPU_Vector<double>& thermo)
+  const double, const int, const std::vector<Group>&, Box&, Atom& atom, GPU_Vector<double>& thermo)
 {
   init(atom, thermo);
 }
@@ -251,6 +242,5 @@ void Ensemble_TI::compute2(
   fprintf(output_file, "%e,%e\n", pe / atoms.number_of_atoms, espring / atoms.number_of_atoms);
   add_spring_force(box, atoms);
 
-  Ensemble_LAN::compute2(
-    time_step, step, number_of_steps, group, box, atoms, thermo, force);
+  Ensemble_LAN::compute2(time_step, step, number_of_steps, group, box, atoms, thermo, force);
 }

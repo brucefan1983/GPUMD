@@ -40,10 +40,7 @@ public:
     const Atom& atom,
     GPU_Vector<double>& thermo) override;
   void get_thermo(
-    const std::vector<Group>& group,
-    const Box& box,
-    const Atom& atom,
-    GPU_Vector<double>& thermo);
+    const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo);
   void init_mttk(
     const std::vector<Group>& group,
     const Box& box,

@@ -23,7 +23,7 @@ struct XYZ_Record;
 
 struct Structure {
   int index_in_file = 0; // position of the structure in train.xyz or test.xyz
-  int pbc = 1; // 1 for PPP and 0 for FFF in long-range training
+  int pbc = 1;           // 1 for PPP and 0 for FFF in long-range training
   int num_cell[3];
   int num_atom;
   int has_virial = 0;
@@ -57,8 +57,13 @@ public:
   // Preparation hooks run before the reader switches to the next XYZ file.
   // Model labels use index_in_file to survive sorting and ediff grouping.
   virtual bool uses_grouped_batches() const { return false; }
-  virtual void prepare_train(std::vector<Structure>& structures, int batch_size,
-    int& num_batches, std::vector<int>& batch_sizes) {}
+  virtual void prepare_train(
+    std::vector<Structure>& structures,
+    int batch_size,
+    int& num_batches,
+    std::vector<int>& batch_sizes)
+  {
+  }
   virtual void prepare_test(const std::vector<Structure>& structures, bool has_test_set) {}
   virtual void prepare_dataset(Dataset& dataset) {}
 

@@ -15,20 +15,19 @@
 
 #pragma once
 #include "ensemble.cuh"
-#include <string>
 #include "utilities/gpu_macro.cuh"
+#include <string>
 #ifdef USE_HIP
-  #include <hiprand/hiprand_kernel.h>
+#include <hiprand/hiprand_kernel.h>
 #else
-  #include <curand_kernel.h>
+#include <curand_kernel.h>
 #endif
 
 class Ensemble_LAN : public Ensemble
 {
 public:
   Ensemble_LAN();
-  Ensemble_LAN(
-    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  Ensemble_LAN(const std::vector<std::string>& tokens, const std::vector<Group>& group);
 
   double get_temperature1() const;
   double get_temperature2() const;
@@ -80,18 +79,10 @@ protected:
     GPU_Vector<double>& velocity_per_atom);
 
 private:
-  enum class RunMode
-  {
-    NONE,
-    NVT,
-    HEAT_GROUP,
-    HEAT_REGION
-  };
+  enum class RunMode { NONE, NVT, HEAT_GROUP, HEAT_REGION };
 
-  void parse(
-    const std::vector<std::string>& tokens, const std::vector<Group>& group);
-  void parse_heat_groups(
-    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void parse(const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void parse_heat_groups(const std::vector<std::string>& tokens, const std::vector<Group>& group);
   void parse_heat_regions(const std::vector<std::string>& tokens);
 
   RunMode run_mode_ = RunMode::NONE;

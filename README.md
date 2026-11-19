@@ -8,9 +8,9 @@
 
 GPUMD is a high-performance, general-purpose molecular dynamics package implemented on GPUs. It supports empirical interatomic potentials and neuroevolution potentials (NEPs), and provides tools for training NEP models and using them in atomistic simulations.
 
-[User manual](https://gpumd.org/) · [Development manual](https://gpumd.org/dev/) · [Examples](https://github.com/brucefan1983/GPUMD/blob/master/examples/README.md) · [Tutorials](https://github.com/brucefan1983/GPUMD-Tutorials) · [Tools](https://github.com/brucefan1983/GPUMD/blob/master/tools/readme.md) · [Citations](#citations)
+[User manual](https://gpumd.org/) · [Development manual](https://gpumd.org/dev/) · [Examples](examples/README.md) · [Tutorials](https://github.com/brucefan1983/GPUMD-Tutorials) · [Tools](tools/readme.md) · [Citations](#citations)
 
-## Programs
+## Main programs
 
 | Executable | Purpose | Main input files |
 | --- | --- | --- |
@@ -29,30 +29,22 @@ The GPU architecture, CUDA toolkit, and host compiler must be compatible with on
 
 ### Compile
 
-Download the source and enter the source directory:
+Download the source and enter the repository root:
 
 ```bash
 git clone https://github.com/brucefan1983/GPUMD.git
-cd GPUMD/src
+cd GPUMD
 ```
 
-Before compiling, set `CUDA_ARCH` in [src/makefile](src/makefile) to match your GPU and CUDA toolkit. Then build:
+Set `CUDA_ARCH` to match your GPU and CUDA toolkit. For example, to build for a GPU with compute capability **8.9**, run:
 
 ```bash
-make
+make -C src -j4 CUDA_ARCH=-arch=sm_89
 ```
 
-This generates `gpumd` and `nep` in `src/`.
+The default Make target builds `gpumd`, `nep`, and `tb` in `src/`. The examples below use `gpumd` and `nep`. For other GPU targets, consult [NVIDIA's compute-capability table](https://developer.nvidia.com/cuda/gpus). After changing the architecture, toolkit, or compiler flags, run `make -C src clean` before rebuilding.
 
-Instead of editing the makefile, you can override the architecture on the command line. For example, the following command targets a GPU with compute capability **8.9**:
-
-```bash
-make CUDA_ARCH="-arch=sm_89"
-```
-
-Replace `sm_89` with the target appropriate for your GPU; see [NVIDIA's compute-capability table](https://developer.nvidia.com/cuda/gpus). After changing the architecture, toolkit, or compiler flags, run `make clean` before rebuilding. Add a bounded parallel option such as `-j4` to compile several files concurrently.
-
-**CUDA compatibility:** the makefile currently defaults to `sm_60`. CUDA 13.0 removed offline compilation and library support for Maxwell, Pascal, and Volta GPUs, so this default cannot be used with CUDA 13.x. Set a supported target for a newer GPU, or use a compatible older toolkit for older hardware. See the [CUDA 13.0 release notes](https://docs.nvidia.com/cuda/archive/13.0.0/cuda-toolkit-release-notes/index.html#deprecated-architectures).
+**CUDA compatibility:** [src/makefile](src/makefile) defaults to `sm_60`. CUDA 13.0 removed offline compilation and library support for Maxwell, Pascal, and Volta GPUs, so this default cannot be used with CUDA 13.x. Set a supported target for a newer GPU, or use a compatible older toolkit for older hardware. See the [CUDA 13.0 release notes](https://docs.nvidia.com/cuda/archive/13.0.0/cuda-toolkit-release-notes/index.html#deprecated-architectures).
 
 For the CMake build, AMD GPUs through ROCm/HIP, and optional interfaces, follow the [installation guide](https://gpumd.org/dev/installation.html).
 
@@ -82,7 +74,7 @@ To evaluate the dataset in the separate prediction example:
 
 These examples read their own `nep.in` files. Input formats, training options, and outputs are described in the [NEP manual](https://gpumd.org/dev/nep/index.html). Calculations write results into their working directories; save previous results before rerunning an example.
 
-See [examples/README.md](https://github.com/brucefan1983/GPUMD/blob/master/examples/README.md) for additional examples. GPU selection and multi-GPU execution are described in the [installation guide](https://gpumd.org/dev/installation.html).
+See [examples/README.md](examples/README.md) for additional examples. GPU selection and multi-GPU execution are described in the [installation guide](https://gpumd.org/dev/installation.html).
 
 ## Documentation and tutorials
 
@@ -92,7 +84,7 @@ See [examples/README.md](https://github.com/brucefan1983/GPUMD/blob/master/examp
 | [Development manual](https://gpumd.org/dev/) | Documentation for the development version; use this when working with `master`. |
 | [GPUMD-Tutorials](https://github.com/brucefan1983/GPUMD-Tutorials) | Worked examples of GPUMD applications and related tools. |
 | [Colab tutorial](https://colab.research.google.com/drive/1QnXAveZgzwut4Mvldsw-r2I0EWIsj1KA?usp=sharing) | A PbTe workflow covering NEP construction and atomistic simulations in Google Colab. |
-| [Developer guide](developer/) | Guidance for working on the GPUMD source code. |
+| [Development instructions](AGENTS.md) | Architecture, coding rules, and validation guidance for contributors and coding agents. |
 
 ## Potentials and datasets
 
@@ -102,7 +94,7 @@ Check each model's documentation, intended application range, and citation requi
 
 ## Tools
 
-The [tools directory](https://github.com/brucefan1983/GPUMD/blob/master/tools/readme.md) contains auxiliary scripts for format conversion, structure preparation, dataset processing, and analysis. Its README also lists separately maintained packages related to GPUMD and NEP. Consult each tool's or package's documentation for dependencies, compatibility, and usage instructions.
+The [tools directory](tools/readme.md) contains auxiliary scripts for format conversion, structure preparation, dataset processing, and analysis. Its README also lists separately maintained packages related to GPUMD and NEP. Consult each tool's or package's documentation for dependencies, compatibility, and usage instructions.
 
 ## CPU version of NEP
 
@@ -116,7 +108,11 @@ Use [GitHub Discussions](https://github.com/brucefan1983/GPUMD/discussions) or t
 
 For a bug report, include the GPUMD version or commit, operating system, GPU model, toolkit and compiler versions, relevant input files, and the error output. A small reproducing example helps isolate the problem.
 
-Code, documentation, examples, and updates to the package list in `tools/readme.md` are welcome through pull requests. Consult the [developer guide](developer/) before making substantial code changes.
+Contributors must use GPUMD regularly. We encourage new contributors to develop features they need in their own work. We discourage using automated scans of the repository to look for potential defects to patch.
+
+For an existing module, we prefer its lead developer to implement bug fixes and performance improvements. If you find a problem in a module led by another contributor, please report it with a reproducing example so the maintainers can coordinate with that developer.
+
+Before starting work, contributors must propose the change in a GitHub issue or discussion and agree with the maintainers on its scope and how it fits the development plan. **Pull requests outside the agreed development plan are generally not accepted.** See [AGENTS.md](AGENTS.md) for development and validation requirements, including for AI-assisted contributions.
 
 ## Citations
 

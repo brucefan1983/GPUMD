@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Entry of replica dynamics, see replica.cuh.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "model/atom.cuh"
@@ -93,8 +96,8 @@ replica::Replica_Input parse_run_input(const RunInput& run_input)
     } else if (keyword == "run") {
       if (
         input.number_of_steps >= 0 || command.size() != 2 ||
-        !is_valid_int(command[1].c_str(), &input.number_of_steps) ||
-        input.number_of_steps <= 0 || n != last_command)
+        !is_valid_int(command[1].c_str(), &input.number_of_steps) || input.number_of_steps <= 0 ||
+        n != last_command)
         PRINT_INPUT_ERROR(
           "Replica dynamics requires one final run command with a positive number of steps.");
     } else {

@@ -259,6 +259,10 @@ Actions
      - Compute the radial distribution function (:term:`RDF`)
      - No
      - No
+   * - :ref:`compute_xrd <kw_compute_xrd>`
+     - Compute kinematic X-ray diffraction intensities
+     - No
+     - No
    * - :ref:`compute_shc <kw_compute_shc>`
      - Compute the spectral heat current (:term:`SHC`)
      - No

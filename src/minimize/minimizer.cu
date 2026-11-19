@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The abstract base class (ABC) for the minimizer classes.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "minimizer.cuh"

@@ -15,12 +15,12 @@
 
 #pragma once
 #include "force/dftd3/dftd3.cuh"
+#include "force/ewald.cuh"
 #include "force/neighbor.cuh"
 #include "force/potential.cuh"
+#include "force/pppm.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "force/ewald.cuh"
-#include "force/pppm.cuh"
 
 class RunInput;
 
@@ -47,7 +47,7 @@ struct NEP_Charge_Data {
   GPU_Vector<float> D_real;
   GPU_Vector<float> charge;
   GPU_Vector<float> charge_derivative;
-  GPU_Vector<float> bec;               // BEC
+  GPU_Vector<float> bec; // BEC
 };
 
 class NEP_Charge : public Potential

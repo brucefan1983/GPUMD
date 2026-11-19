@@ -16,14 +16,15 @@
 /*----------------------------------------------------------------------------80
 Compute chunk-averaged properties using coordinate-based spatial binning.
 
-Contributed by Wenhao Luo (Sun Yat-sen University).
-
 Syntax:
   compute_chunk <sample_interval> <output_interval>
     bin/1d <dim> <origin> <delta>
     temperature [density/number] [density/mass] [vx] [vy] [vz] [fx] [fy] [fz]
 
 Output: compute_chunk.out
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "compute_chunk.cuh"
@@ -32,34 +33,51 @@ Output: compute_chunk.out
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
-#include <cstring>
 #include <cmath>
+#include <cstring>
 
 #define DIM 3
 #define K_B_CHUNK 8.617333262e-5
 
 // GPU kernel: assign atoms to 1D bins
 static __global__ void gpu_assign_bins_1d(
-  int N, const double* x, const double* y, const double* z,
-  int axis, double origin, double invdelta, int nlayers, int* ichunk)
+  int N,
+  const double* x,
+  const double* y,
+  const double* z,
+  int axis,
+  double origin,
+  double invdelta,
+  int nlayers,
+  int* ichunk)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
     double pos = (axis == 0) ? x[n] : ((axis == 1) ? y[n] : z[n]);
     int bin_id = static_cast<int>((pos - origin) * invdelta);
-    if (bin_id < 0) bin_id = 0;
-    if (bin_id >= nlayers) bin_id = nlayers - 1;
+    if (bin_id < 0)
+      bin_id = 0;
+    if (bin_id >= nlayers)
+      bin_id = nlayers - 1;
     ichunk[n] = bin_id;
   }
 }
 
 // GPU kernel: assign atoms to 2D bins
 static __global__ void gpu_assign_bins_2d(
-  int N, const double* x, const double* y, const double* z,
-  int axis0, int axis1,
-  double origin0, double origin1,
-  double invdelta0, double invdelta1,
-  int nlayers0, int nlayers1, int* ichunk)
+  int N,
+  const double* x,
+  const double* y,
+  const double* z,
+  int axis0,
+  int axis1,
+  double origin0,
+  double origin1,
+  double invdelta0,
+  double invdelta1,
+  int nlayers0,
+  int nlayers1,
+  int* ichunk)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
@@ -67,19 +85,37 @@ static __global__ void gpu_assign_bins_2d(
     double pos1 = (axis1 == 0) ? x[n] : ((axis1 == 1) ? y[n] : z[n]);
     int b0 = static_cast<int>((pos0 - origin0) * invdelta0);
     int b1 = static_cast<int>((pos1 - origin1) * invdelta1);
-    if (b0 < 0) b0 = 0; if (b0 >= nlayers0) b0 = nlayers0 - 1;
-    if (b1 < 0) b1 = 0; if (b1 >= nlayers1) b1 = nlayers1 - 1;
+    if (b0 < 0)
+      b0 = 0;
+    if (b0 >= nlayers0)
+      b0 = nlayers0 - 1;
+    if (b1 < 0)
+      b1 = 0;
+    if (b1 >= nlayers1)
+      b1 = nlayers1 - 1;
     ichunk[n] = b0 + nlayers0 * b1;
   }
 }
 
 // GPU kernel: assign atoms to 3D bins
 static __global__ void gpu_assign_bins_3d(
-  int N, const double* x, const double* y, const double* z,
-  int axis0, int axis1, int axis2,
-  double o0, double o1, double o2,
-  double id0, double id1, double id2,
-  int n0, int n1, int n2, int* ichunk)
+  int N,
+  const double* x,
+  const double* y,
+  const double* z,
+  int axis0,
+  int axis1,
+  int axis2,
+  double o0,
+  double o1,
+  double o2,
+  double id0,
+  double id1,
+  double id2,
+  int n0,
+  int n1,
+  int n2,
+  int* ichunk)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
@@ -87,28 +123,36 @@ static __global__ void gpu_assign_bins_3d(
     int b0 = static_cast<int>((pos[axis0] - o0) * id0);
     int b1 = static_cast<int>((pos[axis1] - o1) * id1);
     int b2 = static_cast<int>((pos[axis2] - o2) * id2);
-    if (b0 < 0) b0 = 0; if (b0 >= n0) b0 = n0 - 1;
-    if (b1 < 0) b1 = 0; if (b1 >= n1) b1 = n1 - 1;
-    if (b2 < 0) b2 = 0; if (b2 >= n2) b2 = n2 - 1;
+    if (b0 < 0)
+      b0 = 0;
+    if (b0 >= n0)
+      b0 = n0 - 1;
+    if (b1 < 0)
+      b1 = 0;
+    if (b1 >= n1)
+      b1 = n1 - 1;
+    if (b2 < 0)
+      b2 = 0;
+    if (b2 >= n2)
+      b2 = n2 - 1;
     ichunk[n] = b0 + n0 * (b1 + n1 * b2);
   }
 }
 
 // GPU kernel: count atoms per chunk
-static __global__ void gpu_count_per_chunk(
-  int N, const int* ichunk, int nchunk, int* count)
+static __global__ void gpu_count_per_chunk(int N, const int* ichunk, int nchunk, int* count)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
     int c = ichunk[n];
-    if (c >= 0 && c < nchunk) atomicAdd(&count[c], 1);
+    if (c >= 0 && c < nchunk)
+      atomicAdd(&count[c], 1);
   }
 }
 
 // GPU kernel: sum scalar property per chunk
 static __global__ void gpu_sum_scalar_per_chunk(
-  int N, const int* ichunk, const double* prop,
-  int nchunk, int offset, int nvalues, double* out)
+  int N, const int* ichunk, const double* prop, int nchunk, int offset, int nvalues, double* out)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
@@ -120,9 +164,16 @@ static __global__ void gpu_sum_scalar_per_chunk(
 
 // GPU kernel: sum kinetic energy per chunk (for temperature)
 static __global__ void gpu_sum_ke_per_chunk(
-  int N, const int* ichunk, const double* mass,
-  const double* vx, const double* vy, const double* vz,
-  int nchunk, int offset, int nvalues, double* out)
+  int N,
+  const int* ichunk,
+  const double* mass,
+  const double* vx,
+  const double* vy,
+  const double* vz,
+  int nchunk,
+  int offset,
+  int nvalues,
+  double* out)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
@@ -138,8 +189,11 @@ ComputeChunk::ComputeChunk(const std::vector<std::string>& tokens, Box& box)
 {
   action_name = "compute_chunk";
   for (int i = 0; i < 3; i++) {
-    axis_[i] = 0; origin_[i] = 0.0;
-    delta_[i] = 1.0; invdelta_[i] = 1.0; nlayers_[i] = 1;
+    axis_[i] = 0;
+    origin_[i] = 0.0;
+    delta_[i] = 1.0;
+    invdelta_[i] = 1.0;
+    nlayers_[i] = 1;
   }
   parse(tokens, box);
 }
@@ -191,17 +245,29 @@ void ComputeChunk::parse(const std::vector<std::string>& tokens, Box& box)
       number_of_scalars_++;
       printf("    density/mass\n");
     } else if (tokens[k] == "vx") {
-      compute_vx_ = 1; number_of_scalars_++; printf("    vx\n");
+      compute_vx_ = 1;
+      number_of_scalars_++;
+      printf("    vx\n");
     } else if (tokens[k] == "vy") {
-      compute_vy_ = 1; number_of_scalars_++; printf("    vy\n");
+      compute_vy_ = 1;
+      number_of_scalars_++;
+      printf("    vy\n");
     } else if (tokens[k] == "vz") {
-      compute_vz_ = 1; number_of_scalars_++; printf("    vz\n");
+      compute_vz_ = 1;
+      number_of_scalars_++;
+      printf("    vz\n");
     } else if (tokens[k] == "fx") {
-      compute_fx_ = 1; number_of_scalars_++; printf("    fx\n");
+      compute_fx_ = 1;
+      number_of_scalars_++;
+      printf("    fx\n");
     } else if (tokens[k] == "fy") {
-      compute_fy_ = 1; number_of_scalars_++; printf("    fy\n");
+      compute_fy_ = 1;
+      number_of_scalars_++;
+      printf("    fy\n");
     } else if (tokens[k] == "fz") {
-      compute_fz_ = 1; number_of_scalars_++; printf("    fz\n");
+      compute_fz_ = 1;
+      number_of_scalars_++;
+      printf("    fz\n");
     } else {
       PRINT_INPUT_ERROR("Invalid property for compute_chunk.\n");
     }
@@ -213,21 +279,33 @@ void ComputeChunk::parse(const std::vector<std::string>& tokens, Box& box)
 }
 
 static int parse_one_axis(
-  const std::vector<std::string>& tokens, int idx, int* axis, double* origin, double* delta,
-  double* invdelta, int* nlayers, double* box_len_out, const Box& box)
+  const std::vector<std::string>& tokens,
+  int idx,
+  int* axis,
+  double* origin,
+  double* delta,
+  double* invdelta,
+  int* nlayers,
+  double* box_len_out,
+  const Box& box)
 {
   // Use geometric thickness (volume/area) which is correct for triclinic boxes
   double vol = box.get_volume();
   double box_lengths[3] = {
-    vol / box.get_area(0),  // thickness along x
-    vol / box.get_area(1),  // thickness along y
-    vol / box.get_area(2)   // thickness along z
+    vol / box.get_area(0), // thickness along x
+    vol / box.get_area(1), // thickness along y
+    vol / box.get_area(2)  // thickness along z
   };
 
-  if (tokens[idx] == "x") *axis = 0;
-  else if (tokens[idx] == "y") *axis = 1;
-  else if (tokens[idx] == "z") *axis = 2;
-  else { PRINT_INPUT_ERROR("dim must be x, y, or z.\n"); }
+  if (tokens[idx] == "x")
+    *axis = 0;
+  else if (tokens[idx] == "y")
+    *axis = 1;
+  else if (tokens[idx] == "z")
+    *axis = 2;
+  else {
+    PRINT_INPUT_ERROR("dim must be x, y, or z.\n");
+  }
 
   double box_len = box_lengths[*axis];
 
@@ -247,7 +325,8 @@ static int parse_one_axis(
   *invdelta = 1.0 / (*delta);
   // Use ceil so the last bin is not wider than delta
   *nlayers = static_cast<int>(ceil(box_len / (*delta)));
-  if (*nlayers <= 0) *nlayers = 1;
+  if (*nlayers <= 0)
+    *nlayers = 1;
   *box_len_out = box_len;
 
   return idx + 3;
@@ -257,45 +336,90 @@ int ComputeChunk::parse_bin_params(
   const std::vector<std::string>& tokens, int num_param, int start, Box& box)
 {
   if (tokens[start] == "bin/1d") {
-    dim_ = 1; ncoord_ = 1;
+    dim_ = 1;
+    ncoord_ = 1;
     if (start + 4 > num_param) {
       PRINT_INPUT_ERROR("bin/1d requires: dim origin delta.\n");
     }
     int next = parse_one_axis(
-      tokens, start + 1, &axis_[0], &origin_[0], &delta_[0],
-      &invdelta_[0], &nlayers_[0], &box_length_[0], box);
+      tokens,
+      start + 1,
+      &axis_[0],
+      &origin_[0],
+      &delta_[0],
+      &invdelta_[0],
+      &nlayers_[0],
+      &box_length_[0],
+      box);
     nchunk_ = nlayers_[0];
     return next;
   } else if (tokens[start] == "bin/2d") {
-    dim_ = 2; ncoord_ = 2;
+    dim_ = 2;
+    ncoord_ = 2;
     if (start + 7 > num_param) {
       PRINT_INPUT_ERROR("bin/2d requires: dim origin delta dim origin delta.\n");
     }
     int next = parse_one_axis(
-      tokens, start + 1, &axis_[0], &origin_[0], &delta_[0],
-      &invdelta_[0], &nlayers_[0], &box_length_[0], box);
+      tokens,
+      start + 1,
+      &axis_[0],
+      &origin_[0],
+      &delta_[0],
+      &invdelta_[0],
+      &nlayers_[0],
+      &box_length_[0],
+      box);
     next = parse_one_axis(
-      tokens, next, &axis_[1], &origin_[1], &delta_[1],
-      &invdelta_[1], &nlayers_[1], &box_length_[1], box);
+      tokens,
+      next,
+      &axis_[1],
+      &origin_[1],
+      &delta_[1],
+      &invdelta_[1],
+      &nlayers_[1],
+      &box_length_[1],
+      box);
     if (axis_[0] == axis_[1]) {
       PRINT_INPUT_ERROR("bin/2d requires two different axes.\n");
     }
     nchunk_ = nlayers_[0] * nlayers_[1];
     return next;
   } else if (tokens[start] == "bin/3d") {
-    dim_ = 3; ncoord_ = 3;
+    dim_ = 3;
+    ncoord_ = 3;
     if (start + 10 > num_param) {
       PRINT_INPUT_ERROR("bin/3d requires: dim origin delta (x3).\n");
     }
     int next = parse_one_axis(
-      tokens, start + 1, &axis_[0], &origin_[0], &delta_[0],
-      &invdelta_[0], &nlayers_[0], &box_length_[0], box);
+      tokens,
+      start + 1,
+      &axis_[0],
+      &origin_[0],
+      &delta_[0],
+      &invdelta_[0],
+      &nlayers_[0],
+      &box_length_[0],
+      box);
     next = parse_one_axis(
-      tokens, next, &axis_[1], &origin_[1], &delta_[1],
-      &invdelta_[1], &nlayers_[1], &box_length_[1], box);
+      tokens,
+      next,
+      &axis_[1],
+      &origin_[1],
+      &delta_[1],
+      &invdelta_[1],
+      &nlayers_[1],
+      &box_length_[1],
+      box);
     next = parse_one_axis(
-      tokens, next, &axis_[2], &origin_[2], &delta_[2],
-      &invdelta_[2], &nlayers_[2], &box_length_[2], box);
+      tokens,
+      next,
+      &axis_[2],
+      &origin_[2],
+      &delta_[2],
+      &invdelta_[2],
+      &nlayers_[2],
+      &box_length_[2],
+      box);
     if (axis_[0] == axis_[1] || axis_[0] == axis_[2] || axis_[1] == axis_[2]) {
       PRINT_INPUT_ERROR("bin/3d requires three different axes.\n");
     }
@@ -308,11 +432,16 @@ int ComputeChunk::parse_bin_params(
 }
 
 void ComputeChunk::pre_run(
-  const int number_of_steps, const double time_step,
-  Integrate& integrate, std::vector<Group>& group,
-  Atom& atom, Box& box, Force& force)
+  const int number_of_steps,
+  const double time_step,
+  Integrate& integrate,
+  std::vector<Group>& group,
+  Atom& atom,
+  Box& box,
+  Force& force)
 {
-  if (number_of_scalars_ == 0) return;
+  if (number_of_scalars_ == 0)
+    return;
 
   ichunk_.resize(atom.number_of_atoms);
   gpu_count_.resize(nchunk_);
@@ -328,14 +457,23 @@ void ComputeChunk::pre_run(
 }
 
 void ComputeChunk::end_of_step(
-  const int number_of_steps, int step,
-  const int fixed_group, const int move_group,
-  const double global_time, const double temperature,
-  Integrate& integrate, Box& box, std::vector<Group>& group,
-  GPU_Vector<double>& thermo, Atom& atom, Force& force)
+  const int number_of_steps,
+  int step,
+  const int fixed_group,
+  const int move_group,
+  const double global_time,
+  const double temperature,
+  Integrate& integrate,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  Atom& atom,
+  Force& force)
 {
-  if (number_of_scalars_ == 0) return;
-  if ((step + 1) % sample_interval_ != 0) return;
+  if (number_of_scalars_ == 0)
+    return;
+  if ((step + 1) % sample_interval_ != 0)
+    return;
 
   assign_chunks(atom, box);
   sample(atom);
@@ -351,11 +489,17 @@ void ComputeChunk::end_of_step(
 }
 
 void ComputeChunk::post_run(
-  Atom& atom, Box& box, Integrate& integrate,
-  const int number_of_steps, const double time_step, const double temperature)
+  Atom& atom,
+  Box& box,
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature)
 {
-  if (number_of_scalars_ == 0) return;
-  if (fid_) fclose(fid_);
+  if (number_of_scalars_ == 0)
+    return;
+  if (fid_)
+    fclose(fid_);
   fid_ = nullptr;
 
   compute_temperature_ = 0;
@@ -377,20 +521,41 @@ void ComputeChunk::assign_chunks(const Atom& atom, const Box& box)
 
   if (dim_ == 1) {
     gpu_assign_bins_1d<<<grid_size, block_size>>>(
-      N, x, y, z, axis_[0], origin_[0], invdelta_[0], nlayers_[0],
-      ichunk_.data());
+      N, x, y, z, axis_[0], origin_[0], invdelta_[0], nlayers_[0], ichunk_.data());
   } else if (dim_ == 2) {
     gpu_assign_bins_2d<<<grid_size, block_size>>>(
-      N, x, y, z, axis_[0], axis_[1],
-      origin_[0], origin_[1], invdelta_[0], invdelta_[1],
-      nlayers_[0], nlayers_[1], ichunk_.data());
+      N,
+      x,
+      y,
+      z,
+      axis_[0],
+      axis_[1],
+      origin_[0],
+      origin_[1],
+      invdelta_[0],
+      invdelta_[1],
+      nlayers_[0],
+      nlayers_[1],
+      ichunk_.data());
   } else {
     gpu_assign_bins_3d<<<grid_size, block_size>>>(
-      N, x, y, z,
-      axis_[0], axis_[1], axis_[2],
-      origin_[0], origin_[1], origin_[2],
-      invdelta_[0], invdelta_[1], invdelta_[2],
-      nlayers_[0], nlayers_[1], nlayers_[2], ichunk_.data());
+      N,
+      x,
+      y,
+      z,
+      axis_[0],
+      axis_[1],
+      axis_[2],
+      origin_[0],
+      origin_[1],
+      origin_[2],
+      invdelta_[0],
+      invdelta_[1],
+      invdelta_[2],
+      nlayers_[0],
+      nlayers_[1],
+      nlayers_[2],
+      ichunk_.data());
   }
   GPU_CHECK_KERNEL
 }
@@ -404,8 +569,7 @@ void ComputeChunk::sample(const Atom& atom)
   gpu_count_.fill(0);
   gpu_values_.fill(0.0);
 
-  gpu_count_per_chunk<<<grid_size, block_size>>>(
-    N, ichunk_.data(), nchunk_, gpu_count_.data());
+  gpu_count_per_chunk<<<grid_size, block_size>>>(N, ichunk_.data(), nchunk_, gpu_count_.data());
   GPU_CHECK_KERNEL
 
   const double* mass = atom.mass.data();
@@ -419,58 +583,52 @@ void ComputeChunk::sample(const Atom& atom)
   int idx = 0;
   if (compute_temperature_) {
     gpu_sum_ke_per_chunk<<<grid_size, block_size>>>(
-      N, ichunk_.data(), mass, vx, vy, vz,
-      nchunk_, idx, number_of_scalars_, gpu_values_.data());
+      N, ichunk_.data(), mass, vx, vy, vz, nchunk_, idx, number_of_scalars_, gpu_values_.data());
     GPU_CHECK_KERNEL
     idx++;
   }
-  if (compute_density_number_) { idx++; } // count-based, no kernel needed
+  if (compute_density_number_) {
+    idx++;
+  } // count-based, no kernel needed
   if (compute_density_mass_) {
     gpu_sum_scalar_per_chunk<<<grid_size, block_size>>>(
-      N, ichunk_.data(), mass, nchunk_, idx, number_of_scalars_,
-      gpu_values_.data());
+      N, ichunk_.data(), mass, nchunk_, idx, number_of_scalars_, gpu_values_.data());
     GPU_CHECK_KERNEL
     idx++;
   }
   if (compute_vx_) {
     gpu_sum_scalar_per_chunk<<<grid_size, block_size>>>(
-      N, ichunk_.data(), vx, nchunk_, idx, number_of_scalars_,
-      gpu_values_.data());
+      N, ichunk_.data(), vx, nchunk_, idx, number_of_scalars_, gpu_values_.data());
     GPU_CHECK_KERNEL
     idx++;
   }
   if (compute_vy_) {
     gpu_sum_scalar_per_chunk<<<grid_size, block_size>>>(
-      N, ichunk_.data(), vy, nchunk_, idx, number_of_scalars_,
-      gpu_values_.data());
+      N, ichunk_.data(), vy, nchunk_, idx, number_of_scalars_, gpu_values_.data());
     GPU_CHECK_KERNEL
     idx++;
   }
   if (compute_vz_) {
     gpu_sum_scalar_per_chunk<<<grid_size, block_size>>>(
-      N, ichunk_.data(), vz, nchunk_, idx, number_of_scalars_,
-      gpu_values_.data());
+      N, ichunk_.data(), vz, nchunk_, idx, number_of_scalars_, gpu_values_.data());
     GPU_CHECK_KERNEL
     idx++;
   }
   if (compute_fx_) {
     gpu_sum_scalar_per_chunk<<<grid_size, block_size>>>(
-      N, ichunk_.data(), fx, nchunk_, idx, number_of_scalars_,
-      gpu_values_.data());
+      N, ichunk_.data(), fx, nchunk_, idx, number_of_scalars_, gpu_values_.data());
     GPU_CHECK_KERNEL
     idx++;
   }
   if (compute_fy_) {
     gpu_sum_scalar_per_chunk<<<grid_size, block_size>>>(
-      N, ichunk_.data(), fy, nchunk_, idx, number_of_scalars_,
-      gpu_values_.data());
+      N, ichunk_.data(), fy, nchunk_, idx, number_of_scalars_, gpu_values_.data());
     GPU_CHECK_KERNEL
     idx++;
   }
   if (compute_fz_) {
     gpu_sum_scalar_per_chunk<<<grid_size, block_size>>>(
-      N, ichunk_.data(), fz, nchunk_, idx, number_of_scalars_,
-      gpu_values_.data());
+      N, ichunk_.data(), fz, nchunk_, idx, number_of_scalars_, gpu_values_.data());
     GPU_CHECK_KERNEL
     idx++;
   }
@@ -480,14 +638,16 @@ void ComputeChunk::sample(const Atom& atom)
   std::vector<double> cpu_values(nchunk_ * number_of_scalars_);
   gpu_count_.copy_to_host(cpu_count.data(), nchunk_);
   gpu_values_.copy_to_host(cpu_values.data(), nchunk_ * number_of_scalars_);
-  for (int i = 0; i < nchunk_; i++) cpu_count_sum_[i] += cpu_count[i];
+  for (int i = 0; i < nchunk_; i++)
+    cpu_count_sum_[i] += cpu_count[i];
   for (int i = 0; i < nchunk_ * number_of_scalars_; i++)
     cpu_values_sum_[i] += cpu_values[i];
 }
 
 void ComputeChunk::output_results(int step)
 {
-  if (num_samples_ == 0) return;
+  if (num_samples_ == 0)
+    return;
 
   for (int chunk = 0; chunk < nchunk_; chunk++) {
     double count = static_cast<double>(cpu_count_sum_[chunk]) / num_samples_;
@@ -518,37 +678,43 @@ void ComputeChunk::output_results(int step)
     }
     if (compute_vx_) {
       double val = cpu_values_sum_[chunk * number_of_scalars_ + idx] / num_samples_;
-      if (count > 0) val /= count;
+      if (count > 0)
+        val /= count;
       fprintf(fid_, "%.10e ", val);
       idx++;
     }
     if (compute_vy_) {
       double val = cpu_values_sum_[chunk * number_of_scalars_ + idx] / num_samples_;
-      if (count > 0) val /= count;
+      if (count > 0)
+        val /= count;
       fprintf(fid_, "%.10e ", val);
       idx++;
     }
     if (compute_vz_) {
       double val = cpu_values_sum_[chunk * number_of_scalars_ + idx] / num_samples_;
-      if (count > 0) val /= count;
+      if (count > 0)
+        val /= count;
       fprintf(fid_, "%.10e ", val);
       idx++;
     }
     if (compute_fx_) {
       double val = cpu_values_sum_[chunk * number_of_scalars_ + idx] / num_samples_;
-      if (count > 0) val /= count;
+      if (count > 0)
+        val /= count;
       fprintf(fid_, "%.10e ", val);
       idx++;
     }
     if (compute_fy_) {
       double val = cpu_values_sum_[chunk * number_of_scalars_ + idx] / num_samples_;
-      if (count > 0) val /= count;
+      if (count > 0)
+        val /= count;
       fprintf(fid_, "%.10e ", val);
       idx++;
     }
     if (compute_fz_) {
       double val = cpu_values_sum_[chunk * number_of_scalars_ + idx] / num_samples_;
-      if (count > 0) val /= count;
+      if (count > 0)
+        val /= count;
       fprintf(fid_, "%.10e ", val);
       idx++;
     }

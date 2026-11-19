@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "hnemd_force.cuh"
 #include "utilities/gpu_macro.cuh"
 
@@ -42,8 +47,7 @@ static __global__ void gpu_add_hnemd_force(
   }
 }
 
-static __global__ void gpu_sum_force(
-  int N, double* g_fx, double* g_fy, double* g_fz, double* g_f)
+static __global__ void gpu_sum_force(int N, double* g_fx, double* g_fy, double* g_fz, double* g_f)
 {
   int tid = threadIdx.x;
   int bid = blockIdx.x;
@@ -89,8 +93,8 @@ static __global__ void gpu_sum_force(
   }
 }
 
-static __global__ void gpu_correct_force(
-  int N, double one_over_N, double* g_fx, double* g_fy, double* g_fz, double* g_f)
+static __global__ void
+gpu_correct_force(int N, double one_over_N, double* g_fx, double* g_fy, double* g_fz, double* g_f)
 {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {

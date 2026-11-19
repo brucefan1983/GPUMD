@@ -15,6 +15,9 @@
 
 /*-----------------------------------------------------------------------------------------------100
 Dump bead data in PIMD-related run
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_beads.cuh"
@@ -22,8 +25,8 @@ Dump bead data in PIMD-related run
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
-#include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
 

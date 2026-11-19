@@ -17,9 +17,9 @@
 #include "integrate/ensemble.cuh"
 #include "utilities/gpu_macro.cuh"
 #ifdef USE_HIP
-  #include <hiprand/hiprand_kernel.h>
+#include <hiprand/hiprand_kernel.h>
 #else
-  #include <curand_kernel.h>
+#include <curand_kernel.h>
 #endif
 #include <random>
 #include <string>
@@ -31,30 +31,15 @@ public:
   Ensemble_PIMD(const std::vector<std::string>& tokens, const Box& box);
 
   void initialize_run(
-    const double time_step,
-    Atom& atom,
-    Box& box,
-    const std::vector<Group>& group) override;
+    const double time_step, Atom& atom, Box& box, const std::vector<Group>& group) override;
 
-  int get_number_of_beads() const
-  {
-    return number_of_beads;
-  }
+  int get_number_of_beads() const { return number_of_beads; }
 
-  double get_temperature1() const
-  {
-    return temperature1_;
-  }
+  double get_temperature1() const { return temperature1_; }
 
-  double get_temperature2() const
-  {
-    return temperature2_;
-  }
+  double get_temperature2() const { return temperature2_; }
 
-  int get_num_target_pressure_components() const
-  {
-    return num_target_pressure_components;
-  }
+  int get_num_target_pressure_components() const { return num_target_pressure_components; }
 
   void compute1(
     const double time_step,

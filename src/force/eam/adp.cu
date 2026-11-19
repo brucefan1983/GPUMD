@@ -21,21 +21,22 @@ through dipole and quadrupole distortions of the local atomic environment.
 
 Reference: Y. Mishin et al., Acta Materialia 53, 4029-4041 (2005)
 
-Implemented by: Hongjian Chen (Hunan University), hjchen@hnu.edu.cn
+Major contributors:
+  Hongjian Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "adp.cuh"
 #include "force/neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <cstring>
 #include <algorithm>
+#include <cctype>
+#include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <fstream>
 #include <sstream>
 #include <vector>
-#include <cctype>
-#include <cmath>
 
 #define BLOCK_SIZE_FORCE 128
 constexpr int ADP_MAX_NEIGHBORS = 400;
@@ -44,7 +45,8 @@ constexpr int PBC_SHIFT_BIAS = 15;
 constexpr int PBC_SHIFT_PAYLOAD_MASK = 0x7FFF;
 constexpr int PBC_SHIFT_FLAG = 1 << 15;
 
-__host__ __device__ __forceinline__ int encode_neighbor_shift(const int sx, const int sy, const int sz)
+__host__ __device__ __forceinline__ int
+encode_neighbor_shift(const int sx, const int sy, const int sz)
 {
   if (sx == 0 && sy == 0 && sz == 0) {
     return 0;
@@ -55,7 +57,8 @@ __host__ __device__ __forceinline__ int encode_neighbor_shift(const int sx, cons
   return ((bx & 0x1F) | ((by & 0x1F) << 5) | ((bz & 0x1F) << 10)) | PBC_SHIFT_FLAG;
 }
 
-__host__ __device__ __forceinline__ void decode_neighbor_shift(const int code, int& sx, int& sy, int& sz)
+__host__ __device__ __forceinline__ void
+decode_neighbor_shift(const int code, int& sx, int& sy, int& sz)
 {
   if (code == 0) {
     sx = sy = sz = 0;
@@ -85,7 +88,8 @@ static __global__ void build_neighbor_ON2(
   const int max_neighbors)
 {
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 >= N2) return;
+  if (n1 >= N2)
+    return;
 
   const double x1 = x[n1];
   const double y1 = y[n1];
@@ -136,7 +140,8 @@ static __global__ void build_neighbor_ON2(
     for (int iz = -pz; iz <= pz; ++iz) {
       for (int iy = -py; iy <= py; ++iy) {
         for (int ix = -px; ix <= px; ++ix) {
-          if (ix == 0 && iy == 0 && iz == 0 && n2 == n1) continue;
+          if (ix == 0 && iy == 0 && iz == 0 && n2 == n1)
+            continue;
 
           const double shift_x = ix * hx0 + iy * hx1 + iz * hx2;
           const double shift_y = ix * hy0 + iy * hy1 + iz * hy2;
@@ -172,9 +177,9 @@ ADP::~ADP(void) {}
 void ADP::initialize(const char* file_potential, const int number_of_atoms)
 {
   read_adp_file(file_potential);
-  
+
   setup_spline();
-  
+
   adp_data.inv_drho = (adp_data.drho != 0.0) ? 1.0 / adp_data.drho : 0.0;
   adp_data.inv_dr = (adp_data.dr != 0.0) ? 1.0 / adp_data.dr : 0.0;
 
@@ -196,53 +201,53 @@ void ADP::initialize(const char* file_potential, const int number_of_atoms)
   int total_rho_points = adp_data.Nelements * adp_data.nrho;
   int total_r_points = adp_data.Nelements * adp_data.nr;
   int total_pair_points = adp_data.Nelements * (adp_data.Nelements + 1) / 2 * adp_data.nr;
-  
+
   adp_data.F_rho_a_g.resize(total_rho_points);
   adp_data.F_rho_b_g.resize(total_rho_points);
   adp_data.F_rho_c_g.resize(total_rho_points);
   adp_data.F_rho_d_g.resize(total_rho_points);
-  
+
   adp_data.rho_r_a_g.resize(total_r_points);
   adp_data.rho_r_b_g.resize(total_r_points);
   adp_data.rho_r_c_g.resize(total_r_points);
   adp_data.rho_r_d_g.resize(total_r_points);
-  
+
   adp_data.phi_r_a_g.resize(total_pair_points);
   adp_data.phi_r_b_g.resize(total_pair_points);
   adp_data.phi_r_c_g.resize(total_pair_points);
   adp_data.phi_r_d_g.resize(total_pair_points);
-  
+
   adp_data.u_r_a_g.resize(total_pair_points);
   adp_data.u_r_b_g.resize(total_pair_points);
   adp_data.u_r_c_g.resize(total_pair_points);
   adp_data.u_r_d_g.resize(total_pair_points);
-  
+
   adp_data.w_r_a_g.resize(total_pair_points);
   adp_data.w_r_b_g.resize(total_pair_points);
   adp_data.w_r_c_g.resize(total_pair_points);
   adp_data.w_r_d_g.resize(total_pair_points);
-  
+
   // Copy spline data to GPU
   adp_data.F_rho_a_g.copy_from_host(adp_data.F_rho_a.data());
   adp_data.F_rho_b_g.copy_from_host(adp_data.F_rho_b.data());
   adp_data.F_rho_c_g.copy_from_host(adp_data.F_rho_c.data());
   adp_data.F_rho_d_g.copy_from_host(adp_data.F_rho_d.data());
-  
+
   adp_data.rho_r_a_g.copy_from_host(adp_data.rho_r_a.data());
   adp_data.rho_r_b_g.copy_from_host(adp_data.rho_r_b.data());
   adp_data.rho_r_c_g.copy_from_host(adp_data.rho_r_c.data());
   adp_data.rho_r_d_g.copy_from_host(adp_data.rho_r_d.data());
-  
+
   adp_data.phi_r_a_g.copy_from_host(adp_data.phi_r_a.data());
   adp_data.phi_r_b_g.copy_from_host(adp_data.phi_r_b.data());
   adp_data.phi_r_c_g.copy_from_host(adp_data.phi_r_c.data());
   adp_data.phi_r_d_g.copy_from_host(adp_data.phi_r_d.data());
-  
+
   adp_data.u_r_a_g.copy_from_host(adp_data.u_r_a.data());
   adp_data.u_r_b_g.copy_from_host(adp_data.u_r_b.data());
   adp_data.u_r_c_g.copy_from_host(adp_data.u_r_c.data());
   adp_data.u_r_d_g.copy_from_host(adp_data.u_r_d.data());
-  
+
   adp_data.w_r_a_g.copy_from_host(adp_data.w_r_a.data());
   adp_data.w_r_b_g.copy_from_host(adp_data.w_r_b.data());
   adp_data.w_r_c_g.copy_from_host(adp_data.w_r_c.data());
@@ -292,14 +297,14 @@ void ADP::read_adp_file(const char* file_potential)
     printf("Error: Cannot open ADP potential file: %s\n", file_potential);
     PRINT_INPUT_ERROR("Cannot open ADP potential file.");
   }
-  
+
   std::vector<std::string> lines;
   std::string line;
   while (std::getline(input_file, line)) {
     lines.push_back(line);
   }
   input_file.close();
-  
+
   // Parse all data words starting from line 4 (lines 1-3 are comments)
   std::vector<std::string> data_words;
   for (size_t i = 3; i < lines.size(); ++i) {
@@ -309,92 +314,92 @@ void ADP::read_adp_file(const char* file_potential)
       data_words.push_back(word);
     }
   }
-  
+
   // Line 4: Nelements Element1 Element2 ... ElementN
   size_t index = 0;
   adp_data.Nelements = std::stoi(data_words[index++]);
   adp_data.elements_list.assign(
     data_words.begin() + index, data_words.begin() + index + adp_data.Nelements);
   index += adp_data.Nelements;
-  
+
   // Line 5: Nrho, drho, Nr, dr, cutoff
   adp_data.nrho = std::stoi(data_words[index++]);
   adp_data.drho = std::stod(data_words[index++]);
   adp_data.nr = std::stoi(data_words[index++]);
   adp_data.dr = std::stod(data_words[index++]);
   adp_data.rc = std::stod(data_words[index++]);
-  
+
   printf("Use %d-element ADP potential with element(s): ", adp_data.Nelements);
   for (int i = 0; i < adp_data.Nelements; ++i) {
     printf("%s ", adp_data.elements_list[i].c_str());
   }
   printf("\n");
-  
+
   adp_data.F_rho.resize(adp_data.Nelements * adp_data.nrho);
   adp_data.rho_r.resize(adp_data.Nelements * adp_data.nr);
-  
+
   // Read element-specific data
   for (int element = 0; element < adp_data.Nelements; element++) {
     // Skip: atomic number, mass, lattice constant, lattice type
     index += 4;
-    
+
     // Read embedding function F(rho) for this element
     int base_rho = element * adp_data.nrho;
     for (int i = 0; i < adp_data.nrho; i++) {
       adp_data.F_rho[base_rho + i] = std::stod(data_words[index++]);
     }
-    
+
     // Read density function rho(r) for this element
     int base_r = element * adp_data.nr;
     for (int i = 0; i < adp_data.nr; i++) {
       adp_data.rho_r[base_r + i] = std::stod(data_words[index++]);
     }
   }
-  
+
   // Read pairwise interactions phi(r), u(r), w(r)
   int num_pairs = adp_data.Nelements * (adp_data.Nelements + 1) / 2;
   adp_data.phi_r.resize(num_pairs * adp_data.nr);
   adp_data.u_r.resize(num_pairs * adp_data.nr);
   adp_data.w_r.resize(num_pairs * adp_data.nr);
-  
+
   int pair_index = 0;
   for (int i = 0; i < adp_data.Nelements; i++) {
     for (int j = 0; j <= i; j++) {
       int base_pair = pair_index * adp_data.nr;
-      
+
       // Read phi(r) - pair potential (multiplied by r)
       for (int k = 0; k < adp_data.nr; k++) {
         adp_data.phi_r[base_pair + k] = std::stod(data_words[index++]);
       }
-      
+
       pair_index++;
     }
   }
-  
+
   // Read u(r) functions
   pair_index = 0;
   for (int i = 0; i < adp_data.Nelements; i++) {
     for (int j = 0; j <= i; j++) {
       int base_pair = pair_index * adp_data.nr;
-      
+
       for (int k = 0; k < adp_data.nr; k++) {
         adp_data.u_r[base_pair + k] = std::stod(data_words[index++]);
       }
-      
+
       pair_index++;
     }
   }
-  
+
   // Read w(r) functions
   pair_index = 0;
   for (int i = 0; i < adp_data.Nelements; i++) {
     for (int j = 0; j <= i; j++) {
       int base_pair = pair_index * adp_data.nr;
-      
+
       for (int k = 0; k < adp_data.nr; k++) {
         adp_data.w_r[base_pair + k] = std::stod(data_words[index++]);
       }
-      
+
       pair_index++;
     }
   }
@@ -407,49 +412,74 @@ void ADP::setup_spline()
   adp_data.F_rho_b.resize(total_rho_points);
   adp_data.F_rho_c.resize(total_rho_points);
   adp_data.F_rho_d.resize(total_rho_points);
-  
+
   const int total_r_points = adp_data.Nelements * adp_data.nr;
   adp_data.rho_r_a.resize(total_r_points);
   adp_data.rho_r_b.resize(total_r_points);
   adp_data.rho_r_c.resize(total_r_points);
   adp_data.rho_r_d.resize(total_r_points);
-  
+
   const int total_pair_points = adp_data.Nelements * (adp_data.Nelements + 1) / 2 * adp_data.nr;
   adp_data.phi_r_a.resize(total_pair_points);
   adp_data.phi_r_b.resize(total_pair_points);
   adp_data.phi_r_c.resize(total_pair_points);
   adp_data.phi_r_d.resize(total_pair_points);
-  
+
   adp_data.u_r_a.resize(total_pair_points);
   adp_data.u_r_b.resize(total_pair_points);
   adp_data.u_r_c.resize(total_pair_points);
   adp_data.u_r_d.resize(total_pair_points);
-  
+
   adp_data.w_r_a.resize(total_pair_points);
   adp_data.w_r_b.resize(total_pair_points);
   adp_data.w_r_c.resize(total_pair_points);
   adp_data.w_r_d.resize(total_pair_points);
-  
+
   calculate_spline(
-    adp_data.F_rho.data(), adp_data.drho,
-    adp_data.F_rho_a.data(), adp_data.F_rho_b.data(), adp_data.F_rho_c.data(), adp_data.F_rho_d.data(),
-    adp_data.Nelements, adp_data.nrho);
+    adp_data.F_rho.data(),
+    adp_data.drho,
+    adp_data.F_rho_a.data(),
+    adp_data.F_rho_b.data(),
+    adp_data.F_rho_c.data(),
+    adp_data.F_rho_d.data(),
+    adp_data.Nelements,
+    adp_data.nrho);
   calculate_spline(
-    adp_data.rho_r.data(), adp_data.dr,
-    adp_data.rho_r_a.data(), adp_data.rho_r_b.data(), adp_data.rho_r_c.data(), adp_data.rho_r_d.data(),
-    adp_data.Nelements, adp_data.nr);
+    adp_data.rho_r.data(),
+    adp_data.dr,
+    adp_data.rho_r_a.data(),
+    adp_data.rho_r_b.data(),
+    adp_data.rho_r_c.data(),
+    adp_data.rho_r_d.data(),
+    adp_data.Nelements,
+    adp_data.nr);
   calculate_spline(
-    adp_data.phi_r.data(), adp_data.dr,
-    adp_data.phi_r_a.data(), adp_data.phi_r_b.data(), adp_data.phi_r_c.data(), adp_data.phi_r_d.data(),
-    adp_data.Nelements * (adp_data.Nelements + 1) / 2, adp_data.nr);
+    adp_data.phi_r.data(),
+    adp_data.dr,
+    adp_data.phi_r_a.data(),
+    adp_data.phi_r_b.data(),
+    adp_data.phi_r_c.data(),
+    adp_data.phi_r_d.data(),
+    adp_data.Nelements * (adp_data.Nelements + 1) / 2,
+    adp_data.nr);
   calculate_spline(
-    adp_data.u_r.data(), adp_data.dr,
-    adp_data.u_r_a.data(), adp_data.u_r_b.data(), adp_data.u_r_c.data(), adp_data.u_r_d.data(),
-    adp_data.Nelements * (adp_data.Nelements + 1) / 2, adp_data.nr);
+    adp_data.u_r.data(),
+    adp_data.dr,
+    adp_data.u_r_a.data(),
+    adp_data.u_r_b.data(),
+    adp_data.u_r_c.data(),
+    adp_data.u_r_d.data(),
+    adp_data.Nelements * (adp_data.Nelements + 1) / 2,
+    adp_data.nr);
   calculate_spline(
-    adp_data.w_r.data(), adp_data.dr,
-    adp_data.w_r_a.data(), adp_data.w_r_b.data(), adp_data.w_r_c.data(), adp_data.w_r_d.data(),
-    adp_data.Nelements * (adp_data.Nelements + 1) / 2, adp_data.nr);
+    adp_data.w_r.data(),
+    adp_data.dr,
+    adp_data.w_r_a.data(),
+    adp_data.w_r_b.data(),
+    adp_data.w_r_c.data(),
+    adp_data.w_r_d.data(),
+    adp_data.Nelements * (adp_data.Nelements + 1) / 2,
+    adp_data.nr);
 }
 
 __device__ __forceinline__ static void interpolate(
@@ -480,9 +510,14 @@ __device__ __forceinline__ static double interpolate_value(
 }
 
 void ADP::calculate_spline(
-  const double* y, double dx,
-  double* a, double* b, double* c, double* d,
-  int n_functions, int n_points)
+  const double* y,
+  double dx,
+  double* a,
+  double* b,
+  double* c,
+  double* d,
+  int n_functions,
+  int n_points)
 {
   for (int func = 0; func < n_functions; ++func) {
     int off = func * n_points;
@@ -493,27 +528,31 @@ void ADP::calculate_spline(
     double* df = d + off;
 
     std::vector<double> s(n_points, 0.0);
-    if (n_points >= 2) s[0] = yf[1] - yf[0];
-    if (n_points >= 3) s[1] = 0.5 * (yf[2] - yf[0]);
+    if (n_points >= 2)
+      s[0] = yf[1] - yf[0];
+    if (n_points >= 3)
+      s[1] = 0.5 * (yf[2] - yf[0]);
     for (int i = 2; i <= n_points - 3; ++i) {
-      s[i] = ((yf[i-2] - yf[i+2]) + 8.0 * (yf[i+1] - yf[i-1])) / 12.0;
+      s[i] = ((yf[i - 2] - yf[i + 2]) + 8.0 * (yf[i + 1] - yf[i - 1])) / 12.0;
     }
-    if (n_points >= 3) s[n_points - 2] = 0.5 * (yf[n_points - 1] - yf[n_points - 3]);
-    if (n_points >= 2) s[n_points - 1] = yf[n_points - 1] - yf[n_points - 2];
+    if (n_points >= 3)
+      s[n_points - 2] = 0.5 * (yf[n_points - 1] - yf[n_points - 3]);
+    if (n_points >= 2)
+      s[n_points - 1] = yf[n_points - 1] - yf[n_points - 2];
 
     for (int m = 0; m < n_points - 1; ++m) {
-      double dy = yf[m+1] - yf[m];
-      double c4 = 3.0 * dy - 2.0 * s[m] - s[m+1];
-      double c3 = s[m] + s[m+1] - 2.0 * dy;
+      double dy = yf[m + 1] - yf[m];
+      double c4 = 3.0 * dy - 2.0 * s[m] - s[m + 1];
+      double c3 = s[m] + s[m + 1] - 2.0 * dy;
       af[m] = yf[m];
       bf[m] = s[m] / dx;
       cf[m] = c4 / (dx * dx);
       df[m] = c3 / (dx * dx * dx);
     }
-    af[n_points-1] = yf[n_points-1];
-    bf[n_points-1] = 0.0;
-    cf[n_points-1] = 0.0;
-    df[n_points-1] = 0.0;
+    af[n_points - 1] = yf[n_points - 1];
+    bf[n_points - 1] = 0.0;
+    cf[n_points - 1] = 0.0;
+    df[n_points - 1] = 0.0;
   }
 }
 
@@ -673,22 +712,16 @@ static __global__ void find_force_adp_step1(
 
   double F = 0.0;
   double Fp = 0.0;
-  interpolate(
-    F_rho_a,
-    F_rho_b,
-    F_rho_c,
-    F_rho_d,
-    F_base + irho,
-    frac,
-    drho,
-    F,
-    Fp);
+  interpolate(F_rho_a, F_rho_b, F_rho_c, F_rho_d, F_base + irho, frac, drho, F, Fp);
 
   const double mu_squared = mu_x * mu_x + mu_y * mu_y + mu_z * mu_z;
-  const double lambda_diagonal = lambda_xx * lambda_xx + lambda_yy * lambda_yy + lambda_zz * lambda_zz;
-  const double lambda_offdiag = lambda_xy * lambda_xy + lambda_xz * lambda_xz + lambda_yz * lambda_yz;
+  const double lambda_diagonal =
+    lambda_xx * lambda_xx + lambda_yy * lambda_yy + lambda_zz * lambda_zz;
+  const double lambda_offdiag =
+    lambda_xy * lambda_xy + lambda_xz * lambda_xz + lambda_yz * lambda_yz;
   const double nu = lambda_xx + lambda_yy + lambda_zz;
-  const double adp_energy = 0.5 * mu_squared + 0.5 * lambda_diagonal + lambda_offdiag - (nu * nu) / 6.0;
+  const double adp_energy =
+    0.5 * mu_squared + 0.5 * lambda_diagonal + lambda_offdiag - (nu * nu) / 6.0;
 
   g_pe[n1] += F + adp_energy;
   g_Fp[n1] = Fp;
@@ -852,11 +885,14 @@ static __global__ void find_force_adp_step2(
     const int pair_offset = pair_row[type2] * nr + ir;
 
     double rho_unused, rho1_deriv, rho2_deriv;
-    interpolate(rho_r_a, rho_r_b, rho_r_c, rho_r_d, rho2_base + ir, frac, dr, rho_unused, rho1_deriv);
-    interpolate(rho_r_a, rho_r_b, rho_r_c, rho_r_d, rho1_base + ir, frac, dr, rho_unused, rho2_deriv);
+    interpolate(
+      rho_r_a, rho_r_b, rho_r_c, rho_r_d, rho2_base + ir, frac, dr, rho_unused, rho1_deriv);
+    interpolate(
+      rho_r_a, rho_r_b, rho_r_c, rho_r_d, rho1_base + ir, frac, dr, rho_unused, rho2_deriv);
 
     double phi_rphi_val, phi_rphi_deriv, u_val, u_deriv, w_val, w_deriv;
-    interpolate(phi_r_a, phi_r_b, phi_r_c, phi_r_d, pair_offset, frac, dr, phi_rphi_val, phi_rphi_deriv);
+    interpolate(
+      phi_r_a, phi_r_b, phi_r_c, phi_r_d, pair_offset, frac, dr, phi_rphi_val, phi_rphi_deriv);
     interpolate(u_r_a, u_r_b, u_r_c, u_r_d, pair_offset, frac, dr, u_val, u_deriv);
     interpolate(w_r_a, w_r_b, w_r_c, w_r_d, pair_offset, frac, dr, w_val, w_deriv);
 
@@ -890,10 +926,9 @@ static __global__ void find_force_adp_step2(
     const double sumlamxz = lambda1_xz + lambda2_xz;
     const double sumlamxy = lambda1_xy + lambda2_xy;
 
-    const double tradellam =
-      sumlamxx * delx * delx + sumlamyy * dely * dely + sumlamzz * delz * delz +
-      2.0 * sumlamxy * delx * dely + 2.0 * sumlamxz * delx * delz +
-      2.0 * sumlamyz * dely * delz;
+    const double tradellam = sumlamxx * delx * delx + sumlamyy * dely * dely +
+                             sumlamzz * delz * delz + 2.0 * sumlamxy * delx * dely +
+                             2.0 * sumlamxz * delx * delz + 2.0 * sumlamyz * dely * delz;
     const double nu = sumlamxx + sumlamyy + sumlamzz;
     const double w_scale = w_deriv * d12 + 2.0 * w_val;
     const double nu_w_third = (1.0 / 3.0) * nu * w_scale;
@@ -901,18 +936,18 @@ static __global__ void find_force_adp_step2(
     const double trdelmu_u_deriv_inv_r = trdelmu * u_deriv * inv_r;
     const double w_deriv_inv_r_tradellam = w_deriv * inv_r * tradellam;
 
-    const double force_total_x = scalar * delx * inv_r - 
-      (delmux * u_val + trdelmu_u_deriv_inv_r * delx +
-       w_val_2 * (sumlamxx * delx + sumlamxy * dely + sumlamxz * delz) +
-       w_deriv_inv_r_tradellam * delx - nu_w_third * delx);
-    const double force_total_y = scalar * dely * inv_r - 
-      (delmuy * u_val + trdelmu_u_deriv_inv_r * dely +
-       w_val_2 * (sumlamxy * delx + sumlamyy * dely + sumlamyz * delz) +
-       w_deriv_inv_r_tradellam * dely - nu_w_third * dely);
-    const double force_total_z = scalar * delz * inv_r - 
-      (delmuz * u_val + trdelmu_u_deriv_inv_r * delz +
-       w_val_2 * (sumlamxz * delx + sumlamyz * dely + sumlamzz * delz) +
-       w_deriv_inv_r_tradellam * delz - nu_w_third * delz);
+    const double force_total_x =
+      scalar * delx * inv_r - (delmux * u_val + trdelmu_u_deriv_inv_r * delx +
+                               w_val_2 * (sumlamxx * delx + sumlamxy * dely + sumlamxz * delz) +
+                               w_deriv_inv_r_tradellam * delx - nu_w_third * delx);
+    const double force_total_y =
+      scalar * dely * inv_r - (delmuy * u_val + trdelmu_u_deriv_inv_r * dely +
+                               w_val_2 * (sumlamxy * delx + sumlamyy * dely + sumlamyz * delz) +
+                               w_deriv_inv_r_tradellam * dely - nu_w_third * dely);
+    const double force_total_z =
+      scalar * delz * inv_r - (delmuz * u_val + trdelmu_u_deriv_inv_r * delz +
+                               w_val_2 * (sumlamxz * delx + sumlamyz * dely + sumlamzz * delz) +
+                               w_deriv_inv_r_tradellam * delz - nu_w_third * delz);
 
     fx += force_total_x;
     fy += force_total_y;
@@ -966,15 +1001,16 @@ void ADP::compute(
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
   const int* neighbor_shift_ptr = nullptr;
   const int* type_ptr = type.data();
-  
+
   {
     int nbins[3];
     bool small_box = box.get_num_bins(0.5 * adp_data.rc, nbins);
-    
+
     // Use O(N) cell list for normal boxes, O(N^2) brute force when rc > 0.5*box_size
-    const int max_neighbors = number_of_atoms > 0 ? adp_data.NL.size() / number_of_atoms : ADP_MAX_NEIGHBORS;
+    const int max_neighbors =
+      number_of_atoms > 0 ? adp_data.NL.size() / number_of_atoms : ADP_MAX_NEIGHBORS;
     neighbor_shift_ptr = nullptr;
-    
+
     if (!small_box) {
       find_neighbor(
         N1,
@@ -1000,7 +1036,9 @@ void ADP::compute(
         N1,
         N2,
         adp_data.rc * adp_data.rc,
-        gx, gy, gz,
+        gx,
+        gy,
+        gz,
         adp_data.NN.data(),
         adp_data.NL.data(),
         adp_data.NL_shift.data(),
@@ -1010,12 +1048,12 @@ void ADP::compute(
     }
   }
 
+  // Zero only internal accumulators needed for this step; top-level framework already zeroed
+  // force/potential/virial.
+  adp_data.mu.fill(0.0);     // size 3N
+  adp_data.lambda.fill(0.0); // size 6N
+  adp_data.Fp.fill(0.0);     // size N
 
-  // Zero only internal accumulators needed for this step; top-level framework already zeroed force/potential/virial.
-  adp_data.mu.fill(0.0);      // size 3N
-  adp_data.lambda.fill(0.0);  // size 6N
-  adp_data.Fp.fill(0.0);      // size N
-  
   // Step 1: Calculate density, embedding energy, and angular terms
   find_force_adp_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms,
@@ -1059,7 +1097,7 @@ void ADP::compute(
     adp_data.lambda.data(),
     potential_per_atom.data());
   GPU_CHECK_KERNEL
-  
+
   // Step 2: Calculate forces
   find_force_adp_step2<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms,

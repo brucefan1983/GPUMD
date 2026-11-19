@@ -20,9 +20,9 @@
 #include <string>
 #include <vector>
 #ifdef USE_HIP
-  #include <hiprand/hiprand_kernel.h>
+#include <hiprand/hiprand_kernel.h>
 #else
-  #include <curand_kernel.h>
+#include <curand_kernel.h>
 #endif
 
 class Ensemble_NPT_QTB : public Ensemble_MTTK
