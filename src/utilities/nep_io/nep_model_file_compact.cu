@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "nep_model_file.cuh"
 #include <algorithm>
 
@@ -27,9 +32,7 @@ static int triangular_pair_index(int type1, int type2, int num_types)
 }
 
 bool NEP_Model_File::compact(
-  const std::vector<std::string>& active_species,
-  NEP_File& document,
-  std::string& error) const
+  const std::vector<std::string>& active_species, NEP_File& document, std::string& error) const
 {
   error.clear();
   std::vector<int> active_to_full;
@@ -101,7 +104,8 @@ void NEP_Model_File::compact_parameters(
           for (int t2 : active_to_full) {
             const int offset = start + (t1 * num_types + t2) * basis_count;
             values.insert(
-              values.end(), block.values.begin() + offset,
+              values.end(),
+              block.values.begin() + offset,
               block.values.begin() + offset + basis_count);
           }
         }

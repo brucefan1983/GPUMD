@@ -25,7 +25,8 @@ public:
     const int number_of_atoms,
     const int number_of_steps,
     const double force_tolerance)
-    : Minimizer(fixed_group, fixed_grouping_method, number_of_atoms, number_of_steps, force_tolerance)
+    : Minimizer(
+        fixed_group, fixed_grouping_method, number_of_atoms, number_of_steps, force_tolerance)
   {
   }
 

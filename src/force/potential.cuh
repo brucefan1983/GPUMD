@@ -21,12 +21,11 @@
 class Potential
 {
 public:
-
   int N1;
   int N2;
-  double rc; // maximum cutoff distance
+  double rc;               // maximum cutoff distance
   int nep_model_type = -1; // -1 for non-NEP, 0 for potential, 3 for temperature
-  int ilp_flag = 0; // 0 for non_ilp, 1 for ilp
+  int ilp_flag = 0;        // 0 for non_ilp, 1 for ilp
   Potential(void);
   virtual ~Potential(void);
 
@@ -45,7 +44,9 @@ public:
     const GPU_Vector<double>& /* position */,
     GPU_Vector<double>& /* potential */,
     GPU_Vector<double>& /* force */,
-    GPU_Vector<double>& /* virial */){}
+    GPU_Vector<double>& /* virial */)
+  {
+  }
 
   // add group message for ILPs
   virtual void compute_ilp(
@@ -55,7 +56,9 @@ public:
     GPU_Vector<double>& /* potential */,
     GPU_Vector<double>& /* force */,
     GPU_Vector<double>& /* virial */,
-    const std::vector<Group>& /* group */){}
+    const std::vector<Group>& /* group */)
+  {
+  }
 
   virtual const GPU_Vector<int>& get_NN_radial_ptr()
   {

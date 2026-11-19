@@ -16,8 +16,8 @@
 #ifdef USE_NETCDF
 
 #pragma once
-#include "measure/parse_utilities.cuh"
 #include "measure/action.cuh"
+#include "measure/parse_utilities.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>
@@ -33,8 +33,7 @@ public:
     const std::vector<Group>& groups,
     Atom& atom,
     bool is_nep_charge);
-  void parse(
-    const std::vector<std::string>& tokens, const std::vector<Group>& groups);
+  void parse(const std::vector<std::string>& tokens, const std::vector<Group>& groups);
   virtual void pre_run(
     const int number_of_steps,
     const double time_step,
@@ -72,9 +71,9 @@ private:
   int grouping_method_ = -1;
   int group_id_ = 0;
   int interval_ = 1;
-  int precision_ = 1;          // 1 = single precision, 2 = double
+  int precision_ = 1;                   // 1 = single precision, 2 = double
   bool use_unwrapped_position_ = false; // coordinates written in the coordinates variable
-  int compression_level_ = -1; // -1 = classic NetCDF, 0-9 = NetCDF4 deflate
+  int compression_level_ = -1;          // -1 = classic NetCDF, 0-9 = NetCDF4 deflate
   int number_of_atoms_to_dump_ = 0;
   int number_of_atoms_ = 0;
   int number_of_grouping_methods_ = 0;

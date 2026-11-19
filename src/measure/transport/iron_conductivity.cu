@@ -16,11 +16,14 @@
 /*-----------------------------------------------------------------------------------------------100
 Calculate:
     Ionic conductivity using the Einstein relation, based on the mean squared displacement.
+
+Major contributors:
+  Benrui Tang: Initial implementation.
 --------------------------------------------------------------------------------------------------*/
 
-#include "model/group.cuh"
 #include "iron_conductivity.cuh"
 #include "measure/parse_utilities.cuh"
+#include "model/group.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -109,41 +112,41 @@ __global__ void gpu_find_msd(
     }
   }
 }
-} //namespace
+} // namespace
 
 void IC::pre_run(
   const int number_of_steps,
   const double time_step,
   Integrate& integrate,
-  std::vector<Group>& groups, 
+  std::vector<Group>& groups,
   Atom& atom,
   Box& box,
   Force& force)
 {
   if (!compute_)
     return;
-  
+
   if (num_correlation_steps_ > number_of_steps / sample_interval_) {
     PRINT_INPUT_ERROR("Correlation times sampling interval should be <= number of MD steps.\n");
   }
-    
+
   std::vector<int> temp_list;
   temp_list.reserve(atom.number_of_atoms);
-  
+
   for (int i = 0; i < atom.number_of_atoms; ++i) {
     if (atom.cpu_type[i] == target_type_) {
       temp_list.push_back(i);
     }
   }
-  
+
   num_atoms_ = temp_list.size();
   if (num_atoms_ == 0) {
     PRINT_INPUT_ERROR("No atoms found for the specified type.\n");
   }
-  
+
   type_atom_list_.resize(num_atoms_);
   type_atom_list_.copy_from_host(temp_list.data());
-  
+
   dt_in_natural_units_ = time_step * sample_interval_;
   dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
   x_.resize(num_atoms_ * num_correlation_steps_);
@@ -166,7 +169,7 @@ void IC::end_of_step(
   const double temperature,
   Integrate& integrate,
   Box& box,
-  std::vector<Group>& groups, 
+  std::vector<Group>& groups,
   GPU_Vector<double>& thermo,
   Atom& atom,
   Force& force)
@@ -184,7 +187,7 @@ void IC::end_of_step(
 
   gpu_copy_position<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
     num_atoms_,
-    type_atom_list_.data(), 
+    type_atom_list_.data(),
     atom.unwrapped_position.data(),
     atom.unwrapped_position.data() + number_of_atoms_total,
     atom.unwrapped_position.data() + 2 * number_of_atoms_total,
@@ -215,15 +218,16 @@ void IC::end_of_step(
 void IC::write(const char* filename)
 {
   CHECK(gpuDeviceSynchronize());
-  
+
   std::vector<double> ic_x(num_correlation_steps_, 0.0);
   std::vector<double> ic_y(num_correlation_steps_, 0.0);
   std::vector<double> ic_z(num_correlation_steps_, 0.0);
 
   double factor = 0.0;
   if (num_time_origins_ > 0) {
-    factor = charge_ * charge_ * 1.602176634e7 * 0.5 / 
-            (TIME_UNIT_CONVERSION * volume_ * K_B * temperature_ * num_time_origins_ * dt_in_natural_units_);
+    factor = charge_ * charge_ * 1.602176634e7 * 0.5 /
+             (TIME_UNIT_CONVERSION * volume_ * K_B * temperature_ * num_time_origins_ *
+              dt_in_natural_units_);
   }
 
   for (int nc = 1; nc < num_correlation_steps_; nc++) {
@@ -234,11 +238,7 @@ void IC::write(const char* filename)
 
   FILE* fid = fopen(filename, "a");
   for (int nc = 0; nc < num_correlation_steps_; nc++) {
-    fprintf(fid, "%g %g %g %g\n",
-      nc * dt_in_ps_,
-      ic_x[nc],
-      ic_y[nc],
-      ic_z[nc]);
+    fprintf(fid, "%g %g %g %g\n", nc * dt_in_ps_, ic_x[nc], ic_y[nc], ic_z[nc]);
   }
   fflush(fid);
   fclose(fid);

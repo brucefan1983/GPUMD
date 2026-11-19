@@ -8,12 +8,17 @@
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details. You should have received a copy of the GNU Lesser General
-   Public License along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details. You should have received a copy of the GNU
+   Lesser General Public License along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
 Run active learning on-the-fly during MD
+
+Major contributors:
+  Eric Lindgren: Initial implementation.
+  Daniel Hedman: Per-atom force-uncertainty output.
+  Paul Erhart: Stable force uncertainty without changing the MD state.
 --------------------------------------------------------------------------------------------------*/
 
 #include "active.cuh"

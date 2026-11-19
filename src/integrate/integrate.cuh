@@ -80,19 +80,10 @@ public:
     const GPU_Vector<double>& velocity_per_atom,
     const GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& thermo);
-  void set_deform(
-    int deform_x,
-    int deform_y,
-    int deform_z,
-    int deform_xy,
-    int deform_xz,
-    int deform_yz);
+  void
+  set_deform(int deform_x, int deform_y, int deform_z, int deform_xy, int deform_xz, int deform_yz);
 
-  void initialize(
-    double time_step,
-    Atom& atom,
-    Box& box,
-    const std::vector<Group>& group);
+  void initialize(double time_step, Atom& atom, Box& box, const std::vector<Group>& group);
 
   void finalize(const Atom& atom, const Box& box);
 

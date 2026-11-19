@@ -13,6 +13,12 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Shuning Pan: Initial implementation.
+  Chengbing Chen: Replication of atomic spins.
+------------------------------------------------------------------------------*/
+
 #include "replicate.cuh"
 #include "utilities/gpu_macro.cuh"
 
@@ -31,11 +37,7 @@ void parse_replicate(const std::vector<std::string>& tokens, int r[3])
   }
 }
 
-void Replicate(
-  const int r[3],
-  Box& box,
-  Atom& atoms,
-  std::vector<Group>& groups)
+void Replicate(const int r[3], Box& box, Atom& atoms, std::vector<Group>& groups)
 {
   // repeat atom and group
   Atom new_atoms;

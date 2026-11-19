@@ -15,14 +15,13 @@
 
 #pragma once
 #include "ensemble.cuh"
-#include <string>
 #include <random>
+#include <string>
 
 class Ensemble_BDP : public Ensemble
 {
 public:
-  Ensemble_BDP(
-    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  Ensemble_BDP(const std::vector<std::string>& tokens, const std::vector<Group>& group);
 
   double get_temperature1() const;
   double get_temperature2() const;
@@ -77,10 +76,8 @@ protected:
     GPU_Vector<double>& velocity_per_atom);
 
 private:
-  void parse(
-    const std::vector<std::string>& tokens, const std::vector<Group>& group);
-  void parse_heat_groups(
-    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void parse(const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  void parse_heat_groups(const std::vector<std::string>& tokens, const std::vector<Group>& group);
 
   double temperature1_ = 0.0;
   double temperature2_ = 0.0;

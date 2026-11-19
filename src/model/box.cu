@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The class defining the simulation box.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "box.cuh"
@@ -110,7 +113,8 @@ bool Box::get_num_bins(const double rc, int num_bins[])
 
 void Box::set_is_orthogonal()
 {
-  is_orthogonal = cpu_h[1] == 0 && cpu_h[2] == 0 && cpu_h[3] == 0 && cpu_h[5] == 0 && cpu_h[6] == 0 && cpu_h[7] == 0;
+  is_orthogonal = cpu_h[1] == 0 && cpu_h[2] == 0 && cpu_h[3] == 0 && cpu_h[5] == 0 &&
+                  cpu_h[6] == 0 && cpu_h[7] == 0;
   for (int d = 0; d < 18; ++d) {
     float_h[d] = cpu_h[d];
   }

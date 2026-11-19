@@ -160,10 +160,7 @@ public:
   }
 
   // copy data to host with the default size
-  void copy_to_host(T* h_data)
-  {
-    CHECK(gpuMemcpy(h_data, data_, memory_, gpuMemcpyDeviceToHost));
-  }
+  void copy_to_host(T* h_data) { CHECK(gpuMemcpy(h_data, data_, memory_, gpuMemcpyDeviceToHost)); }
 
   // copy data to host with a given size
   void copy_to_host(T* h_data, const size_t size)

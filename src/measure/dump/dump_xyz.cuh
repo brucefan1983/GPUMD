@@ -14,8 +14,8 @@
 */
 
 #pragma once
-#include "measure/parse_utilities.cuh"
 #include "measure/action.cuh"
+#include "measure/parse_utilities.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "xyz_frame_splitter.cuh"
 #include <string>
@@ -69,7 +69,7 @@ private:
   int grouping_method_ = -1;
   int group_id_ = -1;
   int dump_interval_ = 1;
-  int precision_ = 1; // 1 = single precision, 2 = double
+  int precision_ = 1;                   // 1 = single precision, 2 = double
   bool use_unwrapped_position_ = false; // coordinates written in the pos columns
   DumpQuantities quantities;
   bool has_spin_ = false;

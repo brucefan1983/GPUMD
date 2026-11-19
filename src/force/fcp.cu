@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The force constant potential (FCP)
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "fcp.cuh"

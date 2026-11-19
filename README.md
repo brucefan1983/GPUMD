@@ -108,6 +108,10 @@ Use [GitHub Discussions](https://github.com/brucefan1983/GPUMD/discussions) or t
 
 For a bug report, include the GPUMD version or commit, operating system, GPU model, toolkit and compiler versions, relevant input files, and the error output. A small reproducing example helps isolate the problem.
 
+Contributors must use GPUMD regularly. We encourage new contributors to develop features they need in their own work. We discourage using automated scans of the repository to look for potential defects to patch.
+
+For an existing module, we prefer its lead developer to implement bug fixes and performance improvements. If you find a problem in a module led by another contributor, please report it with a reproducing example so the maintainers can coordinate with that developer.
+
 Before starting work, contributors must propose the change in a GitHub issue or discussion and agree with the maintainers on its scope and how it fits the development plan. **Pull requests outside the agreed development plan are generally not accepted.** See [AGENTS.md](AGENTS.md) for development and validation requirements, including for AI-assisted contributions.
 
 ## Citations

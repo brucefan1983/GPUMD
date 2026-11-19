@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 Split a run.in file into sub-run input files according to the deposition
 keyword and perform deposition between consecutive sub-runs.
+
+Major contributors:
+  Benrui Tang: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "deposition.cuh"
@@ -153,8 +156,8 @@ void Deposition::copy_file(const std::string& in_file, const std::string& out_fi
   out << in.rdbuf();
 }
 
-static int get_deposit_atom_type(
-  const std::string& token, const std::vector<std::string>& atom_symbols)
+static int
+get_deposit_atom_type(const std::string& token, const std::vector<std::string>& atom_symbols)
 {
   int atom_type = 0;
   if (is_valid_int(token.c_str(), &atom_type)) {
@@ -283,7 +286,8 @@ void Deposition::parse_deposition(const std::vector<std::string>& tokens)
 
     if (direction < 0) {
       if (idx != num_param) {
-        PRINT_INPUT_ERROR("deposit file mode with direction=-1 should not have parameters after the file name.\n");
+        PRINT_INPUT_ERROR(
+          "deposit file mode with direction=-1 should not have parameters after the file name.\n");
       }
       has_file_velocity = false;
     } else {
@@ -296,7 +300,8 @@ void Deposition::parse_deposition(const std::vector<std::string>& tokens)
       has_file_velocity = true;
       ++idx;
       if (idx != num_param) {
-        PRINT_INPUT_ERROR("deposit file mode should not have extra parameters after the velocity.\n");
+        PRINT_INPUT_ERROR(
+          "deposit file mode should not have extra parameters after the velocity.\n");
       }
     }
     read_file_atoms();
@@ -329,8 +334,8 @@ static std::vector<std::pair<std::string, int>> get_property_list(const std::str
   return properties;
 }
 
-static int find_property(
-  const std::vector<std::pair<std::string, int>>& properties, const std::string& name)
+static int
+find_property(const std::vector<std::pair<std::string, int>>& properties, const std::string& name)
 {
   for (const auto& property : properties) {
     if (property.first == name) {
@@ -415,15 +420,16 @@ void Deposition::read_file_atoms()
   std::string raw_line;
   while (std::getline(input, raw_line)) {
     const size_t comment_pos = raw_line.find('#');
-    const std::string line = (comment_pos == std::string::npos) ? raw_line : raw_line.substr(0, comment_pos);
+    const std::string line =
+      (comment_pos == std::string::npos) ? raw_line : raw_line.substr(0, comment_pos);
     std::vector<std::string> tokens = get_tokens(line);
     if (tokens.empty()) {
       continue;
     }
 
     if (tokens.size() != 7 && tokens.size() != 8) {
-      PRINT_INPUT_ERROR(
-        "deposit file should have 7 columns: element x y z vx vy vz (plus an optional mass column).\n");
+      PRINT_INPUT_ERROR("deposit file should have 7 columns: element x y z vx vy vz (plus an "
+                        "optional mass column).\n");
     }
 
     FileAtom fa;
@@ -475,7 +481,8 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
 
   const std::vector<std::pair<std::string, int>> properties = get_property_list(comment_line);
   if (properties.empty()) {
-    PRINT_INPUT_ERROR("deposit requires the Properties field in the second line of the xyz file.\n");
+    PRINT_INPUT_ERROR(
+      "deposit requires the Properties field in the second line of the xyz file.\n");
   }
   const int num_group_methods = find_property(properties, "group");
   const bool has_group = num_group_methods > 0;
@@ -561,44 +568,45 @@ void Deposition::deposit(const std::string& input_xyz, const std::string& output
     return has_height_range ? height_min + dist01(rng) * (height_max - height_min) : height_min;
   };
 
-  auto add_atom_line = [&](int atom_type, const double pos[3], const double vel[3],
-                           const double mass) {
-    if (atom_type >= int(atom_symbols.size())) {
-      PRINT_INPUT_ERROR("deposit atom_type exceeds the number of atom types in the potential file.\n");
-    }
-    const std::string symbol = atom_symbols[atom_type];
-
-    std::ostringstream atom_line;
-    atom_line << std::setprecision(10);
-
-    for (size_t p = 0; p < properties.size(); ++p) {
-      const std::string& name = properties[p].first;
-      const int length = properties[p].second;
-      const char* sep = (p == 0) ? "" : " ";
-      if (name == "species") {
-        atom_line << sep << symbol;
-      } else if (name == "pos") {
-        for (int d = 0; d < 3; ++d) {
-          atom_line << ((p == 0 && d == 0) ? "" : " ") << pos[d];
-        }
-      } else if (name == "mass") {
-        atom_line << sep << ((mass > 0.0) ? mass : MASS_TABLE.at(symbol));
-      } else if (name == "vel") {
-        for (int d = 0; d < 3; ++d) {
-          atom_line << ((p == 0 && d == 0) ? "" : " ") << vel[d];
-        }
-      } else if (name == "group") {
-        for (int g = 0; g < length; ++g) {
-          atom_line << ((p == 0 && g == 0) ? "" : " ") << deposited_groups[g];
-        }
-      } else {
-        const std::string error =
-          "deposit does not support the '" + name + "' property in the xyz file.";
-        PRINT_INPUT_ERROR(error.c_str());
+  auto add_atom_line =
+    [&](int atom_type, const double pos[3], const double vel[3], const double mass) {
+      if (atom_type >= int(atom_symbols.size())) {
+        PRINT_INPUT_ERROR(
+          "deposit atom_type exceeds the number of atom types in the potential file.\n");
       }
-    }
-    out << atom_line.str() << "\n";
-  };
+      const std::string symbol = atom_symbols[atom_type];
+
+      std::ostringstream atom_line;
+      atom_line << std::setprecision(10);
+
+      for (size_t p = 0; p < properties.size(); ++p) {
+        const std::string& name = properties[p].first;
+        const int length = properties[p].second;
+        const char* sep = (p == 0) ? "" : " ";
+        if (name == "species") {
+          atom_line << sep << symbol;
+        } else if (name == "pos") {
+          for (int d = 0; d < 3; ++d) {
+            atom_line << ((p == 0 && d == 0) ? "" : " ") << pos[d];
+          }
+        } else if (name == "mass") {
+          atom_line << sep << ((mass > 0.0) ? mass : MASS_TABLE.at(symbol));
+        } else if (name == "vel") {
+          for (int d = 0; d < 3; ++d) {
+            atom_line << ((p == 0 && d == 0) ? "" : " ") << vel[d];
+          }
+        } else if (name == "group") {
+          for (int g = 0; g < length; ++g) {
+            atom_line << ((p == 0 && g == 0) ? "" : " ") << deposited_groups[g];
+          }
+        } else {
+          const std::string error =
+            "deposit does not support the '" + name + "' property in the xyz file.";
+          PRINT_INPUT_ERROR(error.c_str());
+        }
+      }
+      out << atom_line.str() << "\n";
+    };
 
   if (has_file) {
     for (const auto& fa : file_atoms) {
@@ -665,8 +673,7 @@ void Deposition::initialize(const RunInput& run_input)
 
 RunInput Deposition::prepare_subrun(int run_idx)
 {
-  printf(
-    "Running sub-run %d / %d.\n", run_idx + 1, num_subruns);
+  printf("Running sub-run %d / %d.\n", run_idx + 1, num_subruns);
   fflush(stdout);
 
   std::ofstream out("run.in");
@@ -684,7 +691,7 @@ RunInput Deposition::prepare_subrun(int run_idx)
   }
 
   if (run_idx > 0) {
-    const int previous_index = has_vel ? run_idx: (run_idx - 1);
+    const int previous_index = has_vel ? run_idx : (run_idx - 1);
     std::string previous_xyz = "deposited_" + std::to_string(previous_index) + ".xyz";
     deposit(previous_xyz, "model.xyz");
   }
@@ -692,7 +699,4 @@ RunInput Deposition::prepare_subrun(int run_idx)
   return RunInput(subrun_lines[run_idx]);
 }
 
-bool Deposition::has_deposition(const RunInput& run_input)
-{
-  return run_input.contains("deposit");
-}
+bool Deposition::has_deposition(const RunInput& run_input) { return run_input.contains("deposit"); }

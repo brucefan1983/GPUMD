@@ -15,9 +15,9 @@
 
 #pragma once
 #include "action.cuh"
-#include "utilities/gpu_vector.cuh"
 #include "force/ewald.cuh"
 #include "force/pppm.cuh"
+#include "utilities/gpu_vector.cuh"
 
 class Compute_es : public Action
 {
@@ -36,18 +36,18 @@ public:
     Force& force);
 
   virtual void end_of_step(
-      const int number_of_steps,
-      int step,
-      const int fixed_group,
-      const int move_group,
-      const double global_time,
-      const double temperature,
-      Integrate& integrate,
-      Box& box,
-      std::vector<Group>& group,
-      GPU_Vector<double>& thermo,
-      Atom& atom,
-      Force& force);
+    const int number_of_steps,
+    int step,
+    const int fixed_group,
+    const int move_group,
+    const double global_time,
+    const double temperature,
+    Integrate& integrate,
+    Box& box,
+    std::vector<Group>& group,
+    GPU_Vector<double>& thermo,
+    Atom& atom,
+    Force& force);
 
   virtual void post_run(
     Atom& atom,
@@ -74,7 +74,7 @@ private:
   int num_kpoints_max = 1;
   int num_kpoints = 1;
   float rc = 10.0f;
-  float alpha = 0.5f; // 1 / (2 Angstrom)
+  float alpha = 0.5f;        // 1 / (2 Angstrom)
   float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
   float two_alpha_over_sqrt_pi;
   GPU_Vector<float> kx;

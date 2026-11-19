@@ -20,9 +20,7 @@ class EnhancedSamplingBias
 {
 public:
   EnhancedSamplingBias(
-    const std::string& name,
-    const std::string& argument_name,
-    const int argument_index)
+    const std::string& name, const std::string& argument_name, const int argument_index)
     : name_(name), argument_name_(argument_name), argument_index_(argument_index)
   {
   }

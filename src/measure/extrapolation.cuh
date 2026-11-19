@@ -20,11 +20,11 @@
 #else
 #include <cublas_v2.h>
 #endif
+#include "action.cuh"
 #include "force/force.cuh"
-#include "nep_extrapolation.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
-#include "action.cuh"
+#include "nep_extrapolation.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"

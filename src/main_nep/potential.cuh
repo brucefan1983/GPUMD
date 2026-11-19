@@ -21,8 +21,7 @@
 #include <vector>
 class Parameters;
 
-struct TrainingReport
-{
+struct TrainingReport {
   int generation;
   int batch;
   float total;
@@ -37,8 +36,8 @@ class Potential
 public:
   virtual ~Potential() = default;
   virtual Parameters& get_parameters() = 0;
-  virtual void initialize_parameters(
-    std::mt19937& rng, std::vector<float>& mu, std::vector<float>& sigma) = 0;
+  virtual void
+  initialize_parameters(std::mt19937& rng, std::vector<float>& mu, std::vector<float>& sigma) = 0;
   virtual void parameter_groups(std::vector<int>& groups) = 0;
   virtual void read_model(float* parameters) = 0;
   virtual void write_restart(

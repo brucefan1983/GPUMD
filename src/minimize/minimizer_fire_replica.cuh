@@ -56,8 +56,8 @@ public:
     GPU_Vector<double>& position_per_atom,
     std::vector<Group>& group) override;
 
-  Result compute(
-    Replica_Force& force, Box& box, Atom& atom, const gpuStream_t stream, const bool verbose);
+  Result
+  compute(Replica_Force& force, Box& box, Atom& atom, const gpuStream_t stream, const bool verbose);
 
 private:
   const double f_inc = 1.1;
@@ -74,13 +74,14 @@ private:
   GPU_Vector<double> scalar_result_;
   GPU_Pinned_Vector<double> host_scalar_;
 
-  double dot(
-    const GPU_Vector<double>& first, const GPU_Vector<double>& second, gpuStream_t stream);
+  double dot(const GPU_Vector<double>& first, const GPU_Vector<double>& second, gpuStream_t stream);
   double sum(const GPU_Vector<double>& input, gpuStream_t stream);
   double max_square(const GPU_Vector<double>& input, gpuStream_t stream);
   double scalar_to_host(gpuStream_t stream);
   void scalar_multiply(
-    const double factor, const GPU_Vector<double>& input, GPU_Vector<double>& output,
+    const double factor,
+    const GPU_Vector<double>& input,
+    GPU_Vector<double>& output,
     gpuStream_t stream);
   void vector_sum(
     const GPU_Vector<double>& first,

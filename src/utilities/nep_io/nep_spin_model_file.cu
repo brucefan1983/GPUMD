@@ -12,6 +12,12 @@
     You should have received a copy of the GNU Lesser General Public License
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
+
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Chengbing Chen: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "force/nep_spin/spin_layout.cuh"
 #include "nep_file.cuh"
 #include "nep_spin_model_file.cuh"

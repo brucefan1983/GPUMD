@@ -18,19 +18,23 @@ The neuroevolution potential (NEP)
 Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Zaixu Duan: Additional four-body NEP descriptors.
 ------------------------------------------------------------------------------*/
 
 #include "nep_energy.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
-#include "utilities/nep_io/nep_model_file.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_io/nep_model_file.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <cstring>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
@@ -72,7 +76,8 @@ void NEP_Energy::initialize(const char* file_potential)
       }
     }
     zbl.atomic_numbers[n] = atomic_number;
-    printf("        type %d (%s with Z = %d).\n", n, model.elements[n].c_str(), zbl.atomic_numbers[n]);
+    printf(
+      "        type %d (%s with Z = %d).\n", n, model.elements[n].c_str(), zbl.atomic_numbers[n]);
   }
 
   zbl.enabled = model.enable_zbl;
@@ -85,7 +90,8 @@ void NEP_Energy::initialize(const char* file_potential)
     if (zbl.flexible) {
       printf("    has the flexible ZBL potential\n");
     } else if (paramb.use_typewise_cutoff_zbl) {
-      printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
+      printf(
+        "    has the universal ZBL with typewise cutoff with a factor of %g.\n",
         paramb.typewise_cutoff_zbl_factor);
     } else {
       printf(
@@ -152,8 +158,10 @@ void NEP_Energy::initialize(const char* file_potential)
   printf("        ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
   annmb.num_para = model.layout.number_of_variables;
-  printf("        number of neural network parameters = %d.\n", model.layout.number_of_variables_ann);
-  printf("        number of descriptor parameters = %d.\n", model.layout.number_of_variables_descriptor);
+  printf(
+    "        number of neural network parameters = %d.\n", model.layout.number_of_variables_ann);
+  printf(
+    "        number of descriptor parameters = %d.\n", model.layout.number_of_variables_descriptor);
   printf("        total number of parameters = %d.\n", annmb.num_para);
 
   paramb.num_c_radial =
@@ -275,8 +283,18 @@ static __global__ void find_energy_nep(
         }
         accumulate_s(paramb.L_max, d12, r12[0], r12[1], r12[2], gn12, s);
       }
-      find_q(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
-        paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q(
+        paramb.L_max,
+        paramb.has_q_222,
+        paramb.has_q_1111,
+        paramb.has_q_112,
+        paramb.has_q_123,
+        paramb.has_q_233,
+        paramb.has_q_134,
+        paramb.n_max_angular + 1,
+        n,
+        s,
+        q + (paramb.n_max_radial + 1));
     }
 
     // normalize descriptor

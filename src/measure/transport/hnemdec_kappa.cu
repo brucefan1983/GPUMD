@@ -19,6 +19,9 @@ Reference:
 [1] Z. Fan, H. Dong, A. Harju, T. Ala-Nissila, Homogeneous nonequilibrium
 molecular dynamics method for heat transport and spectral decomposition
 with many-body potentials, Phys. Rev. B 99, 064308 (2019).
+
+Major contributors:
+  Zhixin Liang: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "compute_heat.cuh"
@@ -47,8 +50,7 @@ void HNEMDEC::pre_run(
 
   number_of_types = atom.cpu_type_size.size();
   if (compute > number_of_types) {
-    PRINT_INPUT_ERROR(
-      "compute for HNEMDEC should be an integer between 0 and number_of_types.\n");
+    PRINT_INPUT_ERROR("compute for HNEMDEC should be an integer between 0 and number_of_types.\n");
   }
 
   heat_all.resize(NUM_OF_HEAT_COMPONENTS * output_interval);
@@ -108,10 +110,8 @@ void HNEMDEC::pre_run(
     coefficient_.resize(number_of_types);
     coefficient_.copy_from_host(cpu_coefficient.data());
 
-    FACTOR =
-      N *
-      (1.0 / partial_mass +
-       1.0 / (atom.cpu_type_size[element_index] * cpu_mass_type[element_index]));
+    FACTOR = N * (1.0 / partial_mass +
+                  1.0 / (atom.cpu_type_size[element_index] * cpu_mass_type[element_index]));
     FACTOR = 1.0 / FACTOR;
   }
 }
@@ -276,7 +276,6 @@ static __global__ void gpu_sum_heat_and_diffusion(
     }
     __syncthreads();
 
-
     for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
       if (tid < offset) {
         s_data[tid] += s_data[tid + offset];
@@ -299,7 +298,6 @@ static __global__ void gpu_sum_heat_and_diffusion(
       }
     }
     __syncthreads();
-
 
     for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
       if (tid < offset) {
@@ -409,10 +407,10 @@ void HNEMDEC::end_of_step(
   const int N = atom.number_of_atoms;
 
   compute_heat(
-    atom.mass, 
-    atom.potential_per_atom, 
-    atom.virial_per_atom, 
-    atom.velocity_per_atom, 
+    atom.mass,
+    atom.potential_per_atom,
+    atom.virial_per_atom,
+    atom.velocity_per_atom,
     atom.heat_per_atom);
 
   gpu_sum_heat_and_diffusion<<<NUM_OF_HEAT_COMPONENTS + NUM_OF_DIFFUSION_COMPONENTS, 1024>>>(
@@ -485,7 +483,10 @@ void HNEMDEC::post_run(
   Integrate& integrate,
   const int number_of_steps,
   const double time_step,
-  const double temperature) { compute = -1; }
+  const double temperature)
+{
+  compute = -1;
+}
 
 HNEMDEC::HNEMDEC(const std::vector<std::string>& tokens)
 {
@@ -508,8 +509,7 @@ void HNEMDEC::parse(const std::vector<std::string>& tokens)
   }
 
   if (compute < 0) {
-    PRINT_INPUT_ERROR(
-      "compute for HNEMDEC should be an integer between 0 and number_of_types.\n");
+    PRINT_INPUT_ERROR("compute for HNEMDEC should be an integer between 0 and number_of_types.\n");
   }
 
   if (!is_valid_int(tokens[2], &output_interval)) {

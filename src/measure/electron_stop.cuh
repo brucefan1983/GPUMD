@@ -23,10 +23,7 @@
 class Electron_Stop : public Action
 {
 public:
-  Electron_Stop(
-    const std::vector<std::string>& tokens,
-    const int num_atoms,
-    const int num_types);
+  Electron_Stop(const std::vector<std::string>& tokens, const int num_atoms, const int num_types);
 
   void setup_force(
     const double time_step,
@@ -44,7 +41,6 @@ public:
     Atom& atom,
     Box& box,
     Force& force) override;
-
 
   void end_of_step(
     const int number_of_steps,

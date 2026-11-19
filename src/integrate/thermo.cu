@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Calculate global thermodynamic properties from basic per-atom data.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "thermo.cuh"

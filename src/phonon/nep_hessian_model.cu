@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Xi Wang: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "nep_hessian_model.cuh"
 #include "utilities/error.cuh"
 #include "utilities/nep_io/nep_model_file.cuh"
@@ -21,7 +26,8 @@
 #include <fstream>
 #include <string>
 
-namespace {
+namespace
+{
 // Atomic numbers are needed only for the ZBL pair potential.
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",  "S",
@@ -87,11 +93,11 @@ void NEP_Hessian_Model::initialize(const char* file_potential)
   paramb.has_q_123 = model.has_q_123;
   paramb.has_q_233 = model.has_q_233;
   paramb.has_q_134 = model.has_q_134;
-  paramb.num_L = model.L_max + model.has_q_222 + model.has_q_1111 +
-    model.has_q_112 + model.has_q_123 + model.has_q_233 + model.has_q_134;
+  paramb.num_L = model.L_max + model.has_q_222 + model.has_q_1111 + model.has_q_112 +
+                 model.has_q_123 + model.has_q_233 + model.has_q_134;
   paramb.dim_angular = model.layout.dim_angular;
-  paramb.num_c_radial = paramb.num_types_sq * (model.n_max_radial + 1) *
-    (model.basis_size_radial + 1);
+  paramb.num_c_radial =
+    paramb.num_types_sq * (model.n_max_radial + 1) * (model.basis_size_radial + 1);
 
   zbl.enabled = model.enable_zbl;
   zbl.flexible = model.flexible_zbl;

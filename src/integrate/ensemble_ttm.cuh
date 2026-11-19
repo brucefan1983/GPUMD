@@ -28,9 +28,9 @@ References:
 #include "model/group.cuh"
 #include "utilities/gpu_macro.cuh"
 #ifdef USE_HIP
-  #include <hiprand/hiprand_kernel.h>
+#include <hiprand/hiprand_kernel.h>
 #else
-  #include <curand_kernel.h>
+#include <curand_kernel.h>
 #endif
 #include <cstdio>
 #include <string>
@@ -38,8 +38,7 @@ References:
 
 class Atom;
 
-struct TTM_Parameters
-{
+struct TTM_Parameters {
   int grouping_method = 0;
   int group_id = 0;
   double Ce = 0.0;
@@ -116,7 +115,7 @@ private:
 
   double Ce;
   double rho_e;
-  double kappa_e;      // internal conductivity [eV/(fs*K*A)]
+  double kappa_e; // internal conductivity [eV/(fs*K*A)]
   double gamma_p;
   double gamma_s;
   double gamma_p_nat;
@@ -189,9 +188,7 @@ private:
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& velocity_per_atom);
 
-  void accumulate_ttm_power(
-    const std::vector<Group>& group,
-    GPU_Vector<double>& velocity_per_atom);
+  void accumulate_ttm_power(const std::vector<Group>& group, GPU_Vector<double>& velocity_per_atom);
 
   void update_electron_temperature(const double time_step, const int step);
 };

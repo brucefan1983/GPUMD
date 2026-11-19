@@ -13,14 +13,19 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "potential.cuh"
-#include "nep_spin/nep_spin.cuh"
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "main_nep/nep/nep.cuh"
-#include "main_nep/nep_vdw/nep_vdw.cuh"
 #include "main_nep/nep_charge/nep_charge.cuh"
 #include "main_nep/nep_charge_vdw/nep_charge_vdw.cuh"
+#include "main_nep/nep_vdw/nep_vdw.cuh"
 #include "main_nep/tnep/tnep.cuh"
+#include "nep_spin/nep_spin.cuh"
 #include "parameter_input.cuh"
+#include "potential.cuh"
 
 std::unique_ptr<Potential> create_potential()
 {

@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "nep_compile.cuh"
 
 #include <cerrno>
@@ -33,8 +38,7 @@
 
 void warning_nep_compile(const std::string& message)
 {
-  std::cerr << "Warning: NEP training specialization disabled: "
-            << message << std::endl;
+  std::cerr << "Warning: NEP training specialization disabled: " << message << std::endl;
 }
 
 namespace
@@ -82,8 +86,7 @@ std::string get_gpumd_source_dir(const std::string& source_file)
       file_exists(source_dir + "/" + source_file)) {
       return source_dir;
     }
-    warning_nep_compile(
-      "GPUMD_SRC does not point to a valid GPUMD src directory.");
+    warning_nep_compile("GPUMD_SRC does not point to a valid GPUMD src directory.");
     return std::string();
   }
 
@@ -106,9 +109,8 @@ std::string get_gpumd_source_dir(const std::string& source_file)
   if (
     !file_exists(source_dir + "/utilities/nep_utilities.cuh") ||
     !file_exists(source_dir + "/" + source_file)) {
-    warning_nep_compile(
-      "Cannot find runtime-specialization sources next to the nep executable. "
-      "Run nep from the compiled src tree or set GPUMD_SRC.");
+    warning_nep_compile("Cannot find runtime-specialization sources next to the nep executable. "
+                        "Run nep from the compiled src tree or set GPUMD_SRC.");
     return std::string();
   }
   return source_dir;
@@ -152,8 +154,7 @@ bool NEP_Compile::compile(const NEP_Compile_Config& config)
   if (source_dir.empty()) {
     return false;
   }
-  const std::string specialized_file =
-    source_dir + "/" + config.source_file;
+  const std::string specialized_file = source_dir + "/" + config.source_file;
   const std::string config_text = make_nep_compile_config_text(config);
 
   int device_count = 0;
@@ -189,23 +190,19 @@ bool NEP_Compile::compile(const NEP_Compile_Config& config)
   // Runtime specialization is intentionally non-persistent.
   // Prefer TMPDIR supplied by the user/scheduler; fall back to /tmp.
   const char* tmpdir_env = std::getenv("TMPDIR");
-  std::string tmp_base =
-    (tmpdir_env != nullptr && tmpdir_env[0] != '\0') ? tmpdir_env : "/tmp";
+  std::string tmp_base = (tmpdir_env != nullptr && tmpdir_env[0] != '\0') ? tmpdir_env : "/tmp";
   while (tmp_base.size() > 1 && tmp_base.back() == '/') {
     tmp_base.pop_back();
   }
 
-  std::string temp_template =
-    tmp_base + "/gpumd-nep-train-compile-XXXXXX";
-  std::vector<char> temp_buffer(
-    temp_template.begin(), temp_template.end());
+  std::string temp_template = tmp_base + "/gpumd-nep-train-compile-XXXXXX";
+  std::vector<char> temp_buffer(temp_template.begin(), temp_template.end());
   temp_buffer.push_back('\0');
 
   char* temp_dir = mkdtemp(temp_buffer.data());
   if (temp_dir == nullptr) {
     warning_nep_compile(
-      "Cannot create the runtime-specialization temporary directory under " +
-      tmp_base + ".");
+      "Cannot create the runtime-specialization temporary directory under " + tmp_base + ".");
     return false;
   }
 
@@ -226,27 +223,18 @@ bool NEP_Compile::compile(const NEP_Compile_Config& config)
 
   const char* compiler_env = std::getenv("CUDACXX");
   const std::string compiler =
-    (compiler_env != nullptr && compiler_env[0] != '\0')
-      ? compiler_env
-      : "nvcc";
+    (compiler_env != nullptr && compiler_env[0] != '\0') ? compiler_env : "nvcc";
 
   std::ostringstream command;
-  command
-    << shell_quote(compiler)
-    << " -std=c++14 -O3";
+  command << shell_quote(compiler) << " -std=c++14 -O3";
   for (size_t i = 0; i < architectures.size(); ++i) {
-    command
-      << " -gencode=arch=compute_" << architectures[i]
-      << ",code=sm_" << architectures[i];
+    command << " -gencode=arch=compute_" << architectures[i] << ",code=sm_" << architectures[i];
   }
-  command
-    << " -shared -Xcompiler=-fPIC"
-    << " -DNEP_SPECIALIZED_RUNTIME_BUILD"
-    << " -I" << shell_quote(temp_dir_)
-    << " -I" << shell_quote(source_dir)
-    << " " << shell_quote(specialized_file)
-    << " -o " << shell_quote(library_file_)
-    << " > " << shell_quote(log_file_) << " 2>&1";
+  command << " -shared -Xcompiler=-fPIC"
+          << " -DNEP_SPECIALIZED_RUNTIME_BUILD"
+          << " -I" << shell_quote(temp_dir_) << " -I" << shell_quote(source_dir) << " "
+          << shell_quote(specialized_file) << " -o " << shell_quote(library_file_) << " > "
+          << shell_quote(log_file_) << " 2>&1";
 
   printf("Compile specialized %s training kernels (", config.model_name.c_str());
   for (size_t i = 0; i < architectures.size(); ++i) {
@@ -277,28 +265,24 @@ bool NEP_Compile::compile(const NEP_Compile_Config& config)
       std::cerr << log;
     }
     cleanup_files();
-    warning_nep_compile(
-      "nvcc failed while compiling specialized NEP training kernels.");
+    warning_nep_compile("nvcc failed while compiling specialized NEP training kernels.");
     return false;
   }
 
   library_ = dlopen(library_file_.c_str(), RTLD_NOW | RTLD_LOCAL);
   if (library_ == nullptr) {
     const char* error_message = dlerror();
-    const std::string message =
-      (error_message == nullptr) ? "unknown dlopen error" : error_message;
+    const std::string message = (error_message == nullptr) ? "unknown dlopen error" : error_message;
     cleanup_files();
-    warning_nep_compile(
-      "Cannot load the specialized NEP training library: " + message);
+    warning_nep_compile("Cannot load the specialized NEP training library: " + message);
     return false;
   }
 
   typedef int (*InterfaceVersionFunction)();
   InterfaceVersionFunction interface_version = nullptr;
-  if (!load_symbol(
-        "nep_train_specialized_interface_version",
-        interface_version) ||
-      interface_version() != NEP_SPECIALIZED_INTERFACE_VERSION) {
+  if (
+    !load_symbol("nep_train_specialized_interface_version", interface_version) ||
+    interface_version() != NEP_SPECIALIZED_INTERFACE_VERSION) {
     warning_nep_compile("Incompatible NEP specialization interface version.");
     dlclose(library_);
     library_ = nullptr;
@@ -335,25 +319,19 @@ void NEP_Compile::cleanup_files()
 #endif
 }
 
-void check_nep_launch(
-  const int error_code,
-  const char* kernel_name)
+void check_nep_launch(const int error_code, const char* kernel_name)
 {
 #if !defined(USE_HIP) && !defined(_WIN32)
   if (error_code != static_cast<int>(cudaSuccess)) {
-    std::cerr << "Specialized kernel launch failed in "
-              << kernel_name << ": "
-              << cudaGetErrorString(static_cast<cudaError_t>(error_code))
-              << std::endl;
+    std::cerr << "Specialized kernel launch failed in " << kernel_name << ": "
+              << cudaGetErrorString(static_cast<cudaError_t>(error_code)) << std::endl;
     std::exit(1);
   }
 #ifdef STRONG_DEBUG
   const cudaError_t sync_error = cudaDeviceSynchronize();
   if (sync_error != cudaSuccess) {
-    std::cerr << "Specialized kernel execution failed in "
-              << kernel_name << ": "
-              << cudaGetErrorString(sync_error)
-              << std::endl;
+    std::cerr << "Specialized kernel execution failed in " << kernel_name << ": "
+              << cudaGetErrorString(sync_error) << std::endl;
     std::exit(1);
   }
 #endif
@@ -374,8 +352,7 @@ void* NEP_Compile::find_symbol(const char* name)
   const char* error = dlerror();
   if (error != nullptr || function == nullptr) {
     warning_nep_compile(
-      std::string("Cannot find symbol ") + name +
-      " in the specialized NEP library.");
+      std::string("Cannot find symbol ") + name + " in the specialized NEP library.");
     return nullptr;
   }
   return function;

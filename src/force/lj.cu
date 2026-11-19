@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The class dealing with the Lennard-Jones (LJ) pairwise potentials.
+
+Major contributors:
+  Zheyong Fan: Original Lennard-Jones implementation.
 ------------------------------------------------------------------------------*/
 
 #include "lj.cuh"
@@ -64,8 +67,7 @@ LJ::~LJ(void)
 }
 
 // get U_ij and (d U_ij / d r_ij) / r_ij (the LJ potential)
-static __device__ void
-find_p2_and_f2(float s6e4, float s12e4, float d12sq, float& p2, float& f2)
+static __device__ void find_p2_and_f2(float s6e4, float s12e4, float d12sq, float& p2, float& f2)
 {
   float d12inv2 = 1.0f / d12sq;
   float d12inv6 = d12inv2 * d12inv2 * d12inv2;

@@ -22,8 +22,7 @@
 class Add_Force : public Action
 {
 public:
-  Add_Force(
-    const std::vector<std::string>& tokens, const std::vector<Group>& group);
+  Add_Force(const std::vector<std::string>& tokens, const std::vector<Group>& group);
 
   void setup_force(
     const double time_step,

@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "nep_model_file.cuh"
 
 bool NEP_Model_File::read_vdw(
@@ -28,7 +33,6 @@ bool NEP_Model_File::read_vdw(
     return fail(error, name + " supports only one hidden layer.", document.find_field("ann")->line);
   }
   calculate_layout(0, 1, 1, 1);
-  return read_reference(document, fields, error) &&
-         read_zbl(document, fields, blocks, error) &&
+  return read_reference(document, fields, error) && read_zbl(document, fields, blocks, error) &&
          read_parameters(document, blocks, error);
 }

@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The NVE ensemble integrator.
+
+Major contributors:
+  Shuning Pan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_msst.cuh"
@@ -176,10 +179,7 @@ Ensemble_MSST::Ensemble_MSST(const std::vector<std::string>& tokens)
 }
 
 void Ensemble_MSST::find_thermo(
-  const Box& box,
-  const std::vector<Group>& group,
-  const Atom& atom,
-  GPU_Vector<double>& thermo)
+  const Box& box, const std::vector<Group>& group, const Atom& atom, GPU_Vector<double>& thermo)
 {
   Ensemble::find_thermo(
     box.get_volume(),
@@ -197,10 +197,7 @@ void Ensemble_MSST::find_thermo(
 }
 
 void Ensemble_MSST::init(
-  const Box& box,
-  const std::vector<Group>& group,
-  Atom& atom,
-  GPU_Vector<double>& thermo)
+  const Box& box, const std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo)
 {
   if (
     (shock_direction == 0 && !(box.cpu_h[3] == 0 && box.cpu_h[6] == 0)) ||
@@ -252,10 +249,7 @@ void Ensemble_MSST::remap(const double dilation, Box& box, Atom& atom)
 }
 
 void Ensemble_MSST::get_conserved(
-  const Box& box,
-  const std::vector<Group>& group,
-  const Atom& atom,
-  GPU_Vector<double>& thermo)
+  const Box& box, const std::vector<Group>& group, const Atom& atom, GPU_Vector<double>& thermo)
 {
   find_thermo(box, group, atom, thermo);
 
@@ -309,11 +303,7 @@ void Ensemble_MSST::msst_v(Atom& atom)
     dthalf);
 }
 
-void Ensemble_MSST::initialize_run(
-  const double time_step,
-  Atom&,
-  Box&,
-  const std::vector<Group>&)
+void Ensemble_MSST::initialize_run(const double time_step, Atom&, Box&, const std::vector<Group>&)
 {
   initial_time_step = time_step;
 }

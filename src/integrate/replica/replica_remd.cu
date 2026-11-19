@@ -16,12 +16,15 @@
 /*----------------------------------------------------------------------------80
 Temperature replica-exchange molecular dynamics. Each visible GPU owns one
 potential model. Independent replica states on that GPU use separate streams.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
-#include "replica.cuh"
-#include "replica_common.cuh"
 #include "main_gpumd/velocity.cuh"
 #include "model/read_xyz.cuh"
+#include "replica.cuh"
+#include "replica_common.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -43,18 +46,12 @@ using namespace replica;
 
 constexpr double target_acceptance = 0.2;
 constexpr int restart_format_version = 5;
-constexpr const char* exchange_output_marker =
-  "# GPUMD REMD exchange output format 1";
-constexpr const char* status_output_marker =
-  "# GPUMD REMD temperature status output format 1";
-constexpr const char* thermo_output_marker =
-  "# GPUMD REMD thermodynamic output format 1";
+constexpr const char* exchange_output_marker = "# GPUMD REMD exchange output format 1";
+constexpr const char* status_output_marker = "# GPUMD REMD temperature status output format 1";
+constexpr const char* thermo_output_marker = "# GPUMD REMD thermodynamic output format 1";
 
 int next_periodic_event(
-  const int local_step,
-  const int final_local_step,
-  const long long global_step,
-  const int interval)
+  const int local_step, const int final_local_step, const long long global_step, const int interval)
 {
   const long long remainder = global_step % interval;
   const long long steps = remainder == 0 ? interval : interval - remainder;
@@ -80,9 +77,7 @@ struct REMD_Config {
   std::vector<double> betas;
   unsigned int internal_seed = 1;
 
-  void parse(
-    const std::vector<std::string>& command,
-    const std::vector<std::string>& dump_command);
+  void parse(const std::vector<std::string>& command, const std::vector<std::string>& dump_command);
 };
 
 void read_temperature_file(const std::string& filename, std::vector<double>& temperatures)
@@ -104,8 +99,7 @@ void read_temperature_file(const std::string& filename, std::vector<double>& tem
 }
 
 void REMD_Config::parse(
-  const std::vector<std::string>& command,
-  const std::vector<std::string>& dump_command)
+  const std::vector<std::string>& command, const std::vector<std::string>& dump_command)
 {
   if (command.size() < 3 || command[0] != "multi_replica" || command[1] != "remd")
     PRINT_INPUT_ERROR("Expected multi_replica remd followed by its options.");
@@ -118,16 +112,17 @@ void REMD_Config::parse(
     if (command[i] == "replicas") {
       parse_replicas_option(command, i, 2, "REMD", replicas, replicas_per_gpu);
     } else if (command[i] == "exchange") {
-      if (++i >= command.size() ||
-          !is_valid_int(command[i].c_str(), &exchange_interval) || exchange_interval <= 0)
+      if (
+        ++i >= command.size() || !is_valid_int(command[i].c_str(), &exchange_interval) ||
+        exchange_interval <= 0)
         PRINT_INPUT_ERROR("exchange should be a positive integer.");
       ++i;
     } else if (
       command[i] == "equilibrate" || command[i] == "equilibration" ||
       command[i] == "equilibration_steps") {
-      if (++i >= command.size() ||
-          !is_valid_int(command[i].c_str(), &equilibration_steps) ||
-          equilibration_steps < 0)
+      if (
+        ++i >= command.size() || !is_valid_int(command[i].c_str(), &equilibration_steps) ||
+        equilibration_steps < 0)
         PRINT_INPUT_ERROR("equilibration should be a non-negative integer.");
       ++i;
     } else if (command[i] == "temp") {
@@ -137,9 +132,9 @@ void REMD_Config::parse(
         PRINT_INPUT_ERROR("temp requires a file name or Tmin Tmax.");
       if (is_valid_real(command[i].c_str(), &minimum_temperature)) {
         source = range;
-        if (++i >= command.size() ||
-            !is_valid_real(command[i].c_str(), &maximum_temperature) ||
-            minimum_temperature <= 0.0 || maximum_temperature <= minimum_temperature)
+        if (
+          ++i >= command.size() || !is_valid_real(command[i].c_str(), &maximum_temperature) ||
+          minimum_temperature <= 0.0 || maximum_temperature <= minimum_temperature)
           PRINT_INPUT_ERROR("temp should satisfy 0 < Tmin < Tmax.");
         ++i;
       } else {
@@ -176,11 +171,10 @@ void REMD_Config::parse(
     temperatures.resize(replicas);
     for (int r = 0; r < replicas; ++r) {
       const double fraction = static_cast<double>(r) / (replicas - 1);
-      temperatures[r] = temperature_style == linear
-                          ? minimum_temperature +
-                              fraction * (maximum_temperature - minimum_temperature)
-                          : minimum_temperature *
-                              std::pow(maximum_temperature / minimum_temperature, fraction);
+      temperatures[r] =
+        temperature_style == linear
+          ? minimum_temperature + fraction * (maximum_temperature - minimum_temperature)
+          : minimum_temperature * std::pow(maximum_temperature / minimum_temperature, fraction);
     }
   }
   if (static_cast<int>(temperatures.size()) != replicas)
@@ -263,14 +257,14 @@ REMD_Driver::REMD_Driver(
   Atom& source_atom,
   Box& source_box,
   std::vector<Group>& source_group)
-  : potential_commands_(input.potential_commands)
-  , ensemble_command_(input.ensemble_command)
-  , kspace_method_(input.kspace_method)
-  , source_atom_(source_atom)
-  , source_box_(source_box)
-  , time_step_(input.time_step)
-  , number_of_steps_(input.number_of_steps)
-  , runtime_(
+  : potential_commands_(input.potential_commands),
+    ensemble_command_(input.ensemble_command),
+    kspace_method_(input.kspace_method),
+    source_atom_(source_atom),
+    source_box_(source_box),
+    time_step_(input.time_step),
+    number_of_steps_(input.number_of_steps),
+    runtime_(
       input.model_commands, run_input, source_atom, source_box, source_group, input.time_step)
 {
   config_.parse(input.multi_replica_command, input.dump_xyz_command);
@@ -293,8 +287,9 @@ void REMD_Driver::validate_input()
   double input_temperature_2 = 0.0;
   parse_nvt_bdp(
     ensemble_command_, "REMD", input_temperature_1, input_temperature_2, temperature_coupling_);
-  if (!values_match(input_temperature_1, config_.temperatures.front()) ||
-      !values_match(input_temperature_2, config_.temperatures.back()))
+  if (
+    !values_match(input_temperature_1, config_.temperatures.front()) ||
+    !values_match(input_temperature_2, config_.temperatures.back()))
     PRINT_INPUT_ERROR(
       "REMD ensemble temperatures should match the first and last ladder temperatures.");
 
@@ -399,8 +394,7 @@ void REMD_Driver::scale_velocity(Replica_Slot& slot, const double factor)
 {
   CHECK(gpuSetDevice(slot.device_id));
   const int number_of_atoms = slot.atom.number_of_atoms;
-  gpu_scale_replica_velocity<<<
-    (number_of_atoms - 1) / 128 + 1, 128, 0, slot.stream.get()>>>(
+  gpu_scale_replica_velocity<<<(number_of_atoms - 1) / 128 + 1, 128, 0, slot.stream.get()>>>(
     number_of_atoms,
     factor,
     slot.atom.velocity_per_atom.data(),
@@ -421,8 +415,7 @@ void REMD_Driver::attempt_exchanges(const long long global_step, FILE* exchange_
     Replica_Slot& high = *runtime_.slots()[high_replica];
     const double beta_low = config_.betas[low_label];
     const double beta_high = config_.betas[high_label];
-    const double exponent =
-      (low.potential_energy - high.potential_energy) * (beta_low - beta_high);
+    const double exponent = (low.potential_energy - high.potential_energy) * (beta_low - beta_high);
     const double probability = exponent >= 0.0 ? 1.0 : std::exp(exponent);
     const bool accepted = exponent >= 0.0 || uniform(exchange_rng_) < probability;
     ++exchange_attempts_[low_label];
@@ -470,14 +463,12 @@ void REMD_Driver::equilibrate()
   if (config_.equilibration_steps <= 0)
     return;
   printf(
-    "    Equilibrating all replicas independently for %d steps.\n",
-    config_.equilibration_steps);
+    "    Equilibrating all replicas independently for %d steps.\n", config_.equilibration_steps);
   fflush(stdout);
   const int progress_interval = std::max(1, config_.equilibration_steps / 10);
   int completed = 0;
   while (completed < config_.equilibration_steps) {
-    const int steps =
-      std::min(progress_interval, config_.equilibration_steps - completed);
+    const int steps = std::min(progress_interval, config_.equilibration_steps - completed);
     runtime_.advance_all(steps);
     completed += steps;
     printf("    %d REMD equilibration steps completed.\n", completed);
@@ -537,8 +528,7 @@ void REMD_Driver::write_ladder_report() const
     const int attempts = exchange_attempts_[label];
     const double ratio =
       attempts > 0 ? static_cast<double>(exchange_accepts_[label]) / attempts : 0.0;
-    const double average =
-      attempts > 0 ? exchange_probability_sum_[label] / attempts : 0.0;
+    const double average = attempts > 0 ? exchange_probability_sum_[label] / attempts : 0.0;
     const bool meets_target = attempts > 0 && ratio >= target_acceptance;
     all_meet_target = all_meet_target && meets_target;
     fprintf(
@@ -563,8 +553,7 @@ std::string trajectory_filename(const std::string& prefix, const int replica)
   const std::string suffix = "_replica_" + std::to_string(replica);
   const size_t separator = prefix.find_last_of("/\\");
   const size_t extension = prefix.find_last_of('.');
-  if (extension != std::string::npos &&
-      (separator == std::string::npos || extension > separator))
+  if (extension != std::string::npos && (separator == std::string::npos || extension > separator))
     return prefix.substr(0, extension) + suffix + prefix.substr(extension);
   return prefix + suffix + ".xyz";
 }
@@ -576,8 +565,7 @@ void REMD_Driver::open_trajectory_files()
   trajectory_files_.resize(config_.replicas, nullptr);
   for (int replica = 0; replica < config_.replicas; ++replica)
     trajectory_files_[replica] = my_fopen(
-      trajectory_filename(config_.dump_prefix, replica).c_str(),
-      config_.resume ? "a" : "w");
+      trajectory_filename(config_.dump_prefix, replica).c_str(), config_.resume ? "a" : "w");
 }
 
 void REMD_Driver::close_trajectory_files()
@@ -636,8 +624,7 @@ void REMD_Driver::write_trajectories(const long long step)
           " %.16g %.16g %.16g",
           slot->atom.cpu_velocity_per_atom[atom] / TIME_UNIT_CONVERSION,
           slot->atom.cpu_velocity_per_atom[atom + number_of_atoms] / TIME_UNIT_CONVERSION,
-          slot->atom.cpu_velocity_per_atom[atom + 2 * number_of_atoms] /
-            TIME_UNIT_CONVERSION);
+          slot->atom.cpu_velocity_per_atom[atom + 2 * number_of_atoms] / TIME_UNIT_CONVERSION);
       }
       fprintf(file, "\n");
     }
@@ -659,10 +646,7 @@ void REMD_Driver::write_restart_xyz(Replica_Slot& slot) const
     slot.potential_energy,
     completed_steps_ + number_of_steps_);
   replica::write_restart_xyz(
-    "remd_replica_" + std::to_string(slot.replica_id) + "_restart.xyz",
-    slot,
-    source_atom_,
-    fields);
+    "remd_replica_" + std::to_string(slot.replica_id) + "_restart.xyz", slot, source_atom_, fields);
 }
 
 void REMD_Driver::write_restart_metadata() const
@@ -702,10 +686,7 @@ void REMD_Driver::write_restart_metadata() const
   fprintf(file, "\nexchange_rng %s\n", exchange_state.str().c_str());
   for (const Replica_Slot* slot : runtime_.slots()) {
     fprintf(
-      file,
-      "bdp_rng %d %s\n",
-      slot->replica_id,
-      slot->thermostat->export_rng_state().c_str());
+      file, "bdp_rng %d %s\n", slot->replica_id, slot->thermostat->export_rng_state().c_str());
   }
   fclose(file);
 }
@@ -817,9 +798,9 @@ void REMD_Driver::read_restart_metadata()
       config_.replicas == 2
         ? exchange_count_
         : (i % 2 == 0 ? exchange_count_ / 2 + exchange_count_ % 2 : exchange_count_ / 2);
-    if (exchange_attempts_[i] != expected_attempts ||
-        exchange_accepts_[i] > exchange_attempts_[i] ||
-        exchange_probability_sum_[i] > exchange_attempts_[i] + 1.0e-12)
+    if (
+      exchange_attempts_[i] != expected_attempts || exchange_accepts_[i] > exchange_attempts_[i] ||
+      exchange_probability_sum_[i] > exchange_attempts_[i] + 1.0e-12)
       PRINT_INPUT_ERROR("REMD restart exchange statistics are inconsistent.");
   }
   validate_restart_mappings();
@@ -827,8 +808,8 @@ void REMD_Driver::read_restart_metadata()
 
 void REMD_Driver::read_restart_xyz(Replica_Slot& slot)
 {
-  const std::string filename = config_.resume_prefix + "_replica_" +
-                               std::to_string(slot.replica_id) + "_restart.xyz";
+  const std::string filename =
+    config_.resume_prefix + "_replica_" + std::to_string(slot.replica_id) + "_restart.xyz";
   std::ifstream input(filename);
   const std::string comment =
     read_restart_xyz_header(input, filename, source_atom_, source_box_, "REMD");
@@ -837,19 +818,19 @@ void REMD_Driver::read_restart_xyz(Replica_Slot& slot)
   int temperature_label = -1;
   long long restart_step = -1;
   double target_temperature = 0.0;
-  if (!extract_token_value(comment, "replica_mode", value) || value != "remd" ||
-      !extract_token_value(comment, "replica", value) ||
-      !parse_scalar(value, file_replica) || file_replica != slot.replica_id ||
-      !extract_token_value(comment, "temperature_label", value) ||
-      !parse_scalar(value, temperature_label) ||
-      temperature_label != replica_to_temperature_[slot.replica_id] ||
-      !extract_token_value(comment, "target_temperature", value) ||
-      !parse_scalar(value, target_temperature) ||
-      !values_match(target_temperature, config_.temperatures[temperature_label]) ||
-      !extract_token_value(comment, "potential_energy", value) ||
-      !parse_scalar(value, slot.potential_energy) || !std::isfinite(slot.potential_energy) ||
-      !extract_token_value(comment, "restart_step", value) ||
-      !parse_scalar(value, restart_step) || restart_step != completed_steps_)
+  if (
+    !extract_token_value(comment, "replica_mode", value) || value != "remd" ||
+    !extract_token_value(comment, "replica", value) || !parse_scalar(value, file_replica) ||
+    file_replica != slot.replica_id || !extract_token_value(comment, "temperature_label", value) ||
+    !parse_scalar(value, temperature_label) ||
+    temperature_label != replica_to_temperature_[slot.replica_id] ||
+    !extract_token_value(comment, "target_temperature", value) ||
+    !parse_scalar(value, target_temperature) ||
+    !values_match(target_temperature, config_.temperatures[temperature_label]) ||
+    !extract_token_value(comment, "potential_energy", value) ||
+    !parse_scalar(value, slot.potential_energy) || !std::isfinite(slot.potential_energy) ||
+    !extract_token_value(comment, "restart_step", value) || !parse_scalar(value, restart_step) ||
+    restart_step != completed_steps_)
     PRINT_INPUT_ERROR("REMD restart xyz metadata does not match the restart mapping.");
   read_restart_xyz_atoms(input, comment, source_atom_, slot.atom, "REMD");
 }
@@ -858,10 +839,9 @@ void REMD_Driver::run()
 {
   validate_input();
   const auto initialization_begin = std::chrono::high_resolution_clock::now();
-  runtime_.initialize(
-    config_.replicas,
-    config_.replicas_per_gpu,
-    [this](Replica_Slot& slot) { initialize_slot(slot); });
+  runtime_.initialize(config_.replicas, config_.replicas_per_gpu, [this](Replica_Slot& slot) {
+    initialize_slot(slot);
+  });
   runtime_.start_workers();
   if (!config_.resume)
     equilibrate();
@@ -871,8 +851,8 @@ void REMD_Driver::run()
   bool new_exchange = false;
   bool new_status = false;
   bool new_thermo = false;
-  FILE* exchange_file = open_output_file(
-    "remd_exchange.out", config_.resume, exchange_output_marker, new_exchange);
+  FILE* exchange_file =
+    open_output_file("remd_exchange.out", config_.resume, exchange_output_marker, new_exchange);
   FILE* status_file = open_output_file(
     "remd_temperature_status.out", config_.resume, status_output_marker, new_status);
   FILE* thermo_file =
@@ -888,8 +868,7 @@ void REMD_Driver::run()
   }
   if (new_status) {
     fprintf(
-      status_file,
-      "# Replica-to-temperature mapping after any exchange at the reported step.\n");
+      status_file, "# Replica-to-temperature mapping after any exchange at the reported step.\n");
     fprintf(status_file, "# step");
     for (int replica = 0; replica < config_.replicas; ++replica)
       fprintf(status_file, " temperature_label_of_replica_%d", replica);
@@ -920,13 +899,12 @@ void REMD_Driver::run()
   int local_step = 0;
   while (local_step < number_of_steps_) {
     const long long global_step = completed_steps_ + local_step;
-    int next_event = next_periodic_event(
-      local_step, number_of_steps_, global_step, config_.exchange_interval);
+    int next_event =
+      next_periodic_event(local_step, number_of_steps_, global_step, config_.exchange_interval);
     if (config_.dump_xyz) {
       next_event = std::min(
         next_event,
-        next_periodic_event(
-          local_step, number_of_steps_, global_step, config_.dump_interval));
+        next_periodic_event(local_step, number_of_steps_, global_step, config_.dump_interval));
     }
     const int next_progress =
       std::min(number_of_steps_, ((local_step / progress_interval) + 1) * progress_interval);
@@ -936,8 +914,7 @@ void REMD_Driver::run()
     const long long current_global_step = completed_steps_ + local_step;
 
     const bool exchange_due = current_global_step % config_.exchange_interval == 0;
-    const bool dump_due =
-      config_.dump_xyz && current_global_step % config_.dump_interval == 0;
+    const bool dump_due = config_.dump_xyz && current_global_step % config_.dump_interval == 0;
     if (exchange_due)
       attempt_exchanges(current_global_step, exchange_file);
     write_thermo(current_global_step, thermo_file);

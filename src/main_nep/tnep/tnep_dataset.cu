@@ -13,9 +13,15 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "tnep_dataset.cuh"
-#include "main_nep/common/nep_parameters.cuh"
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Yifan Li: Atomic dipole and polarizability training data.
+------------------------------------------------------------------------------*/
+
 #include "main_nep/common/nep_output.cuh"
+#include "main_nep/common/nep_parameters.cuh"
+#include "tnep_dataset.cuh"
 #include "utilities/common.cuh"
 #include <stdexcept>
 
@@ -191,8 +197,9 @@ std::vector<float> TNEP_Atomic_Dataset::get_rmse(
   std::vector<float> rmse_array(para.num_types + 1, 0.0f);
   std::vector<int> count_array(para.num_types + 1, 0);
   for (int n = 0; n < dataset.Nc; ++n) {
-    float rmse_temp = use_weight ?
-      dataset.weight_cpu[n] * dataset.weight_cpu[n] * dataset.error_cpu[n] : dataset.error_cpu[n];
+    float rmse_temp = use_weight
+                        ? dataset.weight_cpu[n] * dataset.weight_cpu[n] * dataset.error_cpu[n]
+                        : dataset.error_cpu[n];
     for (int t = 0; t < para.num_types + 1; ++t) {
       if (dataset.has_type[t * dataset.Nc + n]) {
         rmse_array[t] += rmse_temp;
@@ -209,8 +216,8 @@ std::vector<float> TNEP_Atomic_Dataset::get_rmse(
   return rmse_array;
 }
 
-static void update_dipole(FILE* fid_dipole, Dataset& dataset,
-  TNEP_Atomic_Dataset& atomic_data, bool atomic, const int nc)
+static void update_dipole(
+  FILE* fid_dipole, Dataset& dataset, TNEP_Atomic_Dataset& atomic_data, bool atomic, const int nc)
 {
   if (!atomic) {
     write_nep_structure_predictions(
@@ -222,8 +229,11 @@ static void update_dipole(FILE* fid_dipole, Dataset& dataset,
 }
 
 static void update_polarizability(
-  FILE* fid_polarizability, Dataset& dataset,
-  TNEP_Atomic_Dataset& atomic_data, bool atomic, const int nc)
+  FILE* fid_polarizability,
+  Dataset& dataset,
+  TNEP_Atomic_Dataset& atomic_data,
+  bool atomic,
+  const int nc)
 {
   if (!atomic) {
     write_nep_structure_predictions(
@@ -245,12 +255,14 @@ static void update_polarizability(
   }
 }
 
-void write_tnep_predictions(const std::string& label,
+void write_tnep_predictions(
+  const std::string& label,
   const std::vector<std::pair<Dataset*, int>>& structures,
-  NEP_Batch_Data<TNEP_Atomic_Dataset>& atomic_data, bool dipole, bool atomic)
+  NEP_Batch_Data<TNEP_Atomic_Dataset>& atomic_data,
+  bool dipole,
+  bool atomic)
 {
-  FILE* file = my_fopen(
-    ((dipole ? "dipole_" : "polarizability_") + label + ".out").c_str(), "w");
+  FILE* file = my_fopen(((dipole ? "dipole_" : "polarizability_") + label + ".out").c_str(), "w");
   for (const auto& structure : structures) {
     if (dipole) {
       update_dipole(

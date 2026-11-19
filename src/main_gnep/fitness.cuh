@@ -14,8 +14,8 @@
 */
 
 #pragma once
-#include "dataset.cuh"
 #include "adam.cuh"
+#include "dataset.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <memory>
@@ -24,8 +24,7 @@
 
 class Parameters;
 
-struct GNEPTrainingBatch
-{
+struct GNEPTrainingBatch {
   std::vector<Dataset> shards;
   std::vector<Structure> output_structures;
   std::vector<std::vector<int>> configuration_indices;
@@ -39,8 +38,7 @@ class Fitness
 public:
   Fitness(Parameters& para, Adam* adam);
   ~Fitness();
-  void compute(
-    Parameters& para);
+  void compute(Parameters& para);
   void report_error(
     Parameters& para,
     float time_used,
@@ -57,16 +55,16 @@ protected:
   bool has_test_set = false;
   int N; // max atom number
   int num_batches = 0;
-  int number_of_variables = 10; // number of variables
-  int number_of_variables_ann = 0; // number of variables in ANN
+  int number_of_variables = 10;           // number of variables
+  int number_of_variables_ann = 0;        // number of variables in ANN
   int number_of_variables_descriptor = 0; // number of variables in descriptor
-  int maximum_epochs = 50; // maximum number of epochs
-  int maximum_steps = 10000; // maximum number of steps
-  float lr; // learning rate
-  float start_lr;     // start learning rate
-  float stop_lr; // stop learning rate 
-  int max_NN_radial;  // radial neighbor list size
-  int max_NN_angular; // angular neighbor list size
+  int maximum_epochs = 50;                // maximum number of epochs
+  int maximum_steps = 10000;              // maximum number of steps
+  float lr;                               // learning rate
+  float start_lr;                         // start learning rate
+  float stop_lr;                          // stop learning rate
+  int max_NN_radial;                      // radial neighbor list size
+  int max_NN_angular;                     // angular neighbor list size
   Adam* optimizer;
   FILE* fid_loss_out = NULL;
   std::unique_ptr<Potential> potential;
@@ -82,8 +80,16 @@ protected:
     float* prediction,
     float* reference,
     Dataset& dataset);
-  void update_learning_rate_cos(float& lr, int step, int num_batches, Parameters& para); // Update learning rate with Cosine Annealing
-  void update_learning_rate_cos_restart(float& lr, int step, int num_batches, Parameters& para); // Update learning rate with Cosine Annealing Warmup Restarts
+  void update_learning_rate_cos(
+    float& lr,
+    int step,
+    int num_batches,
+    Parameters& para); // Update learning rate with Cosine Annealing
+  void update_learning_rate_cos_restart(
+    float& lr,
+    int step,
+    int num_batches,
+    Parameters& para); // Update learning rate with Cosine Annealing Warmup Restarts
   void update_energy_force_virial(
     FILE* fid_energy, FILE* fid_force, FILE* fid_virial, FILE* fid_stress, Dataset& dataset);
   void update_dipole(FILE* fid_dipole, Dataset& dataset);

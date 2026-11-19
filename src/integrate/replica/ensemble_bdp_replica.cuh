@@ -44,10 +44,7 @@ public:
   // 3 N minus the removed degrees of freedom.
   int get_degrees_of_freedom(const int number_of_atoms) const;
 
-  void compute1(
-    const double time_step,
-    Atom& atom,
-    const gpuStream_t stream);
+  void compute1(const double time_step, Atom& atom, const gpuStream_t stream);
 
   void compute2(
     const double time_step,
@@ -59,10 +56,7 @@ public:
   // thermo[0] = temperature, thermo[1] = potential energy, thermo[2..7] = pressure
   // components xx, yy, zz, xy, xz, yz.
   void find_thermo(
-    const double volume,
-    const Atom& atom,
-    GPU_Vector<double>& thermo,
-    const gpuStream_t stream);
+    const double volume, const Atom& atom, GPU_Vector<double>& thermo, const gpuStream_t stream);
 
   // Draws the random numbers of one rescaling exactly as compute2 does, so that
   // batched integration (all replicas of a GPU in one system) keeps each sequence.

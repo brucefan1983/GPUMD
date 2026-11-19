@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Run simulation according to the inputs in the run.in file.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "cohesive.cuh"
@@ -30,8 +33,8 @@ Run simulation according to the inputs in the run.in file.
 #include "replicate.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
-#include "utilities/nep_io/compact_nep.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_io/compact_nep.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include "velocity.cuh"
@@ -105,8 +108,7 @@ static void calculate_time_step(
   }
 }
 
-static bool parse_initial_replicate(
-  const RunInput& run_input, int replicate_size[3])
+static bool parse_initial_replicate(const RunInput& run_input, int replicate_size[3])
 {
   for (const auto& line : run_input.lines()) {
     if (line.tokens.empty()) {
@@ -130,13 +132,7 @@ Run::Run(const RunInput& run_input)
 
   has_replicate_ = parse_initial_replicate(run_input, replicate_size_);
 
-  initialize_position(
-    run_input,
-    has_velocity_in_xyz,
-    number_of_types,
-    box,
-    group,
-    atom);
+  initialize_position(run_input, has_velocity_in_xyz, number_of_types, box, group, atom);
   first_potential_filename_ = get_first_potential_filename(run_input);
 
   if (has_replicate_) {
@@ -147,8 +143,7 @@ Run::Run(const RunInput& run_input)
     PRINT_INPUT_ERROR("Number of atoms should >= 2.");
   }
 
-  velocity.initialize_cpu(
-    has_velocity_in_xyz, 300, atom, false, 123);
+  velocity.initialize_cpu(has_velocity_in_xyz, 300, atom, false, 123);
 
   if (has_velocity_in_xyz) {
     printf("Initialized velocities with data in model.xyz.\n");
@@ -180,8 +175,7 @@ void Run::execute_run_in(const RunInput& run_input)
       if (tokens.size() >= 2 && tokens[0] == "potential") {
         tokens[1] = get_compact_nep_filename(tokens[1]);
       }
-      if (has_replicate_ && first_effective_command &&
-          tokens[0] == "replicate") {
+      if (has_replicate_ && first_effective_command && tokens[0] == "replicate") {
         first_effective_command = false;
         continue;
       }
@@ -198,7 +192,6 @@ void Run::execute_run_in(const RunInput& run_input)
   printf("Finished executing the commands in run.in.\n");
   fflush(stdout);
   print_line_2();
-
 }
 
 void Run::compute_force()
@@ -288,8 +281,7 @@ void Run::perform_a_run(const int number_of_steps)
   printf("Speed of this run = %g atom*step/second.\n", run_speed);
   print_line_2();
 
-  measure.post_run(
-    atom, box, integrate, number_of_steps, time_step, integrate.get_temperature2());
+  measure.post_run(atom, box, integrate, number_of_steps, time_step, integrate.get_temperature2());
 
   integrate.finalize(atom, box);
   velocity.finalize();
@@ -297,8 +289,7 @@ void Run::perform_a_run(const int number_of_steps)
   max_distance_per_step = 0.0;
 }
 
-void Run::parse_one_keyword(
-  const std::vector<std::string>& tokens, const RunInput& run_input)
+void Run::parse_one_keyword(const std::vector<std::string>& tokens, const RunInput& run_input)
 {
   if (tokens[0] == "replicate") {
     PRINT_INPUT_ERROR("replicate must be the first effective command.");
@@ -410,12 +401,7 @@ void Run::parse_velocity(const std::vector<std::string>& tokens)
     }
   }
 
-  velocity.initialize_cpu(
-    has_velocity_in_xyz,
-    initial_temperature,
-    atom,
-    use_seed,
-    seed);
+  velocity.initialize_cpu(has_velocity_in_xyz, initial_temperature, atom, use_seed, seed);
   atom.velocity_per_atom.copy_from_host(atom.cpu_velocity_per_atom.data());
   if (!has_velocity_in_xyz) {
     printf("Initialized velocities with input T = %g K.\n", initial_temperature);

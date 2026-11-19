@@ -28,10 +28,8 @@ public:
 
   virtual void prepare(const int number_of_atoms) = 0;
 
-  virtual void compute(
-    const Box& box,
-    const GPU_Vector<double>& position_per_atom,
-    double* g_value) = 0;
+  virtual void
+  compute(const Box& box, const GPU_Vector<double>& position_per_atom, double* g_value) = 0;
 
   virtual void add_force_virial(
     const double* g_derivative,
