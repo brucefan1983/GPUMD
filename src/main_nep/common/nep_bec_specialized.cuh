@@ -14,6 +14,9 @@
 */
 
 #pragma once
+
+#include "nep_specialized.cuh"
+
 static __global__ void bec_radial_jit(
   const int N,
   const int* NN_sum,

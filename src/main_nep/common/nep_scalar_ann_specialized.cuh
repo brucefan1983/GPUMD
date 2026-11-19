@@ -14,6 +14,9 @@
 */
 
 #pragma once
+
+#include "nep_specialized.cuh"
+
 static __device__ __forceinline__ void apply_scalar_ann_jit(
   const float* parameters, const int set_offset, const int type, float* q, float& F, float* Fp)
 {
