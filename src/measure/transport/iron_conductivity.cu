@@ -16,6 +16,9 @@
 /*-----------------------------------------------------------------------------------------------100
 Calculate:
     Ionic conductivity using the Einstein relation, based on the mean squared displacement.
+
+Major contributors:
+  Benrui Tang: Initial implementation.
 --------------------------------------------------------------------------------------------------*/
 
 #include "iron_conductivity.cuh"

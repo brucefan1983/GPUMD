@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The driver class dealing with measurement.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "active.cuh"

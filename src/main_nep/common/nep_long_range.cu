@@ -13,6 +13,12 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Yong Wang: Corrected forces under the charge-neutrality constraint.
+------------------------------------------------------------------------------*/
+
 #include "main_nep/dataset.cuh"
 #include "nep_charge_dataset.cuh"
 #include "nep_long_range.cuh"

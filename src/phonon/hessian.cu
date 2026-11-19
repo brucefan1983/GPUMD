@@ -17,6 +17,10 @@
 Use finite difference to calculate the hessian (force constants).
     H_ij^ab = [F_i^a(-) - F_i^a(+)] / [u_j^b(+) - u_j^b(-)]
 Then calculate the dynamical matrices with different k points.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Benrui Tang: Automatic supercells and phonon wavevectors.
 ------------------------------------------------------------------------------*/
 
 #include "force/force.cuh"

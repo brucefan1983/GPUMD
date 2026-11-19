@@ -21,6 +21,11 @@ References for implementation:
     Mariana Rossi et al., J. Chem. Phys. 140, 234116 (2014).
 [3] More stable free-polymer integration based on Cayley modification:
     Roman Korol et al., J. Chem Phys. 151, 124103 (2019).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Zezhu Zeng: Economised path-integral dynamics.
+  Hekai Bu: Faster bead dynamics and centroid-virial estimates.
 ------------------------------------------------------------------------------*/
 
 #include "eco_pimd.cuh"

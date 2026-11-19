@@ -21,7 +21,8 @@ through dipole and quadrupole distortions of the local atomic environment.
 
 Reference: Y. Mishin et al., Acta Materialia 53, 4029-4041 (2005)
 
-Implemented by: Hongjian Chen (Hunan University), hjchen@hnu.edu.cn
+Major contributors:
+  Hongjian Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "adp.cuh"

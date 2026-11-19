@@ -22,7 +22,9 @@ Wengen Ouyang, Modular hybrid machine learning and physics-based potentials
 for scalable modeling of Van der Waals heterostructures,
 J. Mech. Phys. Solids 210, 106540 (2026).
 
-Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
+Major contributors:
+  Hekai Bu: Initial implementation.
+  Zheyong Fan: Extended NEP descriptor support.
 ------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"

@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Deform the simulation box during a run.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "deform.cuh"

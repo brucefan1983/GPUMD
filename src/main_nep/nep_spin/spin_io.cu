@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Chengbing Chen: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "main_nep/common/nep_io.cuh"
 #include "nep_spin.cuh"
 #include "spin_io.cuh"

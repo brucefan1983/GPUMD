@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "main_nep/nep/nep.cuh"
 #include "main_nep/nep_charge/nep_charge.cuh"
 #include "main_nep/nep_charge_vdw/nep_charge_vdw.cuh"

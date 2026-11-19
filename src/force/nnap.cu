@@ -13,10 +13,13 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-/**
- * NNAP interface for GPUMD
- * @author liqa
- */
+/*----------------------------------------------------------------------------80
+NNAP interface for GPUMD
+
+Major contributors:
+  Qing'an Li: Initial implementation and short-range ZBL repulsion.
+  Ke Xu: Corrected JNI method lookup and JVM initialization.
+------------------------------------------------------------------------------*/
 
 #ifdef USE_NNAP
 #include "nnap.cuh"

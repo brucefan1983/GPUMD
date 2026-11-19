@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Native enhanced sampling action.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "enhanced_sampling.cuh"

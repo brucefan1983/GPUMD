@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Wenhao Luo: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "force/replica/batch_box.cuh"
 #include "force/replica/replica_nep.cuh"
 #include "replica_batch.cuh"

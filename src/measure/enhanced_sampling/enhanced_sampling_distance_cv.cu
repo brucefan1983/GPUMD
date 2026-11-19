@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Distance collective variable for enhanced sampling.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "enhanced_sampling_distance_cv.cuh"

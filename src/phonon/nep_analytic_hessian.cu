@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Xi Wang: Analytic NEP force constants.
+------------------------------------------------------------------------------*/
+
 #include "force/force.cuh"
 #include "force/nep/nep.cuh"
 #include "gpu_macro_ext.cuh"

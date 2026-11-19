@@ -15,6 +15,11 @@
 
 /*----------------------------------------------------------------------------80
 The driver class for the various integrators.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Wenhao Luo: Selectable grouping methods for fixed and moving atom groups.
+  Paul Erhart: Corrected kinetic-energy reporting and single-precision box updates.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_bao.cuh"

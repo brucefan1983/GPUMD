@@ -14,6 +14,10 @@
 
 /*-----------------------------------------------------------------------------------------------100
 Dump energy/force/virial with all loaded potentials at a given interval.
+
+Major contributors:
+  Eric Lindgren: Initial implementation.
+  Paul Erhart: Potential comparisons without changing the MD state.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_observer.cuh"

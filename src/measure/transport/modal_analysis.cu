@@ -26,7 +26,9 @@ The code here is inspired by the LAMMPS implementation provided by the Henry
 group at MIT. This code can be found:
 https://drive.google.com/open?id=1IHJ7x-bLZISX3I090dW_Y_y-Mqkn07zg
 
-GPUMD Contributing author: Alexander Gabourie (Stanford University)
+Major contributors:
+  Alexander J. Gabourie: Initial implementation.
+  Zheyong Fan: Corrected modal velocities and participating-atom ranges.
 ------------------------------------------------------------------------------*/
 
 #include "hnemd_force.cuh"

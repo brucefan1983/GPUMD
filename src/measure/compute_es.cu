@@ -15,6 +15,9 @@
 
 /*-----------------------------------------------------------------------------------------------100
 Calculate the electrostatic energy and forces
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 --------------------------------------------------------------------------------------------------*/
 
 #include "compute_es.cuh"

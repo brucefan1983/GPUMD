@@ -16,10 +16,10 @@
 /*-----------------------------------------------------------------------------------------------100
 Calculate:
     Angular distribution function (ADF)
-Author:
-    Yongchao Wu 2025-01-18
-Email:
-    yongchao_wu@bit.edu.cn
+
+Major contributors:
+  Yongchao Wu: Initial implementation.
+  Zheyong Fan: Corrected bond-angle counting for different radial ranges.
 --------------------------------------------------------------------------------------------------*/
 
 #include "adf.cuh"

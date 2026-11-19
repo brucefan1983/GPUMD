@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "nep_compiled_kernels.cuh"
 
 bool NEP_Compiled_Kernels::load(NEP_Compile& library)

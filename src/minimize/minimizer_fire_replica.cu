@@ -17,6 +17,9 @@
 The FIRE minimizer for the quench of a replica, see minimizer_fire_replica.cuh.
 Reference: PhysRevLett 97, 170201 (2006)
            Computational Materials Science 175 (2020) 109584
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "force/replica/replica_force.cuh"

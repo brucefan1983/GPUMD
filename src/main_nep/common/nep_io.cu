@@ -13,6 +13,12 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Paul Erhart: Model-file consistency checks.
+------------------------------------------------------------------------------*/
+
 #include "nep_elements.cuh"
 #include "nep_io.cuh"
 #include "nep_parameters.cuh"

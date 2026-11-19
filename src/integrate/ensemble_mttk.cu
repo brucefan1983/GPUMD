@@ -18,6 +18,10 @@ This integrator use Nosé-Hoover thermostat and Parrinello-Rahman barostat.
 only P is set -> NPH ensemable
 only T is set -> NVT ensemable
 P and T are both set -> NPT ensemable
+
+Major contributors:
+  Shuning Pan: Initial implementation.
+  Chengbing Chen: Corrected Nose-Hoover chain force updates.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_mttk.cuh"

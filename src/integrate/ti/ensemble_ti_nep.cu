@@ -17,6 +17,9 @@
 Nonequilibrium thermodynamic integration between two NEP potentials.
 The first potential in run.in (lambda = 0) drives the regular force
 calculation and the second potential (lambda = 1) is evaluated here.
+
+Major contributors:
+  Tobias Hainer: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_ti_nep.cuh"

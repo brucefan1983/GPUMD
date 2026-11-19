@@ -22,6 +22,10 @@ Reference for DOS:
     J. M. Dickey and A. Paskin,
     Computer Simulation of the Lattice Dynamics of Solids,
     Phys. Rev. 188, 1407 (1969).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Alexander J. Gabourie: Corrected DOS accumulation across successive runs.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dos.cuh"

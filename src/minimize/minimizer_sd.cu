@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The SD (steepest decent) minimizer.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "force/force.cuh"

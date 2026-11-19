@@ -13,6 +13,14 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Jiuyang Shi: Temperature-dependent NEP models.
+  Benrui Tang: NEP models with two hidden layers.
+  Zaixu Duan: Additional four-body NEP descriptors.
+------------------------------------------------------------------------------*/
+
 #include "main_nep/common/nep_compile.cuh"
 #include "main_nep/dataset.cuh"
 #include "nep_evaluate.cuh"

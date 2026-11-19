@@ -18,6 +18,12 @@ Spectral heat current (SHC) calculations. Reference:
 [1] Z. Fan, H. Dong, A. Harju, T. Ala-Nissila, Homogeneous nonequilibrium
 molecular dynamics method for heat transport and spectral decomposition
 with many-body potentials, Phys. Rev. B 99, 064308 (2019).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Alexander J. Gabourie: Corrected SHC accumulation across successive runs.
+  Ke Xu: SHC calculations for multiple groups in one run.
+  Ting Liang: Extended multi-group SHC to arbitrary grouping methods.
 ------------------------------------------------------------------------------*/
 
 #include "measure/parse_utilities.cuh"

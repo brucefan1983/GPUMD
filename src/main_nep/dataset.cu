@@ -13,6 +13,12 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Yong Wang: Multi-GPU NEP training.
+------------------------------------------------------------------------------*/
+
 #include "dataset.cuh"
 #include "main_nep/common/nep_energy_reference.cuh"
 #include "main_nep/common/nep_parameters.cuh"

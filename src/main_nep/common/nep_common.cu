@@ -13,6 +13,12 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Jiahui Liu: Short-range ZBL repulsion.
+------------------------------------------------------------------------------*/
+
 #include "main_nep/dataset.cuh"
 #include "nep_common.cuh"
 #include "nep_parameters.cuh"

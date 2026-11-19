@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Harmonic bias for enhanced sampling.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "enhanced_sampling_harmonic_bias.cuh"

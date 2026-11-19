@@ -16,14 +16,15 @@
 /*----------------------------------------------------------------------------80
 Compute chunk-averaged properties using coordinate-based spatial binning.
 
-Contributed by Wenhao Luo (Sun Yat-sen University).
-
 Syntax:
   compute_chunk <sample_interval> <output_interval>
     bin/1d <dim> <origin> <delta>
     temperature [density/number] [density/mass] [vx] [vy] [vz] [fx] [fy] [fz]
 
 Output: compute_chunk.out
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "compute_chunk.cuh"

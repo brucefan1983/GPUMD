@@ -13,6 +13,15 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Jiahui Liu: Short-range ZBL repulsion.
+  Benrui Tang: NEP models with two hidden layers.
+  Zaixu Duan: Additional four-body NEP descriptors.
+  Paul Erhart: Training on energy differences and combinations.
+------------------------------------------------------------------------------*/
+
 #include "nep_elements.cuh"
 #include "nep_io.cuh"
 #include "nep_parameters.cuh"

@@ -13,6 +13,12 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Paul Erhart: Training data for energy differences and combinations.
+------------------------------------------------------------------------------*/
+
 #include "energy_difference.cuh"
 #include "main_nep/xyz_reader.cuh"
 #include "nep_energy_reader.cuh"

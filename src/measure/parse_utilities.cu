@@ -15,6 +15,10 @@
 
 /*-----------------------------------------------------------------------------------------------100
 Functions parsing the options and the per-atom quantities shared by several keywords
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Paul Erhart: Shared parsing of per-atom output quantities for XYZ and NetCDF dumps.
 --------------------------------------------------------------------------------------------------*/
 
 #include "model/group.cuh"

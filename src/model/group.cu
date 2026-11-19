@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The class defining the grouping methods
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "group.cuh"

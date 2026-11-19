@@ -16,16 +16,15 @@
 /*-----------------------------------------------------------------------------------------------100
 Calculate:
     Steinhardt bond-orientational order parameters
-Author:
-    Yongchao Wu 2025-08-27
-Email:
-    934313174@qq.com
 Reference:
     1. Mickel, W., Kapfer, S. C., Schröder-Turk, G. E., & Mecke, K. (2013).
     Shortcomings of the bond orientational order parameters for the analysis of disordered
     particulate matter. The Journal of chemical physics, 138(4).
     2. Steinhardt, P. J., Nelson, D. R., & Ronchetti, M. (1983).
     Bond-orientational order in liquids and glasses. Physical Review B, 28(2), 784.
+
+Major contributors:
+  Yongchao Wu: Initial implementation.
 --------------------------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"

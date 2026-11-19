@@ -21,6 +21,11 @@ Reference:
 T. Schaul, T. Glasmachers, and J. Schmidhuber,
 High Dimensions and Heavy Tails for Natural Evolution Strategies,
 https://doi.org/10.1145/2001576.2001692
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Eric Lindgren: Configurable model and restart checkpoints.
+  Paul Erhart: Configurable random seeds and training output intervals.
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"

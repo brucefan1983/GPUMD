@@ -15,6 +15,11 @@
 
 /*----------------------------------------------------------------------------80
 The class dealing with the Deep Potential(DP).
+
+Major contributors:
+  Ke Xu: Initial DP support and periodic-image force corrections.
+  Hekai Bu: DP interface rewrite with ghost-atom handling.
+  Ming-Yu Guo: PyTorch models, GPU edge inference, and triclinic-cell support.
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_DEEPMD

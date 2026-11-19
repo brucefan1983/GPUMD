@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Calculate the stress autocorrelation function and viscosity.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "utilities/common.cuh"

@@ -15,6 +15,10 @@
 
 /*----------------------------------------------------------------------------80
 NEP4 response models used by dipole and polarizability measurements.
+
+Major contributors:
+  Zheyong Fan: Original NEP implementation.
+  Eric Lindgren: Dipole and polarizability prediction.
 ------------------------------------------------------------------------------*/
 
 #include "model/atom.cuh"

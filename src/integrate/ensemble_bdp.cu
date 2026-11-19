@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 The Bussi-Donadio-Parrinello thermostat:
 [1] G. Bussi et al. J. Chem. Phys. 126, 014101 (2007).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_bdp.cuh"

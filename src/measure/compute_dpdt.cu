@@ -15,6 +15,9 @@
 
 /*-----------------------------------------------------------------------------------------------100
 Calculate the time derivative of the polarization of the system and output to dpdt.out
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 --------------------------------------------------------------------------------------------------*/
 
 #include "compute_dpdt.cuh"

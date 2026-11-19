@@ -15,6 +15,11 @@
 
 /*----------------------------------------------------------------------------80
 Get the fitness
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Eric Lindgren: Configurable model checkpoints.
+  Paul Erhart: Configurable training output intervals.
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"

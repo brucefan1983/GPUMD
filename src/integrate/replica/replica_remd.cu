@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 Temperature replica-exchange molecular dynamics. Each visible GPU owns one
 potential model. Independent replica states on that GPU use separate streams.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "main_gpumd/velocity.cuh"

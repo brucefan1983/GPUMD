@@ -17,6 +17,10 @@
 NEP4 descriptor projection used by compute_extrapolation.
 The descriptor and B-projection expressions are copied from the original NEP4
 implementation. This class is independent of force/NEP.
+
+Major contributors:
+  Zheyong Fan: Original NEP descriptor evaluation.
+  Shuning Pan: NEP extrapolation grades.
 ------------------------------------------------------------------------------*/
 
 #include "model/atom.cuh"

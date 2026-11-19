@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Wenhao Luo: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "replica_batch.cuh"
 #include "replica_common.cuh"
 #include "utilities/common.cuh"

@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Coordinate collective variables and biases for enhanced sampling.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "enhanced_sampling_engine.cuh"

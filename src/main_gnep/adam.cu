@@ -19,6 +19,9 @@
  * Reference:
  * Adam: A method for stochastic optimization
  * doi: 10.48550/arXiv.1412.6980
+
+Major contributors:
+  Hongfu Huang: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "adam.cuh"

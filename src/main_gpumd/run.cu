@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Run simulation according to the inputs in the run.in file.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "cohesive.cuh"

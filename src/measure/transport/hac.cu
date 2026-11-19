@@ -15,6 +15,10 @@
 
 /*----------------------------------------------------------------------------80
 Calculate the heat current autocorrelation (HAC) function.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Alexander J. Gabourie: Averaging over all available time origins.
 ------------------------------------------------------------------------------*/
 
 #include "compute_heat.cuh"

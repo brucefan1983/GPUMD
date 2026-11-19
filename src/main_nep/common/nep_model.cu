@@ -13,6 +13,13 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Benrui Tang: NEP models with two hidden layers.
+  Zaixu Duan: Additional four-body NEP descriptors.
+------------------------------------------------------------------------------*/
+
 #include "nep_model.cuh"
 #include "nep_parameters.cuh"
 #include "utilities/error.cuh"

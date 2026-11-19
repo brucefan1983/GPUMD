@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #ifdef NEP_SPECIALIZED_RUNTIME_BUILD
 #define HAS_CHARGE_JIT 1
 #define HAS_VDW_JIT 0

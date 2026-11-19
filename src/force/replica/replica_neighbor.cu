@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Global neighbor list for replica dynamics, see replica_neighbor.cuh.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"

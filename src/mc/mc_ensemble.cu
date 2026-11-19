@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The abstract base class (ABC) for the MC_Ensemble classes.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "mc_ensemble.cuh"

@@ -15,6 +15,13 @@
 
 /*-----------------------------------------------------------------------------------------------100
 Dump per-atom data to user-specified file(s) in the extended XYZ format
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Paul Erhart: Configurable trajectory precision.
+  Xiangyang Liu: Trajectory splitting by frame count.
+  Chengbing Chen: Spin trajectories and magnetic forces.
+  Ting Liang: Output of unwrapped positions only.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_xyz.cuh"

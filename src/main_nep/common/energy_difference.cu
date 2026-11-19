@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The energy-difference loss over the linear combinations of named structures in ediff.in
+
+Major contributors:
+  Paul Erhart: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "energy_difference.cuh"
