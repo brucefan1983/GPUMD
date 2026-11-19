@@ -60,9 +60,10 @@ Ge 2.5 2.0 1.2 0 0 0 0.0 0.0 0.0 7.0 7.0 7.0
 """
 
 
-def run(binary, cwd):
+def run(binary, cwd, **env_overrides):
     env = os.environ.copy()
     env.setdefault("CUDA_VISIBLE_DEVICES", "0")
+    env.update(env_overrides)
     return subprocess.run(
         [str(binary)], cwd=cwd, env=env, capture_output=True, text=True,
         check=False)
@@ -431,7 +432,8 @@ def validate_native_compiled_checkpoint(root):
     xyz = "\n".join(expanded) + "\n"
     report = {}
     layouts = ((1, 3, 2, 1), (2, 3, 2, 1), (3, 3, 2, 1), (3, 2, 2, 0), (8, 1, 2, 1),
-               (2, 2, 1, 0), (2, 3, 0, 0), (2, 2, 2, 1))
+               (2, 2, 1, 0), (2, 3, 0, 0), (2, 2, 2, 1),
+               (4, 3, 4, 1), (5, 3, 4, 0))
     for channels, order, lmax, soc in layouts:
         layout = f"o{order}c{channels}l{lmax}s{soc}"
         config = NEP_IN.replace("spin_compress 2", f"spin_compress {channels}")
@@ -452,34 +454,44 @@ def validate_native_compiled_checkpoint(root):
         restart_lines = (initial / "nep.restart").read_text().splitlines()
         frozen = "\n".join(restart_lines[:3]) + "\n" + "".join(
             f"{line.split()[0]} 0\n" for line in restart_lines[3:])
-        cases = []
-        for compiled in (0, 1):
-            case = root / f"{layout}-compiled-{compiled}"
+        modes = ["native", "jit"]
+        if (channels, order, lmax, soc) == (4, 3, 4, 1):
+            modes.append("fallback")  # This layout would otherwise allocate both JIT projections.
+        for mode in modes:
+            compiled = int(mode != "native")
+            case = root / f"{layout}-{mode}"
             # Report test outputs at fixed parameters after the first physical evaluation.
             output_config = config.replace("generation 1\n", "generation 2\n")
             write_case(case, output_config + f"nep_compile {compiled}\n", xyz)
             (case / "test.xyz").write_text(xyz)
             (case / "nep.txt").write_text(checkpoint)
             (case / "nep.restart").write_text(frozen)
-            result = run(NEP, case)
+            env = {"GPUMD_SRC": str(case / "missing-src")} if mode == "fallback" else {}
+            result = run(NEP, case, **env)
             if result.returncode:
                 raise RuntimeError(result.stdout + result.stderr)
-            if compiled and (
+            if mode == "jit" and (
                     "Compile specialized Spin training kernels" not in result.stdout or
                     "Spin aggregate JIT ready:" not in result.stdout or
                     "specialization disabled" in (result.stdout + result.stderr).lower()):
                 raise AssertionError("Spin JIT did not compile successfully\n" +
                                      result.stdout + result.stderr)
-            cases.append(case)
-        errors = {}
-        for name, width in (("energy", 1), ("force", 3), ("virial", 6), ("mforce", 3)):
-            values = [columns(case / f"{name}_test.out", width) for case in cases]
-            error = maximum_error(*values)
-            tolerance = parity_tolerance(*values)
-            if not math.isfinite(error) or error > tolerance:
-                raise AssertionError(f"{layout} JIT {name}: {error} > {tolerance}")
-            errors[name] = {"max_abs": error, "tolerance": tolerance}
-        report[layout] = errors
+            if mode == "fallback" and (
+                    "GPUMD_SRC does not point to a valid GPUMD src directory" not in result.stderr or
+                    "Spin aggregate JIT ready:" in result.stdout):
+                raise AssertionError("Expected native fallback after JIT initialization failed")
+            if mode == "native":
+                native = case
+                continue
+            errors = {}
+            for name, width in (("energy", 1), ("force", 3), ("virial", 6), ("mforce", 3)):
+                values = [columns(path / f"{name}_test.out", width) for path in (native, case)]
+                error = maximum_error(*values)
+                tolerance = parity_tolerance(*values)
+                if not math.isfinite(error) or error > tolerance:
+                    raise AssertionError(f"{layout} {mode} {name}: {error} > {tolerance}")
+                errors[name] = {"max_abs": error, "tolerance": tolerance}
+            report[layout if mode == "jit" else f"{layout}-fallback"] = errors
     return report
 
 
