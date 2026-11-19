@@ -224,6 +224,10 @@ Actions
      - Compute the radial distribution function (:term:`RDF`)
      - No
      - No
+   * - :ref:`compute_react_count <kw_compute_react_count>`
+     - Compute transient-bond species, bond, coordination and reaction counts
+     - No
+     - No
    * - :ref:`compute_shc <kw_compute_shc>`
      - Compute the spectral heat current (:term:`SHC`)
      - No
