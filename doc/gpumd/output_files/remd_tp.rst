@@ -1,21 +1,69 @@
+.. _replica_remd_npt_output:
 .. _replica_remd_tp_output:
 
-REMD-TP output files
-====================
+NPT REMD output files
+=====================
 
-:ref:`multi_replica remd_tp <replica_remd_tp>` writes the following files.
-Condition labels follow ``label = p_index * num_temperatures + t_index``.
-Collect equilibrium statistics by condition label, because each replica moves between conditions.
+:ref:`multi_replica remd <replica_remd_npt>` with ``ensemble npt_scr`` uses extended
+diagnostic files to keep the existing NVT column layouts unchanged. Steps, labels,
+replica indices, grid indices and counts are dimensionless integers; indices start
+at zero. Condition labels are ``p_index * M_T + t_index``.
+Collect equilibrium statistics by condition label, because replicas change conditions.
 
-* ``remd_tp_conditions.out``: label, temperature index, pressure index, temperature (K), pressure (GPa).
-* ``remd_tp_exchange.out``: step, exchange direction (``T`` or ``P``), replica indices,
-  old labels, temperatures, pressures, potential energies (eV), volumes (Angstrom cubed),
-  log acceptance ratio, acceptance probability, and acceptance flag.
-  Values describe the states before the exchange.
-* ``remd_tp_status.out``: step followed by the current condition label of every replica.
-* ``remd_tp_thermo.out``: step followed by label, potential energy, and volume for every replica.
-  Rows describe the states after any exchange at that step and are written at advancement boundaries.
-* ``remd_tp_pairs.out``: attempts, accepts, mean probability, and observed acceptance rate for each neighboring condition pair.
+``remd_tp_conditions.out``
+--------------------------
 
-Exchange, status, and thermo files append on resume. Conditions and pair reports are overwritten.
-Trajectory frames and :ref:`restart files <replica_restart>` include each replica's current box.
+Written once and overwritten on resume. Full column order::
+
+  label temperature_index pressure_index temperature pressure
+
+Temperature is in K; pressure is in GPa. This table maps every condition label
+to its grid position and target conditions.
+
+``remd_tp_exchange.out``
+------------------------
+
+One row per attempted pair, describing states before swapping::
+
+  step direction replica_i replica_j label_a label_b T_a T_b P_a P_b E_i E_j V_i V_j log_acceptance_ratio acceptance_probability accepted
+
+``direction`` is ``T`` or ``P``. Temperatures are in K, pressures in GPa, total
+potential energies in eV and volumes in Angstrom cubed. The log ratio and
+probability are dimensionless; ``accepted`` is 0 or 1.
+
+``remd_tp_status.out``
+----------------------
+
+Written initially and at exchange, trajectory and final boundaries, after any
+exchange. Column order::
+
+  step condition_label_of_replica_0 condition_label_of_replica_1 ...
+
+``remd_tp_thermo.out``
+----------------------
+
+Column order is one production step followed by three columns per replica::
+
+  step condition_label_0 potential_energy_0 volume_0 condition_label_1 potential_energy_1 volume_1 ...
+
+Potential energies are totals in eV; volumes are in Angstrom cubed. Values describe
+the current configuration after any exchange, before a pending SCR update.
+Rows are written initially and at exchange, trajectory-output, progress-report
+and final advancement boundaries. Sampling intervals can be nonuniform. Use the
+step column when selecting or time-weighting samples.
+
+``remd_tp_pairs.out``
+---------------------
+
+One row per neighboring condition pair; overwritten at normal completion. Columns::
+
+  direction label_a label_b T_a T_b P_a P_b attempts accepted acceptance_ratio average_probability
+
+Temperatures are in K and pressures in GPa. ``acceptance_ratio`` is accepted
+attempts divided by attempts; ``average_probability`` is the mean Metropolis
+probability over attempts. Both are dimensionless and written as zero when the
+pair has not been attempted. They appear in this order, matching the data writer.
+
+Exchange, status and thermo files append on resume. Trajectories and restart use
+the common :ref:`replica trajectory <replica_trajectory>` and
+:ref:`replica restart <replica_restart>` files.

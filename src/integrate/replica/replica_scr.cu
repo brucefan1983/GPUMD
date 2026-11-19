@@ -13,12 +13,12 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-
 // Part of the REMD-TP implementation proposed and primarily developed by
 // Jiuyang Shi, ported into gpumd by Wenhao Luo. The SCR method is due to
 // Bernetti and Bussi; see replica_scr.cuh for the reference.
-#include "replica_scr.cuh"
+#include "remd_utilities.cuh"
 #include "replica_common.cuh"
+#include "replica_scr.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include <cmath>
@@ -41,11 +41,14 @@ double SCR_Barostat::update_box(Box& box, const double target_temperature)
     }
   }
   pressure /= number_of_coupled;
-  const double kT = K_B * target_temperature;
-  const double dt_over_tau = interval / tau_p;
-  const double d_epsilon =
-    -compressibility * dt_over_tau * (target_pressure - pressure) +
-    std::sqrt(2.0 * kT * compressibility * dt_over_tau / volume) * normal(rng);
+  const double d_epsilon = scr_log_volume_increment(
+    target_temperature,
+    volume,
+    target_pressure,
+    pressure,
+    compressibility,
+    interval / tau_p,
+    normal(rng));
   const double scale = std::exp(d_epsilon / number_of_coupled);
   if (!std::isfinite(scale) || scale < 0.95 || scale > 1.05) {
     std::ostringstream message;
@@ -54,8 +57,7 @@ double SCR_Barostat::update_box(Box& box, const double target_temperature)
             << replica_id << ", replica MD step " << step_counter << ", length scale " << scale
             << ", volume " << volume << " A^3, target pressure "
             << target_pressure * PRESSURE_UNIT_CONVERSION << " GPa, measured pressure "
-            << pressure * PRESSURE_UNIT_CONVERSION
-            << " GPa); increase tau_p or the bulk modulus.";
+            << pressure * PRESSURE_UNIT_CONVERSION << " GPa); increase tau_p or the bulk modulus.";
     PRINT_INPUT_ERROR(message.str().c_str());
   }
   for (int d = 0; d < 3; ++d) {
@@ -68,48 +70,12 @@ double SCR_Barostat::update_box(Box& box, const double target_temperature)
 
 std::string SCR_Barostat::export_state() const
 {
-  std::ostringstream output;
-  output << 1 << ' ' << step_counter << ' ' << (pending ? 1 : 0) << ' '
-         << std::setprecision(17);
-  for (int i = 0; i < 5; ++i)
-    output << host_thermo[i] << ' ';
-  output << rng << ' ' << normal;
-  return output.str();
+  return export_scr_state(step_counter, pending, host_thermo.data(), rng, normal);
 }
 
 bool SCR_Barostat::import_state(const std::string& state)
 {
-  std::istringstream input(state);
-  int version = 0;
-  long long counter = 0;
-  int restored_pending = 0;
-  double thermo[5];
-  std::mt19937 restored_rng;
-  std::normal_distribution<double> restored_normal;
-  if (!(input >> version >> counter >> restored_pending) || version != 1 || counter < 0 ||
-      (restored_pending != 0 && restored_pending != 1))
-    return false;
-  for (int i = 0; i < 5; ++i) {
-    if (!(input >> thermo[i]) || !std::isfinite(thermo[i]))
-      return false;
-  }
-  if (!(input >> restored_rng >> restored_normal))
-    return false;
-  if (counter % interval != 0 && restored_pending)
-    return false;
-  if (!std::isfinite(restored_normal.mean()) || restored_normal.mean() != 0.0 ||
-      !std::isfinite(restored_normal.stddev()) || restored_normal.stddev() != 1.0)
-    return false;
-  input >> std::ws;
-  if (!input.eof())
-    return false;
-  step_counter = counter;
-  pending = restored_pending == 1;
-  for (int i = 0; i < 5; ++i)
-    host_thermo[i] = thermo[i];
-  rng = restored_rng;
-  normal = restored_normal;
-  return true;
+  return import_scr_state(state, interval, step_counter, pending, host_thermo.data(), rng, normal);
 }
 
 static __global__ void gpu_scr_scale(
@@ -138,8 +104,7 @@ static __global__ void gpu_scr_scale(
 void refresh_barostat_pressure(Replica_Slot& slot)
 {
   CHECK(gpuSetDevice(slot.device_id));
-  slot.thermostat->find_thermo(
-    slot.box.get_volume(), slot.atom, slot.thermo, slot.stream.get());
+  slot.thermostat->find_thermo(slot.box.get_volume(), slot.atom, slot.thermo, slot.stream.get());
   slot.thermo.copy_to_host_async(slot.barostat->host_thermo.data(), 5, slot.stream.get());
   slot.barostat->ready.record(slot.stream);
   slot.barostat->pending = true;
@@ -167,55 +132,5 @@ void apply_barostat(Replica_Slot& slot)
     velocity + 2 * n);
   GPU_CHECK_KERNEL
 }
-
-static void zero_linear_momentum(const int N, const double* m, double* vx, double* vy, double* vz)
-{
-  double center_of_mass_velocity[3] = {0.0, 0.0, 0.0};
-  double total_mass = 0.0;
-  for (int n = 0; n < N; ++n) {
-    total_mass += m[n];
-    center_of_mass_velocity[0] += m[n] * vx[n];
-    center_of_mass_velocity[1] += m[n] * vy[n];
-    center_of_mass_velocity[2] += m[n] * vz[n];
-  }
-  center_of_mass_velocity[0] /= total_mass;
-  center_of_mass_velocity[1] /= total_mass;
-  center_of_mass_velocity[2] /= total_mass;
-  for (int n = 0; n < N; ++n) {
-    vx[n] -= center_of_mass_velocity[0];
-    vy[n] -= center_of_mass_velocity[1];
-    vz[n] -= center_of_mass_velocity[2];
-  }
-}
-
-void generate_canonical_velocities(
-  const double temperature,
-  const std::vector<double>& mass,
-  std::vector<double>& velocity,
-  const unsigned int seed)
-{
-  if (mass.size() < 2 || !std::isfinite(temperature) || temperature <= 0.0)
-    PRINT_INPUT_ERROR("Canonical velocity sampling requires at least two atoms and a positive finite temperature.");
-  for (const double m : mass) {
-    if (!std::isfinite(m) || m <= 0.0)
-      PRINT_INPUT_ERROR("Canonical velocity sampling requires positive finite masses.");
-  }
-
-  const int N = mass.size();
-  velocity.resize(3 * N);
-  // Keep the distribution local so no cached Gaussian survives a sampling call.
-  std::mt19937 rng(seed);
-  std::normal_distribution<double> gaussian(0.0, 1.0);
-  for (int n = 0; n < N; ++n) {
-    const double sigma = std::sqrt(K_B * temperature / mass[n]);
-    for (int d = 0; d < 3; ++d)
-      velocity[n + d * N] = sigma * gaussian(rng);
-  }
-  zero_linear_momentum(
-    N, mass.data(), velocity.data(), velocity.data() + N, velocity.data() + 2 * N);
-  // Do not remove angular momentum or rescale to a fixed kinetic energy:
-  // the constrained canonical distribution must retain its kinetic fluctuations.
-}
-
 
 } // namespace replica

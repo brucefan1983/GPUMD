@@ -12,8 +12,24 @@ REMD
 ----
 
 ``trajectory.xyz`` produces ``trajectory_replica_0.xyz``, ``trajectory_replica_1.xyz``, etc.
-Frames contain positions and optional velocities, with step, time, replica index, temperature label, target temperature, box, and boundary conditions in the header.
-Frames are written after any exchange at the output step; no initial step-zero frame is written.
+Frames contain positions and the properties requested with ``dump_xyz``.
+Coordinates and velocities are written with 16 significant digits. Optional
+``mass`` is in unified atomic mass units, ``force`` is in eV/Angstrom,
+``potential`` writes the ``energy_atom`` property in eV per atom, using the
+same name as ordinary GPUMD. ``virial`` is in eV per atom.
+The nine virial components are row-major ``xx xy xz yx yy yz zx zy zz``, as in
+ordinary GPUMD output.
+
+The common header fields are ``Time`` (fs), ``step`` (production MD steps),
+``replica``, ``temperature_label``, ``target_temperature`` (K), ``pbc``,
+``Lattice`` (Angstrom) and ``Properties``. NPT adds ``condition_label``,
+``target_pressure`` (GPa) and total ``potential_energy`` (eV).
+In NPT, ``temperature_label`` is the existing storage field and is an alias for
+the combined ``condition_label``; its temperature index is ``condition_label % M_T``.
+
+Frames are written after any exchange at the output step; no initial step-zero
+frame is written. A pending SCR box update has not yet been applied, so positions,
+box, energy, forces and virial describe the same configuration.
 
 PRD
 ---

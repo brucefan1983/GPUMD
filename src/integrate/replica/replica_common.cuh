@@ -16,19 +16,19 @@
 #pragma once
 
 #include "ensemble_bdp_replica.cuh"
-#include "replica_scr.cuh"
 #include "force/replica/replica_force.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
+#include "replica_scr.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_pinned_vector.cuh"
 #include "utilities/gpu_stream.cuh"
 #include <condition_variable>
 #include <cstdio>
 #include <fstream>
-#include <istream>
 #include <functional>
+#include <istream>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -74,8 +74,7 @@ bool extract_quoted_value(
   const std::string& line, const std::string& key, std::string& value);
 bool extract_token_value(
   const std::string& line, const std::string& key, std::string& value);
-void validate_xyz_pbc(
-  const std::string& comment, const Box& reference, const char* mode);
+void validate_xyz_pbc(const std::string& comment, const Box& reference, const char* mode);
 void validate_xyz_box(
   const std::string& comment, const Box& reference, const char* mode);
 
@@ -106,6 +105,13 @@ void parse_replicas_option(
   const char* mode,
   int& replicas,
   int& replicas_per_gpu);
+struct Replica_XYZ_Fields {
+  bool mass = false;
+  bool force = false;
+  bool potential = false;
+  bool virial = false;
+};
+
 // dump_xyz -1 group interval filename [velocity], the velocity only if allowed.
 void parse_dump_xyz(
   const std::vector<std::string>& dump_command,
@@ -113,7 +119,8 @@ void parse_dump_xyz(
   bool allow_velocity,
   int& dump_interval,
   std::string& dump_prefix,
-  bool& dump_velocity);
+  bool& dump_velocity,
+  Replica_XYZ_Fields* fields = nullptr);
 unsigned int draw_internal_seed();
 // One NEP or qNEP potential; kspace_method becomes "none" for NEP. Returns the file hash.
 unsigned long long validate_potential(
@@ -144,6 +151,15 @@ FILE* open_output_file(const std::string& filename, bool resume, const char* mar
 
 // pbc="..." Lattice="..." of an extended xyz comment line, each followed by a space.
 void write_xyz_box(FILE* file, const Box& box, int precision);
+void write_replica_trajectory(
+  FILE* file,
+  Replica_Slot& slot,
+  const Atom& source_atom,
+  long long step,
+  double time_step,
+  bool velocity,
+  const Replica_XYZ_Fields& quantities,
+  const std::string& fields);
 // A replica restart xyz with the positions and velocities of the slot; `fields` follow
 // Properties on the comment line.
 void write_restart_xyz(
@@ -157,7 +173,9 @@ std::string read_restart_xyz_header(
   const std::string& filename,
   const Atom& source_atom,
   const Box& source_box,
-  const char* what);
+  const char* what,
+  Box* restored_box = nullptr,
+  const int* coupled_directions = nullptr);
 // The atoms of a replica restart xyz, into atom.cpu_position_per_atom and cpu_velocity_per_atom.
 void read_restart_xyz_atoms(
   std::istream& input,

@@ -1,4 +1,4 @@
-"""Single-GPU REMD-TP integration regressions; run this file explicitly.
+"""Single-GPU NPT extension of REMD: integration regressions; run this file explicitly.
 
 Set REPLICA_SAMPLING=1 to include the longer ideal-gas distribution test.
 """
@@ -23,11 +23,11 @@ TIME_UNIT = 1.018051e1
 
 def metadata(directory):
     result = {}
-    for line in (directory / 'remd_tp_restart.meta').read_text().splitlines():
+    for line in (directory / 'remd_restart.meta').read_text().splitlines():
         if not line.strip() or line.startswith('#'):
             continue
         tokens = line.split()
-        indexed = tokens[0] in ('bdp_rng', 'scr_state', 'pair_statistics')
+        indexed = tokens[0] in ('bdp_rng', 'scr_state')
         key = tuple(tokens[:2] if indexed else tokens[:1])
         if key in result:
             raise AssertionError(f'duplicate metadata record: {key}')
@@ -58,11 +58,11 @@ class RemdTPRegression(unittest.TestCase):
         if not base.BINARY.is_file():
             raise RuntimeError(f'Replica executable not found: {base.BINARY}; build with make -C src gpumd')
 
-    def prepare_orthogonal_pbte(self, name, repeat=2):
+    def prepare_orthogonal_pbte(self, name, repeat=2, strain=1):
         directory = self.prepare(name)
         # The original PbTe fixture is triclinic and is deliberately unsupported
         # by REMD-TP. Use a 2x2x2 conventional rocksalt cell with the same NEP.
-        lattice = 6.570392
+        lattice = 6.570392 * strain
         basis = [('Te', 0, 0, 0), ('Te', 0, .5, .5), ('Te', .5, 0, .5), ('Te', .5, .5, 0),
                  ('Pb', .5, 0, 0), ('Pb', 0, .5, 0), ('Pb', 0, 0, .5), ('Pb', .5, .5, .5)]
         atoms = [f'{symbol} {(i + x) * lattice:.12g} {(j + y) * lattice:.12g} {(k + z) * lattice:.12g}'
@@ -77,21 +77,21 @@ class RemdTPRegression(unittest.TestCase):
     def run_tp(self, directory, steps, *, temp=(300, 400, 2), pressure=(0, 0, 1),
                exchange=10, interval=10, couple='xyz', modulus=2, tau_p=1000,
                tau_t=100, equilibrate=0, resume=False, grid=None, dump=0, error=None,
-               timeout=120):
+               timeout=120, dt=0.5, properties='velocity'):
         t1, t2, nt = temp
         p1, p2, np = pressure
         p_options = f'pressure_grid {grid}' if grid else f'pressure {p1} {p2} {np}'
         commands = (
-            'potential nep.txt\ntime_step 0.5\n'
+            f'potential nep.txt\ntime_step {dt}\n'
             f'ensemble npt_scr {t1} {t2} {tau_t} {p1} {p2} {modulus} {tau_p} '
             f'couple {couple} pcouple_interval {interval}\n'
-            f'multi_replica remd_tp replicas {nt * np} exchange {exchange} '
+            f'multi_replica remd replicas {nt * np} exchange {exchange} '
             f'temp {t1} {t2} {nt} {p_options}'
             + (f' equilibrate {equilibrate}' if equilibrate else '')
-            + (' resume remd_tp' if resume else '') + '\n'
+            + (' resume remd' if resume else '') + '\n'
         )
         if dump:
-            commands += f'dump_xyz -1 0 {dump} trajectory.xyz velocity\n'
+            commands += f'dump_xyz -1 0 {dump} trajectory.xyz {properties}\n'
         (directory / 'run.in').write_text(commands + f'run {steps}\n')
         result = subprocess.run([str(base.BINARY)], cwd=directory, env=base.ENV,
                                 capture_output=True, text=True, timeout=timeout)
@@ -101,8 +101,47 @@ class RemdTPRegression(unittest.TestCase):
             self.assertIn(error, result.stdout + result.stderr)
         return result
 
+    def frame_properties(self, header, rows):
+        layout = header['Properties'].split(':')
+        result = {}
+        offset = 0
+        for name, kind, count in zip(layout[::3], layout[1::3], layout[2::3]):
+            count = int(count)
+            result[name] = [row[offset:offset + count] if kind == 'S' else
+                            list(map(float, row[offset:offset + count])) for row in rows]
+            offset += count
+        return result
+
+    def plain_snapshot(self, directory, header, rows, name):
+        plain = self.root / name
+        plain.mkdir()
+        shutil.copyfile(directory / 'nep.txt', plain / 'nep.txt')
+        values = self.frame_properties(header, rows)
+        lattice = header['Lattice']
+        with (plain / 'model.xyz').open('w') as output:
+            output.write(f'{len(rows)}\npbc="T T T" Lattice="{lattice}" '
+                         'Properties=species:S:1:pos:R:3:vel:R:3\n')
+            for symbol, position in zip(values['species'], values['pos']):
+                output.write(symbol[0] + ' ' + ' '.join(format(x, '.17g') for x in position) + ' 0 0 0\n')
+        (plain / 'run.in').write_text(
+            'potential nep.txt\ntime_step 0\nensemble nve\ndump_thermo 1\n'
+            'dump_xyz 1 reference.xyz precision double mass velocity force potential virial\nrun 1\n')
+        run = subprocess.run([str(base.BINARY)], cwd=plain, env=base.ENV,
+                             capture_output=True, text=True, timeout=120)
+        (plain / 'run.log').write_text(run.stdout + run.stderr)
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        reference_header, reference_rows = next(xyz_frames(plain / 'reference.xyz'))
+        return self.frame_properties(reference_header, reference_rows)
+
+    def compare_array(self, actual, expected, name, tolerance=3e-6):
+        self.assertEqual(len(actual), len(expected), name)
+        for atom, (a, b) in enumerate(zip(actual, expected)):
+            for component, (x, y) in enumerate(zip(a, b)):
+                self.assertTrue(math.isclose(x, y, rel_tol=tolerance, abs_tol=tolerance),
+                                f'{name}: atom={atom}, component={component}, actual={x}, expected={y}')
+
     def assert_cached_pressure(self, directory, replica):
-        header, atoms = next(xyz_frames(directory / f'remd_tp_replica_{replica}_restart.xyz'))
+        header, atoms = next(xyz_frames(directory / f'remd_replica_{replica}_restart.xyz'))
         state = metadata(directory)[('scr_state', str(replica))]
         self.assertEqual(state[2], '1')  # Pending update at the checkpoint.
         kinetic = [sum(float(row[4]) * (float(row[5 + d]) * TIME_UNIT) ** 2
@@ -122,13 +161,13 @@ class RemdTPRegression(unittest.TestCase):
         self.assertTrue(all(row[-1] == '1' for row in rows))
         for replica in range(2):
             self.assert_cached_pressure(directory, replica)
-            header, _ = next(xyz_frames(directory / f'remd_tp_replica_{replica}_restart.xyz'))
+            header, _ = next(xyz_frames(directory / f'remd_replica_{replica}_restart.xyz'))
             self.assertNotEqual(volume(header), 27000)
-        before = [next(xyz_frames(directory / f'remd_tp_replica_{r}_restart.xyz'))[0]
+        before = [next(xyz_frames(directory / f'remd_replica_{r}_restart.xyz'))[0]
                   for r in range(2)]
         self.run_tp(directory, 1, resume=True)
         for r in range(2):
-            header, _ = next(xyz_frames(directory / f'remd_tp_replica_{r}_restart.xyz'))
+            header, _ = next(xyz_frames(directory / f'remd_replica_{r}_restart.xyz'))
             self.assertNotEqual(volume(header), volume(before[r]))
             self.assertEqual(metadata(directory)[('scr_state', str(r))][2], '0')
 
@@ -142,7 +181,7 @@ class RemdTPRegression(unittest.TestCase):
         directory = self.prepare('off_interval', free=True)
         self.run_tp(directory, 9, exchange=3)
         for r in range(2):
-            header, _ = next(xyz_frames(directory / f'remd_tp_replica_{r}_restart.xyz'))
+            header, _ = next(xyz_frames(directory / f'remd_replica_{r}_restart.xyz'))
             self.assertEqual(volume(header), 27000)
             self.assertEqual(metadata(directory)[('scr_state', str(r))][2], '0')
 
@@ -152,7 +191,7 @@ class RemdTPRegression(unittest.TestCase):
                 directory = self.prepare(dirs, free=True)
                 self.run_tp(directory, 31, couple=dirs)
                 for r in range(2):
-                    header, _ = next(xyz_frames(directory / f'remd_tp_replica_{r}_restart.xyz'))
+                    header, _ = next(xyz_frames(directory / f'remd_replica_{r}_restart.xyz'))
                     h = list(map(float, header['Lattice'].split()))
                     for d, name in enumerate('xyz'):
                         if name in dirs:
@@ -193,15 +232,31 @@ class RemdTPRegression(unittest.TestCase):
                     self.assertAlmostEqual(float(row[15]), math.exp(min(0, log_ratio)), delta=1e-8)
                     if row[-1] == '1':
                         mapping[i], mapping[j] = mapping[j], mapping[i]
-                self.assertEqual(list(map(int, metadata(directory)[('replica_to_label',)])), mapping)
+                self.assertEqual(list(map(int, metadata(directory)[('replica_to_temperature',)])), mapping)
 
-    def assert_checkpoint_valid(self, directory, steps, count):
+    def assert_checkpoint_valid(self, directory, steps, count, equilibration=0):
         state = metadata(directory)
         self.assertEqual(int(state[('completed_steps',)][0]), steps)
-        self.assertEqual(sorted(map(int, state[('replica_to_label',)])), list(range(count)))
+        mapping = list(map(int, state[('replica_to_temperature',)]))
+        self.assertEqual(sorted(mapping), list(range(count)))
+        nt, np = map(int, state[('grid',)])
+        temperatures = list(map(float, state[('temperatures',)]))
+        pressures = list(map(float, state[('pressure_table',)]))
+        interval = int(state[('barostat',)][2])
         for r in range(count):
-            header, atoms = next(xyz_frames(directory / f'remd_tp_replica_{r}_restart.xyz'))
-            self.assertEqual(int(header['step']), steps)
+            header, atoms = next(xyz_frames(directory / f'remd_replica_{r}_restart.xyz'))
+            self.assertEqual(int(header['restart_step']), steps)
+            label = mapping[r]
+            self.assertEqual(int(header['condition_label']), label)
+            self.assertEqual(int(header['temperature_label']), label)
+            self.assertAlmostEqual(float(header['target_temperature']), temperatures[label % nt])
+            self.assertAlmostEqual(float(header['target_pressure']), pressures[(label % nt) * np + label // nt])
+            scr = state[('scr_state', str(r))]
+            self.assertEqual(int(scr[1]), steps + equilibration)
+            self.assertEqual(int(scr[2]), (steps + equilibration) % interval == 0)
+            self.assertTrue(all(math.isfinite(float(x)) for x in scr[3:8]))
+            self.assertTrue(state[('bdp_rng', str(r))])
+            self.assertGreater(len(scr[8:]), 600)
             self.assertGreater(volume(header), 0)
             self.assertTrue(all(math.isfinite(float(x)) for row in atoms for x in row[1:]))
 
@@ -219,67 +274,112 @@ class RemdTPRegression(unittest.TestCase):
                     self.run_tp(directory, 23, resume=True, **options)
                     self.run_tp(split, 5, resume=True, **options)
                     self.run_tp(split, 18, resume=True, **options)
-                    self.assert_checkpoint_valid(directory, 33, 4)
-                    self.assert_checkpoint_valid(split, 33, 4)
+                    self.assert_checkpoint_valid(directory, 33, 4, equilibration)
+                    self.assert_checkpoint_valid(split, 33, 4, equilibration)
                     self.assertEqual(metadata(directory)[('exchange_count',)],
                                      metadata(split)[('exchange_count',)])
                     for r in range(4):
                         self.assertEqual([h['step'] for h, _ in xyz_frames(directory / f'trajectory_replica_{r}.xyz')],
                                          [h['step'] for h, _ in xyz_frames(split / f'trajectory_replica_{r}.xyz')])
 
+    def test_repeated_continuation_restores_full_state(self):
+        for steps in (6, 10):  # checkpoint without and with a pending update
+            with self.subTest(checkpoint_steps=steps):
+                directory = self.prepare_orthogonal_pbte(f'repeat_{steps}', strain=.97)
+                options = dict(exchange=5, interval=5, modulus=100, dump=1)
+                self.run_tp(directory, steps, **options)
+                checkpoint = metadata(directory)
+                repeats = []
+                for index in range(2):
+                    path = self.root / f'repeated_{steps}_{index}'
+                    shutil.copytree(directory, path)
+                    self.run_tp(path, 11, resume=True, **options)
+                    repeats.append(path)
+                    self.assert_checkpoint_valid(path, steps + 11, 2)
+                    state = metadata(path)
+                    self.assertEqual(state[('mode',)], ['remd'])
+                    self.assertEqual(state[('ensemble',)], ['npt_scr'])
+                    for replica in range(2):
+                        before = checkpoint[('scr_state', str(replica))]
+                        after = state[('scr_state', str(replica))]
+                        self.assertEqual(int(after[1]), int(before[1]) + 11)
+                        self.assertEqual(int(after[2]), int(after[1]) % 5 == 0)
+                        self.assertNotEqual(state[('bdp_rng', str(replica))],
+                                            checkpoint[('bdp_rng', str(replica))])
+                a, b = map(metadata, repeats)
+                self.assertEqual(a.keys(), b.keys())
+                for key in a:
+                    if key[0] == 'scr_state':
+                        self.assertEqual(a[key][:3], b[key][:3])
+                        self.assertEqual(a[key][8:], b[key][8:])  # RNG and cached normal
+                        for x, y in zip(a[key][3:8], b[key][3:8]):
+                            self.assertTrue(math.isclose(float(x), float(y), rel_tol=1e-8, abs_tol=1e-9))
+                    elif key[0] == 'exchange_probability_sum':
+                        for x, y in zip(a[key], b[key]):
+                            self.assertAlmostEqual(float(x), float(y), delta=1e-7)
+                    else:
+                        self.assertEqual(a[key], b[key], key)
+                for replica in range(2):
+                    ah, ar = next(xyz_frames(repeats[0] / f'remd_replica_{replica}_restart.xyz'))
+                    bh, br = next(xyz_frames(repeats[1] / f'remd_replica_{replica}_restart.xyz'))
+                    self.compare_array([list(map(float, ah['Lattice'].split()))],
+                                       [list(map(float, bh['Lattice'].split()))], 'restored box', 1e-9)
+                    self.compare_array([list(map(float, row[1:])) for row in ar],
+                                       [list(map(float, row[1:])) for row in br], 'restored atoms', 1e-8)
+
     def test_missing_and_duplicate_restart_metadata(self):
         directory = self.prepare('metadata_validation', free=True)
         self.run_tp(directory, 10)
-        path = directory / 'remd_tp_restart.meta'
-        lines = [x for x in path.read_text().splitlines() if x and not x.startswith('#')]
+        path = directory / 'remd_restart.meta'
+        lines = [x for x in path.read_text().splitlines() if x]
         for index, line in enumerate(lines):
             for duplicate in (False, True):
                 with self.subTest(key=line.split()[:2], duplicate=duplicate):
                     edited = lines + [line] if duplicate else lines[:index] + lines[index + 1:]
                     path.write_text('\n'.join(edited) + '\n')
                     before = path.read_bytes()
-                    self.run_tp(directory, 1, resume=True, error='REMD-TP')
+                    self.run_tp(directory, 1, resume=True, error='REMD')
                     self.assertEqual(path.read_bytes(), before)
 
     def test_restart_version_and_parameters(self):
         directory = self.prepare('restart_parameters', free=True)
         self.run_tp(directory, 10)
-        path = directory / 'remd_tp_restart.meta'
+        path = directory / 'remd_restart.meta'
         original = path.read_text()
         version = metadata(directory)[('format_version',)][0]
         path.write_text(original.replace(f'format_version {version}', 'format_version 2'))
-        self.run_tp(directory, 1, resume=True, error='Unsupported REMD-TP restart format_version')
+        self.run_tp(directory, 1, resume=True, error='Unsupported REMD restart format_version')
         path.write_text(original)
         for options in (dict(exchange=11), dict(interval=5), dict(modulus=3), dict(tau_p=1100),
                         dict(tau_t=101), dict(temp=(300, 401, 2)), dict(couple='z')):
             with self.subTest(options=options):
-                self.run_tp(directory, 1, resume=True, error='REMD-TP restart', **options)
+                self.run_tp(directory, 1, resume=True, error='REMD restart', **options)
         # Singular/plural messages differ for grid vs other parameter checks;
         # potential identity is also checked independently of the XYZ files.
         potential = directory / 'nep.txt'
         potential.write_text(potential.read_text() + '\n')
-        self.run_tp(directory, 1, resume=True, error='potential files do not match')
+        self.run_tp(directory, 1, resume=True, error='potential file does not match')
 
     def test_restart_xyz_validation(self):
         directory = self.prepare('xyz_validation', free=True)
         self.run_tp(directory, 10, couple='z')
-        path = directory / 'remd_tp_replica_0_restart.xyz'
+        path = directory / 'remd_replica_0_restart.xyz'
         original = path.read_text()
         changes = [
             ('pbc="T T T"', 'pbc="F F T"'),
             ('Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3',
              'Properties=species:S:1:vel:R:3:mass:R:1:pos:R:3'),
-            ('replica=0', 'replica=1'), ('step=10', 'step=9'),
+            ('replica=0', 'replica=1'), ('restart_step=10', 'restart_step=9'),
         ]
         for old, new in changes:
             with self.subTest(change=new):
                 path.write_text(original.replace(old, new))
-                self.run_tp(directory, 1, resume=True, couple='z', error='REMD-TP')
+                self.run_tp(directory, 1, resume=True, couple='z', error='REMD')
         for lattice in ('0 0 0 0 30 0 0 0 30', '30 0 0 5 30 0 0 0 30',
                         '30 0 0 0 30 0 0 0 30 1'):
             with self.subTest(lattice=lattice):
                 path.write_text(re.sub(r'Lattice="[^"]+"', f'Lattice="{lattice}"', original))
-                self.run_tp(directory, 1, resume=True, couple='z', error='REMD-TP')
+                self.run_tp(directory, 1, resume=True, couple='z', error='REMD')
         path.write_text(original)
         model = directory / 'model.xyz'
         model.write_text(model.read_text().replace('pbc="T T T"', 'pbc="F F T"'))
@@ -294,7 +394,7 @@ class RemdTPRegression(unittest.TestCase):
 
     def test_reject_qnep_and_nonperiodic_coupling(self):
         directory = self.prepare('charge', charge=True)
-        self.run_tp(directory, 1, error='energy NEP models only')
+        self.run_tp(directory, 1, error='energy NEP model')
         directory = self.prepare('nonperiodic', free=True)
         path = directory / 'model.xyz'
         path.write_text(path.read_text().replace('pbc="T T T"', 'pbc="F T T"'))
@@ -318,26 +418,146 @@ class RemdTPRegression(unittest.TestCase):
         expected = float(base.data_rows(plain / 'thermo.out')[0][2])
         self.assertAlmostEqual(energy, expected, delta=max(1e-7, 1e-6 * abs(expected)))
 
-    def test_deformed_large_box_energy_matches_plain_gpumd(self):
-        # L=26.28 A exceeds the large-box threshold for the 8 A NEP cutoff.
-        # The barostat must invalidate cached neighbors as the box changes.
-        directory = self.prepare_orthogonal_pbte('large_box', repeat=4)
-        self.run_tp(directory, 31, interval=1, modulus=20, tau_p=100)
-        for replica in range(2):
-            header, _ = next(xyz_frames(directory / f'remd_tp_replica_{replica}_restart.xyz'))
-            self.assertNotEqual(volume(header), (4 * 6.570392) ** 3)
-            plain = self.root / f'large_plain_{replica}'
-            plain.mkdir()
-            shutil.copyfile(directory / 'nep.txt', plain / 'nep.txt')
-            shutil.copyfile(directory / f'remd_tp_replica_{replica}_restart.xyz', plain / 'model.xyz')
-            (plain / 'run.in').write_text(
-                'potential nep.txt\ntime_step 0\nensemble nve\ndump_thermo 1\nrun 1\n')
-            result = subprocess.run([str(base.BINARY)], cwd=plain, env=base.ENV,
+    def test_deformed_force_and_virial_match_plain_gpumd(self):
+        for repeat in (2, 4):  # small-box and large-box paths
+            for couple in ('xyz', 'z'):
+                with self.subTest(repeat=repeat, couple=couple):
+                    directory = self.prepare_orthogonal_pbte(f'deform_{repeat}_{couple}', repeat=repeat, strain=.97)
+                    self.run_tp(directory, 11, interval=2, modulus=100, tau_p=1000, couple=couple,
+                                dump=1, properties='mass velocity force potential virial', exchange=1000)
+                    for replica in range(2):
+                        frames = list(xyz_frames(directory / f'trajectory_replica_{replica}.xyz'))
+                        # Step 2 precedes an update, step 3 follows deformation/rebuild,
+                        # step 4 exercises reuse, step 11 follows several updates.
+                        for step in (2, 3, 4, 11):
+                            header, rows = frames[step - 1]
+                            actual = self.frame_properties(header, rows)
+                            reference = self.plain_snapshot(directory, header, rows,
+                                f'reference_{repeat}_{couple}_{replica}_{step}')
+                            for name in ('forces', 'energy_atom', 'virial'):
+                                self.compare_array(actual[name], reference[name], name)
+                            self.assertGreater(sum(abs(x) for row in reference['virial'] for x in row), 1e-5)
+                            self.assertAlmostEqual(sum(row[0] for row in actual['energy_atom']),
+                                                   float(header['potential_energy']), delta=1e-7)
+                        original_volume = (repeat * 6.570392 * .97) ** 3
+                        self.assertNotEqual(volume(frames[-1][0]), original_volume)
+
+    def check_interacting_pressure(self, directory, replica):
+        header, rows = list(xyz_frames(directory / f'trajectory_replica_{replica}.xyz'))[-1]
+        values = self.frame_properties(header, rows)
+        state = metadata(directory)[('scr_state', str(replica))]
+        self.assertEqual(state[2], '1')
+        self.assertGreater(sum(abs(x) for row in values['virial'] for x in row), 1e-5)
+        kinetic = [sum(m[0] * (v[d] * TIME_UNIT) ** 2 for m, v in zip(values['mass'], values['vel']))
+                   for d in range(3)]
+        for d in range(3):
+            virial = sum(row[4 * d] for row in values['virial'])
+            expected = (kinetic[d] + virial) / volume(header)
+            self.assertAlmostEqual(float(state[5 + d]), expected,
+                                   delta=max(1e-10, abs(expected) * 1e-8))
+        self.assertAlmostEqual(float(state[3]), sum(kinetic) / ((3 * len(rows) - 3) * K_B), delta=1e-7)
+
+    def test_nonzero_virial_pressure_after_bdp_and_exchange(self):
+        for exchange in (1000, 1):
+            with self.subTest(exchange=exchange):
+                directory = self.prepare_orthogonal_pbte(f'pressure_{exchange}', strain=.97)
+                options = dict(exchange=exchange, interval=1, tau_t=1, modulus=100, tau_p=1000,
+                               dump=1, properties='mass velocity force potential virial')
+                for attempt in range(32):
+                    self.run_tp(directory, 1, resume=attempt > 0, **options)
+                    if exchange == 1000 or base.data_rows(directory / 'remd_tp_exchange.out')[-1][-1] == '1':
+                        break
+                else:
+                    self.fail('No accepted temperature exchange in 32 attempts')
+                for replica in range(2):
+                    self.check_interacting_pressure(directory, replica)
+
+    def test_interacting_exchange_has_nontrivial_probability(self):
+        directory = self.prepare_orthogonal_pbte('nontrivial')
+        options = dict(exchange=1, interval=10, tau_t=1e20, modulus=100, tau_p=1e20, dt=1e-6)
+        self.run_tp(directory, 1, **options)
+        header, rows = next(xyz_frames(directory / 'remd_replica_0_restart.xyz'))
+        reference_a = self.plain_snapshot(directory, header, rows, 'energy_a')
+        shifted = [row[:] for row in rows]
+        shifted[0][1] = str(float(shifted[0][1]) + .03)
+        reference_b = self.plain_snapshot(directory, header, shifted, 'energy_b')
+        ea = sum(row[0] for row in reference_a['energy_atom'])
+        eb = sum(row[0] for row in reference_b['energy_atom'])
+        self.assertGreater(abs(ea - eb), 1e-7)
+        low, high = (rows, shifted) if ea < eb else (shifted, rows)
+        mapping = list(map(int, metadata(directory)[('replica_to_temperature',)]))
+        for replica, label in enumerate(mapping):
+            path = directory / f'remd_replica_{replica}_restart.xyz'
+            lines = path.read_text().splitlines()
+            positions = low if label == 0 else high
+            for i, row in enumerate(positions):
+                atom = lines[i + 2].split()
+                atom[1:4] = row[1:4]
+                lines[i + 2] = ' '.join(atom)
+            path.write_text('\n'.join(lines) + '\n')
+        self.run_tp(directory, 1, resume=True, **options)
+        row = base.data_rows(directory / 'remd_tp_exchange.out')[-1]
+        ta, tb, pa, pb, ei, ej, vi, vj = map(float, row[6:14])
+        expected = ((1 / ta - 1 / tb) * (ei - ej) +
+                    (pa / ta - pb / tb) * (vi - vj) / PRESSURE_UNIT) / K_B
+        self.assertGreater(abs(ei - ej), 1e-7)
+        self.assertAlmostEqual(float(row[14]), expected, delta=1e-7)
+        self.assertGreater(float(row[15]), 0)
+        self.assertLess(float(row[15]), 1)
+        self.assertAlmostEqual(float(row[15]), math.exp(expected), delta=1e-8)
+
+    def test_unified_entry_and_ensemble_compatibility(self):
+        directory = self.prepare('entry', free=True)
+        self.run_tp(directory, 1)
+        original = (directory / 'run.in').read_text()
+        invalid = [original.replace('multi_replica remd ', 'multi_replica remd_tp '),
+                   original.replace('ensemble npt_scr 300 400 100 0 0 2 1000 couple xyz pcouple_interval 10',
+                                    'ensemble nvt_bdp 300 400 100').replace('temp 300 400 2', 'temp 300 400'),
+                   original.replace(' pressure 0 0 1', '')]
+        for commands in invalid:
+            (directory / 'run.in').write_text(commands)
+            result = subprocess.run([str(base.BINARY)], cwd=directory, env=base.ENV,
                                     capture_output=True, text=True, timeout=120)
-            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-            expected = float(base.data_rows(plain / 'thermo.out')[0][2])
-            self.assertAlmostEqual(float(header['potential_energy']), expected,
-                                   delta=1e-8 * max(1, abs(expected)))
+            self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    @unittest.skipUnless(os.environ.get('GPUMD_BASELINE'), 'set GPUMD_BASELINE for upstream checkpoint compatibility')
+    def test_nvt_checkpoint_from_upstream_master(self):
+        baseline = Path(os.environ['GPUMD_BASELINE']).resolve()
+        self.assertTrue(baseline.is_file())
+        directory = self.prepare_orthogonal_pbte('legacy_nvt')
+        commands = ('potential nep.txt\ntime_step 0.5\nensemble nvt_bdp 300 400 100\n'
+                    'multi_replica remd replicas 2 exchange 5 temp 300 400\n'
+                    'dump_xyz -1 0 1 trajectory.xyz velocity\nrun 7\n')
+        (directory / 'run.in').write_text(commands)
+        run = subprocess.run([str(baseline)], cwd=directory, env=base.ENV,
+                             capture_output=True, text=True, timeout=120)
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertEqual(metadata(directory)[('format_version',)], ['5'])
+        candidate = self.root / 'legacy_nvt_candidate'
+        shutil.copytree(directory, candidate)
+        resumed = commands.replace('temp 300 400\n', 'temp 300 400 resume remd\n').replace('run 7\n', 'run 11\n')
+        for path, binary in ((directory, baseline), (candidate, base.BINARY)):
+            (path / 'run.in').write_text(resumed)
+            run = subprocess.run([str(binary)], cwd=path, env=base.ENV,
+                                 capture_output=True, text=True, timeout=120)
+            self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+            state = metadata(path)
+            self.assertEqual(state[('format_version',)], ['5'])
+            self.assertEqual(state[('mode',)], ['remd'])
+            self.assertEqual(state[('completed_steps',)], ['18'])
+        a, b = metadata(directory), metadata(candidate)
+        for key in a:
+            if key[0] == 'exchange_probability_sum':
+                for x, y in zip(a[key], b[key]):
+                    self.assertAlmostEqual(float(x), float(y), delta=1e-7)
+            else:
+                self.assertEqual(a[key], b[key], key)
+        for replica in range(2):
+            ah, ar = next(xyz_frames(directory / f'remd_replica_{replica}_restart.xyz'))
+            bh, br = next(xyz_frames(candidate / f'remd_replica_{replica}_restart.xyz'))
+            self.assertEqual(ah.keys(), bh.keys())
+            self.compare_array([list(map(float, row[1:])) for row in ar],
+                               [list(map(float, row[1:])) for row in br], 'upstream NVT continuation', 1e-7)
 
     @unittest.skipUnless(os.environ.get('REPLICA_SAMPLING') == '1', 'set REPLICA_SAMPLING=1 for long sampling test')
     def test_ideal_gas_volume_and_kinetic_distributions(self):
@@ -362,7 +582,7 @@ class RemdTPRegression(unittest.TestCase):
                 kinetic = .5 * 12.011 * sum((float(x) * TIME_UNIT) ** 2 for row in rows for x in row[4:7])
                 energies[label].append((int(header['step']), kinetic / (K_B * temperature)))
         # Use the mass actually written by this build rather than assuming a table value.
-        _, restart_atoms = next(xyz_frames(directory / 'remd_tp_replica_0_restart.xyz'))
+        _, restart_atoms = next(xyz_frames(directory / 'remd_replica_0_restart.xyz'))
         mass_correction = float(restart_atoms[0][4]) / 12.011
         for label in range(2):
             energies[label] = [(step, value * mass_correction) for step, value in energies[label]]

@@ -13,7 +13,6 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
 #include "model/box.cuh"
 #include "utilities/gpu_pinned_vector.cuh"
@@ -55,13 +54,8 @@ struct SCR_Barostat {
   bool import_state(const std::string& state);
 };
 
-
 struct Replica_Slot;
 void refresh_barostat_pressure(Replica_Slot& slot);
 void apply_barostat(Replica_Slot& slot);
 
-// Canonical velocities with zero total linear momentum, retaining kinetic fluctuations.
-void generate_canonical_velocities(
-  double temperature, const std::vector<double>& mass,
-  std::vector<double>& velocity, unsigned int seed);
 } // namespace replica

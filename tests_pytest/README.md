@@ -139,42 +139,22 @@ A missing executable, unavailable GPU, process timeout (120 seconds per run),
 or failed assertion fails the test. The suite does not modify CI and
 does not cover multiple GPUs, long-time sampling accuracy, or performance.
 
-Temperature-pressure REMD is covered by `test_remd_tp.py`, using the same `GPUMD`
-executable and working-directory settings. Run it directly with
-`python3 tests_pytest/test_remd_tp.py`. It checks exchange rules, independent
-boxes, coupled directions, current-pressure measurements, basic continuation,
-compact model types, large-box energies after deformation, and invalid inputs.
-Set `REPLICA_SAMPLING=1` to include the longer ideal-gas volume/kinetic distribution
-test. `REPLICA_SAMPLING_STEPS` can change its length (at least 1000000 steps).
-CPU-only algorithm and checkpoint tests run without CUDA or pytest:
-`python3 tests_pytest/test_remd_tp_host.py`. Their GPU operations are test doubles;
-only the GPU suite checks asynchronous execution.
+The NPT extension of REMD uses the same `multi_replica remd` entry and is covered
+by `test_remd_tp.py` (the historical test filename does not name an input mode).
+Run `python3 tests_pytest/test_remd_tp.py` with `GPUMD` set to the candidate binary.
+The suite includes strained small/large-box force and full per-atom virial
+comparisons against ordinary GPUMD, nonzero-virial pressure checks after BDP and
+accepted temperature exchange, nontrivial acceptance probabilities, and repeated
+continuation from the same checkpoint with box/mapping/SCR/RNG checks.
+Set `GPUMD_BASELINE` to a matching upstream executable to also check that its
+NVT format-5 checkpoint can be continued by the candidate without changing the
+existing metadata layout or replica dynamics.
+Set `REPLICA_SAMPLING=1` for ideal-gas sampling; `REPLICA_SAMPLING_STEPS` changes
+its length (at least 1000000 steps). Ordinary MD reference snapshots use zero MD
+time step and `dump_xyz ... precision double mass velocity force potential virial`.
 
-## Spin training precision
-
-From the repository root, with CUDA `nvcc` on `PATH` and an appropriate GPU
-selected in `CUDA_VISIBLE_DEVICES`:
-
-```bash
-python tests_pytest/validate_spin_ann_precision.py --arch sm_89
-python tests_pytest/validate_spin_training.py --nep src/nep --check-jit
-```
-
-Choose `--arch` for the target GPU. The first check compares the spin-private ANN
-accumulator with an independent host long-double oracle, including small energy
-differences and finite-difference derivatives for its supported single hidden layer.
-The second exercises the full training/restart/prediction lifecycle and requires
-actual JIT compilation for native/compiled parity. ANN-only precision is not a
-bound on geometry or descriptor rounding in a full potential evaluation.
-
-## Spin generated headers
-
-Regenerate with NumPy, Torch, e3nn and clang-format 17 on `PATH`:
-
-```bash
-python tests_pytest/generate_spin_tables.py
-c++ -std=c++14 -Isrc tests_pytest/generate_spin_md_layouts.cpp -o /path/to/generator
-/path/to/generator | clang-format --style=file > src/force/nep_spin/spin_md_layouts.cuh
-```
-
-Both outputs use the project license header and repository formatting.
+CPU-only checks run with `python3 tests_pytest/test_remd_tp_host.py`. The C++
+harness includes the production `remd_utilities.cuh` directly and tests grid
+validation, pair schedules, Boltzmann log weights, SCR moments, and state/RNG
+serialization. It no longer extracts source strings or substitutes a REMD driver.
+The metadata/XYZ integration checks use the real GPU executable.
