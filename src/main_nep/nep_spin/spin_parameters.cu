@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Chengbing Chen: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "force/nep_spin/spin_layout.cuh"
 #include "main_nep/common/nep_model.cuh"
 #include "spin_parameters.cuh"

@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 The Berendsen thermostat and barostat:
 [1] H. J. C. Berendsen et al. J. Chem. Phys. 81, 3684 (1984).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_ber.cuh"

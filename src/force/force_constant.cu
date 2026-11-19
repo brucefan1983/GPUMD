@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 Use finite difference to calculate the second order force constants：
     Phi_ij^ab = [F_i^a(-) - F_i^a(+)] / [u_j^b(+) - u_j^b(-)]
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "force/force.cuh"

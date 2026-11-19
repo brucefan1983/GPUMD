@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Add electric field to a group of atoms.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "add_efield.cuh"

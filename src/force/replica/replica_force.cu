@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Force evaluation of the replicas on one GPU, see replica_force.cuh.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "replica_force.cuh"

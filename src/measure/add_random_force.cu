@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Add random forces with zero mean and specified variance.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "add_random_force.cuh"

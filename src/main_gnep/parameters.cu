@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Hongfu Huang: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "parameters.cuh"
 #include "device_guard.cuh"
 #include "utilities/common.cuh"

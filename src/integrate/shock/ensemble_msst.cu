@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The NVE ensemble integrator.
+
+Major contributors:
+  Shuning Pan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_msst.cuh"

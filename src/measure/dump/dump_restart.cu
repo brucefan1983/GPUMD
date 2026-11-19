@@ -15,6 +15,10 @@
 
 /*-----------------------------------------------------------------------------------------------100
 Dump a restart file
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Chengbing Chen: Spin-state restart data.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_restart.cuh"

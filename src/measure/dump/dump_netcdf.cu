@@ -20,13 +20,16 @@ trajectory conventions, with GPUMD extensions for atom types, the quantities
 AMBER does not define, group metadata, selectable precision, and optional
 NetCDF4 deflate compression.
 
-Contributing authors: Alexander Gabourie (Stanford University)
-                      Liang Ting (The Chinese University of Hong Kong)
-
 The implementation was influenced by LAMMPS' NetCDF output developed by
 Lars Pastewka (University of Freiburg). Documentation can be found at:
 https://docs.unidata.ucar.edu/netcdf-c/current/
 https://ambermd.org/netcdf/nctraj.pdf
+
+Major contributors:
+  Alexander J. Gabourie: Initial implementation.
+  Ting Liang: Velocities and general-cell trajectories.
+  Ke Xu: Corrected orthorhombic cell lengths.
+  Paul Erhart: Per-atom observables, trajectory appending, and AMBER force-unit conversion.
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_NETCDF

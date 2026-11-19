@@ -15,6 +15,10 @@
 
 /*----------------------------------------------------------------------------80
 The driver class for the various MC ensembles.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Paul Erhart: Corrected species counts when restarting Monte Carlo.
 ------------------------------------------------------------------------------*/
 
 #include "mc.cuh"

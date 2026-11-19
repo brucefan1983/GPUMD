@@ -15,6 +15,11 @@
 
 /*----------------------------------------------------------------------------80
 Compute block (space) averages of various per-atom quantities.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Zhixin Liang: Group-resolved momentum.
+  Vivekkumar Panneerselvam: Energy-transfer output for multiple heat reservoirs.
 ------------------------------------------------------------------------------*/
 
 #include "compute.cuh"

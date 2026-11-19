@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Xi Wang: Analytic NEP force constants.
+------------------------------------------------------------------------------*/
+
 #include "nep_analytic_hessian.cuh"
 #include "sparse_hessian.cuh"
 #include "force/force.cuh"

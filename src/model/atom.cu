@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The class defining the simulation box.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "atom.cuh"

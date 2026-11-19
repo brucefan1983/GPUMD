@@ -15,6 +15,11 @@
 
 /*----------------------------------------------------------------------------80
 neighbor list.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Hekai Bu: Separate intralayer and interlayer neighbors.
+  Yixin Deng: Fixed integer overflow in neighbor-list indexing and allocation.
 ------------------------------------------------------------------------------*/
 
 #include "neighbor.cuh"

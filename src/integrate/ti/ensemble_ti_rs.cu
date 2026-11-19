@@ -13,6 +13,12 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Shuning Pan: Initial implementation.
+  Zheyong Fan: Corrected switching endpoints and the switching derivative.
+------------------------------------------------------------------------------*/
+
 #include "ensemble_ti_rs.cuh"
 #include "utilities/gpu_macro.cuh"
 

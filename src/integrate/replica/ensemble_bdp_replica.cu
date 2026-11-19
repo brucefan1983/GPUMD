@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 The nvt_bdp thermostat of one replica, see ensemble_bdp_replica.cuh.
 [1] G. Bussi et al. J. Chem. Phys. 126, 014101 (2007).
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_bdp_replica.cuh"

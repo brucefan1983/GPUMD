@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 The k-space part of the Ewald summation for replica dynamics: a copy of
 force/ewald.cu with all launches on a given stream. Keep it in sync by hand.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "replica_ewald.cuh"

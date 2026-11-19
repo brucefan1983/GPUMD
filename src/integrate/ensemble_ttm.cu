@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 Two-Temperature Model (TTM) for metals, with an optional heat_lan source/sink
 channel for heat transport across metal-nonmetal heterointerfaces.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_ttm.cuh"

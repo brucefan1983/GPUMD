@@ -17,6 +17,9 @@
 The k-space part of the PPPM method for replica dynamics: a copy of
 force/pppm.cu with all launches and FFTs on a given stream, without the
 per-atom virial, which replica dynamics does not need. Keep it in sync by hand.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "replica_pppm.cuh"

@@ -13,6 +13,13 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Yong Wang: Multi-GPU NEP training.
+  Paul Erhart: Energy-difference training and prediction output ordering.
+------------------------------------------------------------------------------*/
+
 #include "nep_training.cuh"
 #include "nep_io.cuh"
 #include "energy_difference.cuh"

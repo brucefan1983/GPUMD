@@ -16,8 +16,8 @@
 /*
 Spin step implementation.
 
-Contributors:
-  Chengbing Chen: 1747193328@qq.com
+Major contributors:
+  Chengbing Chen: Initial implementation.
 */
 
 #include "glsd.cuh"

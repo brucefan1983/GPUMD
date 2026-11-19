@@ -14,7 +14,11 @@
 */
 
 /*----------------------------------------------------------------------------80
-Some functions for dealing with text files. Written by Mikko Ervasti.
+Some functions for dealing with text files.
+
+Major contributors:
+  Mikko Ervasti: Original text-file reader and line tokenizer.
+  Zheyong Fan: Integrated numeric input validation and added charge-model detection.
 ------------------------------------------------------------------------------*/
 
 #include "error.cuh"

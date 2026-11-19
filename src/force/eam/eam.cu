@@ -17,6 +17,9 @@
 The EAM potential. Currently two analytical versions:
 [1] X. W. Zhou et al. Phys. Rev. B 69, 144113 (2004).
 [2] X. D. Dai et al. JPCM 18, 4527 (2006).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "eam.cuh"

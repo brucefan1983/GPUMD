@@ -15,7 +15,8 @@
 /*----------------------------------------------------------------------------80
 Add spring forces for a group of atoms.
 
-Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
+Major contributors:
+  Hekai Bu: Initial implementation.
 ------------------------------------------------------------------------------*/
 #include "add_spring.cuh"
 #include "model/atom.cuh"

@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 Split a run.in file into sub-run input files according to the deposition
 keyword and perform deposition between consecutive sub-runs.
+
+Major contributors:
+  Benrui Tang: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "deposition.cuh"

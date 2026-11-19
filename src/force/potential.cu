@@ -15,6 +15,10 @@
 
 /*----------------------------------------------------------------------------80
 The abstract base class (ABC) for the potential classes.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Hekai Bu: Binary search for reverse neighbors in the single-precision force kernel.
 ------------------------------------------------------------------------------*/
 
 #include "potential.cuh"

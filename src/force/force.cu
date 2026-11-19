@@ -13,6 +13,11 @@
 
 /*----------------------------------------------------------------------------80
 The driver class calculating force and related quantities.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Eric Lindgren: Multiple-potential evaluation and averaging.
+  Paul Erhart: Corrected potential dispatch for observer calculations.
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_DEEPMD

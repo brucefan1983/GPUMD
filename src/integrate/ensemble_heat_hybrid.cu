@@ -28,8 +28,9 @@
     Example 2: system with a single heat source and multiple heat sinks
     ensemble    heat_hybrid lan nhc nhc <T> <T_coup> <T_coup> <T_coup> <delta_T> <label_source> <label_sink1> <label_sink2>
 
-    Contributors: Vivekkumar Panneerselvam and Weikang (Shanghai Jiao Tong University)
-
+Major contributors:
+  Vivekkumar Panneerselvam: Initial implementation.
+  Zheyong Fan: Reduced thermostat memory allocations.
 ------------------------------------------------------------------------------------------------------------------------------*/
 
 #include "ensemble_heat_hybrid.cuh"

@@ -16,8 +16,8 @@
 /*----------------------------------------------------------------------------80
 External magnetic fields for NEP-spin using the Action lifecycle.
 
-Contributors:
-Chengbing Chen, 1747193328@qq.com
+Major contributors:
+  Chengbing Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "force/force.cuh"

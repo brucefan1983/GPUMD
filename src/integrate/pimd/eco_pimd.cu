@@ -24,6 +24,9 @@ supplied with that paper. The symmetric Hessian is diagonalised with GPUMD's
 existing cuSOLVER/hipSOLVER wrapper rather than LAPACK DSYEV. A small-x series
 avoids cancellation in the objective kernel, and a relative convergence test
 stops iterations in the flat valley of an already-converged fit.
+
+Major contributors:
+  Zezhu Zeng: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "eco_pimd.cuh"

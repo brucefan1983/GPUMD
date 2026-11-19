@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "deposition.cuh"
 #include "integrate/replica/replica.cuh"
 #include "run.cuh"

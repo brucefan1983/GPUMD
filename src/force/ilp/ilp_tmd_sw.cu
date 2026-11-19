@@ -19,7 +19,8 @@ The class dealing with the interlayer potential(ILP) and SW.
 Ref: Wenwu Jiang, Ting Liang, Hekai Bu, Jianbin Xu, and Wengen Ouyang, 
 Moiré-driven interfacial thermal transport in twisted transition metal dichalcogenides, ACS Nano 19, 16287 (2025).
 
-Implemented by: Hekai Bu (Wuhan University), hekai_bu@whu.edu.cn
+Major contributors:
+  Hekai Bu: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ilp_tmd_sw.cuh"

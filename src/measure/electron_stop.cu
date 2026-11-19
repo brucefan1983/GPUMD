@@ -15,6 +15,11 @@
 
 /*----------------------------------------------------------------------------80
 Apply electron stopping.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Jiahui Liu: Cumulative energy loss from electronic stopping.
+  Yixin Deng: Corrected energy-loss accumulation outside the stopping range.
 ------------------------------------------------------------------------------*/
 
 #include "electron_stop.cuh"

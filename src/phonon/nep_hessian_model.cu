@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Xi Wang: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "nep_hessian_model.cuh"
 #include "utilities/error.cuh"
 #include "utilities/nep_io/nep_model_file.cuh"

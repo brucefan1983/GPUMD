@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Some wrappers for the cuSOLVER library
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "cusolver_wrapper.cuh"

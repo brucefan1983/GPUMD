@@ -16,6 +16,10 @@
 /*-----------------------------------------------------------------------------------------------100
 Calculate:
     Angular-dependent Radial distribution function (AngularRDF)
+
+Major contributors:
+  Bin Xu: Initial implementation.
+  Zheyong Fan: Faster angular-dependent radial distribution calculations.
 --------------------------------------------------------------------------------------------------*/
 
 #include "angular_rdf.cuh"

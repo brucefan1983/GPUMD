@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The class dealing with the Lennard-Jones (LJ) pairwise potentials.
+
+Major contributors:
+  Zheyong Fan: Original Lennard-Jones implementation.
 ------------------------------------------------------------------------------*/
 
 #include "lj.cuh"
