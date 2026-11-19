@@ -24,7 +24,8 @@ GPUMD Contributing author: Zihan Yan (Westlake University)
 class ComputeCmass : public Action
 {
 public:
-  ComputeCmass(const std::vector<std::string>& tokens, const std::vector<Group>& groups, Atom& atom);
+  ComputeCmass(
+    const std::vector<std::string>& tokens, const std::vector<Group>& groups, Atom& atom);
 
   void pre_run(
     int number_of_steps,

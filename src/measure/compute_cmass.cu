@@ -18,6 +18,7 @@ GPUMD Contributing author: Zihan Yan (Westlake University)
 ------------------------------------------------------------------------------*/
 
 #include "compute_cmass.cuh"
+#include "integrate/integrate.cuh"
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -62,8 +63,7 @@ ComputeCmass::ComputeCmass(
 {
   action_name = "compute_cmass";
   if (tokens.size() != 2 && (tokens.size() != 5 || tokens[2] != "group")) {
-    PRINT_INPUT_ERROR(
-      "Expected compute_cmass <sample_interval> [group <group_method> <group>].\n");
+    PRINT_INPUT_ERROR("Expected compute_cmass <sample_interval> [group <group_method> <group>].\n");
   }
   if (!is_valid_int(tokens[1], &sample_interval_) || sample_interval_ <= 0) {
     PRINT_INPUT_ERROR("compute_cmass sampling interval must be a positive integer.\n");
@@ -89,6 +89,10 @@ void ComputeCmass::pre_run(
   Box& box,
   Force& force)
 {
+  if (is_pimd(integrate.get_type())) {
+    PRINT_INPUT_ERROR(
+      "compute_cmass supports classical MD only. PIMD, RPMD, and TRPMD are unsupported.\n");
+  }
   sums_.resize(4);
   file_ = my_fopen("cmass.out", "a");
   fprintf(file_, "# compute_cmass %d", sample_interval_);

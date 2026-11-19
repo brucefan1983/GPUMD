@@ -72,3 +72,37 @@ def test_compute_cmass_tracks_periodic_crossing_without_dump(tmp_path, gpumd_com
     steps = np.arange(1, 6)
     expected = np.column_stack((steps * 0.001, 9.75 + steps * 0.1, np.ones((5, 2))))
     np.testing.assert_allclose(np.loadtxt(tmp_path / 'cmass.out'), expected, rtol=0, atol=1e-9)
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize(
+    'ensemble, equilibration',
+    [
+        ('pimd 4 300 300 20', ''),
+        ('pimd_scr 4 300 300 20 0 100 1000', ''),
+        ('rpmd 4', 'ensemble pimd 4 300 300 20\nrun 2\n'),
+        ('trpmd 4', 'ensemble pimd 4 300 300 20\nrun 2\n'),
+    ],
+    ids=['pimd', 'pimd_scr', 'rpmd', 'trpmd'],
+)
+def test_compute_cmass_rejects_pimd_family(tmp_path, gpumd_command, ensemble, equilibration):
+    (tmp_path / 'lj.txt').write_text('lj 1 Ar\n1.0 1.0 2.0\n')
+    (tmp_path / 'model.xyz').write_text(
+        '2\n'
+        'Lattice="10 0 0 0 10 0 0 0 10" pbc="T T T" Properties=species:S:1:pos:R:3\n'
+        'Ar 1 1 1\n'
+        'Ar 4 5 5\n'
+    )
+    (tmp_path / 'run.in').write_text(
+        'potential lj.txt\n'
+        'velocity 300 seed 7\n'
+        'time_step 0.1\n'
+        f'{equilibration}'
+        f'ensemble {ensemble}\n'
+        'compute_cmass 1\n'
+        'run 1\n'
+    )
+    result = subprocess.run([gpumd_command], cwd=tmp_path, capture_output=True, text=True)
+    assert result.returncode != 0
+    assert 'compute_cmass supports classical MD only.' in result.stdout + result.stderr
+    assert not (tmp_path / 'cmass.out').exists()
