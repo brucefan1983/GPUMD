@@ -15,12 +15,12 @@
 
 #pragma once
 #include "ensemble.cuh"
-#include <string>
 #include "utilities/gpu_macro.cuh"
+#include <string>
 #ifdef USE_HIP
-  #include <hiprand/hiprand_kernel.h>
+#include <hiprand/hiprand_kernel.h>
 #else
-  #include <curand_kernel.h>
+#include <curand_kernel.h>
 #endif
 
 class Ensemble_BAO : public Ensemble

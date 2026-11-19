@@ -22,8 +22,8 @@ Major contributors:
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_bdp_replica.cuh"
-#include "replica_thermo_kernels.cuh"
 #include "integrate/svr_utilities.cuh"
+#include "replica_thermo_kernels.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -77,8 +77,7 @@ int Ensemble_BDP_Replica::get_degrees_of_freedom(const int number_of_atoms) cons
   return degrees_of_freedom;
 }
 
-void Ensemble_BDP_Replica::compute1(
-  const double time_step, Atom& atom, const gpuStream_t stream)
+void Ensemble_BDP_Replica::compute1(const double time_step, Atom& atom, const gpuStream_t stream)
 {
   const std::vector<Group> no_group;
   velocity_verlet(
@@ -146,8 +145,7 @@ void Ensemble_BDP_Replica::find_thermo(
   GPU_CHECK_KERNEL
 }
 
-void Ensemble_BDP_Replica::draw_svr_noise(
-  const int ndeg, double& gaussian, double& sum_of_squares)
+void Ensemble_BDP_Replica::draw_svr_noise(const int ndeg, double& gaussian, double& sum_of_squares)
 {
   const SVR_Noise noise = draw_resamplekin_noise(ndeg, rng, gaussian_cache_);
   gaussian = noise.gaussian;
@@ -163,8 +161,8 @@ void Ensemble_BDP_Replica::seed_rng(const unsigned int seed)
 std::string Ensemble_BDP_Replica::export_rng_state() const
 {
   std::ostringstream output;
-  output << 1 << ' ' << gaussian_cache_.iset << ' ' << std::setprecision(17)
-         << gaussian_cache_.gset << ' ' << rng;
+  output << 1 << ' ' << gaussian_cache_.iset << ' ' << std::setprecision(17) << gaussian_cache_.gset
+         << ' ' << rng;
   return output.str();
 }
 

@@ -32,45 +32,41 @@ Major contributors:
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
-#include <vector>
 #include <array>
+#include <vector>
 
 namespace
 {
-  using Vec3 = std::array<double, 3>;
-  using Mat3 = std::array<std::array<double, 3>, 3>;
+using Vec3 = std::array<double, 3>;
+using Mat3 = std::array<std::array<double, 3>, 3>;
 
-  Vec3 matvec(const Mat3& m, const Vec3& v)
-  {
-    return Vec3{{
-      m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2],
-      m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2],
-      m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2]}};
-  }
-
-  Vec3 lerp(const Vec3& a, const Vec3& b, double t)
-  {
-    return Vec3{{a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2])}};
-  }
-
-  Mat3 build_reciprocal_lattice(const Box& box, const int cxyz[3])
-  {
-    Mat3 rec;
-    for (int i = 0; i < 3; ++i) {
-      for (int j = 0; j < 3; ++j) {
-        rec[j][i] = 2.0 * PI * cxyz[i] * box.cpu_h[9 + i * 3 + j];
-      }
-    }
-    return rec;
-  }
+Vec3 matvec(const Mat3& m, const Vec3& v)
+{
+  return Vec3{
+    {m[0][0] * v[0] + m[0][1] * v[1] + m[0][2] * v[2],
+     m[1][0] * v[0] + m[1][1] * v[1] + m[1][2] * v[2],
+     m[2][0] * v[0] + m[2][1] * v[1] + m[2][2] * v[2]}};
 }
 
+Vec3 lerp(const Vec3& a, const Vec3& b, double t)
+{
+  return Vec3{{a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2])}};
+}
+
+Mat3 build_reciprocal_lattice(const Box& box, const int cxyz[3])
+{
+  Mat3 rec;
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      rec[j][i] = 2.0 * PI * cxyz[i] * box.cpu_h[9 + i * 3 + j];
+    }
+  }
+  return rec;
+}
+} // namespace
+
 void Hessian::compute(
-  Force& force,
-  Box& box,
-  Atom& atom,
-  std::vector<Group>& group,
-  const int replicate_size[3])
+  Force& force, Box& box, Atom& atom, std::vector<Group>& group, const int replicate_size[3])
 {
   for (int i = 0; i < 3; ++i) {
     cxyz[i] = replicate_size[i];
@@ -137,9 +133,9 @@ void Hessian::create_kpoints(const Box& box)
       }
       continue;
     }
-    if (tokens[0][0] == '#') 
+    if (tokens[0][0] == '#')
       continue;
-    
+
     if (tokens.size() < 4) {
       PRINT_INPUT_ERROR("kpoints.in file at least 4 parameters for each line.");
     } else {
@@ -187,7 +183,7 @@ void Hessian::create_kpoints(const Box& box)
         for (int i = 0; i < 3; ++i) {
           kpoints[k_idx * 3 + i] = kpt[i];
         }
-        
+
         double d[3];
         for (int i = 0; i < 3; ++i) {
           d[i] = kpt[i] - last[i];
@@ -204,20 +200,19 @@ void Hessian::create_kpoints(const Box& box)
   }
 }
 
-void Hessian::initialize(
-  const std::vector<double>& cpu_mass, Box& box, Force& force, int N)
+void Hessian::initialize(const std::vector<double>& cpu_mass, Box& box, Force& force, int N)
 {
   get_cutoff_from_potential(force);
 
   int s_c[3] = {1, 1, 1};
   int stru_pbc[3] = {box.pbc_x, box.pbc_y, box.pbc_z};
   double volume = box.get_volume();
-  for (int i= 0; i < 3; ++i){
+  for (int i = 0; i < 3; ++i) {
     double thickness = volume / box.get_area(i);
     double ori_thick = thickness / cxyz[i];
     if (stru_pbc[i]) {
-      for (int j= 1;j< 100;++j){
-        if (ori_thick *j>= cutoff *4){
+      for (int j = 1; j < 100; ++j) {
+        if (ori_thick * j >= cutoff * 4) {
           s_c[i] = j;
           break;
         }
@@ -258,11 +253,7 @@ bool Hessian::is_too_far(
   return (d12_square > (phonon_cutoff * phonon_cutoff));
 }
 
-void Hessian::find_H(
-  Force& force,
-  Box& box,
-  Atom& atom,
-  std::vector<Group>& group)
+void Hessian::find_H(Force& force, Box& box, Atom& atom, std::vector<Group>& group)
 {
   const int number_of_atoms = atom.number_of_atoms;
 
@@ -387,7 +378,8 @@ void Hessian::find_dispersion(const Box& box, Atom& atom)
         if (is_too_far(box, atom.cpu_position_per_atom, n1, n2))
           continue;
         double cos_kr, sin_kr;
-        find_exp_ikr(n1, n2, kpoints.data() + nk * 3, box, atom.cpu_position_per_atom, cos_kr, sin_kr);
+        find_exp_ikr(
+          n1, n2, kpoints.data() + nk * 3, box, atom.cpu_position_per_atom, cos_kr, sin_kr);
 
         size_t label_2 = label[n2];
         double mass_2 = mass[label_2];

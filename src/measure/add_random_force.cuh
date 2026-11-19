@@ -15,14 +15,14 @@
 
 #pragma once
 #include "action.cuh"
-#include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>
 #ifdef USE_HIP
-  #include <hiprand/hiprand_kernel.h>
+#include <hiprand/hiprand_kernel.h>
 #else
-  #include <curand_kernel.h>
+#include <curand_kernel.h>
 #endif
 
 class Add_Random_Force : public Action

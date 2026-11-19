@@ -185,26 +185,15 @@ Ensemble_QTB::Ensemble_QTB(const std::vector<std::string>& tokens)
   printf("    N_f is %d.\n", n_f_input_);
 }
 
-double Ensemble_QTB::get_temperature1() const
-{
-  return temperature1_;
-}
+double Ensemble_QTB::get_temperature1() const { return temperature1_; }
 
-double Ensemble_QTB::get_temperature2() const
-{
-  return temperature2_;
-}
+double Ensemble_QTB::get_temperature2() const { return temperature2_; }
 
 void Ensemble_QTB::initialize_run(
   const double time_step, Atom& atom, Box&, const std::vector<Group>&)
 {
   init_qtb_common(
-    atom.number_of_atoms,
-    temperature,
-    temperature_coupling,
-    time_step,
-    f_max_input_,
-    n_f_input_);
+    atom.number_of_atoms, temperature, temperature_coupling, time_step, f_max_input_, n_f_input_);
 }
 
 void Ensemble_QTB::init_qtb_common(
@@ -368,12 +357,22 @@ void Ensemble_QTB::compute1(
 
 #ifdef USE_NEPCG
   velocity_verlet_cg(
-    true, time_step, group, atom.mass, atom.force_per_atom,
-    atom.position_per_atom, atom.velocity_per_atom);
+    true,
+    time_step,
+    group,
+    atom.mass,
+    atom.force_per_atom,
+    atom.position_per_atom,
+    atom.velocity_per_atom);
 #else
   velocity_verlet(
-    true, time_step, group, atom.mass, atom.force_per_atom,
-    atom.position_per_atom, atom.velocity_per_atom);
+    true,
+    time_step,
+    group,
+    atom.mass,
+    atom.force_per_atom,
+    atom.position_per_atom,
+    atom.velocity_per_atom);
 #endif
 }
 
@@ -389,12 +388,22 @@ void Ensemble_QTB::compute2(
 {
 #ifdef USE_NEPCG
   velocity_verlet_cg(
-    false, time_step, group, atom.mass, atom.force_per_atom,
-    atom.position_per_atom, atom.velocity_per_atom);
+    false,
+    time_step,
+    group,
+    atom.mass,
+    atom.force_per_atom,
+    atom.position_per_atom,
+    atom.velocity_per_atom);
 #else
   velocity_verlet(
-    false, time_step, group, atom.mass, atom.force_per_atom,
-    atom.position_per_atom, atom.velocity_per_atom);
+    false,
+    time_step,
+    group,
+    atom.mass,
+    atom.force_per_atom,
+    atom.position_per_atom,
+    atom.velocity_per_atom);
 #endif
 
   apply_qtb_half_step(atom);

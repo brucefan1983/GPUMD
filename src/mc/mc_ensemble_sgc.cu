@@ -32,8 +32,8 @@ Major contributors:
 
 #include "mc_ensemble_sgc.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <map>
 #include <cstring>
+#include <map>
 
 const std::map<std::string, double> MASS_TABLE{
   {"H", 1.0080000000},

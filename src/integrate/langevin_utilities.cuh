@@ -223,15 +223,7 @@ static __global__ void gpu_langevin_region(
           source_cmax)) {
       c2 = c2_source;
     } else if (is_in_region(
-                 sa,
-                 sb,
-                 sc,
-                 sink_amin,
-                 sink_amax,
-                 sink_bmin,
-                 sink_bmax,
-                 sink_cmin,
-                 sink_cmax)) {
+                 sa, sb, sc, sink_amin, sink_amax, sink_bmin, sink_bmax, sink_cmin, sink_cmax)) {
       c2 = c2_sink;
     } else {
       return;
@@ -330,26 +322,10 @@ static __global__ void find_ke_region(
       bool in_region;
       if (bid == 0) {
         in_region = is_in_region(
-          sa,
-          sb,
-          sc,
-          source_amin,
-          source_amax,
-          source_bmin,
-          source_bmax,
-          source_cmin,
-          source_cmax);
+          sa, sb, sc, source_amin, source_amax, source_bmin, source_bmax, source_cmin, source_cmax);
       } else {
         in_region = is_in_region(
-          sa,
-          sb,
-          sc,
-          sink_amin,
-          sink_amax,
-          sink_bmin,
-          sink_bmax,
-          sink_cmin,
-          sink_cmax);
+          sa, sb, sc, sink_amin, sink_amax, sink_bmin, sink_bmax, sink_cmin, sink_cmax);
       }
       if (in_region) {
         double mass = g_mass[n];
@@ -375,7 +351,8 @@ static __global__ void find_ke_region(
 }
 
 // Reduce the source/sink block partials before and after thermostatting.
-static __global__ void sum_ke_region(const int number_of_blocks, const double* g_partial, double* g_ke)
+static __global__ void
+sum_ke_region(const int number_of_blocks, const double* g_partial, double* g_ke)
 {
   int tid = threadIdx.x;
   __shared__ double s_ke[512];
@@ -397,4 +374,3 @@ static __global__ void sum_ke_region(const int number_of_blocks, const double* g
     g_ke[blockIdx.x] = s_ke[0];
   }
 }
-

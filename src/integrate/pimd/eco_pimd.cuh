@@ -16,8 +16,7 @@
 #pragma once
 #include <vector>
 
-struct Eco_PIMD_Result
-{
+struct Eco_PIMD_Result {
   // omega_k / omega_P for k = 0, ..., P - 1.
   std::vector<double> mode_factors;
 

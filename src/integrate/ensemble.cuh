@@ -24,8 +24,7 @@
 
 #define NOSE_HOOVER_CHAIN_LENGTH 4
 
-enum class EnsembleType
-{
+enum class EnsembleType {
   UNKNOWN,
   NVE,
   NVT_BER,
@@ -75,8 +74,7 @@ inline bool is_standard_npt(const EnsembleType type)
 
 inline bool is_pimd(const EnsembleType type)
 {
-  return type == EnsembleType::RPMD || type == EnsembleType::TRPMD ||
-         type == EnsembleType::PIMD;
+  return type == EnsembleType::RPMD || type == EnsembleType::TRPMD || type == EnsembleType::PIMD;
 }
 
 class Ensemble
@@ -199,14 +197,8 @@ protected:
     GPU_Vector<double>& velocity_per_atom);
 #endif
 
-  void velocity_verlet_v(
-    const double time_step,
-    const std::vector<Group>& group,
-    Atom& atom);
-  void velocity_verlet_x(
-    const double time_step,
-    const std::vector<Group>& group,
-    Atom& atom);
+  void velocity_verlet_v(const double time_step, const std::vector<Group>& group, Atom& atom);
+  void velocity_verlet_x(const double time_step, const std::vector<Group>& group, Atom& atom);
 
   void scale_velocity_global(const double factor, GPU_Vector<double>& velocity_per_atom);
 

@@ -48,7 +48,9 @@ public:
     const NEP_Energy_Reader& reader);
   // Resolves the test combinations and prints the summary of ediff.in.
   void read_test(
-    const NEP_Energy_Parameters& para, const std::vector<Structure>& structures_test, const bool has_test_set,
+    const NEP_Energy_Parameters& para,
+    const std::vector<Structure>& structures_test,
+    const bool has_test_set,
     const NEP_Energy_Reader& reader);
   // Weighted RMSE of the training combinations in batch batch_id, which the caller has evaluated.
   double get_rmse_train(Dataset& dataset, const int batch_id, const int device_id);

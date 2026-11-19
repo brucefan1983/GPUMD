@@ -23,8 +23,8 @@ Major contributors:
 #define HAS_VDW_JIT 0
 #define TENSOR_VIRIAL_JIT 1
 #define INITIALIZE_RADIAL_SHEAR_JIT 1
-#include "main_nep/common/nep_specialized.cuh"
 #include "main_nep/common/nep_scalar_ann_specialized.cuh"
+#include "main_nep/common/nep_specialized.cuh"
 
 static __global__ void ann_tnep_pol_jit(
   const int N,
@@ -36,7 +36,8 @@ static __global__ void ann_tnep_pol_jit(
   float* Fp_out)
 {
   const int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 >= N) return;
+  if (n1 >= N)
+    return;
 
   const int t = (NUM_TYPES_JIT == 1) ? 0 : type[n1];
   float q[ANN_DIM_JIT] = {0.0f};
@@ -50,8 +51,7 @@ static __global__ void ann_tnep_pol_jit(
   // first ANN set -> tensor descriptor derivative.
   float F = 0.0f;
   float Fp_pol[ANN_DIM_JIT] = {0.0f};
-  apply_scalar_ann_jit(
-    parameters, ANN_SET_SIZE_JIT, t, q, F, Fp_pol);
+  apply_scalar_ann_jit(parameters, ANN_SET_SIZE_JIT, t, q, F, Fp_pol);
 
   virial[n1] = F;
   virial[n1 + N] = F;

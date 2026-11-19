@@ -38,10 +38,7 @@ public:
   ~Force();
 
   void parse_potential(
-    const std::vector<std::string>& tokens,
-    const Box& box,
-    Atom& atom,
-    const RunInput& run_input);
+    const std::vector<std::string>& tokens, const Box& box, Atom& atom, const RunInput& run_input);
 
   void compute(
     Box& box,
@@ -79,9 +76,7 @@ public:
     GPU_Vector<double>& virial_per_atom);
 
 #ifdef GPUMD_WPE_ENABLED
-  void wpe_process_command(
-    const std::vector<std::string>& tokens,
-    int current_number_of_atoms);
+  void wpe_process_command(const std::vector<std::string>& tokens, int current_number_of_atoms);
 #endif
 
   void finalize();

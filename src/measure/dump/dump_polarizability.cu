@@ -8,8 +8,8 @@
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details. You should have received a copy of the GNU Lesser General
-   Public License along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details. You should have received a copy of the GNU
+   Lesser General Public License along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
@@ -20,17 +20,17 @@ Major contributors:
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_polarizability.cuh"
+#include "measure/parse_utilities.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
-#include "measure/parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 #include <iostream>
 #include <vector>
-#include <cstring>
 
 static __global__ void sum_polarizability(
   const int N, const int number_of_batches, const double* g_virial_per_atom, double* g_pol)
@@ -118,9 +118,15 @@ void Dump_Polarizability::pre_run(
     fprintf(
       file_,
       "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
-      box.cpu_h[0], box.cpu_h[3], box.cpu_h[6],
-      box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
-      box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+      box.cpu_h[0],
+      box.cpu_h[3],
+      box.cpu_h[6],
+      box.cpu_h[1],
+      box.cpu_h[4],
+      box.cpu_h[7],
+      box.cpu_h[2],
+      box.cpu_h[5],
+      box.cpu_h[8]);
     fprintf(file_, "# dt_output %.10e fs\n", time_step * dump_interval_ * TIME_UNIT_CONVERSION);
     fprintf(file_, "# columns step pol_xx pol_yy pol_zz pol_xy pol_yz pol_zx\n");
     gpu_pol_.resize(6);

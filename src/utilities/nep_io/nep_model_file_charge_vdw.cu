@@ -33,7 +33,6 @@ bool NEP_Model_File::read_charge_vdw(
     return fail(error, name + " supports only one hidden layer.", document.find_field("ann")->line);
   }
   calculate_layout(0, 2, 2, 1);
-  return read_reference(document, fields, error) &&
-         read_zbl(document, fields, blocks, error) &&
+  return read_reference(document, fields, error) && read_zbl(document, fields, blocks, error) &&
          read_parameters(document, blocks, error);
 }

@@ -25,11 +25,11 @@ Major contributors:
 #include "electron_stop.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
-#include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/gpu_vector.cuh"
+#include <cstring>
 #include <iostream>
 #include <vector>
-#include <cstring>
 
 static void __global__ find_stopping_force(
   const int num_atoms,

@@ -28,11 +28,11 @@ Major contributors:
 --------------------------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"
+#include "measure/parse_utilities.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "orientorder.cuh"
-#include "measure/parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -236,7 +236,8 @@ void _init_clebsch_gordan(std::vector<double>& cglist, const std::vector<int>& l
         int m = aa2 + bb2 + l;
         double sums{0.0};
         for (int z = std::max(0, std::max(-aa2, bb2));
-             z < std::min(l, std::min(l - aa2, l + bb2)) + 1; z++) {
+             z < std::min(l, std::min(l - aa2, l + bb2)) + 1;
+             z++) {
           int ifac = 1;
           if (z % 2) {
             ifac = -1;

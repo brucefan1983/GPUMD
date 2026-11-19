@@ -82,12 +82,8 @@ private:
   std::vector<double> mu_or_phi;
 
   void parse_group(
-    const std::vector<std::string>& tokens,
-    std::vector<Group>& groups,
-    int num_param_before_group);
+    const std::vector<std::string>& tokens, std::vector<Group>& groups, int num_param_before_group);
   void check_species_canonical(std::vector<Group>& groups, Atom& atom);
-  void check_species_sgc(
-    std::vector<Group>& groups,
-    Atom& atom,
-    const std::string& potential_file_name);
+  void
+  check_species_sgc(std::vector<Group>& groups, Atom& atom, const std::string& potential_file_name);
 };

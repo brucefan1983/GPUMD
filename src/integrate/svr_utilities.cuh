@@ -54,10 +54,7 @@ static double gasdev(std::mt19937& rng, SVR_Gaussian_Cache& cache)
   }
 }
 
-static inline double gasdev(std::mt19937& rng)
-{
-  return gasdev(rng, default_svr_gaussian_cache());
-}
+static inline double gasdev(std::mt19937& rng) { return gasdev(rng, default_svr_gaussian_cache()); }
 
 static double gamdev(const int ia, std::mt19937& rng)
 {
@@ -91,8 +88,7 @@ static double gamdev(const int ia, std::mt19937& rng)
   return x;
 }
 
-static double
-resamplekin_sumnoises(int nn, std::mt19937& rng, SVR_Gaussian_Cache& cache)
+static double resamplekin_sumnoises(int nn, std::mt19937& rng, SVR_Gaussian_Cache& cache)
 {
   /*
     returns the sum of n independent gaussian noises squared
@@ -117,8 +113,7 @@ struct SVR_Noise {
   double sum_of_squares;
 };
 
-static SVR_Noise
-draw_resamplekin_noise(int ndeg, std::mt19937& rng, SVR_Gaussian_Cache& cache)
+static SVR_Noise draw_resamplekin_noise(int ndeg, std::mt19937& rng, SVR_Gaussian_Cache& cache)
 {
   SVR_Noise noise;
   noise.gaussian = gasdev(rng, cache);
@@ -127,12 +122,7 @@ draw_resamplekin_noise(int ndeg, std::mt19937& rng, SVR_Gaussian_Cache& cache)
 }
 
 static double resamplekin(
-  double kk,
-  double sigma,
-  int ndeg,
-  double taut,
-  std::mt19937& rng,
-  SVR_Gaussian_Cache& cache)
+  double kk, double sigma, int ndeg, double taut, std::mt19937& rng, SVR_Gaussian_Cache& cache)
 {
   /*
     kk:    present value of the kinetic energy of the atoms to be thermalized (in arbitrary units)

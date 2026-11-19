@@ -29,8 +29,8 @@ Major contributors:
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
-#include <vector>
 #include <cstring>
+#include <vector>
 
 Dump_Restart::Dump_Restart(const std::vector<std::string>& tokens)
 {

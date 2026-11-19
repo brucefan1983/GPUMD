@@ -42,23 +42,23 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re", "Os", "Ir", "Pt", "Au", "Hg",
   "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu"};
 
-
 #ifdef JVM_LIB_PATH
 #include <windows.h>
-static void *sJvmDllHandle = NULL;
+static void* sJvmDllHandle = NULL;
 #endif
 
-static jboolean initJVM_(JNIEnv **rEnv) {
+static jboolean initJVM_(JNIEnv** rEnv)
+{
 #ifdef JVM_LIB_PATH
   if (sJvmDllHandle == NULL) {
-    sJvmDllHandle = (void *)LoadLibrary(JVM_LIB_PATH);
+    sJvmDllHandle = (void*)LoadLibrary(JVM_LIB_PATH);
     if (sJvmDllHandle == NULL) {
       fprintf(stderr, "Fail to open jvm lib in %s\n", JVM_LIB_PATH);
       return JNI_FALSE;
     }
   }
 #endif
-  JavaVM *tJVM = NULL;
+  JavaVM* tJVM = NULL;
   jsize tNVMs;
   JNI_GetCreatedJavaVMs(&tJVM, 1, &tNVMs);
   if (tJVM != NULL) {
@@ -67,19 +67,21 @@ static jboolean initJVM_(JNIEnv **rEnv) {
   }
   JavaVMInitArgs tVMArgs;
   JavaVMOption tOptions[4];
-  tOptions[0].optionString = (char *)JVM_CLASS_PATH; // here, path/to/jse/lib/jse-all.jar
-  tOptions[1].optionString = (char *)"-Xmx1g";
-  tOptions[2].optionString = (char *)"--enable-native-access=ALL-UNNAMED";
-  tOptions[3].optionString = (char *)"-Djdk.lang.processReaperUseDefaultStackSize=true"; // avoid fail of thread create
+  tOptions[0].optionString = (char*)JVM_CLASS_PATH; // here, path/to/jse/lib/jse-all.jar
+  tOptions[1].optionString = (char*)"-Xmx1g";
+  tOptions[2].optionString = (char*)"--enable-native-access=ALL-UNNAMED";
+  tOptions[3].optionString =
+    (char*)"-Djdk.lang.processReaperUseDefaultStackSize=true"; // avoid fail of thread create
   tVMArgs.version = JNI_VERSION_1_6;
   tVMArgs.nOptions = 4;
   tVMArgs.options = tOptions;
   tVMArgs.ignoreUnrecognized = JNI_TRUE;
-  
+
   jint tOut = JNI_CreateJavaVM(&tJVM, (void**)rEnv, &tVMArgs);
-  return tOut==JNI_OK ? JNI_TRUE : JNI_FALSE;
+  return tOut == JNI_OK ? JNI_TRUE : JNI_FALSE;
 }
-static jboolean exceptionCheck_(JNIEnv *aEnv) {
+static jboolean exceptionCheck_(JNIEnv* aEnv)
+{
   if (aEnv->ExceptionCheck()) {
     aEnv->ExceptionDescribe();
     aEnv->ExceptionClear();
@@ -90,16 +92,19 @@ static jboolean exceptionCheck_(JNIEnv *aEnv) {
 
 static jclass NNAP_CLAZZ = NULL;
 
-static jboolean cacheJClass_(JNIEnv *aEnv) {
+static jboolean cacheJClass_(JNIEnv* aEnv)
+{
   if (NNAP_CLAZZ == NULL) {
     jclass clazz = aEnv->FindClass("jsex/nnap/NNAP");
-    if (aEnv->ExceptionCheck()) return JNI_FALSE;
+    if (aEnv->ExceptionCheck())
+      return JNI_FALSE;
     NNAP_CLAZZ = (jclass)aEnv->NewGlobalRef(clazz);
     aEnv->DeleteLocalRef(clazz);
   }
   return JNI_TRUE;
 }
-static void uncacheJClass_(JNIEnv *aEnv) {
+static void uncacheJClass_(JNIEnv* aEnv)
+{
   if (NNAP_CLAZZ != NULL) {
     aEnv->DeleteGlobalRef(NNAP_CLAZZ);
     NNAP_CLAZZ = NULL;
@@ -111,48 +116,60 @@ static jmethodID sClose = 0;
 static jmethodID sRcutMax = 0;
 static jmethodID sComputeGPUMD = 0;
 
-static jobject newJObject_(JNIEnv *aEnv, const char* filename) {
+static jobject newJObject_(JNIEnv* aEnv, const char* filename)
+{
   jobject rOut = NULL;
-  
+
   jstring tJFileName = aEnv->NewStringUTF(filename);
   jstring tArchStr = aEnv->NewStringUTF("cuda");
-  if (sInit || (sInit = aEnv->GetMethodID(NNAP_CLAZZ, "<init>", "(Ljava/lang/String;Ljava/lang/String;)V"))) {
+  if (
+    sInit ||
+    (sInit = aEnv->GetMethodID(NNAP_CLAZZ, "<init>", "(Ljava/lang/String;Ljava/lang/String;)V"))) {
     rOut = aEnv->NewObject(NNAP_CLAZZ, sInit, tJFileName, tArchStr);
   }
   aEnv->DeleteLocalRef(tJFileName);
   aEnv->DeleteLocalRef(tArchStr);
-  
+
   return rOut;
 }
-static double rcutMax_(JNIEnv *aEnv, jobject aSelf) {
+static double rcutMax_(JNIEnv* aEnv, jobject aSelf)
+{
   if (sRcutMax || (sRcutMax = aEnv->GetMethodID(NNAP_CLAZZ, "rcutMax", "()D"))) {
     return aEnv->CallDoubleMethod(aSelf, sRcutMax);
   }
   return 0.0;
 }
-static void close_(JNIEnv *aEnv, jobject aSelf) {
+static void close_(JNIEnv* aEnv, jobject aSelf)
+{
   if (sClose || (sClose = aEnv->GetMethodID(NNAP_CLAZZ, "close", "()V"))) {
     aEnv->CallVoidMethod(aSelf, sClose);
   }
 }
-static void computeGPUMD_(JNIEnv *aEnv, jobject aSelf,
-    const int number_of_particles,
-    const int N1,
-    const int N2,
-    const int nn_max,
-    const int *g_neighbor_number,
-    const int *g_neighbor_list,
-    const float *nl_dx,
-    const float *nl_dy,
-    const float *nl_dz,
-    const int *g_type,
-    double *g_fx,
-    double *g_fy,
-    double *g_fz,
-    double *g_virial,
-    double *g_potential) {
-  if (sComputeGPUMD || (sComputeGPUMD = aEnv->GetMethodID(NNAP_CLAZZ, "computeGPUMD", "(IIIIJJJJJJJJJJJ)V"))) {
-    return aEnv->CallVoidMethod(aSelf, sComputeGPUMD,
+static void computeGPUMD_(
+  JNIEnv* aEnv,
+  jobject aSelf,
+  const int number_of_particles,
+  const int N1,
+  const int N2,
+  const int nn_max,
+  const int* g_neighbor_number,
+  const int* g_neighbor_list,
+  const float* nl_dx,
+  const float* nl_dy,
+  const float* nl_dz,
+  const int* g_type,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_virial,
+  double* g_potential)
+{
+  if (
+    sComputeGPUMD ||
+    (sComputeGPUMD = aEnv->GetMethodID(NNAP_CLAZZ, "computeGPUMD", "(IIIIJJJJJJJJJJJ)V"))) {
+    return aEnv->CallVoidMethod(
+      aSelf,
+      sComputeGPUMD,
       (jint)number_of_particles,
       (jint)N1,
       (jint)N2,
@@ -167,8 +184,7 @@ static void computeGPUMD_(JNIEnv *aEnv, jobject aSelf,
       (jlong)(intptr_t)g_fy,
       (jlong)(intptr_t)g_fz,
       (jlong)(intptr_t)g_virial,
-      (jlong)(intptr_t)g_potential
-    );
+      (jlong)(intptr_t)g_potential);
   }
 }
 
@@ -191,7 +207,6 @@ static bool check_if_small_box(const double rc, const Box& box)
   return is_small_box;
 }
 
-
 NNAP::NNAP(const char* setting_file, const char* nnap_file, int num_atoms)
 {
   // init GPUMD settings, like zbl
@@ -211,8 +226,7 @@ NNAP::NNAP(const char* setting_file, const char* nnap_file, int num_atoms)
   } else if (tokens[0] == "nnap_zbl") {
     zbl.enabled = true;
   } else {
-    std::cout << tokens[0]
-              << " is an unsupported NNAP model. Expected: nnap, nnap_zbl"
+    std::cout << tokens[0] << " is an unsupported NNAP model. Expected: nnap, nnap_zbl"
               << std::endl;
     exit(1);
   }
@@ -255,7 +269,8 @@ NNAP::NNAP(const char* setting_file, const char* nnap_file, int num_atoms)
     if (tokens.size() == 4) {
       zbl.typewise_cutoff_factor = get_double_from_token(tokens[3], __FILE__, __LINE__);
       zbl.use_typewise_cutoff = true;
-      printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
+      printf(
+        "    has the universal ZBL with typewise cutoff with a factor of %g.\n",
         zbl.typewise_cutoff_factor);
     } else {
       printf(
@@ -283,31 +298,36 @@ NNAP::NNAP(const char* setting_file, const char* nnap_file, int num_atoms)
   }
   input.close();
 
-
   // init jni env
   if (mEnv == NULL) {
     jboolean tSuc = initJVM_(&mEnv);
-    if (!tSuc) PRINT_INPUT_ERROR("Fail to init jvm");
-    if (mEnv == NULL) PRINT_INPUT_ERROR("Fail to get jni env");
+    if (!tSuc)
+      PRINT_INPUT_ERROR("Fail to init jvm");
+    if (mEnv == NULL)
+      PRINT_INPUT_ERROR("Fail to get jni env");
   }
   // init java NNAP object
   jboolean tSuc = cacheJClass_(mEnv);
-  if (exceptionCheck_(mEnv) || !tSuc) PRINT_INPUT_ERROR("Fail to cache class of java NNAP");
+  if (exceptionCheck_(mEnv) || !tSuc)
+    PRINT_INPUT_ERROR("Fail to cache class of java NNAP");
   jobject tObj = newJObject_(mEnv, nnap_file);
-  if (exceptionCheck_(mEnv) || tObj==NULL) PRINT_INPUT_ERROR("Fail to create java NNAP object");
-  if (mCore != NULL) mEnv->DeleteGlobalRef(mCore);
+  if (exceptionCheck_(mEnv) || tObj == NULL)
+    PRINT_INPUT_ERROR("Fail to create java NNAP object");
+  if (mCore != NULL)
+    mEnv->DeleteGlobalRef(mCore);
   mCore = mEnv->NewGlobalRef(tObj);
   mEnv->DeleteLocalRef(tObj);
-  
+
   // get rcut
   rc = rcutMax_(mEnv, mCore);
-  if (exceptionCheck_(mEnv)) PRINT_INPUT_ERROR("Fail to get rcutMax");
+  if (exceptionCheck_(mEnv))
+    PRINT_INPUT_ERROR("Fail to get rcutMax");
   neighbor.initialize(rc, num_atoms, nn_max);
   if (!(std::isfinite(rc) && rc > 0.0)) {
     PRINT_INPUT_ERROR("Invalid NNAP cutoff returned by rcutMax()");
   }
   printf("    max cutoff = %g A.\n", rc);
-  
+
   // init nl cache
   nl_dx.resize(num_atoms * nn_max);
   nl_dy.resize(num_atoms * nn_max);
@@ -320,13 +340,12 @@ NNAP::~NNAP(void)
     close_(mEnv, mCore);
     // only check, no error on destructor
     exceptionCheck_(mEnv);
-    
+
     mEnv->DeleteGlobalRef(mCore);
     mCore = NULL;
     uncacheJClass_(mEnv);
   }
 }
-
 
 static __global__ void valid_nl_(
   const int number_of_particles,
@@ -355,7 +374,7 @@ static __global__ void valid_nl_(
       float y12 = (float)g_y[n2] - y1;
       float z12 = (float)g_z[n2] - z1;
       apply_mic(box, x12, y12, z12);
-      
+
       nl_dx[n1 + number_of_particles * i1] = x12;
       nl_dy[n1 + number_of_particles * i1] = y12;
       nl_dz[n1 + number_of_particles * i1] = z12;
@@ -448,7 +467,6 @@ static __global__ void find_force_ZBL(
   }
 }
 
-
 void NNAP::compute(
   Box& box,
   const GPU_Vector<int>& type,
@@ -463,14 +481,9 @@ void NNAP::compute(
   }
 
   const int number_of_atoms = type.size();
-  
+
   // build neighbor list here
-  neighbor.find_neighbor_global(
-    rc,
-    box, 
-    type, 
-    position
-  );
+  neighbor.find_neighbor_global(rc, box, type, position);
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_NNAP + 1;
   valid_nl_<<<grid_size, BLOCK_SIZE_NNAP>>>(
     number_of_atoms,
@@ -484,12 +497,13 @@ void NNAP::compute(
     position.data() + number_of_atoms * 2,
     nl_dx.data(),
     nl_dy.data(),
-    nl_dz.data()
-  );
+    nl_dz.data());
   GPU_CHECK_KERNEL
 
   // invoke NNAP_cuda.computeGPUMD(...)
-  computeGPUMD_(mEnv, mCore,
+  computeGPUMD_(
+    mEnv,
+    mCore,
     number_of_atoms,
     N1,
     N2,
@@ -504,9 +518,9 @@ void NNAP::compute(
     force.data() + number_of_atoms,
     force.data() + 2 * number_of_atoms,
     virial.data(),
-    potential.data()
-  );
-  if (exceptionCheck_(mEnv)) PRINT_INPUT_ERROR("Fail when call computeGPUMD");
+    potential.data());
+  if (exceptionCheck_(mEnv))
+    PRINT_INPUT_ERROR("Fail when call computeGPUMD");
 
   // zbl support
   if (zbl.enabled) {

@@ -17,10 +17,10 @@ Major contributors:
 ------------------------------------------------------------------------------*/
 
 #include "compact_nep.cuh"
-#include "utilities/error.cuh"
 #include "nep_file.cuh"
 #include "nep_model_file.cuh"
 #include "nep_spin_model_file.cuh"
+#include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/run_input.cuh"
 #include <algorithm>
@@ -35,8 +35,7 @@ Major contributors:
 #endif
 #include <vector>
 
-struct CompactPotentialFile
-{
+struct CompactPotentialFile {
   std::string original;
   std::string compact;
   float rc_radial;

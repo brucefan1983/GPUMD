@@ -62,18 +62,18 @@ private:
   int output_interval_ = 1;
 
   // Bin configuration
-  int dim_;                      // 1 = bin/1d, 2 = bin/2d, 3 = bin/3d
-  int axis_[3];                  // Which axes to bin: 0=x, 1=y, 2=z
-  double origin_[3];             // Bin origin coordinates
-  double delta_[3];              // Bin width per dimension
-  double invdelta_[3];           // 1/delta for fast binning
-  int nlayers_[3];               // Number of bins per dimension
-  double box_length_[3];         // Box length along each binned axis
-  int nchunk_;                   // Total number of chunks
-  int ncoord_;                   // Number of coordinates per chunk (= dim_)
+  int dim_;              // 1 = bin/1d, 2 = bin/2d, 3 = bin/3d
+  int axis_[3];          // Which axes to bin: 0=x, 1=y, 2=z
+  double origin_[3];     // Bin origin coordinates
+  double delta_[3];      // Bin width per dimension
+  double invdelta_[3];   // 1/delta for fast binning
+  int nlayers_[3];       // Number of bins per dimension
+  double box_length_[3]; // Box length along each binned axis
+  int nchunk_;           // Total number of chunks
+  int ncoord_;           // Number of coordinates per chunk (= dim_)
 
   // Chunk assignments (GPU)
-  GPU_Vector<int> ichunk_;       // ichunk_[i] = chunk ID for atom i
+  GPU_Vector<int> ichunk_; // ichunk_[i] = chunk ID for atom i
 
   // Chunk geometry (CPU)
   std::vector<double> chunk_volume_cpu_;
@@ -102,8 +102,7 @@ private:
   FILE* fid_ = nullptr;
 
   void parse(const std::vector<std::string>& tokens, Box& box);
-  int parse_bin_params(
-    const std::vector<std::string>& tokens, int num_param, int start, Box& box);
+  int parse_bin_params(const std::vector<std::string>& tokens, int num_param, int start, Box& box);
   void assign_chunks(const Atom& atom, const Box& box);
   void sample(const Atom& atom);
   void output_results(int step);

@@ -19,7 +19,8 @@
 #include <limits>
 #include <vector>
 
-namespace nep_hessian {
+namespace nep_hessian
+{
 
 struct Diagnostics {
   bool finite = true;
@@ -36,7 +37,8 @@ struct Diagnostics {
 // Visit each stored scalar once. Translation sums are accumulated once per
 // atom and Cartesian component, also for sparse rows with many blocks.
 inline Diagnostics inspect(
-  const std::vector<double>& values, int atoms,
+  const std::vector<double>& values,
+  int atoms,
   const sparse_hessian::BlockPattern* pattern = nullptr)
 {
   Diagnostics result;
@@ -56,7 +58,8 @@ inline Diagnostics inspect(
   if (pattern) {
     for (int atom = 0; atom < atoms; ++atom) {
       double sums[3][3] = {};
-      for (int block = pattern->row_offsets[atom]; block < pattern->row_offsets[atom + 1]; ++block) {
+      for (int block = pattern->row_offsets[atom]; block < pattern->row_offsets[atom + 1];
+           ++block) {
         const int transpose = pattern->find_block(pattern->columns[block], atom);
         if (transpose < 0) {
           result.finite = false;
@@ -90,7 +93,8 @@ inline Diagnostics inspect(
   const double tiny = std::numeric_limits<double>::min();
   const double scale = std::max(result.max_abs, tiny);
   result.asymmetry_max_relative = result.asymmetry_max / scale;
-  result.asymmetry_frobenius_relative = result.asymmetry_frobenius / std::max(result.frobenius, tiny);
+  result.asymmetry_frobenius_relative =
+    result.asymmetry_frobenius / std::max(result.frobenius, tiny);
   result.translation_relative = result.translation_max / scale;
   return result;
 }

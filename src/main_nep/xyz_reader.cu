@@ -18,9 +18,9 @@ Major contributors:
   Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
-#include "xyz_reader.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
+#include "xyz_reader.cuh"
 #include <algorithm>
 #include <cctype>
 

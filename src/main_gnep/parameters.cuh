@@ -19,8 +19,7 @@
 #include <string>
 #include <vector>
 
-struct GNEPDeviceScaler
-{
+struct GNEPDeviceScaler {
   explicit GNEPDeviceScaler(const int id) : device_id(id) {}
   ~GNEPDeviceScaler() { cudaSetDevice(device_id); }
 
@@ -37,43 +36,42 @@ public:
   ~Parameters();
 
   // parameters to be read in
-  int batch_size;         // number of configurations in one batch
-  int use_full_batch;     // 1 for effective full-batch even though batch_size is not full-batch
-  int num_types;          // number of atom types
-  int epoch;              // maximum number of epochs for training
-  int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
-  int basis_size_radial;  
-  int basis_size_angular; 
-  int n_max_radial;       // maximum order of the radial Chebyshev polynomials
-  int n_max_angular;      // maximum order of the angular Chebyshev polynomials
-  int L_max;              // maximum order of the 3body spherical harmonics
-  float weight_decay;     // Adam with decoupled weight decay (AdamW)
-  float lr;               // current learning rate
-  float start_lr;         // start learning rate
-  float stop_lr;          // stop learning rate
-  float lambda_e;         // weight parameter for energy RMSE loss
-  float lambda_f;         // weight parameter for force RMSE loss
-  float lambda_v;         // weight parameter for virial RMSE loss
-  float lambda_shear;     // extra weight parameter for shear virial
-  float force_delta;      // a parameters used to modify the force loss
-  bool enable_zbl;        // true for inlcuding the universal ZBL potential
-  bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
-  float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
-  float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
-  int energy_shift;  // 1 for using energy shift for biased initialization of neural networks
-  int prediction; // 0=no, 1=yes
+  int batch_size;     // number of configurations in one batch
+  int use_full_batch; // 1 for effective full-batch even though batch_size is not full-batch
+  int num_types;      // number of atom types
+  int epoch;          // maximum number of epochs for training
+  int num_neurons1;   // number of nuerons in the 1st hidden layer (only one hidden layer)
+  int basis_size_radial;
+  int basis_size_angular;
+  int n_max_radial;   // maximum order of the radial Chebyshev polynomials
+  int n_max_angular;  // maximum order of the angular Chebyshev polynomials
+  int L_max;          // maximum order of the 3body spherical harmonics
+  float weight_decay; // Adam with decoupled weight decay (AdamW)
+  float lr;           // current learning rate
+  float start_lr;     // start learning rate
+  float stop_lr;      // stop learning rate
+  float lambda_e;     // weight parameter for energy RMSE loss
+  float lambda_f;     // weight parameter for force RMSE loss
+  float lambda_v;     // weight parameter for virial RMSE loss
+  float lambda_shear; // extra weight parameter for shear virial
+  float force_delta;  // a parameters used to modify the force loss
+  bool enable_zbl;    // true for inlcuding the universal ZBL potential
+  bool flexible_zbl;  // true for inlcuding the flexible ZBL potential
+  float zbl_rc_inner; // inner cutoff for the universal ZBL potential
+  float zbl_rc_outer; // outer cutoff for the universal ZBL potential
+  int energy_shift;   // 1 for using energy shift for biased initialization of neural networks
+  int prediction;     // 0=no, 1=yes
   bool use_typewise_cutoff_zbl;
   float typewise_cutoff_zbl_factor;
   int output_descriptor;
   int seed;
 
   // learning rate scheduler (cosine annealing with warmup restarts)
-  int lr_restart_enable;                 // 0=off(use cosine), 1=on(use cosine with restarts)
-  int lr_warmup_epochs;                  // warmup epochs before scheduler starts
-  int lr_restart_initial_period_epochs;  // initial restart period in epochs
-  float lr_restart_period_factor;        // factor to scale period length per cycle
-  float lr_restart_decay_factor;         // factor to decay cycle max lr per cycle
-  
+  int lr_restart_enable;                // 0=off(use cosine), 1=on(use cosine with restarts)
+  int lr_warmup_epochs;                 // warmup epochs before scheduler starts
+  int lr_restart_initial_period_epochs; // initial restart period in epochs
+  float lr_restart_period_factor;       // factor to scale period length per cycle
+  float lr_restart_decay_factor;        // factor to decay cycle max lr per cycle
 
   // check if a parameter has been set:
   bool is_prediction_set;
@@ -126,7 +124,8 @@ private:
   std::vector<std::unique_ptr<GNEPDeviceScaler>> device_scalers;
 
 public:
-  GPU_Vector<float> energy_shift_gpu; // Energy shift for biased initialization of neural networks (GPU)
+  GPU_Vector<float>
+    energy_shift_gpu; // Energy shift for biased initialization of neural networks (GPU)
 
   GPU_Vector<float>& q_scaler_gpu(int device_id);
   GPU_Vector<float>& s_max_gpu(int device_id);

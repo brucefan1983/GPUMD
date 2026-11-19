@@ -15,10 +15,10 @@
 
 /*----------------------------------------------------------------------------80
 The tensorial neuroevolution potential (TNEP)
-Ref: Nan Xu, Petter Rosander, Christian Schäfer, Eric Lindgren, 
-Nicklas Österbacka, Mandi Fang, Wei Chen, Yi He, Zheyong Fan, Paul Erhart, 
-Tensorial properties via the neuroevolution potential framework: 
-Fast simulation of infrared and Raman spectra, 
+Ref: Nan Xu, Petter Rosander, Christian Schäfer, Eric Lindgren,
+Nicklas Österbacka, Mandi Fang, Wei Chen, Yi He, Zheyong Fan, Paul Erhart,
+Tensorial properties via the neuroevolution potential framework:
+Fast simulation of infrared and Raman spectra,
 J. Chem. Theory Comput. 20, 3273 (2024).
 
 Major contributors:
@@ -28,28 +28,35 @@ Major contributors:
   Zaixu Duan: Additional four-body NEP descriptors.
 ------------------------------------------------------------------------------*/
 
-#include "main_nep/dataset.cuh"
-#include "tnep.cuh"
-#include "utilities/read_file.cuh"
-#include "main_nep/common/nep_output.cuh"
-#include "main_nep/xyz_reader.cuh"
-#include "main_nep/common/nep_model.cuh"
+#include "main_nep/common/nep_common.cuh"
 #include "main_nep/common/nep_init.cuh"
 #include "main_nep/common/nep_io.cuh"
-#include "main_nep/common/nep_common.cuh"
+#include "main_nep/common/nep_model.cuh"
+#include "main_nep/common/nep_output.cuh"
 #include "main_nep/common/nep_parameters.cuh"
+#include "main_nep/dataset.cuh"
+#include "main_nep/xyz_reader.cuh"
+#include "tnep.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
-#include <cstring>
+#include "utilities/read_file.cuh"
 #include <algorithm>
+#include <cstring>
 
 static void write_tnep_error(FILE* file, const TrainingReport& report, float train, float test)
 {
-  fprintf(file, "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f\n",
-    report.generation + 1, report.total, report.l1, report.l2, train, test);
+  fprintf(
+    file,
+    "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f\n",
+    report.generation + 1,
+    report.total,
+    report.l1,
+    report.l2,
+    train,
+    test);
   fflush(file);
 }
 
@@ -151,7 +158,18 @@ static __global__ void find_descriptors_angular(
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
-      find_q(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134, paramb.n_max_angular + 1, n, s, q);
+      find_q(
+        paramb.L_max,
+        paramb.has_q_222,
+        paramb.has_q_1111,
+        paramb.has_q_112,
+        paramb.has_q_123,
+        paramb.has_q_233,
+        paramb.has_q_134,
+        paramb.n_max_angular + 1,
+        n,
+        s,
+        q);
       int num_abc = (paramb.L_max + 1) * (paramb.L_max + 1) - 1;
       for (int abc = 0; abc < num_abc; ++abc) {
         g_sum_fxyz[(n * num_abc + abc) * N + n1] = s[abc];
@@ -226,13 +244,11 @@ void TNEP::initialize_device(const TNEP_Parameters& para, int N, int device_id)
 
 namespace
 {
-NEP_Compile_Config make_compile_config(
-  const TNEP_Parameters& para)
+NEP_Compile_Config make_compile_config(const TNEP_Parameters& para)
 {
 #ifdef USE_CJ
-  warning_nep_compile(
-    "qNEP, charge-vdW, and TNEP specialization is not available in "
-    "this USE_CJ configuration.");
+  warning_nep_compile("qNEP, charge-vdW, and TNEP specialization is not available in "
+                      "this USE_CJ configuration.");
   return NEP_Compile_Config();
 #endif
   NEP_Compile_Config config = make_nep_compile_config(para);
@@ -242,8 +258,7 @@ NEP_Compile_Config make_compile_config(
 }
 } // namespace
 
-TNEP::Compiled_Kernel::Compiled_Kernel(const NEP_Compile_Config& config)
-  : library(config)
+TNEP::Compiled_Kernel::Compiled_Kernel(const NEP_Compile_Config& config) : library(config)
 {
   if (!library.is_valid()) {
     return;
@@ -262,10 +277,7 @@ void TNEP::Compiled_Kernel::launch_ann(
   double* pe,
   float* Fp)
 {
-  check_nep_launch(
-    ann_nep_(
-      N, type, descriptors, q_scaler, parameters, pe, Fp),
-    "ann_nep_jit");
+  check_nep_launch(ann_nep_(N, type, descriptors, q_scaler, parameters, pe, Fp), "ann_nep_jit");
 }
 
 void TNEP::Compiled_Kernel::launch_ann_tnep_pol(
@@ -278,40 +290,90 @@ void TNEP::Compiled_Kernel::launch_ann_tnep_pol(
   float* Fp)
 {
   check_nep_launch(
-    ann_tnep_pol_(
-      N, type, descriptors, q_scaler, parameters, virial, Fp),
-    "ann_tnep_pol_jit");
+    ann_tnep_pol_(N, type, descriptors, q_scaler, parameters, virial, Fp), "ann_tnep_pol_jit");
 }
 
 void TNEP::Compiled_Kernel::launch_force_tnep_radial(
   bool is_dipole,
-  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-  const float* x12, const float* y12, const float* z12,
-  const float* parameters, const float* Fp,
-  float* fx, float* fy, float* fz, float* virial)
+  int N,
+  const int* NN_sum,
+  const int* NN,
+  const int* NL,
+  const int* type,
+  const float* x12,
+  const float* y12,
+  const float* z12,
+  const float* parameters,
+  const float* Fp,
+  float* fx,
+  float* fy,
+  float* fz,
+  float* virial)
 {
   check_nep_launch(
     common.force_radial_(
-      N, NN_sum, NN, NL, type, x12, y12, z12,
-      parameters, Fp,
-      nullptr, nullptr, nullptr, nullptr,
-      is_dipole ? 1 : 0, fx, fy, fz, virial),
+      N,
+      NN_sum,
+      NN,
+      NL,
+      type,
+      x12,
+      y12,
+      z12,
+      parameters,
+      Fp,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      is_dipole ? 1 : 0,
+      fx,
+      fy,
+      fz,
+      virial),
     "force_tnep_radial_jit");
 }
 
 void TNEP::Compiled_Kernel::launch_force_tnep_angular(
   bool is_dipole,
-  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-  const float* x12, const float* y12, const float* z12,
-  const float* parameters, const float* Fp, const float* sum_fxyz,
-  float* fx, float* fy, float* fz, float* virial)
+  int N,
+  const int* NN_sum,
+  const int* NN,
+  const int* NL,
+  const int* type,
+  const float* x12,
+  const float* y12,
+  const float* z12,
+  const float* parameters,
+  const float* Fp,
+  const float* sum_fxyz,
+  float* fx,
+  float* fy,
+  float* fz,
+  float* virial)
 {
   check_nep_launch(
     common.force_angular_(
-      N, NN_sum, NN, NL, type, x12, y12, z12,
-      parameters, Fp,
-      nullptr, nullptr, nullptr, nullptr,
-      sum_fxyz, is_dipole ? 1 : 0, fx, fy, fz, virial),
+      N,
+      NN_sum,
+      NN,
+      NL,
+      type,
+      x12,
+      y12,
+      z12,
+      parameters,
+      Fp,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      sum_fxyz,
+      is_dipole ? 1 : 0,
+      fx,
+      fy,
+      fz,
+      virial),
     "force_tnep_angular_jit");
 }
 
@@ -319,8 +381,7 @@ void TNEP::initialize_compiled_kernel(const TNEP_Parameters& para)
 {
   if (para.nep_compile && para.prediction == 0) {
     CHECK(gpuSetDevice(0));
-    compiled_kernel_.reset(new Compiled_Kernel(
-      make_compile_config(para)));
+    compiled_kernel_.reset(new Compiled_Kernel(make_compile_config(para)));
     if (!compiled_kernel_->is_valid()) {
       compiled_kernel_.reset();
     }
@@ -625,8 +686,7 @@ static __global__ void find_force_angular(
     int num_abc = (paramb.L_max + 1) * (paramb.L_max + 1) - 1;
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
       for (int abc = 0; abc < num_abc; ++abc) {
-        sum_fxyz[n * NUM_OF_ABC + abc] =
-          g_sum_fxyz[(n * num_abc + abc) * N + n1];
+        sum_fxyz[n * NUM_OF_ABC + abc] = g_sum_fxyz[(n * num_abc + abc) * N + n1];
       }
     }
     int neighbor_number = g_NN[n1];
@@ -660,8 +720,24 @@ static __global__ void find_force_angular(
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        accumulate_f12(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134, 
-          paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(
+          paramb.L_max,
+          paramb.has_q_222,
+          paramb.has_q_1111,
+          paramb.has_q_112,
+          paramb.has_q_123,
+          paramb.has_q_233,
+          paramb.has_q_134,
+          paramb.num_L,
+          n,
+          paramb.n_max_angular + 1,
+          d12,
+          r12,
+          gn12,
+          gnp12,
+          Fp,
+          sum_fxyz,
+          f12);
       }
 
       atomicAdd(&g_fx[n1], f12[0]);
@@ -695,10 +771,7 @@ static __global__ void find_force_angular(
 }
 
 void TNEP::compute_descriptors(
-  const ANN& ann,
-  const Dataset& dataset,
-  const NEP_Neighbor& neighbor,
-  TNEP_Data& data)
+  const ANN& ann, const Dataset& dataset, const NEP_Neighbor& neighbor, TNEP_Data& data)
 {
   const int block_size = 32;
   const int grid_size = (dataset.N - 1) / block_size + 1;
@@ -763,11 +836,7 @@ void TNEP::compute_descriptors(
 }
 
 void TNEP::evaluate_ann(
-  const ANN& ann,
-  bool is_polarizability,
-  Dataset& dataset,
-  TNEP_Data& data,
-  const float* q_scaler)
+  const ANN& ann, bool is_polarizability, Dataset& dataset, TNEP_Data& data, const float* q_scaler)
 {
   const int block_size = 32;
   const int grid_size = (dataset.N - 1) / block_size + 1;
@@ -820,11 +889,7 @@ void TNEP::evaluate_ann(
 }
 
 void TNEP::compute_tensor(
-  const ANN& ann,
-  bool is_dipole,
-  Dataset& dataset,
-  const NEP_Neighbor& neighbor,
-  TNEP_Data& data)
+  const ANN& ann, bool is_dipole, Dataset& dataset, const NEP_Neighbor& neighbor, TNEP_Data& data)
 {
   const int block_size = 32;
   const int grid_size = (dataset.N - 1) / block_size + 1;
@@ -931,19 +996,28 @@ void TNEP::find_force(
 
     if (calculate_q_scaler) {
       update_nep_q_scaler(
-        dataset[device_id].N, annmb[device_id].dim, nep_data[device_id].descriptors.data(),
-        para.q_scaler_gpu[device_id].data(), para.q_scaler_max[device_id].data(),
+        dataset[device_id].N,
+        annmb[device_id].dim,
+        nep_data[device_id].descriptors.data(),
+        para.q_scaler_gpu[device_id].data(),
+        para.q_scaler_max[device_id].data(),
         para.q_scaler_min[device_id].data());
     }
 
     zero_nep_outputs(dataset[device_id]);
 
     evaluate_ann(
-      annmb[device_id], para.model_type == 2, dataset[device_id], nep_data[device_id],
+      annmb[device_id],
+      para.model_type == 2,
+      dataset[device_id],
+      nep_data[device_id],
       para.q_scaler_gpu[device_id].data());
 
     compute_tensor(
-      annmb[device_id], para.model_type == 1, dataset[device_id], neighbor[device_id],
+      annmb[device_id],
+      para.model_type == 1,
+      dataset[device_id],
+      neighbor[device_id],
       nep_data[device_id]);
   }
 }
@@ -955,8 +1029,7 @@ void TNEP::configure(TNEP_Parameters& para)
 }
 
 void TNEP::initialize_parameters(
-  std::mt19937& rng,
-  std::vector<float>& mu, std::vector<float>& sigma)
+  std::mt19937& rng, std::vector<float>& mu, std::vector<float>& sigma)
 {
   TNEP_Parameters& para = *model_parameters;
   initialize_nep_mu_and_sigma(para, rng, mu, sigma, 1);
@@ -979,12 +1052,15 @@ void TNEP::write_restart(
   write_nep_restart(filename, *model_parameters, mu, sigma);
 }
 
-namespace {
+namespace
+{
 class TNEP_Reader : public NEP_Data_Reader
 {
 public:
   TNEP_Reader(TNEP_Parameters& para, NEP_Batch_Data<TNEP_Atomic_Dataset>& atomic_data)
-    : NEP_Data_Reader(para), model_parameters(para), atomic_data(atomic_data) {}
+    : NEP_Data_Reader(para), model_parameters(para), atomic_data(atomic_data)
+  {
+  }
   void prepare_dataset(Dataset& dataset) override
   {
     atomic_data.create(dataset).construct(dataset, labels);
@@ -1119,8 +1195,7 @@ private:
 };
 } // namespace
 
-TNEP::TNEP(const ParameterInput& input)
-  : model_parameters(new TNEP_Parameters)
+TNEP::TNEP(const ParameterInput& input) : model_parameters(new TNEP_Parameters)
 {
   auto& para = *model_parameters;
   para.model_type = input.model_type;
@@ -1141,9 +1216,11 @@ int TNEP::prepare_data()
   initialize(para, training->N, training->device_count);
   if (para.prediction == 0) {
     fitness_tensor.resize(para.population_size * (para.num_types + 1));
-    training->open_loss_file(para, para.model_type == 1 ?
-      " rmse_dipole_train rmse_dipole_test" :
-      " rmse_polarizability_train rmse_polarizability_test", false);
+    training->open_loss_file(
+      para,
+      para.model_type == 1 ? " rmse_dipole_train rmse_dipole_test"
+                           : " rmse_polarizability_train rmse_polarizability_test",
+      false);
   }
   return training->num_batches;
 }
@@ -1154,8 +1231,12 @@ void TNEP::prepare_training()
   int devices = training->device_count;
   std::vector<float> dummy_solution(para.number_of_variables * devices, 1.0f);
   for (int batch = 0; batch < training->num_batches; ++batch) {
-    find_force(para, dummy_solution.data(), training->train_set[batch],
-      (para.fine_tune || para.import_q_scaler) ? false : true, devices);
+    find_force(
+      para,
+      dummy_solution.data(),
+      training->train_set[batch],
+      (para.fine_tune || para.import_q_scaler) ? false : true,
+      devices);
   }
 }
 
@@ -1165,8 +1246,12 @@ void TNEP::evaluate(int batch, const float* population)
   int devices = training->device_count;
   for (int first = 0; first < para.population_size; first += devices) {
     int count = std::min(devices, para.population_size - first);
-    find_force(para, population + first * para.number_of_variables,
-      training->train_set[batch], false, count);
+    find_force(
+      para,
+      population + first * para.number_of_variables,
+      training->train_set[batch],
+      false,
+      count);
     for (int device = 0; device < count; ++device) {
       Dataset& data = training->train_set[batch][device];
       auto error = get_rmse(data, true, device);
@@ -1187,8 +1272,14 @@ void TNEP::accumulate_fitness(float* fitness_total)
 
 void TNEP::print_training_header()
 {
-  printf("%-8s %-11s %-11s %-11s %-13s %-13s\n",
-    "Step", "Total-Loss", "L1Reg-Loss", "L2Reg-Loss", "RMSE-P-Train", "RMSE-P-Test");
+  printf(
+    "%-8s %-11s %-11s %-11s %-13s %-13s\n",
+    "Step",
+    "Total-Loss",
+    "L1Reg-Loss",
+    "L2Reg-Loss",
+    "RMSE-P-Train",
+    "RMSE-P-Test");
 }
 
 void TNEP::report_error(const TrainingReport& report)
@@ -1269,6 +1360,9 @@ void TNEP_Parameters::parse_atomic_v(const char** param, int num_param)
 
 void TNEP_Parameters::report_model_inputs() const
 {
-  printf("    (%s) %satomic_v = %d.\n", is_atomic_v_set ? "input" : "default",
-    is_atomic_v_set ? "  " : "", atomic_v);
+  printf(
+    "    (%s) %satomic_v = %d.\n",
+    is_atomic_v_set ? "input" : "default",
+    is_atomic_v_set ? "  " : "",
+    atomic_v);
 }

@@ -27,8 +27,8 @@ Major contributors:
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <vector>
 #include <cstring>
+#include <vector>
 
 #define LDG(a, n) __ldg(a + n)
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
@@ -506,11 +506,7 @@ void Tersoff1988::compute(
   neighbor_manager.update(box, type, position_per_atom);
 
   neighbor_manager.find_local_neighbor(
-    rc,
-    box, 
-    position_per_atom,
-    tersoff_data.NN,
-    tersoff_data.NL);
+    rc, box, position_per_atom, tersoff_data.NN, tersoff_data.NL);
 
   // pre-compute the bond order functions and their derivatives
   find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(

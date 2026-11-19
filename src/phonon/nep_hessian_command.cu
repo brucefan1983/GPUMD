@@ -28,12 +28,12 @@ Major contributors:
 #include <unistd.h>
 #endif
 
-#include "nep_hessian_command.cuh"
-#include "nep_analytic_hessian.cuh"
-#include "nep_hessian_model.cuh"
 #include "force/force.cuh"
 #include "force/nep/nep_multigpu.cuh"
 #include "model/atom.cuh"
+#include "nep_analytic_hessian.cuh"
+#include "nep_hessian_command.cuh"
+#include "nep_hessian_model.cuh"
 #include "utilities/error.cuh"
 #include "utilities/run_input.cuh"
 #include <cerrno>
@@ -44,7 +44,8 @@ Major contributors:
 #include <iomanip>
 #include <limits>
 
-namespace {
+namespace
+{
 
 #ifdef _WIN32
 
@@ -52,7 +53,8 @@ namespace {
 std::wstring windows_path(const std::string& path)
 {
   const int size = MultiByteToWideChar(CP_ACP, 0, path.c_str(), -1, nullptr, 0);
-  if (size == 0) PRINT_INPUT_ERROR("Cannot convert Hessian path to Windows filename.");
+  if (size == 0)
+    PRINT_INPUT_ERROR("Cannot convert Hessian path to Windows filename.");
   std::vector<wchar_t> result(size);
   if (!MultiByteToWideChar(CP_ACP, 0, path.c_str(), -1, result.data(), size))
     PRINT_INPUT_ERROR("Cannot convert Hessian path to Windows filename.");
@@ -65,23 +67,32 @@ void check_windows_output_path(const std::string& path)
   // A colon is allowed only after a drive letter, also in an extended path.
   // In particular, file::$DATA aliases file even before either file exists.
   size_t drive = 0;
-  if (filename.size() >= 4 && filename[0] == L'\\' && filename[1] == L'\\' &&
-      (filename[2] == L'?' || filename[2] == L'.') && filename[3] == L'\\')
+  if (
+    filename.size() >= 4 && filename[0] == L'\\' && filename[1] == L'\\' &&
+    (filename[2] == L'?' || filename[2] == L'.') && filename[3] == L'\\')
     drive = 4;
   for (size_t i = 0; i < filename.size(); ++i) {
-    if (filename[i] != L':') continue;
-    const bool drive_colon = i == drive + 1 &&
-      ((filename[drive] >= L'A' && filename[drive] <= L'Z') ||
-       (filename[drive] >= L'a' && filename[drive] <= L'z'));
+    if (filename[i] != L':')
+      continue;
+    const bool drive_colon =
+      i == drive + 1 && ((filename[drive] >= L'A' && filename[drive] <= L'Z') ||
+                         (filename[drive] >= L'a' && filename[drive] <= L'z'));
     if (!drive_colon)
-      PRINT_INPUT_ERROR(("Hessian output paths must not use Windows data streams: " + path).c_str());
+      PRINT_INPUT_ERROR(
+        ("Hessian output paths must not use Windows data streams: " + path).c_str());
   }
 }
 
 HANDLE open_path(const std::wstring& path)
 {
-  return CreateFileW(path.c_str(), 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-    nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+  return CreateFileW(
+    path.c_str(),
+    0,
+    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+    nullptr,
+    OPEN_EXISTING,
+    FILE_FLAG_BACKUP_SEMANTICS,
+    nullptr);
 }
 
 std::wstring resolved_path(HANDLE handle)
@@ -104,7 +115,8 @@ std::wstring canonical_output_path(const std::string& path)
 {
   const std::wstring filename = windows_path(path);
   HANDLE handle = open_path(filename);
-  if (handle != INVALID_HANDLE_VALUE) return resolved_path(handle);
+  if (handle != INVALID_HANDLE_VALUE)
+    return resolved_path(handle);
   const DWORD error = GetLastError();
   if (error != ERROR_FILE_NOT_FOUND && error != ERROR_PATH_NOT_FOUND)
     PRINT_INPUT_ERROR(("Cannot inspect Hessian path: " + path).c_str());
@@ -114,11 +126,12 @@ std::wstring canonical_output_path(const std::string& path)
   if (attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_REPARSE_POINT))
     PRINT_INPUT_ERROR(("Cannot resolve Hessian reparse point: " + path).c_str());
   const DWORD size = GetFullPathNameW(filename.c_str(), 0, nullptr, nullptr);
-  if (size == 0) PRINT_INPUT_ERROR(("Cannot resolve Hessian path: " + path).c_str());
+  if (size == 0)
+    PRINT_INPUT_ERROR(("Cannot resolve Hessian path: " + path).c_str());
   std::vector<wchar_t> absolute(size + 1);
   wchar_t* name = nullptr;
-  const DWORD written = GetFullPathNameW(
-    filename.c_str(), static_cast<DWORD>(absolute.size()), absolute.data(), &name);
+  const DWORD written =
+    GetFullPathNameW(filename.c_str(), static_cast<DWORD>(absolute.size()), absolute.data(), &name);
   if (written == 0 || written >= absolute.size() || name == nullptr || *name == L'\0')
     PRINT_INPUT_ERROR(("Cannot resolve Hessian output parent: " + path).c_str());
   const std::wstring leaf(name);
@@ -127,7 +140,8 @@ std::wstring canonical_output_path(const std::string& path)
   if (handle == INVALID_HANDLE_VALUE)
     PRINT_INPUT_ERROR(("Cannot resolve Hessian output parent: " + path).c_str());
   std::wstring parent = resolved_path(handle);
-  if (parent.back() != L'\\') parent += L'\\';
+  if (parent.back() != L'\\')
+    parent += L'\\';
   return parent + leaf;
 }
 
@@ -140,13 +154,15 @@ bool same_file(const std::string& left, const std::string& right)
   HANDLE a = open_path(windows_path(left));
   HANDLE b = open_path(windows_path(right));
   BY_HANDLE_FILE_INFORMATION a_info{}, b_info{};
-  const bool equal = a != INVALID_HANDLE_VALUE && b != INVALID_HANDLE_VALUE &&
+  const bool equal =
+    a != INVALID_HANDLE_VALUE && b != INVALID_HANDLE_VALUE &&
     GetFileInformationByHandle(a, &a_info) && GetFileInformationByHandle(b, &b_info) &&
     a_info.dwVolumeSerialNumber == b_info.dwVolumeSerialNumber &&
-    a_info.nFileIndexHigh == b_info.nFileIndexHigh &&
-    a_info.nFileIndexLow == b_info.nFileIndexLow;
-  if (a != INVALID_HANDLE_VALUE) CloseHandle(a);
-  if (b != INVALID_HANDLE_VALUE) CloseHandle(b);
+    a_info.nFileIndexHigh == b_info.nFileIndexHigh && a_info.nFileIndexLow == b_info.nFileIndexLow;
+  if (a != INVALID_HANDLE_VALUE)
+    CloseHandle(a);
+  if (b != INVALID_HANDLE_VALUE)
+    CloseHandle(b);
   return equal;
 }
 
@@ -160,9 +176,11 @@ bool regular_file(const std::string& path)
 
 std::string canonical_output_path(const std::string& path, int depth = 0)
 {
-  if (depth > 40) PRINT_INPUT_ERROR("Too many output path symlinks.");
+  if (depth > 40)
+    PRINT_INPUT_ERROR("Too many output path symlinks.");
   char resolved[PATH_MAX];
-  if (realpath(path.c_str(), resolved)) return resolved;
+  if (realpath(path.c_str(), resolved))
+    return resolved;
   struct stat entry;
   if (lstat(path.c_str(), &entry) == 0) {
     if (!S_ISLNK(entry.st_mode))
@@ -176,10 +194,11 @@ std::string canonical_output_path(const std::string& path, int depth = 0)
     const std::string parent = slash == std::string::npos ? "." : path.substr(0, slash);
     return canonical_output_path(link[0] == '/' ? link : parent + "/" + link, depth + 1);
   }
-  if (errno != ENOENT) PRINT_INPUT_ERROR(("Cannot inspect Hessian path: " + path).c_str());
+  if (errno != ENOENT)
+    PRINT_INPUT_ERROR(("Cannot inspect Hessian path: " + path).c_str());
   const auto slash = path.find_last_of('/');
-  const std::string parent = slash == std::string::npos ? "." :
-    (slash == 0 ? "/" : path.substr(0, slash));
+  const std::string parent =
+    slash == std::string::npos ? "." : (slash == 0 ? "/" : path.substr(0, slash));
   const std::string name = slash == std::string::npos ? path : path.substr(slash + 1);
   if (name.empty() || !realpath(parent.c_str(), resolved))
     PRINT_INPUT_ERROR(("Cannot resolve Hessian output parent: " + path).c_str());
@@ -188,10 +207,11 @@ std::string canonical_output_path(const std::string& path, int depth = 0)
 
 bool same_file(const std::string& left, const std::string& right)
 {
-  if (canonical_output_path(left) == canonical_output_path(right)) return true;
+  if (canonical_output_path(left) == canonical_output_path(right))
+    return true;
   struct stat a, b;
-  return stat(left.c_str(), &a) == 0 && stat(right.c_str(), &b) == 0 &&
-    a.st_dev == b.st_dev && a.st_ino == b.st_ino;
+  return stat(left.c_str(), &a) == 0 && stat(right.c_str(), &b) == 0 && a.st_dev == b.st_dev &&
+         a.st_ino == b.st_ino;
 }
 
 bool regular_file(const std::string& path)
@@ -207,13 +227,27 @@ std::string json_escape(const std::string& value)
   std::string result;
   for (unsigned char c : value) {
     switch (c) {
-      case '"': result += "\\\""; break;
-      case '\\': result += "\\\\"; break;
-      case '\b': result += "\\b"; break;
-      case '\f': result += "\\f"; break;
-      case '\n': result += "\\n"; break;
-      case '\r': result += "\\r"; break;
-      case '\t': result += "\\t"; break;
+      case '"':
+        result += "\\\"";
+        break;
+      case '\\':
+        result += "\\\\";
+        break;
+      case '\b':
+        result += "\\b";
+        break;
+      case '\f':
+        result += "\\f";
+        break;
+      case '\n':
+        result += "\\n";
+        break;
+      case '\r':
+        result += "\\r";
+        break;
+      case '\t':
+        result += "\\t";
+        break;
       default:
         if (c < 0x20) {
           char buffer[8];
@@ -228,18 +262,22 @@ std::string json_escape(const std::string& value)
 }
 
 void check_output_paths(
-  const std::vector<std::string>& requested_outputs, const RunInput& run_input,
+  const std::vector<std::string>& requested_outputs,
+  const RunInput& run_input,
   const std::string& actual_potential)
 {
   std::vector<std::string> inputs = {"model.xyz", "run.in", actual_potential};
   for (const auto& line : run_input.lines()) {
-    if (line.tokens.empty() || line.tokens[0] != "potential") continue;
+    if (line.tokens.empty() || line.tokens[0] != "potential")
+      continue;
     for (size_t i = 1; i < line.tokens.size(); ++i)
-      if (regular_file(line.tokens[i])) inputs.push_back(line.tokens[i]);
+      if (regular_file(line.tokens[i]))
+        inputs.push_back(line.tokens[i]);
   }
   std::vector<std::string> outputs;
   for (const auto& path : requested_outputs)
-    if (!path.empty()) outputs.push_back(path);
+    if (!path.empty())
+      outputs.push_back(path);
   for (size_t i = 0; i < outputs.size(); ++i) {
 #ifdef _WIN32
     check_windows_output_path(outputs[i]);
@@ -255,8 +293,7 @@ void check_output_paths(
 }
 
 void write_matrix(
-  const std::string& path, const std::vector<double>& matrix, int N,
-  const std::string& result_kind)
+  const std::string& path, const std::vector<double>& matrix, int N, const std::string& result_kind)
 {
   std::ofstream output(path);
   if (!output.is_open())
@@ -282,13 +319,15 @@ void write_matrix(
 void write_matrix_market(
   const std::string& path,
   const sparse_hessian::BlockPattern& pattern,
-  const std::vector<double>& values, const std::string& result_kind)
+  const std::vector<double>& values,
+  const std::string& result_kind)
 {
   if (values.size() != pattern.value_count())
     PRINT_INPUT_ERROR("Sparse Hessian output has inconsistent dimensions.");
   size_t nonzero_count = 0;
   for (const double value : values)
-    if (value != 0.0) ++nonzero_count;
+    if (value != 0.0)
+      ++nonzero_count;
   std::ofstream output(path);
   if (!output.is_open())
     PRINT_INPUT_ERROR(("Cannot open Hessian output file: " + path).c_str());
@@ -303,15 +342,15 @@ void write_matrix_market(
          << dimension << ' ' << dimension << ' ' << nonzero_count << '\n'
          << std::scientific << std::setprecision(17);
   for (int atom = 0; atom < pattern.atoms; ++atom)
-    for (int block = pattern.row_offsets[atom];
-         block < pattern.row_offsets[atom + 1]; ++block) {
+    for (int block = pattern.row_offsets[atom]; block < pattern.row_offsets[atom + 1]; ++block) {
       const int other = pattern.columns[block];
       for (int a = 0; a < 3; ++a)
         for (int b = 0; b < 3; ++b) {
           const double value = values[static_cast<size_t>(block) * 9 + a * 3 + b];
-          if (value == 0.0) continue;
-          output << a * pattern.atoms + atom + 1 << ' '
-                 << b * pattern.atoms + other + 1 << ' ' << value << '\n';
+          if (value == 0.0)
+            continue;
+          output << a * pattern.atoms + atom + 1 << ' ' << b * pattern.atoms + other + 1 << ' '
+                 << value << '\n';
         }
     }
   output.close();
@@ -324,8 +363,7 @@ std::string nullable_string(const std::string& value)
   return value.empty() ? std::string("null") : ("\"" + json_escape(value) + "\"");
 }
 
-void write_diagnostics(
-  std::ofstream& output, const nep_hessian::Diagnostics& diagnostics)
+void write_diagnostics(std::ofstream& output, const nep_hessian::Diagnostics& diagnostics)
 {
   output << "      {\n"
          << "        \"finite\": " << (diagnostics.finite ? "true" : "false") << ",\n"
@@ -334,26 +372,29 @@ void write_diagnostics(
          << "        \"asymmetry_max\": " << diagnostics.asymmetry_max << ",\n"
          << "        \"asymmetry_frobenius\": " << diagnostics.asymmetry_frobenius << ",\n"
          << "        \"asymmetry_max_relative\": " << diagnostics.asymmetry_max_relative << ",\n"
-         << "        \"asymmetry_frobenius_relative\": "
-         << diagnostics.asymmetry_frobenius_relative << ",\n"
+         << "        \"asymmetry_frobenius_relative\": " << diagnostics.asymmetry_frobenius_relative
+         << ",\n"
          << "        \"translation_max\": " << diagnostics.translation_max << ",\n"
          << "        \"translation_relative\": " << diagnostics.translation_relative << "\n"
          << "      }";
 }
 
-
-struct OutputPaths
-{
+struct OutputPaths {
   std::string matrix;
   std::string raw;
 };
 
 void write_metadata(
-  const std::string& path, Box& box, Atom& atom,
+  const std::string& path,
+  Box& box,
+  Atom& atom,
   const nep_hessian::Diagnostics& raw_diagnostics,
   const nep_hessian::Diagnostics* sym_diagnostics,
-  const std::string& storage_format, bool passed, const std::string& error,
-  double potential_energy, const std::vector<double>& cartesian_force,
+  const std::string& storage_format,
+  bool passed,
+  const std::string& error,
+  double potential_energy,
+  const std::vector<double>& cartesian_force,
   const OutputPaths& outputs)
 {
   const int N = atom.number_of_atoms;
@@ -380,8 +421,7 @@ void write_metadata(
     output << atom.cpu_type[i];
   }
   output << "],\n";
-  output << "    \"pbc\": [" << box.pbc_x << ", " << box.pbc_y << ", "
-         << box.pbc_z << "],\n";
+  output << "    \"pbc\": [" << box.pbc_x << ", " << box.pbc_y << ", " << box.pbc_z << "],\n";
   output << "    \"cell_row_major\": [";
   for (int i = 0; i < 9; ++i) {
     if (i)
@@ -394,8 +434,8 @@ void write_metadata(
 
   output << "  \"matrix\": {\n";
   output << "    \"coordinate_order\": \"soa\",\n";
-  output << "    \"matrix_order\": \""
-         << (storage_format == "sparse" ? "coordinate" : "row_major") << "\",\n";
+  output << "    \"matrix_order\": \"" << (storage_format == "sparse" ? "coordinate" : "row_major")
+         << "\",\n";
   output << "    \"definition\": \"minus_force_jacobian\",\n";
   output << "    \"unit\": \"eV/A^2\",\n";
   output << "    \"storage_format\": \"" << storage_format << "\",\n";
@@ -403,8 +443,7 @@ void write_metadata(
   output << "  },\n";
 
   output << "  \"analytic\": {\n";
-  output << "    \"status\": "
-         << (passed ? "\"success\"" : "\"failed_validation\"") << ",\n";
+  output << "    \"status\": " << (passed ? "\"success\"" : "\"failed_validation\"") << ",\n";
   output << "    \"failure_reason\": " << nullable_string(error) << ",\n";
   output << "    \"potential_energy_eV\": " << potential_energy << ",\n";
   output << "    \"force_soa\": [";
@@ -422,8 +461,10 @@ void write_metadata(
   write_diagnostics(output, raw_diagnostics);
   output << ",\n    \"symmetrized\":";
   output << "\n";
-  if (sym_diagnostics) write_diagnostics(output, *sym_diagnostics);
-  else output << "null";
+  if (sym_diagnostics)
+    write_diagnostics(output, *sym_diagnostics);
+  else
+    output << "null";
   output << "\n  },\n";
 
   output << "  \"outputs\": {\n";
@@ -432,34 +473,43 @@ void write_metadata(
   output << "  }\n";
   output << "}\n";
   output.close();
-  if (!output) PRINT_INPUT_ERROR("Failed to write Hessian metadata.");
+  if (!output)
+    PRINT_INPUT_ERROR("Failed to write Hessian metadata.");
 }
 
 void write_structure_snapshot(
-  const std::string& path, Force& force, Box& box, Atom& atom,
-  const std::vector<double>& position, const std::vector<double>& forces)
+  const std::string& path,
+  Force& force,
+  Box& box,
+  Atom& atom,
+  const std::vector<double>& position,
+  const std::vector<double>& forces)
 {
   const double interaction_range = 2.0 * force.get_potential(0).rc;
   const int N = atom.number_of_atoms;
   std::ofstream snapshot(path);
-  if (!snapshot) PRINT_INPUT_ERROR("Cannot open Hessian structure_output.");
+  if (!snapshot)
+    PRINT_INPUT_ERROR("Cannot open Hessian structure_output.");
   snapshot << std::setprecision(17) << N << "\nLattice=\"";
   for (int a = 0; a < 3; ++a)
     for (int d = 0; d < 3; ++d)
       snapshot << ((a || d) ? " " : "") << box.cpu_h[3 * d + a];
   snapshot << "\" Properties=species:S:1:pos:R:3:mass:R:1:forces:R:3 pbc=\""
            << (box.pbc_x ? "T" : "F") << " " << (box.pbc_y ? "T" : "F") << " "
-           << (box.pbc_z ? "T" : "F") << "\" hessian_interaction_range_A="
-           << interaction_range << "\n";
+           << (box.pbc_z ? "T" : "F") << "\" hessian_interaction_range_A=" << interaction_range
+           << "\n";
   for (int i = 0; i < N; ++i) {
     snapshot << atom.cpu_atom_symbol[i];
-    for (int d = 0; d < 3; ++d) snapshot << " " << position[i + d * N];
+    for (int d = 0; d < 3; ++d)
+      snapshot << " " << position[i + d * N];
     snapshot << " " << atom.cpu_mass[i];
-    for (int d = 0; d < 3; ++d) snapshot << " " << forces[i + d * N];
+    for (int d = 0; d < 3; ++d)
+      snapshot << " " << forces[i + d * N];
     snapshot << "\n";
   }
   snapshot.close();
-  if (!snapshot) PRINT_INPUT_ERROR("Failed to write Hessian structure_output.");
+  if (!snapshot)
+    PRINT_INPUT_ERROR("Failed to write Hessian structure_output.");
 }
 
 } // namespace
@@ -468,9 +518,8 @@ void NEP_Hessian_Command::parse(const std::vector<std::string>& tokens)
 {
   const int num_param = static_cast<int>(tokens.size());
   if (num_param < 2 || tokens[1] != "analytic") {
-    PRINT_INPUT_ERROR(
-      "compute_hessian requires the method 'analytic'. Use 'compute_phonon' "
-      "for a finite-difference Hessian.");
+    PRINT_INPUT_ERROR("compute_hessian requires the method 'analytic'. Use 'compute_phonon' "
+                      "for a finite-difference Hessian.");
   }
 
   for (int i = 2; i + 1 < num_param; i += 2) {
@@ -489,19 +538,20 @@ void NEP_Hessian_Command::parse(const std::vector<std::string>& tokens)
     } else if (key == "raw_output") {
       raw_output_ = value;
     } else {
-      PRINT_INPUT_ERROR(
-        "Unknown compute_hessian parameter. Supported parameters are "
-        "output, metadata, structure_output, output_format, and raw_output.");
+      PRINT_INPUT_ERROR("Unknown compute_hessian parameter. Supported parameters are "
+                        "output, metadata, structure_output, output_format, and raw_output.");
     }
   }
   if (num_param % 2 != 0) {
-    PRINT_INPUT_ERROR(
-      "compute_hessian parameters must be given as key-value pairs.");
+    PRINT_INPUT_ERROR("compute_hessian parameters must be given as key-value pairs.");
   }
 }
 
 void NEP_Hessian_Command::compute(
-  Force& force, Box& box, Atom& atom, const std::string& potential_filename,
+  Force& force,
+  Box& box,
+  Atom& atom,
+  const std::string& potential_filename,
   const RunInput& run_input)
 {
   if (force.get_number_of_potentials() != 1)
@@ -511,7 +561,8 @@ void NEP_Hessian_Command::compute(
     PRINT_INPUT_ERROR("compute_hessian does not support NEP_MULTIGPU; use single-GPU NEP.");
   auto* nep = dynamic_cast<NEP*>(&potential);
   if (!nep)
-    PRINT_INPUT_ERROR("compute_hessian requires the single-GPU NEP implementation; this potential implementation is unsupported.");
+    PRINT_INPUT_ERROR("compute_hessian requires the single-GPU NEP implementation; this potential "
+                      "implementation is unsupported.");
   if (nep->nep_model_type == 3)
     PRINT_INPUT_ERROR("compute_hessian does not support temperature-dependent NEP models.");
   if (nep->nep_model_type != 0)
@@ -523,14 +574,15 @@ void NEP_Hessian_Command::compute(
   if (potential_filename.empty())
     PRINT_INPUT_ERROR("compute_hessian could not locate the potential file.");
   const int N = atom.number_of_atoms;
-  if (N <= 0 || N > std::numeric_limits<int>::max() / 3 ||
-      atom.position_per_atom.size() != static_cast<size_t>(3) * N)
+  if (
+    N <= 0 || N > std::numeric_limits<int>::max() / 3 ||
+    atom.position_per_atom.size() != static_cast<size_t>(3) * N)
     PRINT_INPUT_ERROR("compute_hessian requires a valid, consistent system.");
   const bool sparse = output_format_ == "sparse";
   if (!sparse && 3 * N > std::numeric_limits<int>::max() / (3 * N))
     PRINT_INPUT_ERROR("Analytic Hessian dense matrix exceeds supported index range.");
-  check_output_paths({output_, raw_output_, metadata_output_, structure_output_},
-    run_input, potential_filename);
+  check_output_paths(
+    {output_, raw_output_, metadata_output_, structure_output_}, run_input, potential_filename);
 
   NEP_Hessian_Model model;
   model.initialize(potential_filename.c_str());
@@ -540,8 +592,16 @@ void NEP_Hessian_Command::compute(
   double potential_energy = 0.0;
   std::string error;
   const bool passed = compute_nep_analytic_hessian(
-    force, model, box, atom, matrix, analytic_force,
-    potential_energy, raw_diagnostics, error, sparse ? &pattern : nullptr);
+    force,
+    model,
+    box,
+    atom,
+    matrix,
+    analytic_force,
+    potential_energy,
+    raw_diagnostics,
+    error,
+    sparse ? &pattern : nullptr);
   if (!passed && (matrix.empty() || !raw_diagnostics.finite))
     PRINT_INPUT_ERROR(error.c_str());
 
@@ -549,14 +609,25 @@ void NEP_Hessian_Command::compute(
   // Only explicitly requested diagnostic files are written on this path.
   if (!raw_output_.empty()) {
     const std::string kind = passed ? "analytic_raw" : "analytic_raw_failed_validation";
-    if (sparse) write_matrix_market(raw_output_, pattern, matrix, kind);
-    else write_matrix(raw_output_, matrix, N, kind);
+    if (sparse)
+      write_matrix_market(raw_output_, pattern, matrix, kind);
+    else
+      write_matrix(raw_output_, matrix, N, kind);
   }
   if (!passed) {
     if (!metadata_output_.empty())
-      write_metadata(metadata_output_, box, atom, raw_diagnostics, nullptr,
-        output_format_, false, error,
-        potential_energy, analytic_force, {"", raw_output_});
+      write_metadata(
+        metadata_output_,
+        box,
+        atom,
+        raw_diagnostics,
+        nullptr,
+        output_format_,
+        false,
+        error,
+        potential_energy,
+        analytic_force,
+        {"", raw_output_});
     PRINT_INPUT_ERROR(error.c_str());
   }
   if (sparse) {
@@ -566,8 +637,8 @@ void NEP_Hessian_Command::compute(
     const size_t dimension = static_cast<size_t>(3) * N;
     for (size_t row = 0; row < dimension; ++row)
       for (size_t column = row + 1; column < dimension; ++column) {
-        const double average = 0.5 *
-          (matrix[row * dimension + column] + matrix[column * dimension + row]);
+        const double average =
+          0.5 * (matrix[row * dimension + column] + matrix[column * dimension + row]);
         matrix[row * dimension + column] = average;
         matrix[column * dimension + row] = average;
       }
@@ -580,11 +651,24 @@ void NEP_Hessian_Command::compute(
   }
   if (!metadata_output_.empty()) {
     const auto sym_diagnostics = nep_hessian::inspect(matrix, N, sparse ? &pattern : nullptr);
-    write_metadata(metadata_output_, box, atom, raw_diagnostics, &sym_diagnostics,
-      output_format_, true, "",
-      potential_energy, analytic_force, {output_, raw_output_});
+    write_metadata(
+      metadata_output_,
+      box,
+      atom,
+      raw_diagnostics,
+      &sym_diagnostics,
+      output_format_,
+      true,
+      "",
+      potential_energy,
+      analytic_force,
+      {output_, raw_output_});
   }
-  printf("Analytic Hessian: N=%d format=%s raw_asymmetry_max=%.12g "
-         "raw_translation_max=%.12g.\n", N, output_format_.c_str(),
-         raw_diagnostics.asymmetry_max, raw_diagnostics.translation_max);
+  printf(
+    "Analytic Hessian: N=%d format=%s raw_asymmetry_max=%.12g "
+    "raw_translation_max=%.12g.\n",
+    N,
+    output_format_.c_str(),
+    raw_diagnostics.asymmetry_max,
+    raw_diagnostics.translation_max);
 }

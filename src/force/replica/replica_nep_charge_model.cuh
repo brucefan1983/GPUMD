@@ -20,11 +20,11 @@ Charge NEP (qNEP) model of replica dynamics, a copy of NEP_Charge
 
 #pragma once
 #include "force/potential.cuh"
+#include "replica_ewald.cuh"
 #include "replica_nep_common.cuh"
+#include "replica_pppm.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "replica_ewald.cuh"
-#include "replica_pppm.cuh"
 
 class RunInput;
 
@@ -56,8 +56,8 @@ public:
     int charge_mode = 0;
     bool use_typewise_cutoff_zbl = false;
     float typewise_cutoff_zbl_factor = 0.0f;
-    float rc_radial = 0.0f;     // radial cutoff
-    float rc_angular = 0.0f;    // angular cutoff
+    float rc_radial = 0.0f;  // radial cutoff
+    float rc_angular = 0.0f; // angular cutoff
     int MN_radial = 200;
     int MN_angular = 100;
     int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
@@ -122,10 +122,7 @@ protected:
   // verbose = false skips the model and PPPM mesh information, e.g. for all but one of
   // several copies of the same model.
   NEP_Charge_Replica_Model(
-    const char* file_potential,
-    const int num_atoms,
-    const RunInput& run_input,
-    const bool verbose);
+    const char* file_potential, const int num_atoms, const RunInput& run_input, const bool verbose);
 
   // Stream for all kernel launches, set by the derived class (replica dynamics evaluates
   // one qNEP per replica stream).

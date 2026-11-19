@@ -71,7 +71,8 @@ ParameterInput::ParameterInput()
   }
   if (!model.empty()) {
     if (is_model_type_set || is_charge_mode_set || is_vdw_set || is_charge_vdw_set) {
-      PRINT_INPUT_ERROR("model cannot be combined with model_type, charge_mode, vdw, or charge_vdw.");
+      PRINT_INPUT_ERROR(
+        "model cannot be combined with model_type, charge_mode, vdw, or charge_vdw.");
     }
     if (has_spin_selector && model != "nep_spin") {
       PRINT_INPUT_ERROR("spin_version requires model nep_spin.");
@@ -119,9 +120,8 @@ void ParameterInput::parse_model(const char** param, int num_param)
   } else if (model == "qnep3_vdw") {
     charge_vdw = 1;
   } else {
-    PRINT_INPUT_ERROR(
-      "model should be nep, nep_dipole, nep_polarizability, nep_temperature, "
-      "nep_spin, qnep1, qnep2, qnep3, nep_vdw, or qnep3_vdw.");
+    PRINT_INPUT_ERROR("model should be nep, nep_dipole, nep_polarizability, nep_temperature, "
+                      "nep_spin, qnep1, qnep2, qnep3, nep_vdw, or qnep3_vdw.");
   }
 }
 
@@ -145,8 +145,9 @@ void ParameterInput::parse_flip_charge(const char** param, int num_param)
 
 void ParameterInput::report_deprecated_selectors() const
 {
-  if (!model.empty() ||
-      !(is_model_type_set || is_charge_mode_set || is_vdw_set || is_charge_vdw_set || spin_version)) {
+  if (
+    !model.empty() ||
+    !(is_model_type_set || is_charge_mode_set || is_vdw_set || is_charge_vdw_set || spin_version)) {
     return;
   }
   const char* model_types[] = {"nep", "nep_dipole", "nep_polarizability", "nep_temperature"};
@@ -207,8 +208,8 @@ void ParameterInput::parse_charge_mode(const char** param, int num_param)
   }
   if (num_param == 3) {
     if (is_flip_charge_set) {
-      PRINT_INPUT_ERROR(
-        "Specify flip_charge only once, either as a keyword or as the second charge_mode parameter.");
+      PRINT_INPUT_ERROR("Specify flip_charge only once, either as a keyword or as the second "
+                        "charge_mode parameter.");
     }
     is_legacy_flip_charge_set = true;
     if (!is_valid_int(param[2], &flip_charge)) {

@@ -29,8 +29,8 @@ Major contributors:
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
-#include "potential.cuh"
 #include "parameters.cuh"
+#include "potential.cuh"
 #include "snes.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"

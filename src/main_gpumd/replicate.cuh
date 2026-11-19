@@ -26,8 +26,4 @@
 
 void parse_replicate(const std::vector<std::string>& tokens, int replicate_size[3]);
 
-void Replicate(
-  const int replicate_size[3],
-  Box& box,
-  Atom& atoms,
-  std::vector<Group>& groups);
+void Replicate(const int replicate_size[3], Box& box, Atom& atoms, std::vector<Group>& groups);

@@ -18,11 +18,11 @@ Major contributors:
   Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
+#include "force/replica/batch_box.cuh"
+#include "force/replica/replica_nep.cuh"
 #include "replica_batch.cuh"
 #include "replica_common.cuh"
 #include "replica_thermo_kernels.cuh"
-#include "force/replica/replica_nep.cuh"
-#include "force/replica/batch_box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -200,10 +200,10 @@ Replica_Batch::Replica_Batch(
   const std::string& potential_file,
   const Atom& source_atom,
   const Box& box)
-  : device_id_(device_id)
-  , capacity_(capacity)
-  , atoms_per_replica_(source_atom.number_of_atoms)
-  , box_(box)
+  : device_id_(device_id),
+    capacity_(capacity),
+    atoms_per_replica_(source_atom.number_of_atoms),
+    box_(box)
 {
   if (capacity_ <= 0 || atoms_per_replica_ <= 0)
     PRINT_INPUT_ERROR("Invalid replica batch size.");
@@ -259,9 +259,12 @@ void Replica_Batch::gather(const std::vector<Replica_Slot*>& slots, const int st
   const int N = atoms_per_replica_;
   for (size_t i = 0; i < slots.size(); ++i) {
     Atom& atom = slots[i]->atom;
-    copy_components(position_.data() + i * N, stride, atom.position_per_atom.data(), N, N, 3, stream_.get());
-    copy_components(velocity_.data() + i * N, stride, atom.velocity_per_atom.data(), N, N, 3, stream_.get());
-    copy_components(force_.data() + i * N, stride, atom.force_per_atom.data(), N, N, 3, stream_.get());
+    copy_components(
+      position_.data() + i * N, stride, atom.position_per_atom.data(), N, N, 3, stream_.get());
+    copy_components(
+      velocity_.data() + i * N, stride, atom.velocity_per_atom.data(), N, N, 3, stream_.get());
+    copy_components(
+      force_.data() + i * N, stride, atom.force_per_atom.data(), N, N, 3, stream_.get());
   }
 }
 
@@ -271,21 +274,27 @@ void Replica_Batch::scatter(const std::vector<Replica_Slot*>& slots, const int s
   for (size_t i = 0; i < slots.size(); ++i) {
     Replica_Slot& slot = *slots[i];
     Atom& atom = slot.atom;
-    copy_components(atom.position_per_atom.data(), N, position_.data() + i * N, stride, N, 3, stream_.get());
-    copy_components(atom.velocity_per_atom.data(), N, velocity_.data() + i * N, stride, N, 3, stream_.get());
-    copy_components(atom.force_per_atom.data(), N, force_.data() + i * N, stride, N, 3, stream_.get());
-    copy_components(atom.potential_per_atom.data(), N, potential_.data() + i * N, stride, N, 1, stream_.get());
-    copy_components(atom.virial_per_atom.data(), N, virial_.data() + i * N, stride, N, 9, stream_.get());
+    copy_components(
+      atom.position_per_atom.data(), N, position_.data() + i * N, stride, N, 3, stream_.get());
+    copy_components(
+      atom.velocity_per_atom.data(), N, velocity_.data() + i * N, stride, N, 3, stream_.get());
+    copy_components(
+      atom.force_per_atom.data(), N, force_.data() + i * N, stride, N, 3, stream_.get());
+    copy_components(
+      atom.potential_per_atom.data(), N, potential_.data() + i * N, stride, N, 1, stream_.get());
+    copy_components(
+      atom.virial_per_atom.data(), N, virial_.data() + i * N, stride, N, 9, stream_.get());
     CHECK(gpuMemcpyAsync(
-      slot.thermo.data(), thermo_.data() + i * 8, sizeof(double) * 8,
-      gpuMemcpyDeviceToDevice, stream_.get()));
+      slot.thermo.data(),
+      thermo_.data() + i * 8,
+      sizeof(double) * 8,
+      gpuMemcpyDeviceToDevice,
+      stream_.get()));
   }
 }
 
 void Replica_Batch::advance(
-  const std::vector<Replica_Slot*>& slots,
-  const int steps,
-  const double time_step)
+  const std::vector<Replica_Slot*>& slots, const int steps, const double time_step)
 {
   if (!supported_)
     PRINT_INPUT_ERROR("Internal error: unsupported replica batch was used.");
@@ -310,10 +319,11 @@ void Replica_Batch::advance(
   const double coupling = first.temperature_coupling;
   for (int i = 0; i < replicas; ++i) {
     const Replica_Slot& slot = *slots[i];
-    if (slot.device_id != device_id_ || !slot.thermostat ||
-        slot.thermostat->removed_degrees_of_freedom != first.removed_degrees_of_freedom ||
-        slot.thermostat->temperature_coupling != coupling ||
-        slot.thermostat->fixed_group != -1 || slot.thermostat->move_group != -1)
+    if (
+      slot.device_id != device_id_ || !slot.thermostat ||
+      slot.thermostat->removed_degrees_of_freedom != first.removed_degrees_of_freedom ||
+      slot.thermostat->temperature_coupling != coupling || slot.thermostat->fixed_group != -1 ||
+      slot.thermostat->move_group != -1)
       PRINT_INPUT_ERROR("Replicas in one batch must share the thermostat settings.");
     host_target_temperature_.data()[i] = slot.thermostat->temperature;
   }
@@ -324,7 +334,8 @@ void Replica_Batch::advance(
     stream_.wait(slot->complete);
   }
   gather(slots, total);
-  target_temperature_.copy_from_host_async(host_target_temperature_.data(), replicas, stream_.get());
+  target_temperature_.copy_from_host_async(
+    host_target_temperature_.data(), replicas, stream_.get());
 
   Batch_Box batch_box;
   batch_box.box = box_;
@@ -346,38 +357,83 @@ void Replica_Batch::advance(
         slots[i]->thermostat->draw_svr_noise(ndeg, value[0], value[1]);
       }
     }
-    noise_[b].copy_from_host_async(host_noise, static_cast<size_t>(count) * replicas * 2, stream_.get());
+    noise_[b].copy_from_host_async(
+      host_noise, static_cast<size_t>(count) * replicas * 2, stream_.get());
 
     for (int s = 0; s < count; ++s) {
       gpu_velocity_verlet_batched<<<blocks, threads, 0, stream_.get()>>>(
-        true, total, time_step, mass_.data(),
-        position_.data(), position_.data() + total, position_.data() + total * 2,
-        velocity_.data(), velocity_.data() + total, velocity_.data() + total * 2,
-        force_.data(), force_.data() + total, force_.data() + total * 2);
+        true,
+        total,
+        time_step,
+        mass_.data(),
+        position_.data(),
+        position_.data() + total,
+        position_.data() + total * 2,
+        velocity_.data(),
+        velocity_.data() + total,
+        velocity_.data() + total * 2,
+        force_.data(),
+        force_.data() + total,
+        force_.data() + total * 2);
       GPU_CHECK_KERNEL
       gpu_prepare_force_batched<<<blocks, threads, 0, stream_.get()>>>(
-        total, box_,
-        position_.data(), position_.data() + total, position_.data() + total * 2,
-        force_.data(), force_.data() + total, force_.data() + total * 2,
-        potential_.data(), virial_.data());
+        total,
+        box_,
+        position_.data(),
+        position_.data() + total,
+        position_.data() + total * 2,
+        force_.data(),
+        force_.data() + total,
+        force_.data() + total * 2,
+        potential_.data(),
+        virial_.data());
       GPU_CHECK_KERNEL
       nep_->compute_batched(
-        batch_box, total, type_.data(), position_.data(), potential_.data(),
-        force_.data(), virial_.data(), stream_.get());
+        batch_box,
+        total,
+        type_.data(),
+        position_.data(),
+        potential_.data(),
+        force_.data(),
+        virial_.data(),
+        stream_.get());
       gpu_velocity_verlet_batched<<<blocks, threads, 0, stream_.get()>>>(
-        false, total, time_step, mass_.data(),
-        position_.data(), position_.data() + total, position_.data() + total * 2,
-        velocity_.data(), velocity_.data() + total, velocity_.data() + total * 2,
-        force_.data(), force_.data() + total, force_.data() + total * 2);
+        false,
+        total,
+        time_step,
+        mass_.data(),
+        position_.data(),
+        position_.data() + total,
+        position_.data() + total * 2,
+        velocity_.data(),
+        velocity_.data() + total,
+        velocity_.data() + total * 2,
+        force_.data(),
+        force_.data() + total,
+        force_.data() + total * 2);
       GPU_CHECK_KERNEL
       gpu_find_thermo_replicas<<<dim3(8, replicas), 1024, 0, stream_.get()>>>(
-        N, total, ndeg, volume, mass_.data(), potential_.data(), velocity_.data(),
-        virial_.data(), thermo_.data());
+        N,
+        total,
+        ndeg,
+        volume,
+        mass_.data(),
+        potential_.data(),
+        velocity_.data(),
+        virial_.data(),
+        thermo_.data());
       GPU_CHECK_KERNEL
       gpu_resamplekin_and_scale_batched<<<blocks, threads, 0, stream_.get()>>>(
-        total, N, ndeg, coupling, target_temperature_.data(),
-        noise_[b].data() + static_cast<size_t>(s) * replicas * 2, thermo_.data(),
-        velocity_.data(), velocity_.data() + total, velocity_.data() + total * 2);
+        total,
+        N,
+        ndeg,
+        coupling,
+        target_temperature_.data(),
+        noise_[b].data() + static_cast<size_t>(s) * replicas * 2,
+        thermo_.data(),
+        velocity_.data(),
+        velocity_.data() + total,
+        velocity_.data() + total * 2);
       GPU_CHECK_KERNEL
     }
     chunk_done_[b].record(stream_);

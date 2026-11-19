@@ -31,11 +31,7 @@ class Cohesive
 {
 public:
   void parse(const std::vector<std::string>& tokens, int type);
-  void compute(
-    Box& box,
-    Atom& atom,
-    std::vector<Group>& group,
-    Force& force);
+  void compute(Box& box, Atom& atom, std::vector<Group>& group, Force& force);
 
 private:
   void parse_cohesive(const std::vector<std::string>& tokens);

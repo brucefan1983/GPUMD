@@ -127,23 +127,47 @@ void NEP_Replica::compute(
     Small_Box_Data& small_box = workspace.small_box;
     small_box.resize(N);
     find_neighbor_lists_small_box(
-      stream_box, workspace.expanded_box, N, 0, N, type.data(), position.data(), small_box,
-      stream);
+      stream_box, workspace.expanded_box, N, 0, N, type.data(), position.data(), small_box, stream);
     report_neighbors(workspace, small_box.NN_radial, small_box.NN_angular, N, 1, stream);
     compute_small_box_from_neighbor_lists(
-      N, 0, N, type.data(), potential.data(), force.data(), virial.data(), workspace.data,
-      small_box, stream);
+      N,
+      0,
+      N,
+      type.data(),
+      potential.data(),
+      force.data(),
+      virial.data(),
+      workspace.data,
+      small_box,
+      stream);
     return;
   }
 
   workspace.neighbor.update(rc, stream_box, N, position.data(), stream);
   find_neighbor_lists_large_box(
-    stream_box, N, 0, N, type.data(), position.data(), workspace.neighbor.NN.data(),
-    workspace.neighbor.NL.data(), workspace.data, stream);
+    stream_box,
+    N,
+    0,
+    N,
+    type.data(),
+    position.data(),
+    workspace.neighbor.NN.data(),
+    workspace.neighbor.NL.data(),
+    workspace.data,
+    stream);
   report_neighbors(workspace, workspace.data.NN_radial, workspace.data.NN_angular, N, 1, stream);
   compute_large_box_from_neighbor_lists(
-    stream_box, N, 0, N, type.data(), position.data(), potential.data(), force.data(),
-    virial.data(), workspace.data, stream);
+    stream_box,
+    N,
+    0,
+    N,
+    type.data(),
+    position.data(),
+    potential.data(),
+    force.data(),
+    virial.data(),
+    workspace.data,
+    stream);
 }
 
 void NEP_Replica::compute_batched(
@@ -168,11 +192,23 @@ void NEP_Replica::compute_batched(
   std::lock_guard<std::mutex> lock(workspace.mutex);
   workspace.neighbor.update(rc, batch_box, N, position, stream);
   find_neighbor_lists_large_box(
-    batch_box, N, 0, N, type, position, workspace.neighbor.NN.data(),
-    workspace.neighbor.NL.data(), workspace.data, stream);
+    batch_box,
+    N,
+    0,
+    N,
+    type,
+    position,
+    workspace.neighbor.NN.data(),
+    workspace.neighbor.NL.data(),
+    workspace.data,
+    stream);
   report_neighbors(
-    workspace, workspace.data.NN_radial, workspace.data.NN_angular, N,
-    N / box.atoms_per_replica, stream);
+    workspace,
+    workspace.data.NN_radial,
+    workspace.data.NN_angular,
+    N,
+    N / box.atoms_per_replica,
+    stream);
   compute_large_box_from_neighbor_lists(
     batch_box, N, 0, N, type, position, potential, force, virial, workspace.data, stream);
 }

@@ -32,15 +32,15 @@
 struct ILP_TMD_Para {
   float rcutsq_ilp[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];
   float d[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];
-  float d_Seff[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];      // d / S_R / r_eff
+  float d_Seff[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW]; // d / S_R / r_eff
   float C_6[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];
-  float z0[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];          // beta
-  float lambda[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];      // alpha / beta
+  float z0[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];     // beta
+  float lambda[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW]; // alpha / beta
   float epsilon[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];
   float C[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];
   float delta2inv[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];   // 1 / delta ^ 2
   float S[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];           // scale
-  float rcut_global[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW];           // scale
+  float rcut_global[MAX_TYPE_ILP_TMD_SW][MAX_TYPE_ILP_TMD_SW]; // scale
 };
 
 struct ILP_TMD_Data {
@@ -89,7 +89,7 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
-  
+
   virtual void compute_ilp(
     Box& box,
     const GPU_Vector<int>& type,
@@ -98,7 +98,7 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial,
     const std::vector<Group>& group) override;
-  
+
   // sw term
   void initialize_sw_1985_1(FILE*); // called by the constructor
   void initialize_sw_1985_2(FILE*); // called by the constructor

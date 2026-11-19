@@ -25,12 +25,12 @@ Major contributors:
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/main_common.cuh"
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
 #include <chrono>
 #include <cstring>
 #include <memory>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include <vector>
 
 void print_welcome_information(void);

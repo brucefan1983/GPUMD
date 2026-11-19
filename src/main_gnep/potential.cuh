@@ -14,8 +14,8 @@
 */
 
 #pragma once
+#include "gradients.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "gradients.cuh" 
 #include <vector>
 class Dataset;
 class Parameters;

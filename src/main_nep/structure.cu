@@ -23,8 +23,8 @@ Major contributors:
 
 #include "main_nep/common/nep_parameters.cuh"
 #include "structure.cuh"
-#include "xyz_reader.cuh"
 #include "utilities/error.cuh"
+#include "xyz_reader.cuh"
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -179,7 +179,9 @@ void NEP_Data_Reader::read_energy(
     const std::string energy_weight_string = "energy_weight=";
     if (token.substr(0, energy_weight_string.length()) == energy_weight_string) {
       structure.energy_weight = get_double_from_token(
-        token.substr(energy_weight_string.length(), token.length()), xyz_filename.c_str(), line_number);
+        token.substr(energy_weight_string.length(), token.length()),
+        xyz_filename.c_str(),
+        line_number);
     }
   }
 
@@ -296,8 +298,7 @@ void read_nep_boundaries(const XYZ_Record& record, Structure& structure)
       if (n + 2 >= tokens.size()) {
         PRINT_INPUT_ERROR("The pbc field should contain three values.");
       }
-      const char pbc[3] = {
-        tokens[n].back(), tokens[n + 1].front(), tokens[n + 2].front()};
+      const char pbc[3] = {tokens[n].back(), tokens[n + 1].front(), tokens[n + 2].front()};
       for (int d = 0; d < 3; ++d) {
         if (pbc[d] != 't' && pbc[d] != 'f') {
           PRINT_INPUT_ERROR("Each pbc value should be T or F.");

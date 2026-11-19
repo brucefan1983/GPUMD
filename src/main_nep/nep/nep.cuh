@@ -14,15 +14,15 @@
 */
 
 #pragma once
-#include "main_nep/dataset.cuh"
-#include "main_nep/potential.cuh"
-#include "main_nep/common/nep_parameters.cuh"
-#include "main_nep/common/nep_training.cuh"
-#include "main_nep/common/nep_batch_data.cuh"
 #include "main_nep/common/energy_difference.cuh"
+#include "main_nep/common/nep_batch_data.cuh"
+#include "main_nep/common/nep_common.cuh"
 #include "main_nep/common/nep_compile.cuh"
 #include "main_nep/common/nep_evaluate.cuh"
-#include "main_nep/common/nep_common.cuh"
+#include "main_nep/common/nep_parameters.cuh"
+#include "main_nep/common/nep_training.cuh"
+#include "main_nep/dataset.cuh"
+#include "main_nep/potential.cuh"
 #include <memory>
 
 struct NEP_Temperature_Data {
@@ -50,8 +50,7 @@ public:
   Parameters& get_parameters() override { return *model_parameters; }
 
   void initialize_parameters(
-    std::mt19937& rng,
-    std::vector<float>& mu, std::vector<float>& sigma) override;
+    std::mt19937& rng, std::vector<float>& mu, std::vector<float>& sigma) override;
   void parameter_groups(std::vector<int>& groups) override;
   void read_model(float* parameters) override;
 

@@ -29,4 +29,7 @@ NEP_Initialization initialize_nep_mu_and_sigma(
   int global_parameters);
 
 void find_nep_type_of_variable(
-  const NEP_Parameters& para, std::vector<int>& type_of_variable, int global_parameters, int ann_count);
+  const NEP_Parameters& para,
+  std::vector<int>& type_of_variable,
+  int global_parameters,
+  int ann_count);

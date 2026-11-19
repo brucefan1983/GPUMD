@@ -33,8 +33,7 @@ Major contributors:
 
 Ensemble_LAN::Ensemble_LAN() {}
 
-Ensemble_LAN::Ensemble_LAN(
-  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+Ensemble_LAN::Ensemble_LAN(const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
   parse(tokens, group);
 }
@@ -80,12 +79,12 @@ void Ensemble_LAN::parse_heat_regions(const std::vector<std::string>& tokens)
   }
   for (int d = 0; d < 3; ++d) {
     int i = 2 * d;
-    if (!(source_region[i] >= 0.0 && source_region[i] <= 1.0 &&
-          source_region[i + 1] >= 0.0 && source_region[i + 1] <= 1.0)) {
+    if (!(source_region[i] >= 0.0 && source_region[i] <= 1.0 && source_region[i + 1] >= 0.0 &&
+          source_region[i + 1] <= 1.0)) {
       PRINT_INPUT_ERROR("Heat source region bounds should be in [0, 1].");
     }
-    if (!(sink_region[i] >= 0.0 && sink_region[i] <= 1.0 &&
-          sink_region[i + 1] >= 0.0 && sink_region[i + 1] <= 1.0)) {
+    if (!(sink_region[i] >= 0.0 && sink_region[i] <= 1.0 && sink_region[i + 1] >= 0.0 &&
+          sink_region[i + 1] <= 1.0)) {
       PRINT_INPUT_ERROR("Heat sink region bounds should be in [0, 1].");
     }
     if (source_region[i] >= source_region[i + 1]) {
@@ -103,8 +102,7 @@ void Ensemble_LAN::parse_heat_regions(const std::vector<std::string>& tokens)
   }
 }
 
-void Ensemble_LAN::parse(
-  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+void Ensemble_LAN::parse(const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
   const int num_param = tokens.size();
   if (tokens[1] == "nvt_lan") {
@@ -207,18 +205,11 @@ void Ensemble_LAN::parse(
   }
 }
 
-double Ensemble_LAN::get_temperature1() const
-{
-  return temperature1_;
-}
+double Ensemble_LAN::get_temperature1() const { return temperature1_; }
 
-double Ensemble_LAN::get_temperature2() const
-{
-  return temperature2_;
-}
+double Ensemble_LAN::get_temperature2() const { return temperature2_; }
 
-void Ensemble_LAN::initialize_run(
-  const double, Atom& atom, Box&, const std::vector<Group>& group)
+void Ensemble_LAN::initialize_run(const double, Atom& atom, Box&, const std::vector<Group>& group)
 {
   if (run_mode_ == RunMode::NONE) {
     return;
@@ -230,8 +221,7 @@ void Ensemble_LAN::initialize_run(
     const int number_of_atoms = atom.number_of_atoms;
     curand_states.resize(number_of_atoms);
     int grid_size = (number_of_atoms - 1) / 128 + 1;
-    initialize_curand_states<<<grid_size, 128>>>(
-      curand_states.data(), number_of_atoms, rand());
+    initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), number_of_atoms, rand());
     GPU_CHECK_KERNEL
     return;
   }
@@ -243,8 +233,7 @@ void Ensemble_LAN::initialize_run(
     const int number_of_atoms = atom.number_of_atoms;
     curand_states.resize(number_of_atoms);
     int grid_size = (number_of_atoms - 1) / 128 + 1;
-    initialize_curand_states<<<grid_size, 128>>>(
-      curand_states.data(), number_of_atoms, rand());
+    initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), number_of_atoms, rand());
     GPU_CHECK_KERNEL
     energy_transferred[0] = 0.0;
     energy_transferred[1] = 0.0;

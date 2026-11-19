@@ -26,9 +26,9 @@ Major contributors:
 
 #include "dump_xyz.cuh"
 #include "force/force.cuh"
+#include "measure/parse_utilities.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
-#include "measure/parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -76,8 +76,7 @@ Dump_XYZ::Dump_XYZ(
   action_name = "dump_xyz";
 }
 
-void Dump_XYZ::parse(
-  const std::vector<std::string>& tokens, const std::vector<Group>& groups)
+void Dump_XYZ::parse(const std::vector<std::string>& tokens, const std::vector<Group>& groups)
 {
   const int num_param = tokens.size();
   printf("Dump extended XYZ.\n");
@@ -90,13 +89,10 @@ void Dump_XYZ::parse(
   // tokens[3] were both integers. In the current syntax tokens[2] is the file name and tokens[3]
   // is an option or a quantity keyword, neither of which is an integer.
   int scratch;
-  if (
-    num_param >= 4 && is_valid_int(tokens[2], &scratch) &&
-    is_valid_int(tokens[3], &scratch)) {
-    PRINT_INPUT_ERROR(
-      "dump_xyz no longer takes <grouping_method> <group_id> as its first two "
-      "parameters. Use dump_xyz <interval> <filename> [group <grouping_method> "
-      "<group_id>] instead.");
+  if (num_param >= 4 && is_valid_int(tokens[2], &scratch) && is_valid_int(tokens[3], &scratch)) {
+    PRINT_INPUT_ERROR("dump_xyz no longer takes <grouping_method> <group_id> as its first two "
+                      "parameters. Use dump_xyz <interval> <filename> [group <grouping_method> "
+                      "<group_id>] instead.");
   }
 
   if (!is_valid_int(tokens[1], &dump_interval_)) {
@@ -158,7 +154,8 @@ void Dump_XYZ::parse(
     }
     if (tokens[m] == "unwrapped_position_only") {
       if (use_unwrapped_position_) {
-        PRINT_INPUT_ERROR("Option 'unwrapped_position_only' is specified more than once in dump_xyz.\n");
+        PRINT_INPUT_ERROR(
+          "Option 'unwrapped_position_only' is specified more than once in dump_xyz.\n");
       }
       use_unwrapped_position_ = true;
       printf("    unwrapped positions only.\n");
@@ -176,8 +173,8 @@ void Dump_XYZ::parse(
       if (split_seen) {
         PRINT_INPUT_ERROR("Option 'split' is specified more than once in dump_xyz.\n");
       }
-      if (m + 1 >= num_param || !is_valid_int(tokens[m + 1], &split_frames_) ||
-          split_frames_ <= 0) {
+      if (
+        m + 1 >= num_param || !is_valid_int(tokens[m + 1], &split_frames_) || split_frames_ <= 0) {
         PRINT_INPUT_ERROR("Option 'split' requires a positive number of frames.\n");
       }
       ++m;
@@ -191,7 +188,8 @@ void Dump_XYZ::parse(
   }
 
   if (use_unwrapped_position_ && quantities.has_unwrapped_position_) {
-    PRINT_INPUT_ERROR("Options 'unwrapped_position' and 'unwrapped_position_only' are mutually exclusive in dump_xyz.\n");
+    PRINT_INPUT_ERROR("Options 'unwrapped_position' and 'unwrapped_position_only' are mutually "
+                      "exclusive in dump_xyz.\n");
   }
 
   if (split_frames_ > 0 && separated_) {

@@ -22,16 +22,16 @@ Major contributors:
   Paul Erhart: Training on energy differences and combinations.
 ------------------------------------------------------------------------------*/
 
-#include "nep_parameters.cuh"
 #include "nep_elements.cuh"
 #include "nep_io.cuh"
+#include "nep_parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/read_file.cuh"
 #include <algorithm>
-#include <cmath>
 #include <cfloat>
+#include <cmath>
 #include <cstring>
 
 NEP_Parameters::NEP_Parameters()
@@ -52,25 +52,25 @@ NEP_Parameters::NEP_Parameters()
   is_force_delta_set = false;
   is_use_typewise_cutoff_zbl_set = false;
 
-  version = 4;                 // NEP4 is the best
-  basis_size_radial = 6;       // large enough in most cases
-  basis_size_angular = 6;      // large enough in most cases
-  n_max_radial = 6;            // large enough in most cases
-  n_max_angular = 6;           // large enough in most cases
-  L_max = 4;                   // default value
-  has_q_222 = 1;               // default is to include q_222
-  has_q_1111 = 0;              // default is not to include q_1111
-  has_q_112 = 0;               // default is not to include q_112
-  has_q_123 = 0;               // default is not to include q_123
-  has_q_233 = 0;               // default is not to include q_233
-  has_q_134 = 0;               // default is not to include q_134
-  num_neurons1 = 30;           // a relatively small value to achieve high speed
-  num_neurons2 = 0;            // no second hidden layer by default
-  num_hidden_layers = 1;       // one hidden layer by default
-  lambda_e = lambda_f = 1.0f;  // energy and force are more important
-  lambda_v = 0.1f;             // virial is less important
-  lambda_shear = 1.0f;         // do not weight shear virial more by default
-  force_delta = 0.0f;          // no modification of force loss
+  version = 4;                // NEP4 is the best
+  basis_size_radial = 6;      // large enough in most cases
+  basis_size_angular = 6;     // large enough in most cases
+  n_max_radial = 6;           // large enough in most cases
+  n_max_angular = 6;          // large enough in most cases
+  L_max = 4;                  // default value
+  has_q_222 = 1;              // default is to include q_222
+  has_q_1111 = 0;             // default is not to include q_1111
+  has_q_112 = 0;              // default is not to include q_112
+  has_q_123 = 0;              // default is not to include q_123
+  has_q_233 = 0;              // default is not to include q_233
+  has_q_134 = 0;              // default is not to include q_134
+  num_neurons1 = 30;          // a relatively small value to achieve high speed
+  num_neurons2 = 0;           // no second hidden layer by default
+  num_hidden_layers = 1;      // one hidden layer by default
+  lambda_e = lambda_f = 1.0f; // energy and force are more important
+  lambda_v = 0.1f;            // virial is less important
+  lambda_shear = 1.0f;        // do not weight shear virial more by default
+  force_delta = 0.0f;         // no modification of force loss
   use_typewise_cutoff_zbl = false;
   typewise_cutoff_zbl_factor = -1.0f;
   output_descriptor = false;
@@ -192,7 +192,7 @@ void NEP_Parameters::read_zbl_in()
 
 void NEP_Parameters::initialize_q_scaler()
 {
-  q_scaler_cpu.resize(dim,  1.0e10f);
+  q_scaler_cpu.resize(dim, 1.0e10f);
   read_nep_q_scaler(*this);
 
   int deviceCount;
@@ -354,7 +354,7 @@ void NEP_Parameters::parse_cutoff(const char** param, int num_param)
     if (!is_valid_real(param[1], &rc_radial_tmp)) {
       PRINT_INPUT_ERROR("radial cutoff should be a number.\n");
     }
-    for (int n = 0; n < num_types; ++ n) {
+    for (int n = 0; n < num_types; ++n) {
       rc_radial[n] = rc_radial_tmp;
     }
 
@@ -362,7 +362,7 @@ void NEP_Parameters::parse_cutoff(const char** param, int num_param)
     if (!is_valid_real(param[2], &rc_angular_tmp)) {
       PRINT_INPUT_ERROR("angular cutoff should be a number.\n");
     }
-    for (int n = 0; n < num_types; ++ n) {
+    for (int n = 0; n < num_types; ++n) {
       rc_angular[n] = rc_angular_tmp;
     }
 
@@ -405,7 +405,7 @@ void NEP_Parameters::parse_cutoff(const char** param, int num_param)
 
   rc_radial_max = 0.0f;
   rc_angular_max = 0.0f;
-  for (int n = 0; n < num_types; ++ n) {
+  for (int n = 0; n < num_types; ++n) {
     if (rc_radial[n] > rc_radial_max) {
       rc_radial_max = rc_radial[n];
     }
@@ -517,7 +517,6 @@ void NEP_Parameters::parse_l_max(const char** param, int num_param)
       PRINT_INPUT_ERROR("has_q_134 should be an integer.\n");
     }
   }
-
 }
 
 void NEP_Parameters::parse_neuron(const char** param, int num_param)
@@ -714,8 +713,10 @@ void NEP_Parameters::report_inputs(
   if (!input.model.empty()) {
     printf("    (input)   model = %s.\n", input.model.c_str());
   } else {
-    printf("    (%s) %smodel_type = %s.\n",
-      input.is_model_type_set ? "input" : "default", input.is_model_type_set ? "  " : "",
+    printf(
+      "    (%s) %smodel_type = %s.\n",
+      input.is_model_type_set ? "input" : "default",
+      input.is_model_type_set ? "  " : "",
       model_name);
   }
 
@@ -893,8 +894,10 @@ void NEP_Parameters::report_inputs(
   }
 
   if (fine_tune) {
-    printf("    (input)   will fine-tune based on %s and %s.\n",
-      fine_tune_nep_txt.c_str(), fine_tune_nep_restart.c_str());
+    printf(
+      "    (input)   will fine-tune based on %s and %s.\n",
+      fine_tune_nep_txt.c_str(),
+      fine_tune_nep_restart.c_str());
   }
 
   report_model_inputs();
@@ -910,8 +913,7 @@ void NEP_Parameters::report_inputs(
     printf("    NN architecture = %d-%d-1.\n", dim, num_neurons1);
   }
   printf(
-    "    number of NN parameters to be optimized = %d.\n",
-    number_of_variables_ann * ann_count);
+    "    number of NN parameters to be optimized = %d.\n", number_of_variables_ann * ann_count);
   printf(
     "    number of descriptor parameters to be optimized = %d.\n", number_of_variables_descriptor);
   printf("    total number of parameters to be optimized = %d.\n", number_of_variables);

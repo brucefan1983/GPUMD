@@ -20,10 +20,7 @@ class EnhancedSamplingDistanceCV : public EnhancedSamplingCV
 {
 public:
   EnhancedSamplingDistanceCV(
-    const std::string& name,
-    const int atom_i,
-    const int atom_j,
-    const bool use_pbc);
+    const std::string& name, const int atom_i, const int atom_j, const bool use_pbc);
 
   EnhancedSamplingDistanceCV(const EnhancedSamplingDistanceCV&) = delete;
   EnhancedSamplingDistanceCV& operator=(const EnhancedSamplingDistanceCV&) = delete;
@@ -32,10 +29,8 @@ public:
 
   void prepare(const int number_of_atoms) override;
 
-  void compute(
-    const Box& box,
-    const GPU_Vector<double>& position_per_atom,
-    double* g_value) override;
+  void
+  compute(const Box& box, const GPU_Vector<double>& position_per_atom, double* g_value) override;
 
   void add_force_virial(
     const double* g_derivative,

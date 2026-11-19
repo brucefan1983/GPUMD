@@ -40,8 +40,8 @@ void Viscosity::pre_run(
   if (compute) {
     int number_of_frames = number_of_steps / sample_interval;
     if (Nc > number_of_frames) {
-      PRINT_INPUT_ERROR(
-        "The number of viscosity correlation steps should not exceed the number of sampled frames.\n");
+      PRINT_INPUT_ERROR("The number of viscosity correlation steps should not exceed the number of "
+                        "sampled frames.\n");
     }
     stress_all.resize(NUM_OF_COMPONENTS * number_of_frames);
   }
@@ -113,7 +113,13 @@ void Viscosity::end_of_step(
   int nd = (step + 1) / sample_interval - 1;
   int Nd = number_of_steps / sample_interval;
   gpu_sum_stress<<<NUM_OF_COMPONENTS, 1024>>>(
-    N, Nd, nd, atom.mass.data(), atom.velocity_per_atom.data(), atom.virial_per_atom.data(), stress_all.data());
+    N,
+    Nd,
+    nd,
+    atom.mass.data(),
+    atom.velocity_per_atom.data(),
+    atom.virial_per_atom.data(),
+    stress_all.data());
   GPU_CHECK_KERNEL
 }
 
@@ -238,11 +244,18 @@ void Viscosity::post_run(
   fprintf(fid, "# compute_viscosity %d %d\n", sample_interval, Nc);
   fprintf(fid, "# format_version 1\n");
   fprintf(fid, "# num_atoms %d\n", atom.number_of_atoms);
-  fprintf(fid,
+  fprintf(
+    fid,
     "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
-    box.cpu_h[0], box.cpu_h[3], box.cpu_h[6],
-    box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
-    box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+    box.cpu_h[0],
+    box.cpu_h[3],
+    box.cpu_h[6],
+    box.cpu_h[1],
+    box.cpu_h[4],
+    box.cpu_h[7],
+    box.cpu_h[2],
+    box.cpu_h[5],
+    box.cpu_h[8]);
   fprintf(fid, "# dt_output %.10e ps\n", dt_in_ps);
   fprintf(
     fid,
