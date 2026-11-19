@@ -1194,13 +1194,14 @@ void NEP_Spin::RadialCache::reserve(std::size_t requested)
   storage.reset(ptr);
 }
 
-template <class Launch>
-static void dispatch_radial_cache(bool available, Launch launch)
+// Pass policy tags as arguments so kernel template parameters never depend on lambda captures.
+template <bool WhenTrue = true, bool WhenFalse = false, class Launch, class... Args>
+static void dispatch_md_flag(bool condition, const Launch& launch, const Args&... args)
 {
-  if (available)
-    launch(std::true_type{});
+  if (condition)
+    launch(args..., std::integral_constant<bool, WhenTrue>{});
   else
-    launch(std::false_type{});
+    launch(args..., std::integral_constant<bool, WhenFalse>{});
 }
 
 void NEP_Spin::launch_spin_descriptors(
@@ -1215,20 +1216,13 @@ void NEP_Spin::launch_spin_descriptors(
   gpuStream_t stream)
 {
   const int plane = r12_plane_size;
-  auto evaluate = [&](auto layout, auto* radial, auto* output, int offset) {
-    using Layout = decltype(layout);
-    using Real = typename std::remove_pointer<decltype(radial)>::type;
-    using Edge = nep_spin::RadialEdge<Real>;
-    const int neighbors =
-      slot_r12 ? plane / static_cast<int>(type.size()) : neighbor_.occupied_slots();
-    const size_t tiles = (size_t(neighbors) + Layout::tile - 1) / Layout::tile;
-    const size_t count = tiles * Layout::tile * type.size() * layout.channels;
-    data.radial_edges.reserve(count * sizeof(Edge));
-    auto* edges = static_cast<Edge*>(data.radial_edges.storage.get());
-    constexpr bool warp_density = std::is_base_of<nep_spin::View, Layout>::value &&
-                                  md_warp_density(Layout::harmonic_capacity, Layout::spin_capacity);
-    constexpr int lanes = warp_density ? 32 : Layout::tile;
-    dispatch_radial_cache(edges != nullptr, [&](auto cached) {
+  auto launch_kernel =
+    [&](auto layout, auto* radial, auto* output, int offset, auto* edges, auto cached) {
+      using Layout = decltype(layout);
+      constexpr bool warp_density =
+        std::is_base_of<nep_spin::View, Layout>::value &&
+        md_warp_density(Layout::harmonic_capacity, Layout::spin_capacity);
+      constexpr int lanes = warp_density ? 32 : Layout::tile;
       nep_spin::descriptors<warp_density, decltype(cached)::value>
         <<<(type.size() * model.spin_compress * lanes + 63) / 64, 64, 0, stream>>>(
           layout,
@@ -1257,7 +1251,18 @@ void NEP_Spin::launch_spin_descriptors(
             ? data.spin_moments.data() + size_t(type.size()) * layout.channels * layout.components
             : nullptr,
           edges);
-    });
+    };
+  auto evaluate = [&](auto layout, auto* radial, auto* output, int offset) {
+    using Layout = decltype(layout);
+    using Real = typename std::remove_pointer<decltype(radial)>::type;
+    using Edge = nep_spin::RadialEdge<Real>;
+    const int neighbors =
+      slot_r12 ? plane / static_cast<int>(type.size()) : neighbor_.occupied_slots();
+    const size_t tiles = (size_t(neighbors) + Layout::tile - 1) / Layout::tile;
+    const size_t count = tiles * Layout::tile * type.size() * layout.channels;
+    data.radial_edges.reserve(count * sizeof(Edge));
+    auto* edges = static_cast<Edge*>(data.radial_edges.storage.get());
+    dispatch_md_flag(edges != nullptr, launch_kernel, layout, radial, output, offset, edges);
   };
   if (data.wide_spin_descriptors.size()) {
     evaluate(
@@ -1290,80 +1295,83 @@ void NEP_Spin::launch_spin_forces(
   int r12_plane_size)
 {
   const int plane = r12_plane_size;
-  auto launch_batch =
-    [&](auto layout, auto* radial, auto* edges, auto read_edges, auto quadratic, auto fused) {
-      constexpr int batch = decltype(fused)::value ? 3 : 1;
-      const int batches = (model.spin_compress + batch - 1) / batch;
+  auto launch_kernel = [&](
+                         auto layout,
+                         auto* radial,
+                         auto* edges,
+                         auto quadratic,
+                         auto fused,
+                         auto cached,
+                         auto read_edges) {
+    using Layout = decltype(layout);
+    constexpr int batch = decltype(fused)::value ? 3 : 1;
+    const int batches = (model.spin_compress + batch - 1) / batch;
+    nep_spin::forces<
+      Layout,
+      true,
+      decltype(quadratic)::value,
+      decltype(fused)::value,
+      decltype(cached)::value,
+      decltype(read_edges)::value><<<(type.size() * batches * Layout::tile + 63) / 64, 64>>>(
+      layout,
+      static_cast<int>(type.size()),
+      model.struct_descriptor_dim,
+      model.num_types,
+      model.n_max_angular,
+      model.basis_size_angular,
+      box,
+      type.data(),
+      data.spin_type_active.data(),
+      position.data(),
+      spin.data(),
+      data.NN_spin.data(),
+      data.NL_spin.data(),
+      slot_r12,
+      plane,
+      data.spin_cutoff_pair.data(),
+      radial,
+      data.parameters.data() + model.model_parameter_count - model.spin_projection_parameter_count,
+      data.spin_moments.data(),
+      data.Fp.data(),
+      force.data(),
+      mforce.data(),
+      virial.data(),
+      false,
+      !decltype(cached)::value && Layout::tile > 1 &&
+          Layout::tile != nep_spin::SpinProjection::width
+        ? data.spin_layout.adjoint_order.data()
+        : nullptr,
+      decltype(cached)::value ||
+          (!decltype(quadratic)::value && Layout::tile == nep_spin::SpinProjection::width)
+        ? data.spin_layout.transpose.view()
+        : nep_spin::ProjectionView{},
+      edges);
+  };
+  auto select_radial_cache =
+    [&](auto layout, auto* radial, auto quadratic, auto fused, auto cached) {
       using Real = typename std::remove_pointer<decltype(radial)>::type;
-      constexpr bool cache_rows = md_cache_rows(
-        decltype(layout)::tile, decltype(quadratic)::value, std::is_same<Real, float>::value);
-      constexpr bool compact = nep_spin::compact_fused_rows(
-        decltype(layout)::tile,
-        decltype(layout)::harmonic_capacity * decltype(layout)::spin_capacity,
-        decltype(fused)::value);
-      auto dispatch = [&](auto cached) {
-        nep_spin::forces<
-          decltype(layout),
-          true,
-          decltype(quadratic)::value,
-          decltype(fused)::value,
-          decltype(cached)::value,
-          decltype(read_edges)::value>
-          <<<(type.size() * batches * decltype(layout)::tile + 63) / 64, 64>>>(
-            layout,
-            static_cast<int>(type.size()),
-            model.struct_descriptor_dim,
-            model.num_types,
-            model.n_max_angular,
-            model.basis_size_angular,
-            box,
-            type.data(),
-            data.spin_type_active.data(),
-            position.data(),
-            spin.data(),
-            data.NN_spin.data(),
-            data.NL_spin.data(),
-            slot_r12,
-            plane,
-            data.spin_cutoff_pair.data(),
-            radial,
-            data.parameters.data() + model.model_parameter_count -
-              model.spin_projection_parameter_count,
-            data.spin_moments.data(),
-            data.Fp.data(),
-            force.data(),
-            mforce.data(),
-            virial.data(),
-            false,
-            !decltype(cached)::value && decltype(layout)::tile > 1 &&
-                decltype(layout)::tile != nep_spin::SpinProjection::width
-              ? data.spin_layout.adjoint_order.data()
-              : nullptr,
-            decltype(cached)::value || (!decltype(quadratic)::value &&
-                                        decltype(layout)::tile == nep_spin::SpinProjection::width)
-              ? data.spin_layout.transpose.view()
-              : nep_spin::ProjectionView{},
-            edges);
-      };
-      if (compact && !data.spin_layout.transpose.paired())
-        dispatch(std::integral_constant < bool, cache_rows && !compact > {});
-      else
-        dispatch(std::integral_constant<bool, cache_rows>{});
+      auto* edges = static_cast<nep_spin::RadialEdge<Real>*>(data.radial_edges.storage.get());
+      dispatch_md_flag(
+        edges != nullptr, launch_kernel, layout, radial, edges, quadratic, fused, cached);
     };
+  auto select_rows = [&](auto layout, auto* radial, auto quadratic, auto fused) {
+    using Layout = decltype(layout);
+    using Real = typename std::remove_pointer<decltype(radial)>::type;
+    constexpr bool cache_rows =
+      md_cache_rows(Layout::tile, decltype(quadratic)::value, std::is_same<Real, float>::value);
+    constexpr bool compact = nep_spin::compact_fused_rows(
+      Layout::tile, Layout::harmonic_capacity * Layout::spin_capacity, decltype(fused)::value);
+    dispatch_md_flag<cache_rows, cache_rows && !compact>(
+      data.spin_layout.transpose.paired(), select_radial_cache, layout, radial, quadratic, fused);
+  };
   auto launch = [&](auto layout, auto* radial, auto quadratic) {
+    using Layout = decltype(layout);
     using Real = typename std::remove_pointer<decltype(radial)>::type;
     // Medium-sized matrices fit the narrow tile better when it owns just one channel.
-    constexpr bool can_fuse = !decltype(quadratic)::value && std::is_same<Real, float>::value &&
-                              (decltype(layout)::tile == nep_spin::SpinProjection::width ||
-                               decltype(layout)::harmonic_capacity <= 4);
-    auto* edges = static_cast<nep_spin::RadialEdge<Real>*>(data.radial_edges.storage.get());
-    dispatch_radial_cache(edges != nullptr, [&](auto read_edges) {
-      if (can_fuse && model.spin_compress > 1)
-        launch_batch(
-          layout, radial, edges, read_edges, quadratic, std::integral_constant<bool, can_fuse>{});
-      else
-        launch_batch(layout, radial, edges, read_edges, quadratic, std::false_type{});
-    });
+    constexpr bool can_fuse =
+      !decltype(quadratic)::value && std::is_same<Real, float>::value &&
+      (Layout::tile == nep_spin::SpinProjection::width || Layout::harmonic_capacity <= 4);
+    dispatch_md_flag<can_fuse>(model.spin_compress > 1, select_rows, layout, radial, quadratic);
   };
   if (data.wide_radial.size())
     launch(
