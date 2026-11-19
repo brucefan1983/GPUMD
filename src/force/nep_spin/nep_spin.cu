@@ -23,7 +23,8 @@ Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 Major contributors:
-  Chengbing Chen: Initial implementation. Shared channel contractions and radial caching for spin MD.
+  Chengbing Chen: Initial implementation. Shared channel contractions and radial caching for spin
+MD.
 ------------------------------------------------------------------------------*/
 
 #include "nep_spin.cuh"
