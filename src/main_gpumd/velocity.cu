@@ -22,6 +22,7 @@ If DEBUG is off, the velocities are different in different runs.
 
 Major contributors:
   Zheyong Fan: Initial implementation.
+  Shuning Pan: Reproducible velocity initialization with a user-supplied seed.
 ------------------------------------------------------------------------------*/
 
 #include "model/atom.cuh"

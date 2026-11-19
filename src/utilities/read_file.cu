@@ -17,7 +17,8 @@
 Some functions for dealing with text files.
 
 Major contributors:
-  Zheyong Fan: Initial implementation.
+  Mikko Ervasti: Original text-file reader and line tokenizer.
+  Zheyong Fan: Integrated numeric input validation and added charge-model detection.
 ------------------------------------------------------------------------------*/
 
 #include "error.cuh"

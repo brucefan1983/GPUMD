@@ -16,6 +16,7 @@
 /*----------------------------------------------------------------------------80
 Major contributors:
   Zheyong Fan: Initial implementation.
+  Yong Wang: Population-size adjustment for multi-GPU training.
   Eric Lindgren: Configurable model and restart checkpoints.
   Paul Erhart: Configurable random seeds and training output intervals.
 ------------------------------------------------------------------------------*/

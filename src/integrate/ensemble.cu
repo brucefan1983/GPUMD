@@ -18,6 +18,7 @@ The abstract base class (ABC) for the ensemble classes.
 
 Major contributors:
   Zheyong Fan: Initial implementation.
+  Shuning Pan: Separate position and velocity updates for MTTK integration.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble.cuh"

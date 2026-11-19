@@ -29,7 +29,7 @@ Major contributors:
   Alexander J. Gabourie: Initial implementation.
   Ting Liang: Velocities and general-cell trajectories.
   Ke Xu: Corrected orthorhombic cell lengths.
-  Paul Erhart: Additional per-atom observables.
+  Paul Erhart: Per-atom observables, trajectory appending, and AMBER force-unit conversion.
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_NETCDF
