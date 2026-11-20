@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 Use finite difference to calculate the second order force constants：
     Phi_ij^ab = [F_i^a(-) - F_i^a(+)] / [u_j^b(+) - u_j^b(-)]
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "force/force.cuh"
@@ -24,8 +27,8 @@ Use finite difference to calculate the second order force constants：
 #include "model/group.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <vector>
 #include <cstring>
+#include <vector>
 
 static __global__ void gpu_shift_atom(const double dx, double* x) { x[0] += dx; }
 

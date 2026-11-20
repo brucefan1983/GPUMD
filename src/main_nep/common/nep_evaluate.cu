@@ -13,9 +13,17 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "nep_evaluate.cuh"
-#include "main_nep/dataset.cuh"
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Jiuyang Shi: Temperature-dependent NEP models.
+  Benrui Tang: NEP models with two hidden layers.
+  Zaixu Duan: Additional four-body NEP descriptors.
+------------------------------------------------------------------------------*/
+
 #include "main_nep/common/nep_compile.cuh"
+#include "main_nep/dataset.cuh"
+#include "nep_evaluate.cuh"
 #include "utilities/error.cuh"
 #include "utilities/nep_utilities.cuh"
 
@@ -72,8 +80,8 @@ static __global__ void find_descriptors_radial(
 #else
           int type_index = t1 * paramb.num_types + t2;
 #endif
-          int c_index = get_c_index(
-            type_index, n, k, paramb.n_max_radial, paramb.basis_size_radial);
+          int c_index =
+            get_c_index(type_index, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gn12 += fn12[k] * c[c_index];
         }
         q[n] += gn12;
@@ -129,17 +137,23 @@ static __global__ void find_descriptors_angular(
           int type_index = t1 * paramb.num_types + t2;
 #endif
           int c_index = get_c_index(
-            type_index,
-            n,
-            k,
-            paramb.n_max_angular,
-            paramb.basis_size_angular,
-            paramb.num_c_radial);
+            type_index, n, k, paramb.n_max_angular, paramb.basis_size_angular, paramb.num_c_radial);
           gn12 += fn12[k] * c[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
-      find_q(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134, paramb.n_max_angular + 1, n, s, q);
+      find_q(
+        paramb.L_max,
+        paramb.has_q_222,
+        paramb.has_q_1111,
+        paramb.has_q_112,
+        paramb.has_q_123,
+        paramb.has_q_233,
+        paramb.has_q_134,
+        paramb.n_max_angular + 1,
+        n,
+        s,
+        q);
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
         g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1] = s[abc];
       }
@@ -305,8 +319,8 @@ static __global__ void find_force_radial(
 #else
           int type_index = t1 * paramb.num_types + t2;
 #endif
-          int c_index = get_c_index(
-            type_index, n, k, paramb.n_max_radial, paramb.basis_size_radial);
+          int c_index =
+            get_c_index(type_index, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gnp12 += fnp12[k] * c[c_index];
         }
         float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
@@ -404,17 +418,28 @@ static __global__ void find_force_angular(
           int type_index = t1 * paramb.num_types + t2;
 #endif
           int c_index = get_c_index(
-            type_index,
-            n,
-            k,
-            paramb.n_max_angular,
-            paramb.basis_size_angular,
-            paramb.num_c_radial);
+            type_index, n, k, paramb.n_max_angular, paramb.basis_size_angular, paramb.num_c_radial);
           gn12 += fn12[k] * c[c_index];
           gnp12 += fnp12[k] * c[c_index];
         }
-        accumulate_f12(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
-          paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(
+          paramb.L_max,
+          paramb.has_q_222,
+          paramb.has_q_1111,
+          paramb.has_q_112,
+          paramb.has_q_123,
+          paramb.has_q_233,
+          paramb.has_q_134,
+          paramb.num_L,
+          n,
+          paramb.n_max_angular + 1,
+          d12,
+          r12,
+          gn12,
+          gnp12,
+          Fp,
+          sum_fxyz,
+          f12);
       }
 
       atomicAdd(&g_fx[n1], f12[0]);
@@ -661,10 +686,7 @@ void NEP_Compiled_Evaluation::launch_ann(
   double* pe,
   float* Fp)
 {
-  check_nep_launch(
-    ann_nep_(
-      N, type, descriptors, q_scaler, parameters, pe, Fp),
-    "ann_nep_jit");
+  check_nep_launch(ann_nep_(N, type, descriptors, q_scaler, parameters, pe, Fp), "ann_nep_jit");
 }
 
 void NEP_Compiled_Evaluation::launch_ann_temperature(
@@ -678,44 +700,93 @@ void NEP_Compiled_Evaluation::launch_ann_temperature(
   float* Fp)
 {
   check_nep_launch(
-    ann_temperature_(
-      N, type, descriptors, q_scaler, temperature,
-      parameters, pe, Fp),
+    ann_temperature_(N, type, descriptors, q_scaler, temperature, parameters, pe, Fp),
     "ann_temperature_jit");
 }
 
 void NEP_Compiled_Evaluation::launch_force_radial(
-  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-  const float* x12, const float* y12, const float* z12,
-  const float* parameters, const float* Fp,
-  float* fx, float* fy, float* fz, float* virial)
+  int N,
+  const int* NN_sum,
+  const int* NN,
+  const int* NL,
+  const int* type,
+  const float* x12,
+  const float* y12,
+  const float* z12,
+  const float* parameters,
+  const float* Fp,
+  float* fx,
+  float* fy,
+  float* fz,
+  float* virial)
 {
   check_nep_launch(
     common.force_radial_(
-      N, NN_sum, NN, NL, type, x12, y12, z12,
-      parameters, Fp,
-      nullptr, nullptr, nullptr, nullptr,
-      0, fx, fy, fz, virial),
+      N,
+      NN_sum,
+      NN,
+      NL,
+      type,
+      x12,
+      y12,
+      z12,
+      parameters,
+      Fp,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      0,
+      fx,
+      fy,
+      fz,
+      virial),
     "force_radial_jit");
 }
 
 void NEP_Compiled_Evaluation::launch_force_angular(
-  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-  const float* x12, const float* y12, const float* z12,
-  const float* parameters, const float* Fp, const float* sum_fxyz,
-  float* fx, float* fy, float* fz, float* virial)
+  int N,
+  const int* NN_sum,
+  const int* NN,
+  const int* NL,
+  const int* type,
+  const float* x12,
+  const float* y12,
+  const float* z12,
+  const float* parameters,
+  const float* Fp,
+  const float* sum_fxyz,
+  float* fx,
+  float* fy,
+  float* fz,
+  float* virial)
 {
   check_nep_launch(
     common.force_angular_(
-      N, NN_sum, NN, NL, type, x12, y12, z12,
-      parameters, Fp,
-      nullptr, nullptr, nullptr, nullptr,
-      sum_fxyz, 0, fx, fy, fz, virial),
+      N,
+      NN_sum,
+      NN,
+      NL,
+      type,
+      x12,
+      y12,
+      z12,
+      parameters,
+      Fp,
+      nullptr,
+      nullptr,
+      nullptr,
+      nullptr,
+      sum_fxyz,
+      0,
+      fx,
+      fy,
+      fz,
+      virial),
     "force_angular_jit");
 }
 
-NEP_Compiled_Evaluation::NEP_Compiled_Evaluation(const NEP_Compile_Config& config)
-  : library(config)
+NEP_Compiled_Evaluation::NEP_Compiled_Evaluation(const NEP_Compile_Config& config) : library(config)
 {
   if (!library.is_valid()) {
     return;

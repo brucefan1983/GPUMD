@@ -177,4 +177,3 @@ static void find_properties_many_body_replica(
     virial_per_atom);
   GPU_CHECK_KERNEL
 }
-

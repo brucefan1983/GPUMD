@@ -15,15 +15,19 @@
 
 /*----------------------------------------------------------------------------80
 The abstract base class (ABC) for the potential classes.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Hekai Bu: Binary search for reverse neighbors in the single-precision force kernel.
 ------------------------------------------------------------------------------*/
 
 #include "potential.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #define BLOCK_SIZE_FORCE 64
+#include <cstring>
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
-#include <cstring>
 
 Potential::Potential(void) { rc = 0.0; }
 

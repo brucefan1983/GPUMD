@@ -61,8 +61,7 @@ public:
   GPU_Event(const GPU_Event&) = delete;
   GPU_Event& operator=(const GPU_Event&) = delete;
 
-  GPU_Event(GPU_Event&& other) noexcept
-    : event_(other.event_), device_id_(other.device_id_)
+  GPU_Event(GPU_Event&& other) noexcept : event_(other.event_), device_id_(other.device_id_)
   {
     other.event_ = nullptr;
     other.device_id_ = -1;
@@ -131,8 +130,7 @@ public:
   GPU_Stream(const GPU_Stream&) = delete;
   GPU_Stream& operator=(const GPU_Stream&) = delete;
 
-  GPU_Stream(GPU_Stream&& other) noexcept
-    : stream_(other.stream_), device_id_(other.device_id_)
+  GPU_Stream(GPU_Stream&& other) noexcept : stream_(other.stream_), device_id_(other.device_id_)
   {
     other.stream_ = nullptr;
     other.device_id_ = -1;
@@ -188,7 +186,4 @@ private:
   int device_id_ = -1;
 };
 
-inline void GPU_Event::record(const GPU_Stream& stream)
-{
-  record(stream.get());
-}
+inline void GPU_Event::record(const GPU_Stream& stream) { record(stream.get()); }

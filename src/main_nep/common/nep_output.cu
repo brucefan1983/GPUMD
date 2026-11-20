@@ -13,6 +13,13 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Yifan Li: Atomic dipole and polarizability output.
+  Paul Erhart: Per-structure prediction output.
+------------------------------------------------------------------------------*/
+
 #include "nep_output.cuh"
 #include "nep_training.cuh"
 #include "utilities/common.cuh"
@@ -117,8 +124,16 @@ void print_nep_energy_header(bool has_ediff)
 {
   printf(
     "%-8s %-11s %-11s %-11s %-13s %-13s %-13s %-13s %-13s %-13s",
-    "Step", "Total-Loss", "L1Reg-Loss", "L2Reg-Loss",
-    "RMSE-E-Train", "RMSE-F-Train", "RMSE-V-Train", "RMSE-E-Test", "RMSE-F-Test", "RMSE-V-Test");
+    "Step",
+    "Total-Loss",
+    "L1Reg-Loss",
+    "L2Reg-Loss",
+    "RMSE-E-Train",
+    "RMSE-F-Train",
+    "RMSE-V-Train",
+    "RMSE-E-Test",
+    "RMSE-F-Test",
+    "RMSE-V-Test");
   if (has_ediff) {
     printf(" %-13s %-13s", "RMSE-D-Train", "RMSE-D-Test");
   }
@@ -129,21 +144,46 @@ void print_nep_charge_header(bool has_ediff)
 {
   printf(
     "%-8s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s %-9s",
-    "Step", "Total", "L1Reg", "L2Reg", "E-Train", "F-Train", "V-Train", "Q-Train", "Z-Train",
-    "E-Test", "F-Test", "V-Test", "Q-Test", "Z-Test");
+    "Step",
+    "Total",
+    "L1Reg",
+    "L2Reg",
+    "E-Train",
+    "F-Train",
+    "V-Train",
+    "Q-Train",
+    "Z-Train",
+    "E-Test",
+    "F-Test",
+    "V-Test",
+    "Q-Test",
+    "Z-Test");
   if (has_ediff) {
     printf(" %-9s %-9s", "D-Train", "D-Test");
   }
   printf("\n");
 }
 
-void write_nep_energy_error(FILE* file, const TrainingReport& report,
-  const NEP_Energy_Error& train, const NEP_Energy_Error& test, bool has_ediff)
+void write_nep_energy_error(
+  FILE* file,
+  const TrainingReport& report,
+  const NEP_Energy_Error& train,
+  const NEP_Energy_Error& test,
+  bool has_ediff)
 {
-  fprintf(file,
+  fprintf(
+    file,
     "%-8d %-11.5f %-11.5f %-11.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f %-13.5f",
-    report.generation + 1, report.total, report.l1, report.l2,
-    train.energy, train.force, train.virial, test.energy, test.force, test.virial);
+    report.generation + 1,
+    report.total,
+    report.l1,
+    report.l2,
+    train.energy,
+    train.force,
+    train.virial,
+    test.energy,
+    test.force,
+    test.virial);
   if (has_ediff) {
     fprintf(file, " %-13.5f %-13.5f", train.ediff, test.ediff);
   }
@@ -151,16 +191,35 @@ void write_nep_energy_error(FILE* file, const TrainingReport& report,
   fflush(file);
 }
 
-void write_nep_charge_error(FILE* file, const TrainingReport& report,
-  const NEP_Energy_Error& train, const NEP_Energy_Error& test,
-  float charge_train, float bec_train, float charge_test, float bec_test, bool has_ediff)
+void write_nep_charge_error(
+  FILE* file,
+  const TrainingReport& report,
+  const NEP_Energy_Error& train,
+  const NEP_Energy_Error& test,
+  float charge_train,
+  float bec_train,
+  float charge_test,
+  float bec_test,
+  bool has_ediff)
 {
-  fprintf(file,
+  fprintf(
+    file,
     "%-8d %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f %-9.5f "
     "%-9.5f %-9.5f",
-    report.generation + 1, report.total, report.l1, report.l2,
-    train.energy, train.force, train.virial, charge_train, bec_train,
-    test.energy, test.force, test.virial, charge_test, bec_test);
+    report.generation + 1,
+    report.total,
+    report.l1,
+    report.l2,
+    train.energy,
+    train.force,
+    train.virial,
+    charge_train,
+    bec_train,
+    test.energy,
+    test.force,
+    test.virial,
+    charge_test,
+    bec_test);
   if (has_ediff) {
     fprintf(file, " %-9.5f %-9.5f", train.ediff, test.ediff);
   }

@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import math
-import re
 import shlex
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Sequence, Tuple
@@ -118,17 +117,6 @@ def _loadtxt(path: Path) -> np.ndarray:
     except (OSError, ValueError) as exc:
         raise PostCheckError(f"cannot load numeric text {path.name}: {exc}") from exc
     return np.atleast_2d(data)
-
-
-def _check_numeric_row(spec: Mapping[str, Any], workdir: Path) -> Dict[str, Any]:
-    data = _loadtxt(workdir / spec["output"])
-    row = int(spec.get("row", 0))
-    start = int(spec.get("start_column", 0))
-    expected = np.asarray(spec["expected"], dtype=float)
-    actual = data[row, start : start + expected.size]
-    metric = _close(actual, expected, float(spec["rtol"]), float(spec["atol"]), spec["output"])
-    metric["checked_values"] = int(expected.size)
-    return metric
 
 
 def _active_uncertainty_from_forces(forces: np.ndarray) -> np.ndarray:

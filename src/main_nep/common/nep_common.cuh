@@ -38,8 +38,12 @@ void initialize_nep_zbl(const NEP_Parameters& para, NEP_ZBL& zbl);
 
 // GPU operations use the current device selected by the caller.
 void update_nep_q_scaler(
-  int N, int dim, const float* descriptors,
-  float* q_scaler, float* q_scaler_max, float* q_scaler_min);
+  int N,
+  int dim,
+  const float* descriptors,
+  float* q_scaler,
+  float* q_scaler_max,
+  float* q_scaler_min);
 
 void output_nep_descriptors(
   const Dataset& dataset,

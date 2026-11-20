@@ -211,8 +211,17 @@ static __global__ void find_descriptor_small_box(
         accumulate_s(paramb.L_max, d12, r12[0], r12[1], r12[2], gn12, s);
       }
       find_q(
-        paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
-        paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+        paramb.L_max,
+        paramb.has_q_222,
+        paramb.has_q_1111,
+        paramb.has_q_112,
+        paramb.has_q_123,
+        paramb.has_q_233,
+        paramb.has_q_134,
+        paramb.n_max_angular + 1,
+        n,
+        s,
+        q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
         g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1] = s[abc];
       }
@@ -223,30 +232,30 @@ static __global__ void find_descriptor_small_box(
       q[d] = q[d] * annmb.q_scaler[d];
     }
 
-      float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-      float charge = 0.0f;
-      float charge_derivative[MAX_DIM] = {0.0f};
+    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+    float charge = 0.0f;
+    float charge_derivative[MAX_DIM] = {0.0f};
 
-      apply_ann_one_layer_charge(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[t1],
-        annmb.b0[t1],
-        annmb.w1[t1],
-        annmb.b1,
-        q,
-        F,
-        Fp,
-        charge,
-        charge_derivative);
+    apply_ann_one_layer_charge(
+      annmb.dim,
+      annmb.num_neurons1,
+      annmb.w0[t1],
+      annmb.b0[t1],
+      annmb.w1[t1],
+      annmb.b1,
+      q,
+      F,
+      Fp,
+      charge,
+      charge_derivative);
 
-      g_pe[n1] += double(F) + annmb.energy_reference[t1];
-      g_charge[n1] = charge;
+    g_pe[n1] += double(F) + annmb.energy_reference[t1];
+    g_charge[n1] = charge;
 
-      for (int d = 0; d < annmb.dim; ++d) {
-        g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
-        g_charge_derivative[d * N + n1] = charge_derivative[d] * annmb.q_scaler[d];
-      }
+    for (int d = 0; d < annmb.dim; ++d) {
+      g_Fp[d * N + n1] = Fp[d] * annmb.q_scaler[d];
+      g_charge_derivative[d * N + n1] = charge_derivative[d] * annmb.q_scaler[d];
+    }
   }
 }
 
@@ -285,7 +294,7 @@ static __global__ void find_force_charge_real_space_small_box(
     float s_szz = 0.0f;
     float q1 = g_charge[n1];
     float s_pe = -charge_para.two_alpha_over_sqrt_pi * 0.5f * q1 * q1; // self energy part
-    float D_real = -q1 * charge_para.two_alpha_over_sqrt_pi; // self energy part
+    float D_real = -q1 * charge_para.two_alpha_over_sqrt_pi;           // self energy part
 
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int index = i1 * N + n1;
@@ -299,7 +308,8 @@ static __global__ void find_force_charge_real_space_small_box(
       float erfc_r = erfc(charge_para.alpha * d12) * d12inv;
       D_real += q2 * erfc_r;
       s_pe += 0.5f * qq * erfc_r;
-      float f2 = erfc_r + charge_para.two_alpha_over_sqrt_pi * exp(-charge_para.alpha * charge_para.alpha * d12 * d12);
+      float f2 = erfc_r + charge_para.two_alpha_over_sqrt_pi *
+                            exp(-charge_para.alpha * charge_para.alpha * d12 * d12);
       f2 *= -0.5f * K_C_SP * qq * d12inv * d12inv;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
       float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};
@@ -454,13 +464,13 @@ static __global__ void find_force_angular_small_box(
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < paramb.dim_angular; ++d) {
-      float tmp = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] 
-        + g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_real[n1];
+      float tmp = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] +
+                  g_charge_derivative[(paramb.n_max_radial + 1 + d) * N + n1] * g_D_real[n1];
       Fp[d] = tmp;
     }
     for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        sum_fxyz[n * NUM_OF_ABC + abc] = 
+        sum_fxyz[n * NUM_OF_ABC + abc] =
           g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1];
       }
     }
@@ -497,7 +507,12 @@ static __global__ void find_force_angular_small_box(
         }
         accumulate_f12(
           paramb.L_max,
-          paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
+          paramb.has_q_222,
+          paramb.has_q_1111,
+          paramb.has_q_112,
+          paramb.has_q_123,
+          paramb.has_q_233,
+          paramb.has_q_134,
           paramb.num_L,
           n,
           paramb.n_max_angular + 1,
@@ -598,15 +613,15 @@ static __global__ void find_bec_radial_small_box(
         }
       }
 
-      float bec_xx = 0.5f* (r12[0] * f12[0]);
-      float bec_xy = 0.5f* (r12[0] * f12[1]);
-      float bec_xz = 0.5f* (r12[0] * f12[2]);
-      float bec_yx = 0.5f* (r12[1] * f12[0]);
-      float bec_yy = 0.5f* (r12[1] * f12[1]);
-      float bec_yz = 0.5f* (r12[1] * f12[2]);
-      float bec_zx = 0.5f* (r12[2] * f12[0]);
-      float bec_zy = 0.5f* (r12[2] * f12[1]);
-      float bec_zz = 0.5f* (r12[2] * f12[2]);
+      float bec_xx = 0.5f * (r12[0] * f12[0]);
+      float bec_xy = 0.5f * (r12[0] * f12[1]);
+      float bec_xz = 0.5f * (r12[0] * f12[2]);
+      float bec_yx = 0.5f * (r12[1] * f12[0]);
+      float bec_yy = 0.5f * (r12[1] * f12[1]);
+      float bec_yz = 0.5f * (r12[1] * f12[2]);
+      float bec_zx = 0.5f * (r12[2] * f12[0]);
+      float bec_zy = 0.5f * (r12[2] * f12[1]);
+      float bec_zz = 0.5f * (r12[2] * f12[2]);
 
       atomicAdd(&g_bec[n1], bec_xx);
       atomicAdd(&g_bec[n1 + N], bec_xy);
@@ -693,7 +708,12 @@ static __global__ void find_bec_angular_small_box(
         }
         accumulate_f12(
           paramb.L_max,
-          paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
+          paramb.has_q_222,
+          paramb.has_q_1111,
+          paramb.has_q_112,
+          paramb.has_q_123,
+          paramb.has_q_233,
+          paramb.has_q_134,
           paramb.num_L,
           n,
           paramb.n_max_angular + 1,
@@ -706,15 +726,15 @@ static __global__ void find_bec_angular_small_box(
           f12);
       }
 
-      float bec_xx = 0.5f* (r12[0] * f12[0]);
-      float bec_xy = 0.5f* (r12[0] * f12[1]);
-      float bec_xz = 0.5f* (r12[0] * f12[2]);
-      float bec_yx = 0.5f* (r12[1] * f12[0]);
-      float bec_yy = 0.5f* (r12[1] * f12[1]);
-      float bec_yz = 0.5f* (r12[1] * f12[2]);
-      float bec_zx = 0.5f* (r12[2] * f12[0]);
-      float bec_zy = 0.5f* (r12[2] * f12[1]);
-      float bec_zz = 0.5f* (r12[2] * f12[2]);
+      float bec_xx = 0.5f * (r12[0] * f12[0]);
+      float bec_xy = 0.5f * (r12[0] * f12[1]);
+      float bec_xz = 0.5f * (r12[0] * f12[2]);
+      float bec_yx = 0.5f * (r12[1] * f12[0]);
+      float bec_yy = 0.5f * (r12[1] * f12[1]);
+      float bec_yz = 0.5f * (r12[1] * f12[2]);
+      float bec_zx = 0.5f * (r12[2] * f12[0]);
+      float bec_zy = 0.5f * (r12[2] * f12[1]);
+      float bec_zz = 0.5f * (r12[2] * f12[2]);
 
       atomicAdd(&g_bec[n1], bec_xx);
       atomicAdd(&g_bec[n1 + N], bec_xy);

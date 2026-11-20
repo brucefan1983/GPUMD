@@ -151,7 +151,7 @@ def test_observers_leave_run_unchanged(tmp_path, gpumd_command, case, number_of_
 
 def test_observer_of_temperature_nep(tmp_path, gpumd_command):
     """The observer evaluates a temperature-dependent NEP at the temperature of the run."""
-    fixtures = REPO_ROOT / 'tests_regression' / 'fixtures'
+    fixtures = REPO_ROOT / 'tests_regression' / 'gpumd' / 'fixtures'
     shutil.copy(fixtures / 'potentials' / 'temperature_F_nep.txt', tmp_path)
     shutil.copy(fixtures / 'systems' / 'temperature_F_512.xyz', tmp_path / 'model.xyz')
     (tmp_path / 'run.in').write_text(

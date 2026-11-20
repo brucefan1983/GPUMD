@@ -19,16 +19,21 @@ Initialize the velocities of the system:
     total angular momentum is zero
 If DEBUG is on in the makefile, the velocities are the same from run to run.
 If DEBUG is off, the velocities are different in different runs.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Shuning Pan: Reproducible velocity initialization with a user-supplied seed.
 ------------------------------------------------------------------------------*/
 
 #include "model/atom.cuh"
 #include "model/group.cuh"
 #include "utilities/common.cuh"
-#include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/gpu_vector.cuh"
 #include "velocity.cuh"
-#include <vector>
+#include <algorithm>
 #include <cstring>
+#include <vector>
 
 void Velocity::scale(
   const double initial_temperature,
@@ -157,7 +162,8 @@ static void get_inertia(
   I[2][0] = I[0][2];
 }
 
-static double get_angular_velocity(const double I[3][3], const double L[3], double w[3])
+static __host__ __device__ double
+get_angular_velocity(const double I[3][3], const double L[3], double w[3])
 {
   double inverse[3][3]; // inverse of I
   inverse[0][0] = I[1][1] * I[2][2] - I[1][2] * I[2][1];
@@ -172,6 +178,10 @@ static double get_angular_velocity(const double I[3][3], const double L[3], doub
   double determinant = I[0][0] * I[1][1] * I[2][2] + I[0][1] * I[1][2] * I[2][0] +
                        I[0][2] * I[1][0] * I[2][1] - I[0][0] * I[1][2] * I[2][1] -
                        I[0][1] * I[1][0] * I[2][2] - I[2][0] * I[1][1] * I[0][2];
+  if (determinant > -1.0e-10 && determinant < 1.0e-10) {
+    w[0] = w[1] = w[2] = 0.0;
+    return determinant;
+  }
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       inverse[i][j] /= determinant;
@@ -270,42 +280,222 @@ void Velocity::correct_velocity(
     cpu_velocity_per_atom.data() + N * 2);
 }
 
+static constexpr int CORRECTION_BLOCK_SIZE = 128;
+
+template <int NUM_COMPONENTS>
+static __device__ void sum_correction_components(double (&values)[NUM_COMPONENTS])
+{
+  __shared__ double s_values[NUM_COMPONENTS][CORRECTION_BLOCK_SIZE];
+  const int tid = threadIdx.x;
+  for (int d = 0; d < NUM_COMPONENTS; ++d) {
+    s_values[d][tid] = values[d];
+  }
+  __syncthreads();
+  for (int offset = blockDim.x / 2; offset > 0; offset /= 2) {
+    if (tid < offset) {
+      for (int d = 0; d < NUM_COMPONENTS; ++d) {
+        s_values[d][tid] += s_values[d][tid + offset];
+      }
+    }
+    __syncthreads();
+  }
+  if (tid == 0) {
+    for (int d = 0; d < NUM_COMPONENTS; ++d) {
+      values[d] = s_values[d][0];
+    }
+  }
+}
+
+static __global__ void find_center_sums(
+  const int N,
+  const int group_size,
+  const int group_offset,
+  const int* contents,
+  const double* mass,
+  const double* position,
+  const double* velocity,
+  double* sums)
+{
+  // Total mass, mass-weighted position, and linear momentum.
+  double values[7] = {0.0};
+  for (int k = blockIdx.x * blockDim.x + threadIdx.x; k < group_size; k += blockDim.x * gridDim.x) {
+    const int n = contents == nullptr ? k : contents[group_offset + k];
+    const double m = mass[n];
+    values[0] += m;
+    for (int d = 0; d < 3; ++d) {
+      values[1 + d] += m * position[n + d * N];
+      values[4 + d] += m * velocity[n + d * N];
+    }
+  }
+  sum_correction_components(values);
+  if (threadIdx.x == 0) {
+    for (int d = 0; d < 7; ++d) {
+      sums[d * gridDim.x + blockIdx.x] = values[d];
+    }
+  }
+}
+
+static __global__ void
+find_correction_center(const int num_blocks, const double* sums, double* parameters)
+{
+  double values[7] = {0.0};
+  for (int k = threadIdx.x; k < num_blocks; k += blockDim.x) {
+    for (int d = 0; d < 7; ++d) {
+      values[d] += sums[d * num_blocks + k];
+    }
+  }
+  sum_correction_components(values);
+  if (threadIdx.x == 0) {
+    for (int d = 0; d < 6; ++d) {
+      parameters[d] = values[d + 1] / values[0];
+    }
+  }
+}
+
+static __global__ void find_rotation_sums(
+  const int N,
+  const int group_size,
+  const int group_offset,
+  const int* contents,
+  const double* mass,
+  const double* position,
+  const double* velocity,
+  const double* parameters,
+  double* sums)
+{
+  // Six independent inertia components followed by angular momentum.
+  double values[9] = {0.0};
+  for (int k = blockIdx.x * blockDim.x + threadIdx.x; k < group_size; k += blockDim.x * gridDim.x) {
+    const int n = contents == nullptr ? k : contents[group_offset + k];
+    const double m = mass[n];
+    const double x = position[n] - parameters[0];
+    const double y = position[n + N] - parameters[1];
+    const double z = position[n + 2 * N] - parameters[2];
+    const double vx = velocity[n] - parameters[3];
+    const double vy = velocity[n + N] - parameters[4];
+    const double vz = velocity[n + 2 * N] - parameters[5];
+    values[0] += m * (y * y + z * z);
+    values[1] += m * (x * x + z * z);
+    values[2] += m * (x * x + y * y);
+    values[3] -= m * x * y;
+    values[4] -= m * y * z;
+    values[5] -= m * x * z;
+    values[6] += m * (y * vz - z * vy);
+    values[7] += m * (z * vx - x * vz);
+    values[8] += m * (x * vy - y * vx);
+  }
+  sum_correction_components(values);
+  if (threadIdx.x == 0) {
+    for (int d = 0; d < 9; ++d) {
+      sums[d * gridDim.x + blockIdx.x] = values[d];
+    }
+  }
+}
+
+static __global__ void
+find_correction_rotation(const int num_blocks, const double* sums, double* parameters)
+{
+  double values[9] = {0.0};
+  for (int k = threadIdx.x; k < num_blocks; k += blockDim.x) {
+    for (int d = 0; d < 9; ++d) {
+      values[d] += sums[d * num_blocks + k];
+    }
+  }
+  sum_correction_components(values);
+  if (threadIdx.x == 0) {
+    const double I[3][3] = {
+      {values[0], values[3], values[5]},
+      {values[3], values[1], values[4]},
+      {values[5], values[4], values[2]}};
+    get_angular_velocity(I, values + 6, parameters + 6);
+  }
+}
+
+static __global__ void apply_velocity_correction(
+  const int N,
+  const int group_size,
+  const int group_offset,
+  const int* contents,
+  const double* position,
+  const double* parameters,
+  double* velocity)
+{
+  for (int k = blockIdx.x * blockDim.x + threadIdx.x; k < group_size; k += blockDim.x * gridDim.x) {
+    const int n = contents == nullptr ? k : contents[group_offset + k];
+    const double x = position[n] - parameters[0];
+    const double y = position[n + N] - parameters[1];
+    const double z = position[n + 2 * N] - parameters[2];
+    velocity[n] -= parameters[3];
+    velocity[n + N] -= parameters[4];
+    velocity[n + 2 * N] -= parameters[5];
+    velocity[n] -= parameters[7] * z - parameters[8] * y;
+    velocity[n + N] -= parameters[8] * x - parameters[6] * z;
+    velocity[n + 2 * N] -= parameters[6] * y - parameters[7] * x;
+  }
+}
+
 void Velocity::correct_velocity(const int step, const std::vector<Group>& group, Atom& atom)
 {
   const int N = atom.number_of_atoms;
+  if (!do_velocity_correction || step % velocity_correction_interval != 0 || N == 0) {
+    return;
+  }
 
-  if (do_velocity_correction) {
-    if (step % velocity_correction_interval == 0) {
-      atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
-      atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
-      if (velocity_correction_group_method < 0) {
-        correct_velocity(N, atom.cpu_mass, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
-      } else {
-        for (int g = 0; g < group[velocity_correction_group_method].number; ++g) {
-          int cpu_size = group[velocity_correction_group_method].cpu_size[g];
-          int cpu_size_sum = group[velocity_correction_group_method].cpu_size_sum[g];
-          std::vector<double> mass(cpu_size);
-          std::vector<double> position(cpu_size * 3);
-          std::vector<double> velocity(cpu_size * 3);
-          for (int m = 0; m < cpu_size; ++m) {
-            int n = group[velocity_correction_group_method].cpu_contents[cpu_size_sum + m];
-            mass[m] = atom.cpu_mass[n];
-            for (int d = 0; d < 3; ++d) {
-              position[m + d * cpu_size] = atom.cpu_position_per_atom[n + d * N];
-              velocity[m + d * cpu_size] = atom.cpu_velocity_per_atom[n + d * N];
-            }
-          }
-          correct_velocity(mass.size(), mass, position, velocity);
-          for (int m = 0; m < cpu_size; ++m) {
-            int n = group[velocity_correction_group_method].cpu_contents[cpu_size_sum + m];
-            for (int d = 0; d < 3; ++d) {
-              atom.cpu_velocity_per_atom[n + d * N] = velocity[m + d * cpu_size];
-            }
-          }
-        }
-      }
-      atom.velocity_per_atom.copy_from_host(atom.cpu_velocity_per_atom.data());
+  const Group* selected_group =
+    velocity_correction_group_method < 0 ? nullptr : &group[velocity_correction_group_method];
+  const int num_groups = selected_group == nullptr ? 1 : selected_group->number;
+  const int* contents = selected_group == nullptr ? nullptr : selected_group->contents.data();
+  const int max_blocks = std::min((N - 1) / CORRECTION_BLOCK_SIZE + 1, 1024);
+  if (correction_sums.size() < 9 * max_blocks) {
+    correction_sums.resize(9 * max_blocks);
+  }
+  if (correction_parameters.size() == 0) {
+    correction_parameters.resize(9);
+  }
+
+  for (int g = 0; g < num_groups; ++g) {
+    const int group_size = selected_group == nullptr ? N : selected_group->cpu_size[g];
+    const int group_offset = selected_group == nullptr ? 0 : selected_group->cpu_size_sum[g];
+    if (group_size == 0) {
+      continue;
     }
+    const int num_blocks = std::min((group_size - 1) / CORRECTION_BLOCK_SIZE + 1, max_blocks);
+    find_center_sums<<<num_blocks, CORRECTION_BLOCK_SIZE>>>(
+      N,
+      group_size,
+      group_offset,
+      contents,
+      atom.mass.data(),
+      atom.position_per_atom.data(),
+      atom.velocity_per_atom.data(),
+      correction_sums.data());
+    GPU_CHECK_KERNEL
+    find_correction_center<<<1, CORRECTION_BLOCK_SIZE>>>(
+      num_blocks, correction_sums.data(), correction_parameters.data());
+    GPU_CHECK_KERNEL
+    find_rotation_sums<<<num_blocks, CORRECTION_BLOCK_SIZE>>>(
+      N,
+      group_size,
+      group_offset,
+      contents,
+      atom.mass.data(),
+      atom.position_per_atom.data(),
+      atom.velocity_per_atom.data(),
+      correction_parameters.data(),
+      correction_sums.data());
+    GPU_CHECK_KERNEL
+    find_correction_rotation<<<1, CORRECTION_BLOCK_SIZE>>>(
+      num_blocks, correction_sums.data(), correction_parameters.data());
+    GPU_CHECK_KERNEL
+    apply_velocity_correction<<<num_blocks, CORRECTION_BLOCK_SIZE>>>(
+      N,
+      group_size,
+      group_offset,
+      contents,
+      atom.position_per_atom.data(),
+      correction_parameters.data(),
+      atom.velocity_per_atom.data());
+    GPU_CHECK_KERNEL
   }
 }
 

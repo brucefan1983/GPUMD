@@ -15,16 +15,21 @@
 
 /*----------------------------------------------------------------------------80
 Apply electron stopping.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Jiahui Liu: Cumulative energy loss from electronic stopping.
+  Yixin Deng: Corrected energy-loss accumulation outside the stopping range.
 ------------------------------------------------------------------------------*/
 
 #include "electron_stop.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
-#include "utilities/gpu_vector.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/gpu_vector.cuh"
+#include <cstring>
 #include <iostream>
 #include <vector>
-#include <cstring>
 
 static void __global__ find_stopping_force(
   const int num_atoms,

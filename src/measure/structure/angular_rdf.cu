@@ -16,15 +16,19 @@
 /*-----------------------------------------------------------------------------------------------100
 Calculate:
     Angular-dependent Radial distribution function (AngularRDF)
+
+Major contributors:
+  Bin Xu: Initial implementation.
+  Zheyong Fan: Faster angular-dependent radial distribution calculations.
 --------------------------------------------------------------------------------------------------*/
 
 #include "angular_rdf.cuh"
-#include "integrate/integrate.cuh"
 #include "force/neighbor.cuh"
+#include "integrate/integrate.cuh"
+#include "measure/parse_utilities.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
-#include "measure/parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -37,10 +41,7 @@ namespace
 // Bin edges reconstructed from host-generated centers can have ULP-sized gaps or overlaps.
 // Check nearby bins explicitly instead of assuming that every value belongs to exactly one bin.
 __device__ __forceinline__ void find_candidate_bin_range(
-  const double scaled_value,
-  const int number_of_bins,
-  int& first_bin,
-  int& last_bin)
+  const double scaled_value, const int number_of_bins, int& first_bin, int& last_bin)
 {
   int bin;
   if (!(scaled_value > 0.0)) {
@@ -72,8 +73,7 @@ __device__ __forceinline__ void accumulate_angular_rdf(
   const double radial_half_step = radial_step / 2;
   const double radial_lower = radial[0] - radial_half_step;
   const double radial_upper = radial[number_of_radial_bins - 1] + radial_half_step;
-  if (!(
-        distance_square > radial_lower * radial_lower &&
+  if (!(distance_square > radial_lower * radial_lower &&
         distance_square <= radial_upper * radial_upper)) {
     return;
   }
@@ -81,10 +81,7 @@ __device__ __forceinline__ void accumulate_angular_rdf(
   int first_radial_bin;
   int last_radial_bin;
   find_candidate_bin_range(
-    sqrt(distance_square) / radial_step,
-    number_of_radial_bins,
-    first_radial_bin,
-    last_radial_bin);
+    sqrt(distance_square) / radial_step, number_of_radial_bins, first_radial_bin, last_radial_bin);
 
   const double theta = atan2(y12, x12);
   const double theta_half_step = theta_step / 2;
@@ -97,10 +94,7 @@ __device__ __forceinline__ void accumulate_angular_rdf(
   int first_theta_bin;
   int last_theta_bin;
   find_candidate_bin_range(
-    (theta - theta_lower) / theta_step,
-    number_of_theta_bins,
-    first_theta_bin,
-    last_theta_bin);
+    (theta - theta_lower) / theta_step, number_of_theta_bins, first_theta_bin, last_theta_bin);
 
   const double rdf_PI = 3.14159265358979323846;
   for (int w = first_radial_bin; w <= last_radial_bin; ++w) {
@@ -492,10 +486,7 @@ void AngularRDF::find_angular_rdf(
   }
 }
 
-AngularRDF::AngularRDF(
-  const std::vector<std::string>& tokens,
-  Box& box,
-  const int number_of_types)
+AngularRDF::AngularRDF(const std::vector<std::string>& tokens, Box& box, const int number_of_types)
 {
   parse(tokens, box, number_of_types);
   action_name = "compute_angular_rdf";
@@ -520,8 +511,7 @@ void AngularRDF::pre_run(
   }
 
   if (num_interval_ > number_of_steps) {
-    PRINT_INPUT_ERROR(
-      "Angular RDF sampling interval should not exceed the number of MD steps.\n");
+    PRINT_INPUT_ERROR("Angular RDF sampling interval should not exceed the number of MD steps.\n");
   }
 
   // calculate radial step size
@@ -728,10 +718,7 @@ void AngularRDF::post_run(
   num_repeat_ = 0;
 }
 
-void AngularRDF::parse(
-  const std::vector<std::string>& tokens,
-  Box& box,
-  const int number_of_types)
+void AngularRDF::parse(const std::vector<std::string>& tokens, Box& box, const int number_of_types)
 {
   printf("Compute Angular RDF.\n");
   compute_ = true;

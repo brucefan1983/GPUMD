@@ -17,8 +17,8 @@
 
 #pragma once
 #include "action.cuh"
-#include "integrate/integrate.cuh"
 #include "force/potential.cuh"
+#include "integrate/integrate.cuh"
 #include <plumed/wrapper/Plumed.h>
 #include <stdio.h>
 #include <string>
@@ -32,7 +32,7 @@ public:
   int use_plumed = 0;
 
   PLUMED(const std::vector<std::string>& tokens);
-  
+
   void parse(const std::vector<std::string>& tokens);
   void init(const double ts, const double T);
 
@@ -63,18 +63,18 @@ public:
     Force& force);
 
   virtual void end_of_step(
-      const int number_of_steps,
-      int step,
-      const int fixed_group,
-      const int move_group,
-      const double global_time,
-      const double temperature,
-      Integrate& integrate,
-      Box& box,
-      std::vector<Group>& group,
-      GPU_Vector<double>& thermo,
-      Atom& atom,
-      Force& force);
+    const int number_of_steps,
+    int step,
+    const int fixed_group,
+    const int move_group,
+    const double global_time,
+    const double temperature,
+    Integrate& integrate,
+    Box& box,
+    std::vector<Group>& group,
+    GPU_Vector<double>& thermo,
+    Atom& atom,
+    Force& force);
 
   virtual void post_run(
     Atom& atom,

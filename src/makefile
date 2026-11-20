@@ -25,9 +25,13 @@ WARN_FLAGS += -Wcast-align -Wcast-qual -Wvla
 WARN_FLAGS += -Wformat -Wformat-security -Wformat-overflow -Wformat-truncation
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 $(CUDA_ARCH)
+# nvcc supports -MMD only on Linux.
+DEPFLAGS = -MD
 else # For linux
 CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)"
+DEPFLAGS = -MMD
 endif
+DEPFLAGS += -MP -MF $(basename $@).d -MT $@
 ifeq ($(GNEP_TEST_DIAGNOSTICS),1)
 CFLAGS += -DGNEP_TEST_DIAGNOSTICS
 endif
@@ -97,27 +101,10 @@ endif
 
 
 ###########################################################
-# headers
+# compiler-generated header dependencies
 ###########################################################
-HEADERS =                         \
-	$(wildcard utilities/*.cuh)   \
-	$(wildcard utilities/*/*.cuh) \
-	$(wildcard main_gpumd/*.cuh)  \
-	$(wildcard integrate/*.cuh)   \
-	$(wildcard integrate/*/*.cuh) \
-	$(wildcard mc/*.cuh)          \
-	$(wildcard minimize/*.cuh)    \
-	$(wildcard force/*.cuh)       \
-	$(wildcard force/*/*.cuh)     \
-	$(wildcard measure/*.cuh)     \
-	$(wildcard measure/*/*.cuh)     \
-	$(wildcard model/*.cuh)       \
-	$(wildcard phonon/*.cuh)      \
-	$(wildcard main_nep/*.cuh)    \
-	$(wildcard main_nep/*/*.cuh)  \
-	$(wildcard main_gnep/*.cuh)
-
-HEADERS_TB = $(wildcard main_tb/*.cuh) $(wildcard utilities/*.cuh) $(wildcard utilities/*/*.cuh)
+OBJECTS = $(sort $(OBJ_GPUMD) $(OBJ_NEP) $(OBJ_TB) $(OBJ_GNEP))
+DEPFILES = $(addsuffix .d,$(basename $(OBJECTS)))
 
 
 ###########################################################
@@ -152,56 +139,21 @@ tb: $(OBJ_TB)
 # rules for building object files
 ###########################################################
 ifdef OS # for Windows
-integrate/%.obj: integrate/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-mc/%.obj: mc/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-minimize/%.obj: minimize/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-force/%.obj: force/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-measure/%.obj: measure/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_gpumd/%.obj: main_gpumd/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-utilities/%.obj: utilities/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-model/%.obj: model/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-phonon/%.obj: phonon/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_nep/%.obj: main_nep/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_tb/%.obj: main_tb/%.cu $(HEADERS_TB)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_gnep/%.obj: main_gnep/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+$(OBJECTS): %.obj: %.cu
+	$(CC) $(CFLAGS) $(INC) $(DEPFLAGS) -c $< -o $@
 else # for Linux
-integrate/%.o: integrate/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-mc/%.o: mc/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-minimize/%.o: minimize/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-force/%.o: force/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-measure/%.o: measure/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-utilities/%.o: utilities/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-model/%.o: model/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-phonon/%.o: phonon/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_nep/%.o: main_nep/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_tb/%.o: main_tb/%.cu $(HEADERS_TB)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_gnep/%.o: main_gnep/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+$(OBJECTS): %.o: %.cu
+	$(CC) $(CFLAGS) $(INC) $(DEPFLAGS) -c $< -o $@
 endif
+
+# Rebuild objects whose dependency files are missing, including older builds.
+$(foreach obj,$(OBJECTS),$(if $(wildcard $(basename $(obj)).d),,$(obj))): FORCE
+
+.PHONY: all clean FORCE
+FORCE:
+
+# Keep dependency targets after all so they cannot change the default goal.
+-include $(wildcard $(DEPFILES))
 
 
 ###########################################################
@@ -209,7 +161,7 @@ endif
 ###########################################################
 clean:
 ifdef OS
-	del /s *.obj *.exp *.lib *.exe
+	del /s *.obj *.d *.exp *.lib *.exe
 else
-	rm -f */*.o */*/*.o gpumd nep gnep tb
+	rm -f */*.o */*/*.o */*.d */*/*.d gpumd nep gnep tb
 endif

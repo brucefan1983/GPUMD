@@ -20,6 +20,9 @@ Z. Fan, Y. Wang, X. Gu, P. Qian, Y. Su, and T. Ala-Nissila,
 A minimal Tersoff potential for diamond silicon with improved
 descriptions of elastic and phonon transport properties,
 J. Phys.: Condens. Matter 32, 135901 (2020).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"
@@ -336,11 +339,7 @@ void Tersoff_mini::compute(
   neighbor_manager.update(box, type, position_per_atom);
 
   neighbor_manager.find_local_neighbor(
-    rc,
-    box, 
-    position_per_atom,
-    tersoff_mini_data.NN,
-    tersoff_mini_data.NL);
+    rc, box, position_per_atom, tersoff_mini_data.NN, tersoff_mini_data.NL);
 
   // pre-compute the bond order functions and their derivatives
   find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(

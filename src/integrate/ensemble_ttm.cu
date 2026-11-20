@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 Two-Temperature Model (TTM) for metals, with an optional heat_lan source/sink
 channel for heat transport across metal-nonmetal heterointerfaces.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_ttm.cuh"
@@ -31,9 +34,9 @@ channel for heat transport across metal-nonmetal heterointerfaces.
 #include <string>
 
 #ifdef USE_HIP
-  #define TTM_RAND_UNIFORM(a) hiprand_uniform(a)
+#define TTM_RAND_UNIFORM(a) hiprand_uniform(a)
 #else
-  #define TTM_RAND_UNIFORM(a) curand_uniform(a)
+#define TTM_RAND_UNIFORM(a) curand_uniform(a)
 #endif
 
 static void parse_ttm_active_range(
@@ -94,7 +97,8 @@ static void parse_ttm_parameters(
   ttm_parameters = TTM_Parameters();
 
   if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
-    PRINT_INPUT_ERROR("ensemble ttm/heat_ttm requires periodic boundary conditions in all directions.");
+    PRINT_INPUT_ERROR(
+      "ensemble ttm/heat_ttm requires periodic boundary conditions in all directions.");
   }
   if (
     box.cpu_h[1] != 0 || box.cpu_h[2] != 0 || box.cpu_h[3] != 0 || box.cpu_h[5] != 0 ||
@@ -201,8 +205,7 @@ static void parse_ttm_parameters(
   ttm_parameters.active_y_max = ttm_parameters.ny;
   ttm_parameters.active_z_max = ttm_parameters.nz;
 
-  const long long ttm_ngrid_total =
-    1LL * ttm_parameters.nx * ttm_parameters.ny * ttm_parameters.nz;
+  const long long ttm_ngrid_total = 1LL * ttm_parameters.nx * ttm_parameters.ny * ttm_parameters.nz;
   if (ttm_ngrid_total > 2147483647LL) {
     PRINT_INPUT_ERROR("Too many electron grid points for ensemble ttm/heat_ttm.");
   }
@@ -239,13 +242,25 @@ static void parse_ttm_parameters(
       }
     } else if (tokens[i] == "ttm_active_x") {
       parse_ttm_active_range(
-        tokens[i + 1], "x", ttm_parameters.nx, ttm_parameters.active_x_min, ttm_parameters.active_x_max);
+        tokens[i + 1],
+        "x",
+        ttm_parameters.nx,
+        ttm_parameters.active_x_min,
+        ttm_parameters.active_x_max);
     } else if (tokens[i] == "ttm_active_y") {
       parse_ttm_active_range(
-        tokens[i + 1], "y", ttm_parameters.ny, ttm_parameters.active_y_min, ttm_parameters.active_y_max);
+        tokens[i + 1],
+        "y",
+        ttm_parameters.ny,
+        ttm_parameters.active_y_min,
+        ttm_parameters.active_y_max);
     } else if (tokens[i] == "ttm_active_z") {
       parse_ttm_active_range(
-        tokens[i + 1], "z", ttm_parameters.nz, ttm_parameters.active_z_min, ttm_parameters.active_z_max);
+        tokens[i + 1],
+        "z",
+        ttm_parameters.nz,
+        ttm_parameters.active_z_min,
+        ttm_parameters.active_z_max);
     } else {
       PRINT_INPUT_ERROR("Unknown ensemble ttm/heat_ttm optional keyword.");
     }
@@ -270,10 +285,7 @@ static void print_ttm_settings(const TTM_Parameters& ttm_parameters)
     ttm_parameters.gamma_s,
     ttm_parameters.v_0);
   printf(
-    "    electron grid: %d x %d x %d.\n",
-    ttm_parameters.nx,
-    ttm_parameters.ny,
-    ttm_parameters.nz);
+    "    electron grid: %d x %d x %d.\n", ttm_parameters.nx, ttm_parameters.ny, ttm_parameters.nz);
   printf(
     "    active electron cells: x %d:%d, y %d:%d, z %d:%d.\n",
     ttm_parameters.active_x_min,
@@ -330,9 +342,12 @@ static __global__ void gpu_map_atoms_to_grid(
     ix %= nx;
     iy %= ny;
     iz %= nz;
-    if (ix < 0) ix += nx;
-    if (iy < 0) iy += ny;
-    if (iz < 0) iz += nz;
+    if (ix < 0)
+      ix += nx;
+    if (iy < 0)
+      iy += ny;
+    if (iz < 0)
+      iz += nz;
 
     g_atom_grid[m] = iz * ny * nx + iy * nx + ix;
   }
@@ -387,7 +402,8 @@ static __global__ void gpu_update_ttm_force(
       g_ttm_force[m + 2 * N_metal] = 0.0;
       return;
     }
-    if (Te < 0.0) Te = 0.0;
+    if (Te < 0.0)
+      Te = 0.0;
     const double gamma_p = g_gamma_p[grid_idx];
     if (gamma_p <= 0.0) {
       g_ttm_force[m] = 0.0;
@@ -402,7 +418,8 @@ static __global__ void gpu_update_ttm_force(
 
     double vsq = vx * vx + vy * vy + vz * vz;
     double gamma = gamma_p;
-    if (vsq > v_0_sq) gamma = gamma_p + gamma_s;
+    if (vsq > v_0_sq)
+      gamma = gamma_p + gamma_s;
 
     double gfactor = sqrt(Te * 24.0 * K_B * gamma_p / time_step);
 
@@ -785,10 +802,7 @@ void Ensemble_TTM::initialize_ttm_common(
   electron_temperature_output_interval = ttm_parameters.out_interval;
 
   initialize_electron_grid(
-    ttm_parameters.T_e_init,
-    ttm_parameters.infile,
-    ttm_parameters.properties_file,
-    box);
+    ttm_parameters.T_e_init, ttm_parameters.infile, ttm_parameters.properties_file, box);
   initialize_ttm_gpu_data();
 }
 
@@ -883,8 +897,7 @@ Ensemble_TTM::Ensemble_TTM(
   print_ttm_settings(parameters_);
 }
 
-void Ensemble_TTM::initialize_run(
-  const double, Atom&, Box& box, const std::vector<Group>& group)
+void Ensemble_TTM::initialize_run(const double, Atom&, Box& box, const std::vector<Group>& group)
 {
   if (use_heat_lan) {
     N_source = group[0].cpu_size[source];
@@ -893,10 +906,8 @@ void Ensemble_TTM::initialize_run(
     offset_sink = group[0].cpu_size_sum[sink];
 
     c1 = exp(-0.5 / temperature_coupling);
-    c2_source =
-      sqrt((1 - c1 * c1) * K_B * (temperature + delta_temperature));
-    c2_sink =
-      sqrt((1 - c1 * c1) * K_B * (temperature - delta_temperature));
+    c2_source = sqrt((1 - c1 * c1) * K_B * (temperature + delta_temperature));
+    c2_sink = sqrt((1 - c1 * c1) * K_B * (temperature - delta_temperature));
 
     curand_states_source.resize(N_source);
     curand_states_sink.resize(N_sink);
@@ -905,8 +916,7 @@ void Ensemble_TTM::initialize_run(
     initialize_curand_states<<<grid_size_source, 128>>>(
       curand_states_source.data(), N_source, rand());
     GPU_CHECK_KERNEL
-    initialize_curand_states<<<grid_size_sink, 128>>>(
-      curand_states_sink.data(), N_sink, rand());
+    initialize_curand_states<<<grid_size_sink, 128>>>(curand_states_sink.data(), N_sink, rand());
     GPU_CHECK_KERNEL
     initialize_group_kinetic_energy_workspace(group[0].number);
   } else {
@@ -928,15 +938,9 @@ void Ensemble_TTM::initialize_run(
     box);
 }
 
-Ensemble_TTM::~Ensemble_TTM(void)
-{
-  close_electron_temperature_file();
-}
+Ensemble_TTM::~Ensemble_TTM(void) { close_electron_temperature_file(); }
 
-void Ensemble_TTM::finalize_run(const Atom&, const Box&)
-{
-  close_electron_temperature_file();
-}
+void Ensemble_TTM::finalize_run(const Atom&, const Box&) { close_electron_temperature_file(); }
 
 void Ensemble_TTM::integrate_heat_lan_half(
   const std::vector<Group>& group,
@@ -1073,8 +1077,7 @@ void Ensemble_TTM::update_ttm_force(
 }
 
 void Ensemble_TTM::accumulate_ttm_power(
-  const std::vector<Group>& group,
-  GPU_Vector<double>& velocity_per_atom)
+  const std::vector<Group>& group, GPU_Vector<double>& velocity_per_atom)
 {
   const int number_of_atoms = velocity_per_atom.size() / 3;
   const int gm = ttm_grouping_method;
@@ -1123,8 +1126,8 @@ void Ensemble_TTM::update_electron_temperature(const double time_step, const int
       num_inner_steps = static_cast<int>(dt_fs / inner_dt) + 1;
       inner_dt = dt_fs / static_cast<double>(num_inner_steps);
       if (num_inner_steps > 1000000) {
-        printf("Warning: too many inner timesteps (%d) in TTM electron diffusion.\n",
-               num_inner_steps);
+        printf(
+          "Warning: too many inner timesteps (%d) in TTM electron diffusion.\n", num_inner_steps);
       }
     }
   }
@@ -1163,12 +1166,18 @@ void Ensemble_TTM::update_electron_temperature(const double time_step, const int
           int out = 1;
           int up = 1;
           int down = 1;
-          if (!(electron_cell_active[idx_xl] && T_electron_old[idx_xl] > 0.0)) left = 0;
-          if (!(electron_cell_active[idx_xr] && T_electron_old[idx_xr] > 0.0)) right = 0;
-          if (!(electron_cell_active[idx_yr] && T_electron_old[idx_yr] > 0.0)) in = 0;
-          if (!(electron_cell_active[idx_yl] && T_electron_old[idx_yl] > 0.0)) out = 0;
-          if (!(electron_cell_active[idx_zr] && T_electron_old[idx_zr] > 0.0)) up = 0;
-          if (!(electron_cell_active[idx_zl] && T_electron_old[idx_zl] > 0.0)) down = 0;
+          if (!(electron_cell_active[idx_xl] && T_electron_old[idx_xl] > 0.0))
+            left = 0;
+          if (!(electron_cell_active[idx_xr] && T_electron_old[idx_xr] > 0.0))
+            right = 0;
+          if (!(electron_cell_active[idx_yr] && T_electron_old[idx_yr] > 0.0))
+            in = 0;
+          if (!(electron_cell_active[idx_yl] && T_electron_old[idx_yl] > 0.0))
+            out = 0;
+          if (!(electron_cell_active[idx_zr] && T_electron_old[idx_zr] > 0.0))
+            up = 0;
+          if (!(electron_cell_active[idx_zl] && T_electron_old[idx_zl] > 0.0))
+            down = 0;
 
           const double c_vol = electron_heat_capacity[idx];
           if (c_vol <= 0.0) {
@@ -1191,9 +1200,9 @@ void Ensemble_TTM::update_electron_temperature(const double time_step, const int
             safe_effective_kappa(electron_thermal_conductivity[idx_zr], k_center) *
               (T_electron_old[idx_zr] - T_center) / (dz * dz) * up;
 
-          T_electron[idx] = T_center +
-            inner_dt / c_vol *
-              (diffusion - net_energy_cpu[idx] / del_vol + electron_source * electron_eta[idx]);
+          T_electron[idx] = T_center + inner_dt / c_vol *
+                                         (diffusion - net_energy_cpu[idx] / del_vol +
+                                          electron_source * electron_eta[idx]);
         }
       }
     }

@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 The Berendsen thermostat and barostat:
 [1] H. J. C. Berendsen et al. J. Chem. Phys. 81, 3684 (1984).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_ber.cuh"
@@ -153,9 +156,8 @@ void Ensemble_BER::parse(const std::vector<std::string>& tokens, const Box& box)
     PRINT_INPUT_ERROR("Pressure coupling should be a number.");
   }
   if (tau_pressure < 1.0) {
-    PRINT_INPUT_ERROR(
-      "Pressure coupling should >= 1. \n(We have changed the convention for this "
-      "input starting from GPUMD-V3.0; See the manual for details.)");
+    PRINT_INPUT_ERROR("Pressure coupling should >= 1. \n(We have changed the convention for this "
+                      "input starting from GPUMD-V3.0; See the manual for details.)");
   }
   for (int i = 0; i < num_target_pressure_components; ++i) {
     pressure_coupling[i] = 1.0 / (tau_pressure * 3.0 * elastic_modulus[i]);
@@ -209,15 +211,9 @@ void Ensemble_BER::parse(const std::vector<std::string>& tokens, const Box& box)
   }
 }
 
-double Ensemble_BER::get_temperature1() const
-{
-  return temperature1_;
-}
+double Ensemble_BER::get_temperature1() const { return temperature1_; }
 
-double Ensemble_BER::get_temperature2() const
-{
-  return temperature2_;
-}
+double Ensemble_BER::get_temperature2() const { return temperature2_; }
 
 int Ensemble_BER::get_num_target_pressure_components() const
 {

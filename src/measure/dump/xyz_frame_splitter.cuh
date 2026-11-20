@@ -16,10 +16,10 @@
 #pragma once
 
 #include <cstdio>
-#include <sys/stat.h>
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <sys/stat.h>
 
 // Track frame boundaries and reserve a fresh numbered filename for each chunk.
 // Each run starts a new sequence; pre-existing chunks are never overwritten.
@@ -64,8 +64,7 @@ private:
     suffix << '_' << std::setfill('0') << std::setw(4) << index;
     const auto slash = filename_.find_last_of("/\\");
     const auto dot = filename_.find_last_of('.');
-    if (dot != std::string::npos && dot > 0 &&
-        (slash == std::string::npos || dot > slash + 1)) {
+    if (dot != std::string::npos && dot > 0 && (slash == std::string::npos || dot > slash + 1)) {
       return filename_.substr(0, dot) + suffix.str() + filename_.substr(dot);
     }
     return filename_ + suffix.str();

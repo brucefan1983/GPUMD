@@ -16,6 +16,10 @@
 /*----------------------------------------------------------------------------80
 The Bussi-Parrinello integrator of the Langevin thermostat:
 [1] G. Bussi and M. Parrinello, Phys. Rev. E 75, 056707 (2007).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Jia Sun: Faster region-based Langevin heat baths.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_lan.cuh"
@@ -29,8 +33,7 @@ The Bussi-Parrinello integrator of the Langevin thermostat:
 
 Ensemble_LAN::Ensemble_LAN() {}
 
-Ensemble_LAN::Ensemble_LAN(
-  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+Ensemble_LAN::Ensemble_LAN(const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
   parse(tokens, group);
 }
@@ -76,12 +79,12 @@ void Ensemble_LAN::parse_heat_regions(const std::vector<std::string>& tokens)
   }
   for (int d = 0; d < 3; ++d) {
     int i = 2 * d;
-    if (!(source_region[i] >= 0.0 && source_region[i] <= 1.0 &&
-          source_region[i + 1] >= 0.0 && source_region[i + 1] <= 1.0)) {
+    if (!(source_region[i] >= 0.0 && source_region[i] <= 1.0 && source_region[i + 1] >= 0.0 &&
+          source_region[i + 1] <= 1.0)) {
       PRINT_INPUT_ERROR("Heat source region bounds should be in [0, 1].");
     }
-    if (!(sink_region[i] >= 0.0 && sink_region[i] <= 1.0 &&
-          sink_region[i + 1] >= 0.0 && sink_region[i + 1] <= 1.0)) {
+    if (!(sink_region[i] >= 0.0 && sink_region[i] <= 1.0 && sink_region[i + 1] >= 0.0 &&
+          sink_region[i + 1] <= 1.0)) {
       PRINT_INPUT_ERROR("Heat sink region bounds should be in [0, 1].");
     }
     if (source_region[i] >= source_region[i + 1]) {
@@ -99,8 +102,7 @@ void Ensemble_LAN::parse_heat_regions(const std::vector<std::string>& tokens)
   }
 }
 
-void Ensemble_LAN::parse(
-  const std::vector<std::string>& tokens, const std::vector<Group>& group)
+void Ensemble_LAN::parse(const std::vector<std::string>& tokens, const std::vector<Group>& group)
 {
   const int num_param = tokens.size();
   if (tokens[1] == "nvt_lan") {
@@ -203,18 +205,11 @@ void Ensemble_LAN::parse(
   }
 }
 
-double Ensemble_LAN::get_temperature1() const
-{
-  return temperature1_;
-}
+double Ensemble_LAN::get_temperature1() const { return temperature1_; }
 
-double Ensemble_LAN::get_temperature2() const
-{
-  return temperature2_;
-}
+double Ensemble_LAN::get_temperature2() const { return temperature2_; }
 
-void Ensemble_LAN::initialize_run(
-  const double, Atom& atom, Box&, const std::vector<Group>& group)
+void Ensemble_LAN::initialize_run(const double, Atom& atom, Box&, const std::vector<Group>& group)
 {
   if (run_mode_ == RunMode::NONE) {
     return;
@@ -226,8 +221,7 @@ void Ensemble_LAN::initialize_run(
     const int number_of_atoms = atom.number_of_atoms;
     curand_states.resize(number_of_atoms);
     int grid_size = (number_of_atoms - 1) / 128 + 1;
-    initialize_curand_states<<<grid_size, 128>>>(
-      curand_states.data(), number_of_atoms, rand());
+    initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), number_of_atoms, rand());
     GPU_CHECK_KERNEL
     return;
   }
@@ -239,12 +233,13 @@ void Ensemble_LAN::initialize_run(
     const int number_of_atoms = atom.number_of_atoms;
     curand_states.resize(number_of_atoms);
     int grid_size = (number_of_atoms - 1) / 128 + 1;
-    initialize_curand_states<<<grid_size, 128>>>(
-      curand_states.data(), number_of_atoms, rand());
+    initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), number_of_atoms, rand());
     GPU_CHECK_KERNEL
     energy_transferred[0] = 0.0;
     energy_transferred[1] = 0.0;
-    initialize_group_kinetic_energy_workspace(4);
+    const int number_of_blocks = (number_of_atoms - 1) / 512 + 1;
+    // Four totals followed by the block partial sums, before and after thermostatting.
+    initialize_group_kinetic_energy_workspace(4 + 4 * number_of_blocks);
     return;
   }
 
@@ -375,10 +370,12 @@ void Ensemble_LAN::integrate_heat_lan_region_half(
   GPU_Vector<double>& velocity_per_atom)
 {
   const int number_of_atoms = mass.size();
+  const int number_of_blocks = (number_of_atoms - 1) / 512 + 1;
+  const dim3 grid_size(number_of_blocks, 2);
   std::vector<double>& ek2 = group_kinetic_energy_cpu_;
   GPU_Vector<double>& ke = group_kinetic_energy_;
 
-  find_ke_region<<<2, 512>>>(
+  find_ke_region<<<grid_size, 512>>>(
     number_of_atoms,
     box,
     source_region[0],
@@ -400,7 +397,7 @@ void Ensemble_LAN::integrate_heat_lan_region_half(
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms,
-    ke.data());
+    ke.data() + 4);
   GPU_CHECK_KERNEL
 
   gpu_langevin_region<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -431,7 +428,7 @@ void Ensemble_LAN::integrate_heat_lan_region_half(
     velocity_per_atom.data() + 2 * number_of_atoms);
   GPU_CHECK_KERNEL
 
-  find_ke_region<<<2, 512>>>(
+  find_ke_region<<<grid_size, 512>>>(
     number_of_atoms,
     box,
     source_region[0],
@@ -453,10 +450,13 @@ void Ensemble_LAN::integrate_heat_lan_region_half(
     velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms,
-    ke.data() + 2);
+    ke.data() + 4 + 2 * number_of_blocks);
   GPU_CHECK_KERNEL
 
-  ke.copy_to_host(ek2.data());
+  sum_ke_region<<<4, 512>>>(number_of_blocks, ke.data() + 4, ke.data());
+  GPU_CHECK_KERNEL
+
+  ke.copy_to_host(ek2.data(), 4);
   energy_transferred[0] += ek2[0] * 0.5;
   energy_transferred[1] += ek2[1] * 0.5;
   energy_transferred[0] -= ek2[2] * 0.5;

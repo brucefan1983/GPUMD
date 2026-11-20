@@ -26,10 +26,12 @@
     ensemble    heat_hybrid nhc lan <T> <T_coup> <T_coup> <delta_T> <label_source> <label_sink>
 
     Example 2: system with a single heat source and multiple heat sinks
-    ensemble    heat_hybrid lan nhc nhc <T> <T_coup> <T_coup> <T_coup> <delta_T> <label_source> <label_sink1> <label_sink2>
+    ensemble    heat_hybrid lan nhc nhc <T> <T_coup> <T_coup> <T_coup> <delta_T> <label_source>
+<label_sink1> <label_sink2>
 
-    Contributors: Vivekkumar Panneerselvam and Weikang (Shanghai Jiao Tong University)
-
+Major contributors:
+  Vivekkumar Panneerselvam: Initial implementation.
+  Zheyong Fan: Reduced thermostat memory allocations.
 ------------------------------------------------------------------------------------------------------------------------------*/
 
 #include "ensemble_heat_hybrid.cuh"
@@ -274,10 +276,7 @@ Ensemble_Heat_Hybrid::Ensemble_Heat_Hybrid(
   }
   printf("    Average temperature: %g K\n", temperature);
   printf("    Delta T: %g K\n", delta_temperature);
-  printf(
-    "    Hot thermostat (T = %g K) is group %d\n",
-    temperature + delta_temperature,
-    label[0]);
+  printf("    Hot thermostat (T = %g K) is group %d\n", temperature + delta_temperature, label[0]);
   for (int n = 1; n < num_thermostats; ++n) {
     printf(
       "    Cold thermostat %d (T = %g K) is group %d\n",

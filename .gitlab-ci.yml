@@ -53,6 +53,20 @@ build:linux:
     - echo "tag= $tag"
     - git checkout $tag
     # build user guide
+    - |
+      python3 - <<'PY'
+      from pathlib import Path
+
+      path = Path("doc/index.rst")
+      title, body = path.read_text(encoding="utf-8").split("\n\n", 1)
+      notice = (
+          ".. note::\n\n"
+          "   This manual describes the latest release.\n"
+          "   For the current development version, see the\n"
+          "   `development manual <https://gpumd.org/dev/>`__.\n\n"
+      )
+      path.write_text(title + "\n\n" + notice + body, encoding="utf-8")
+      PY
     - sphinx-build -W doc/ public/
     # --------------------------
     # clean up

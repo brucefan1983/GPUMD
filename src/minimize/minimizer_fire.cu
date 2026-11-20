@@ -17,6 +17,9 @@
 The FIRE (fast inertial relaxation engine) minimizer
 Reference: PhysRevLett 97, 170201 (2006)
            Computational Materials Science 175 (2020) 109584
+
+Major contributors:
+  Shuning Pan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "minimizer_fire.cuh"
@@ -124,7 +127,13 @@ void Minimizer_FIRE::compute(
 
   for (int step = 0; step < number_of_steps_; ++step) {
     force.compute(
-      box, position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
+      box,
+      position_per_atom,
+      atom.type,
+      group,
+      atom.potential_per_atom,
+      atom.force_per_atom,
+      atom.virial_per_atom);
     calculate_force_square_max(atom.force_per_atom);
     const double force_max = sqrt(cpu_force_square_max_[0]);
     calculate_total_potential(atom.potential_per_atom);

@@ -4,7 +4,6 @@
 def write_scaled_nep_model(model_path, path, factor=1.05):
     """Scale parameters and scalers in a one-value-per-line NEP test fixture.
 
-    Scaling both blocks preserves the behavior of the original legacy-file tests.
     Metadata and energy references are kept unchanged.
     """
     lines = model_path.read_text().splitlines()

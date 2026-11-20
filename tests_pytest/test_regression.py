@@ -12,16 +12,10 @@ calculation (calorine's GPUNEP reads energy/forces/stress together from thermo.o
 see calorine/calculators/gpunep.py) -- this is the only place in the suite TOLERANCES['virial']
 is exercised.
 
-test_bec_regression is ported from the now-removed test_cross_check.py (relocated to
-scripts/compare_gpunep_cpunep.py -- CPUNEP has no role in this suite; see conftest.py's module
-docstring): it's the one check there that had no equivalent coverage anywhere else in the suite
-(test_invariances.py/test_force_energy_consistency.py check GPUMD's self-consistency under
-transforms/finite-difference, not frozen absolute values; nothing else checks Born effective
-charges at all). Parametrized over both kspace methods explicitly (bypassing make_gpunep's
-qNEP-defaults-to-Ewald behavior) since Ewald and PPPM are both real methods GPUMD supports --
-each gets its own frozen golden reference, so a regression in either implementation is caught,
-not just their mutual disagreement (that relative comparison is test_kspace_consistency.py's
-job).
+test_bec_regression compares Born effective charges with separate frozen references
+for Ewald and PPPM. It selects each kspace method explicitly, bypassing
+make_gpunep's Ewald default. test_kspace_consistency.py separately compares the
+two methods with each other.
 """
 import pytest
 from calorine.calculators import GPUNEP

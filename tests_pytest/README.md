@@ -1,13 +1,13 @@
 # GPUMD pytest suite
 
-An automated pytest-based test suite for `gpumd`/`nep`, living alongside the existing manual
-`tests/` directory (which this suite does not touch or replace). See
-`gpumd_pytest_suite_spec.md` at the repo root for the full design rationale, fixture
-architecture, and numeric-validation strategy; this file only covers setup and how to run things.
+Automated tests for `gpumd` and `nep`, including numerical consistency, parser,
+output, training, spin and replica checks. These complement the executable
+comparisons in [tests_regression](../tests_regression/README.md).
 
 ## Prerequisites
 
-- A GPU-equipped machine — every test in this suite drives the real `gpumd` binary.
+- A GPU-equipped machine for executable-level tests. Parser and host-side checks
+  can run without a GPU.
 - Python packages: `ase`, `calorine`, `numpy`, `pytest`, `hypothesis`. Install with:
 
   ```bash
@@ -31,7 +31,12 @@ first — where the build above puts them, so a normal build needs no extra setu
 to `<repo root>/gpumd` and `<repo root>/nep` if nothing exists at the default location (e.g. a
 manually placed copy or symlink).
 
-`nep` is used only by `test_nep_model_consistency.py`; every other module drives `gpumd`.
+Training and prediction tests use `nep`; simulation tests use `gpumd`. Standalone
+validation scripts document their executable options in `--help` or their module
+docstrings.
+
+For spin validator setup and executable selection, see
+[Spin validation](SPIN_VALIDATION.md).
 
 ## Running the tests
 
@@ -64,7 +69,19 @@ fixtures/
                 # that generates it
 ```
 
-`fixtures/sanitizer_inputs/` is generated on demand via `--dump-fixtures` above, not checked in.
+`fixtures/nep_spin/` contains spin models and independent reference data;
+`fixtures/replica/` contains the replica fixtures.
+
+`fixtures/sanitizer_inputs/` is generated on demand via `--dump-fixtures` above
+and ignored by Git. Python and pytest caches are also ignored. These generated
+files can be removed when their diagnostics are no longer needed; keep the
+tracked models, structures and golden reference files.
+
+The `generate_*.py` and `generate_*.cpp` tools reproduce fixtures or generated
+headers. The `validate_*.py` and `validate_*.cu` tools provide additional runtime,
+multi-GPU and kernel checks; some are also imported by pytest tests. They are
+maintained test tools and are not all run by `pytest` discovery. Their additional
+dependencies are documented in the scripts.
 
 ## Replica dynamics
 
@@ -158,3 +175,37 @@ harness includes the production `remd_utilities.cuh` directly and tests grid
 validation, pair schedules, Boltzmann log weights, SCR moments, and state/RNG
 serialization. It no longer extracts source strings or substitutes a REMD driver.
 The metadata/XYZ integration checks use the real GPU executable.
+
+## Spin validation
+
+See [SPIN_VALIDATION.md](SPIN_VALIDATION.md) for CPU checks, single-GPU model
+evaluation and training, integration/restart checks, and four-GPU comparisons.
+It also documents how to run the ordinary GPUMD/NEP regression alongside spin checks.
+
+## Spin training precision
+
+From the repository root, with CUDA `nvcc` on `PATH` and an appropriate GPU
+selected in `CUDA_VISIBLE_DEVICES`:
+
+```bash
+python tests_pytest/validate_spin_ann_precision.py --arch sm_89
+```
+
+Choose `--arch` for the target GPU. This check compares the spin-private ANN
+accumulator with an independent host long-double oracle, including small energy
+differences and finite-difference derivatives for its supported single hidden layer.
+For training/restart/prediction and native/JIT checks, follow
+[Spin validation](SPIN_VALIDATION.md#training-prediction-and-restart). ANN-only precision is not a
+bound on geometry or descriptor rounding in a full potential evaluation.
+
+## Spin generated headers
+
+Regenerate with NumPy, Torch, e3nn and clang-format 17 on `PATH`:
+
+```bash
+python tests_pytest/generate_spin_tables.py
+c++ -std=c++14 -Isrc tests_pytest/generate_spin_md_layouts.cpp -o /path/to/generator
+/path/to/generator | clang-format --style=file > src/force/nep_spin/spin_md_layouts.cuh
+```
+
+Both outputs use the project license header and repository formatting.

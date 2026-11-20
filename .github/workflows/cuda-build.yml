@@ -22,4 +22,4 @@ jobs:
           apt-get install -y build-essential
 
       - name: Build with Make
-        run: cd src && make
+        run: cd src && make -j2

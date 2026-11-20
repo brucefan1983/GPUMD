@@ -1,12 +1,79 @@
 import shutil
 import io
+import json
 from contextlib import redirect_stdout
+import subprocess
+import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 import run_regression as runner
+
+
+class ManifestLayoutTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        for relative in ("manifest.json", "gpumd/manifest.json", "nep/manifest.json"):
+            target = self.root / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(runner.PACKAGE_ROOT / relative, target)
+        self.patch = patch.multiple(
+            runner, PACKAGE_ROOT=self.root, MANIFEST_PATH=self.root / "manifest.json"
+        )
+        self.patch.start()
+        self.addCleanup(self.patch.stop)
+
+    def test_missing_program_manifest_is_an_error(self):
+        (self.root / "nep/manifest.json").unlink()
+        with self.assertRaisesRegex(runner.ConfigurationError, "Cannot read.*nep"):
+            runner.read_manifest_data()
+
+    def test_duplicate_json_key_is_rejected_in_each_manifest(self):
+        for relative in ("manifest.json", "gpumd/manifest.json", "nep/manifest.json"):
+            with self.subTest(path=relative):
+                path = self.root / relative
+                original = path.read_text()
+                path.write_text('{"fixtures": {}, "fixtures": {}}')
+                try:
+                    with self.assertRaisesRegex(runner.ConfigurationError, "Duplicate JSON key"):
+                        runner.read_manifest_data()
+                finally:
+                    path.write_text(original)
+
+    def test_duplicate_fixture_cannot_overwrite_another_program(self):
+        gpumd = json.loads((self.root / "gpumd/manifest.json").read_text())
+        path = self.root / "nep/manifest.json"
+        nep = json.loads(path.read_text())
+        name = next(iter(gpumd["fixtures"]))
+        nep["fixtures"][name] = gpumd["fixtures"][name]
+        path.write_text(json.dumps(nep))
+        with self.assertRaisesRegex(runner.ConfigurationError, "Duplicate fixture name"):
+            runner.read_manifest_data()
+
+    def test_case_cannot_move_to_the_wrong_program(self):
+        path = self.root / "nep/manifest.json"
+        nep = json.loads(path.read_text())
+        nep["cases"][0]["program"] = "gpumd"
+        path.write_text(json.dumps(nep))
+        with self.assertRaisesRegex(runner.ConfigurationError, "only nep cases"):
+            runner.read_manifest_data()
+
+
+class RunnerImportTests(unittest.TestCase):
+    def test_shared_runner_import_needs_only_standard_library(self):
+        result = subprocess.run(
+            [sys.executable, "-S", "-c",
+             "import runpy, sys; runpy.run_path(sys.argv[1]); "
+             "assert 'numpy' not in sys.modules",
+             str(Path(runner.__file__).resolve())],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=10,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
 
 
 class RelationRunnerTests(unittest.TestCase):

@@ -23,6 +23,9 @@ force/nep/nep.cu by hand.
 Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "replica_nep_model.cuh"
@@ -79,7 +82,8 @@ NEP_Replica_Model::NEP_Replica_Model(const char* file_potential, const bool verb
         printf("    has the flexible ZBL potential\n");
     } else if (paramb.use_typewise_cutoff_zbl) {
       if (verbose)
-        printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
+        printf(
+          "    has the universal ZBL with typewise cutoff with a factor of %g.\n",
           paramb.typewise_cutoff_zbl_factor);
     } else {
       if (verbose)
@@ -183,8 +187,7 @@ NEP_Replica_Model::NEP_Replica_Model(const char* file_potential, const bool verb
   // Store ANN parameters, type-pair-major descriptor coefficients and scalers in one buffer.
   nep_data.parameters.resize(annmb.num_para + annmb.dim);
   nep_data.parameters.copy_from_host(model.parameters.data(), model.parameters.size());
-  nep_data.parameters.copy_from_host(
-    model.q_scaler.data(), model.q_scaler.size(), annmb.num_para);
+  nep_data.parameters.copy_from_host(model.q_scaler.data(), model.q_scaler.size(), annmb.num_para);
   update_potential(nep_data.parameters.data(), annmb);
   annmb.q_scaler = nep_data.parameters.data() + annmb.num_para;
   nep_data.energy_reference.resize(model.energy_reference.size());

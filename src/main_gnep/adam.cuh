@@ -30,9 +30,9 @@ public:
 
   // void zero_gradients();
   void update(float lr, const std::vector<float>& gradients); // Update moments and parameters
-  float* get_parameters(); // get current parameters pointer
-  void output_parameters(Parameters& para); // Output parameters
-  void initialize_parameters(Parameters& para); // Initialize optimizer parameters
+  float* get_parameters();                                    // get current parameters pointer
+  void output_parameters(Parameters& para);                   // Output parameters
+  void initialize_parameters(Parameters& para);               // Initialize optimizer parameters
 #ifdef GNEP_TEST_DIAGNOSTICS
   void copy_moments_to_host(std::vector<float>& first, std::vector<float>& second);
 #endif
@@ -42,25 +42,24 @@ protected:
   std::mt19937 rng;
 
   // ADAM optimizer hyperparameters
-  float beta1 = 0.9f;   // first order moment decay rate β₁
-  float beta2 = 0.999f; // second order moment decay rate β₂ 
-  float eps = 1e-8f;    // small constant ε to avoid division by zero 
+  float beta1 = 0.9f;        // first order moment decay rate β₁
+  float beta2 = 0.999f;      // second order moment decay rate β₂
+  float eps = 1e-8f;         // small constant ε to avoid division by zero
   float weight_decay = 0.0f; // L2 regularization weight
 
   // training parameters
-  int step = 0; // initial step
+  int step = 0;            // initial step
   int number_of_variables; // number of variables
 
   // CPU vectors
-  GPU_Vector<curandState> curand_states; 
-  std::vector<float> parameters;  // Parameters to be optimized θ
-  std::vector<float> m;         // First moment m
-  std::vector<float> v;         // Second moment v (adaptive learning rate)
+  GPU_Vector<curandState> curand_states;
+  std::vector<float> parameters; // Parameters to be optimized θ
+  std::vector<float> m;          // First moment m
+  std::vector<float> v;          // Second moment v (adaptive learning rate)
   // GPU vectors
-  GPU_Vector<float> gpu_parameters; // Parameters to be optimized θ
-  GPU_Vector<float> gpu_m; // First moment m
-  GPU_Vector<float> gpu_v; // Second moment v
-  GPU_Vector<float> gpu_gradient; // Host-reduced global gradient
+  GPU_Vector<float> gpu_parameters;    // Parameters to be optimized θ
+  GPU_Vector<float> gpu_m;             // First moment m
+  GPU_Vector<float> gpu_v;             // Second moment v
+  GPU_Vector<float> gpu_gradient;      // Host-reduced global gradient
   GPU_Vector<float> gpu_gradient_norm; // Clipping workspace
-
 };

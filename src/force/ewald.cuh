@@ -33,16 +33,17 @@ public:
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& potential_per_atom);
+
 private:
-    int num_kpoints_max = 1;
-    int num_kpoints = 1;
-    float alpha = 0.5f; // 1 / (2 Angstrom)
-    float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
-    GPU_Vector<float> kx;
-    GPU_Vector<float> ky;
-    GPU_Vector<float> kz;
-    GPU_Vector<float> G;
-    GPU_Vector<float> S_real;
-    GPU_Vector<float> S_imag;
-    void find_k_and_G(const double* box);
+  int num_kpoints_max = 1;
+  int num_kpoints = 1;
+  float alpha = 0.5f;        // 1 / (2 Angstrom)
+  float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
+  GPU_Vector<float> kx;
+  GPU_Vector<float> ky;
+  GPU_Vector<float> kz;
+  GPU_Vector<float> G;
+  GPU_Vector<float> S_real;
+  GPU_Vector<float> S_imag;
+  void find_k_and_G(const double* box);
 };

@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "nep_file.cuh"
 #include "nep_model_file.cuh"
 #include "utilities/nep_utilities.cuh"
@@ -37,8 +42,7 @@ bool NEP_Model_File::read_integer(
   std::size_t parsed;
   if (
     !NEP_File::parse_size(field.values[index], parsed) ||
-    parsed < static_cast<std::size_t>(minimum) ||
-    parsed > static_cast<std::size_t>(maximum)) {
+    parsed < static_cast<std::size_t>(minimum) || parsed > static_cast<std::size_t>(maximum)) {
     return fail(
       error,
       "'" + field.name + "' requires an integer in [" + std::to_string(minimum) + ", " +
@@ -185,9 +189,8 @@ bool NEP_Model_File::read_descriptor(
   has_q_233 = flags[4];
   has_q_134 = flags[5];
   layout.dim_radial = n_max_radial + 1;
-  layout.dim_angular = (n_max_angular + 1) *
-                       (L_max + has_q_222 + has_q_1111 + has_q_112 + has_q_123 + has_q_233 +
-                        has_q_134);
+  layout.dim_angular = (n_max_angular + 1) * (L_max + has_q_222 + has_q_1111 + has_q_112 +
+                                              has_q_123 + has_q_233 + has_q_134);
   if (layout.dim_angular > MAX_DIM_ANGULAR) {
     return fail(error, "number of angular descriptors exceeds MAX_DIM_ANGULAR.", field->line);
   }
@@ -205,7 +208,8 @@ bool NEP_Model_File::read_ann(
     return false;
   }
   if (num_neurons2 > 0 && num_neurons1 > 120) {
-    return fail(error, "ann allows at most 120 neurons per layer with two hidden layers.", field->line);
+    return fail(
+      error, "ann allows at most 120 neurons per layer with two hidden layers.", field->line);
   }
   return true;
 }
@@ -295,8 +299,7 @@ void NEP_Model_File::calculate_layout(
   layout.number_of_variables_ann = layout.number_of_variables_ann_1 * num_types + globals;
   layout.number_of_variables_descriptor =
     num_types * num_types *
-    ((n_max_radial + 1) * (basis_size_radial + 1) +
-     (n_max_angular + 1) * (basis_size_angular + 1));
+    ((n_max_radial + 1) * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
   layout.number_of_variables =
     layout.number_of_variables_ann * ann_count + layout.number_of_variables_descriptor;
 }
@@ -307,7 +310,8 @@ bool NEP_Model_File::read_parameters(
   if (layout.dim > MAX_DIM) {
     return fail(error, "descriptor dimension exceeds MAX_DIM.", document.find_field("l_max")->line);
   }
-  return read_block(document, "parameters", layout.number_of_variables, parameters, blocks, error) &&
+  return read_block(
+           document, "parameters", layout.number_of_variables, parameters, blocks, error) &&
          read_block(document, "q_scaler", layout.dim, q_scaler, blocks, error);
 }
 

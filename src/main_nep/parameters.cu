@@ -13,6 +13,14 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Yong Wang: Population-size adjustment for multi-GPU training.
+  Eric Lindgren: Configurable model and restart checkpoints.
+  Paul Erhart: Configurable random seeds and training output intervals.
+------------------------------------------------------------------------------*/
+
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -40,16 +48,18 @@ Parameters::Parameters()
   save_potential = 100000;     // write checkpoint nep.txt files at these intervals
   save_potential_format = 1;   // include time stamp in checkpoint names
   save_potential_restart = 0;  // do not write checkpoint restart files by default
-  output_interval = 100;       // write loss.out, nep.txt, nep.restart (and related output) every N generations
+  output_interval =
+    100; // write loss.out, nep.txt, nep.restart (and related output) every N generations
   sigma0 = 0.1f;
-  int deviceCount;  
-  CHECK(gpuGetDeviceCount(&deviceCount));  
+  int deviceCount;
+  CHECK(gpuGetDeviceCount(&deviceCount));
   int population_remainder = population_size % deviceCount;
   if (population_remainder != 0) {
     int population_increase = deviceCount - population_remainder;
     population_size += population_increase;
-    printf("Default population size adjusted from 50 to %d for GPU compatibility.\n", population_size);  
-  }  
+    printf(
+      "Default population size adjusted from 50 to %d for GPU compatibility.\n", population_size);
+  }
 }
 
 bool Parameters::parse_keyword(const char** param, int num_param)
@@ -241,7 +251,7 @@ void Parameters::parse_save_potential(const char** param, int num_param)
   }
   if (save_potential_format != 0 && save_potential_format != 1) {
     PRINT_INPUT_ERROR("save_potential format should be 0 or 1.");
-  }  
+  }
   if (!is_valid_int(param[3], &save_potential_restart)) {
     PRINT_INPUT_ERROR("save_potential save restart should be an integer.\n");
   }

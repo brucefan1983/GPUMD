@@ -16,24 +16,23 @@
 /*-----------------------------------------------------------------------------------------------100
 Calculate:
     Steinhardt bond-orientational order parameters
-Author:
-    Yongchao Wu 2025-08-27
-Email:
-    934313174@qq.com
 Reference:
     1. Mickel, W., Kapfer, S. C., Schröder-Turk, G. E., & Mecke, K. (2013).
     Shortcomings of the bond orientational order parameters for the analysis of disordered
     particulate matter. The Journal of chemical physics, 138(4).
     2. Steinhardt, P. J., Nelson, D. R., & Ronchetti, M. (1983).
     Bond-orientational order in liquids and glasses. Physical Review B, 28(2), 784.
+
+Major contributors:
+  Yongchao Wu: Initial implementation.
 --------------------------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"
+#include "measure/parse_utilities.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "orientorder.cuh"
-#include "measure/parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -237,7 +236,8 @@ void _init_clebsch_gordan(std::vector<double>& cglist, const std::vector<int>& l
         int m = aa2 + bb2 + l;
         double sums{0.0};
         for (int z = std::max(0, std::max(-aa2, bb2));
-             z < std::min(l, std::min(l - aa2, l + bb2)) + 1; z++) {
+             z < std::min(l, std::min(l - aa2, l + bb2)) + 1;
+             z++) {
           int ifac = 1;
           if (z % 2) {
             ifac = -1;

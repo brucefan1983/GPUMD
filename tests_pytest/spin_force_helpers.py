@@ -14,12 +14,9 @@
 
 """Validate the GPUMD NEP-spin force path against the frozen FP64 oracle."""
 
-import argparse
-import math
 import os
 import re
 import subprocess
-import tempfile
 from pathlib import Path
 from spin_fixtures import write_xyz
 from validate_spin_training import maximum_error, finite_values
@@ -64,15 +61,6 @@ def flatten(values):
 
 
 max_error = maximum_error
-
-
-def worst_difference(candidate, reference):
-    left = flatten(candidate)
-    right = flatten(reference)
-    index = max(range(len(left)), key=lambda item: abs(left[item] - right[item]))
-    finite_values(left)
-    finite_values(right)
-    return index, left[index], right[index]
 
 
 def run_case(root, name, case, model):

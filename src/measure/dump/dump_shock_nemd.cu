@@ -13,6 +13,12 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Shuning Pan: Initial implementation.
+  Zheyong Fan: Corrected shock profiles for noninteger bin widths.
+------------------------------------------------------------------------------*/
+
 #include "dump_shock_nemd.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cstring>

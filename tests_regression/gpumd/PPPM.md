@@ -1,7 +1,6 @@
 # PPPM spacing regression tests
 
-Both executables use the current PPPM input and mesh contracts. There is no
-pinned pre-PPPM baseline and no expected difference between the two roles.
+Both executables use the same PPPM input, mesh and comparison contracts.
 Use identical compiler, architecture and feature flags; both executables must
 use `-DDEBUG`.
 
@@ -25,23 +24,23 @@ The `pppm` focused suite is a subset of `full`.
 
 ## Numerical comparisons
 
-The formerly disabled spacing, rounding, triclinic and grow/shrink comparisons
-reuse the existing same-mesh PPPM absolute bounds: `1e-7` for `thermo.out` and
+The spacing, rounding, triclinic and grow/shrink comparisons use same-mesh
+PPPM absolute bounds: `1e-7` for `thermo.out` and
 `2e-5` for `state.xyz`, with zero relative tolerance. All numerical fields and
 nonnumeric text are compared; nonfinite values are rejected. `neighbor.out`
 remains byte-exact.
 
-`qnep_pppm_future_bec` restores its pre-transition same-mesh bounds from commit
-`87c1cf22401ac8c791adda0879e0af704dd5f981`: `1e-5` for `bec.xyz`, `1e-7` for
-`thermo.out`, and `2e-6` for `dpdt.out`. The earlier calibration measured BEC
+`qnep_pppm_future_bec` enables BEC and per-atom virial output in the second run,
+checking initialization for consumers declared after the first run. Its
+same-mesh bounds are `1e-5` for `bec.xyz`, `1e-7` for `thermo.out`, and `2e-6`
+for `dpdt.out`. Calibration measured BEC
 drift up to `6.07e-6`, thermodynamic drift up to `4.01e-8`, and DPDT drift up to
 `1e-6`. These bounds account for unordered float atomics; they are not PPPM
 accuracy tolerances or permission to compare different mesh algorithms.
 
-Validate the restored comparisons with the same executable on both sides on
-the target GPU. In particular, the current 28-cubed BEC mesh and the newly
-compared box-change cases need that confirmation. Inspect any numerical delta
-before changing a bound.
+When changing the build environment, validate these bounds with the same
+executable on both sides on the target GPU. Inspect any numerical delta before
+changing a bound.
 
 ## Box changes and validation scope
 
@@ -61,7 +60,7 @@ PPPM/Ewald accuracy equivalence.
 
 1. Run manifest validation, `test_manifest.py`, and unittest discovery.
 2. Check the setup by passing the same executable for both roles, as shown in
-   `README.md`. Keep failing artifacts for numerical inspection.
+   [the regression overview](../README.md). Keep failing artifacts for numerical inspection.
 3. Run `--suite full --keep-all` with the accepted and candidate GPUMD/NEP pairs.
 
 The focused suite omits unrelated relation members, so skipped relations are

@@ -18,22 +18,31 @@ The neuroevolution potential (NEP)
 Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Jiahui Liu: Short-range ZBL repulsion.
+  Jiuyang Shi: Temperature-dependent NEP models.
+  Denan Li: Reuse of GPU buffers for small-cell NEP evaluation.
+  Zaixu Duan: Additional four-body NEP descriptors.
+  Yixin Deng: Fixed integer overflow in large-system array indexing.
+  Erik Fransson: Increased NEP descriptor limits.
 ------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"
 #include "nep.cuh"
 #include "nep_small_box.cuh"
 #include "utilities/common.cuh"
-#include "utilities/nep_io/compact_nep.cuh"
 #include "utilities/error.cuh"
-#include "utilities/nep_io/nep_model_file.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_io/compact_nep.cuh"
+#include "utilities/nep_io/nep_model_file.cuh"
 #include "utilities/nep_utilities.cuh"
 #include "utilities/run_input.cuh"
+#include <cstddef>
 #include <cstring>
 #include <fstream>
 #include <iostream>
-#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -115,7 +124,8 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
     if (zbl.flexible) {
       printf("    has the flexible ZBL potential\n");
     } else if (paramb.use_typewise_cutoff_zbl) {
-      printf("    has the universal ZBL with typewise cutoff with a factor of %g.\n",
+      printf(
+        "    has the universal ZBL with typewise cutoff with a factor of %g.\n",
         paramb.typewise_cutoff_zbl_factor);
     } else {
       printf(
@@ -196,8 +206,7 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   // Store ANN parameters, type-pair-major descriptor coefficients and scalers in one buffer.
   nep_data.parameters.resize(annmb.num_para + annmb.dim);
   nep_data.parameters.copy_from_host(model.parameters.data(), model.parameters.size());
-  nep_data.parameters.copy_from_host(
-    model.q_scaler.data(), model.q_scaler.size(), annmb.num_para);
+  nep_data.parameters.copy_from_host(model.q_scaler.data(), model.q_scaler.size(), annmb.num_para);
   update_potential(nep_data.parameters.data(), annmb);
   annmb.q_scaler = nep_data.parameters.data() + annmb.num_para;
   nep_data.energy_reference.resize(model.energy_reference.size());
@@ -222,7 +231,8 @@ NEP::NEP(const char* file_potential, const int num_atoms, const RunInput& run_in
   nep_data.NL_angular.resize(num_atoms * paramb.MN_angular);
   nep_data.Fp.resize(static_cast<size_t>(num_atoms) * annmb.dim);
   nep_data.sum_fxyz.resize(
-    static_cast<size_t>(num_atoms) * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
+    static_cast<size_t>(num_atoms) * (paramb.n_max_angular + 1) *
+    ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
 
@@ -389,10 +399,21 @@ static __global__ void find_descriptor(
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
       find_q(
-        paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
-        paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+        paramb.L_max,
+        paramb.has_q_222,
+        paramb.has_q_1111,
+        paramb.has_q_112,
+        paramb.has_q_123,
+        paramb.has_q_233,
+        paramb.has_q_134,
+        paramb.n_max_angular + 1,
+        n,
+        s,
+        q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        g_sum_fxyz[static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1] = s[abc];
+        g_sum_fxyz
+          [static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) +
+           n1] = s[abc];
       }
     }
 
@@ -405,15 +426,7 @@ static __global__ void find_descriptor(
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
 
     apply_ann_one_layer(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.w0[t1],
-      annmb.b0[t1],
-      annmb.w1[t1],
-      annmb.b1,
-      q,
-      F,
-      Fp);
+      annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
     g_pe[n1] += double(F) + annmb.energy_reference[t1];
 
     for (int d = 0; d < annmb.dim; ++d) {
@@ -557,8 +570,8 @@ static __global__ void find_partial_force_angular(
     }
     for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        sum_fxyz[n * NUM_OF_ABC + abc] =
-          g_sum_fxyz[static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1];
+        sum_fxyz[n * NUM_OF_ABC + abc] = g_sum_fxyz
+          [static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1];
       }
     }
 
@@ -601,7 +614,12 @@ static __global__ void find_partial_force_angular(
         }
         accumulate_f12(
           paramb.L_max,
-          paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
+          paramb.has_q_222,
+          paramb.has_q_1111,
+          paramb.has_q_112,
+          paramb.has_q_123,
+          paramb.has_q_233,
+          paramb.has_q_134,
           paramb.num_L,
           n,
           paramb.n_max_angular + 1,
@@ -747,10 +765,7 @@ void NEP::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor_manager.update(
-    box, 
-    type, 
-    position_per_atom);
+  neighbor_manager.update(box, type, position_per_atom);
 
   find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1109,14 +1124,14 @@ void NEP::compute(
     // update small_box_data
     const int current_num_atoms = type.size();
     if (small_box_data.NN_radial.size() != current_num_atoms) {
-        const int big_neighbor_size = 2000;
-        const int size_x12 = current_num_atoms * big_neighbor_size;
+      const int big_neighbor_size = 2000;
+      const int size_x12 = current_num_atoms * big_neighbor_size;
 
-        small_box_data.NN_radial.resize(current_num_atoms);
-        small_box_data.NL_radial.resize(size_x12);
-        small_box_data.NN_angular.resize(current_num_atoms);
-        small_box_data.NL_angular.resize(size_x12);
-        small_box_data.r12.resize(size_x12 * 6);
+      small_box_data.NN_radial.resize(current_num_atoms);
+      small_box_data.NL_radial.resize(size_x12);
+      small_box_data.NN_angular.resize(current_num_atoms);
+      small_box_data.NL_angular.resize(size_x12);
+      small_box_data.r12.resize(size_x12 * 6);
     }
 
     compute_small_box(
@@ -1217,10 +1232,21 @@ static __global__ void find_descriptor(
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
       find_q(
-        paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134,
-        paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+        paramb.L_max,
+        paramb.has_q_222,
+        paramb.has_q_1111,
+        paramb.has_q_112,
+        paramb.has_q_123,
+        paramb.has_q_233,
+        paramb.has_q_134,
+        paramb.n_max_angular + 1,
+        n,
+        s,
+        q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        g_sum_fxyz[static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) + n1] = s[abc];
+        g_sum_fxyz
+          [static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) +
+           n1] = s[abc];
       }
     }
 
@@ -1256,10 +1282,7 @@ void NEP::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  neighbor_manager.update(
-    box, 
-    type, 
-    position_per_atom);
+  neighbor_manager.update(box, type, position_per_atom);
 
   find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
@@ -1562,14 +1585,14 @@ void NEP::compute(
     // update small_box_data
     const int current_num_atoms = type.size();
     if (small_box_data.NN_radial.size() != current_num_atoms) {
-        const int big_neighbor_size = 2000;
-        const int size_x12 = current_num_atoms * big_neighbor_size;
+      const int big_neighbor_size = 2000;
+      const int size_x12 = current_num_atoms * big_neighbor_size;
 
-        small_box_data.NN_radial.resize(current_num_atoms);
-        small_box_data.NL_radial.resize(size_x12);
-        small_box_data.NN_angular.resize(current_num_atoms);
-        small_box_data.NL_angular.resize(size_x12);
-        small_box_data.r12.resize(size_x12 * 6);
+      small_box_data.NN_radial.resize(current_num_atoms);
+      small_box_data.NL_radial.resize(size_x12);
+      small_box_data.NN_angular.resize(current_num_atoms);
+      small_box_data.NL_angular.resize(size_x12);
+      small_box_data.r12.resize(size_x12 * 6);
     }
 
     compute_small_box(

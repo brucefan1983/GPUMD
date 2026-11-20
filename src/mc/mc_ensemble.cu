@@ -15,17 +15,20 @@
 
 /*----------------------------------------------------------------------------80
 The abstract base class (ABC) for the MC_Ensemble classes.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "mc_ensemble.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <chrono>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <cstring>
 
 static void check_is_nep(const std::string& potential_file_name)
 {

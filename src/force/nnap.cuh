@@ -20,10 +20,10 @@
 
 #ifdef USE_NNAP
 #pragma once
-#include <jni.h>
 #include "neighbor.cuh"
 #include "potential.cuh"
 #include "utilities/common.cuh"
+#include <jni.h>
 
 class NNAP : public Potential
 {
@@ -49,16 +49,16 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
-    
+
 private:
   ZBL zbl;
 
-  JNIEnv *mEnv = NULL;
+  JNIEnv* mEnv = NULL;
   jobject mCore = NULL;
   Neighbor neighbor;
   int nn_max = 200;
   int num_types = 0;
-  
+
   GPU_Vector<float> nl_dx;
   GPU_Vector<float> nl_dy;
   GPU_Vector<float> nl_dz;

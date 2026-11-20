@@ -18,26 +18,29 @@ The neuroevolution potential (NEP)
 Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
-#include "main_nep/dataset.cuh"
-#include "nep_vdw.cuh"
-#include "main_nep/common/nep_output.cuh"
-#include "main_nep/xyz_reader.cuh"
 #include "main_nep/common/nep_energy_reader.cuh"
-#include "main_nep/common/nep_model.cuh"
 #include "main_nep/common/nep_init.cuh"
 #include "main_nep/common/nep_io.cuh"
 #include "main_nep/common/nep_long_range.cuh"
-#include "utilities/nep_vdw_parameters.cuh"
+#include "main_nep/common/nep_model.cuh"
+#include "main_nep/common/nep_output.cuh"
 #include "main_nep/common/nep_parameters.cuh"
+#include "main_nep/dataset.cuh"
+#include "main_nep/xyz_reader.cuh"
+#include "nep_vdw.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
-#include <cstring>
+#include "utilities/nep_vdw_parameters.cuh"
 #include <algorithm>
+#include <cstring>
 
 static __global__ void find_descriptors_radial(
   const int N,
@@ -80,8 +83,8 @@ static __global__ void find_descriptors_radial(
 #else
           int type_index = t1 * paramb.num_types + t2;
 #endif
-          int c_index = get_c_index(
-            type_index, n, k, paramb.n_max_radial, paramb.basis_size_radial);
+          int c_index =
+            get_c_index(type_index, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gn12 += fn12[k] * annmb.c[c_index];
         }
         q[n] += gn12;
@@ -137,17 +140,23 @@ static __global__ void find_descriptors_angular(
           int type_index = t1 * paramb.num_types + t2;
 #endif
           int c_index = get_c_index(
-            type_index,
-            n,
-            k,
-            paramb.n_max_angular,
-            paramb.basis_size_angular,
-            paramb.num_c_radial);
+            type_index, n, k, paramb.n_max_angular, paramb.basis_size_angular, paramb.num_c_radial);
           gn12 += fn12[k] * annmb.c[c_index];
         }
         accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
-      find_q(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134, paramb.n_max_angular + 1, n, s, q);
+      find_q(
+        paramb.L_max,
+        paramb.has_q_222,
+        paramb.has_q_1111,
+        paramb.has_q_112,
+        paramb.has_q_123,
+        paramb.has_q_233,
+        paramb.has_q_134,
+        paramb.n_max_angular + 1,
+        n,
+        s,
+        q);
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
         g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1] = s[abc];
       }
@@ -202,8 +211,7 @@ void NEP_VDW::initialize_model(const NEP_Energy_Parameters& para)
   paramb.basis_size_angular = para.basis_size_angular;
   paramb.num_types_sq = para.num_types * para.num_types;
 #ifdef USE_CJ
-  paramb.num_c_radial =
-    paramb.num_types * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
+  paramb.num_c_radial = paramb.num_types * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
 #else
   paramb.num_c_radial =
     paramb.num_types_sq * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
@@ -229,15 +237,15 @@ void NEP_VDW::initialize_device(const NEP_Energy_Parameters& para, int N, int Nc
   nep_data[device_id].C6.resize(N);
   nep_data[device_id].C6_derivative.resize(N * annmb[device_id].dim);
   nep_data[device_id].D_C6.resize(N);
-  nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
+  nep_data[device_id].sum_fxyz.resize(
+    N * (paramb.n_max_angular + 1) * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1));
   nep_data[device_id].parameters.resize(annmb[device_id].num_para);
   nep_data[device_id].kpoint_offset.resize(Nc + 1);
 }
 
 namespace
 {
-NEP_Compile_Config make_compile_config(
-  const NEP_Energy_Parameters& para, const float* c6_ref_sqrt)
+NEP_Compile_Config make_compile_config(const NEP_Energy_Parameters& para, const float* c6_ref_sqrt)
 {
   NEP_Compile_Config config = make_nep_compile_config(para);
   config.model_name = "NEP-vdW";
@@ -250,8 +258,7 @@ NEP_Compile_Config make_compile_config(
 }
 } // namespace
 
-NEP_VDW::Compiled_Kernel::Compiled_Kernel(const NEP_Compile_Config& config)
-  : library(config)
+NEP_VDW::Compiled_Kernel::Compiled_Kernel(const NEP_Compile_Config& config) : library(config)
 {
   if (!library.is_valid()) {
     return;
@@ -272,42 +279,92 @@ void NEP_VDW::Compiled_Kernel::launch_ann_vdw(
   float* C6_derivative)
 {
   check_nep_launch(
-    ann_vdw_(
-      N, type, descriptors, q_scaler, parameters,
-      pe, Fp, C6, C6_derivative),
-    "ann_vdw_jit");
+    ann_vdw_(N, type, descriptors, q_scaler, parameters, pe, Fp, C6, C6_derivative), "ann_vdw_jit");
 }
 
 void NEP_VDW::Compiled_Kernel::launch_force_vdw_radial(
-  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-  const float* x12, const float* y12, const float* z12,
-  const float* parameters, const float* Fp,
-  const float* C6_derivative, const float* D_C6,
-  float* fx, float* fy, float* fz, float* virial)
+  int N,
+  const int* NN_sum,
+  const int* NN,
+  const int* NL,
+  const int* type,
+  const float* x12,
+  const float* y12,
+  const float* z12,
+  const float* parameters,
+  const float* Fp,
+  const float* C6_derivative,
+  const float* D_C6,
+  float* fx,
+  float* fy,
+  float* fz,
+  float* virial)
 {
   check_nep_launch(
     common.force_radial_(
-      N, NN_sum, NN, NL, type, x12, y12, z12,
-      parameters, Fp,
-      nullptr, nullptr, C6_derivative, D_C6,
-      0, fx, fy, fz, virial),
+      N,
+      NN_sum,
+      NN,
+      NL,
+      type,
+      x12,
+      y12,
+      z12,
+      parameters,
+      Fp,
+      nullptr,
+      nullptr,
+      C6_derivative,
+      D_C6,
+      0,
+      fx,
+      fy,
+      fz,
+      virial),
     "force_vdw_radial_jit");
 }
 
 void NEP_VDW::Compiled_Kernel::launch_force_vdw_angular(
-  int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-  const float* x12, const float* y12, const float* z12,
-  const float* parameters, const float* Fp,
-  const float* C6_derivative, const float* D_C6,
+  int N,
+  const int* NN_sum,
+  const int* NN,
+  const int* NL,
+  const int* type,
+  const float* x12,
+  const float* y12,
+  const float* z12,
+  const float* parameters,
+  const float* Fp,
+  const float* C6_derivative,
+  const float* D_C6,
   const float* sum_fxyz,
-  float* fx, float* fy, float* fz, float* virial)
+  float* fx,
+  float* fy,
+  float* fz,
+  float* virial)
 {
   check_nep_launch(
     common.force_angular_(
-      N, NN_sum, NN, NL, type, x12, y12, z12,
-      parameters, Fp,
-      nullptr, nullptr, C6_derivative, D_C6,
-      sum_fxyz, 0, fx, fy, fz, virial),
+      N,
+      NN_sum,
+      NN,
+      NL,
+      type,
+      x12,
+      y12,
+      z12,
+      parameters,
+      Fp,
+      nullptr,
+      nullptr,
+      C6_derivative,
+      D_C6,
+      sum_fxyz,
+      0,
+      fx,
+      fy,
+      fz,
+      virial),
     "force_vdw_angular_jit");
 }
 
@@ -315,8 +372,7 @@ void NEP_VDW::initialize_compiled_kernel(const NEP_Energy_Parameters& para)
 {
   if (para.nep_compile && para.prediction == 0) {
     CHECK(gpuSetDevice(0));
-    compiled_kernel_.reset(new Compiled_Kernel(
-      make_compile_config(para, paramb.c6_ref_sqrt)));
+    compiled_kernel_.reset(new Compiled_Kernel(make_compile_config(para, paramb.c6_ref_sqrt)));
     if (!compiled_kernel_->is_valid()) {
       compiled_kernel_.reset();
     }
@@ -382,8 +438,7 @@ static __global__ void apply_ann_vdw(
     g_C6[n1] = C6_exp;
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
-      g_C6_derivative[n1 + d * N] =
-        C6_exp * SCALING_FACTOR * C6_derivative[d] * g_q_scaler[d];
+      g_C6_derivative[n1 + d * N] = C6_exp * SCALING_FACTOR * C6_derivative[d] * g_q_scaler[d];
     }
   }
 }
@@ -441,8 +496,8 @@ static __global__ void find_force_radial(
 #else
           int type_index = t1 * paramb.num_types + t2;
 #endif
-          int c_index = get_c_index(
-            type_index, n, k, paramb.n_max_radial, paramb.basis_size_radial);
+          int c_index =
+            get_c_index(type_index, n, k, paramb.n_max_radial, paramb.basis_size_radial);
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
         float tmp12 = g_Fp[n1 + n * N];
@@ -514,7 +569,7 @@ static __global__ void find_force_angular(
     }
     for (int n = 0; n < paramb.n_max_angular + 1; ++n) {
       for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        sum_fxyz[n * NUM_OF_ABC + abc] = 
+        sum_fxyz[n * NUM_OF_ABC + abc] =
           g_sum_fxyz[(n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) * N + n1];
       }
     }
@@ -545,17 +600,28 @@ static __global__ void find_force_angular(
           int type_index = t1 * paramb.num_types + t2;
 #endif
           int c_index = get_c_index(
-            type_index,
-            n,
-            k,
-            paramb.n_max_angular,
-            paramb.basis_size_angular,
-            paramb.num_c_radial);
+            type_index, n, k, paramb.n_max_angular, paramb.basis_size_angular, paramb.num_c_radial);
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        accumulate_f12(paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123, paramb.has_q_233, paramb.has_q_134, 
-          paramb.num_L, n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(
+          paramb.L_max,
+          paramb.has_q_222,
+          paramb.has_q_1111,
+          paramb.has_q_112,
+          paramb.has_q_123,
+          paramb.has_q_233,
+          paramb.has_q_134,
+          paramb.num_L,
+          n,
+          paramb.n_max_angular + 1,
+          d12,
+          r12,
+          gn12,
+          gnp12,
+          Fp,
+          sum_fxyz,
+          f12);
       }
 
       atomicAdd(&g_fx[n1], f12[0]);
@@ -583,9 +649,9 @@ static __global__ void find_force_angular(
 
 static __device__ void cross_product(const float a[3], const float b[3], float c[3])
 {
-  c[0] =  a[1] * b [2] - a[2] * b [1];
-  c[1] =  a[2] * b [0] - a[0] * b [2];
-  c[2] =  a[0] * b [1] - a[1] * b [0];
+  c[0] = a[1] * b[2] - a[2] * b[1];
+  c[1] = a[2] * b[0] - a[0] * b[2];
+  c[2] = a[0] * b[1] - a[1] * b[0];
 }
 
 static __device__ float get_area(const float* a, const float* b)
@@ -631,7 +697,7 @@ static __global__ void find_k_and_G(
     cross_product(a2, a3, b1);
     cross_product(a3, a1, b2);
     cross_product(a1, a2, b3);
-    
+
     const float two_pi = 6.2831853f;
     const float two_pi_over_det = two_pi / det;
     for (int d = 0; d < 3; ++d) {
@@ -648,9 +714,10 @@ static __global__ void find_k_and_G(
 
     int nk = 0;
     for (int n1 = 0; n1 <= n1_max; ++n1) {
-      for (int n2 = - n2_max; n2 <= n2_max; ++n2) {
-        for (int n3 = - n3_max; n3 <= n3_max; ++n3) {
-          if (n1 == 0 && (n2 < 0 || (n2 == 0 && n3 < 0))) continue;
+      for (int n2 = -n2_max; n2 <= n2_max; ++n2) {
+        for (int n3 = -n3_max; n3 <= n3_max; ++n3) {
+          if (n1 == 0 && (n2 < 0 || (n2 == 0 && n3 < 0)))
+            continue;
           const float kx = n1 * b1[0] + n2 * b2[0] + n3 * b3[0];
           const float ky = n1 * b1[1] + n2 * b2[1] + n3 * b3[1];
           const float kz = n1 * b1[2] + n2 * b2[2] + n3 * b3[2];
@@ -664,9 +731,7 @@ static __global__ void find_k_and_G(
               const float sqrt_pi = 1.77245385f;
               if (ksq == 0.0f) {
                 // k=0 occurs once, unlike each nonzero +/-k pair.
-                g_G_vdw[nc_nk] =
-                  -abs(two_pi_over_det) * sqrt_pi *
-                  alpha * alpha * alpha / 12.0f;
+                g_G_vdw[nc_nk] = -abs(two_pi_over_det) * sqrt_pi * alpha * alpha * alpha / 12.0f;
                 g_G_vdw_virial[nc_nk] = 0.0f;
               } else {
                 const float b2 = ksq * alpha_factor;
@@ -675,8 +740,7 @@ static __global__ void find_k_and_G(
                 const float k = sqrt(ksq);
                 const float erfc_b = erfc(b);
                 const float prefactor = abs(two_pi_over_det) * sqrt_pi / 24.0f;
-                const float c1 = -k * ksq *
-                  (sqrt_pi * erfc_b + (0.5f / b2 - 1.0f) * exp_b2 / b);
+                const float c1 = -k * ksq * (sqrt_pi * erfc_b + (0.5f / b2 - 1.0f) * exp_b2 / b);
                 const float c2 = 3.0f * k * (sqrt_pi * erfc_b - exp_b2 / b);
                 g_G_vdw[nc_nk] = prefactor * c1;
                 g_G_vdw_virial[nc_nk] = prefactor * c2;
@@ -720,8 +784,7 @@ void NEP_VDW::prepare_kpoints(Dataset& dataset, int device_id)
 
   const int total_num_kpoints = update_nep_kpoint_offsets(dataset.Nc, data.kpoint_offset);
 
-  const int required_capacity =
-    total_num_kpoints > 0 ? total_num_kpoints : 1;
+  const int required_capacity = total_num_kpoints > 0 ? total_num_kpoints : 1;
   if (required_capacity > static_cast<int>(data.kx.size())) {
     data.kx.resize(required_capacity);
     data.ky.resize(required_capacity);
@@ -750,8 +813,7 @@ void NEP_VDW::prepare_kpoints(Dataset& dataset, int device_id)
 }
 
 void NEP_VDW::compute_descriptors(
-  const ANN& ann, const Dataset& data, const NEP_Neighbor& neighbors,
-  NEP_VDW_Data& storage)
+  const ANN& ann, const Dataset& data, const NEP_Neighbor& neighbors, NEP_VDW_Data& storage)
 {
   const int block_size = 32;
   const int grid_size = (data.N - 1) / block_size + 1;
@@ -816,8 +878,7 @@ void NEP_VDW::compute_descriptors(
 }
 
 void NEP_VDW::evaluate_ann(
-  const ANN& ann, Dataset& data,
-  NEP_VDW_Data& storage, const float* q_scaler)
+  const ANN& ann, Dataset& data, NEP_VDW_Data& storage, const float* q_scaler)
 {
   const int block_size = 32;
   const int grid_size = (data.N - 1) / block_size + 1;
@@ -850,8 +911,7 @@ void NEP_VDW::evaluate_ann(
 }
 
 void NEP_VDW::compute_forces(
-  const ANN& ann, Dataset& data, const NEP_Neighbor& neighbors,
-  NEP_VDW_Data& storage)
+  const ANN& ann, Dataset& data, const NEP_Neighbor& neighbors, NEP_VDW_Data& storage)
 {
   const int block_size = 32;
   const int grid_size = (data.N - 1) / block_size + 1;
@@ -950,8 +1010,7 @@ void NEP_VDW::find_force(
     CHECK(gpuSetDevice(device_id));
     auto& storage = nep_data[device_id];
     auto& ann = annmb[device_id];
-    storage.parameters.copy_from_host(
-      parameters + device_id * para.number_of_variables);
+    storage.parameters.copy_from_host(parameters + device_id * para.number_of_variables);
     bind_parameters(storage.parameters.data(), ann);
   }
 
@@ -972,8 +1031,11 @@ void NEP_VDW::find_force(
 
     if (calculate_q_scaler) {
       update_nep_q_scaler(
-        data.N, ann.dim, storage.descriptors.data(),
-        para.q_scaler_gpu[device_id].data(), para.q_scaler_max[device_id].data(),
+        data.N,
+        ann.dim,
+        storage.descriptors.data(),
+        para.q_scaler_gpu[device_id].data(),
+        para.q_scaler_max[device_id].data(),
         para.q_scaler_min[device_id].data());
     }
 
@@ -985,15 +1047,28 @@ void NEP_VDW::find_force(
     prepare_kpoints(data, device_id);
 
     compute_nep_structure_factor(
-      data, storage.C6.data(), storage.kpoint_offset.data(),
-      storage.kx.data(), storage.ky.data(), storage.kz.data(),
-      storage.S_real.data(), storage.S_imag.data());
+      data,
+      storage.C6.data(),
+      storage.kpoint_offset.data(),
+      storage.kx.data(),
+      storage.ky.data(),
+      storage.kz.data(),
+      storage.S_real.data(),
+      storage.S_imag.data());
 
     add_nep_vdw_long_range(
-      data, vdw_para.alpha, storage.C6.data(), storage.kpoint_offset.data(),
-      storage.kx.data(), storage.ky.data(), storage.kz.data(),
-      storage.G_vdw.data(), storage.G_vdw_virial.data(),
-      storage.S_real.data(), storage.S_imag.data(), storage.D_C6.data());
+      data,
+      vdw_para.alpha,
+      storage.C6.data(),
+      storage.kpoint_offset.data(),
+      storage.kx.data(),
+      storage.ky.data(),
+      storage.kz.data(),
+      storage.G_vdw.data(),
+      storage.G_vdw_virial.data(),
+      storage.S_real.data(),
+      storage.S_imag.data(),
+      storage.D_C6.data());
 
     compute_forces(ann, data, neighbors, storage);
 
@@ -1010,8 +1085,7 @@ void NEP_VDW::configure(NEP_Energy_Parameters& para)
 }
 
 void NEP_VDW::initialize_parameters(
-  std::mt19937& rng,
-  std::vector<float>& mu, std::vector<float>& sigma)
+  std::mt19937& rng, std::vector<float>& mu, std::vector<float>& sigma)
 {
   NEP_Energy_Parameters& para = *model_parameters;
   initialize_nep_mu_and_sigma(para, rng, mu, sigma, 1);
@@ -1040,12 +1114,15 @@ void NEP_VDW::write_restart(
   write_nep_restart(filename, *model_parameters, mu, sigma);
 }
 
-namespace {
+namespace
+{
 class NEP_VDW_Reader : public NEP_Energy_Reader
 {
 public:
   NEP_VDW_Reader(NEP_Energy_Parameters& para, EnergyDifference& energy_difference)
-    : NEP_Energy_Reader(para, energy_difference) {}
+    : NEP_Energy_Reader(para, energy_difference)
+  {
+  }
 
 private:
   void read_structure(const XYZ_Record& record, Structure& structure) override
@@ -1061,8 +1138,7 @@ private:
 };
 } // namespace
 
-NEP_VDW::NEP_VDW(const ParameterInput& input)
-  : model_parameters(new NEP_Energy_Parameters)
+NEP_VDW::NEP_VDW(const ParameterInput& input) : model_parameters(new NEP_Energy_Parameters)
 {
   auto& para = *model_parameters;
   para.read(input);
@@ -1081,9 +1157,11 @@ int NEP_VDW::prepare_data()
   initialize(para, training->N, training->Nc, training->device_count);
   if (para.prediction == 0) {
     energy_loss.initialize(para);
-    training->open_loss_file(para,
+    training->open_loss_file(
+      para,
       " rmse_energy_train rmse_force_train rmse_virial_train"
-      " rmse_energy_test rmse_force_test rmse_virial_test", para.has_ediff_combinations);
+      " rmse_energy_test rmse_force_test rmse_virial_test",
+      para.has_ediff_combinations);
   }
   return training->num_batches;
 }
@@ -1094,8 +1172,12 @@ void NEP_VDW::prepare_training()
   int devices = training->device_count;
   std::vector<float> dummy_solution(para.number_of_variables * devices, 1.0f);
   for (int batch = 0; batch < training->num_batches; ++batch) {
-    find_force(para, dummy_solution.data(), training->train_set[batch],
-      (para.fine_tune || para.import_q_scaler) ? false : true, devices);
+    find_force(
+      para,
+      dummy_solution.data(),
+      training->train_set[batch],
+      (para.fine_tune || para.import_q_scaler) ? false : true,
+      devices);
   }
 }
 
@@ -1105,8 +1187,12 @@ void NEP_VDW::evaluate(int batch, const float* population)
   int devices = training->device_count;
   for (int first = 0; first < para.population_size; first += devices) {
     int count = std::min(devices, para.population_size - first);
-    find_force(para, population + first * para.number_of_variables,
-      training->train_set[batch], false, count);
+    find_force(
+      para,
+      population + first * para.number_of_variables,
+      training->train_set[batch],
+      false,
+      count);
     for (int device = 0; device < count; ++device) {
       Dataset& data = training->train_set[batch][device];
       energy_loss.evaluate(para, data, energy_difference, batch, first + device, device);
@@ -1131,8 +1217,8 @@ void NEP_VDW::report_error(const TrainingReport& report)
   NEP_Energy_Parameters& para = *model_parameters;
   find_force(para, report.parameters, training->train_set[report.batch], false, 1);
   Dataset& train_data = training->train_set[report.batch][0];
-  NEP_Energy_Error train = energy_loss.get_error(
-    para, train_data, energy_difference, true, report.batch);
+  NEP_Energy_Error train =
+    energy_loss.get_error(para, train_data, energy_difference, true, report.batch);
   // Correct the last bias parameter in the energy network before evaluating the test set.
   report.parameters[para.number_of_variables_ann - 1] += train.energy_shift;
   NEP_Energy_Error test;

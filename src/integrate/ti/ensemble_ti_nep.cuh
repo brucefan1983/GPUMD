@@ -14,8 +14,8 @@
 */
 
 #pragma once
-#include "integrate/ensemble_lan.cuh"
 #include "force/force.cuh"
+#include "integrate/ensemble_lan.cuh"
 #include "integrate/langevin_utilities.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
@@ -52,10 +52,7 @@ public:
     Force& force) override;
 
   void find_thermo(
-    const Box& box,
-    const std::vector<Group>& group,
-    const Atom& atom,
-    GPU_Vector<double>& thermo);
+    const Box& box, const std::vector<Group>& group, const Atom& atom, GPU_Vector<double>& thermo);
   double get_pe_nep2(const int number_of_atoms);
   void add_nep2_force(Atom& atom);
   void init(const int number_of_steps, const Atom& atom, const GPU_Vector<double>& thermo);

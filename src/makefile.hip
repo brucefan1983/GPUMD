@@ -2,7 +2,7 @@
 # Note:
 # 1) Set HIP_ARCH to your GPU architecture, e.g.
 #    make -f makefile.hip HIP_ARCH=gfx1100
-#    (defaults to gfx90a).
+#    (defaults to gfx1100).
 # 2) Do not remove -DUSE_HIP.
 # 3) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
 #    and remove it otherwise.
@@ -13,11 +13,10 @@
 # some flags
 ###########################################################
 CC = hipcc
-HIP_ARCH ?= gfx90a
-# Leave the C++ standard at the compiler default (C++17): rocThrust/rocPRIM
-# (pulled in by thrust::exclusive_scan in neighbor.cu etc.) require C++17 and
-# hipcc defaults to it, so do not pin -std lower.
-CFLAGS = -O3 --offload-arch=$(HIP_ARCH) -DUSE_HIP
+HIP_ARCH ?= gfx1100
+CFLAGS = -O3 -std=c++17 --offload-arch=$(HIP_ARCH) -DUSE_HIP
+CFLAGS += -Wno-inconsistent-missing-override -Wno-unused-result -Wno-pass-failed
+DEPFLAGS = -MMD -MP -MF $(basename $@).d -MT $@
 INC = -I./
 LDFLAGS = 
 LIBS = -lhipblas -lhipsolver -lhipfft
@@ -62,26 +61,10 @@ OBJ_TB = $(SOURCES_TB:.cu=.o)
 
 
 ###########################################################
-# headers
+# compiler-generated header dependencies
 ###########################################################
-HEADERS =                         \
-	$(wildcard utilities/*.cuh)   \
-	$(wildcard utilities/*/*.cuh) \
-	$(wildcard main_gpumd/*.cuh)  \
-	$(wildcard integrate/*.cuh)   \
-	$(wildcard integrate/*/*.cuh) \
-	$(wildcard mc/*.cuh)          \
-	$(wildcard minimize/*.cuh)    \
-	$(wildcard force/*.cuh)       \
-	$(wildcard force/*/*.cuh)     \
-	$(wildcard measure/*.cuh)     \
-	$(wildcard measure/*/*.cuh)     \
-	$(wildcard model/*.cuh)       \
-	$(wildcard phonon/*.cuh)      \
-	$(wildcard main_nep/*.cuh)    \
-	$(wildcard main_nep/*/*.cuh)
-
-HEADERS_TB = $(wildcard main_tb/*.cuh) $(wildcard utilities/*.cuh) $(wildcard utilities/*/*.cuh)
+OBJECTS = $(sort $(OBJ_GPUMD) $(OBJ_NEP) $(OBJ_TB))
+DEPFILES = $(addsuffix .d,$(basename $(OBJECTS)))
 
 
 ###########################################################
@@ -109,33 +92,22 @@ tb: $(OBJ_TB)
 ###########################################################
 # rules for building object files
 ###########################################################
-integrate/%.o: integrate/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-mc/%.o: mc/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-minimize/%.o: minimize/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-force/%.o: force/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-measure/%.o: measure/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-utilities/%.o: utilities/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-model/%.o: model/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-phonon/%.o: phonon/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_nep/%.o: main_nep/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-main_tb/%.o: main_tb/%.cu $(HEADERS_TB)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+$(OBJECTS): %.o: %.cu
+	$(CC) $(CFLAGS) $(INC) $(DEPFLAGS) -c $< -o $@
+
+# Rebuild objects whose dependency files are missing, including older builds.
+$(foreach obj,$(OBJECTS),$(if $(wildcard $(basename $(obj)).d),,$(obj))): FORCE
+
+.PHONY: all clean FORCE
+FORCE:
+
+# Keep dependency targets after all so they cannot change the default goal.
+-include $(wildcard $(DEPFILES))
 
 
 ###########################################################
 # clean up
 ###########################################################
 clean:
-	rm -f */*.o */*/*.o gpumd nep tb
+	rm -f */*.o */*/*.o */*.d */*/*.d gpumd nep tb
 

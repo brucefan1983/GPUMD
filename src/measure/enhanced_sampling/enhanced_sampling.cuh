@@ -14,8 +14,8 @@
 */
 
 #pragma once
-#include "measure/action.cuh"
 #include "enhanced_sampling_engine.cuh"
+#include "measure/action.cuh"
 #include <cstdio>
 #include <string>
 #include <vector>
