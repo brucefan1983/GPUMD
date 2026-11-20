@@ -23,6 +23,7 @@ Major contributors:
   Ming-Yu Guo: Canonical-graph buffers and removal of the unused ghost-atom path.
   Ming-Yu Guo: Reuse DP device buffers across force evaluations.
   Ming-Yu Guo: Share the FP32 and FP64 edge-list kernels.
+  Ming-Yu Guo: Reject partial periodicity for long-range DP models.
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_DEEPMD
@@ -33,6 +34,7 @@ Major contributors:
 #include "utilities/gpu_macro.cuh"
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <string>
 #include <thrust/execution_policy.h>
 #include <thrust/reduce.h>
@@ -501,18 +503,33 @@ void DP::compute_gpu_edges(
       GPU_CHECK_KERNEL
     }
 
-    // A long-range module reads node positions and, for a fully periodic
-    // cell, the lattice with vectors as rows. Every other model ignores them.
+    // A long-range module reads node positions. Its cell argument is the
+    // lattice of a fully periodic system, or null for a fully open system.
+    // A slab cannot be represented: the edge list would honor the periodic
+    // directions while the long-range module would see no lattice.
     double* d_coord = nullptr;
     double host_box[9];
     const double* box_ptr = nullptr;
     if (deep_pot.has_long_range()) {
+      const bool periodic = box.pbc_x && box.pbc_y && box.pbc_z;
+      const bool open = !box.pbc_x && !box.pbc_y && !box.pbc_z;
+      if (!periodic && !open) {
+        char message[160];
+        snprintf(
+          message,
+          sizeof(message),
+          "DP long-range inference cannot represent partial periodicity (pbc = %d %d %d).",
+          box.pbc_x,
+          box.pbc_y,
+          box.pbc_z);
+        PRINT_INPUT_ERROR(message);
+      }
       grow_gpu(canonical_coord, static_cast<size_t>(N) * 3);
       dp_position_transpose<<<grid_size, BLOCK_SIZE_FORCE>>>(
         position_per_atom.data(), canonical_coord.data(), N);
       GPU_CHECK_KERNEL
       d_coord = canonical_coord.data();
-      if (box.pbc_x && box.pbc_y && box.pbc_z) {
+      if (periodic) {
         host_box[0] = box.cpu_h[0];
         host_box[1] = box.cpu_h[3];
         host_box[2] = box.cpu_h[6];
