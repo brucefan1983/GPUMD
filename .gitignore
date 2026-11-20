@@ -8,6 +8,8 @@ src/*/*.obj
 src/*/*.o
 src/*/*/*.obj
 src/*/*/*.o
+src/*/*.d
+src/*/*/*.d
 src/gpumd*
 src/nep*
 src/gnep*
