@@ -14,8 +14,8 @@
 */
 
 #pragma once
-#include "main_nep/parameters.cuh"
 #include "main_nep/parameter_input.cuh"
+#include "main_nep/parameters.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>
@@ -27,44 +27,44 @@ public:
   NEP_Parameters();
   virtual ~NEP_Parameters() = default;
   void read(const ParameterInput& input);
-  void finish_reading(const ParameterInput& input, const char* model_name,
-    const char* model_description = nullptr);
+  void finish_reading(
+    const ParameterInput& input, const char* model_name, const char* model_description = nullptr);
   virtual bool parse_keyword(const char** param, int num_param);
 
   // parameters to be read in
-  int version;            // NEP version; only NEP4 is supported
-  int num_neurons1;       // number of neurons in the first hidden layer
-  int num_neurons2;       // number of neurons in the second hidden layer; 0 if unused
-  int num_hidden_layers;  // number of hidden layers
+  int version;           // NEP version; only NEP4 is supported
+  int num_neurons1;      // number of neurons in the first hidden layer
+  int num_neurons2;      // number of neurons in the second hidden layer; 0 if unused
+  int num_hidden_layers; // number of hidden layers
   int basis_size_radial;
   int basis_size_angular;
-  int n_max_radial;       // maximum order of the radial Chebyshev polynomials
-  int n_max_angular;      // maximum order of the angular Chebyshev polynomials
-  int L_max;              // maximum order of the three-body spherical harmonics
-  int has_q_222;          // has q_222
-  int has_q_1111;         // has q_1111
-  int has_q_112;          // has q_112
-  int has_q_123;          // has q_123
-  int has_q_233;          // has q_233
-  int has_q_134;          // has q_134
-  float lambda_e;         // weight parameter for energy RMSE loss
-  float lambda_f;         // weight parameter for force RMSE loss
-  float lambda_v;         // weight parameter for virial RMSE loss
-  float lambda_shear;     // extra weight parameter for shear virial
-  float force_delta;      // a parameter used to modify the force loss
-  bool enable_zbl;        // true for including the universal ZBL potential
-  bool flexible_zbl;      // true for including the flexible ZBL potential
-  float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
-  float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
+  int n_max_radial;   // maximum order of the radial Chebyshev polynomials
+  int n_max_angular;  // maximum order of the angular Chebyshev polynomials
+  int L_max;          // maximum order of the three-body spherical harmonics
+  int has_q_222;      // has q_222
+  int has_q_1111;     // has q_1111
+  int has_q_112;      // has q_112
+  int has_q_123;      // has q_123
+  int has_q_233;      // has q_233
+  int has_q_134;      // has q_134
+  float lambda_e;     // weight parameter for energy RMSE loss
+  float lambda_f;     // weight parameter for force RMSE loss
+  float lambda_v;     // weight parameter for virial RMSE loss
+  float lambda_shear; // extra weight parameter for shear virial
+  float force_delta;  // a parameter used to modify the force loss
+  bool enable_zbl;    // true for including the universal ZBL potential
+  bool flexible_zbl;  // true for including the flexible ZBL potential
+  float zbl_rc_inner; // inner cutoff for the universal ZBL potential
+  float zbl_rc_outer; // outer cutoff for the universal ZBL potential
   bool use_typewise_cutoff_zbl;
   float typewise_cutoff_zbl_factor;
   int output_descriptor;
-  int fine_tune = 0; // fine_tune option; 0=no, 1=yes
+  int fine_tune = 0;            // fine_tune option; 0=no, 1=yes
   int fine_tune_descriptor = 1; // fine-tune descriptor; 0=no, 1=yes
   std::string fine_tune_nep_txt = "";
   std::string fine_tune_nep_restart = "";
   bool import_q_scaler = false; // read q_scaler from the local nep.txt instead of recomputing it
-  bool nep_compile = true; // runtime-specialize NEP-family training kernels
+  bool nep_compile = true;      // runtime-specialize NEP-family training kernels
 
   // check if a parameter has been set:
   bool is_version_set;
@@ -84,9 +84,9 @@ public:
   bool is_use_typewise_cutoff_zbl_set;
 
   // other parameters
-  int dim;                            // dimension of the descriptor vector
-  int dim_radial;                     // number of radial descriptor components
-  int dim_angular;                    // number of angular descriptor components
+  int dim;         // dimension of the descriptor vector
+  int dim_radial;  // number of radial descriptor components
+  int dim_angular; // number of angular descriptor components
   std::string model_name;
   std::vector<double> energy_reference;
   int ann_count;
@@ -113,8 +113,8 @@ public:
   GPU_Vector<float> q_scaler_min[16]; // used to scale some descriptor components (GPU)
 
 protected:
-  void report_inputs(const ParameterInput& input, const char* model_name,
-    const char* model_description);
+  void
+  report_inputs(const ParameterInput& input, const char* model_name, const char* model_description);
   virtual void report_model_inputs() const {}
   virtual void read_zbl_in();
 

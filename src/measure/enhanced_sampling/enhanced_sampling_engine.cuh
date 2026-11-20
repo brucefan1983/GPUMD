@@ -55,8 +55,8 @@ public:
 
 private:
   int number_of_atoms_;
-  std::vector<std::unique_ptr<EnhancedSamplingCV> > cvs_;
-  std::vector<std::unique_ptr<EnhancedSamplingBias> > biases_;
+  std::vector<std::unique_ptr<EnhancedSamplingCV>> cvs_;
+  std::vector<std::unique_ptr<EnhancedSamplingBias>> biases_;
   std::map<std::string, int> cv_indices_;
   std::map<std::string, int> bias_indices_;
 

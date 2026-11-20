@@ -16,8 +16,8 @@
 /*----------------------------------------------------------------------------80
 Cell-list neighbor construction and rebuild checks for NEP-spin.
 
-Contributors:
-Chengbing Chen, 1747193328@qq.com
+Major contributors:
+  Chengbing Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "nep_spin.cuh"
@@ -189,9 +189,8 @@ void NEP_Spin::Neighbors::find_neighbor_global(
     capacity_,
     flag_.data());
   GPU_CHECK_KERNEL
-  int required;
-  flag_.copy_to_host(&required);
-  if (required > capacity_) {
+  flag_.copy_to_host(&max_neighbors_);
+  if (max_neighbors_ > capacity_) {
     PRINT_INPUT_ERROR(
       "NEP-spin neighbor capacity is insufficient; increase the model neighbor capacity.");
   }

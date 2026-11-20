@@ -15,15 +15,20 @@
 
 /*----------------------------------------------------------------------------80
 neighbor list.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Hekai Bu: Separate intralayer and interlayer neighbors.
+  Yixin Deng: Fixed integer overflow in neighbor-list indexing and allocation.
 ------------------------------------------------------------------------------*/
 
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
+#include <cstring>
 #include <thrust/execution_policy.h>
 #include <thrust/scan.h>
-#include <cstring>
 
 static __device__ void find_cell_id(
   const Box& box,
@@ -435,7 +440,6 @@ static __global__ void gpu_find_neighbor_ON1_ilp(
               } else if (!different_layer && d2 < big_ilp_cutoff_square) {
                 big_ilp_NL[ilp_count++ * N + n1] = n2;
               }
-
             }
           }
         }
@@ -584,7 +588,7 @@ static __global__ void gpu_find_neighbor_ON1_SW(
               apply_mic(box, x12, y12, z12);
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
 
-              if (d2 < cutoff_square && group_label[n1] ==  group_label[n2]) {
+              if (d2 < cutoff_square && group_label[n1] == group_label[n2]) {
                 NL[static_cast<size_t>(N) * count++ + n1] = n2;
               }
             }
@@ -652,7 +656,8 @@ void find_neighbor_SW(
   GPU_CHECK_KERNEL
 }
 
-namespace {
+namespace
+{
 
 __global__ void gpu_check_atom_distance(
   const Box box,
@@ -696,8 +701,8 @@ __global__ void gpu_check_atom_distance(
 
 __device__ int static_s2[1];
 
-__global__ void
-gpu_update_xyz0(int N, const double* x, const double* y, const double* z, double* x0, double* y0, double* z0)
+__global__ void gpu_update_xyz0(
+  int N, const double* x, const double* y, const double* z, double* x0, double* y0, double* z0)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
@@ -747,7 +752,7 @@ __global__ void gpu_find_local_neighbor_from_global(
   g_NN_local[n1] = count_local;
 }
 
-}
+} // namespace
 
 int Neighbor::check_atom_distance(Box& box, const double* x, const double* y, const double* z)
 {
@@ -766,8 +771,8 @@ int Neighbor::check_atom_distance(Box& box, const double* x, const double* y, co
 
 void Neighbor::find_neighbor_global(
   const double rc,
-  Box& box, 
-  const GPU_Vector<int>& type, 
+  Box& box,
+  const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom)
 {
   const int N = type.size();
@@ -789,8 +794,8 @@ void Neighbor::find_neighbor_global(
       0,
       N,
       rc + skin,
-      box, 
-      type, 
+      box,
+      type,
       position_per_atom,
       cell_count,
       cell_count_sum,
@@ -798,21 +803,14 @@ void Neighbor::find_neighbor_global(
       NN,
       NL);
 
-    gpu_update_xyz0<<<(N - 1) / 128 + 1, 128>>>(
-      N, 
-      x, 
-      y, 
-      z, 
-      x0.data(), 
-      y0.data(), 
-      z0.data());
+    gpu_update_xyz0<<<(N - 1) / 128 + 1, 128>>>(N, x, y, z, x0.data(), y0.data(), z0.data());
     GPU_CHECK_KERNEL
   }
 }
 
 void Neighbor::find_local_neighbor_from_global(
   const double rc,
-  Box& box, 
+  Box& box,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& NN_local,
   GPU_Vector<int>& NL_local)
@@ -843,10 +841,7 @@ void Neighbor::initialize(const double rc, const int num_atoms, const int num_ne
   cell_contents.resize(num_atoms);
 }
 
-double Neighbor::get_skin() const
-{
-  return skin;
-}
+double Neighbor::get_skin() const { return skin; }
 
 int Neighbor::get_capacity() const
 {
@@ -876,22 +871,14 @@ void NeighborManager::initialize(const double rc, const int num_atoms, const int
 }
 
 void NeighborManager::update(
-  Box& box,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position_per_atom)
+  Box& box, const GPU_Vector<int>& type, const GPU_Vector<double>& position_per_atom)
 {
   neighbor.find_neighbor_global(requirement.rc, box, type, position_per_atom);
 }
 
-const GPU_Vector<int>& NeighborManager::get_candidate_NN() const
-{
-  return neighbor.NN;
-}
+const GPU_Vector<int>& NeighborManager::get_candidate_NN() const { return neighbor.NN; }
 
-const GPU_Vector<int>& NeighborManager::get_candidate_NL() const
-{
-  return neighbor.NL;
-}
+const GPU_Vector<int>& NeighborManager::get_candidate_NL() const { return neighbor.NL; }
 
 void NeighborManager::set_candidate_capacity(const int capacity)
 {
@@ -910,10 +897,7 @@ void NeighborManager::find_local_neighbor(
   neighbor.find_local_neighbor_from_global(rc, box, position_per_atom, NN_local, NL_local);
 }
 
-double NeighborManager::get_supported_cutoff() const
-{
-  return requirement.rc;
-}
+double NeighborManager::get_supported_cutoff() const { return requirement.rc; }
 
 void NeighborManager::check_cutoff(const double requested_cutoff) const
 {
@@ -924,4 +908,3 @@ void NeighborManager::check_cutoff(const double requested_cutoff) const
     PRINT_INPUT_ERROR("Requested neighbor cutoff exceeds the supported candidate cutoff.");
   }
 }
-

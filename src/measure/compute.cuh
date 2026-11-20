@@ -45,18 +45,18 @@ public:
     Force& force);
 
   virtual void end_of_step(
-      const int number_of_steps,
-      int step,
-      const int fixed_group,
-      const int move_group,
-      const double global_time,
-      const double temperature,
-      Integrate& integrate,
-      Box& box,
-      std::vector<Group>& group,
-      GPU_Vector<double>& thermo,
-      Atom& atom,
-      Force& force);
+    const int number_of_steps,
+    int step,
+    const int fixed_group,
+    const int move_group,
+    const double global_time,
+    const double temperature,
+    Integrate& integrate,
+    Box& box,
+    std::vector<Group>& group,
+    GPU_Vector<double>& thermo,
+    Atom& atom,
+    Force& force);
 
   virtual void post_run(
     Atom& atom,
@@ -65,7 +65,6 @@ public:
     const int number_of_steps,
     const double time_step,
     const double temperature);
-
 
   Compute(const std::vector<std::string>& tokens, const std::vector<Group>& group);
   void parse(const std::vector<std::string>& tokens, const std::vector<Group>& group);
@@ -81,9 +80,8 @@ private:
   GPU_Vector<double> gpu_per_atom_z;
 
   int number_of_scalars = 0;
-  
-  void output_results(
-    const double energy_transferred[], const std::vector<Group>& group);
+
+  void output_results(const double energy_transferred[], const std::vector<Group>& group);
 
   // Handle multiple thermal reservoirs
   void output_results_n(

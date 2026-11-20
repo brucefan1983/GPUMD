@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The canonical ensemble for MCMD.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "mc_ensemble_canonical.cuh"

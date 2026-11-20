@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Global neighbor list for replica dynamics, see replica_neighbor.cuh.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"
@@ -86,8 +89,18 @@ __global__ void gpu_find_cell_counts(
   if (*rebuild && n1 < N) {
     int cell_id_x, cell_id_y, cell_id_z, cell_id;
     find_cell_id(
-      box_of(box, n1), x[n1], y[n1], z[n1], rc_inv, nx, ny, nz,
-      cell_id_x, cell_id_y, cell_id_z, cell_id);
+      box_of(box, n1),
+      x[n1],
+      y[n1],
+      z[n1],
+      rc_inv,
+      nx,
+      ny,
+      nz,
+      cell_id_x,
+      cell_id_y,
+      cell_id_z,
+      cell_id);
     atomicAdd(&cell_count[replica_of(box, n1) * N_cells + cell_id], 1);
   }
 }
@@ -113,8 +126,18 @@ __global__ void gpu_find_cell_contents(
   if (*rebuild && n1 < N) {
     int cell_id_x, cell_id_y, cell_id_z, cell_id;
     find_cell_id(
-      box_of(box, n1), x[n1], y[n1], z[n1], rc_inv, nx, ny, nz,
-      cell_id_x, cell_id_y, cell_id_z, cell_id);
+      box_of(box, n1),
+      x[n1],
+      y[n1],
+      z[n1],
+      rc_inv,
+      nx,
+      ny,
+      nz,
+      cell_id_x,
+      cell_id_y,
+      cell_id_z,
+      cell_id);
     cell_id += replica_of(box, n1) * N_cells;
     const int ind = atomicAdd(&cell_count[cell_id], 1);
     cell_contents[cell_count_sum[cell_id] + ind] = n1;
@@ -204,8 +227,8 @@ __global__ void gpu_find_neighbor_ON1(
 }
 
 // gpu_sort_neighbor_list of force/neighbor.cuh, skipped when no rebuild is needed.
-__global__ void gpu_sort_neighbor_list_if_rebuilt(
-  const int* rebuild, const int N, const int* NN, int* NL)
+__global__ void
+gpu_sort_neighbor_list_if_rebuilt(const int* rebuild, const int N, const int* NN, int* NL)
 {
   if (!*rebuild) {
     return;
@@ -354,8 +377,18 @@ void Replica_Neighbor::update_list(
   GPU_CHECK_KERNEL
 
   gpu_find_cell_counts<<<grid_size, block_size, 0, stream>>>(
-    rebuild_.data(), box, N, N_cells, cell_count_.data(), x, y, z,
-    num_bins[0], num_bins[1], num_bins[2], rc_inv_cell_list);
+    rebuild_.data(),
+    box,
+    N,
+    N_cells,
+    cell_count_.data(),
+    x,
+    y,
+    z,
+    num_bins[0],
+    num_bins[1],
+    num_bins[2],
+    rc_inv_cell_list);
   GPU_CHECK_KERNEL
 
   // Without a rebuild the counts are those of the last build, so the sums are unchanged.
@@ -366,14 +399,40 @@ void Replica_Neighbor::update_list(
   GPU_CHECK_KERNEL
 
   gpu_find_cell_contents<<<grid_size, block_size, 0, stream>>>(
-    rebuild_.data(), box, N, N_cells, cell_count_.data(), cell_count_sum_.data(),
-    cell_contents_.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv_cell_list);
+    rebuild_.data(),
+    box,
+    N,
+    N_cells,
+    cell_count_.data(),
+    cell_count_sum_.data(),
+    cell_contents_.data(),
+    x,
+    y,
+    z,
+    num_bins[0],
+    num_bins[1],
+    num_bins[2],
+    rc_inv_cell_list);
   GPU_CHECK_KERNEL
 
   gpu_find_neighbor_ON1<<<grid_size, block_size, 0, stream>>>(
-    rebuild_.data(), box, N, N_cells, cell_count_.data(), cell_count_sum_.data(),
-    cell_contents_.data(), NN.data(), NL.data(), x, y, z,
-    num_bins[0], num_bins[1], num_bins[2], rc_inv_cell_list, rc_neighbor * rc_neighbor);
+    rebuild_.data(),
+    box,
+    N,
+    N_cells,
+    cell_count_.data(),
+    cell_count_sum_.data(),
+    cell_contents_.data(),
+    NN.data(),
+    NL.data(),
+    x,
+    y,
+    z,
+    num_bins[0],
+    num_bins[1],
+    num_bins[2],
+    rc_inv_cell_list,
+    rc_neighbor * rc_neighbor);
   GPU_CHECK_KERNEL
 
   // the list capacity per atom is fixed by initialize()

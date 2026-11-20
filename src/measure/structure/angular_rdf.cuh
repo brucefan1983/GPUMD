@@ -45,10 +45,7 @@ public:
   int atom_id1_[6] = {-1, -1, -1, -1, -1, -1};
   int atom_id2_[6] = {-1, -1, -1, -1, -1, -1};
 
-  AngularRDF(
-    const std::vector<std::string>& tokens,
-    Box& box,
-    const int number_of_types);
+  AngularRDF(const std::vector<std::string>& tokens, Box& box, const int number_of_types);
 
   virtual void pre_run(
     const int number_of_steps,
@@ -58,7 +55,7 @@ public:
     Atom& atom,
     Box& box,
     Force& force);
-  
+
   virtual void end_of_step(
     const int number_of_steps,
     int step,
@@ -72,7 +69,7 @@ public:
     GPU_Vector<double>& thermo,
     Atom& atom,
     Force& force);
-  
+
   virtual void post_run(
     Atom& atom,
     Box& box,
@@ -81,10 +78,7 @@ public:
     const double time_step,
     const double temperature);
 
-  void parse(
-    const std::vector<std::string>& tokens,
-    Box& box,
-    const int number_of_types);
+  void parse(const std::vector<std::string>& tokens, Box& box, const int number_of_types);
 
 private:
   int num_atoms_;

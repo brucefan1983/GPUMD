@@ -25,7 +25,8 @@
 #define HESSIAN_DESCRIPTOR_MAX_DIM 256
 #endif
 
-namespace nep_hessian {
+namespace nep_hessian
+{
 
 __global__ void find_descriptor_only(
   NEP::ParaMB paramb,
@@ -45,7 +46,8 @@ __global__ void find_descriptor_only(
   float* g_q_desc)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 >= N2) return;
+  if (n1 >= N2)
+    return;
   int t1 = g_type[n1];
   double x1 = g_x[n1];
   double y1 = g_y[n1];
@@ -107,9 +109,17 @@ __global__ void find_descriptor_only(
       accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
     }
     find_q(
-      paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123,
-      paramb.has_q_233, paramb.has_q_134, paramb.n_max_angular + 1, n,
-      s, q + (paramb.n_max_radial + 1));
+      paramb.L_max,
+      paramb.has_q_222,
+      paramb.has_q_1111,
+      paramb.has_q_112,
+      paramb.has_q_123,
+      paramb.has_q_233,
+      paramb.has_q_134,
+      paramb.n_max_angular + 1,
+      n,
+      s,
+      q + (paramb.n_max_radial + 1));
   }
 
   for (int d = 0; d < annmb.dim; ++d) {
@@ -141,7 +151,8 @@ __global__ void find_descriptor_only_small_box(
   float* g_q_desc)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 >= N2) return;
+  if (n1 >= N2)
+    return;
   int t1 = g_type[n1];
   float q[HESSIAN_DESCRIPTOR_MAX_DIM] = {0.0f};
 
@@ -163,11 +174,7 @@ __global__ void find_descriptor_only_small_box(
       float gn12 = 0.0f;
       for (int k = 0; k <= paramb.basis_size_radial; ++k) {
         int c_index = get_c_index(
-          t1 * paramb.num_types + t2,
-          n,
-          k,
-          paramb.n_max_radial,
-          paramb.basis_size_radial);
+          t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
         gn12 += fn12[k] * annmb.c_type_pair[c_index];
       }
       q[n] += gn12;
@@ -204,9 +211,17 @@ __global__ void find_descriptor_only_small_box(
       accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
     }
     find_q(
-      paramb.L_max, paramb.has_q_222, paramb.has_q_1111, paramb.has_q_112, paramb.has_q_123,
-      paramb.has_q_233, paramb.has_q_134, paramb.n_max_angular + 1, n,
-      s, q + (paramb.n_max_radial + 1));
+      paramb.L_max,
+      paramb.has_q_222,
+      paramb.has_q_1111,
+      paramb.has_q_112,
+      paramb.has_q_123,
+      paramb.has_q_233,
+      paramb.has_q_134,
+      paramb.n_max_angular + 1,
+      n,
+      s,
+      q + (paramb.n_max_radial + 1));
   }
 
   for (int d = 0; d < annmb.dim; ++d) {

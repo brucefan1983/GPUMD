@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "fitness.cuh"
 #include "parameters.cuh"
 #include "potential.cuh"
@@ -20,12 +25,12 @@
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/main_common.cuh"
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
 #include <chrono>
 #include <cstring>
 #include <memory>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
 #include <vector>
 
 void print_welcome_information(void);

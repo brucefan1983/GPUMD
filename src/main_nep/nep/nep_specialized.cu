@@ -13,13 +13,18 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #ifdef NEP_SPECIALIZED_RUNTIME_BUILD
 #define HAS_CHARGE_JIT 0
 #define HAS_VDW_JIT 0
 #define TENSOR_VIRIAL_JIT 0
 #define INITIALIZE_RADIAL_SHEAR_JIT 1
-#include "main_nep/common/nep_specialized.cuh"
 #include "main_nep/common/nep_scalar_ann_specialized.cuh"
+#include "main_nep/common/nep_specialized.cuh"
 
 static __global__ void ann_temperature_jit(
   const int N,
@@ -32,7 +37,8 @@ static __global__ void ann_temperature_jit(
   float* Fp_out)
 {
   const int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 >= N) return;
+  if (n1 >= N)
+    return;
 
   const int t = (NUM_TYPES_JIT == 1) ? 0 : type[n1];
   float q[ANN_DIM_JIT] = {0.0f};
@@ -78,14 +84,7 @@ extern "C" int nep_train_launch_ann_temperature(
   const int block_size = 32;
   const int grid_size = (N - 1) / block_size + 1;
   ann_temperature_jit<<<grid_size, block_size>>>(
-    N,
-    type,
-    descriptors,
-    q_scaler,
-    temperature,
-    parameters,
-    pe,
-    Fp);
+    N, type, descriptors, q_scaler, temperature, parameters, pe, Fp);
   return static_cast<int>(cudaGetLastError());
 }
 

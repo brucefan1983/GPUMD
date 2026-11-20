@@ -13,9 +13,14 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include "xyz_reader.cuh"
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
+#include "xyz_reader.cuh"
 #include <algorithm>
 #include <cctype>
 

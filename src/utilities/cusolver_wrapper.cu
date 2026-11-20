@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Some wrappers for the cuSOLVER library
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "cusolver_wrapper.cuh"
@@ -22,12 +25,12 @@ Some wrappers for the cuSOLVER library
 #include "gpu_macro.cuh"
 #include "gpu_vector.cuh"
 #ifdef USE_HIP
-  #include <hipsolver/hipsolver.h>
+#include <hipsolver/hipsolver.h>
 #else
-  #include <cusolverDn.h>
+#include <cusolverDn.h>
 #endif
-#include <vector>
 #include <cstring>
+#include <vector>
 
 void eig_hermitian_QR(size_t N, double* AR, double* AI, double* W_cpu)
 {

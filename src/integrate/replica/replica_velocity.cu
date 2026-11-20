@@ -16,6 +16,9 @@
 /*----------------------------------------------------------------------------80
 Canonical velocity sampling for PRD. REMD initializes velocities with Velocity
 (main_gpumd/velocity.cu), as gpumd does.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "replica_velocity.cuh"
@@ -52,7 +55,8 @@ void Replica_Velocity::generate_canonical(
   const unsigned int seed)
 {
   if (mass.size() < 2 || !std::isfinite(temperature) || temperature <= 0.0)
-    PRINT_INPUT_ERROR("Canonical velocity sampling requires at least two atoms and a positive finite temperature.");
+    PRINT_INPUT_ERROR(
+      "Canonical velocity sampling requires at least two atoms and a positive finite temperature.");
   for (const double m : mass) {
     if (!std::isfinite(m) || m <= 0.0)
       PRINT_INPUT_ERROR("Canonical velocity sampling requires positive finite masses.");

@@ -25,7 +25,8 @@ the deposition keyword and performs atom insertion between consecutive sub-runs.
 
 class RunInput;
 
-class Deposition {
+class Deposition
+{
 public:
   std::vector<std::vector<std::string>> subrun_lines;
 

@@ -27,23 +27,31 @@ void subtract_nep_charge_derivative_mean(const Dataset& dataset, float* D_real);
 
 void initialize_nep_bec(Dataset& dataset, NEP_Charge_Dataset& charge_dataset);
 
-void scale_nep_bec(Dataset& dataset, NEP_Charge_Dataset& charge_dataset, const float* sqrt_epsilon_inf);
+void scale_nep_bec(
+  Dataset& dataset, NEP_Charge_Dataset& charge_dataset, const float* sqrt_epsilon_inf);
 
 void compute_nep_structure_factor(
   const Dataset& dataset,
   const float* weights,
   const int* kpoint_offset,
-  const float* kx, const float* ky, const float* kz,
-  float* S_real, float* S_imag);
+  const float* kx,
+  const float* ky,
+  const float* kz,
+  float* S_real,
+  float* S_imag);
 
 void add_nep_vdw_long_range(
   Dataset& dataset,
   float alpha,
   const float* C6,
   const int* kpoint_offset,
-  const float* kx, const float* ky, const float* kz,
-  const float* G_vdw, const float* G_vdw_virial,
-  const float* S_real, const float* S_imag,
+  const float* kx,
+  const float* ky,
+  const float* kz,
+  const float* G_vdw,
+  const float* G_vdw_virial,
+  const float* S_real,
+  const float* S_imag,
   float* D_C6);
 
 // Replace Nc counts with Nc + 1 prefix offsets and return the total.

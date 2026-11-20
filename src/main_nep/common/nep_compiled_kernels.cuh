@@ -16,26 +16,71 @@
 #pragma once
 #include "nep_compile.cuh"
 
-struct NEP_Compiled_Kernels
-{
+struct NEP_Compiled_Kernels {
   using DescriptorRadialFunction = int (*)(
-    int, const int*, const int*, const int*, const int*,
-    const float*, const float*, const float*, const float*, float*);
+    int,
+    const int*,
+    const int*,
+    const int*,
+    const int*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    float*);
   using DescriptorAngularFunction = int (*)(
-    int, const int*, const int*, const int*, const int*,
-    const float*, const float*, const float*, const float*, float*, float*);
+    int,
+    const int*,
+    const int*,
+    const int*,
+    const int*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    float*,
+    float*);
   using ForceRadialFunction = int (*)(
-    int, const int*, const int*, const int*, const int*,
-    const float*, const float*, const float*,
-    const float*, const float*,
-    const float*, const float*, const float*, const float*,
-    int, float*, float*, float*, float*);
+    int,
+    const int*,
+    const int*,
+    const int*,
+    const int*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    int,
+    float*,
+    float*,
+    float*,
+    float*);
   using ForceAngularFunction = int (*)(
-    int, const int*, const int*, const int*, const int*,
-    const float*, const float*, const float*,
-    const float*, const float*,
-    const float*, const float*, const float*, const float*,
-    const float*, int, float*, float*, float*, float*);
+    int,
+    const int*,
+    const int*,
+    const int*,
+    const int*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    int,
+    float*,
+    float*,
+    float*,
+    float*);
   DescriptorRadialFunction descriptor_radial_ = nullptr;
   DescriptorAngularFunction descriptor_angular_ = nullptr;
   ForceRadialFunction force_radial_ = nullptr;
@@ -66,26 +111,58 @@ struct NEP_Compiled_Kernels
     float* sum_fxyz);
 };
 
-struct NEP_Compiled_BEC
-{
+struct NEP_Compiled_BEC {
   using BecRadialFunction = int (*)(
-    int, const int*, const int*, const int*, const int*,
-    const float*, const float*, const float*,
-    const float*, const float*, float*);
+    int,
+    const int*,
+    const int*,
+    const int*,
+    const int*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    float*);
   using BecAngularFunction = int (*)(
-    int, const int*, const int*, const int*, const int*,
-    const float*, const float*, const float*,
-    const float*, const float*, const float*, float*);
+    int,
+    const int*,
+    const int*,
+    const int*,
+    const int*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    const float*,
+    float*);
   BecRadialFunction bec_radial_ = nullptr;
   BecAngularFunction bec_angular_ = nullptr;
   bool load(NEP_Compile& library);
   void launch_bec_radial(
-    int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-    const float* x12, const float* y12, const float* z12,
-    const float* parameters, const float* charge_derivative, float* bec);
+    int N,
+    const int* NN_sum,
+    const int* NN,
+    const int* NL,
+    const int* type,
+    const float* x12,
+    const float* y12,
+    const float* z12,
+    const float* parameters,
+    const float* charge_derivative,
+    float* bec);
   void launch_bec_angular(
-    int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-    const float* x12, const float* y12, const float* z12,
-    const float* parameters, const float* charge_derivative,
-    const float* sum_fxyz, float* bec);
+    int N,
+    const int* NN_sum,
+    const int* NN,
+    const int* NL,
+    const int* type,
+    const float* x12,
+    const float* y12,
+    const float* z12,
+    const float* parameters,
+    const float* charge_derivative,
+    const float* sum_fxyz,
+    float* bec);
 };

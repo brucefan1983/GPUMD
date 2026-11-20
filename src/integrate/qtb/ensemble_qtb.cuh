@@ -20,9 +20,9 @@
 #include <string>
 #include <vector>
 #ifdef USE_HIP
-  #include <hiprand/hiprand_kernel.h>
+#include <hiprand/hiprand_kernel.h>
 #else
-  #include <curand_kernel.h>
+#include <curand_kernel.h>
 #endif
 
 class Ensemble_QTB : public Ensemble
@@ -81,7 +81,8 @@ private:
   GPU_Vector<double> fran;
   GPU_Vector<gpurandState> curand_states;
 
-  void init_qtb_common(int N, double T, double Tc, double dt_input, double f_max_input, int N_f_input);
+  void
+  init_qtb_common(int N, double T, double Tc, double dt_input, double f_max_input, int N_f_input);
   void update_time_filter(const double target_temperature);
   void refresh_colored_random_force(const Atom& atom);
   void apply_qtb_half_step(Atom& atom);

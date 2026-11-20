@@ -15,12 +15,15 @@
 
 /*----------------------------------------------------------------------------80
 The class defining the grouping methods
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "group.cuh"
 #include "utilities/gpu_macro.cuh"
-#include <vector>
 #include <cstring>
+#include <vector>
 
 void Group::find_size(const int N, const int k)
 {

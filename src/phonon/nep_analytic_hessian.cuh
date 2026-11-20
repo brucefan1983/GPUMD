@@ -37,10 +37,10 @@ The Hessian command rejects configurations with DFT-D3 enabled.
 ------------------------------------------------------------------------------*/
 
 #pragma once
-#include "utilities/gpu_vector.cuh"
 #include "nep_hessian_diagnostics.cuh"
-#include <vector>
+#include "utilities/gpu_vector.cuh"
 #include <string>
+#include <vector>
 
 class Force;
 class Box;
@@ -52,8 +52,8 @@ bool compute_nep_analytic_hessian(
   NEP_Hessian_Model& model,
   Box& box,
   Atom& atom,
-  std::vector<double>& hessian_soa,        // 3N x 3N, row-major SoA
-  std::vector<double>& force_soa,          // 3N, component * N + atom
+  std::vector<double>& hessian_soa, // 3N x 3N, row-major SoA
+  std::vector<double>& force_soa,   // 3N, component * N + atom
   double& pe_out,
   nep_hessian::Diagnostics& diagnostics,
   std::string& error,

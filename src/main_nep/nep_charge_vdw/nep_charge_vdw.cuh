@@ -14,14 +14,14 @@
 */
 
 #pragma once
-#include "main_nep/dataset.cuh"
-#include "main_nep/potential.cuh"
-#include "main_nep/common/nep_charge_parameters.cuh"
-#include "main_nep/common/nep_training.cuh"
-#include "main_nep/common/nep_charge_dataset.cuh"
 #include "main_nep/common/energy_difference.cuh"
+#include "main_nep/common/nep_charge_dataset.cuh"
+#include "main_nep/common/nep_charge_parameters.cuh"
 #include "main_nep/common/nep_common.cuh"
 #include "main_nep/common/nep_compiled_kernels.cuh"
+#include "main_nep/common/nep_training.cuh"
+#include "main_nep/dataset.cuh"
+#include "main_nep/potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <memory>
@@ -54,9 +54,9 @@ public:
   };
 
   struct ANN {
-    int dim = 0;                    // dimension of the descriptor
-    int num_neurons1 = 0;           // number of neurons in the hidden layer
-    int num_para = 0;               // number of parameters
+    int dim = 0;                   // dimension of the descriptor
+    int num_neurons1 = 0;          // number of neurons in the hidden layer
+    int num_para = 0;              // number of parameters
     const float* w0[NUM_ELEMENTS]; // weight from the input layer to the hidden layer
     const float* b0[NUM_ELEMENTS]; // bias for the hidden layer
     const float* w1[NUM_ELEMENTS]; // weight from the hidden layer to the output layer
@@ -71,7 +71,7 @@ public:
     GPU_Vector<float> C6;
     GPU_Vector<float> C6_derivative;
     GPU_Vector<float> D_C6;
-    GPU_Vector<float> Fp;                // derivative of energy with respect to descriptor
+    GPU_Vector<float> Fp; // derivative of energy with respect to descriptor
     GPU_Vector<float> sum_fxyz;
     GPU_Vector<float> parameters; // parameters to be optimized
     GPU_Vector<float> kx;
@@ -88,7 +88,7 @@ public:
   };
 
   struct Charge_Para {
-    float alpha = 0.5f; // 1 / (2 Angstrom)
+    float alpha = 0.5f;        // 1 / (2 Angstrom)
     float alpha_factor = 1.0f; // 1 / (4 * alpha * alpha)
   };
 
@@ -103,8 +103,7 @@ public:
   Parameters& get_parameters() override { return *model_parameters; }
 
   void initialize_parameters(
-    std::mt19937& rng,
-    std::vector<float>& mu, std::vector<float>& sigma) override;
+    std::mt19937& rng, std::vector<float>& mu, std::vector<float>& sigma) override;
   void parameter_groups(std::vector<int>& groups) override;
   void read_model(float* parameters) override;
 
@@ -134,14 +133,22 @@ private:
   NEP_ZBL zbl;
   Charge_Para charge_para;
 
-  struct Compiled_Kernel
-  {
+  struct Compiled_Kernel {
     NEP_Compile library;
     NEP_Compiled_Kernels common;
     NEP_Compiled_BEC bec;
-    using AnnChargeVdwFunction =
-      int (*)(int, const int*, const float*, const float*, const float*,
-              double*, float*, float*, float*, float*, float*);
+    using AnnChargeVdwFunction = int (*)(
+      int,
+      const int*,
+      const float*,
+      const float*,
+      const float*,
+      double*,
+      float*,
+      float*,
+      float*,
+      float*,
+      float*);
     AnnChargeVdwFunction ann_charge_vdw_ = nullptr;
     bool valid = false;
     explicit Compiled_Kernel(const NEP_Compile_Config& config);
@@ -159,20 +166,44 @@ private:
       float* C6,
       float* C6_derivative);
     void launch_force_charge_vdw_radial(
-      int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-      const float* x12, const float* y12, const float* z12,
-      const float* parameters, const float* Fp,
-      const float* charge_derivative, const float* D_real,
-      const float* C6_derivative, const float* D_C6,
-      float* fx, float* fy, float* fz, float* virial);
+      int N,
+      const int* NN_sum,
+      const int* NN,
+      const int* NL,
+      const int* type,
+      const float* x12,
+      const float* y12,
+      const float* z12,
+      const float* parameters,
+      const float* Fp,
+      const float* charge_derivative,
+      const float* D_real,
+      const float* C6_derivative,
+      const float* D_C6,
+      float* fx,
+      float* fy,
+      float* fz,
+      float* virial);
     void launch_force_charge_vdw_angular(
-      int N, const int* NN_sum, const int* NN, const int* NL, const int* type,
-      const float* x12, const float* y12, const float* z12,
-      const float* parameters, const float* Fp,
-      const float* charge_derivative, const float* D_real,
-      const float* C6_derivative, const float* D_C6,
+      int N,
+      const int* NN_sum,
+      const int* NN,
+      const int* NL,
+      const int* type,
+      const float* x12,
+      const float* y12,
+      const float* z12,
+      const float* parameters,
+      const float* Fp,
+      const float* charge_derivative,
+      const float* D_real,
+      const float* C6_derivative,
+      const float* D_C6,
       const float* sum_fxyz,
-      float* fx, float* fy, float* fz, float* virial);
+      float* fx,
+      float* fy,
+      float* fz,
+      float* virial);
   };
   std::unique_ptr<Compiled_Kernel> compiled_kernel_;
   void initialize_model(const NEP_Charge_Parameters& para);
@@ -181,17 +212,15 @@ private:
   void bind_parameters(const float* parameters, ANN& ann);
   void prepare_kpoints(Dataset& dataset, int device_id);
   void compute_descriptors(
-    const ANN& ann, const Dataset& data, const NEP_Neighbor& neighbors,
+    const ANN& ann,
+    const Dataset& data,
+    const NEP_Neighbor& neighbors,
     NEP_Charge_VDW_Data& storage);
-  void evaluate_ann(
-    const ANN& ann, Dataset& data,
-    NEP_Charge_VDW_Data& storage, const float* q_scaler);
+  void
+  evaluate_ann(const ANN& ann, Dataset& data, NEP_Charge_VDW_Data& storage, const float* q_scaler);
   void compute_bec(
-    const ANN& ann, Dataset& data, const NEP_Neighbor& neighbors,
-    NEP_Charge_VDW_Data& storage);
-  void compute_charge_long_range(
-    Dataset& data, NEP_Charge_VDW_Data& storage);
+    const ANN& ann, Dataset& data, const NEP_Neighbor& neighbors, NEP_Charge_VDW_Data& storage);
+  void compute_charge_long_range(Dataset& data, NEP_Charge_VDW_Data& storage);
   void compute_forces(
-    const ANN& ann, Dataset& data, const NEP_Neighbor& neighbors,
-    NEP_Charge_VDW_Data& storage);
+    const ANN& ann, Dataset& data, const NEP_Neighbor& neighbors, NEP_Charge_VDW_Data& storage);
 };

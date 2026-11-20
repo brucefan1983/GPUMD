@@ -31,11 +31,7 @@ public:
   GPU_Exclusive_Scan(const GPU_Exclusive_Scan&) = delete;
   GPU_Exclusive_Scan& operator=(const GPU_Exclusive_Scan&) = delete;
 
-  void run(
-    const int* input,
-    int* output,
-    const int number_of_items,
-    const gpuStream_t stream)
+  void run(const int* input, int* output, const int number_of_items, const gpuStream_t stream)
   {
     if (number_of_items <= 0)
       return;
@@ -64,12 +60,7 @@ public:
       stream));
 #else
     CHECK(cub::DeviceScan::ExclusiveSum(
-      temporary_storage_.data(),
-      storage_bytes,
-      input,
-      output,
-      number_of_items,
-      stream));
+      temporary_storage_.data(), storage_bytes, input, output, number_of_items, stream));
 #endif
   }
 

@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #include "nep_file.cuh"
 #include <algorithm>
 #include <cmath>
@@ -325,10 +330,7 @@ bool NEP_File::parse_double(const std::string& token, double& value)
   return true;
 }
 
-bool NEP_File::is_nep_header(const std::string& token)
-{
-  return lower(token) == "nep";
-}
+bool NEP_File::is_nep_header(const std::string& token) { return lower(token) == "nep"; }
 
 bool NEP_File::read(std::istream& input, std::string& error)
 {

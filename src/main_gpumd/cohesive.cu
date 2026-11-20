@@ -15,14 +15,18 @@
 
 /*----------------------------------------------------------------------------80
 Compute the cohesive energy curve with different deformations.
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Benrui Tang: Full elastic tensor and directional cohesive-energy scans.
 ------------------------------------------------------------------------------*/
 
 #include "cohesive.cuh"
 #include "force/force.cuh"
 #include "minimize/minimize.cuh"
 #include "minimize/minimizer_sd.cuh"
-#include "model/box.cuh"
 #include "model/atom.cuh"
+#include "model/box.cuh"
 #include "model/group.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -139,8 +143,8 @@ void Cohesive::parse_cohesive(const std::vector<std::string>& tokens)
   num_points = round((end_factor - start_factor) * 1000) + 1;
   printf("    num_points = %d.\n", num_points);
 
-  const char* deform_mode[] = {"uniaxial", "uniaxial", "uniaxial", 
-                               "biaxial", "biaxial", "biaxial", "triaxial"};
+  const char* deform_mode[] = {
+    "uniaxial", "uniaxial", "uniaxial", "biaxial", "biaxial", "biaxial", "triaxial"};
   const char* deform_dir[] = {"x", "y", "z", "xy", "yz", "xz", "xyz"};
   printf("    deform mode = %s - %s .\n", deform_mode[deform_d], deform_dir[deform_d]);
 
@@ -343,11 +347,7 @@ void Cohesive::output(Box& box)
   fclose(fid);
 }
 
-void Cohesive::compute(
-  Box& box,
-  Atom& atom,
-  std::vector<Group>& group,
-  Force& force)
+void Cohesive::compute(Box& box, Atom& atom, std::vector<Group>& group, Force& force)
 {
   allocate_memory(atom.number_of_atoms);
   compute_D();

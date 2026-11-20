@@ -15,6 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 Force evaluation of the replicas on one GPU, see replica_force.cuh.
+
+Major contributors:
+  Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "replica_force.cuh"
@@ -117,8 +120,7 @@ void Replica_Force::initialize(
     model_type_ = Model_Type::charge_nep;
     return;
   }
-  energy_nep_.reset(
-    new NEP_Replica(potential_file.c_str(), number_of_atoms, verbose));
+  energy_nep_.reset(new NEP_Replica(potential_file.c_str(), number_of_atoms, verbose));
   model_type_ = Model_Type::energy_nep;
 }
 
@@ -177,7 +179,12 @@ void Replica_Force::compute(
   GPU_CHECK_KERNEL
   if (model_type_ == Model_Type::energy_nep) {
     energy_nep_->compute(
-      stream_box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom,
+      stream_box,
+      type,
+      position_per_atom,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom,
       stream);
     return;
   }

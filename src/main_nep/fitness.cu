@@ -15,6 +15,11 @@
 
 /*----------------------------------------------------------------------------80
 Get the fitness
+
+Major contributors:
+  Zheyong Fan: Initial implementation.
+  Eric Lindgren: Configurable model checkpoints.
+  Paul Erhart: Configurable training output intervals.
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
@@ -38,10 +43,7 @@ Fitness::Fitness(Potential& potential) : potential(potential)
   }
 }
 
-void Fitness::print_training_header()
-{
-  potential.print_training_header();
-}
+void Fitness::print_training_header() { potential.print_training_header(); }
 
 void Fitness::compute(
   const int generation,
@@ -77,8 +79,9 @@ static __global__ void gpu_find_L1_L2(
   s_cost_L2reg[tid] = 0.0f;
   for (int v = tid; v < number_of_variables; v += blockDim.x) {
     const float para = g_population[bid * number_of_variables + v];
-    if ((g_type_of_variable[v] == g_type) && (g_type != g_num_types) ||
-        (g_type_of_variable[v] != g_type) && (g_type == g_num_types))  {
+    if (
+      (g_type_of_variable[v] == g_type) && (g_type != g_num_types) ||
+      (g_type_of_variable[v] != g_type) && (g_type == g_num_types)) {
       s_cost_L1reg[tid] += abs(para);
       s_cost_L2reg[tid] += para * para;
     }
@@ -138,17 +141,18 @@ void Fitness::regularize(
   }
 }
 
-void Fitness::get_save_potential_label(Parameters& para, const int generation, std::string& label) {
-    if (para.save_potential_format == 1) {
-      time_t rawtime;
-      time(&rawtime);
-      struct tm* timeinfo = localtime(&rawtime);
-      char buffer[200];
-      strftime(buffer, sizeof(buffer), "nep_y%Y_m%m_d%d_h%H_m%M_s%S_generation", timeinfo);
-      label = std::string(buffer) + std::to_string(generation + 1);
-    } else {
-      label = "nep_gen" + std::to_string(generation + 1);
-    }
+void Fitness::get_save_potential_label(Parameters& para, const int generation, std::string& label)
+{
+  if (para.save_potential_format == 1) {
+    time_t rawtime;
+    time(&rawtime);
+    struct tm* timeinfo = localtime(&rawtime);
+    char buffer[200];
+    strftime(buffer, sizeof(buffer), "nep_y%Y_m%m_d%d_h%H_m%M_s%S_generation", timeinfo);
+    label = std::string(buffer) + std::to_string(generation + 1);
+  } else {
+    label = "nep_gen" + std::to_string(generation + 1);
+  }
 }
 
 void Fitness::report_error(
@@ -161,8 +165,14 @@ void Fitness::report_error(
 {
   if ((generation + 1) % para.output_interval == 0) {
     int index = para.num_types * para.population_size + best_index;
-    TrainingReport report = {generation, generation % num_batches,
-                             loss_total, fitness_L1[index], fitness_L2[index], elite, ""};
+    TrainingReport report = {
+      generation,
+      generation % num_batches,
+      loss_total,
+      fitness_L1[index],
+      fitness_L2[index],
+      elite,
+      ""};
     if (!checkpoint_base.empty()) {
       report.checkpoint = checkpoint_base + ".txt";
     }
@@ -173,7 +183,4 @@ void Fitness::report_error(
   }
 }
 
-void Fitness::predict(float* elite)
-{
-  potential.predict(elite);
-}
+void Fitness::predict(float* elite) { potential.predict(elite); }

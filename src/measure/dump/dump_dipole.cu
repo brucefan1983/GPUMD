@@ -8,26 +8,29 @@
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU Lesser General Public License for more details. You should have received a copy of the GNU Lesser General
-   Public License along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
+    GNU Lesser General Public License for more details. You should have received a copy of the GNU
+   Lesser General Public License along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
 Dump dipole at a given interval.
+
+Major contributors:
+  Eric Lindgren: Initial implementation.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_dipole.cuh"
+#include "measure/parse_utilities.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
-#include "measure/parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
+#include <cstring>
 #include <iostream>
 #include <vector>
-#include <cstring>
 
 static __global__ void sum_dipole(
   const int N, const int number_of_batches, const double* g_virial_per_atom, double* g_dipole)
@@ -110,9 +113,15 @@ void Dump_Dipole::pre_run(
     fprintf(
       file_,
       "# cell %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e %.10e\n",
-      box.cpu_h[0], box.cpu_h[3], box.cpu_h[6],
-      box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
-      box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+      box.cpu_h[0],
+      box.cpu_h[3],
+      box.cpu_h[6],
+      box.cpu_h[1],
+      box.cpu_h[4],
+      box.cpu_h[7],
+      box.cpu_h[2],
+      box.cpu_h[5],
+      box.cpu_h[8]);
     fprintf(file_, "# dt_output %.10e fs\n", time_step * dump_interval_ * TIME_UNIT_CONVERSION);
     fprintf(file_, "# columns step dipole_x dipole_y dipole_z\n");
     gpu_dipole_.resize(3);
@@ -150,10 +159,7 @@ void Dump_Dipole::end_of_step(
   const int number_of_threads = 1024;
   const int number_of_batches = (number_of_atoms - 1) / number_of_threads + 1;
   sum_dipole<<<3, number_of_threads>>>(
-    number_of_atoms,
-    number_of_batches,
-    response.data(),
-    gpu_dipole_.data());
+    number_of_atoms, number_of_batches, response.data(), gpu_dipole_.data());
   GPU_CHECK_KERNEL
 
   // Transfer gpu_sum to the CPU

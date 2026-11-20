@@ -42,8 +42,7 @@ public:
   GPU_Pinned_Vector(const GPU_Pinned_Vector&) = delete;
   GPU_Pinned_Vector& operator=(const GPU_Pinned_Vector&) = delete;
 
-  GPU_Pinned_Vector(GPU_Pinned_Vector&& other) noexcept
-    : size_(other.size_), data_(other.data_)
+  GPU_Pinned_Vector(GPU_Pinned_Vector&& other) noexcept : size_(other.size_), data_(other.data_)
   {
     other.size_ = 0;
     other.data_ = nullptr;

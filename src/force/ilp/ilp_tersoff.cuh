@@ -15,10 +15,10 @@
 
 #pragma once
 #include "force/potential.cuh"
+#include "force/tersoff/tersoff1988.cuh"
+#include "utilities/gpu_vector.cuh"
 #include <stdio.h>
 #include <vector>
-#include "utilities/gpu_vector.cuh"
-#include "force/tersoff/tersoff1988.cuh"
 
 // C B N
 #define MAX_TYPE_ILP_TERSOFF 3
@@ -30,15 +30,15 @@
 struct ILP_CBN_Para {
   float rcutsq_ilp[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF];
   float d[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF];
-  float d_Seff[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF];      // d / S_R / r_eff
+  float d_Seff[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF]; // d / S_R / r_eff
   float C_6[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF];
-  float z0[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF];          // beta
-  float lambda[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF];      // alpha / beta
+  float z0[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF];     // beta
+  float lambda[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF]; // alpha / beta
   float epsilon[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF];
-  float CC[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF];           // C
+  float CC[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF];          // C
   float delta2inv[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF];   // 1 / delta ^ 2
   float S[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF];           // scale
-  float rcut_global[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF];           // scale
+  float rcut_global[MAX_TYPE_ILP_TERSOFF][MAX_TYPE_ILP_TERSOFF]; // scale
 };
 
 struct ILP_CBN_Data {
@@ -70,7 +70,7 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
-  
+
   virtual void compute_ilp(
     Box& box,
     const GPU_Vector<int>& type,
@@ -79,7 +79,7 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial,
     const std::vector<Group>& group) override;
-  
+
   void initialize_tersoff_1988(FILE*, int num_atoms);
 
 protected:

@@ -15,16 +15,18 @@
 
 /*-----------------------------------------------------------------------------------------------100
 Calculate the Radial Distribution Function (RDF)
-Initial implementation: Yong Wang
-Refactored by: Zheyong Fan
+
+Major contributors:
+  Yong Wang: Initial implementation.
+  Zheyong Fan: Faster radial distribution calculations.
 --------------------------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"
 #include "integrate/integrate.cuh"
+#include "measure/parse_utilities.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
-#include "measure/parse_utilities.cuh"
 #include "rdf.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -122,17 +124,13 @@ __global__ void gpu_find_rdf_ON1(
               }
               const int w = find_rdf_bin(d2, para.dr, para.num_bins);
               if (w >= 0) {
-                const double r_mid_square =
-                  ((w + 0.5) * para.dr) * ((w + 0.5) * para.dr);
+                const double r_mid_square = ((w + 0.5) * para.dr) * ((w + 0.5) * para.dr);
                 const double dV = r_mid_square * 4 * rdf_PI * para.dr;
-                atomicAdd(
-                  &rdf_[w * para.num_RDFs + 0], 1 / (N * para.density_global * dV));
+                atomicAdd(&rdf_[w * para.num_RDFs + 0], 1 / (N * para.density_global * dV));
                 int count = 1;
                 for (int a = 0; a < para.num_types; ++a) {
                   for (int b = a; b < para.num_types; ++b) {
-                    if (
-                      type[n1] == para.type_index[a] &&
-                      type[n2] == para.type_index[b]) {
+                    if (type[n1] == para.type_index[a] && type[n2] == para.type_index[b]) {
                       atomicAdd(
                         &rdf_[w * para.num_RDFs + count],
                         1 / (para.num_atoms[a] * para.density_type[b] * dV));
@@ -161,18 +159,10 @@ void RDF::find_rdf(Box& box, const GPU_Vector<int>& type, const GPU_Vector<doubl
   if (
     (box.pbc_x && num_bins[0] < 5) || (box.pbc_y && num_bins[1] < 5) ||
     (box.pbc_z && num_bins[2] < 5)) {
-    PRINT_INPUT_ERROR(
-      "The box has a thickness < 2.5 RDF radial cutoffs in a periodic direction.\n"
-      "Please increase the box size or reduce the RDF cutoff.");
+    PRINT_INPUT_ERROR("The box has a thickness < 2.5 RDF radial cutoffs in a periodic direction.\n"
+                      "Please increase the box size or reduce the RDF cutoff.");
   }
-  find_cell_list(
-    rc_cell_list,
-    num_bins,
-    box,
-    position,
-    cell_count,
-    cell_count_sum,
-    cell_contents);
+  find_cell_list(rc_cell_list, num_bins, box, position, cell_count, cell_count_sum, cell_contents);
 
   gpu_find_rdf_ON1<<<(N - 1) / 256 + 1, 256>>>(
     N,
@@ -232,7 +222,7 @@ void RDF::end_of_step(
 
   rdf_para.volume = box.get_volume();
   rdf_para.density_global = atom.number_of_atoms / rdf_para.volume;
-  for (int t = 0; t < rdf_para.num_types; ++ t) {
+  for (int t = 0; t < rdf_para.num_types; ++t) {
     rdf_para.density_type[t] = rdf_para.num_atoms[t] / rdf_para.volume;
   }
   find_rdf(
@@ -290,19 +280,14 @@ void RDF::post_run(
   fclose(fid);
 }
 
-RDF::RDF(
-  const std::vector<std::string>& tokens,
-  Box& box,
-  const std::vector<int>& cpu_type_size)
+RDF::RDF(const std::vector<std::string>& tokens, Box& box, const std::vector<int>& cpu_type_size)
 {
   parse(tokens, box, cpu_type_size);
   action_name = "compute_rdf";
 }
 
 void RDF::parse(
-  const std::vector<std::string>& tokens,
-  Box& box,
-  const std::vector<int>& cpu_type_size)
+  const std::vector<std::string>& tokens, Box& box, const std::vector<int>& cpu_type_size)
 {
   printf("Compute radial distribution function (RDF).\n");
   const int num_param = tokens.size();
