@@ -125,7 +125,8 @@ private:
     float* moments,
     float* descriptors,
     double* wide_spin_descriptors,
-    const double* wide_radial);
+    const double* wide_radial,
+    nep_spin::ProjectionView forward);
   SpinDescriptorFunction spin_descriptor_jit_ = nullptr;
   using SpinForceFunction = void (*)(
     int atom_count,
@@ -146,7 +147,8 @@ private:
     double* force,
     double* mforce,
     double* virial,
-    const double* wide_radial);
+    const double* wide_radial,
+    nep_spin::ProjectionView transpose);
   SpinForceFunction spin_force_jit_ = nullptr;
   void initialize_spin_compiled(const Spin_Parameters&);
   void initialize(Spin_Parameters&, int, int);

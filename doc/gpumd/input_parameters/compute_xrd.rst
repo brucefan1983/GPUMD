@@ -29,16 +29,59 @@ at step ``interval`` of that run.
   the mean inverse box length over the periodic axes.
 * ``spacing <gx> <gy> <gz>`` sets fixed positive grid spacings in Å⁻¹.
   It is mutually exclusive with ``scale`` and required for a fully nonperiodic box.
+* ``form_factor <filename>`` uses the coefficients in a custom file for all sampled elements.
 * ``file <filename>`` sets the output filename (default ``xrd.txt``).
-* ``form_factor <element> <a1> <b1> <a2> <b2> <a3> <b3> <a4> <b4> <c>``
-  supplies one set of coefficients per sampled element. All coefficients must
-  be finite. GPUMD supplies no built-in scattering table. Use coefficients
-  appropriate for the elements and X-ray scattering model in your calculation.
 
-The atomic form factor is
+Built-in form factors
+---------------------
+
+By default, GPUMD looks up the neutral-atom X-ray form factor for each
+sampled element using the exact symbol in ``model.xyz``. The table covers
+98 elements, H through Cf (atomic numbers 1–98), using the plain element
+labels in the source data (for example, ``Si`` for silicon).
+
+The five-Gaussian fit is :math:`f_0(s)=c+\sum_{i=1}^{5}a_i\exp(-b_i s^2)`,
+where :math:`s=\sin(\theta)/\lambda` in Å⁻¹ and
+:math:`0 \le s \le 6` Å⁻¹. If the requested angle range extends past
+this limit or a sampled element is missing, supply an appropriate custom
+coefficient file or adjust the input.
+
+The coefficients come from Waasmaier and Kirfel (1995), *Acta Crystallographica
+Section A*, **51**, 416–431, `doi:10.1107/S0108767394013292 <https://doi.org/10.1107/S0108767394013292>`_.
+The numbers are taken from the
+`XrayDB data archive <https://github.com/xraypy/XrayDB/blob/96911505a105549100d183a6268cb3fdfd6445d3/data_sources/waasmaeir_kirfel.dat>`_,
+whose `data license <https://github.com/xraypy/XrayDB/blob/96911505a105549100d183a6268cb3fdfd6445d3/LICENSE>`_
+is CC0 1.0.
+
+For example, use ``compute_xrd 1000 1.5406 two_theta 10 100``.
+
+Custom form factor file
+-----------------------
+
+The optional ``form_factor`` option takes a path relative to the simulation
+working directory or an absolute path. Supply one row per sampled element
+with the exact symbol used in ``model.xyz`` and nine finite coefficients in
+this order. Blank lines and ``#`` comments are allowed. Enter each symbol
+only once.
+
+.. code-block:: text
+
+   # element a1 b1 a2 b2 a3 b3 a4 b4 c
+   C 2.31000 20.8439 1.02000 10.2075 1.58860 0.568700 0.865000 51.6512 0.215600
+
+For example, save this row as ``xrd_factors.txt`` and use
+``compute_xrd 1000 1.5406 form_factor xrd_factors.txt two_theta 10 100``.
+
+The custom four-Gaussian form factor is
 :math:`f(s)=c+\sum_{i=1}^{4}a_i\exp(-b_i s^2)`, where
-:math:`s=\sin(\theta)/\lambda` in Å⁻¹. For an analytic check with unit
-scatterers, use four zero amplitude–exponent pairs and set ``c`` to 1.
+:math:`s=\sin(\theta)/\lambda` in Å⁻¹. The example is the neutral-carbon
+(C RHF) entry of Maslen, Fox and O'Keefe, *International Tables for
+Crystallography*, Vol. C (2006),
+`Table 6.1.1.4 <https://onlinelibrary.wiley.com/iucr/itc/Cb/ch6o1v0001/table6o1o1o4/>`_,
+for the four-Gaussian approximation over :math:`0 \le s \le 2` Å⁻¹.
+Choose coefficients and an angular range appropriate to the scattering
+model and the fit's range. For an analytic unit-scatterer check, set all
+four amplitude–exponent pairs to zero and ``c`` to 1.
 
 Sampling conventions
 --------------------

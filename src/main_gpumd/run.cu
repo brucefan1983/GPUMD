@@ -297,8 +297,7 @@ void Run::parse_one_keyword(const std::vector<std::string>& tokens, const RunInp
 
   const int num_param = tokens.size();
   const int max_num_param = 32;
-  // XRD accepts a separate set of nine coefficients for each element.
-  if (num_param > max_num_param && tokens[0] != "compute_xrd")
+  if (num_param > max_num_param)
     PRINT_INPUT_ERROR("The number of parameters should be less than 32.\n");
 
 #ifdef GPUMD_WPE_ENABLED

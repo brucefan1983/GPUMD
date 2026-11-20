@@ -65,6 +65,10 @@ A file page describes its columns, units, and any headers or blocks needed to se
      - :ref:`compute_chunk <kw_compute_chunk>`
      - Time-averaged quantities in dynamic spatial bins
      - Append
+   * - :ref:`cmass.out <cmass_out>`
+     - :ref:`compute_cmass <kw_compute_cmass>`
+     - Center of mass
+     - Append
    * - :ref:`hessian.out <hessian_out>`
      - :ref:`compute_hessian <kw_compute_hessian>`
      - Analytic Cartesian Hessian
@@ -222,6 +226,7 @@ A file page describes its columns, units, and any headers or blocks needed to se
    active_out
    sdc_out
    msd_out
+   cmass_out
    shc_out
    thermo_out
    viscosity_out

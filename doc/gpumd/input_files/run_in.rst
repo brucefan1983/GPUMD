@@ -255,6 +255,10 @@ Actions
      - Compute the mean-square displacement (:term:`MSD`)
      - No
      - No
+   * - :ref:`compute_cmass <kw_compute_cmass>`
+     - Compute the center of mass
+     - No
+     - No
    * - :ref:`compute_rdf <kw_compute_rdf>`
      - Compute the radial distribution function (:term:`RDF`)
      - No

@@ -13,32 +13,23 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Original XRD implementation by Ke Li.
-// SPDX-License-Identifier: LGPL-3.0-or-later
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Ke Li: Initial implementation.
+------------------------------------------------------------------------------*/
 
 #pragma once
 
 #include "measure/action.cuh"
 #include <array>
 #include <fstream>
-#include <map>
-
-struct XrdNode {
-  int h, k, l;
-  double kx, ky, kz; // cycles per angstrom
-  double two_theta;
-  double s_squared;
-  double lp;
-};
-
-struct XrdFormFactor {
-  double a[4], b[4], c;
-};
+#include <memory>
 
 class XRD : public Action
 {
 public:
   XRD(const std::vector<std::string>& tokens, const std::vector<Group>& groups);
+  ~XRD() override;
 
   void pre_run(
     int number_of_steps,
@@ -64,6 +55,8 @@ public:
     Force& force) override;
 
 private:
+  struct Storage;
+  void read_form_factors();
   void update_factors(const Atom& atom, const std::vector<Group>& groups);
   void update_mesh(const Box& box);
 
@@ -78,14 +71,8 @@ private:
   int grouping_method_ = -1;
   int group_id_ = -1;
   int number_selected_ = 0;
-  std::map<std::string, XrdFormFactor> input_factors_;
+  std::string form_factor_filename_;
   std::string filename_ = "xrd.txt";
   std::ofstream output_;
-  std::vector<XrdNode> nodes_;
-  std::vector<double> intensities_;
-  std::vector<XrdFormFactor> cpu_factors_;
-  std::vector<bool> factor_initialized_;
-  GPU_Vector<XrdFormFactor> factors_;
-  GPU_Vector<XrdNode> gpu_nodes_;
-  GPU_Vector<double> gpu_intensities_;
+  std::unique_ptr<Storage> storage_;
 };
