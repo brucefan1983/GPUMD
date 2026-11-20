@@ -225,7 +225,7 @@ constexpr bool compact_fused_rows(int lanes, int elements, bool fused)
 }
 
 struct SpinProjection {
-  enum { width = 32 };
+  static constexpr int width = 32;
   std::vector<ProjectionRow> rows;
   std::vector<ProjectionTerm> packed;
   std::vector<float> neighbor_weights;

@@ -13,7 +13,8 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Chengbing Chen: tiled density construction and shared neighbor adjoints.
+// Chengbing Chen: tiled density construction, shared neighbor adjoints, and solid harmonic
+// gradients.
 #pragma once
 #include "force/nep_spin/spin_storage.cuh"
 #include "force/nep_spin/spin_warp.cuh"
@@ -76,8 +77,7 @@ __device__ inline Real power(Real x, int n)
     result *= x;
   return result;
 }
-// Harmonic monomials are shared by every model. Literal exponents let CUDA
-// fold their powers and derivatives in both the forward and force kernels.
+// Literal exponents let the compiler fold monomial powers for every layout.
 template <size_t I, class Real>
 __device__ __forceinline__ void add_harmonic(int lmax, const Real* x, SpinValue<Real>* y)
 {
@@ -90,16 +90,6 @@ __device__ __forceinline__ void add_harmonic(int lmax, const Real* x, SpinValue<
   for (int d = 0; d < 3; ++d)
     val *= power(x[d], p[d]);
   y[h.component].value += val;
-#pragma unroll
-  for (int d = 0; d < 3; ++d) {
-    if (p[d]) {
-      Real grad = h.value * p[d];
-#pragma unroll
-      for (int k = 0; k < 3; ++k)
-        grad *= power(x[k], p[k] - (d == k));
-      y[h.component].derivative[d] += grad;
-    }
-  }
 }
 
 template <class Real, size_t... I>
@@ -110,13 +100,39 @@ spherical_terms(int lmax, const Real* x, SpinValue<Real>* y, std::index_sequence
   (void)ordered;
 }
 
-template <class Layout, class Real>
+// Each derivative of a solid harmonic is a linear combination of lower-rank harmonics.
+template <size_t I, int H, class Real>
+__device__ __forceinline__ void add_harmonic_derivative(int count, SpinValue<Real>* y)
+{
+  constexpr auto t = harmonic_derivatives[I];
+  if (t.output < H && t.output < count)
+    y[t.output].derivative[t.axis] += Real(t.coefficient) * y[t.input].value;
+}
+
+template <int H, class Real, size_t... I>
+__device__ __forceinline__ void
+spherical_derivatives(int count, SpinValue<Real>* y, std::index_sequence<I...>)
+{
+  int ordered[] = {0, (add_harmonic_derivative<I, H>(count, y), 0)...};
+  (void)ordered;
+}
+using HarmonicDerivativeIndices =
+  std::make_index_sequence<sizeof(harmonic_derivatives) / sizeof(HarmonicDerivative)>;
+
+template <bool Gradients, class Layout, class Real>
 __device__ __forceinline__ void spherical(Layout v, const Real* x, SpinValue<Real>* y)
 {
 #pragma unroll
-  for (int i = 0; i < Layout::harmonic_capacity; ++i)
-    y[i] = {0, {0, 0, 0}};
+  for (int i = 0; i < Layout::harmonic_capacity; ++i) {
+    if (Gradients)
+      y[i] = {0, {0, 0, 0}};
+    else
+      y[i].value = 0;
+  }
   spherical_terms(v.lmax, x, y, std::make_index_sequence<sizeof(harmonics) / sizeof(Harmonic)>{});
+  if (Gradients)
+    spherical_derivatives<Layout::harmonic_capacity>(
+      (v.lmax + 1) * (v.lmax + 1), y, HarmonicDerivativeIndices{});
 }
 template <size_t I, int H, class Real>
 __device__ __forceinline__ void
@@ -134,14 +150,12 @@ harmonic_pull(const Real* coeff, const Real* y, Real* grad, std::index_sequence<
   int ordered[] = {0, (apply_harmonic_gradient<I, H>(coeff, y, grad), 0)...};
   (void)ordered;
 }
-using HarmonicDerivativeIndices =
-  std::make_index_sequence<sizeof(harmonic_derivatives) / sizeof(HarmonicDerivative)>;
 
-template <class Layout, class Real>
+template <bool Gradients, class Layout, class Real>
 __device__ __forceinline__ void primitives_at(Layout v, const Real* s, SpinValue<Real>* phi)
 {
   SpinValue<Real> y[Layout::harmonic_capacity];
-  spherical(v, s, y);
+  spherical<Gradients>(v, s, y);
   const Real s2 = s[0] * s[0] + s[1] * s[1] + s[2] * s[2];
 #pragma unroll
   for (int p = 0; p < v.primitive_count; ++p) {
@@ -150,11 +164,13 @@ __device__ __forceinline__ void primitives_at(Layout v, const Real* s, SpinValue
     const Real factor = power(s2, exponent);
     const Real grad_factor = exponent ? 2 * exponent * power(s2, exponent - 1) : 0;
     for (int m = 0; m < 2 * label.l + 1; ++m) {
-      const SpinValue<Real> harmonic = y[label.l * label.l + m];
+      const SpinValue<Real>& harmonic = y[label.l * label.l + m];
       SpinValue<Real>& value = phi[label.offset + m];
       value.value = factor * harmonic.value;
-      for (int d = 0; d < 3; ++d)
-        value.derivative[d] = factor * harmonic.derivative[d] + grad_factor * s[d] * harmonic.value;
+      if (Gradients)
+        for (int d = 0; d < 3; ++d)
+          value.derivative[d] =
+            factor * harmonic.derivative[d] + grad_factor * s[d] * harmonic.value;
     }
   }
 }
@@ -389,7 +405,7 @@ static __global__ void descriptors(
   Real s[3];
   SpinValue<Real> phi_i[Layout::spin_capacity];
   read_spin(n, i, type, active, spins, s);
-  primitives_at(v, s, phi_i);
+  primitives_at<false>(v, s, phi_i);
   const float* weights = parameters + (na + 1) * v.channels;
   const float* center = weights + v.path_count * v.channels;
   Real density[WarpDensity ? 1 : geometry][WarpDensity ? 1 : spin] = {};
@@ -404,9 +420,9 @@ static __global__ void descriptors(
       return false;
     for (int d = 0; d < 3; ++d)
       u[d] = r[d] / distance;
-    spherical(v, u, y);
+    spherical<false>(v, u, y);
     read_spin(n, j, type, active, spins, s);
-    primitives_at(v, s, phi_j);
+    primitives_at<false>(v, s, phi_j);
     Real derivative;
     radial(
       v,
@@ -421,7 +437,7 @@ static __global__ void descriptors(
       coefficients,
       weight,
       derivative);
-    if (StoreRadial)
+    if (StoreRadial && radial_edges)
       radial_edges[radial_edge_index<Layout::tile>(n, v.channels, i, c, neighbor)] = {
         weight, derivative};
     return true;
@@ -630,7 +646,7 @@ static __global__ void forces(
   double center_virial[CenterVirial ? 9 : 1] = {};
   SpinValue<Real> phi_i[Layout::spin_capacity];
   read_spin(n, i, type, active, spins, s);
-  primitives_at(v, s, phi_i);
+  primitives_at<true>(v, s, phi_i);
   const int geometry_count = (v.lmax + 1) * (v.lmax + 1);
   constexpr int groups = 64 / Layout::tile;
   constexpr bool use_geometry = CacheRows;
@@ -847,17 +863,17 @@ static __global__ void forces(
     for (int d = 0; d < 3; ++d)
       u[d] = r[d] / distance;
     SpinValue<Real> y[Layout::harmonic_capacity], phi_j[Layout::spin_capacity];
-    spherical(v, u, y);
+    spherical<!direct_pull>(v, u, y);
     read_spin(n, j, type, active, spins, s);
     if (!Quadratic)
-      primitives_at(v, s, phi_j);
+      primitives_at<!direct_pull>(v, s, phi_j);
     double edge_force[3] = {}, edge_mforce[3] = {}, edge_virial[9] = {};
     const int rows[9] = {0, 1, 2, 0, 0, 1, 1, 2, 2};
     const int cols[9] = {0, 1, 2, 1, 2, 2, 0, 0, 1};
     if (direct_pull) {
       // Accumulate the angular and spin adjoints across channels before differentiating the bases.
       Real weights[channels] = {}, derivatives[channels] = {};
-      if (ReadRadial) {
+      if (ReadRadial && radial_edges) {
         for (int c = 0; c < channel_count; ++c) {
           const auto edge = radial_edges[radial_edge_index<Layout::tile>(
             n, v.channels, i, first_channel + c, neighbor)];
@@ -921,7 +937,7 @@ static __global__ void forces(
         const volatile Real* channel_pull =
           edge_pull + (Quadratic ? channel * adjoint_size * groups : 0);
         Real weight, derivative;
-        if (ReadRadial) {
+        if (ReadRadial && radial_edges) {
           const auto edge =
             radial_edges[radial_edge_index<Layout::tile>(n, v.channels, i, c, neighbor)];
           weight = edge.value;
