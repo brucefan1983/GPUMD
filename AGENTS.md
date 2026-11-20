@@ -115,7 +115,7 @@ unsupported keywords.
 
 ## Code style and GPU work
 
-- Follow neighboring code. Use clang-format 18 or 19 with the repository's
+- Follow neighboring code. Use clang-format 19 with the repository's
   [.clang-format](.clang-format) configuration. For every PR, format all added
   or modified C++/CUDA source and header files in full, and add contributor
   information as appropriate. Do not reformat unrelated files. Preserve existing
