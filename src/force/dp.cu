@@ -21,6 +21,7 @@ Major contributors:
   Hekai Bu: DP interface rewrite with ghost-atom handling.
   Ming-Yu Guo: PyTorch models, GPU edge inference, and triclinic-cell support.
   Ming-Yu Guo: Canonical-graph buffers and removal of the unused ghost-atom path.
+  Ming-Yu Guo: Reuse DP device buffers across force evaluations.
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_DEEPMD
@@ -97,6 +98,14 @@ void DP::set_dp_coeff(void)
 
 namespace
 {
+template <typename T>
+void grow_gpu(GPU_Vector<T>& values, const size_t count)
+{
+  if (values.size() < count) {
+    values.resize(count);
+  }
+}
+
 static __global__ void dp_position_transpose(const double* position, double* position_trans, int N)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
@@ -448,15 +457,15 @@ void DP::compute_gpu_edges(
 
   // Exclusive scan of the per-atom neighbor counts gives each atom's edge
   // offset; the total edge count is the reduction of the counts.
-  dp_edge_offset.resize(N);
+  grow_gpu(dp_edge_offset, static_cast<size_t>(N));
   thrust::exclusive_scan(
     thrust::device, dp_NN_local.data(), dp_NN_local.data() + N, dp_edge_offset.data());
   const int nedge = thrust::reduce(
     thrust::device, dp_NN_local.data(), dp_NN_local.data() + N, 0, thrust::plus<int>());
 
-  dp_atom_energy_gpu.resize(N);
-  dp_force_rowmajor.resize(N * 3);
-  dp_atom_virial_gpu.resize(N * 9);
+  grow_gpu(dp_atom_energy_gpu, static_cast<size_t>(N));
+  grow_gpu(dp_force_rowmajor, static_cast<size_t>(N) * 3);
+  grow_gpu(dp_atom_virial_gpu, static_cast<size_t>(N) * 9);
 
   if (deep_pot.uses_canonical_graph_inference()) {
     // Compact canonical ABI (compressed DPA1 / DPA4C and the same family).
@@ -476,20 +485,14 @@ void DP::compute_gpu_edges(
       deepmd_compat::canonical_index_width(static_cast<std::int64_t>(N)) != DP_CANONICAL_INDEX32) {
       PRINT_INPUT_ERROR("DP canonical graph source indices do not fit in 32 bits.");
     }
-    if (dp_edge_index.size() < static_cast<size_t>(edge_storage)) {
-      dp_edge_index.resize(edge_storage);
-    }
-    if (dp_edge_vec.size() < static_cast<size_t>(3 * edge_storage)) {
-      dp_edge_vec.resize(3 * edge_storage);
-    }
-    dp_position_gpu_trans.resize(N);
-    dp_position_gpu.resize(N + 1);
-    if (e_f_v_gpu.size() < static_cast<size_t>(N + 1)) {
-      e_f_v_gpu.resize(N + 1);
-    }
-    source_order.resize(edge_storage);
-    source_count.resize(N);
-    source_cursor.resize(N);
+    grow_gpu(dp_edge_index, static_cast<size_t>(edge_storage));
+    grow_gpu(dp_edge_vec, static_cast<size_t>(3 * edge_storage));
+    grow_gpu(dp_position_gpu_trans, static_cast<size_t>(N));
+    grow_gpu(dp_position_gpu, static_cast<size_t>(N + 1));
+    grow_gpu(e_f_v_gpu, static_cast<size_t>(N + 1));
+    grow_gpu(source_order, static_cast<size_t>(edge_storage));
+    grow_gpu(source_count, static_cast<size_t>(N));
+    grow_gpu(source_cursor, static_cast<size_t>(N));
 
     auto* model_type = reinterpret_cast<std::int64_t*>(dp_position_gpu_trans.data());
     auto* destination_row_ptr = reinterpret_cast<std::int64_t*>(dp_position_gpu.data());
@@ -540,7 +543,7 @@ void DP::compute_gpu_edges(
     double host_box[9];
     const double* box_ptr = nullptr;
     if (deep_pot.has_long_range()) {
-      canonical_coord.resize(static_cast<size_t>(N) * 3);
+      grow_gpu(canonical_coord, static_cast<size_t>(N) * 3);
       dp_position_transpose<<<grid_size, BLOCK_SIZE_FORCE>>>(
         position_per_atom.data(), canonical_coord.data(), N);
       GPU_CHECK_KERNEL
@@ -585,18 +588,14 @@ void DP::compute_gpu_edges(
   } else {
     // Transpose positions from GPUMD SoA (x1..xN, y1..yN, z1..zN) to the
     // row-major (x1, y1, z1, ...) layout the edge model consumes.
-    dp_position_gpu_trans.resize(N * 3);
+    grow_gpu(dp_position_gpu_trans, static_cast<size_t>(N) * 3);
     dp_position_transpose<<<grid_size, BLOCK_SIZE_FORCE>>>(
       position_per_atom.data(), dp_position_gpu_trans.data(), N);
     GPU_CHECK_KERNEL
     const bool edge_fp32 = deep_pot.uses_fp32_edge_vectors();
     if (nedge > 0) {
-      if (dp_edge_index.size() < static_cast<size_t>(2 * nedge)) {
-        dp_edge_index.resize(2 * nedge);
-      }
-      if (dp_edge_vec.size() < static_cast<size_t>(3 * nedge)) {
-        dp_edge_vec.resize(3 * nedge);
-      }
+      grow_gpu(dp_edge_index, static_cast<size_t>(2 * nedge));
+      grow_gpu(dp_edge_vec, static_cast<size_t>(3 * nedge));
       if (edge_fp32) {
         dp_fill_edges_f32<<<grid_size, BLOCK_SIZE_FORCE>>>(
           N,
@@ -723,9 +722,7 @@ void DP::compute(
   {
     // Transpose positions from GPUMD layout (x1..xN, y1..yN, z1..zN) to
     // row-major (x1,y1,z1, x2,y2,z2, ...)
-    if (dp_position_gpu_trans.size() < static_cast<size_t>(number_of_atoms) * 3) {
-      dp_position_gpu_trans.resize(static_cast<size_t>(number_of_atoms) * 3);
-    }
+    grow_gpu(dp_position_gpu_trans, static_cast<size_t>(number_of_atoms) * 3);
     dp_position_transpose<<<grid_size, BLOCK_SIZE_FORCE>>>(
       position_per_atom.data(), dp_position_gpu_trans.data(), number_of_atoms);
     GPU_CHECK_KERNEL
@@ -932,10 +929,7 @@ void DP::compute(
 
     // Copy results to GPU. The 13*N packed buffer is allocated on first use.
     // Memory layout of e_f_v_gpu: e1..eN, fx1,fy1,fz1,...fxN,fyN,fzN, vxx1...
-    const size_t packed = static_cast<size_t>(number_of_atoms) * (1 + 3 + 9);
-    if (e_f_v_gpu.size() < packed) {
-      e_f_v_gpu.resize(packed);
-    }
+    grow_gpu(e_f_v_gpu, static_cast<size_t>(number_of_atoms) * (1 + 3 + 9));
     e_f_v_gpu.copy_from_host(dp_ene_atom.data(), number_of_atoms, 0);
     e_f_v_gpu.copy_from_host(dp_force.data(), number_of_atoms * 3, number_of_atoms);
     e_f_v_gpu.copy_from_host(dp_vir_atom.data(), number_of_atoms * 9, number_of_atoms * 4);
