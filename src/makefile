@@ -28,10 +28,19 @@ CFLAGS = -O3 $(CUDA_ARCH)
 # nvcc supports -MMD only on Linux.
 DEPFLAGS = -MD
 else # For linux
-CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)"
+CFLAGS = -std=c++14 -O3 $(CUDA_ARCH) -Xcompiler="$(WARN_FLAGS)" -DDEBUG
 DEPFLAGS = -MMD
 endif
 DEPFLAGS += -MP -MF $(basename $@).d -MT $@
+
+# Optional strict warning checks for Linux CUDA builds.
+WERROR ?= 0
+ifndef OS
+ifeq ($(WERROR),1)
+CFLAGS += -Werror=all-warnings -Xcompiler=-Werror
+endif
+endif
+
 ifeq ($(GNEP_TEST_DIAGNOSTICS),1)
 CFLAGS += -DGNEP_TEST_DIAGNOSTICS
 endif

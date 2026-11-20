@@ -40,6 +40,16 @@ CUDA toolkit. This example builds for compute capability 8.9.
 make -C src -j4 CUDA_ARCH=-arch=sm_89
 ```
 
+Before submitting source or build changes, run a clean Linux CUDA build with
+`WERROR=1` to treat nvcc and host compiler warnings as errors. This option is
+off by default and enabled in Linux CUDA CI. Preserve reference executables
+before cleaning, or use a separate checkout.
+
+```sh
+make -C src clean
+make -C src -j4 CUDA_ARCH=-arch=sm_89 WERROR=1
+```
+
 For HIP, set `HIP_ARCH` to match the AMD GPU. This example targets `gfx1100`.
 
 ```sh
