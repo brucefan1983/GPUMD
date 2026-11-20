@@ -44,8 +44,12 @@ bool to_float(double value, float& result)
 } // namespace
 
 bool parse_spin_wall(
-  int side, const std::vector<std::string>& values, const std::vector<int>& active,
-  bool allow_shared_pair, std::vector<Spin_Walls>& walls, std::string& error)
+  int side,
+  const std::vector<std::string>& values,
+  const std::vector<int>& active,
+  bool allow_shared_pair,
+  std::vector<Spin_Walls>& walls,
+  std::string& error)
 {
   const std::string name = Spin_Walls::keyword(side);
   const bool shared = allow_shared_pair && values.size() == 2;
@@ -54,9 +58,10 @@ bool parse_spin_wall(
   for (size_t t = 0; t < active.size(); ++t) {
     Spin_Wall wall;
     const size_t i = shared ? 0 : 2 * t;
-    if (!NEP_File::parse_double(values[i], wall.threshold) ||
-        !NEP_File::parse_double(values[i + 1], wall.stiffness) ||
-        wall.threshold < 0 || wall.stiffness < 0)
+    if (
+      !NEP_File::parse_double(values[i], wall.threshold) ||
+      !NEP_File::parse_double(values[i + 1], wall.stiffness) || wall.threshold < 0 ||
+      wall.stiffness < 0)
       return fail(error, name + " requires finite non-negative thresholds and stiffnesses.");
     if (wall.stiffness > 0 && (wall.threshold == 0 || (!shared && !active[t])))
       return fail(error, name + " requires positive bounds on active spin types only.");

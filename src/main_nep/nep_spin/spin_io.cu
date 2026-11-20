@@ -111,9 +111,10 @@ void write_checkpoint_metadata(FILE* fid_nep, const Spin_Parameters& para)
     fprintf(fid_nep, "\n");
   }
   for (int side = 0; side < Spin_Walls::count; ++side) {
-    if (!std::any_of(para.spin_walls.begin(), para.spin_walls.end(), [side](const Spin_Walls& wall) {
-          return wall.side[side].stiffness > 0;
-        }))
+    if (!std::any_of(
+          para.spin_walls.begin(), para.spin_walls.end(), [side](const Spin_Walls& wall) {
+            return wall.side[side].stiffness > 0;
+          }))
       continue;
     fprintf(fid_nep, "%s", Spin_Walls::keyword(side));
     for (const auto& wall : para.spin_walls)

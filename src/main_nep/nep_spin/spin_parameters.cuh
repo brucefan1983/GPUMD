@@ -35,7 +35,8 @@ public:
   std::vector<float> spin_cutoff_by_type;
   std::vector<Spin_Walls> spin_walls;
   bool needs_spin_wall_bounds() const;
-  void resolve_spin_wall_bounds(const std::vector<double>& minima, const std::vector<double>& maxima);
+  void
+  resolve_spin_wall_bounds(const std::vector<double>& minima, const std::vector<double>& maxima);
   GPU_Vector<float> q_scaler_square_sum[16];
   GPU_Vector<unsigned long long> q_scaler_count[16];
 

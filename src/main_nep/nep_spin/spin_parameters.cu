@@ -153,9 +153,10 @@ void Spin_Parameters::configure_spin_walls(const std::vector<Spin_Walls>& checkp
       continue;
     if (values.front() == "auto") {
       Spin_Wall spec;
-      if (values.size() != 3 || !NEP_File::parse_double(values[1], spec.threshold) ||
-          !NEP_File::parse_double(values[2], spec.stiffness) || spec.threshold < 0 ||
-          spec.stiffness < 0)
+      if (
+        values.size() != 3 || !NEP_File::parse_double(values[1], spec.threshold) ||
+        !NEP_File::parse_double(values[2], spec.stiffness) || spec.threshold < 0 ||
+        spec.stiffness < 0)
         PRINT_INPUT_ERROR("Spin wall auto requires finite non-negative margin and stiffness.");
       if (prediction)
         PRINT_INPUT_ERROR("Spin wall auto requires training data, not prediction mode.");
@@ -192,7 +193,8 @@ void Spin_Parameters::resolve_spin_wall_bounds(
     const bool high = side == Spin_Walls::high;
     for (int t = 0; t < num_types; ++t) {
       const double bound = high ? maxima[t] + spec.threshold : minima[t] - spec.threshold;
-      if (!spin_type_active[t] || minima[t] == std::numeric_limits<double>::infinity() || bound <= 0)
+      if (
+        !spin_type_active[t] || minima[t] == std::numeric_limits<double>::infinity() || bound <= 0)
         continue;
       if (!std::isfinite(bound))
         PRINT_INPUT_ERROR("Spin wall auto produced a non-finite threshold.");

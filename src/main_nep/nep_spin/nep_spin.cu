@@ -366,7 +366,11 @@ void NEP_Spin_Model::find_force(
     if (walls.size()) {
       auto& spin = magnetic(data);
       add_spin_wall<<<(data.N + 127) / 128, 128>>>(
-        data.N, data.type.data(), spin.spin.data(), walls.data(), data.energy.data(),
+        data.N,
+        data.type.data(),
+        spin.spin.data(),
+        walls.data(),
+        data.energy.data(),
         spin.mforce.data());
       GPU_CHECK_KERNEL
     }

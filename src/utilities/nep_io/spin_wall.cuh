@@ -38,8 +38,8 @@ struct Spin_Walls {
 #if defined(__CUDACC__) || defined(__HIPCC__)
 __host__ __device__
 #endif
-inline double evaluate_spin_wall(
-  const Spin_Walls& walls, const double (&spin)[3], double (&mforce)[3])
+  inline double
+  evaluate_spin_wall(const Spin_Walls& walls, const double (&spin)[3], double (&mforce)[3])
 {
   const double scale = fmax(fabs(spin[0]), fmax(fabs(spin[1]), fabs(spin[2])));
   const double divisor = scale > 0 ? scale : 1.0;
@@ -57,8 +57,7 @@ inline double evaluate_spin_wall(
     return f * (excess / 3.0);
   }
   if (lo.stiffness > 0 && norm < lo.threshold) {
-    const double a = spin[0] / lo.threshold, b = spin[1] / lo.threshold,
-                 c = spin[2] / lo.threshold;
+    const double a = spin[0] / lo.threshold, b = spin[1] / lo.threshold, c = spin[2] / lo.threshold;
     const double deficit = fmax(0.0, 1.0 - (a * a + b * b + c * c));
     const double f = lo.stiffness * deficit * deficit;
     mforce[0] = 2.0 * (f * a);
