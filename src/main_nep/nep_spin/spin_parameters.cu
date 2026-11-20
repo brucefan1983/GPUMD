@@ -23,6 +23,7 @@ Major contributors:
 #include "spin_parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/nep_io/nep_file.cuh"
 #include "utilities/nep_utilities.cuh"
 #include "utilities/read_file.cuh"
 #include <algorithm>
@@ -129,10 +130,84 @@ bool Spin_Parameters::parse_keyword(const char** param, int num_param)
     parse_spin_cutoff(param, num_param);
   } else if (strcmp(param[0], "spin_type") == 0) {
     parse_spin_type(param, num_param);
+  } else if (strcmp(param[0], "spin_wall_high") == 0 || strcmp(param[0], "spin_wall_low") == 0) {
+    const int side = strcmp(param[0], "spin_wall_high") == 0 ? Spin_Walls::high : Spin_Walls::low;
+    auto& values = spin_wall_input_[side];
+    if (!values.empty() || num_param < 2)
+      PRINT_INPUT_ERROR("Duplicate or incomplete spin wall keyword.");
+    values.assign(param + 1, param + num_param);
   } else {
     return NEP_Energy_Parameters::parse_keyword(param, num_param);
   }
   return true;
+}
+
+void Spin_Parameters::configure_spin_walls(const std::vector<Spin_Walls>& checkpoint)
+{
+  spin_walls.resize(num_types);
+  if (prediction || spin_restart)
+    spin_walls = checkpoint;
+  for (int side = 0; side < Spin_Walls::count; ++side) {
+    const auto& values = spin_wall_input_[side];
+    if (values.empty())
+      continue;
+    if (values.front() == "auto") {
+      Spin_Wall spec;
+      if (values.size() != 3 || !NEP_File::parse_double(values[1], spec.threshold) ||
+          !NEP_File::parse_double(values[2], spec.stiffness) || spec.threshold < 0 ||
+          spec.stiffness < 0)
+        PRINT_INPUT_ERROR("Spin wall auto requires finite non-negative margin and stiffness.");
+      if (prediction)
+        PRINT_INPUT_ERROR("Spin wall auto requires training data, not prediction mode.");
+      if (!spin_restart)
+        auto_wall_[side] = spec;
+      continue;
+    }
+    std::string error;
+    if (!parse_spin_wall(side, values, spin_type_active, true, spin_walls, error))
+      PRINT_INPUT_ERROR(error.c_str());
+    if (spin_restart)
+      for (int t = 0; t < num_types; ++t) {
+        const auto value = spin_walls[t].side[side];
+        const auto saved = checkpoint[t].side[side];
+        if (value.threshold != saved.threshold || value.stiffness != saved.stiffness)
+          PRINT_INPUT_ERROR("Spin wall in nep.in conflicts with the Spin checkpoint.");
+      }
+  }
+  validate_spin_wall_order();
+}
+
+bool Spin_Parameters::needs_spin_wall_bounds() const
+{
+  return auto_wall_[Spin_Walls::high].stiffness > 0 || auto_wall_[Spin_Walls::low].stiffness > 0;
+}
+
+void Spin_Parameters::resolve_spin_wall_bounds(
+  const std::vector<double>& minima, const std::vector<double>& maxima)
+{
+  for (int side = 0; side < Spin_Walls::count; ++side) {
+    const auto spec = auto_wall_[side];
+    if (spec.stiffness == 0)
+      continue;
+    const bool high = side == Spin_Walls::high;
+    for (int t = 0; t < num_types; ++t) {
+      const double bound = high ? maxima[t] + spec.threshold : minima[t] - spec.threshold;
+      if (!spin_type_active[t] || minima[t] == std::numeric_limits<double>::infinity() || bound <= 0)
+        continue;
+      if (!std::isfinite(bound))
+        PRINT_INPUT_ERROR("Spin wall auto produced a non-finite threshold.");
+      spin_walls[t].side[side] = {bound, spec.stiffness};
+    }
+    auto_wall_[side] = {};
+  }
+  validate_spin_wall_order();
+}
+
+void Spin_Parameters::validate_spin_wall_order() const
+{
+  for (const auto& wall : spin_walls)
+    if (!wall.ordered())
+      PRINT_INPUT_ERROR("spin_wall_low threshold must be below spin_wall_high.");
 }
 
 void Spin_Parameters::validate_spin_parameters()

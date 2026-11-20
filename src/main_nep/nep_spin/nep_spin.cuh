@@ -166,6 +166,7 @@ private:
   struct Spin_Workspace {
     nep_spin::Storage spin_layout;
     GPU_Vector<int> spin_type_active;
+    GPU_Vector<Spin_Walls> spin_walls;
     GPU_Vector<float> spin_cutoff_pair;
     GPU_Vector<float> spin_moments;
     GPU_Vector<double> wide_spin_descriptors, wide_radial;

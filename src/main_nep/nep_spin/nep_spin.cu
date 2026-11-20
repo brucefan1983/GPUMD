@@ -16,6 +16,7 @@
 /*----------------------------------------------------------------------------80
 Major contributors:
   Chengbing Chen: Initial implementation.
+  Chengbing Chen with AI assistance: Longitudinal walls in training and prediction.
 ------------------------------------------------------------------------------*/
 
 #include "force/nep_spin/spin_warp.cuh"
@@ -361,6 +362,14 @@ void NEP_Spin_Model::find_force(
       add_nep_zbl(zbl, dataset[device_id], neighbor[device_id]);
     }
     find_additional_force(para, dataset[device_id], device_id);
+    const auto& walls = spin_data_[device_id].spin_walls;
+    if (walls.size()) {
+      auto& spin = magnetic(data);
+      add_spin_wall<<<(data.N + 127) / 128, 128>>>(
+        data.N, data.type.data(), spin.spin.data(), walls.data(), data.energy.data(),
+        spin.mforce.data());
+      GPU_CHECK_KERNEL
+    }
   }
 }
 

@@ -43,6 +43,28 @@ bool to_float(double value, float& result)
 }
 } // namespace
 
+bool parse_spin_wall(
+  int side, const std::vector<std::string>& values, const std::vector<int>& active,
+  bool allow_shared_pair, std::vector<Spin_Walls>& walls, std::string& error)
+{
+  const std::string name = Spin_Walls::keyword(side);
+  const bool shared = allow_shared_pair && values.size() == 2;
+  if (!shared && values.size() != 2 * active.size())
+    return fail(error, name + " requires a threshold/stiffness pair per element.");
+  for (size_t t = 0; t < active.size(); ++t) {
+    Spin_Wall wall;
+    const size_t i = shared ? 0 : 2 * t;
+    if (!NEP_File::parse_double(values[i], wall.threshold) ||
+        !NEP_File::parse_double(values[i + 1], wall.stiffness) ||
+        wall.threshold < 0 || wall.stiffness < 0)
+      return fail(error, name + " requires finite non-negative thresholds and stiffnesses.");
+    if (wall.stiffness > 0 && (wall.threshold == 0 || (!shared && !active[t])))
+      return fail(error, name + " requires positive bounds on active spin types only.");
+    walls[t].side[side] = (wall.stiffness > 0 && active[t]) ? wall : Spin_Wall{};
+  }
+  return true;
+}
+
 bool NEP_Spin_Model_File::read(std::istream& input, std::string& error)
 {
   *this = NEP_Spin_Model_File{};
@@ -161,6 +183,19 @@ bool NEP_Spin_Model_File::read(std::istream& input, std::string& error)
   spin_type.assign(types, 1);
   if (doc.find_field("spin_type") && !active_types("spin_type", spin_type))
     return false;
+
+  spin_walls.resize(types);
+  for (int side = 0; side < Spin_Walls::count; ++side) {
+    const auto* name = Spin_Walls::keyword(side);
+    if (doc.find_field(name)) {
+      f = field(name, 2 * types, 2 * types);
+      if (!f || !parse_spin_wall(side, f->values, spin_type, false, spin_walls, error))
+        return false;
+    }
+  }
+  for (const auto& walls : spin_walls)
+    if (!walls.ordered())
+      return fail(error, "spin_wall_low threshold must be below spin_wall_high.");
 
   f = field("energy_reference", types, types);
   if (!f)

@@ -26,6 +26,7 @@ Major contributors:
 #include <array>
 #include <cmath>
 #include <fstream>
+#include <limits>
 #include <map>
 #include <sstream>
 
@@ -273,6 +274,25 @@ void NEP_Spin_Model::Spin_Reader::read_structure(const XYZ_Record& record, Struc
 void NEP_Spin_Model::Spin_Reader::prepare_train(
   std::vector<Structure>& structures, int batch_size, int& batches, std::vector<int>& sizes)
 {
+  if (parameters.needs_spin_wall_bounds()) {
+    const double infinity = std::numeric_limits<double>::infinity();
+    std::vector<double> minima(parameters.num_types, infinity);
+    std::vector<double> maxima(parameters.num_types, -infinity);
+    for (const auto& structure : structures) {
+      const auto& label = labels.at(structure.index_in_file);
+      for (int a = 0; a < structure.num_atom; ++a) {
+        const int type = structure.type[a];
+        if (!parameters.spin_type_active[type])
+          continue;
+        const double norm = std::hypot(std::hypot(label.sx[a], label.sy[a]), label.sz[a]);
+        if (!std::isfinite(norm))
+          PRINT_INPUT_ERROR("Cannot resolve spin wall auto from a non-finite training moment.");
+        minima[type] = std::min(minima[type], norm);
+        maxima[type] = std::max(maxima[type], norm);
+      }
+    }
+    parameters.resolve_spin_wall_bounds(minima, maxima);
+  }
   for (const auto& structure : structures) {
     const auto& label = labels.at(structure.index_in_file);
     if (label.has_spin_response_metadata)

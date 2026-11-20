@@ -1,4 +1,5 @@
 """Exercise the production Spin model parser without CUDA or text normalization."""
+import math
 import shutil
 import struct
 import subprocess
@@ -18,6 +19,7 @@ def codec(tmp_path_factory):
     main = root / 'main.cpp'
     main.write_text('''#include "utilities/nep_io/nep_spin_model_file.cuh"
 #include <fstream>
+#include <cstdlib>
 #include <iomanip>
 #include <iostream>
 int main(int argc, char** argv) {
@@ -29,6 +31,13 @@ int main(int argc, char** argv) {
     std::cerr << "Spin model was not recognized"; return 2;
   }
   std::cout << std::setprecision(17);
+  if (argc == 6) {
+    const double spin[] = {std::atof(argv[3]), std::atof(argv[4]), std::atof(argv[5])};
+    double mforce[3];
+    const auto energy = evaluate_spin_wall(model.spin_walls.at(std::atoi(argv[2])), spin, mforce);
+    std::cout << energy << ' ' << mforce[0] << ' ' << mforce[1] << ' ' << mforce[2] << '\\n';
+    return 0;
+  }
   auto dump = [](const char* name, const auto& values) {
     std::cout << name;
     for (auto value : values) std::cout << ' ' << value;
@@ -162,3 +171,54 @@ def test_spin_cutoff_lower_bound(codec, tmp_path):
     for cutoff, expected in [('3', [3, 3, 3]), ('3 4 6', [3, 4, 6])]:
         parsed = parse(codec, tmp_path/'cutoff.nep', model.replace('spin_cutoff 6', 'spin_cutoff '+cutoff))
         assert parsed['spin_cutoff'] == expected
+
+
+@pytest.mark.parametrize('metadata', [
+    'spin_wall_high 4 2',
+    'spin_wall_high auto 1 2',
+    'spin_wall_high 4 -2 0 0 0 0',
+    'spin_wall_low nan 2 0 0 0 0',
+    'spin_wall_high 0 2 0 0 0 0',
+    'spin_wall_high 4 2 4 1 0 0',
+    'spin_wall_high 4 2 0 0 0 0\nspin_wall_low 4 1 0 0 0 0',
+    'spin_wall_high 4 2 0 0 0 0\nspin_wall_high 4 2 0 0 0 0',
+])
+def test_spin_wall_model_rejects_invalid(codec, tmp_path, metadata):
+    model = (Path(__file__).parent/'fixtures/nep_spin/c3l2s2.nep').read_text()
+    path = tmp_path/'invalid.nep'
+    path.write_text(model.replace('spin_type Fe\n', f'spin_type Fe\n{metadata}\n'))
+    result = subprocess.run([codec, path], capture_output=True, text=True)
+    assert result.returncode == 1 and 'spin_wall' in result.stderr
+
+
+def test_spin_wall_energy_and_gradient(codec, tmp_path):
+    model = (Path(__file__).parent/'fixtures/nep_spin/c3l2s2.nep').read_text()
+    path = tmp_path/'walls.nep'
+
+    def evaluate(spin, index=0):
+        return list(map(float, subprocess.check_output(
+            [codec, path, str(index), *map(str, spin)], text=True).split()))
+
+    path.write_text(model)
+    assert evaluate((3, 4, 0)) == [0.0] * 4
+    path.write_text(model.replace('spin_type Fe\n', 'spin_type Fe\n'
+                                  'spin_wall_high 4 3 0 0 0 0\nspin_wall_low 2 1.5 0 0 0 0\n'))
+
+    def energy(spin):
+        radius = math.hypot(*spin)
+        return max(0, radius - 4)**3 + max(0, 1 - radius**2 / 4)**3
+
+    for spin in ((3, 4, 0), (.5, -.6, -.7), (0, 0, 0), (2, 0, 0), (0, 4, 0), (0, 3, 0)):
+        expected = [energy(spin)]
+        for d in range(3):
+            minus, plus = list(spin), list(spin)
+            minus[d] -= 1e-5
+            plus[d] += 1e-5
+            expected.append((energy(minus) - energy(plus)) / 2e-5)
+        assert evaluate(spin) == pytest.approx(expected, abs=1e-9)
+        assert evaluate(tuple(-s for s in spin)) == pytest.approx([expected[0], *(-f for f in expected[1:])], abs=1e-9)
+        assert evaluate(spin, index=1) == [0.0] * 4
+
+    path.write_text(model.replace('spin_type Fe\n', 'spin_type Fe\n'
+                                  'spin_wall_low 1e-180 1 0 0 0 0\n'))
+    assert evaluate((5e-181, 0, 0))[1:] == pytest.approx([0.5625, 0.0, 0.0])

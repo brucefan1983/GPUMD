@@ -85,6 +85,8 @@ Keywords
      - enable joint spin--space rotation-invariant magnetic channels
    * - :ref:`spin_type <kw_spin_type>`
      - atom types with independent spin degrees of freedom
+   * - :ref:`spin_wall_high / spin_wall_low <kw_spin_wall>`
+     - optional longitudinal energy penalty outside a magnetic moment range
    * - :ref:`use_typewise_cutoff_zbl <kw_use_typewise_cutoff_zbl>`
      - enable typewise cutoff radii for the ZBL part of the model
    * - :ref:`cutoff <kw_cutoff>`
