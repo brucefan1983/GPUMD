@@ -75,18 +75,20 @@ class RemdTPRegression(unittest.TestCase):
         return directory
 
     def run_tp(self, directory, steps, *, temp=(300, 400, 2), pressure=(0, 0, 1),
-               exchange=10, interval=10, couple='xyz', modulus=2, tau_p=1000,
-               tau_t=100, equilibrate=0, resume=False, grid=None, dump=0, error=None,
+               exchange=10, interval=10, modulus=2, tau_p=1000, tau_t=100,
+               equilibrate=0, resume=False, grid=None, ladder=True, dump=0, error=None,
                timeout=120, dt=0.5, properties='velocity'):
         t1, t2, nt = temp
         p1, p2, np = pressure
-        p_options = f'pressure_grid {grid}' if grid else f'pressure {p1} {p2} {np}'
+        # The ensemble uses the isotropic npt_scr syntax of ordinary MD; its pressure
+        # is the lowest REMD pressure. Without a ladder, every replica uses it.
+        p_options = f' pressure_grid {grid}' if grid else f' pressure {p1} {p2} {np}'
         commands = (
             f'potential nep.txt\ntime_step {dt}\n'
-            f'ensemble npt_scr {t1} {t2} {tau_t} {p1} {p2} {modulus} {tau_p} '
-            f'couple {couple} pcouple_interval {interval}\n'
+            f'ensemble npt_scr {t1} {t2} {tau_t} {p1} {modulus} {tau_p}\n'
             f'multi_replica remd replicas {nt * np} exchange {exchange} '
-            f'temp {t1} {t2} {nt} {p_options}'
+            f'temp {t1} {t2} {nt}' + (p_options if ladder else '')
+            + (f' pcouple_interval {interval}' if interval != 10 else '')
             + (f' equilibrate {equilibrate}' if equilibrate else '')
             + (' resume remd' if resume else '') + '\n'
         )
@@ -185,19 +187,53 @@ class RemdTPRegression(unittest.TestCase):
             self.assertEqual(volume(header), 27000)
             self.assertEqual(metadata(directory)[('scr_state', str(r))][2], '0')
 
-    def test_coupled_directions(self):
-        for dirs in ('x', 'y', 'z', 'xy', 'xz', 'yz', 'xyz'):
-            with self.subTest(couple=dirs):
-                directory = self.prepare(dirs, free=True)
-                self.run_tp(directory, 31, couple=dirs)
-                for r in range(2):
-                    header, _ = next(xyz_frames(directory / f'remd_replica_{r}_restart.xyz'))
-                    h = list(map(float, header['Lattice'].split()))
-                    for d, name in enumerate('xyz'):
-                        if name in dirs:
-                            self.assertNotEqual(h[4 * d], 30)
-                        else:
-                            self.assertEqual(h[4 * d], 30)
+    def test_isotropic_box_scaling(self):
+        directory = self.prepare('isotropic', free=True)
+        self.run_tp(directory, 31)
+        for r in range(2):
+            header, _ = next(xyz_frames(directory / f'remd_replica_{r}_restart.xyz'))
+            h = list(map(float, header['Lattice'].split()))
+            self.assertNotEqual(h[0], 30)
+            for d in (1, 2):
+                self.assertAlmostEqual(h[4 * d] / h[0], 1, delta=1e-13)
+            self.assertEqual([h[i] for i in (1, 2, 3, 5, 6, 7)], [0] * 6)
+
+    def test_pressure_defaults_to_npt_scr_pressure(self):
+        directory = self.prepare('default_pressure', free=True)
+        self.run_tp(directory, 10, temp=(300, 400, 2), pressure=(.001, .001, 1), ladder=False)
+        state = metadata(directory)
+        self.assertEqual(state[('grid',)], ['2', '1'])
+        self.assertEqual([float(x) for x in state[('pressure_table',)]], [.001, .001])
+
+    def test_npt_scr_uses_ordinary_md_syntax(self):
+        directory = self.prepare('ordinary_syntax', free=True)
+        self.run_tp(directory, 1)
+        original = (directory / 'run.in').read_text()
+        ensemble = 'ensemble npt_scr 300 400 100 0 2 1000'
+        self.assertIn(ensemble, original)
+        cases = [
+            # Former NPT REMD form with two pressures and extra options.
+            (ensemble, 'ensemble npt_scr 300 400 100 0 0 2 1000', 'isotropic npt_scr form'),
+            (ensemble, ensemble + ' couple z', 'isotropic npt_scr form'),
+            (ensemble, ensemble + ' pcouple_interval 10', 'isotropic npt_scr form'),
+            # Independent box lengths and triclinic cell changes of ordinary MD.
+            (ensemble, 'ensemble npt_scr 300 400 100 0 0 0 2 2 2 1000', 'isotropic npt_scr form'),
+            (ensemble, 'ensemble npt_scr 300 400 100 0 0 0 0 0 0 2 2 2 2 2 2 1000',
+             'isotropic npt_scr form'),
+            # A modulus above 2000 GPa disables pressure control in npt_scr.
+            (ensemble, 'ensemble npt_scr 300 400 100 0 2001 1000', 'active barostat'),
+            (ensemble, 'ensemble npt_scr 300 400 100 0.001 2 1000', 'lowest NPT REMD pressure'),
+            (ensemble, 'ensemble npt_scr 300 401 100 0 2 1000', 'first and last NPT REMD'),
+            ('multi_replica remd ', 'multi_replica remd pcouple_interval 600 ', 'twice pcouple_interval'),
+            ('multi_replica remd ', 'multi_replica remd pcouple_interval 0 ', 'pcouple_interval'),
+        ]
+        for old, new, error in cases:
+            with self.subTest(change=new):
+                (directory / 'run.in').write_text(original.replace(old, new))
+                result = subprocess.run([str(base.BINARY)], cwd=directory, env=base.ENV,
+                                        capture_output=True, text=True, timeout=120)
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn(error, result.stdout + result.stderr)
 
     def test_pressure_and_sheared_grid_exchange_rules(self):
         for sheared, nt, np in ((False, 1, 3), (False, 3, 3), (True, 3, 3)):
@@ -351,7 +387,7 @@ class RemdTPRegression(unittest.TestCase):
         self.run_tp(directory, 1, resume=True, error='Unsupported REMD restart format_version')
         path.write_text(original)
         for options in (dict(exchange=11), dict(interval=5), dict(modulus=3), dict(tau_p=1100),
-                        dict(tau_t=101), dict(temp=(300, 401, 2)), dict(couple='z')):
+                        dict(tau_t=101), dict(temp=(300, 401, 2))):
             with self.subTest(options=options):
                 self.run_tp(directory, 1, resume=True, error='REMD restart', **options)
         # Singular/plural messages differ for grid vs other parameter checks;
@@ -362,28 +398,29 @@ class RemdTPRegression(unittest.TestCase):
 
     def test_restart_xyz_validation(self):
         directory = self.prepare('xyz_validation', free=True)
-        self.run_tp(directory, 10, couple='z')
+        self.run_tp(directory, 10)
         path = directory / 'remd_replica_0_restart.xyz'
         original = path.read_text()
         changes = [
-            ('pbc="T T T"', 'pbc="F F T"'),
+            ('pbc="T T T"', 'pbc="F F T"', 'pbc does not match'),
             ('Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3',
-             'Properties=species:S:1:vel:R:3:mass:R:1:pos:R:3'),
-            ('replica=0', 'replica=1'), ('restart_step=10', 'restart_step=9'),
+             'Properties=species:S:1:vel:R:3:mass:R:1:pos:R:3', 'REMD'),
+            ('replica=0', 'replica=1', 'REMD'), ('restart_step=10', 'restart_step=9', 'REMD'),
         ]
-        for old, new in changes:
+        for old, new, error in changes:
             with self.subTest(change=new):
                 path.write_text(original.replace(old, new))
-                self.run_tp(directory, 1, resume=True, couple='z', error='REMD')
+                self.run_tp(directory, 1, resume=True, error=error)
         for lattice in ('0 0 0 0 30 0 0 0 30', '30 0 0 5 30 0 0 0 30',
                         '30 0 0 0 30 0 0 0 30 1'):
             with self.subTest(lattice=lattice):
                 path.write_text(re.sub(r'Lattice="[^"]+"', f'Lattice="{lattice}"', original))
-                self.run_tp(directory, 1, resume=True, couple='z', error='REMD')
+                self.run_tp(directory, 1, resume=True, error='REMD')
+        # A nonperiodic model is rejected before the restart files are read.
         path.write_text(original)
         model = directory / 'model.xyz'
         model.write_text(model.read_text().replace('pbc="T T T"', 'pbc="F F T"'))
-        self.run_tp(directory, 1, resume=True, couple='z', error='pbc does not match')
+        self.run_tp(directory, 1, resume=True, error='periodic boundaries in all directions')
 
     def test_reject_nonfinite_barostat_parameters(self):
         directory = self.prepare('nonfinite', free=True)
@@ -398,7 +435,7 @@ class RemdTPRegression(unittest.TestCase):
         directory = self.prepare('nonperiodic', free=True)
         path = directory / 'model.xyz'
         path.write_text(path.read_text().replace('pbc="T T T"', 'pbc="F T T"'))
-        self.run_tp(directory, 1, error='directions must be periodic')
+        self.run_tp(directory, 1, error='periodic boundaries in all directions')
 
     def test_species_subset_matches_plain_gpumd(self):
         directory = self.prepare_orthogonal_pbte('subset')
@@ -420,27 +457,26 @@ class RemdTPRegression(unittest.TestCase):
 
     def test_deformed_force_and_virial_match_plain_gpumd(self):
         for repeat in (2, 4):  # small-box and large-box paths
-            for couple in ('xyz', 'z'):
-                with self.subTest(repeat=repeat, couple=couple):
-                    directory = self.prepare_orthogonal_pbte(f'deform_{repeat}_{couple}', repeat=repeat, strain=.97)
-                    self.run_tp(directory, 11, interval=2, modulus=100, tau_p=1000, couple=couple,
-                                dump=1, properties='mass velocity force potential virial', exchange=1000)
-                    for replica in range(2):
-                        frames = list(xyz_frames(directory / f'trajectory_replica_{replica}.xyz'))
-                        # Step 2 precedes an update, step 3 follows deformation/rebuild,
-                        # step 4 exercises reuse, step 11 follows several updates.
-                        for step in (2, 3, 4, 11):
-                            header, rows = frames[step - 1]
-                            actual = self.frame_properties(header, rows)
-                            reference = self.plain_snapshot(directory, header, rows,
-                                f'reference_{repeat}_{couple}_{replica}_{step}')
-                            for name in ('forces', 'energy_atom', 'virial'):
-                                self.compare_array(actual[name], reference[name], name)
-                            self.assertGreater(sum(abs(x) for row in reference['virial'] for x in row), 1e-5)
-                            self.assertAlmostEqual(sum(row[0] for row in actual['energy_atom']),
-                                                   float(header['potential_energy']), delta=1e-7)
-                        original_volume = (repeat * 6.570392 * .97) ** 3
-                        self.assertNotEqual(volume(frames[-1][0]), original_volume)
+            with self.subTest(repeat=repeat):
+                directory = self.prepare_orthogonal_pbte(f'deform_{repeat}', repeat=repeat, strain=.97)
+                self.run_tp(directory, 11, interval=2, modulus=100, tau_p=1000,
+                            dump=1, properties='mass velocity force potential virial', exchange=1000)
+                for replica in range(2):
+                    frames = list(xyz_frames(directory / f'trajectory_replica_{replica}.xyz'))
+                    # Step 2 precedes an update, step 3 follows deformation/rebuild,
+                    # step 4 exercises reuse, step 11 follows several updates.
+                    for step in (2, 3, 4, 11):
+                        header, rows = frames[step - 1]
+                        actual = self.frame_properties(header, rows)
+                        reference = self.plain_snapshot(directory, header, rows,
+                            f'reference_{repeat}_{replica}_{step}')
+                        for name in ('forces', 'energy_atom', 'virial'):
+                            self.compare_array(actual[name], reference[name], name)
+                        self.assertGreater(sum(abs(x) for row in reference['virial'] for x in row), 1e-5)
+                        self.assertAlmostEqual(sum(row[0] for row in actual['energy_atom']),
+                                               float(header['potential_energy']), delta=1e-7)
+                    original_volume = (repeat * 6.570392 * .97) ** 3
+                    self.assertNotEqual(volume(frames[-1][0]), original_volume)
 
     def check_interacting_pressure(self, directory, replica):
         header, rows = list(xyz_frames(directory / f'trajectory_replica_{replica}.xyz'))[-1]
@@ -511,9 +547,11 @@ class RemdTPRegression(unittest.TestCase):
         self.run_tp(directory, 1)
         original = (directory / 'run.in').read_text()
         invalid = [original.replace('multi_replica remd ', 'multi_replica remd_tp '),
-                   original.replace('ensemble npt_scr 300 400 100 0 0 2 1000 couple xyz pcouple_interval 10',
+                   original.replace('ensemble npt_scr 300 400 100 0 2 1000',
                                     'ensemble nvt_bdp 300 400 100').replace('temp 300 400 2', 'temp 300 400'),
-                   original.replace(' pressure 0 0 1', '')]
+                   original.replace('multi_replica remd ', 'multi_replica remd pcouple_interval 5 ')
+                   .replace('ensemble npt_scr 300 400 100 0 2 1000', 'ensemble nvt_bdp 300 400 100')
+                   .replace('temp 300 400 2 pressure 0 0 1', 'temp 300 400')]
         for commands in invalid:
             (directory / 'run.in').write_text(commands)
             result = subprocess.run([str(base.BINARY)], cwd=directory, env=base.ENV,

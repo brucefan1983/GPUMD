@@ -14,11 +14,18 @@
 */
 
 /*----------------------------------------------------------------------------80
-Temperature replica-exchange molecular dynamics. Each visible GPU owns one
-potential model. Independent replica states on that GPU use separate streams.
-NVT uses BDP; NPT adds SCR and temperature-pressure exchange conditions.
-The NPT extension was proposed and primarily implemented by Jiuyang Shi;
-Wenhao Luo ported it into the common REMD driver.
+Replica-exchange molecular dynamics. Each visible GPU owns one potential model.
+Independent replica states on that GPU use separate streams. NVT exchanges
+temperatures with the BDP thermostat; NPT exchanges temperature-pressure
+conditions with the BDP thermostat and the SCR barostat.
+
+Reference for temperature-pressure exchange:
+T. Okabe, M. Kawata, Y. Okamoto, and M. Mikami, Chem. Phys. Lett. 335, 435 (2001).
+
+Major contributors:
+  Wenhao Luo: Initial implementation; integration of the NPT mode into this driver.
+  Jiuyang Shi: NPT temperature-pressure exchange, proposed and first implemented
+    as a standalone replica program.
 ------------------------------------------------------------------------------*/
 
 #include "main_gpumd/velocity.cuh"
@@ -55,18 +62,12 @@ constexpr int npt_restart_format_version = 6; // ensemble and independent SCR st
 constexpr const char* npt_exchange_marker = "# GPUMD REMD NPT exchange output format 1";
 constexpr const char* npt_status_marker = "# GPUMD REMD NPT condition status output format 1";
 constexpr const char* npt_thermo_marker = "# GPUMD REMD NPT thermodynamic output format 1";
-constexpr const char* exchange_output_marker =
-  "# GPUMD REMD exchange output format 1";
-constexpr const char* status_output_marker =
-  "# GPUMD REMD temperature status output format 1";
-constexpr const char* thermo_output_marker =
-  "# GPUMD REMD thermodynamic output format 1";
+constexpr const char* exchange_output_marker = "# GPUMD REMD exchange output format 1";
+constexpr const char* status_output_marker = "# GPUMD REMD temperature status output format 1";
+constexpr const char* thermo_output_marker = "# GPUMD REMD thermodynamic output format 1";
 
 int next_periodic_event(
-  const int local_step,
-  const int final_local_step,
-  const long long global_step,
-  const int interval)
+  const int local_step, const int final_local_step, const long long global_step, const int interval)
 {
   const long long remainder = global_step % interval;
   const long long steps = remainder == 0 ? interval : interval - remainder;
@@ -82,6 +83,7 @@ struct REMD_Config : REMD_Grid {
   int exchange_interval = 0;
   int equilibration_steps = 0;
   int dump_interval = 0;
+  int pcouple_interval = 10; // NPT: MD steps between barostat updates
   bool resume = false;
   bool dump_xyz = false;
   bool dump_velocity = false;
@@ -95,7 +97,8 @@ struct REMD_Config : REMD_Grid {
   void parse(
     const std::vector<std::string>& command,
     const std::vector<std::string>& dump_command,
-    bool npt);
+    bool npt,
+    double ensemble_pressure);
 };
 
 bool is_finite_real(const char* text, double* value)
@@ -122,7 +125,8 @@ void read_ladder_file(const std::string& name, std::vector<double>& values)
 void REMD_Config::parse(
   const std::vector<std::string>& command,
   const std::vector<std::string>& dump_command,
-  const bool npt)
+  const bool npt,
+  const double ensemble_pressure)
 {
   is_npt = npt;
   if (command.size() < 3 || command[0] != "multi_replica" || command[1] != "remd")
@@ -182,6 +186,11 @@ void REMD_Config::parse(
         PRINT_INPUT_ERROR("pressure_grid requires NPT REMD and one pressure source.");
       has_pressure = true;
       pressure_grid = command[i++];
+    } else if (option == "pcouple_interval") {
+      if (
+        !is_npt || i >= command.size() || !is_valid_int(command[i++].c_str(), &pcouple_interval) ||
+        pcouple_interval <= 0)
+        PRINT_INPUT_ERROR("pcouple_interval requires ensemble npt_scr and a positive integer.");
     } else if (option == "spacing") {
       if (i >= command.size() || (command[i] != "geometric" && command[i] != "linear"))
         PRINT_INPUT_ERROR("spacing requires geometric or linear.");
@@ -195,8 +204,13 @@ void REMD_Config::parse(
       PRINT_INPUT_ERROR("Unknown multi_replica option.");
     }
   }
-  if (replicas < 2 || exchange_interval <= 0 || !has_temperature || (is_npt && !has_pressure))
-    PRINT_INPUT_ERROR("REMD requires replicas, exchange, temp, and pressure conditions for NPT.");
+  if (replicas < 2 || exchange_interval <= 0 || !has_temperature)
+    PRINT_INPUT_ERROR("REMD requires replicas, exchange, and temp options.");
+  if (is_npt && !has_pressure) {
+    // Without a pressure ladder, every replica uses the npt_scr pressure.
+    pressures.assign(1, ensemble_pressure);
+    num_pressures = 1;
+  }
   if (resume && equilibration_steps > 0)
     PRINT_INPUT_ERROR("REMD resume cannot be combined with equilibration.");
   if (!is_npt)
@@ -263,13 +277,14 @@ void REMD_Config::parse(
   internal_seed = draw_internal_seed();
 }
 
+// ensemble npt_scr <T_1> <T_2> <T_coup> <p_hydro> <C_hydro> <p_coup>
 struct Barostat_Input {
-  double temperature_coupling = 0.0;
-  double bulk_modulus = 0.0; // GPa
-  double pressure_coupling = 0.0;
-  int interval = 10;
-  int couple[3] = {1, 1, 1};
-  std::string couple_name = "xyz";
+  double temperature_1 = 0.0;        // K
+  double temperature_2 = 0.0;        // K
+  double temperature_coupling = 0.0; // MD steps
+  double pressure = 0.0;             // GPa
+  double bulk_modulus = 0.0;         // GPa
+  double pressure_coupling = 0.0;    // MD steps
 };
 
 class REMD_Driver
@@ -367,24 +382,24 @@ REMD_Driver::REMD_Driver(
   Atom& source_atom,
   Box& source_box,
   std::vector<Group>& source_group)
-  : potential_commands_(input.potential_commands)
-  , ensemble_command_(input.ensemble_command)
-  , kspace_method_(input.kspace_method)
-  , source_atom_(source_atom)
-  , source_box_(source_box)
-  , time_step_(input.time_step)
-  , number_of_steps_(input.number_of_steps)
-  , runtime_(
+  : potential_commands_(input.potential_commands),
+    ensemble_command_(input.ensemble_command),
+    kspace_method_(input.kspace_method),
+    source_atom_(source_atom),
+    source_box_(source_box),
+    time_step_(input.time_step),
+    number_of_steps_(input.number_of_steps),
+    runtime_(
       input.model_commands, run_input, source_atom, source_box, source_group, input.time_step)
 {
   if (
     ensemble_command_.size() < 2 ||
     (ensemble_command_[1] != "nvt_bdp" && ensemble_command_[1] != "npt_scr"))
     PRINT_INPUT_ERROR("REMD requires ensemble nvt_bdp or npt_scr.");
-  config_.parse(
-    input.multi_replica_command,
-    input.dump_xyz_command,
-    ensemble_command_.size() > 1 && ensemble_command_[1] == "npt_scr");
+  const bool npt = ensemble_command_[1] == "npt_scr";
+  if (npt)
+    parse_npt_ensemble();
+  config_.parse(input.multi_replica_command, input.dump_xyz_command, npt, barostat_input_.pressure);
 }
 
 REMD_Driver::~REMD_Driver()
@@ -395,63 +410,27 @@ REMD_Driver::~REMD_Driver()
 
 void REMD_Driver::parse_npt_ensemble()
 {
+  // Same parameters as the isotropic form of npt_scr in ordinary MD. The pressure
+  // ladder, if any, is given by multi_replica remd.
   const auto& e = ensemble_command_;
-  if (e.size() < 9 || e[0] != "ensemble" || e[1] != "npt_scr")
-    PRINT_INPUT_ERROR(
-      "NPT REMD requires: ensemble npt_scr <T_1> <T_2> <tau_T> <P_1> <P_2> <bulk_modulus> <tau_p> "
-      "[couple <dirs>] [pcouple_interval <steps>].");
-  double t1 = 0.0, t2 = 0.0, p1 = 0.0, p2 = 0.0;
+  if (e.size() != 8)
+    PRINT_INPUT_ERROR("NPT REMD supports only the isotropic npt_scr form: "
+                      "ensemble npt_scr <T_1> <T_2> <T_coup> <p_hydro> <C_hydro> <p_coup>.");
+  auto& b = barostat_input_;
   if (
-    !is_finite_real(e[2].c_str(), &t1) || !is_finite_real(e[3].c_str(), &t2) ||
-    !is_finite_real(e[4].c_str(), &barostat_input_.temperature_coupling) ||
-    barostat_input_.temperature_coupling < 1.0)
-    PRINT_INPUT_ERROR("Invalid npt_scr temperature parameters for NPT REMD.");
-  if (!is_finite_real(e[5].c_str(), &p1) || !is_finite_real(e[6].c_str(), &p2))
-    PRINT_INPUT_ERROR("Invalid npt_scr pressures for NPT REMD.");
-  if (
-    !is_finite_real(e[7].c_str(), &barostat_input_.bulk_modulus) ||
-    barostat_input_.bulk_modulus <= 0.0)
-    PRINT_INPUT_ERROR("npt_scr bulk modulus should be positive (GPa).");
-  if (
-    !is_finite_real(e[8].c_str(), &barostat_input_.pressure_coupling) ||
-    barostat_input_.pressure_coupling < 1.0)
-    PRINT_INPUT_ERROR("npt_scr tau_p should be at least 1 step.");
-  for (size_t i = 9; i < e.size();) {
-    if (e[i] == "couple" && i + 1 < e.size()) {
-      const std::string& dirs = e[i + 1];
-      for (int d = 0; d < 3; ++d)
-        barostat_input_.couple[d] = 0;
-      for (const char c : dirs) {
-        if (c < 'x' || c > 'z' || barostat_input_.couple[c - 'x'])
-          PRINT_INPUT_ERROR("couple should be a combination of x, y, z without repeats.");
-        barostat_input_.couple[c - 'x'] = 1;
-      }
-      if (dirs.empty())
-        PRINT_INPUT_ERROR("couple needs at least one direction.");
-      barostat_input_.couple_name = dirs;
-      i += 2;
-    } else if (e[i] == "pcouple_interval" && i + 1 < e.size()) {
-      if (
-        !is_valid_int(e[i + 1].c_str(), &barostat_input_.interval) || barostat_input_.interval <= 0)
-        PRINT_INPUT_ERROR("pcouple_interval should be a positive integer.");
-      i += 2;
-    } else {
-      PRINT_INPUT_ERROR("Unknown npt_scr option for NPT REMD.");
-    }
-  }
-  if (
-    !values_match(t1, config_.temperatures.front()) ||
-    !values_match(t2, config_.temperatures.back()))
-    PRINT_INPUT_ERROR(
-      "npt_scr temperatures should match the first and last NPT REMD temperatures.");
-  if (
-    !values_match(
-      p1, *std::min_element(config_.pressure_table.begin(), config_.pressure_table.end())) ||
-    !values_match(
-      p2, *std::max_element(config_.pressure_table.begin(), config_.pressure_table.end())))
-    PRINT_INPUT_ERROR("npt_scr pressures should match the lowest and highest NPT REMD pressures.");
-  if (barostat_input_.pressure_coupling < 2.0 * barostat_input_.interval)
-    PRINT_INPUT_ERROR("npt_scr tau_p should be at least twice pcouple_interval.");
+    !is_finite_real(e[2].c_str(), &b.temperature_1) ||
+    !is_finite_real(e[3].c_str(), &b.temperature_2) ||
+    !is_finite_real(e[4].c_str(), &b.temperature_coupling) || b.temperature_coupling < 1.0)
+    PRINT_INPUT_ERROR("Invalid npt_scr temperatures or T_coup (at least 1) for NPT REMD.");
+  if (!is_finite_real(e[5].c_str(), &b.pressure))
+    PRINT_INPUT_ERROR("npt_scr p_hydro should be a finite number (GPa).");
+  if (!is_finite_real(e[6].c_str(), &b.bulk_modulus) || b.bulk_modulus <= 0.0)
+    PRINT_INPUT_ERROR("npt_scr C_hydro should be positive (GPa).");
+  // npt_scr does not change the box for an elastic modulus above 2000 GPa.
+  if (b.bulk_modulus > 2.0e3)
+    PRINT_INPUT_ERROR("NPT REMD requires an active barostat: C_hydro should not exceed 2000 GPa.");
+  if (!is_finite_real(e[7].c_str(), &b.pressure_coupling) || b.pressure_coupling < 1.0)
+    PRINT_INPUT_ERROR("npt_scr p_coup should be at least 1 step.");
 }
 
 void REMD_Driver::validate_input()
@@ -466,9 +445,21 @@ void REMD_Driver::validate_input()
   if (config_.is_npt) {
     if (source_atom_.number_of_atoms < 2 || kspace_method_ != "none")
       PRINT_INPUT_ERROR("NPT REMD requires at least two atoms and an energy NEP model (no qNEP).");
-    parse_npt_ensemble();
-    temperature_coupling_ = barostat_input_.temperature_coupling;
-    const int pbc[3] = {source_box_.pbc_x, source_box_.pbc_y, source_box_.pbc_z};
+    const auto& b = barostat_input_;
+    temperature_coupling_ = b.temperature_coupling;
+    if (
+      !values_match(b.temperature_1, config_.temperatures.front()) ||
+      !values_match(b.temperature_2, config_.temperatures.back()))
+      PRINT_INPUT_ERROR(
+        "npt_scr temperatures should match the first and last NPT REMD temperatures.");
+    if (!values_match(
+          b.pressure,
+          *std::min_element(config_.pressure_table.begin(), config_.pressure_table.end())))
+      PRINT_INPUT_ERROR("npt_scr p_hydro should match the lowest NPT REMD pressure.");
+    if (b.pressure_coupling < 2.0 * config_.pcouple_interval)
+      PRINT_INPUT_ERROR("npt_scr p_coup should be at least twice pcouple_interval.");
+    if (!source_box_.pbc_x || !source_box_.pbc_y || !source_box_.pbc_z)
+      PRINT_INPUT_ERROR("NPT REMD requires periodic boundaries in all directions.");
     for (int i = 0; i < 9; ++i)
       if (
         !std::isfinite(source_box_.cpu_h[i]) ||
@@ -476,9 +467,6 @@ void REMD_Driver::validate_input()
         PRINT_INPUT_ERROR("NPT REMD requires a positive finite orthogonal box.");
     if (!std::isfinite(source_box_.get_volume()) || source_box_.get_volume() <= 0)
       PRINT_INPUT_ERROR("NPT REMD requires a positive finite volume.");
-    for (int d = 0; d < 3; ++d)
-      if (barostat_input_.couple[d] && !pbc[d])
-        PRINT_INPUT_ERROR("REMD barostat directions must be periodic.");
   } else {
     parse_nvt_bdp(
       ensemble_command_, "REMD", input_temperature_1, input_temperature_2, temperature_coupling_);
@@ -520,11 +508,25 @@ void REMD_Driver::validate_input()
   printf("    replicas: %d.\n", config_.replicas);
   printf("    replicas per GPU: %d.\n", config_.replicas_per_gpu);
   printf("    exchange interval: %d steps.\n", config_.exchange_interval);
-  printf("    thermostat: nvt_bdp with tau_T = %g steps.\n", temperature_coupling_);
+  printf("    thermostat: BDP with tau_T = %g steps.\n", temperature_coupling_);
   printf(
     "    temperature range: %g K to %g K.\n",
     config_.temperatures.front(),
     config_.temperatures.back());
+  if (config_.is_npt) {
+    printf(
+      "    barostat: isotropic SCR, bulk modulus %g GPa, tau_p = %g steps, update every %d "
+      "steps.\n",
+      barostat_input_.bulk_modulus,
+      barostat_input_.pressure_coupling,
+      config_.pcouple_interval);
+    printf(
+      "    grid: %d temperatures x %d pressures, pressures %g GPa to %g GPa.\n",
+      config_.num_temperatures(),
+      config_.num_pressures,
+      *std::min_element(config_.pressure_table.begin(), config_.pressure_table.end()),
+      *std::max_element(config_.pressure_table.begin(), config_.pressure_table.end()));
+  }
   if (config_.equilibration_steps > 0)
     printf("    independent equilibration: %d steps per replica.\n", config_.equilibration_steps);
   if (config_.resume)
@@ -546,7 +548,7 @@ void REMD_Driver::set_temperature(Replica_Slot& slot, const int temperature_labe
   slot.temperature_label = temperature_label;
   slot.target_temperature = temperature_of(temperature_label);
   if (slot.barostat)
-    slot.barostat->target_pressure = pressure_of(temperature_label) / PRESSURE_UNIT_CONVERSION;
+    slot.barostat->set_target_pressure(pressure_of(temperature_label) / PRESSURE_UNIT_CONVERSION);
   slot.thermostat->temperature = slot.target_temperature;
 }
 
@@ -579,26 +581,23 @@ void REMD_Driver::initialize_slot(Replica_Slot& slot)
   slot.thermostat.reset(new Ensemble_BDP_Replica(0.0, temperature_coupling_));
   if (config_.is_npt) {
     slot.thermostat->removed_degrees_of_freedom = 3;
-    slot.barostat.reset(new SCR_Barostat(slot.device_id));
-    auto& barostat = *slot.barostat;
-    barostat.replica_id = slot.replica_id;
-    barostat.compressibility = PRESSURE_UNIT_CONVERSION / barostat_input_.bulk_modulus;
-    barostat.tau_p = barostat_input_.pressure_coupling;
-    barostat.interval = barostat_input_.interval;
-    std::copy(barostat_input_.couple, barostat_input_.couple + 3, barostat.couple);
+    slot.barostat.reset(new SCR_Barostat(
+      slot.device_id,
+      slot.replica_id,
+      barostat_input_.bulk_modulus,
+      barostat_input_.pressure_coupling,
+      config_.pcouple_interval,
+      config_.internal_seed + 611953U * (slot.replica_id + 1U) + 29U));
+    const SCR_Barostat& barostat = *slot.barostat;
     if (config_.resume) {
       if (
-        !barostat.import_state(restart_scr_states_[slot.replica_id]) ||
-        barostat.step_counter < completed_steps_ ||
-        barostat.pending !=
-          (barostat.step_counter > 0 && barostat.step_counter % barostat.interval == 0))
+        !slot.barostat->import_state(restart_scr_states_[slot.replica_id]) ||
+        barostat.step_counter() < completed_steps_)
         PRINT_INPUT_ERROR("Invalid SCR state in the REMD restart.");
       if (restart_scr_counter_ < 0)
-        restart_scr_counter_ = barostat.step_counter;
-      if (restart_scr_counter_ != barostat.step_counter)
+        restart_scr_counter_ = barostat.step_counter();
+      if (restart_scr_counter_ != barostat.step_counter())
         PRINT_INPUT_ERROR("REMD restart SCR counters differ between replicas.");
-    } else {
-      barostat.rng.seed(config_.internal_seed + 611953U * (slot.replica_id + 1U) + 29U);
     }
   }
   set_temperature(slot, replica_to_temperature_[slot.replica_id]);
@@ -629,8 +628,7 @@ void REMD_Driver::scale_velocity(Replica_Slot& slot, const double factor)
 {
   CHECK(gpuSetDevice(slot.device_id));
   const int number_of_atoms = slot.atom.number_of_atoms;
-  gpu_scale_replica_velocity<<<
-    (number_of_atoms - 1) / 128 + 1, 128, 0, slot.stream.get()>>>(
+  gpu_scale_replica_velocity<<<(number_of_atoms - 1) / 128 + 1, 128, 0, slot.stream.get()>>>(
     number_of_atoms,
     factor,
     slot.atom.velocity_per_atom.data(),
@@ -718,10 +716,10 @@ void REMD_Driver::attempt_exchanges(const long long global_step, FILE* exchange_
     set_temperature(low, high_label);
     set_temperature(high, low_label);
     if (config_.is_npt && temperature_of(low_label) != temperature_of(high_label)) {
-      if (low.barostat->pending)
-        refresh_barostat_pressure(low);
-      if (high.barostat->pending)
-        refresh_barostat_pressure(high);
+      // Include the rescaled velocities in a pending pressure measurement.
+      for (Replica_Slot* slot : {&low, &high})
+        slot->barostat->refresh_pending_pressure(
+          slot->box, slot->atom, *slot->thermostat, slot->thermo, slot->stream);
     }
     replica_to_temperature_[low_replica] = high_label;
     replica_to_temperature_[high_replica] = low_label;
@@ -738,14 +736,12 @@ void REMD_Driver::equilibrate()
   if (config_.equilibration_steps <= 0)
     return;
   printf(
-    "    Equilibrating all replicas independently for %d steps.\n",
-    config_.equilibration_steps);
+    "    Equilibrating all replicas independently for %d steps.\n", config_.equilibration_steps);
   fflush(stdout);
   const int progress_interval = std::max(1, config_.equilibration_steps / 10);
   int completed = 0;
   while (completed < config_.equilibration_steps) {
-    const int steps =
-      std::min(progress_interval, config_.equilibration_steps - completed);
+    const int steps = std::min(progress_interval, config_.equilibration_steps - completed);
     runtime_.advance_all(steps);
     completed += steps;
     printf("    %d REMD equilibration steps completed.\n", completed);
@@ -863,8 +859,7 @@ void REMD_Driver::write_ladder_report() const
     const long long attempts = exchange_attempts_[label];
     const double ratio =
       attempts > 0 ? static_cast<double>(exchange_accepts_[label]) / attempts : 0.0;
-    const double average =
-      attempts > 0 ? exchange_probability_sum_[label] / attempts : 0.0;
+    const double average = attempts > 0 ? exchange_probability_sum_[label] / attempts : 0.0;
     const bool meets_target = attempts > 0 && ratio >= target_acceptance;
     all_meet_target = all_meet_target && meets_target;
     fprintf(
@@ -889,8 +884,7 @@ std::string trajectory_filename(const std::string& prefix, const int replica)
   const std::string suffix = "_replica_" + std::to_string(replica);
   const size_t separator = prefix.find_last_of("/\\");
   const size_t extension = prefix.find_last_of('.');
-  if (extension != std::string::npos &&
-      (separator == std::string::npos || extension > separator))
+  if (extension != std::string::npos && (separator == std::string::npos || extension > separator))
     return prefix.substr(0, extension) + suffix + prefix.substr(extension);
   return prefix + suffix + ".xyz";
 }
@@ -902,8 +896,7 @@ void REMD_Driver::open_trajectory_files()
   trajectory_files_.resize(config_.replicas, nullptr);
   for (int replica = 0; replica < config_.replicas; ++replica)
     trajectory_files_[replica] = my_fopen(
-      trajectory_filename(config_.dump_prefix, replica).c_str(),
-      config_.resume ? "a" : "w");
+      trajectory_filename(config_.dump_prefix, replica).c_str(), config_.resume ? "a" : "w");
 }
 
 void REMD_Driver::close_trajectory_files()
@@ -960,10 +953,7 @@ void REMD_Driver::write_restart_xyz(Replica_Slot& slot) const
       pressure_of(slot.temperature_label));
   }
   replica::write_restart_xyz(
-    "remd_replica_" + std::to_string(slot.replica_id) + "_restart.xyz",
-    slot,
-    source_atom_,
-    fields);
+    "remd_replica_" + std::to_string(slot.replica_id) + "_restart.xyz", slot, source_atom_, fields);
 }
 
 void REMD_Driver::write_restart_metadata() const
@@ -1010,10 +1000,7 @@ void REMD_Driver::write_restart_metadata() const
     write_npt_checkpoint(file);
   for (const Replica_Slot* slot : runtime_.slots()) {
     fprintf(
-      file,
-      "bdp_rng %d %s\n",
-      slot->replica_id,
-      slot->thermostat->export_rng_state().c_str());
+      file, "bdp_rng %d %s\n", slot->replica_id, slot->thermostat->export_rng_state().c_str());
   }
   fclose(file);
 }
@@ -1138,17 +1125,11 @@ void REMD_Driver::read_restart_metadata()
 
 void REMD_Driver::read_restart_xyz(Replica_Slot& slot)
 {
-  const std::string filename = config_.resume_prefix + "_replica_" +
-                               std::to_string(slot.replica_id) + "_restart.xyz";
+  const std::string filename =
+    config_.resume_prefix + "_replica_" + std::to_string(slot.replica_id) + "_restart.xyz";
   std::ifstream input(filename);
   const std::string comment = read_restart_xyz_header(
-    input,
-    filename,
-    source_atom_,
-    source_box_,
-    "REMD",
-    config_.is_npt ? &slot.box : nullptr,
-    config_.is_npt ? barostat_input_.couple : nullptr);
+    input, filename, source_atom_, source_box_, "REMD", config_.is_npt ? &slot.box : nullptr);
   std::string value;
   int file_replica = -1;
   int temperature_label = -1;
@@ -1186,13 +1167,13 @@ void REMD_Driver::write_npt_checkpoint(FILE* file) const
   fprintf(file, "grid %d %d\npressure_table", config_.num_temperatures(), config_.num_pressures);
   for (double pressure : config_.pressure_table)
     fprintf(file, " %.17g", pressure);
+  // The last field names the coupled directions; only isotropic (xyz) coupling is supported.
   fprintf(
     file,
-    "\nbarostat %.17g %.17g %d %s\n",
+    "\nbarostat %.17g %.17g %d xyz\n",
     barostat_input_.bulk_modulus,
     barostat_input_.pressure_coupling,
-    barostat_input_.interval,
-    barostat_input_.couple_name.c_str());
+    config_.pcouple_interval);
   for (const Replica_Slot* slot : runtime_.slots())
     fprintf(file, "scr_state %d %s\n", slot->replica_id, slot->barostat->export_state().c_str());
 }
@@ -1216,8 +1197,8 @@ void REMD_Driver::read_npt_checkpoint(std::istream& input)
   if (
     !(input >> modulus >> tau >> interval >> couple) ||
     !values_match(modulus, barostat_input_.bulk_modulus) ||
-    !values_match(tau, barostat_input_.pressure_coupling) || interval != barostat_input_.interval ||
-    couple != barostat_input_.couple_name)
+    !values_match(tau, barostat_input_.pressure_coupling) || interval != config_.pcouple_interval ||
+    couple != "xyz")
     PRINT_INPUT_ERROR("REMD restart barostat does not match the input.");
   for (int r = 0; r < config_.replicas; ++r) {
     int id = -1;
@@ -1233,10 +1214,9 @@ void REMD_Driver::run()
 {
   validate_input();
   const auto initialization_begin = std::chrono::high_resolution_clock::now();
-  runtime_.initialize(
-    config_.replicas,
-    config_.replicas_per_gpu,
-    [this](Replica_Slot& slot) { initialize_slot(slot); });
+  runtime_.initialize(config_.replicas, config_.replicas_per_gpu, [this](Replica_Slot& slot) {
+    initialize_slot(slot);
+  });
   runtime_.start_workers();
   if (!config_.resume)
     equilibrate();
@@ -1273,8 +1253,7 @@ void REMD_Driver::run()
     fprintf(status_file, "# step condition_label_of_replica_0 ...\n");
   } else if (new_status) {
     fprintf(
-      status_file,
-      "# Replica-to-temperature mapping after any exchange at the reported step.\n");
+      status_file, "# Replica-to-temperature mapping after any exchange at the reported step.\n");
     fprintf(status_file, "# step");
     for (int replica = 0; replica < config_.replicas; ++replica)
       fprintf(status_file, " temperature_label_of_replica_%d", replica);
@@ -1309,13 +1288,12 @@ void REMD_Driver::run()
   int local_step = 0;
   while (local_step < number_of_steps_) {
     const long long global_step = completed_steps_ + local_step;
-    int next_event = next_periodic_event(
-      local_step, number_of_steps_, global_step, config_.exchange_interval);
+    int next_event =
+      next_periodic_event(local_step, number_of_steps_, global_step, config_.exchange_interval);
     if (config_.dump_xyz) {
       next_event = std::min(
         next_event,
-        next_periodic_event(
-          local_step, number_of_steps_, global_step, config_.dump_interval));
+        next_periodic_event(local_step, number_of_steps_, global_step, config_.dump_interval));
     }
     const int next_progress =
       std::min(number_of_steps_, ((local_step / progress_interval) + 1) * progress_interval);
@@ -1325,8 +1303,7 @@ void REMD_Driver::run()
     const long long current_global_step = completed_steps_ + local_step;
 
     const bool exchange_due = current_global_step % config_.exchange_interval == 0;
-    const bool dump_due =
-      config_.dump_xyz && current_global_step % config_.dump_interval == 0;
+    const bool dump_due = config_.dump_xyz && current_global_step % config_.dump_interval == 0;
     if (exchange_due)
       attempt_exchanges(current_global_step, exchange_file);
     write_thermo(current_global_step, thermo_file);

@@ -159,7 +159,9 @@ does not cover multiple GPUs, long-time sampling accuracy, or performance.
 The NPT extension of REMD uses the same `multi_replica remd` entry and is covered
 by `test_remd_tp.py` (the historical test filename does not name an input mode).
 Run `python3 tests_pytest/test_remd_tp.py` with `GPUMD` set to the candidate binary.
-The suite includes strained small/large-box force and full per-atom virial
+It checks that NPT uses the isotropic `npt_scr` syntax of ordinary MD, rejects
+the other pressure-control forms, and defaults to the `npt_scr` pressure without
+a ladder. The suite includes strained small/large-box force and full per-atom virial
 comparisons against ordinary GPUMD, nonzero-virial pressure checks after BDP and
 accepted temperature exchange, nontrivial acceptance probabilities, and repeated
 continuation from the same checkpoint with box/mapping/SCR/RNG checks.

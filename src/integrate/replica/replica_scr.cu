@@ -13,124 +13,162 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-// Part of the REMD-TP implementation proposed and primarily developed by
-// Jiuyang Shi, ported into gpumd by Wenhao Luo. The SCR method is due to
-// Bernetti and Bussi; see replica_scr.cuh for the reference.
+/*----------------------------------------------------------------------------80
+Isotropic stochastic cell rescaling (SCR) barostat for one replica of NPT
+replica-exchange molecular dynamics; see replica_scr.cuh.
+
+Reference: M. Bernetti and G. Bussi, J. Chem. Phys. 153, 114107 (2020).
+
+Major contributors:
+  Jiuyang Shi: Initial implementation.
+  Wenhao Luo: Integration into the gpumd replica runtime.
+------------------------------------------------------------------------------*/
+
+#include "ensemble_bdp_replica.cuh"
+#include "model/atom.cuh"
+#include "model/box.cuh"
 #include "remd_utilities.cuh"
-#include "replica_common.cuh"
 #include "replica_scr.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
+#include "utilities/gpu_vector.cuh"
 #include <cmath>
 #include <iomanip>
 #include <sstream>
 
-namespace replica
+static __global__ void
+gpu_scr_scale(const int number_of_atoms, const double scale, double* position, double* velocity)
 {
-SCR_Barostat::SCR_Barostat(const int device_id) : host_thermo(5, 0.0), ready(device_id) {}
-
-double SCR_Barostat::update_box(Box& box, const double target_temperature)
-{
-  const double volume = box.get_volume();
-  int number_of_coupled = 0;
-  double pressure = 0.0;
-  for (int d = 0; d < 3; ++d) {
-    if (couple[d]) {
-      pressure += host_thermo[2 + d];
-      ++number_of_coupled;
+  const int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_of_atoms) {
+    for (int d = 0; d < 3; ++d) {
+      position[n + d * number_of_atoms] *= scale;
+      velocity[n + d * number_of_atoms] /= scale;
     }
   }
-  pressure /= number_of_coupled;
+}
+
+namespace replica
+{
+SCR_Barostat::SCR_Barostat(
+  const int device_id,
+  const int replica_id,
+  const double bulk_modulus,
+  const double tau_p,
+  const int interval,
+  const unsigned int seed)
+  : device_id_(device_id),
+    replica_id_(replica_id),
+    compressibility_(PRESSURE_UNIT_CONVERSION / bulk_modulus),
+    tau_p_(tau_p),
+    interval_(interval),
+    rng_(seed),
+    host_thermo_(5, 0.0),
+    ready_(device_id)
+{
+}
+
+void SCR_Barostat::set_target_pressure(const double pressure) { target_pressure_ = pressure; }
+
+void SCR_Barostat::apply_pending_update(
+  const double temperature, Box& box, Atom& atom, const gpuStream_t stream)
+{
+  if (!pending_)
+    return;
+  ready_.synchronize();
+  pending_ = false;
+  const double volume = box.get_volume();
+  const double pressure = (host_thermo_[2] + host_thermo_[3] + host_thermo_[4]) / 3.0;
   const double d_epsilon = scr_log_volume_increment(
-    target_temperature,
+    temperature,
     volume,
-    target_pressure,
+    target_pressure_,
     pressure,
-    compressibility,
-    interval / tau_p,
-    normal(rng));
-  const double scale = std::exp(d_epsilon / number_of_coupled);
+    compressibility_,
+    interval_ / tau_p_,
+    normal_(rng_));
+  const double scale = std::exp(d_epsilon / 3.0);
   if (!std::isfinite(scale) || scale < 0.95 || scale > 1.05) {
     std::ostringstream message;
     message << std::setprecision(10)
             << "SCR barostat changed a box length by more than 5% in one update (replica "
-            << replica_id << ", replica MD step " << step_counter << ", length scale " << scale
+            << replica_id_ << ", replica MD step " << step_counter_ << ", length scale " << scale
             << ", volume " << volume << " A^3, target pressure "
-            << target_pressure * PRESSURE_UNIT_CONVERSION << " GPa, measured pressure "
+            << target_pressure_ * PRESSURE_UNIT_CONVERSION << " GPa, measured pressure "
             << pressure * PRESSURE_UNIT_CONVERSION << " GPa); increase tau_p or the bulk modulus.";
     PRINT_INPUT_ERROR(message.str().c_str());
   }
-  for (int d = 0; d < 3; ++d) {
-    if (couple[d])
-      box.cpu_h[d * 4] *= scale;
-  }
+  for (int d = 0; d < 3; ++d)
+    box.cpu_h[d * 4] *= scale;
   box.get_inverse();
-  return scale;
+
+  const int n = atom.number_of_atoms;
+  gpu_scr_scale<<<(n - 1) / 128 + 1, 128, 0, stream>>>(
+    n, scale, atom.position_per_atom.data(), atom.velocity_per_atom.data());
+  GPU_CHECK_KERNEL
+}
+
+void SCR_Barostat::end_step(
+  const Box& box,
+  Atom& atom,
+  Ensemble_BDP_Replica& thermostat,
+  GPU_Vector<double>& thermo,
+  const GPU_Stream& stream)
+{
+  if (++step_counter_ % interval_ == 0)
+    measure_pressure(box, atom, thermostat, thermo, stream);
+}
+
+void SCR_Barostat::refresh_pending_pressure(
+  const Box& box,
+  Atom& atom,
+  Ensemble_BDP_Replica& thermostat,
+  GPU_Vector<double>& thermo,
+  const GPU_Stream& stream)
+{
+  if (pending_)
+    measure_pressure(box, atom, thermostat, thermo, stream);
+}
+
+void SCR_Barostat::measure_pressure(
+  const Box& box,
+  Atom& atom,
+  Ensemble_BDP_Replica& thermostat,
+  GPU_Vector<double>& thermo,
+  const GPU_Stream& stream)
+{
+  CHECK(gpuSetDevice(device_id_));
+  thermostat.find_thermo(box.get_volume(), atom, thermo, stream.get());
+  thermo.copy_to_host_async(host_thermo_.data(), 5, stream.get());
+  ready_.record(stream);
+  pending_ = true;
 }
 
 std::string SCR_Barostat::export_state() const
 {
-  return export_scr_state(step_counter, pending, host_thermo.data(), rng, normal);
+  return export_scr_state(step_counter_, pending_, host_thermo_.data(), rng_, normal_);
 }
 
 bool SCR_Barostat::import_state(const std::string& state)
 {
-  return import_scr_state(state, interval, step_counter, pending, host_thermo.data(), rng, normal);
+  long long counter = 0;
+  bool pending = false;
+  double thermo[5];
+  std::mt19937 rng;
+  std::normal_distribution<double> normal;
+  // A checkpoint is written between steps, so an update is pending exactly when
+  // the last integrated step ended an update interval.
+  if (
+    !import_scr_state(state, interval_, counter, pending, thermo, rng, normal) ||
+    pending != (counter > 0 && counter % interval_ == 0))
+    return false;
+  step_counter_ = counter;
+  pending_ = pending;
+  for (int i = 0; i < 5; ++i)
+    host_thermo_[i] = thermo[i];
+  rng_ = rng;
+  normal_ = normal;
+  return true;
 }
-
-static __global__ void gpu_scr_scale(
-  const int number_of_atoms,
-  const double scale_x,
-  const double scale_y,
-  const double scale_z,
-  double* x,
-  double* y,
-  double* z,
-  double* vx,
-  double* vy,
-  double* vz)
-{
-  const int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < number_of_atoms) {
-    x[n] *= scale_x;
-    y[n] *= scale_y;
-    z[n] *= scale_z;
-    vx[n] /= scale_x;
-    vy[n] /= scale_y;
-    vz[n] /= scale_z;
-  }
-}
-
-void refresh_barostat_pressure(Replica_Slot& slot)
-{
-  CHECK(gpuSetDevice(slot.device_id));
-  slot.thermostat->find_thermo(slot.box.get_volume(), slot.atom, slot.thermo, slot.stream.get());
-  slot.thermo.copy_to_host_async(slot.barostat->host_thermo.data(), 5, slot.stream.get());
-  slot.barostat->ready.record(slot.stream);
-  slot.barostat->pending = true;
-}
-
-void apply_barostat(Replica_Slot& slot)
-{
-  SCR_Barostat& barostat = *slot.barostat;
-  barostat.ready.synchronize();
-  barostat.pending = false;
-  const double scale = barostat.update_box(slot.box, slot.target_temperature);
-  const int n = slot.atom.number_of_atoms;
-  double* position = slot.atom.position_per_atom.data();
-  double* velocity = slot.atom.velocity_per_atom.data();
-  gpu_scr_scale<<<(n - 1) / 128 + 1, 128, 0, slot.stream.get()>>>(
-    n,
-    barostat.couple[0] ? scale : 1.0,
-    barostat.couple[1] ? scale : 1.0,
-    barostat.couple[2] ? scale : 1.0,
-    position,
-    position + n,
-    position + 2 * n,
-    velocity,
-    velocity + n,
-    velocity + 2 * n);
-  GPU_CHECK_KERNEL
-}
-
 } // namespace replica

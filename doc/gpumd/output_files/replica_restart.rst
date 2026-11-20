@@ -32,7 +32,7 @@ Notes
 * Restart files with an incompatible format are rejected.
 * ``run.in``, ``model.xyz``, and the potential file are still required.
   Preserve atom count, species, masses, initial model box, potential content, replica count, time step, ensemble, and exchange parameters.
-  NPT restores the coupled box lengths from each checkpoint; uncoupled lengths and PBC must match the input model.
+  NPT restores each replica's orthogonal box from its checkpoint; PBC must match the input model.
   For charge NEP models, also keep the ``kspace`` command: the method and an explicit PPPM spacing are stored and must match.
   A restart that stores ``pppm`` without a spacing matches only a ``kspace`` command without a spacing.
 * REMD resume cannot request positive ``equilibrate``.

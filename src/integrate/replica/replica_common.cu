@@ -18,8 +18,8 @@ Major contributors:
   Wenhao Luo: Initial implementation.
 ------------------------------------------------------------------------------*/
 
-#include "replica_common.cuh"
 #include "replica_batch.cuh"
+#include "replica_common.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -71,8 +71,7 @@ unsigned long long hash_file(const std::string& filename)
   return hash;
 }
 
-bool extract_quoted_value(
-  const std::string& line, const std::string& key, std::string& value)
+bool extract_quoted_value(const std::string& line, const std::string& key, std::string& value)
 {
   const std::string needle = key + "=\"";
   const size_t start = line.find(needle);
@@ -86,8 +85,7 @@ bool extract_quoted_value(
   return true;
 }
 
-bool extract_token_value(
-  const std::string& line, const std::string& key, std::string& value)
+bool extract_token_value(const std::string& line, const std::string& key, std::string& value)
 {
   const std::string needle = key + "=";
   const size_t start = line.find(needle);
@@ -96,8 +94,7 @@ bool extract_token_value(
   const size_t value_start = start + needle.size();
   const size_t value_end = line.find_first_of(" \t\r\n", value_start);
   value = line.substr(
-    value_start,
-    value_end == std::string::npos ? std::string::npos : value_end - value_start);
+    value_start, value_end == std::string::npos ? std::string::npos : value_end - value_start);
   return true;
 }
 
@@ -113,12 +110,11 @@ void validate_xyz_pbc(const std::string& comment, const Box& reference, const ch
   char pbc_y = 0;
   char pbc_z = 0;
   std::string trailing;
-  if (!(pbc >> pbc_x >> pbc_y >> pbc_z) || (pbc >> trailing) ||
-      pbc_x != (reference.pbc_x ? 'T' : 'F') ||
-      pbc_y != (reference.pbc_y ? 'T' : 'F') ||
-      pbc_z != (reference.pbc_z ? 'T' : 'F')) {
-    const std::string message =
-      std::string(mode) + " restart xyz pbc does not match model.xyz.";
+  if (
+    !(pbc >> pbc_x >> pbc_y >> pbc_z) || (pbc >> trailing) ||
+    pbc_x != (reference.pbc_x ? 'T' : 'F') || pbc_y != (reference.pbc_y ? 'T' : 'F') ||
+    pbc_z != (reference.pbc_z ? 'T' : 'F')) {
+    const std::string message = std::string(mode) + " restart xyz pbc does not match model.xyz.";
     PRINT_INPUT_ERROR(message.c_str());
   }
 }
@@ -135,16 +131,16 @@ void validate_xyz_box(const std::string& comment, const Box& reference, const ch
   const int transpose[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
   for (int i = 0; i < 9; ++i) {
     double box_value = 0.0;
-    if (!(lattice >> box_value) || !std::isfinite(box_value) ||
-        !values_match(box_value, reference.cpu_h[transpose[i]])) {
+    if (
+      !(lattice >> box_value) || !std::isfinite(box_value) ||
+      !values_match(box_value, reference.cpu_h[transpose[i]])) {
       const std::string message =
         std::string(mode) + " restart xyz Lattice does not match model.xyz.";
       PRINT_INPUT_ERROR(message.c_str());
     }
   }
   if (lattice >> trailing) {
-    const std::string message =
-      std::string(mode) + " restart xyz has too many Lattice values.";
+    const std::string message = std::string(mode) + " restart xyz has too many Lattice values.";
     PRINT_INPUT_ERROR(message.c_str());
   }
 }
@@ -177,7 +173,8 @@ bool read_restart_xyz_velocity(
   if (!(input >> velocity_in_fs[0] >> velocity_in_fs[1] >> velocity_in_fs[2]))
     return false;
   if (natural_velocity)
-    return static_cast<bool>(input >> velocity[atom] >> velocity[atom + n] >> velocity[atom + 2 * n]);
+    return static_cast<bool>(
+      input >> velocity[atom] >> velocity[atom + n] >> velocity[atom + 2 * n]);
   for (int d = 0; d < 3; ++d)
     velocity[atom + d * n] = velocity_in_fs[d] * TIME_UNIT_CONVERSION;
   return true;
@@ -202,8 +199,9 @@ void parse_replicas_option(
   int& replicas,
   int& replicas_per_gpu)
 {
-  if (++i >= command.size() || !is_valid_int(command[i].c_str(), &replicas) ||
-      replicas < minimum_replicas)
+  if (
+    ++i >= command.size() || !is_valid_int(command[i].c_str(), &replicas) ||
+    replicas < minimum_replicas)
     mode_error(
       mode, "replicas should be an integer of at least " + std::to_string(minimum_replicas) + ".");
   ++i;
@@ -229,8 +227,9 @@ void parse_dump_xyz(
     mode_error(mode, "dump_xyz command is invalid.");
   int grouping_method = 0;
   int group_id = 0;
-  if (!is_valid_int(dump_command[1].c_str(), &grouping_method) || grouping_method != -1 ||
-      !is_valid_int(dump_command[2].c_str(), &group_id))
+  if (
+    !is_valid_int(dump_command[1].c_str(), &grouping_method) || grouping_method != -1 ||
+    !is_valid_int(dump_command[2].c_str(), &group_id))
     mode_error(mode, "dump_xyz requires grouping_method -1.");
   if (!is_valid_int(dump_command[3].c_str(), &dump_interval) || dump_interval <= 0)
     mode_error(mode, "dump_xyz interval should be positive.");
@@ -273,8 +272,7 @@ unsigned long long validate_potential(
     mode_error(mode, "currently requires exactly one standard NEP potential command.");
   if (is_nep_charge_potential(potential_commands[0][1])) {
     if (!box.pbc_x || !box.pbc_y || !box.pbc_z)
-      mode_error(
-        "qNEP", std::string(mode) + " requires periodic boundaries in all directions.");
+      mode_error("qNEP", std::string(mode) + " requires periodic boundaries in all directions.");
   } else {
     kspace_method = "none";
   }
@@ -288,13 +286,13 @@ void parse_nvt_bdp(
   double& temperature_2,
   double& temperature_coupling)
 {
-  if (ensemble_command.size() != 5 || ensemble_command[0] != "ensemble" ||
-      ensemble_command[1] != "nvt_bdp" ||
-      !is_valid_real(ensemble_command[2].c_str(), &temperature_1) ||
-      !is_valid_real(ensemble_command[3].c_str(), &temperature_2) || temperature_1 <= 0.0 ||
-      temperature_2 <= 0.0 ||
-      !is_valid_real(ensemble_command[4].c_str(), &temperature_coupling) ||
-      temperature_coupling < 1.0)
+  if (
+    ensemble_command.size() != 5 || ensemble_command[0] != "ensemble" ||
+    ensemble_command[1] != "nvt_bdp" ||
+    !is_valid_real(ensemble_command[2].c_str(), &temperature_1) ||
+    !is_valid_real(ensemble_command[3].c_str(), &temperature_2) || temperature_1 <= 0.0 ||
+    temperature_2 <= 0.0 || !is_valid_real(ensemble_command[4].c_str(), &temperature_coupling) ||
+    temperature_coupling < 1.0)
     mode_error(mode, "requires ensemble nvt_bdp T1 T2 tau_T with T1, T2 > 0 and tau_T >= 1.");
 }
 
@@ -304,8 +302,8 @@ int resolve_replicas_per_gpu(const int replicas, const int replicas_per_gpu, con
   CHECK(gpuGetDeviceCount(&number_of_devices));
   if (number_of_devices <= 0)
     mode_error(mode, "found no GPU device.");
-  const int result =
-    replicas_per_gpu > 0 ? replicas_per_gpu : (replicas + number_of_devices - 1) / number_of_devices;
+  const int result = replicas_per_gpu > 0 ? replicas_per_gpu
+                                          : (replicas + number_of_devices - 1) / number_of_devices;
   if (result * number_of_devices < replicas)
     mode_error(mode, "replicas_per_gpu is too small for the visible GPUs.");
   return result;
@@ -472,8 +470,7 @@ std::string read_restart_xyz_header(
   const Atom& source_atom,
   const Box& source_box,
   const char* what,
-  Box* restored_box,
-  const int* coupled_directions)
+  Box* restored_box)
 {
   if (!input.is_open())
     mode_error(what, "restart: cannot open " + filename + ".");
@@ -499,11 +496,6 @@ std::string read_restart_xyz_header(
     }
     if (lattice >> trailing)
       mode_error(what, "restart xyz has too many Lattice values.");
-    for (int d = 0; d < 3; ++d)
-      if (
-        (!coupled_directions || !coupled_directions[d]) &&
-        !values_match(restored_box->cpu_h[d * 4], source_box.cpu_h[d * 4]))
-        mode_error(what, "restart uncoupled box length does not match model.xyz.");
     if (!std::isfinite(restored_box->get_volume()) || restored_box->get_volume() <= 0)
       mode_error(what, "restart xyz has an invalid box volume.");
     restored_box->get_inverse();
@@ -522,22 +514,25 @@ void read_restart_xyz_atoms(
 {
   std::string properties;
   bool natural_velocity = false;
-  if (!extract_token_value(comment, "Properties", properties) ||
-      !parse_restart_xyz_properties(properties, natural_velocity))
+  if (
+    !extract_token_value(comment, "Properties", properties) ||
+    !parse_restart_xyz_properties(properties, natural_velocity))
     mode_error(mode, "restart xyz Properties are invalid.");
   const int n = source_atom.number_of_atoms;
   for (int i = 0; i < n; ++i) {
     std::string symbol;
     double mass = 0.0;
-    if (!(input >> symbol >> atom.cpu_position_per_atom[i] >>
-          atom.cpu_position_per_atom[i + n] >> atom.cpu_position_per_atom[i + 2 * n] >> mass) ||
-        !read_restart_xyz_velocity(input, natural_velocity, atom.cpu_velocity_per_atom, i))
+    if (
+      !(input >> symbol >> atom.cpu_position_per_atom[i] >> atom.cpu_position_per_atom[i + n] >>
+        atom.cpu_position_per_atom[i + 2 * n] >> mass) ||
+      !read_restart_xyz_velocity(input, natural_velocity, atom.cpu_velocity_per_atom, i))
       mode_error(mode, "restart xyz atom data is incomplete.");
     if (symbol != source_atom.cpu_atom_symbol[i] || !values_match(mass, source_atom.cpu_mass[i]))
       mode_error(mode, "restart xyz species or mass does not match model.xyz.");
     for (int d = 0; d < 3; ++d) {
-      if (!std::isfinite(atom.cpu_position_per_atom[i + d * n]) ||
-          !std::isfinite(atom.cpu_velocity_per_atom[i + d * n]))
+      if (
+        !std::isfinite(atom.cpu_position_per_atom[i + d * n]) ||
+        !std::isfinite(atom.cpu_velocity_per_atom[i + d * n]))
         mode_error(mode, "restart xyz contains a non-finite atom value.");
     }
   }
@@ -550,8 +545,8 @@ void read_restart_metadata_header(
   std::istream& input, const char* mode, const char* mode_key, const int format_version)
 {
   std::string header;
-  if (!std::getline(input, header) ||
-      header != "# GPUMD " + std::string(mode) + " restart metadata")
+  if (
+    !std::getline(input, header) || header != "# GPUMD " + std::string(mode) + " restart metadata")
     mode_error(mode, "restart metadata has an invalid header.");
   int version = 0;
   read_restart_value(input, mode, "format_version", version);
@@ -603,11 +598,11 @@ void read_restart_bdp_states(
 }
 
 Replica_Slot::Replica_Slot(const int replica_id, const int device_id)
-  : replica_id(replica_id)
-  , device_id(device_id)
-  , stream(device_id)
-  , complete(device_id)
-  , host_thermo(2, 0.0)
+  : replica_id(replica_id),
+    device_id(device_id),
+    stream(device_id),
+    complete(device_id),
+    host_thermo(2, 0.0)
 {
 }
 
@@ -619,11 +614,8 @@ Replica_Slot::~Replica_Slot()
 }
 
 Replica_State::Replica_State(
-  const int device_id,
-  const int number_of_atoms,
-  const bool store_velocity)
-  : device_id_(device_id)
-  , store_velocity_(store_velocity)
+  const int device_id, const int number_of_atoms, const bool store_velocity)
+  : device_id_(device_id), store_velocity_(store_velocity)
 {
   gpu_detail::Device_Guard guard(device_id_);
   position_.resize(static_cast<size_t>(number_of_atoms) * 3);
@@ -642,11 +634,9 @@ void Replica_State::save(Replica_Slot& slot)
   if (slot.device_id != device_id_)
     PRINT_INPUT_ERROR("Cannot save a replica state on a different GPU.");
   CHECK(gpuSetDevice(device_id_));
-  position_.copy_from_device_async(
-    slot.atom.position_per_atom.data(), slot.stream.get());
+  position_.copy_from_device_async(slot.atom.position_per_atom.data(), slot.stream.get());
   if (store_velocity_) {
-    velocity_.copy_from_device_async(
-      slot.atom.velocity_per_atom.data(), slot.stream.get());
+    velocity_.copy_from_device_async(slot.atom.velocity_per_atom.data(), slot.stream.get());
   }
 }
 
@@ -655,20 +645,16 @@ void Replica_State::restore(Replica_Slot& slot)
   if (slot.device_id != device_id_)
     PRINT_INPUT_ERROR("Cannot restore a replica state on a different GPU.");
   CHECK(gpuSetDevice(device_id_));
-  position_.copy_to_device_async(
-    slot.atom.position_per_atom.data(), slot.stream.get());
+  position_.copy_to_device_async(slot.atom.position_per_atom.data(), slot.stream.get());
   if (store_velocity_) {
-    velocity_.copy_to_device_async(
-      slot.atom.velocity_per_atom.data(), slot.stream.get());
+    velocity_.copy_to_device_async(slot.atom.velocity_per_atom.data(), slot.stream.get());
   }
 }
 
 void Replica_State::copy_position_to_host(
   GPU_Pinned_Vector<double>& host_position, Replica_Slot& slot)
 {
-  if (
-    slot.device_id != device_id_ ||
-    host_position.size() != position_.size())
+  if (slot.device_id != device_id_ || host_position.size() != position_.size())
     PRINT_INPUT_ERROR("Invalid host buffer for a replica position copy.");
   CHECK(gpuSetDevice(device_id_));
   position_.copy_to_host_async(host_position.data(), slot.stream.get());
@@ -678,9 +664,7 @@ void Replica_State::copy_position_to_host(
 void Replica_State::copy_position_from_host(
   const GPU_Pinned_Vector<double>& host_position, Replica_Slot& slot)
 {
-  if (
-    slot.device_id != device_id_ ||
-    host_position.size() != position_.size())
+  if (slot.device_id != device_id_ || host_position.size() != position_.size())
     PRINT_INPUT_ERROR("Invalid host buffer for a replica position copy.");
   CHECK(gpuSetDevice(device_id_));
   position_.copy_from_host_async(host_position.data(), slot.stream.get());
@@ -711,12 +695,12 @@ Replica_Runtime::Replica_Runtime(
   Box& source_box,
   std::vector<Group>& source_group,
   const double time_step)
-  : potential_commands_(potential_commands)
-  , run_input_(run_input)
-  , source_atom_(source_atom)
-  , source_box_(source_box)
-  , source_group_(source_group)
-  , time_step_(time_step)
+  : potential_commands_(potential_commands),
+    run_input_(run_input),
+    source_atom_(source_atom),
+    source_box_(source_box),
+    source_group_(source_group),
+    time_step_(time_step)
 {
 }
 
@@ -809,9 +793,7 @@ Replica_Force& Replica_Runtime::force(Replica_Slot& slot)
 }
 
 void Replica_Runtime::initialize(
-  const int replicas,
-  const int replicas_per_gpu,
-  const Slot_Initializer& initialize_slot)
+  const int replicas, const int replicas_per_gpu, const Slot_Initializer& initialize_slot)
 {
   if (!devices_.empty() || !replica_slots_.empty())
     PRINT_INPUT_ERROR("Replica runtime cannot be initialized more than once.");
@@ -863,9 +845,9 @@ void Replica_Runtime::initialize(
 
 // Batched integration pays off while the per-replica path is limited by kernel launches. Measured
 // on an RTX 4090 (Cu, NEP, 55 to 32000 atoms per replica, 2 to 64 replicas), it is faster for any
-// number of replicas up to about 5000 atoms per replica, and for larger replicas while the GPU holds
-// at most about 30000 atoms in total; otherwise it is up to 20% slower. GPUMD_REPLICA_BATCH=0 or 1
-// overrides the choice, e.g. for tests.
+// number of replicas up to about 5000 atoms per replica, and for larger replicas while the GPU
+// holds at most about 30000 atoms in total; otherwise it is up to 20% slower. GPUMD_REPLICA_BATCH=0
+// or 1 overrides the choice, e.g. for tests.
 constexpr long long max_batched_atoms_per_replica = 5000;
 constexpr long long max_batched_atoms_per_gpu = 30000;
 
@@ -939,8 +921,7 @@ void Replica_Runtime::start_workers()
 {
   for (auto& device : devices_) {
     if (!device->worker.joinable()) {
-      device->worker =
-        std::thread(&Replica_Runtime::worker_loop, this, std::ref(*device));
+      device->worker = std::thread(&Replica_Runtime::worker_loop, this, std::ref(*device));
     }
   }
 }
@@ -985,9 +966,7 @@ void Replica_Runtime::worker_loop(Device_Context& device)
 }
 
 void Replica_Runtime::advance_device(
-  Device_Context& device,
-  const std::vector<unsigned char>& active_slots,
-  const int steps)
+  Device_Context& device, const std::vector<unsigned char>& active_slots, const int steps)
 {
   CHECK(gpuSetDevice(device.device_id));
   if (active_slots.size() != device.slots.size())
@@ -1011,8 +990,9 @@ void Replica_Runtime::advance_device(
       if (!active_slots[local_slot])
         continue;
       Replica_Slot& slot = *device.slots[local_slot];
-      if (slot.barostat && slot.barostat->pending)
-        apply_barostat(slot);
+      if (slot.barostat)
+        slot.barostat->apply_pending_update(
+          slot.target_temperature, slot.box, slot.atom, slot.stream.get());
       slot.thermostat->compute1(time_step_, slot.atom, slot.stream.get());
       device.force.compute(
         slot.box,
@@ -1024,8 +1004,8 @@ void Replica_Runtime::advance_device(
         slot.stream.get());
       slot.thermostat->compute2(
         time_step_, slot.box.get_volume(), slot.atom, slot.thermo, slot.stream.get());
-      if (slot.barostat && ++slot.barostat->step_counter % slot.barostat->interval == 0)
-        refresh_barostat_pressure(slot);
+      if (slot.barostat)
+        slot.barostat->end_step(slot.box, slot.atom, *slot.thermostat, slot.thermo, slot.stream);
     }
   }
 
@@ -1045,9 +1025,7 @@ void Replica_Runtime::advance_device(
   }
 }
 
-void Replica_Runtime::advance(
-  const std::vector<unsigned char>& active_replicas,
-  const int steps)
+void Replica_Runtime::advance(const std::vector<unsigned char>& active_replicas, const int steps)
 {
   if (active_replicas.size() != replica_slots_.size())
     PRINT_INPUT_ERROR("Internal active replica selection has the wrong size.");
@@ -1089,8 +1067,7 @@ void Replica_Runtime::advance_all(const int steps)
   advance(std::vector<unsigned char>(replica_slots_.size(), 1), steps);
 }
 
-void Replica_Runtime::compute_forces(
-  const std::vector<unsigned char>& active_replicas)
+void Replica_Runtime::compute_forces(const std::vector<unsigned char>& active_replicas)
 {
   if (active_replicas.size() != replica_slots_.size())
     PRINT_INPUT_ERROR("Internal active replica selection has the wrong size.");
@@ -1126,8 +1103,7 @@ void Replica_Runtime::compute_forces_all()
   compute_forces(std::vector<unsigned char>(replica_slots_.size(), 1));
 }
 
-void Replica_Runtime::compute_forces_selected(
-  const std::vector<int>& replica_ids)
+void Replica_Runtime::compute_forces_selected(const std::vector<int>& replica_ids)
 {
   std::vector<unsigned char> active_replicas(replica_slots_.size(), 0);
   for (const int replica_id : replica_ids) {
@@ -1138,9 +1114,7 @@ void Replica_Runtime::compute_forces_selected(
   compute_forces(active_replicas);
 }
 
-void Replica_Runtime::advance_selected(
-  const std::vector<int>& replica_ids,
-  const int steps)
+void Replica_Runtime::advance_selected(const std::vector<int>& replica_ids, const int steps)
 {
   std::vector<unsigned char> active_replicas(replica_slots_.size(), 0);
   for (const int replica_id : replica_ids) {

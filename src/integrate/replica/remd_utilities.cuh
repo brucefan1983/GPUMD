@@ -13,6 +13,15 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Host-only exchange geometry, acceptance ratio, and SCR arithmetic of replica-
+exchange molecular dynamics, shared with the CPU tests.
+
+Major contributors:
+  Jiuyang Shi: Temperature-pressure grid, exchange rule, and SCR update.
+  Wenhao Luo: Shared host utilities for the REMD driver and its CPU tests.
+------------------------------------------------------------------------------*/
+
 #pragma once
 
 #include "utilities/common.cuh"
@@ -29,7 +38,6 @@
 namespace replica
 {
 
-// Host-only exchange geometry and SCR arithmetic, shared with the CPU tests.
 struct REMD_Pair {
   int direction; // 0: temperature, 1: pressure
   int first;
