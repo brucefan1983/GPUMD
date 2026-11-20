@@ -44,8 +44,8 @@ static void compute_lammps_spline(float h, const std::vector<float>& y, std::vec
     return;
 
   // Derivative with respect to the normalized coordinate p = r/h (so dp per grid step = 1)
-  std::vector<float> fp(y.size(), 0.0f);
-  fp.at(0) = y[1] - y[0];
+  std::vector<float> fp(n, 0.0f);
+  fp[0] = y[1] - y[0];
   fp[n - 1] = y[n - 1] - y[n - 2];
   if (n >= 3) {
     fp[1] = 0.5f * (y[2] - y[0]);
