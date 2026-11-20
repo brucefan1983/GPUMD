@@ -22,6 +22,7 @@ Major contributors:
   Ming-Yu Guo: PyTorch models, GPU edge inference, and triclinic-cell support.
   Ming-Yu Guo: Canonical-graph buffers and removal of the unused ghost-atom path.
   Ming-Yu Guo: Reuse DP device buffers across force evaluations.
+  Ming-Yu Guo: Share the FP32 and FP64 edge-list kernels.
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_DEEPMD
@@ -203,6 +204,8 @@ static __global__ void dp_compact_duplicate_neighbors(const int N, const int nlo
 // emit one edge (src = n2, dst = n1) with the minimum-image bond vector
 // r(n2) - r(n1).  ``edge_index`` is the flattened [2, nedge] graph:
 // [0, nedge) holds the source row, [nedge, 2 * nedge) the destination row.
+// Displacement stays in double precision and is converted when it is stored.
+template <typename Vec>
 static __global__ void dp_fill_edges(
   const int N,
   const int nloc,
@@ -215,7 +218,7 @@ static __global__ void dp_fill_edges(
   const Box box,
   const int nedge,
   int* edge_index,
-  double* edge_vec)
+  Vec* edge_vec)
 {
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < nloc) {
@@ -233,48 +236,9 @@ static __global__ void dp_fill_edges(
       const int e = base + c;
       edge_index[e] = n2;
       edge_index[nedge + e] = n1;
-      edge_vec[e * 3] = x12;
-      edge_vec[e * 3 + 1] = y12;
-      edge_vec[e * 3 + 2] = z12;
-    }
-  }
-}
-
-// Same edge schema as dp_fill_edges, with the float32 bond vectors required
-// by graph artifacts whose metadata records graph_edge_dtype=float32.
-static __global__ void dp_fill_edges_f32(
-  const int N,
-  const int nloc,
-  const int* __restrict__ NN,
-  const int* __restrict__ NL,
-  const int* __restrict__ edge_offset,
-  const double* __restrict__ x,
-  const double* __restrict__ y,
-  const double* __restrict__ z,
-  const Box box,
-  const int nedge,
-  int* edge_index,
-  float* edge_vec)
-{
-  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < nloc) {
-    const int count = NN[n1];
-    const int base = edge_offset[n1];
-    const double x1 = x[n1];
-    const double y1 = y[n1];
-    const double z1 = z[n1];
-    for (int c = 0; c < count; ++c) {
-      const int n2 = NL[c * N + n1];
-      double x12 = x[n2] - x1;
-      double y12 = y[n2] - y1;
-      double z12 = z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      const int e = base + c;
-      edge_index[e] = n2;
-      edge_index[nedge + e] = n1;
-      edge_vec[e * 3] = static_cast<float>(x12);
-      edge_vec[e * 3 + 1] = static_cast<float>(y12);
-      edge_vec[e * 3 + 2] = static_cast<float>(z12);
+      edge_vec[e * 3] = static_cast<Vec>(x12);
+      edge_vec[e * 3 + 1] = static_cast<Vec>(y12);
+      edge_vec[e * 3 + 2] = static_cast<Vec>(z12);
     }
   }
 }
@@ -597,7 +561,7 @@ void DP::compute_gpu_edges(
       grow_gpu(dp_edge_index, static_cast<size_t>(2 * nedge));
       grow_gpu(dp_edge_vec, static_cast<size_t>(3 * nedge));
       if (edge_fp32) {
-        dp_fill_edges_f32<<<grid_size, BLOCK_SIZE_FORCE>>>(
+        dp_fill_edges<float><<<grid_size, BLOCK_SIZE_FORCE>>>(
           N,
           N,
           dp_NN_local.data(),
@@ -611,7 +575,7 @@ void DP::compute_gpu_edges(
           dp_edge_index.data(),
           reinterpret_cast<float*>(dp_edge_vec.data()));
       } else {
-        dp_fill_edges<<<grid_size, BLOCK_SIZE_FORCE>>>(
+        dp_fill_edges<double><<<grid_size, BLOCK_SIZE_FORCE>>>(
           N,
           N,
           dp_NN_local.data(),
