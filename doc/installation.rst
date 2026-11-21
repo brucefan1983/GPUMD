@@ -306,6 +306,9 @@ The installed DeePMD-kit version and backend must support the model being used.
 Follow the `model-freezing instructions <https://docs.deepmodeling.com/projects/deepmd/en/stable/freeze/freeze.html>`_ for that version to produce the appropriate file.
 The DeePMD-kit C++ API selects the backend from the model file.
 
+A build with ``USE_DEEPMD`` compiles the canonical-graph and float32 edge calls, so ``DeepPot.h`` must declare ``uses_canonical_graph_inference``, ``compute_canonical_graph_gpu``, ``uses_fp32_edge_vectors``, and ``has_long_range``.
+This interface was tested with `deepmodeling/deepmd-kit <https://github.com/deepmodeling/deepmd-kit>`_ commit ``5fac80e6c12f30a932cff01a8a6f2b67433055e3``.
+
 Install the DeePMD-kit C++ interface
 ------------------------------------
 
