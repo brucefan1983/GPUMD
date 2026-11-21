@@ -346,6 +346,9 @@ bool NEP_Data_Reader::read_structures(bool is_train, std::vector<Structure>& str
       read_structure(record, structure);
       structures.emplace_back(std::move(structure));
     }
+    if (is_train && structures.empty()) {
+      PRINT_INPUT_ERROR("train.xyz must contain at least one configuration.");
+    }
     printf("Number of configurations = %d.\n", (int)structures.size());
     print_summary(structures);
     input.close();

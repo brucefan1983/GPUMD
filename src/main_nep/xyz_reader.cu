@@ -15,7 +15,7 @@
 
 /*----------------------------------------------------------------------------80
 Major contributors:
-  Zheyong Fan: Initial implementation.
+  Zheyong Fan: Initial implementation and blank-line handling.
 ------------------------------------------------------------------------------*/
 
 #include "utilities/error.cuh"
@@ -52,10 +52,19 @@ int XYZ_Record::get_property_offset(const char* name, const char* alternative) c
 
 bool XYZ_Reader::read(XYZ_Record& record)
 {
-  auto tokens = get_tokens(input);
-  ++line;
-  if (tokens.empty()) {
-    return false;
+  std::vector<std::string> tokens;
+  while (tokens.empty()) {
+    std::string frame_line;
+    if (!std::getline(input, frame_line)) {
+      if (input.eof() && !input.bad()) {
+        return false;
+      }
+      const std::string message =
+        "Failed to read " + filename + " at line " + std::to_string(line + 1) + ".";
+      PRINT_INPUT_ERROR(message.c_str());
+    }
+    ++line;
+    tokens = get_tokens(frame_line);
   }
   if (tokens.size() != 1) {
     PRINT_INPUT_ERROR("The first line for each frame should have one value.");
