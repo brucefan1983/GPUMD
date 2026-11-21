@@ -34,6 +34,7 @@ Major contributors:
 #include <algorithm>
 #include <cctype>
 #include <climits>
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -244,7 +245,18 @@ static void read_xyz_line_2(
       printf("\n");
     }
 
+    const double volume = box.get_volume();
+    if (!std::isfinite(volume) || volume == 0.0) {
+      PRINT_INPUT_ERROR(
+        "Invalid lattice in model.xyz line 2: cell volume must be finite and nonzero.");
+    }
     box.get_inverse();
+    for (int n = 9; n < 18; ++n) {
+      if (!std::isfinite(box.cpu_h[n])) {
+        PRINT_INPUT_ERROR(
+          "Invalid lattice in model.xyz line 2: inverse cell matrix must be finite.");
+      }
+    }
 
     printf("Inverse box matrix g = inv(h) is\n");
     for (int d1 = 0; d1 < 3; ++d1) {
