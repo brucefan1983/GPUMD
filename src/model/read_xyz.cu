@@ -17,7 +17,7 @@
 The class defining the simulation model.
 
 Major contributors:
-  Zheyong Fan: Initial implementation.
+  Zheyong Fan: Initial implementation and XYZ input validation.
   Chengbing Chen: Reading atomic spins from model.xyz.
 ------------------------------------------------------------------------------*/
 
@@ -33,6 +33,7 @@ Major contributors:
 #include "utilities/run_input.cuh"
 #include <algorithm>
 #include <cctype>
+#include <climits>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -179,30 +180,24 @@ static void read_xyz_line_2(
   }
 
   box.pbc_x = box.pbc_y = box.pbc_z = 1; // default is periodic
+  bool has_pbc = false;
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string tmp_string = "pbc=";
     if (tokens[n].substr(0, tmp_string.length()) == tmp_string) {
-      if (tokens[n].back() == 't') {
-        box.pbc_x = 1;
-      } else if (tokens[n].back() == 'f') {
-        box.pbc_x = 0;
-      } else {
-        PRINT_INPUT_ERROR("periodic boundary in x direction should be T or F.");
+      if (has_pbc) {
+        PRINT_INPUT_ERROR("Duplicate pbc field in model.xyz.");
       }
-      if (tokens[n + 1] == "t") {
-        box.pbc_y = 1;
-      } else if (tokens[n + 1] == "f") {
-        box.pbc_y = 0;
-      } else {
-        PRINT_INPUT_ERROR("periodic boundary in y direction should be T or F.");
+      has_pbc = true;
+      if (
+        tokens.size() - n < 3 || (tokens[n] != "pbc=\"t" && tokens[n] != "pbc=\"f") ||
+        (tokens[n + 1] != "t" && tokens[n + 1] != "f") ||
+        (tokens[n + 2] != "t\"" && tokens[n + 2] != "f\"")) {
+        PRINT_INPUT_ERROR("pbc in model.xyz must contain exactly three T/F "
+                          "values in double quotes.");
       }
-      if (tokens[n + 2].front() == 't') {
-        box.pbc_z = 1;
-      } else if (tokens[n + 2].front() == 'f') {
-        box.pbc_z = 0;
-      } else {
-        PRINT_INPUT_ERROR("periodic boundary in z direction should be T or F.");
-      }
+      box.pbc_x = tokens[n] == "pbc=\"t";
+      box.pbc_y = tokens[n + 1] == "t";
+      box.pbc_z = tokens[n + 2] == "t\"";
     }
   }
   printf("Use %s boundary conditions along x.\n", (box.pbc_x == 1) ? "periodic" : "free");
@@ -214,15 +209,27 @@ static void read_xyz_line_2(
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string lattice_string = "lattice=";
     if (tokens[n].substr(0, lattice_string.length()) == lattice_string) {
+      if (has_lattice_in_exyz) {
+        PRINT_INPUT_ERROR("Duplicate lattice field in model.xyz.");
+      }
+      if (
+        tokens.size() - n < 9 || tokens[n].substr(0, lattice_string.length() + 1) != "lattice=\"" ||
+        tokens[n + 8].back() != '"') {
+        PRINT_INPUT_ERROR("lattice in model.xyz must contain exactly nine "
+                          "values in double quotes.");
+      }
       has_lattice_in_exyz = true;
       const int transpose_index[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
       for (int m = 0; m < 9; ++m) {
-        box.cpu_h[transpose_index[m]] = get_double_from_token(
-          tokens[n + m].substr(
-            (m == 0) ? (lattice_string.length() + 1) : 0,
-            (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-          __FILE__,
-          __LINE__);
+        std::string value = tokens[n + m].substr((m == 0) ? lattice_string.length() + 1 : 0);
+        if (m == 8) {
+          value.pop_back();
+        }
+        if (value.empty() || value.find('"') != std::string::npos) {
+          PRINT_INPUT_ERROR("lattice in model.xyz must contain exactly nine "
+                            "values in double quotes.");
+        }
+        box.cpu_h[transpose_index[m]] = get_double_from_token(value, __FILE__, __LINE__);
       }
     }
   }
@@ -252,36 +259,57 @@ static void read_xyz_line_2(
   const int num_properties = 8;
   std::string property_name[num_properties] = {
     "species", "pos", "mass", "charge", "vel", "group", "spin", "spin_vel"};
+  const std::string property_type[num_properties] = {"s", "r", "r", "r", "r", "i", "r", "r"};
+  const int property_size[num_properties] = {1, 3, 1, 1, 3, 0, 3, 3};
   int property_position[num_properties] = {-1, -1, -1, -1, -1, -1, -1, -1};
+  bool has_properties = false;
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string properties_string = "properties=";
     if (tokens[n].substr(0, properties_string.length()) == properties_string) {
+      if (has_properties) {
+        PRINT_INPUT_ERROR("Duplicate properties field in model.xyz.");
+      }
+      has_properties = true;
       std::string line = tokens[n].substr(properties_string.length(), tokens[n].length());
+      if (
+        line.empty() || line.front() == ':' || line.back() == ':' ||
+        line.find("::") != std::string::npos) {
+        PRINT_INPUT_ERROR("properties in model.xyz must contain complete "
+                          "name:type:columns triples.");
+      }
       for (auto& letter : line) {
         if (letter == ':') {
           letter = ' ';
         }
       }
       std::vector<std::string> sub_tokens = get_tokens(line);
+      if (sub_tokens.size() % 3 != 0) {
+        PRINT_INPUT_ERROR("properties in model.xyz must contain complete "
+                          "name:type:columns triples.");
+      }
+      std::vector<int> property_lengths(sub_tokens.size() / 3);
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
+        const int length = get_int_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
+        if (length <= 0 || length > INT_MAX - num_columns) {
+          PRINT_INPUT_ERROR("properties in model.xyz must have positive column "
+                            "counts with a total <= INT_MAX.");
+        }
+        property_lengths[k] = length;
+        num_columns += length;
         for (int prop = 0; prop < num_properties; ++prop) {
           if (sub_tokens[k * 3] == property_name[prop] && (prop < 6 || enable_spin)) {
-            if (prop >= 6 && property_position[prop] >= 0) {
+            if (property_position[prop] >= 0) {
               PRINT_INPUT_ERROR(
-                prop == 6 ? "Duplicate spin property." : "Duplicate spin_vel property.");
+                ("Duplicate " + property_name[prop] + " property in model.xyz.").c_str());
+            }
+            if (
+              sub_tokens[k * 3 + 1] != property_type[prop] ||
+              (property_size[prop] != 0 && length != property_size[prop])) {
+              PRINT_INPUT_ERROR(
+                ("Invalid type or column count for " + property_name[prop] + " in model.xyz.")
+                  .c_str());
             }
             property_position[prop] = k;
-          }
-        }
-      }
-
-      for (int prop : {6, 7}) {
-        if (property_position[prop] >= 0) {
-          const int base = property_position[prop] * 3;
-          if (
-            sub_tokens[base + 1] != "r" ||
-            get_int_from_token(sub_tokens[base + 2], __FILE__, __LINE__) != 3) {
-            PRINT_INPUT_ERROR(prop == 6 ? "spin must be R:3." : "spin_vel must be R:3.");
           }
         }
       }
@@ -298,20 +326,18 @@ static void read_xyz_line_2(
         group.resize(0);
         printf("Have no grouping method.\n");
       } else {
-        int num_of_grouping_methods =
-          get_int_from_token(sub_tokens[property_position[5] * 3 + 2], __FILE__, __LINE__);
+        int num_of_grouping_methods = property_lengths[property_position[5]];
         group.resize(num_of_grouping_methods);
         printf("Have %d grouping method(s).\n", num_of_grouping_methods);
       }
 
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
-        const int tmp_length = get_int_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
+        const int tmp_length = property_lengths[k];
         for (int prop = 0; prop < num_properties; ++prop) {
           if (k < property_position[prop]) {
             property_offset[prop] += tmp_length;
           }
         }
-        num_columns += tmp_length;
       }
     }
   }

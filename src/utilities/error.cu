@@ -191,6 +191,7 @@ int get_int_from_token(const std::string& token, const char* filename, const int
     std::cout << "Standard exception:\n";
     std::cout << "    File:          " << filename << std::endl;
     std::cout << "    Line:          " << line << std::endl;
+    std::cout << "    Token:         '" << token << "'\n";
     std::cout << "    Error message: " << e.what() << std::endl;
     exit(1);
   }
@@ -214,6 +215,7 @@ double get_double_from_token(const std::string& token, const char* filename, con
     std::cout << "Standard exception:\n";
     std::cout << "    File:          " << filename << std::endl;
     std::cout << "    Line:          " << line << std::endl;
+    std::cout << "    Token:         '" << token << "'\n";
     std::cout << "    Error message: " << e.what() << std::endl;
     exit(1);
   }
@@ -224,12 +226,11 @@ double get_double_from_token(const std::string& token, const char* filename, con
     std::cout << "    Error text:    Invalid real token '" << token << "'.\n";
     exit(1);
   }
-  if (std::isinf(value)) {
-    std::cout << "This number is inf.\n";
-    exit(1);
-  }
-  if (std::isnan(value)) {
-    std::cout << "This number is nan.\n";
+  if (!std::isfinite(value)) {
+    std::cout << "Input Error:\n";
+    std::cout << "    File:          " << filename << std::endl;
+    std::cout << "    Line:          " << line << std::endl;
+    std::cout << "    Error text:    Invalid real token '" << token << "': value must be finite.\n";
     exit(1);
   }
   return value;
