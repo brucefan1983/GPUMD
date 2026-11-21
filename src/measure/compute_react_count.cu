@@ -31,6 +31,9 @@ The file has two parts:
 The split keeps the algorithm testable on a CPU (compile with
 -DREACT_COUNT_CORE_ONLY) while the production path is a normal GPUMD
 compute action.  No extra header, no CUDA kernel, no MPI.
+
+Initial implementation: tgraphite
+Major contributors: tgraphite
 ------------------------------------------------------------------------------*/
 
 #ifndef REACT_COUNT_CORE_ONLY
@@ -58,7 +61,11 @@ compute action.  No extra header, no CUDA kernel, no MPI.
 #include <utility>
 #include <vector>
 
+#ifdef REACT_COUNT_CORE_ONLY
 namespace react_count
+#else
+namespace
+#endif
 {
 
 constexpr int MAXELEMS = 32;
@@ -130,7 +137,10 @@ struct Config {
   bool events = false;
   bool require_balance = false;
   bool offset_steps = false; // adapter: continue step numbering from the sidecar
-  int perception = 0;        // 0 = reax (tag-order greedy), 1 = mutual nearest
+  int restart_interval = 0;  // write the sidecar only at this interval
+  bool valence_all_set = false;
+  int valence_all = 0;
+  int perception = 0; // 0 = reax (tag-order greedy), 1 = mutual nearest
 
   void make_elements(
     const std::vector<std::string>& symbols,
@@ -156,6 +166,8 @@ struct Config {
       if (vit != valence_override.end())
         valence[t] = vit->second;
     }
+    if (valence_all_set)
+      std::fill(valence.begin(), valence.end(), valence_all);
   }
 
   std::string element_of(int type) const
@@ -174,12 +186,16 @@ struct Config {
   }
 };
 
-struct Box {
+// CoreBox mirrors the small Box subset needed by the host-only core.  The
+// production adapter copies GPUMD's h/pbc layout with set_from_gpumd; keeping
+// this POD here lets the core compile without CUDA headers for CPU tests.
+struct CoreBox {
   double h[18]{};
   int pbc[3]{1, 1, 1};
   bool orth = true;
   double thickness[3]{1.0, 1.0, 1.0};
 
+#ifdef REACT_COUNT_CORE_ONLY
   void set_lattice(const double lattice[9], int px, int py, int pz)
   {
     // GPUMD stores box vectors as columns: a=(h0,h3,h6), ...
@@ -199,6 +215,7 @@ struct Box {
     orth = (h[1] == 0.0 && h[2] == 0.0 && h[3] == 0.0 && h[5] == 0.0 && h[6] == 0.0 && h[7] == 0.0);
     make_thickness();
   }
+#endif
 
   void set_from_gpumd(const double h18[18], int px, int py, int pz)
   {
@@ -377,7 +394,8 @@ public:
     fspecies_ = fbond_ = fcoord_ = fevents_ = nullptr;
   }
 
-  void step(long long step, int number_of_atoms, const int* type, const double* pos, const Box& box)
+  void
+  step(long long step, int number_of_atoms, const int* type, const double* pos, const CoreBox& box)
   {
     if (number_of_atoms != n_)
       fail("atom count changed during the run");
@@ -393,7 +411,9 @@ public:
     build_records();
     write_counts(output_step);
     do_events(output_step);
-    if (cfg_.events && !cfg_.restart_file.empty())
+    if (
+      cfg_.events && !cfg_.restart_file.empty() && cfg_.restart_interval > 0 &&
+      output_step % cfg_.restart_interval == 0)
       write_state();
 
     if (fspecies_)
@@ -420,7 +440,7 @@ private:
 
   const int* type_ = nullptr;
   const double* pos_ = nullptr;
-  const Box* box_ = nullptr;
+  const CoreBox* box_ = nullptr;
 
   FILE* fspecies_ = nullptr;
   FILE* fbond_ = nullptr;
@@ -440,37 +460,36 @@ private:
   std::vector<uint64_t> prev_hash_;
 
   bool first_frame_ = true;
+  bool state_loaded_ = false;
   int event_id_ = 0;
   long long step_offset_ = 0;
   long long last_step_ = 0;
+  unsigned long long state_position_hash_ = 0;
   std::map<std::string, int> species_counts_;
   std::unordered_map<uint64_t, SpecInfo> prev_registry_;
   std::unordered_map<uint64_t, SpecInfo> curr_registry_;
 
+  FILE* open_append(const std::string& path, const char* header)
+  {
+    FILE* fp = std::fopen(path.c_str(), "a+");
+    if (!fp)
+      fail("cannot open " + path);
+    std::fseek(fp, 0, SEEK_END);
+    const long size = std::ftell(fp);
+    if (size == 0)
+      std::fprintf(fp, "%s", header);
+    return fp;
+  }
+
   void open_output()
   {
-    fspecies_ = std::fopen((cfg_.output_base + ".species.csv").c_str(), "w");
-    if (!fspecies_)
-      fail("cannot open " + cfg_.output_base + ".species.csv");
-    fbond_ = std::fopen((cfg_.output_base + ".bond.csv").c_str(), "w");
-    if (!fbond_)
-      fail("cannot open " + cfg_.output_base + ".bond.csv");
-    fcoord_ = std::fopen((cfg_.output_base + ".coord.csv").c_str(), "w");
-    if (!fcoord_)
-      fail("cannot open " + cfg_.output_base + ".coord.csv");
-    if (cfg_.events) {
-      fevents_ = std::fopen((cfg_.output_base + ".events.csv").c_str(), "w");
-      if (!fevents_)
-        fail("cannot open " + cfg_.output_base + ".events.csv");
-    }
-    std::fprintf(fspecies_, "step,formula,count\n");
-    std::fprintf(fbond_, "step,pair,count\n");
-    std::fprintf(fcoord_, "step,element,coordination,count\n");
-    if (fevents_)
-      std::fprintf(
-        fevents_,
-        "step,event_id,n_reactants,n_products,reactants,"
-        "products,balanced,atom_conserved\n");
+    fspecies_ = open_append(cfg_.output_base + ".species.csv", "step,formula,count\n");
+    fbond_ = open_append(cfg_.output_base + ".bond.csv", "step,pair,count\n");
+    fcoord_ = open_append(cfg_.output_base + ".coord.csv", "step,element,coordination,count\n");
+    if (cfg_.events)
+      fevents_ = open_append(
+        cfg_.output_base + ".events.csv",
+        "step,event_id,n_reactants,n_products,reactants,products,balanced,atom_conserved\n");
   }
 
   int find_root(std::vector<int>& parent, int i)
@@ -582,33 +601,42 @@ private:
     const int iy = cell_y_[i];
     const int iz = cell_z_[i];
 
-    for (int dz = -1; dz <= 1; ++dz) {
-      int jz = iz + dz;
-      if (box_->pbc[2]) {
-        jz %= nz_;
-        if (jz < 0)
-          jz += nz_;
-      } else if (jz < 0 || jz >= nz_) {
-        continue;
+    int xc[3], yc[3], zc[3];
+    int nxc = 0, nyc = 0, nzc = 0;
+    xc[nxc++] = ix;
+    yc[nyc++] = iy;
+    zc[nzc++] = iz;
+    if (box_->pbc[0] && nx_ > 1) {
+      xc[nxc++] = (ix + 1) % nx_;
+      if (nx_ > 2) {
+        const int prev = (ix + nx_ - 1) % nx_;
+        if (prev != xc[0] && prev != xc[1])
+          xc[nxc++] = prev;
       }
-      for (int dy = -1; dy <= 1; ++dy) {
-        int jy = iy + dy;
-        if (box_->pbc[1]) {
-          jy %= ny_;
-          if (jy < 0)
-            jy += ny_;
-        } else if (jy < 0 || jy >= ny_) {
-          continue;
-        }
-        for (int dx = -1; dx <= 1; ++dx) {
-          int jx = ix + dx;
-          if (box_->pbc[0]) {
-            jx %= nx_;
-            if (jx < 0)
-              jx += nx_;
-          } else if (jx < 0 || jx >= nx_) {
-            continue;
-          }
+    }
+    if (box_->pbc[1] && ny_ > 1) {
+      yc[nyc++] = (iy + 1) % ny_;
+      if (ny_ > 2) {
+        const int prev = (iy + ny_ - 1) % ny_;
+        if (prev != yc[0] && prev != yc[1])
+          yc[nyc++] = prev;
+      }
+    }
+    if (box_->pbc[2] && nz_ > 1) {
+      zc[nzc++] = (iz + 1) % nz_;
+      if (nz_ > 2) {
+        const int prev = (iz + nz_ - 1) % nz_;
+        if (prev != zc[0] && prev != zc[1])
+          zc[nzc++] = prev;
+      }
+    }
+
+    for (int zz = 0; zz < nzc; ++zz) {
+      const int jz = zc[zz];
+      for (int yy = 0; yy < nyc; ++yy) {
+        const int jy = yc[yy];
+        for (int xx = 0; xx < nxc; ++xx) {
+          const int jx = xc[xx];
           const int c = jx + nx_ * (jy + ny_ * jz);
           const int begin = cell_start_[c];
           const int end = cell_start_[c + 1];
@@ -857,7 +885,7 @@ private:
       return a < b;
     });
     for (int t : types) {
-      int maxc = cfg_.valence[t] > 0 ? cfg_.valence[t] : maxbond_;
+      int maxc = cfg_.valence[t] > 0 ? cfg_.valence[t] : 0;
       if (maxc > maxbond_)
         maxc = maxbond_;
       for (int c = 0; c <= maxc; ++c) {
@@ -1008,25 +1036,77 @@ private:
     prev_registry_ = curr_registry_;
   }
 
+  unsigned long long position_hash(const double* pos, const int* type, const CoreBox& box) const
+  {
+    unsigned long long h = 1469598103934665603ULL;
+    auto mix = [](unsigned long long x, long long v) {
+      x ^= static_cast<unsigned long long>(v);
+      x *= 1099511628211ULL;
+      return x;
+    };
+    for (int i = 0; i < n_; ++i) {
+      h = mix(h, type[i]);
+      for (int c = 0; c < 3; ++c) {
+        const double value = pos[3 * i + c] * 1.0e8;
+        h = mix(h, static_cast<long long>(std::llround(value)));
+      }
+    }
+    for (int i = 0; i < 18; ++i) {
+      const double value = box.h[i] * 1.0e8;
+      h = mix(h, static_cast<long long>(std::llround(value)));
+    }
+    for (int i = 0; i < 3; ++i)
+      h = mix(h, box.pbc[i]);
+    return h;
+  }
+
+public:
+  void check_restart_positions(const double* pos, const int* type, const CoreBox& box) const
+  {
+    if (!state_loaded_)
+      return;
+    if (position_hash(pos, type, box) != state_position_hash_) {
+      fail("restart sidecar does not match the current restart coordinates; "
+           "use the state written at the same step as dump_restart");
+    }
+  }
+
+private:
   void write_state()
   {
     FILE* fp = std::fopen(cfg_.restart_file.c_str(), "wb");
-    if (!fp) {
-      std::fprintf(
-        stderr,
-        "compute_react_count: cannot write restart state '%s'\n",
-        cfg_.restart_file.c_str());
-      return;
-    }
+    if (!fp)
+      fail("cannot write restart state " + cfg_.restart_file);
     const int magic = 0x52435431;
-    const int version = 1;
-    const int first = cfg_.offset_steps ? static_cast<int>(last_step_) : 0;
+    const int version = 3;
     const int natoms = n_;
+    const int interval = cfg_.restart_interval;
+    const long long last_step = last_step_;
+    const unsigned long long pos_hash = position_hash(pos_, type_, *box_);
     std::fwrite(&magic, sizeof(int), 1, fp);
     std::fwrite(&version, sizeof(int), 1, fp);
     std::fwrite(&event_id_, sizeof(int), 1, fp);
-    std::fwrite(&first, sizeof(int), 1, fp);
+    std::fwrite(&interval, sizeof(int), 1, fp);
+    std::fwrite(&last_step, sizeof(long long), 1, fp);
+    std::fwrite(&pos_hash, sizeof(unsigned long long), 1, fp);
     std::fwrite(&natoms, sizeof(int), 1, fp);
+    const double cutoff = cfg_.cutoff;
+    const int max_neigh = cfg_.max_neigh;
+    const int perception = cfg_.perception;
+    const int nelem = static_cast<int>(cfg_.elements.size());
+    std::fwrite(&cutoff, sizeof(double), 1, fp);
+    std::fwrite(&max_neigh, sizeof(int), 1, fp);
+    std::fwrite(&perception, sizeof(int), 1, fp);
+    std::fwrite(&nelem, sizeof(int), 1, fp);
+    for (int t = 0; t < nelem; ++t) {
+      const int slen = static_cast<int>(cfg_.elements[t].size());
+      const double radius = cfg_.radius[t];
+      const int valence = cfg_.valence[t];
+      std::fwrite(&slen, sizeof(int), 1, fp);
+      std::fwrite(cfg_.elements[t].data(), 1, slen, fp);
+      std::fwrite(&radius, sizeof(double), 1, fp);
+      std::fwrite(&valence, sizeof(int), 1, fp);
+    }
     for (int i = 0; i < n_; ++i) {
       const long long tag = i + 1;
       const unsigned long long hash = prev_hash_[i];
@@ -1064,12 +1144,23 @@ private:
     if (!fp)
       return;
 
-    int magic = 0, version = 0, event = 0, first = 0, natoms = 0;
+    int magic = 0, version = 0, event = 0, interval = 0, natoms = 0;
+    long long last_step = 0;
+    unsigned long long pos_hash = 0;
+    double cutoff = 0.0;
+    int max_neigh = 0, perception = 0, nelem = 0;
     if (
       std::fread(&magic, sizeof(int), 1, fp) != 1 || magic != 0x52435431 ||
-      std::fread(&version, sizeof(int), 1, fp) != 1 || version != 1 ||
-      std::fread(&event, sizeof(int), 1, fp) != 1 || std::fread(&first, sizeof(int), 1, fp) != 1 ||
-      std::fread(&natoms, sizeof(int), 1, fp) != 1) {
+      std::fread(&version, sizeof(int), 1, fp) != 1 || version != 3 ||
+      std::fread(&event, sizeof(int), 1, fp) != 1 ||
+      std::fread(&interval, sizeof(int), 1, fp) != 1 ||
+      std::fread(&last_step, sizeof(long long), 1, fp) != 1 ||
+      std::fread(&pos_hash, sizeof(unsigned long long), 1, fp) != 1 ||
+      std::fread(&natoms, sizeof(int), 1, fp) != 1 ||
+      std::fread(&cutoff, sizeof(double), 1, fp) != 1 ||
+      std::fread(&max_neigh, sizeof(int), 1, fp) != 1 ||
+      std::fread(&perception, sizeof(int), 1, fp) != 1 ||
+      std::fread(&nelem, sizeof(int), 1, fp) != 1 || nelem < 0 || nelem > MAXELEMS) {
       std::fclose(fp);
       std::fprintf(
         stderr,
@@ -1077,8 +1168,10 @@ private:
         cfg_.restart_file.c_str());
       return;
     }
-    if (cfg_.offset_steps)
-      step_offset_ = first;
+    if (interval != cfg_.restart_interval) {
+      std::fclose(fp);
+      fail("restart state interval does not match the configured interval");
+    }
     if (natoms != n_) {
       std::fclose(fp);
       std::fprintf(
@@ -1088,6 +1181,35 @@ private:
         natoms,
         n_);
       return;
+    }
+    if (
+      std::abs(cutoff - cfg_.cutoff) > 1.0e-12 || max_neigh != cfg_.max_neigh ||
+      perception != cfg_.perception || nelem != static_cast<int>(cfg_.elements.size())) {
+      std::fclose(fp);
+      fail("restart state was written with different analysis parameters");
+    }
+    for (int t = 0; t < nelem; ++t) {
+      int slen = 0;
+      if (std::fread(&slen, sizeof(int), 1, fp) != 1 || slen < 0 || slen > 16) {
+        std::fclose(fp);
+        fail("truncated restart state element table");
+      }
+      std::string sym(slen, '\0');
+      double radius = 0.0;
+      int valence = 0;
+      if (
+        (slen > 0 && std::fread(&sym[0], 1, slen, fp) != static_cast<size_t>(slen)) ||
+        std::fread(&radius, sizeof(double), 1, fp) != 1 ||
+        std::fread(&valence, sizeof(int), 1, fp) != 1) {
+        std::fclose(fp);
+        fail("truncated restart state element table");
+      }
+      if (
+        sym != cfg_.elements[t] || std::abs(radius - cfg_.radius[t]) > 1.0e-12 ||
+        valence != cfg_.valence[t]) {
+        std::fclose(fp);
+        fail("restart state element table does not match the current setup");
+      }
     }
 
     std::vector<int> tags(natoms, 0);
@@ -1137,7 +1259,7 @@ private:
         return;
       }
       std::string formula(flen, '\0');
-      if (flen > 0 && std::fread(formula.data(), 1, flen, fp) != static_cast<size_t>(flen)) {
+      if (flen > 0 && std::fread(&formula[0], 1, flen, fp) != static_cast<size_t>(flen)) {
         std::fclose(fp);
         return;
       }
@@ -1154,7 +1276,7 @@ private:
           return;
         }
         std::string sym(slen, '\0');
-        if (slen > 0 && std::fread(sym.data(), 1, slen, fp) != static_cast<size_t>(slen)) {
+        if (slen > 0 && std::fread(&sym[0], 1, slen, fp) != static_cast<size_t>(slen)) {
           std::fclose(fp);
           return;
         }
@@ -1183,11 +1305,19 @@ private:
     prev_hash_ = std::move(loaded);
     prev_registry_ = std::move(registry);
     event_id_ = event;
+    if (cfg_.offset_steps)
+      step_offset_ = last_step;
+    state_position_hash_ = pos_hash;
+    state_loaded_ = true;
     first_frame_ = false;
   }
 };
 
+#ifdef REACT_COUNT_CORE_ONLY
 } // namespace react_count
+#else
+} // namespace
+#endif
 
 #ifndef REACT_COUNT_CORE_ONLY
 
@@ -1206,7 +1336,7 @@ public:
     Integrate& integrate,
     std::vector<Group>& group,
     Atom& atom,
-    Box& box,
+    ::Box& box,
     Force& force) override
   {
     (void)number_of_steps;
@@ -1220,7 +1350,7 @@ public:
     const int ntypes = static_cast<int>(atom.cpu_type_size.size());
     if (ntypes <= 0)
       PRINT_INPUT_ERROR("compute_react_count found no atom types.");
-    if (ntypes > react_count::MAXELEMS)
+    if (ntypes > MAXELEMS)
       PRINT_INPUT_ERROR("compute_react_count supports at most 32 atom types.");
 
     std::vector<std::string> symbols(ntypes);
@@ -1243,8 +1373,21 @@ public:
 
     cfg_.make_elements(symbols, radius_override_, valence_override_);
     cfg_.offset_steps = true;
-    engine_.reset(new react_count::Engine(cfg_));
+    engine_.reset(new Engine(cfg_));
     engine_->open(n_atoms_);
+
+    type_host_.resize(n_atoms_);
+    position_host_ = atom.cpu_position_per_atom;
+    xyz_host_.assign(static_cast<size_t>(n_atoms_) * 3, 0.0);
+    for (int i = 0; i < n_atoms_; ++i) {
+      type_host_[i] = atom.cpu_type[i];
+      xyz_host_[3 * i] = position_host_[i];
+      xyz_host_[3 * i + 1] = position_host_[n_atoms_ + i];
+      xyz_host_[3 * i + 2] = position_host_[2 * n_atoms_ + i];
+    }
+    CoreBox restart_box;
+    restart_box.set_from_gpumd(box.cpu_h, box.pbc_x, box.pbc_y, box.pbc_z);
+    engine_->check_restart_positions(xyz_host_.data(), type_host_.data(), restart_box);
 
     std::printf("Compute transient-bond reaction statistics.\n");
     std::printf("    interval %d steps, output base %s\n", cfg_.nfreq, cfg_.output_base.c_str());
@@ -1267,7 +1410,7 @@ public:
     const double global_time,
     const double temperature,
     Integrate& integrate,
-    Box& box,
+    ::Box& box,
     std::vector<Group>& group,
     GPU_Vector<double>& thermo,
     Atom& atom,
@@ -1288,26 +1431,28 @@ public:
     if (atom.number_of_atoms != n_atoms_)
       PRINT_INPUT_ERROR("compute_react_count atom count changed during the run.");
 
-    std::vector<int> type(n_atoms_, 0);
-    std::vector<double> position(static_cast<size_t>(n_atoms_) * 3, 0.0);
-    std::vector<double> xyz(static_cast<size_t>(n_atoms_) * 3, 0.0);
-    atom.type.copy_to_host(type.data());
-    atom.position_per_atom.copy_to_host(position.data());
+    if (static_cast<int>(type_host_.size()) != n_atoms_) {
+      type_host_.resize(n_atoms_);
+      position_host_.resize(static_cast<size_t>(n_atoms_) * 3);
+      xyz_host_.resize(static_cast<size_t>(n_atoms_) * 3);
+    }
+    atom.type.copy_to_host(type_host_.data());
+    atom.position_per_atom.copy_to_host(position_host_.data());
     // GPUMD stores positions as x[N], y[N], z[N]; the core uses xyzxyz.
     for (int i = 0; i < n_atoms_; ++i) {
-      xyz[3 * i] = position[i];
-      xyz[3 * i + 1] = position[n_atoms_ + i];
-      xyz[3 * i + 2] = position[2 * n_atoms_ + i];
+      xyz_host_[3 * i] = position_host_[i];
+      xyz_host_[3 * i + 1] = position_host_[n_atoms_ + i];
+      xyz_host_[3 * i + 2] = position_host_[2 * n_atoms_ + i];
     }
 
-    react_count::Box rb;
+    CoreBox rb;
     rb.set_from_gpumd(box.cpu_h, box.pbc_x, box.pbc_y, box.pbc_z);
-    engine_->step(step + 1, n_atoms_, type.data(), xyz.data(), rb);
+    engine_->step(step + 1, n_atoms_, type_host_.data(), xyz_host_.data(), rb);
   }
 
   void post_run(
     Atom& atom,
-    Box& box,
+    ::Box& box,
     Integrate& integrate,
     const int number_of_steps,
     const double time_step,
@@ -1325,12 +1470,15 @@ public:
   }
 
 private:
-  react_count::Config cfg_;
+  Config cfg_;
   std::vector<std::string> element_list_;
   std::map<std::string, double> radius_override_;
   std::map<std::string, int> valence_override_;
   int n_atoms_ = 0;
-  std::unique_ptr<react_count::Engine> engine_;
+  std::vector<int> type_host_;
+  std::vector<double> position_host_;
+  std::vector<double> xyz_host_;
+  std::unique_ptr<Engine> engine_;
 
   static std::string token_value(const std::vector<std::string>& tokens, int& i)
   {
@@ -1363,7 +1511,7 @@ private:
         if (!is_valid_real(token_value(tokens, i), &cfg_.cutoff) || cfg_.cutoff <= 0.0)
           PRINT_INPUT_ERROR("compute_react_count cutoff should be positive.");
       } else if (key == "element") {
-        element_list_ = react_count::split_commas(token_value(tokens, i));
+        element_list_ = split_commas(token_value(tokens, i));
         if (element_list_.empty())
           PRINT_INPUT_ERROR("compute_react_count element list is empty.");
       } else if (key == "radius") {
@@ -1377,24 +1525,35 @@ private:
         int value = 0;
         if (!is_valid_int(pair.second, &value) || value < 0)
           PRINT_INPUT_ERROR("compute_react_count valence should be non-negative.");
-        valence_override_[pair.first] = value;
+        if (pair.first == "*") {
+          cfg_.valence_all_set = true;
+          cfg_.valence_all = value;
+        } else {
+          valence_override_[pair.first] = value;
+        }
       } else if (key == "max_neigh") {
         if (!is_valid_int(token_value(tokens, i), &cfg_.max_neigh) || cfg_.max_neigh <= 0)
           PRINT_INPUT_ERROR("compute_react_count max_neigh should be positive.");
       } else if (key == "order") {
-        cfg_.order = react_count::split_commas(token_value(tokens, i));
+        cfg_.order = split_commas(token_value(tokens, i));
         if (cfg_.order.empty())
           PRINT_INPUT_ERROR("compute_react_count order list is empty.");
       } else if (key == "events") {
-        if (!react_count::parse_bool(token_value(tokens, i), cfg_.events))
+        if (!parse_bool(token_value(tokens, i), cfg_.events))
           PRINT_INPUT_ERROR("compute_react_count events should be yes/no.");
       } else if (key == "require_balance") {
-        if (!react_count::parse_bool(token_value(tokens, i), cfg_.require_balance))
+        if (!parse_bool(token_value(tokens, i), cfg_.require_balance))
           PRINT_INPUT_ERROR("compute_react_count require_balance should be yes/no.");
         if (cfg_.require_balance)
           cfg_.events = true;
       } else if (key == "restart") {
         cfg_.restart_file = token_value(tokens, i);
+        if (
+          !is_valid_int(token_value(tokens, i), &cfg_.restart_interval) ||
+          cfg_.restart_interval <= 0)
+          PRINT_INPUT_ERROR("compute_react_count restart interval should be positive.");
+        if (cfg_.restart_interval % cfg_.nfreq != 0)
+          PRINT_INPUT_ERROR("compute_react_count restart interval must be a multiple of Nfreq.");
       } else if (key == "perception") {
         const std::string value = token_value(tokens, i);
         if (value == "reax")
@@ -1407,6 +1566,8 @@ private:
         PRINT_INPUT_ERROR("compute_react_count has an unknown keyword.");
       }
     }
+    if (!cfg_.restart_file.empty() && !cfg_.events)
+      PRINT_INPUT_ERROR("compute_react_count restart requires events yes.");
   }
 };
 
