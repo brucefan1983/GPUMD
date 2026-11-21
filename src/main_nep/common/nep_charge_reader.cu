@@ -41,7 +41,7 @@ void NEP_Charge_Reader::read_structure(const XYZ_Record& record, Structure& stru
     }
   }
 
-  int bec_offset = record.get_property_offset("bec");
+  int bec_offset = record.get_property_offset("bec", 'R', 9);
   label.has_bec = bec_offset >= 0;
   label.bec.resize(structure.num_atom * 9);
   if (label.has_bec) {

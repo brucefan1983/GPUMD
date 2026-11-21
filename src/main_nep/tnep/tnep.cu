@@ -1087,6 +1087,7 @@ private:
       for (int n = 0; n < tokens.size(); ++n) {
         const std::string dipole_string = "dipole=";
         if (tokens[n].substr(0, dipole_string.length()) == dipole_string) {
+          record.validate_array(n, 3);
           structure.has_virial = true;
           for (int m = 0; m < 6; ++m) {
             structure.virial[m] = 0.0f;
@@ -1118,6 +1119,7 @@ private:
       for (int n = 0; n < tokens.size(); ++n) {
         const std::string pol_string = "pol=";
         if (tokens[n].substr(0, pol_string.length()) == pol_string) {
+          record.validate_array(n, 9);
           structure.has_virial = true;
           const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
           for (int m = 0; m < 9; ++m) {
@@ -1141,12 +1143,12 @@ private:
         }
       }
     }
-    // Retain the last atomic tensor property, as in the existing reader.
-    int adipole_offset = record.get_property_offset("adipole", "atomic_dipole");
-    int apol_offset = record.get_property_offset("apol", "atomic_polarizability");
-    int avirial_offset = adipole_offset > apol_offset ? adipole_offset : apol_offset;
+    const bool is_dipole = model_parameters.model_type == 1;
+    const int avirial_offset =
+      is_dipole ? record.get_property_offset("adipole", 'R', 3, "atomic_dipole")
+                : record.get_property_offset("apol", 'R', 9, "atomic_polarizability");
     label.has_atomic_virial = avirial_offset >= 0;
-    label.atomic_virial_diag_only = adipole_offset > apol_offset;
+    label.atomic_virial_diag_only = is_dipole;
     if (avirial_offset < 0 && model_parameters.atomic_v == 1) {
       if (model_parameters.model_type == 1) {
         PRINT_INPUT_ERROR("'adipole' or 'atomic_dipole' is missing in properties.");

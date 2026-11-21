@@ -38,8 +38,7 @@ static void read_spin_geometry(const XYZ_Record& record, Spin_Data::Geometry& ge
     const std::string key = "lattice=";
     if (record.tokens[n].compare(0, key.size(), key) != 0)
       continue;
-    if (n + 8 >= record.tokens.size())
-      PRINT_INPUT_ERROR("Incomplete spin lattice tensor.");
+    record.validate_array(n, 9);
     const int transpose[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
     for (int k = 0; k < 9; ++k) {
       const auto& token = record.tokens[n + k];
@@ -53,7 +52,7 @@ static void read_spin_geometry(const XYZ_Record& record, Spin_Data::Geometry& ge
   }
   if (!has_cell)
     PRINT_INPUT_ERROR("'lattice' is missing in the second line of a frame.");
-  const int pos = record.get_property_offset("pos");
+  const int pos = record.get_property_offset("pos", 'R', 3);
   if (pos < 0)
     PRINT_INPUT_ERROR("'pos' is missing in properties.");
   geometry.position.resize(record.num_atoms);
@@ -66,8 +65,7 @@ static void read_spin_geometry(const XYZ_Record& record, Spin_Data::Geometry& ge
 static void read_spin_tensor(
   const XYZ_Record& record, size_t first, size_t key_length, double scale, float* result)
 {
-  if (first + 8 >= record.tokens.size())
-    PRINT_INPUT_ERROR("Incomplete spin virial/stress tensor.");
+  record.validate_array(first, 9);
   double tensor[9];
   for (int k = 0; k < 9; ++k) {
     const auto& token = record.tokens[first + k];

@@ -16,9 +16,6 @@
 /*----------------------------------------------------------------------------80
 NEP-spin potential interface, model parameters, and GPU workspaces.
 
-Contributors:
-Chengbing Chen, 1747193328@qq.com
-
 References:
 Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to

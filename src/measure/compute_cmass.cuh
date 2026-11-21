@@ -13,11 +13,6 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-/*----------------------------------------------------------------------------80
-Major contributors:
-  Zihan Yan: Initial implementation.
-------------------------------------------------------------------------------*/
-
 #pragma once
 #include "measure/action.cuh"
 #include <cstdio>
