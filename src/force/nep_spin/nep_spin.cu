@@ -23,9 +23,7 @@ Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 Major contributors:
-  Chengbing Chen: Initial implementation, shared channel contractions, and MD kernel dispatch
-  with optional radial caching.
-  Chengbing Chen with AI assistance: Longitudinal wall energy and magnetic force in MD.
+  Chengbing Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "nep_spin.cuh"

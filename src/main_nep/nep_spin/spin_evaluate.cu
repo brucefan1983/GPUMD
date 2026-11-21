@@ -15,8 +15,7 @@
 
 /*----------------------------------------------------------------------------80
 Major contributors:
-  Chengbing Chen: Initial implementation. Managed device workspaces for specialized spin evaluation.
-  Chengbing Chen with AI assistance: Device initialization for longitudinal walls.
+  Chengbing Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "main_nep/dataset.cuh"

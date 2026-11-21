@@ -11,9 +11,14 @@
     GNU Lesser General Public License for more details.
     You should have received a copy of the GNU Lesser General Public License
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
-    Chengbing Chen: longitudinal spin wall formulation in TorchNEP.
-    GPUMD integration: OpenAI Codex.
 */
+
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Chengbing Chen: Longitudinal spin wall formulation in TorchNEP.
+  OpenAI Codex: GPUMD integration.
+------------------------------------------------------------------------------*/
+
 #pragma once
 #include <cmath>
 

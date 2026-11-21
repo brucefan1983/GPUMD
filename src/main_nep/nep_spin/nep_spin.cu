@@ -16,7 +16,6 @@
 /*----------------------------------------------------------------------------80
 Major contributors:
   Chengbing Chen: Initial implementation.
-  Chengbing Chen with AI assistance: Longitudinal walls in training and prediction.
 ------------------------------------------------------------------------------*/
 
 #include "force/nep_spin/spin_warp.cuh"
