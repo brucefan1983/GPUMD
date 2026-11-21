@@ -15,7 +15,7 @@
 
 /*----------------------------------------------------------------------------80
 Major contributors:
-  Zheyong Fan: Initial implementation and blank-line handling.
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "utilities/error.cuh"

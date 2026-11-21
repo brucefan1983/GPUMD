@@ -15,7 +15,7 @@
 
 /*----------------------------------------------------------------------------80
 Major contributors:
-  Chengbing Chen: Initial implementation. Reused forward geometry in the training adjoint.
+  Chengbing Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #ifdef NEP_SPECIALIZED_RUNTIME_BUILD

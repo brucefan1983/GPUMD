@@ -15,7 +15,6 @@
 
 /**
  * NNAP interface for GPUMD
- * @author liqa
  */
 
 #ifdef USE_NNAP
