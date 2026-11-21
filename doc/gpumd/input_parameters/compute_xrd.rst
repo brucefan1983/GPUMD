@@ -9,6 +9,7 @@ Calculate kinematic X-ray diffraction intensities on a reciprocal-space grid.
 Write one intensity for each sampled point to :ref:`xrd.txt <xrd_txt>`.
 To obtain a powder pattern, sum the intensities in bins of equal scattering
 angle. See the `worked examples in GPUMD-Tutorials <https://github.com/brucefan1983/GPUMD-Tutorials>`_.
+For a related virtual-diffraction method, see [Coleman2013]_.
 
 Syntax
 ------
@@ -46,8 +47,7 @@ where :math:`s=\sin(\theta)/\lambda` in Å⁻¹ and
 this limit or a sampled element is missing, supply an appropriate custom
 coefficient file or adjust the input.
 
-The coefficients come from Waasmaier and Kirfel (1995), *Acta Crystallographica
-Section A*, **51**, 416–431, `doi:10.1107/S0108767394013292 <https://doi.org/10.1107/S0108767394013292>`_.
+The coefficients use the fit in [Waasmaier1995]_.
 The numbers are taken from the
 `XrayDB data archive <https://github.com/xraypy/XrayDB/blob/96911505a105549100d183a6268cb3fdfd6445d3/data_sources/waasmaeir_kirfel.dat>`_,
 whose `data license <https://github.com/xraypy/XrayDB/blob/96911505a105549100d183a6268cb3fdfd6445d3/LICENSE>`_
@@ -75,9 +75,7 @@ For example, save this row as ``xrd_factors.txt`` and use
 The custom four-Gaussian form factor is
 :math:`f(s)=c+\sum_{i=1}^{4}a_i\exp(-b_i s^2)`, where
 :math:`s=\sin(\theta)/\lambda` in Å⁻¹. The example is the neutral-carbon
-(C RHF) entry of Maslen, Fox and O'Keefe, *International Tables for
-Crystallography*, Vol. C (2006),
-`Table 6.1.1.4 <https://onlinelibrary.wiley.com/iucr/itc/Cb/ch6o1v0001/table6o1o1o4/>`_,
+(C RHF) entry in Table 6.1.1.4 of [Brown2006]_,
 for the four-Gaussian approximation over :math:`0 \le s \le 2` Å⁻¹.
 Choose coefficients and an angular range appropriate to the scattering
 model and the fit's range. For an analytic unit-scatterer check, set all

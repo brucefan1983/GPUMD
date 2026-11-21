@@ -4,6 +4,24 @@
 Bibliography
 ************
 
+.. [Waasmaier1995]
+   | D. Waasmaier and A. Kirfel
+   | *New analytical scattering-factor functions for free atoms and ions*
+   | Acta Crystallographica Section A **51**, 416–431 (1995)
+   | DOI: `10.1107/S0108767394013292 <https://doi.org/10.1107/S0108767394013292>`_
+
+.. [Coleman2013]
+   | S. P. Coleman, D. E. Spearot, and L. Capolungo
+   | *Virtual diffraction analysis of Ni [0 1 0] symmetric tilt grain boundaries*
+   | Modelling and Simulation in Materials Science and Engineering **21**, 055020 (2013)
+   | DOI: `10.1088/0965-0393/21/5/055020 <https://doi.org/10.1088/0965-0393/21/5/055020>`_
+
+.. [Brown2006]
+   | P. J. Brown, A. G. Fox, E. N. Maslen, M. A. O'Keefe, and B. T. M. Willis
+   | *Intensity of diffracted intensities*
+   | International Tables for Crystallography, Vol. C, Chapter 6.1, 554–595 (2006)
+   | DOI: `10.1107/97809553602060000600 <https://doi.org/10.1107/97809553602060000600>`_
+
 .. [Aristoff2014]
    | David Aristoff, Tony Lelièvre, and Gideon Simpson
    | *The parallel replica method for simulating long trajectories of Markov chains*
