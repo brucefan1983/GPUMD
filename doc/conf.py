@@ -112,7 +112,10 @@ def add_publication_counts(app, doctree):
         return
     bibfile = os.path.join(app.srcdir, 'publications.bib')
     app.env.note_dependency(bibfile)
-    counts = Counter(entry.fields.get('year') for entry in parse_file(bibfile).entries.values())
+    counts = Counter(
+        entry.fields.get('year') for entry in parse_file(bibfile).entries.values()
+        if 'xrd-reference' not in entry.fields.get('keywords', '')
+    )
     for title in doctree.findall(nodes.title):
         year = title.astext()
         if re.fullmatch(r'\d{4}', year):
