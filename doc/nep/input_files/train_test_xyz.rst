@@ -9,6 +9,8 @@
 The :attr:`train.xyz` file contains the training data for the construction of a :term:`NEP` model, while the optional :attr:`test.xyz` file contains the corresponding test data.
 Both files use `extended xyz file format <https://github.com/libAtoms/extxyz>`_.
 Each structure (or configuration or frame) occupies :math:`N+2` lines, where :math:`N` is the number of atoms in the structure.
+Blank lines before, between, or after structures are ignored.
+The training file must contain at least one structure.
 Grouped magnetic-response data use a separate :ref:`response.xyz <response_xyz>` file.
 
 Format for a single structure
