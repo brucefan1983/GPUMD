@@ -65,7 +65,7 @@ def test_auto_wall_export_and_restart(tmp_path, per_element):
     if per_element:
         config = CONFIG.replace('spin_type Fe', 'spin_type Fe Ge')
         config += 'spin_wall auto 0.2 1.5  2 3   0 0  auto 0.7 2\n'
-        xyz = xyz.replace('0.0 0.0 0.0 9.0 9.0 9.0', '0.3 0.0 0.0 9.0 9.0')
+        xyz = xyz.replace('0.0 0.0 0.0 9.0 9.0 9.0', '0.3 0.0 0.0 9.0 9.0 9.0')
         expected = [lower, 1.5, 2, 3, 0, 0, 1, 2]
     else:
         config = CONFIG + 'spin_wall auto 0.2 1.5  auto 0.5 2\n'
@@ -80,7 +80,7 @@ def test_auto_wall_export_and_restart(tmp_path, per_element):
     resumed = tmp_path / 'resumed'
     shifted = xyz.replace('1.0 0.1 0.0 0.2 -0.1 0.05', '2.0 0.1 0.0 0.2 -0.1 0.05')
     if per_element:
-        shifted = shifted.replace('0.3 0.0 0.0 9.0 9.0 9.0', '0.5 0.0 0.0 9.0 9.0')
+        shifted = shifted.replace('0.3 0.0 0.0 9.0 9.0 9.0', '0.5 0.0 0.0 9.0 9.0 9.0')
     execute(resumed, config, shifted, model, checkpoint)
     assert metadata((resumed / 'nep.txt').read_text())['spin_wall'] == exported
 
