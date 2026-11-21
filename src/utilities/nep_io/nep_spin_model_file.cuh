@@ -13,6 +13,7 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
+#include "spin_wall.cuh"
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -32,6 +33,7 @@ struct NEP_Spin_Model_File {
   int dim_struct = 0, dim_spin = 0, dim = 0;
   std::vector<float> spin_cutoff;
   std::vector<int> spin_type;
+  std::vector<Spin_Walls> spin_walls;
   bool enable_zbl = false, use_typewise_cutoff_zbl = false;
   float zbl_rc_inner = 0, zbl_rc_outer = 0, typewise_cutoff_zbl_factor = 0;
   std::vector<double> energy_reference;
@@ -48,3 +50,10 @@ struct NEP_Spin_Model_File {
   static bool is_spin_model(const std::string& filename);
   bool read(std::istream& input, std::string& error);
 };
+
+bool parse_spin_wall(
+  const std::vector<std::string>& values,
+  const std::vector<int>& active,
+  std::vector<Spin_Walls>& walls,
+  std::vector<Spin_Walls>* automatic,
+  std::string& error);

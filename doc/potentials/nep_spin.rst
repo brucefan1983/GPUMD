@@ -64,6 +64,7 @@ It forms scalar invariants from local spin and geometric densities. The main cho
 * :ref:`spin_l_max <kw_spin_l_max>` bounds the spatial and spin tensor ranks and, in SOC mode, the coupled rank.
 * :ref:`spin_soc <kw_spin_soc>` controls whether spin orientation couples to the local lattice orientation.
 * :ref:`spin_type <kw_spin_type>` selects the elements with active spin degrees of freedom.
+* :ref:`spin_wall <kw_spin_wall>` adds optional longitudinal penalties to the energy and magnetic force.
 
 The spin descriptor reuses the structural angular radial coefficients with its own magnetic cutoff.
 The second :ref:`basis_size <kw_basis_size>` value also sets its radial basis; ``basis_size 8 8`` gives nine basis functions.
