@@ -52,9 +52,8 @@ struct NEP_Spin_Model_File {
 };
 
 bool parse_spin_wall(
-  int side,
   const std::vector<std::string>& values,
   const std::vector<int>& active,
-  bool allow_shared_pair,
   std::vector<Spin_Walls>& walls,
+  std::vector<Spin_Walls>* automatic,
   std::string& error);

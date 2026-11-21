@@ -1,72 +1,65 @@
 .. _kw_spin_wall:
 .. index::
-   single: spin_wall_high (keyword in nep.in)
-   single: spin_wall_low (keyword in nep.in)
+   single: spin_wall (keyword in nep.in)
 
-:attr:`spin_wall_high` and :attr:`spin_wall_low`
-================================================
+:attr:`spin_wall`
+=================
 
-These optional ``model nep_spin`` keywords penalize magnetic moment magnitudes
-above an upper bound or below a lower bound. Both walls are off by default.
+This optional ``model nep_spin`` keyword penalizes magnetic moment magnitudes
+below a lower threshold or above an upper threshold. Both walls are off by
+default for new training.
 
 Shared parameters
 -----------------
 
-Use one ``threshold stiffness`` pair to apply the same wall to all spin-active
-elements. Elements excluded by :ref:`spin_type <kw_spin_type>` are unaffected.
+Give the lower wall first and the upper wall second. A numeric wall takes a
+``threshold stiffness`` pair. One group applies to every element selected by
+:ref:`spin_type <kw_spin_type>`.
 
 .. code-block:: text
 
-   spin_wall_high 5.5 2.0
-   spin_wall_low  2.5 1.5
+   spin_wall 2.5 1.5  5.5 2.0
 
-Thresholds are in :math:`\mu_B`.
-Upper and lower stiffnesses are in :math:`\mathrm{eV}/\mu_B^3` and
-:math:`\mathrm{eV}/\mu_B`, respectively. Use a positive threshold when the
-stiffness is nonzero. If both walls are enabled for an element, its lower
-threshold must be strictly below its upper threshold.
+Thresholds are in :math:`\mu_B`. Lower and upper stiffnesses are in
+:math:`\mathrm{eV}/\mu_B` and :math:`\mathrm{eV}/\mu_B^3`, respectively.
+Zero stiffness disables that side. To use only an upper wall, write
+``spin_wall 0 0 5.5 2.0``. Enabled walls require positive thresholds. When
+both sides are enabled, the lower threshold must be strictly below the upper
+threshold.
+
+Automatic thresholds
+--------------------
+
+In training, either side can use ``auto <margin> <stiffness>`` in place of its
+numeric pair. The margin is non-negative and in :math:`\mu_B`.
+
+.. code-block:: text
+
+   spin_wall auto 0.2 1.5  auto 0.5 2.0
+
+For each selected element, the lower threshold is the smallest moment
+magnitude in ``train.xyz`` minus the lower margin. The upper threshold is the
+largest magnitude plus the upper margin. For a training range of 1.5 to
+3.0 :math:`\mu_B`, the example gives thresholds of 1.3 and 3.5 :math:`\mu_B`.
+An automatic wall is disabled if the element has no training atoms or the
+calculated threshold is nonpositive. The threshold order is checked after
+resolving the automatic values.
 
 Per-element parameters
 ----------------------
 
-On each wall line, give one ``threshold stiffness`` pair for **every** element
-in the order listed in ``type``, including elements without active spins.
-Use ``0 0`` for an element that should have no wall on that side. For example:
+Give one group per element in ``type`` order. Each side can be numeric or
+use ``auto``. For an element excluded by ``spin_type``, supply ``0 0 0 0``.
+Use a single ``spin_wall`` line in ``nep.in``.
 
 .. code-block:: text
 
    type 3 Fe Co O
    spin_type Fe Co
-   spin_wall_high 3.5 2.0  2.5 1.0  0 0
-   spin_wall_low  1.5 1.5  0 0      0 0
+   spin_wall auto 0.2 1.5  3.5 2.0   0 0  auto 0.5 1.0   0 0 0 0
 
-The three pairs are for Fe, Co, and O, respectively. Fe has both walls, Co has
-only an upper wall, and O has neither.
-
-Automatic thresholds
---------------------
-
-For new training, use ``auto <margin> <stiffness>`` to set thresholds from
-``train.xyz``:
-
-.. code-block:: text
-
-   spin_wall_high auto 0.5 2.0
-   spin_wall_low  auto 0.2 1.5
-
-For each spin-active element, the upper threshold is its largest training
-moment magnitude plus ``0.5``, and the lower threshold is its smallest
-training moment magnitude minus ``0.2``. For example, a training range of
-1.5 to 3.0 :math:`\mu_B` gives thresholds of 1.3 and 3.5 :math:`\mu_B`.
-The margin and stiffness on each ``auto`` line are shared across elements;
-the thresholds are calculated separately. The margin is non-negative and
-in :math:`\mu_B`. Zero stiffness disables that wall. A type without training
-atoms or with a nonpositive calculated threshold has that wall disabled.
-Neither ``test.xyz`` nor ``response.xyz`` sets these bounds.
-
-Choose one format per keyword. For example, the upper wall can use ``auto``
-while the lower wall uses explicit per-element pairs. Do not repeat a
-keyword to set individual elements.
+Fe has an automatic lower wall and a numeric upper wall. Co has only an
+automatic upper wall. O has no walls.
 
 Energy and magnetic force
 -------------------------
@@ -109,11 +102,14 @@ bound or a thermostat.
 Model files, prediction, and restart
 ------------------------------------
 
-``nep.txt`` stores the numeric pairs for each enabled wall in element order,
-including zero pairs for disabled types. This matches TorchNEP's spin-wall
-metadata and does not change the parameter or scaler blocks. GPUMD MD uses
-the pairs in the potential file. ``nep`` prediction also takes them from the
-file by default, and a numeric pair in ``nep.in`` overrides the corresponding
-wall for that prediction (use ``0 0`` to turn it off). Prediction cannot use
-``auto``. Restart preserves the resolved values from ``nep.txt``; explicit
-numeric restart values must agree with the saved values.
+When any wall is enabled, ``nep.txt`` stores one ``spin_wall`` line with four
+numbers per element in ``type`` order, lower pair first. Disabled sides are
+written as ``0 0``. MD uses the resolved values from the potential file.
+
+Prediction uses the model values when ``spin_wall`` is omitted from
+``nep.in``. A numeric ``spin_wall`` line overrides both sides. Use
+``spin_wall 0 0 0 0`` to disable all walls for prediction.
+
+Restart uses the resolved values saved in the model. An ``auto`` side with
+positive stiffness reuses its saved values. Explicit numeric values and
+disabled sides must agree with the saved model.

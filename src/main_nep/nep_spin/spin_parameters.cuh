@@ -48,8 +48,8 @@ private:
   void initialize_spin_checkpoint();
   void configure_spin_walls(const std::vector<Spin_Walls>& checkpoint);
   void validate_spin_wall_order() const;
-  std::vector<std::string> spin_wall_input_[Spin_Walls::count];
-  Spin_Wall auto_wall_[Spin_Walls::count]; // threshold stores the margin until resolution
+  std::vector<std::string> spin_wall_input_;
+  std::vector<Spin_Walls> auto_walls_; // threshold stores the margin until resolution
   void validate_spin_parameters();
   void calculate_spin_dimensions();
   bool is_lambda_m_set = false;

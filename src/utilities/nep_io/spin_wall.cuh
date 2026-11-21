@@ -28,10 +28,9 @@ struct Spin_Wall {
 };
 
 struct Spin_Walls {
-  enum { high, low, count };
+  enum { low, high, count };
   Spin_Wall side[count];
 
-  static const char* keyword(int i) { return i == high ? "spin_wall_high" : "spin_wall_low"; }
   bool enabled() const { return side[high].stiffness > 0 || side[low].stiffness > 0; }
   bool ordered() const
   {

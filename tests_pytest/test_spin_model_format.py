@@ -174,14 +174,14 @@ def test_spin_cutoff_lower_bound(codec, tmp_path):
 
 
 @pytest.mark.parametrize('metadata', [
-    'spin_wall_high 4 2',
-    'spin_wall_high auto 1 2',
-    'spin_wall_high 4 -2 0 0 0 0',
-    'spin_wall_low nan 2 0 0 0 0',
-    'spin_wall_high 0 2 0 0 0 0',
-    'spin_wall_high 4 2 4 1 0 0',
-    'spin_wall_high 4 2 0 0 0 0\nspin_wall_low 4 1 0 0 0 0',
-    'spin_wall_high 4 2 0 0 0 0\nspin_wall_high 4 2 0 0 0 0',
+    'spin_wall 0 0 4 2',
+    'spin_wall auto 1 2 4 2 0 0 0 0 0 0 0',
+    'spin_wall 0 0 4 -2  0 0 0 0  0 0 0 0',
+    'spin_wall nan 2 0 0  0 0 0 0  0 0 0 0',
+    'spin_wall 0 0 0 2  0 0 0 0  0 0 0 0',
+    'spin_wall 0 0 4 2  0 0 4 1  0 0 0 0',
+    'spin_wall 4 1 4 2  0 0 0 0  0 0 0 0',
+    'spin_wall 0 0 4 2  0 0 0 0  0 0 0 0\nspin_wall 0 0 4 2  0 0 0 0  0 0 0 0',
 ])
 def test_spin_wall_model_rejects_invalid(codec, tmp_path, metadata):
     model = (Path(__file__).parent/'fixtures/nep_spin/c3l2s2.nep').read_text()
@@ -202,7 +202,7 @@ def test_spin_wall_energy_and_gradient(codec, tmp_path):
     path.write_text(model)
     assert evaluate((3, 4, 0)) == [0.0] * 4
     path.write_text(model.replace('spin_type Fe\n', 'spin_type Fe\n'
-                                  'spin_wall_high 4 3 0 0 0 0\nspin_wall_low 2 1.5 0 0 0 0\n'))
+                                  'spin_wall 2 1.5 4 3  0 0 0 0  0 0 0 0\n'))
 
     def energy(spin):
         radius = math.hypot(*spin)
@@ -220,5 +220,5 @@ def test_spin_wall_energy_and_gradient(codec, tmp_path):
         assert evaluate(spin, index=1) == [0.0] * 4
 
     path.write_text(model.replace('spin_type Fe\n', 'spin_type Fe\n'
-                                  'spin_wall_low 1e-180 1 0 0 0 0\n'))
+                                  'spin_wall 1e-180 1 0 0  0 0 0 0  0 0 0 0\n'))
     assert evaluate((5e-181, 0, 0))[1:] == pytest.approx([0.5625, 0.0, 0.0])
