@@ -52,6 +52,50 @@ record_neighbor_overflow(const int kind, const int atom, const int count, const 
   neighbor_overflow_record[kind][2] = capacity;
 }
 
+static inline void
+report_neighbor_overflow(const char* name, const int capacity, const int atom, const int count)
+{
+  fprintf(stderr, "Error:\n");
+  fprintf(
+    stderr,
+    "    The %s neighbor list holds %d neighbors per atom, but atom %d has more.\n",
+    name,
+    capacity,
+    atom);
+  fprintf(stderr, "    The largest number of neighbors of an atom is %d.\n", count);
+  exit(1);
+}
+
+// A Monte Carlo trial collects the atoms within the radial cutoff of its trial atoms.
+static inline void report_monte_carlo_trial_overflow(
+  const int capacity, const int count, const int atom_i, const int atom_j)
+{
+  fprintf(stderr, "Error:\n");
+  fprintf(
+    stderr,
+    "    A Monte Carlo trial holds %d atoms within the radial cutoff of its trial atoms, but the "
+    "trial of atoms %d and %d has %d.\n",
+    capacity,
+    atom_i,
+    atom_j,
+    count);
+  exit(1);
+}
+
+static inline void
+report_monte_carlo_trial_overflow(const int capacity, const int count, const int atom_i)
+{
+  fprintf(stderr, "Error:\n");
+  fprintf(
+    stderr,
+    "    A Monte Carlo trial holds %d atoms within the radial cutoff of its trial atoms, but the "
+    "trial of atom %d has %d.\n",
+    capacity,
+    atom_i,
+    count);
+  exit(1);
+}
+
 static inline void check_neighbor_overflow()
 {
   const char* names[NUMBER_OF_NEIGHBOR_LIST_KINDS] = {"candidate", "local", "radial", "angular"};
@@ -59,15 +103,7 @@ static inline void check_neighbor_overflow()
   CHECK(gpuMemcpyFromSymbol(record, neighbor_overflow_record, sizeof(record)));
   for (int kind = 0; kind < NUMBER_OF_NEIGHBOR_LIST_KINDS; ++kind) {
     if (record[kind][1] > 0) {
-      fprintf(stderr, "Error:\n");
-      fprintf(
-        stderr,
-        "    The %s neighbor list holds %d neighbors per atom, but atom %d has more.\n",
-        names[kind],
-        record[kind][2],
-        record[kind][0]);
-      fprintf(stderr, "    The largest number of neighbors of an atom is %d.\n", record[kind][1]);
-      exit(1);
+      report_neighbor_overflow(names[kind], record[kind][2], record[kind][0], record[kind][1]);
     }
   }
 }

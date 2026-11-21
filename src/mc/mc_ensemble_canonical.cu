@@ -21,7 +21,9 @@ Major contributors:
 ------------------------------------------------------------------------------*/
 
 #include "mc_ensemble_canonical.cuh"
+#include "force/neighbor_overflow.cuh"
 #include "utilities/gpu_macro.cuh"
+#include <algorithm>
 #include <cstring>
 
 MC_Ensemble_Canonical::MC_Ensemble_Canonical(
@@ -86,7 +88,8 @@ static __global__ void get_neighbors_of_i_and_j(
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   int* g_NN_ij,
-  int* g_NL_ij)
+  int* g_NL_ij,
+  const int capacity)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
@@ -105,11 +108,10 @@ static __global__ void get_neighbors_of_i_and_j(
     apply_mic(box, x0j, y0j, z0j);
     float distance_square_j = float(x0j * x0j + y0j * y0j + z0j * z0j);
 
-    if (distance_square_i < rc_radial_square) {
-      g_NL_ij[atomicAdd(g_NN_ij, 1)] = n;
-    } else {
-      if (distance_square_j < rc_radial_square) {
-        g_NL_ij[atomicAdd(g_NN_ij, 1)] = n;
+    if (distance_square_i < rc_radial_square || distance_square_j < rc_radial_square) {
+      const int slot = atomicAdd(g_NN_ij, 1);
+      if (slot < capacity) {
+        g_NL_ij[slot] = n;
       }
     }
   }
@@ -138,7 +140,8 @@ static __global__ void create_inputs_for_energy_calculator(
   float* g_z12_radial,
   float* g_x12_angular,
   float* g_y12_angular,
-  float* g_z12_angular)
+  float* g_z12_angular,
+  const int capacity)
 {
   int n2 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n2 < N) {
@@ -158,21 +161,29 @@ static __global__ void create_inputs_for_energy_calculator(
       float distance_square = float(x12 * x12 + y12 * y12 + z12 * z12);
       if (distance_square < rc_radial_square) {
         int count_radial = atomicAdd(&g_NN_radial[k], 1);
-        int index_radial = count_radial * N_local + k;
-        g_t2_radial_before[index_radial] = g_type_before[n2];
-        g_t2_radial_after[index_radial] = g_type_after[n2];
-        g_x12_radial[index_radial] = float(x12);
-        g_y12_radial[index_radial] = float(y12);
-        g_z12_radial[index_radial] = float(z12);
+        if (count_radial < capacity) {
+          int index_radial = count_radial * N_local + k;
+          g_t2_radial_before[index_radial] = g_type_before[n2];
+          g_t2_radial_after[index_radial] = g_type_after[n2];
+          g_x12_radial[index_radial] = float(x12);
+          g_y12_radial[index_radial] = float(y12);
+          g_z12_radial[index_radial] = float(z12);
+        } else {
+          record_neighbor_overflow(NEIGHBOR_LIST_RADIAL, n1, count_radial + 1, capacity);
+        }
       }
       if (distance_square < rc_angular_square) {
         int count_angular = atomicAdd(&g_NN_angular[k], 1);
-        int index_angular = count_angular * N_local + k;
-        g_t2_angular_before[index_angular] = g_type_before[n2];
-        g_t2_angular_after[index_angular] = g_type_after[n2];
-        g_x12_angular[index_angular] = float(x12);
-        g_y12_angular[index_angular] = float(y12);
-        g_z12_angular[index_angular] = float(z12);
+        if (count_angular < capacity) {
+          int index_angular = count_angular * N_local + k;
+          g_t2_angular_before[index_angular] = g_type_before[n2];
+          g_t2_angular_after[index_angular] = g_type_after[n2];
+          g_x12_angular[index_angular] = float(x12);
+          g_y12_angular[index_angular] = float(y12);
+          g_z12_angular[index_angular] = float(z12);
+        } else {
+          record_neighbor_overflow(NEIGHBOR_LIST_ANGULAR, n1, count_angular + 1, capacity);
+        }
       }
     }
   }
@@ -250,6 +261,7 @@ void MC_Ensemble_Canonical::compute(
       type_j = atom.cpu_type[j];
     }
 
+    const int local_capacity = std::min(NL_ij.size(), NN_radial.size());
     CHECK(gpuMemset(NN_ij.data(), 0, sizeof(int)));
     get_neighbors_of_i_and_j<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
       atom.number_of_atoms,
@@ -261,11 +273,15 @@ void MC_Ensemble_Canonical::compute(
       atom.position_per_atom.data() + atom.number_of_atoms,
       atom.position_per_atom.data() + atom.number_of_atoms * 2,
       NN_ij.data(),
-      NL_ij.data());
+      NL_ij.data(),
+      local_capacity);
     GPU_CHECK_KERNEL
 
     int NN_ij_cpu;
     NN_ij.copy_to_host(&NN_ij_cpu);
+    if (NN_ij_cpu > local_capacity) {
+      report_monte_carlo_trial_overflow(local_capacity, NN_ij_cpu, i, j);
+    }
 
     get_types<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
       atom.number_of_atoms,
@@ -312,8 +328,10 @@ void MC_Ensemble_Canonical::compute(
       z12_radial.data(),
       x12_angular.data(),
       y12_angular.data(),
-      z12_angular.data());
+      z12_angular.data(),
+      static_cast<int>(t2_radial_before.size() / std::max(NN_ij_cpu, 1)));
     GPU_CHECK_KERNEL
+    check_neighbor_overflow();
 
     nep_energy.find_energy(
       NN_ij_cpu,
