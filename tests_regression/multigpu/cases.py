@@ -29,12 +29,12 @@ NAMES = ('axis_x', 'axis_y', 'axis_z', 'auto', 'triclinic', 'alloy',
 TILES = {'small': (1, 2, 2), 'medium': (2, 3, 3), 'large': (4, 4, 4)}
 
 
-def crystal(gpus, variant='solid', axis=0):
-    # For rc=6 A, each GPU needs >=10 bins of width rc/2. Leave room for
-    # skew and NPT changes. Dimensions depend on the largest tested GPU count.
+def crystal(partitions, variant='solid', axis=0):
+    # For rc=6 A, each partition needs >=10 bins of width rc/2. Leave room for
+    # skew and NPT changes. Dimensions depend on the largest partition count.
     a = 3.80 if variant == 'liquid_seed' else 3.615
     dims = [8, 8, 8]
-    dims[axis] = 12 * gpus
+    dims[axis] = 12 * partitions
     box = [[a * dims[i] if i == j else 0.0 for j in range(3)] for i in range(3)]
     if variant == 'triclinic':
         box[1][0], box[2][1] = 1.2, 0.8
@@ -47,7 +47,7 @@ def crystal(gpus, variant='solid', axis=0):
                 for b in basis:
                     frac = [(i + s + .015 + rng.uniform(-.002, .002)) / d
                             for i, s, d in zip((ix, iy, iz), b, dims)]
-                    if variant == 'empty' and not (.18 / gpus < frac[0] < .78 / gpus):
+                    if variant == 'empty' and not (.18 / partitions < frac[0] < .78 / partitions):
                         continue
                     if variant == 'nonuniform' and frac[0] > .4 and rng.random() < .6:
                         continue

@@ -42,11 +42,14 @@ if os.environ.get('NEP_TEST_EMULATOR_FAIL'):
     raise SystemExit(127)
 gpus = len(os.environ.get('HIP_VISIBLE_DEVICES', os.environ.get('CUDA_VISIBLE_DEVICES', '0')).split(','))
 print('number of GPUs =', gpus)
-if gpus > 1:
-    print('Try to use %d GPUs for the NEP part.' % gpus)
+partitions = 3 if Path(__file__).name.endswith('_zheyong') else gpus
+if partitions > 1:
+    print('Try to use %d GPUs for the NEP part.' % partitions)
 lines = Path('model.xyz').read_text().splitlines()
 box = re.search(r'Lattice="([^"]+)"', lines[1]).group(1)
 atoms = [line.split() for line in lines[2:]]
+if 'Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3:group:I:1' in lines[1]:
+    atoms = [a[:4] + a[5:8] + [a[4], a[8]] for a in atoms]
 dt, t = .05, 0.
 dumps, thermo, restart = [], 0, 0
 
@@ -108,10 +111,11 @@ for line in Path('run.in').read_text().splitlines():
 '''
 
 
-def timing(gpus, rates=(20, 100, 10), steps=(2, 50, 1), atoms=10):
+def timing(gpus, rates=(20, 100, 10), steps=(2, 50, 1), atoms=10, partitions=None):
     text = 'number of GPUs = {}\n'.format(gpus)
-    if gpus > 1:
-        text += 'Try to use {} GPUs for the NEP part.\n'.format(gpus)
+    partitions = gpus if partitions is None else partitions
+    if partitions > 1:
+        text += 'Try to use {} GPUs for the NEP part.\n'.format(partitions)
     for steps_i, rate in zip(steps, rates):
         text += ('Run {} steps.\nTime used for this run = {} second.\n'
                  'Speed of this run = {} atom*step/second.\n').format(steps_i, atoms * steps_i / rate, rate)
@@ -185,6 +189,37 @@ class ToolTests(unittest.TestCase):
             with self.assertRaises(checks.CheckError):
                 runner.log_rates(path, 2, [2, 50, 1])
 
+    def test_zheyong_log_requires_one_gpu_and_three_partitions(self):
+        path = self.root / 'run.log'
+        path.write_text(timing(1, partitions=3))
+        self.assertEqual(runner.log_rates(path, 1, [2, 50, 1], 3)[0], [20, 100, 10])
+        # A macro build must not masquerade as the ordinary single-GPU control.
+        with self.assertRaises(checks.CheckError):
+            runner.log_rates(path, 1, [2, 50, 1])
+        for bad in (timing(1), timing(1, partitions=2), timing(3),
+                    timing(1, partitions=3).replace('Run 50 steps.', 'Run 40 steps.')):
+            path.write_text(bad)
+            with self.subTest(log=bad), self.assertRaises(checks.CheckError):
+                runner.log_rates(path, 1, [2, 50, 1], 3)
+
+    def test_zheyong_cli_constraints_and_device_defaults(self):
+        binary = self.root / 'gpumd'
+        binary.write_text('#!/bin/sh\nexit 0\n')
+        binary.chmod(0o755)
+        base = ['--new', str(binary), '--zheyong', str(binary), '--backend', 'hip',
+                '--output', str(self.root / 'results')]
+        args = runner.arguments(base)
+        self.assertEqual(args.devices, ['0'])
+        self.assertEqual(args.counts, [1])
+        self.assertEqual(runner.arguments(base + ['--devices', '2']).devices, ['2'])
+        for extra in (['--old', str(binary)], ['--counts', '1,3'], ['--counts', '1'],
+                      ['--mode', 'performance'], ['--mode', 'all'],
+                      ['--devices', '0,1'], ['--devices', '-1'], ['--devices', '']):
+            with self.subTest(extra=extra), contextlib.redirect_stderr(io.StringIO()), \
+                    self.assertRaises(SystemExit) as error:
+                runner.arguments(base + extra)
+            self.assertEqual(error.exception.code, 2)
+
     def test_device_aliases_and_scheduler_mask(self):
         with patch.dict(os.environ, {'ROCR_VISIBLE_DEVICES': '2,3', 'CUDA_VISIBLE_DEVICES': '9'}):
             env = runner.device_environment('hip', ['0', '1'])
@@ -193,14 +228,15 @@ class ToolTests(unittest.TestCase):
         self.assertNotIn('CUDA_VISIBLE_DEVICES', env)
 
     def test_crystal_identity_and_legal_partition_lengths(self):
-        for axis in range(3):
-            state = cases.crystal(2, axis=axis)
-            self.assertGreaterEqual(int(state['box'][axis][axis] / 3) // 2, 10)
-            path = self.root / 'model.xyz'
-            cases.write_state(path, state)
-            frame = cases.only_frame(path)
-            self.assertEqual(frame['n'], 6144)
-            self.assertEqual(len(set(frame['data']['mass'])), frame['n'])
+        for partitions in (2, 3):
+            for axis in range(3):
+                state = cases.crystal(partitions, axis=axis)
+                self.assertGreaterEqual(int(state['box'][axis][axis] / 3) // partitions, 10)
+                path = self.root / 'model.xyz'
+                cases.write_state(path, state)
+                frame = cases.only_frame(path)
+                self.assertEqual(frame['n'], 3072 * partitions)
+                self.assertEqual(len(set(frame['data']['mass'])), frame['n'])
 
     def test_wrong_atom_identity_rejected(self):
         state = cases.crystal(2)
@@ -257,24 +293,85 @@ class ToolTests(unittest.TestCase):
             runner.verify_record(self.root, {'path': '.', 'process_status': 'COMPLETE',
                                  'input_hashes': {'model.xyz': digest}, 'output_hashes': {}})
 
-    def controller(self, output, extra):
+    def controller(self, output, extra, zheyong=False):
         binary = self.root / 'emulator'
         binary.write_text('#!' + sys.executable + '\n' + EMULATOR)
         binary.chmod(0o755)
+        if zheyong:
+            macro_binary = self.root / 'emulator_zheyong'
+            macro_binary.write_bytes(binary.read_bytes())
+            macro_binary.chmod(0o755)
+            comparison = ['--zheyong', str(macro_binary)]
+        else:
+            comparison = ['--old', str(binary)]
         potential = self.root / cases.POTENTIAL
         potential.parent.mkdir(parents=True, exist_ok=True)
         potential.write_text('nep 89 Cu\nformat_version 1\nmodel nep\nzbl 1 2\ncutoff 6 5 274 158\n')
         tiny = {'box': [[12, 0, 0], [0, 12, 0], [0, 0, 12]], 'pbc': [True] * 3,
                 'atoms': [['Cu', [1, 2, 3], [0, 0, 0], 63.546],
                           ['Cu', [5, 6, 7], [0, 0, 0], 63.546001]]}
-        with patch.object(cases, 'crystal', return_value=tiny), contextlib.redirect_stdout(io.StringIO()), \
+        with patch.object(cases, 'crystal', return_value=tiny) as geometry, contextlib.redirect_stdout(io.StringIO()), \
                 contextlib.redirect_stderr(io.StringIO()):
-            code = runner.main(['--new', str(binary), '--old', str(binary), '--backend', 'hip',
+            code = runner.main(['--new', str(binary), '--backend', 'hip',
                                 '--repo-root', str(self.root), '--output', str(output),
                                 '--cases', 'axis_x,append', '--repeats', '2',
                                 '--sizes', 'small', '--phases', 'solid', '--steps', '5',
-                                '--warmup', '2'] + extra)
+                                '--warmup', '2'] + comparison + extra)
+        self.geometry_calls = geometry.call_args_list
         return code, json.loads((output / 'report.json').read_text())
+
+    def test_zheyong_controller_comparisons_and_offline_recheck(self):
+        output = self.root / 'zheyong'
+        code, report = self.controller(output, ['--cases', 'axis_x,append,restart'], zheyong=True)
+        self.assertEqual(code, 0, report.get('fatal_error') or report['correctness_checks'])
+        self.assertEqual(report['execution_mode'], 'zheyong')
+        self.assertEqual(report['counts'], [1])
+        self.assertEqual(report['max_partitions'], 3)
+        self.assertEqual(report['correctness_status'], 'PASS')
+        self.assertEqual(report['real_multigpu_correctness_status'], 'NOT_RUN')
+        self.assertEqual(report['performance_status'], 'NOT_RUN')
+        self.assertEqual(report['performance'], [])
+        self.assertTrue(self.geometry_calls)
+        self.assertTrue(all(call.args[0] == 3 for call in self.geometry_calls))
+        names = {check['name'] for check in report['correctness_checks']}
+        for name in ('axis_x', 'append', 'restart'):
+            self.assertIn(name + ': zheyong_1 / new_1', names)
+            runs = [run for run in report['runs'] if run['path'].startswith('correctness/' + name + '/')]
+            self.assertTrue(all(run['input_hashes'] == runs[0]['input_hashes'] for run in runs))
+        for build in ('new', 'zheyong'):
+            self.assertIn('axis_x: {0}_repeat_1 / {0}_1'.format(build), names)
+        for run in report['runs']:
+            self.assertEqual(run['gpus'], 1)
+            self.assertEqual(run['partitions'], 3 if run['build'].startswith('zheyong') else 1)
+            self.assertEqual(run['environment']['HIP_VISIBLE_DEVICES'], '0')
+        self.assertEqual((output / 'inputs/restart.xyz').read_bytes(),
+                         (output / 'preflight/new_1/restart.xyz').read_bytes())
+        before = checks.sha256(output / 'report.json')
+        (self.root / 'emulator').unlink()
+        (self.root / 'emulator_zheyong').unlink()
+        with patch.object(sys, 'argv', ['recheck_results.py', str(output)]), \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(recheck_results.main(), 0)
+        self.assertEqual(checks.sha256(output / 'report.json'), before)
+        rechecked = json.loads(next(output.glob('recheck-*/report.json')).read_text())
+        self.assertEqual(rechecked['execution_mode'], 'zheyong')
+        self.assertEqual(rechecked['correctness_status'], 'PASS')
+        self.assertEqual(rechecked['real_multigpu_correctness_status'], 'NOT_RUN')
+        self.assertEqual(rechecked['performance_status'], 'NOT_RUN')
+        self.assertEqual(rechecked['performance'], [])
+
+    def test_zheyong_liquid_preparation_uses_normal_build(self):
+        # The liquid physics gate has a separate independent MSD test below.
+        # Here only controller selection and reuse of the common state are tested.
+        output = self.root / 'liquid'
+        with patch.object(runner, 'check_liquid', return_value={'controller_fixture': True}):
+            code, report = self.controller(output, ['--cases', 'liquid'], zheyong=True)
+        self.assertEqual(code, 0, report.get('fatal_error') or report['correctness_checks'])
+        prep = next(run for run in report['runs'] if run['spec']['kind'] == 'preparation')
+        self.assertEqual((prep['build'], prep['gpus'], prep['partitions']), ('new', 1, 1))
+        prepared = (output / 'preparation/liquid/restart.xyz').read_bytes()
+        for build in ('new', 'zheyong'):
+            self.assertEqual((output / ('correctness/liquid/' + build + '_1/model.xyz')).read_bytes(), prepared)
 
     def test_controller_end_to_end_and_recheck_inputs(self):
         output = self.root / 'results'
@@ -303,6 +400,26 @@ class ToolTests(unittest.TestCase):
         self.assertEqual(report['correctness_status'], 'ERROR')
         self.assertEqual(len(report['runs']), 1)
         self.assertIn('127', report['fatal_error'])
+
+    def test_offline_recheck_accepts_legacy_multigpu_report(self):
+        output = self.root / 'legacy'
+        code, report = self.controller(output, [])
+        self.assertEqual(code, 0)
+        for key in ('execution_mode', 'max_partitions', 'real_multigpu_correctness_status'):
+            report.pop(key, None)
+        for run in report['runs']:
+            run.pop('partitions', None)
+            spec = run['spec']
+            if 'max_partitions' in spec:
+                spec['max_gpus'] = spec.pop('max_partitions')
+        checks.write_json(output / 'report.json', report)
+        (self.root / 'emulator').unlink()
+        with patch.object(sys, 'argv', ['recheck_results.py', str(output)]), \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(recheck_results.main(), 0)
+        rechecked = json.loads(next(output.glob('recheck-*/report.json')).read_text())
+        self.assertEqual(rechecked['correctness_status'], 'PASS')
+        self.assertEqual(rechecked['performance_status'], 'NOT_RUN')
 
     def test_performance_only_does_not_claim_correctness(self):
         code, report = self.controller(self.root / 'performance', ['--mode', 'performance',

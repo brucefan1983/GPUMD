@@ -267,7 +267,8 @@ def check_run(directory, initial, spec, tolerances):
         # method. Require observable crossings; a stationary fixture is inadequate.
         length = lattice(initial)[0]
         bins = int(length / 3)
-        width = (bins // spec['max_gpus']) * length / bins
+        partitions = spec.get('max_partitions', spec.get('max_gpus'))
+        width = (bins // partitions) * length / bins
         before = initial['data']['pos'][::3]
         after = full[-1]['data']['unwrapped_position'][::3]
         crossing = sum(math.floor(a / width) != math.floor(b / width)

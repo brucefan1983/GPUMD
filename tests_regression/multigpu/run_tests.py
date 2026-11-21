@@ -56,13 +56,15 @@ def device_environment(backend, devices):
     return env
 
 
-def log_rates(path, expected_gpus, steps):
+def log_rates(path, expected_gpus, steps, expected_partitions=None):
+    if expected_partitions is None:
+        expected_partitions = expected_gpus
     log = Path(path).read_text(encoding='utf-8', errors='replace')
     counts = re.findall(r'number of GPUs = (\d+)', log)
     exact(counts == [str(expected_gpus)], 'Log does not confirm the requested visible GPU count')
     multi = re.findall(r'Try to use (\d+) GPUs for the NEP part\.', log)
-    exact(multi == ([] if expected_gpus == 1 else [str(expected_gpus)]),
-          'Log does not confirm the expected single-/multi-GPU NEP path')
+    exact(multi == ([] if expected_partitions == 1 else [str(expected_partitions)]),
+          'Log does not confirm the expected NEP partition count: {}'.format(expected_partitions))
     actual_steps = [int(x) for x in re.findall(r'^Run (\d+) steps\.', log, re.M)]
     exact(actual_steps == steps, 'Completed input run sequence differs: ' + str(actual_steps))
     rates = [float(x) for x in re.findall(r'Speed of this run = (\S+) atom\*step/second\.', log)]
@@ -72,14 +74,16 @@ def log_rates(path, expected_gpus, steps):
     return rates, elapsed
 
 
-def execute(root, report, binary, build, gpus, model, text, spec, relative):
+def execute(root, report, binary, build, gpus, model, text, spec, relative, partitions=None):
+    if partitions is None:
+        partitions = gpus
     directory = root / relative
     directory.mkdir(parents=True, exist_ok=False)
     shutil.copyfile(model, directory / 'model.xyz')
     (directory / 'potential.txt').symlink_to(report['potential']['path'])
     (directory / 'run.in').write_text(text, encoding='utf-8')
     inputs = {name: sha256(directory / name) for name in ('model.xyz', 'potential.txt', 'run.in')}
-    record = {'path': relative, 'build': build, 'gpus': gpus, 'spec': spec,
+    record = {'path': relative, 'build': build, 'gpus': gpus, 'partitions': partitions, 'spec': spec,
               'input_hashes': inputs, 'process_status': 'RUNNING', 'logs': []}
     report['runs'].append(record)
     write_json(root / 'report.json', report)
@@ -93,7 +97,8 @@ def execute(root, report, binary, build, gpus, model, text, spec, relative):
               'NEP89 changed after the test started')
         for execution in range(spec.get('executions', 1)):
             log_name = 'run-{:02d}.log'.format(execution + 1)
-            print('RUN {} [{} GPUs, execution {}]'.format(relative, gpus, execution + 1), flush=True)
+            print('RUN {} [{} physical GPU(s), {} NEP partition(s), execution {}]'.format(
+                relative, gpus, partitions, execution + 1), flush=True)
             start = time.monotonic()
             with (directory / log_name).open('w', encoding='utf-8') as log:
                 process = subprocess.Popen([str(binary)], cwd=directory, env=env, stdout=log,
@@ -107,7 +112,7 @@ def execute(root, report, binary, build, gpus, model, text, spec, relative):
             record['logs'].append({'file': log_name, 'returncode': returncode,
                                    'wall_seconds': time.monotonic() - start})
             exact(returncode == 0, 'Exit code {}; see {}'.format(returncode, directory / log_name))
-            log_rates(directory / log_name, gpus, spec['steps'])
+            log_rates(directory / log_name, gpus, spec['steps'], partitions)
         for name, digest in inputs.items():
             exact(sha256(directory / name) == digest, 'Input changed during execution: ' + name)
         exact(sha256(binary) == binary_hash, 'Executable changed during execution')
@@ -138,7 +143,8 @@ def verify_record(root, record):
     for name, digest in {**record['input_hashes'], **record['output_hashes']}.items():
         exact(sha256(directory / name) == digest, 'Retained file changed: ' + str(directory / name))
     for log in record['logs']:
-        log_rates(directory / log['file'], record['gpus'], record['spec']['steps'])
+        log_rates(directory / log['file'], record['gpus'], record['spec']['steps'],
+                  record.get('partitions', record['gpus']))
 
 
 def assess(root, report, tolerances):
@@ -166,6 +172,8 @@ def assess(root, report, tolerances):
                 pairs.append((key, (build, 1)))
             if build == 'new' and ('old', count) in runs:
                 pairs.append((key, ('old', count)))
+            if build == 'zheyong':
+                pairs.append((key, ('new', 1)))
             if build.endswith('_repeat'):
                 pairs.append((key, (build.removesuffix('_repeat'), count)))
         for left_key, right_key in pairs:
@@ -197,12 +205,18 @@ def assess(root, report, tolerances):
     else:
         status = 'PASS'
     report['correctness_status'] = status
+    report['real_multigpu_correctness_status'] = (
+        'NOT_RUN' if report.get('execution_mode') == 'zheyong' else status)
     report['full_correctness_scope'] = expected_cases == set(cases.NAMES)
     report['tolerances'] = tolerances
     return checks
 
 
 def performance_summary(root, report):
+    if report.get('execution_mode') == 'zheyong':
+        report['performance'] = []
+        report['performance_status'] = 'NOT_RUN'
+        return
     groups = defaultdict(list)
     for run in report['runs']:
         spec = run['spec']
@@ -280,6 +294,11 @@ def save_report(destination, report):
                  report.get('correctness_status', 'NOT_RUN'), report.get('performance_status', 'NOT_RUN')),
              '', 'Scope: {}.'.format(', '.join(report['selected_cases']) if report['mode'] != 'performance' else 'performance only'),
              '', 'Checks: ' + ', '.join('{} {}'.format(counts[s], s) for s in ('PASS', 'FAIL', 'ERROR', 'SKIP')), '']
+    if report.get('execution_mode') == 'zheyong':
+        lines += ['Execution: **ZHEYONG single-physical-GPU partition validation**.',
+                  'Both builds use one physical GPU: new = ordinary NEP; zheyong = three NEP partitions.',
+                  '**Real multi-GPU correctness: NOT_RUN. Multi-GPU performance: NOT_RUN.**',
+                  'This checks partition logic; cross-device transfers, synchronization and scaling still require real GPUs.', '']
     if report.get('fatal_error'):
         lines += ['Run stopped: ' + report['fatal_error'], '']
     if report.get('performance_blocked'):
@@ -288,8 +307,9 @@ def save_report(destination, report):
         lines += ['**Focused diagnostics: this is not the full release correctness suite.**', '']
     if report.get('liquid'):
         lines += ['Liquid preparation: ' + json.dumps(report['liquid'], ensure_ascii=False), '']
-    lines += ['| Phase / size / profile | Build | GPUs | Mean atom-step/s | New / old | Scaling | Efficiency | CV (%) |',
-              '|---|---|---:|---:|---:|---:|---:|---:|']
+    if report.get('execution_mode') != 'zheyong':
+        lines += ['| Phase / size / profile | Build | GPUs | Mean atom-step/s | New / old | Scaling | Efficiency | CV (%) |',
+                  '|---|---|---:|---:|---:|---:|---:|---:|']
     for row in report.get('performance', []):
         values = [format(row[k], '.6g') if row.get(k) is not None else '—' for k in
                   ('mean_rate', 'new_over_old', 'scaling', 'efficiency', 'cv_percent')]
@@ -297,10 +317,11 @@ def save_report(destination, report):
             values[0] = row['status']
         lines.append('| {} / {} / {} | {} | {} | {} |'.format(row['phase'], row['size'], row['profile'],
                      row['build'], row['gpus'], ' | '.join(values)))
-    lines += ['', 'Rates are arithmetic means of per-repeat atom-step/s; ratios use those means.',
-              'Performance completion is not a speedup acceptance gate.',
-              'Inspect CV and individual samples; CV is undefined for one repeat.', '',
-              'Bounds are initial NEP89 test bounds and require calibration on the release hardware.',
+    if report.get('execution_mode') != 'zheyong':
+        lines += ['', 'Rates are arithmetic means of per-repeat atom-step/s; ratios use those means.',
+                  'Performance completion is not a speedup acceptance gate.',
+                  'Inspect CV and individual samples; CV is undefined for one repeat.', '']
+    lines += ['Bounds are initial NEP89 test bounds and require calibration on the release hardware.',
               'Correctness NOT_RUN is not a correctness pass.', '', '## Check results', '']
     for check in report.get('correctness_checks', []):
         lines.append('- **{}** {}{}'.format(check['status'], check['name'],
@@ -314,8 +335,10 @@ def arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--new', '--candidate', type=Path, help='candidate gpumd executable')
     parser.add_argument('--old', '--baseline', type=Path, help='optional accepted gpumd executable')
+    parser.add_argument('--zheyong', type=Path,
+                        help='same-source -DZHEYONG executable; compare three partitions on one physical GPU')
     parser.add_argument('--backend', choices=('cuda', 'hip'))
-    parser.add_argument('--devices', '--device', default='0,1', help='visible GPU indices, e.g. 0,1')
+    parser.add_argument('--devices', '--device', help='visible GPU indices; default: 0,1 (0 with --zheyong)')
     parser.add_argument('--counts', help='GPU counts, starting at 1; default: 1 and all selected GPUs')
     parser.add_argument('--mode', choices=('correctness', 'performance', 'all'), default='correctness')
     parser.add_argument('--cases', default=','.join(cases.NAMES), help='comma-separated correctness case names')
@@ -337,17 +360,26 @@ def arguments(argv=None):
         return args
     if args.new is None or args.backend is None:
         parser.error('--new and --backend are required')
-    args.devices = args.devices.split(',')
-    if (len(args.devices) < 2 or len(args.devices) > 16 or len(set(args.devices)) != len(args.devices) or
+    if args.zheyong and (args.old is not None or args.counts is not None or args.mode != 'correctness'):
+        parser.error('--zheyong requires --mode correctness and cannot be combined with --old or --counts')
+    args.devices = (args.devices if args.devices is not None else ('0' if args.zheyong else '0,1')).split(',')
+    if (len(set(args.devices)) != len(args.devices) or
             any(not re.fullmatch(r'0|[1-9]\d*', x) for x in args.devices)):
-        parser.error('--devices must contain 2 to 16 distinct nonnegative integer indices')
-    try:
-        args.counts = [int(x) for x in args.counts.split(',')] if args.counts else [1, len(args.devices)]
-    except ValueError:
-        parser.error('--counts must contain integer GPU counts')
-    if (args.counts != sorted(set(args.counts)) or args.counts[0] != 1 or len(args.counts) < 2 or
-            args.counts[-1] > len(args.devices)):
-        parser.error('--counts must be increasing, include 1 and a multi-GPU count, and fit --devices')
+        parser.error('--devices must contain distinct nonnegative integer indices')
+    if args.zheyong:
+        if len(args.devices) != 1:
+            parser.error('--zheyong requires exactly one visible physical GPU')
+        args.counts = [1]
+    else:
+        if not 2 <= len(args.devices) <= 16:
+            parser.error('--devices must contain 2 to 16 GPU indices without --zheyong')
+        try:
+            args.counts = [int(x) for x in args.counts.split(',')] if args.counts else [1, len(args.devices)]
+        except ValueError:
+            parser.error('--counts must contain integer GPU counts')
+        if (args.counts != sorted(set(args.counts)) or args.counts[0] != 1 or len(args.counts) < 2 or
+                args.counts[-1] > len(args.devices)):
+            parser.error('--counts must be increasing, include 1 and a multi-GPU count, and fit --devices')
     for key, allowed in (('cases', cases.NAMES), ('sizes', cases.TILES),
                          ('profiles', ('minimal', 'output')), ('phases', ('solid', 'liquid'))):
         value = getattr(args, key).split(',')
@@ -357,7 +389,7 @@ def arguments(argv=None):
     if (not math.isfinite(args.timeout) or args.timeout <= 0 or args.repeats < 1 or
             args.warmup < 1 or args.steps < 1):
         parser.error('Timeout, repeats, warmup and steps must be positive')
-    for key in ('new', 'old'):
+    for key in ('new', 'old', 'zheyong'):
         value = getattr(args, key)
         if value is not None:
             value = value.resolve()
@@ -391,6 +423,11 @@ def main(argv=None):
     binaries = {'new': args.new}
     if args.old:
         binaries['old'] = args.old
+    if args.zheyong:
+        binaries['zheyong'] = args.zheyong
+    configs = ([('new', 1, 1), ('zheyong', 1, 3)] if args.zheyong else
+               [(build, count, count) for build in binaries for count in args.counts])
+    max_partitions = max(partitions for _, _, partitions in configs)
     try:
         revision = subprocess.run(['git', '-C', str(args.repo_root), 'rev-parse', 'HEAD'],
                                   text=True, capture_output=True, timeout=5, check=True).stdout.strip()
@@ -398,6 +435,8 @@ def main(argv=None):
         revision = None
     report = {'schema_version': 1, 'created_utc': stamp(), 'command': sys.argv,
               'backend': args.backend, 'devices': args.devices, 'counts': args.counts,
+              'execution_mode': 'zheyong' if args.zheyong else 'multigpu',
+              'max_partitions': max_partitions,
               'mode': args.mode, 'selected_cases': args.cases, 'timeout_seconds': args.timeout,
               'repeats': args.repeats, 'build_note': args.build_note,
               'host': platform.platform(), 'python': sys.version,
@@ -405,20 +444,19 @@ def main(argv=None):
               'potential': {'path': str(potential), 'sha256': sha256(potential)},
               'binaries': {k: {'path': str(v), 'sha256': sha256(v)} for k, v in binaries.items()},
               'package_hashes': {p.name: sha256(p) for p in (root / 'code').iterdir()},
-              'expected_performance_groups': len(args.phases) * len(args.sizes) * len(args.profiles) * len(binaries) * len(args.counts),
+              'expected_performance_groups': (0 if args.zheyong else
+                  len(args.phases) * len(args.sizes) * len(args.profiles) * len(configs)),
               'runs': [], 'pairs_order_seed': 1906, 'tolerances': tolerances,
               'correctness_status': 'NOT_RUN', 'performance_status': 'NOT_RUN'}
-    configs = [(build, count) for build in binaries for count in args.counts]
-    max_gpus = args.counts[-1]
     try:
         solid = root / 'inputs' / 'solid.xyz'
-        cases.write_state(solid, cases.crystal(max_gpus))
+        cases.write_state(solid, cases.crystal(max_partitions))
         # Fail early for a wrong backend, missing loader libraries or invisible GPUs.
         text, spec = cases.correctness('axis_x')
-        spec.update(name='preflight', max_gpus=max_gpus)
-        for build, count in configs:
+        spec.update(name='preflight', max_partitions=max_partitions)
+        for build, count, partitions in configs:
             run = execute(root, report, binaries[build], build, count, solid, text, spec,
-                          'preflight/{}_{}'.format(build, count))
+                          'preflight/{}_{}'.format(build, count), partitions=partitions)
             verify_record(root, run)
             preflight = check_run(root / run['path'], cases.only_frame(solid), spec, tolerances)
             exact(not any(m.get('exceedances', 0) for m in preflight.values()),
@@ -426,10 +464,10 @@ def main(argv=None):
 
         need_liquid = ((args.mode != 'performance' and any('liquid' in x for x in args.cases)) or
                        (args.mode != 'correctness' and 'liquid' in args.phases))
-        liquid = root / 'inputs' / 'liquid.xyz'
+        liquid = root / 'inputs' / 'prepared_liquid.xyz'
         if need_liquid:
             seed = root / 'inputs' / 'liquid_seed.xyz'
-            cases.write_state(seed, cases.crystal(max_gpus, 'liquid_seed'))
+            cases.write_state(seed, cases.crystal(max_partitions, 'liquid_seed'))
             build = 'old' if args.old else 'new'
             prep_spec = {'kind': 'preparation', 'name': 'liquid', 'steps': [5000, 2000, 3000]}
             run = execute(root, report, binaries[build], build, 1, seed,
@@ -441,7 +479,7 @@ def main(argv=None):
         if args.mode != 'performance':
             for name in args.cases:
                 text, spec = cases.correctness(name)
-                spec['max_gpus'] = max_gpus
+                spec['max_partitions'] = max_partitions
                 model = root / 'inputs' / (name + '.xyz')
                 if 'liquid' in name:
                     shutil.copyfile(liquid, model)
@@ -449,15 +487,15 @@ def main(argv=None):
                     build = 'old' if args.old else 'new'
                     cases.snapshot_to_input(root / 'preflight' / (build + '_1') / 'restart.xyz', model)
                 else:
-                    cases.write_state(model, cases.crystal(max_gpus, name, spec['axis']))
-                for build, count in configs:
+                    cases.write_state(model, cases.crystal(max_partitions, name, spec['axis']))
+                for build, count, partitions in configs:
                     execute(root, report, binaries[build], build, count, model, text, spec,
-                            'correctness/{}/{}_{}'.format(name, build, count))
+                            'correctness/{}/{}_{}'.format(name, build, count), partitions=partitions)
                 if name == 'axis_x':
                     # Both the single- and multi-GPU paths have a repeatability control.
-                    for build, count in configs:
+                    for build, count, partitions in configs:
                         execute(root, report, binaries[build], build + '_repeat', count, model, text, spec,
-                                'correctness/{}/{}_{}_repeat'.format(name, build, count))
+                                'correctness/{}/{}_{}_repeat'.format(name, build, count), partitions=partitions)
             assess(root, report, tolerances)
             save_report(root, report)
             for check in report['correctness_checks']:
@@ -475,7 +513,7 @@ def main(argv=None):
                         for repeat in range(args.repeats):
                             order = list(configs)
                             rng.shuffle(order)  # Interleave builds/counts within each repeat.
-                            for build, count in order:
+                            for build, count, partitions in order:
                                 spec = {'kind': 'performance', 'phase': phase, 'size': size,
                                         'profile': profile, 'repeat': repeat + 1,
                                         'steps': [args.warmup, args.steps, 1],
@@ -484,7 +522,8 @@ def main(argv=None):
                                 relative = 'performance/{}/{}/{}/repeat-{:02d}/{}_{}'.format(
                                     phase, size, profile, repeat + 1, build, count)
                                 execute(root, report, binaries[build], build, count, model,
-                                        cases.performance(size, profile, args.warmup, args.steps), spec, relative)
+                                        cases.performance(size, profile, args.warmup, args.steps), spec, relative,
+                                        partitions=partitions)
                                 performance_summary(root, report)
                                 save_report(root, report)
     except (OSError, CheckError, ValueError, KeyboardInterrupt) as error:

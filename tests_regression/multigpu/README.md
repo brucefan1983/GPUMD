@@ -6,13 +6,95 @@ visible GPUs. A release maintainer runs it before a release; ordinary PRs do
 not need multi-GPU hardware. It is separate from the 255-case GPUMD/NEP
 regression suite and the TB and pytest suites.
 
-Requirements: Python 3.9 or newer (standard library only), Linux, and at least
-two CUDA or HIP GPUs. No pytest, NumPy, MPI, or downloaded dataset is needed.
+Requirements: Python 3.9 or newer (standard library only), Linux, and CUDA or
+HIP. Physical multi-GPU testing needs at least two GPUs. The `--zheyong` mode
+checks three logical partitions on one physical GPU using the existing
+`-DZHEYONG` build option. No pytest, NumPy, MPI, or downloaded dataset is needed.
 The suite references the repository model
 [`NEP89`](../../potentials/nep/nep89_20250409/nep89_20250409.txt)
 through `--repo-root` (the repository containing this script by default).
 It does not copy the potential into the test package or modify source code.
 Both executables must support this model's current file format.
+
+## Three-partition correctness on one GPU
+
+Supply an ordinary executable with `--new` and an executable compiled with
+`-DZHEYONG` with `--zheyong`. Both must come from the same source version and
+use the same backend, architecture and compiler flags apart from that macro.
+The runner exposes the same one physical GPU to both processes. It checks
+that both logs report one visible GPU and that only the macro build enters
+the three-partition NEP path.
+
+This mode runs correctness tests only. It rejects `--old`, `--counts`,
+`--mode performance`, and `--mode all`. `--devices` defaults to `0` and must
+select exactly one device. Both executables receive identical inputs sized
+for three partitions: 9,216 atoms for ordinary cases, with sparse cases
+containing fewer atoms. Liquid preparation and the shared restart use the
+ordinary executable. Results check the partitioning, middle-partition path,
+atom order and numerical outputs; the report labels physical multi-GPU
+validation and performance as unverified. It does not compute a simulated
+multi-GPU speedup or efficiency.
+
+### Build without changing the working source tree
+
+These commands copy the current `src` into fresh build directories below
+`reports/`. They preserve local source edits and leave `src/`, `src_old/`,
+their executables, and their Makefiles untouched. Start from ordinary compiler
+flags without `-DZHEYONG`. Clean the copies so old objects cannot retain
+different compiler options. Build only the `gpumd` target.
+
+From the repository root:
+
+```sh
+set -eu
+mkdir -p tests_regression/multigpu/reports
+build_dir=$(mktemp -d "$PWD/tests_regression/multigpu/reports/zheyong-build.XXXXXX")
+cp -a src "$build_dir/normal"
+cp -a src "$build_dir/zheyong"
+```
+
+Choose one backend. For CUDA, adjust the example architecture to your GPU:
+
+```sh
+backend=cuda
+make -C "$build_dir/normal" -f makefile clean
+make -C "$build_dir/zheyong" -f makefile clean
+make -C "$build_dir/normal" -f makefile -j4 gpumd CUDA_ARCH=-arch=sm_89
+make -C "$build_dir/zheyong" -f makefile -f - -j4 gpumd CUDA_ARCH=-arch=sm_89 <<'MAKE'
+override CFLAGS += -DZHEYONG
+MAKE
+```
+
+For HIP, adjust `HIP_ARCH` as needed:
+
+```sh
+backend=hip
+make -C "$build_dir/normal" -f makefile.hip clean
+make -C "$build_dir/zheyong" -f makefile.hip clean
+make -C "$build_dir/normal" -f makefile.hip -j4 gpumd HIP_ARCH=gfx1100
+make -C "$build_dir/zheyong" -f makefile.hip -f - -j4 gpumd HIP_ARCH=gfx1100 <<'MAKE'
+override CFLAGS += -DZHEYONG
+MAKE
+```
+
+The second Makefile is read from standard input after the existing Makefile;
+it appends the macro while preserving the normal flags, including `-DUSE_HIP`.
+Run the comparison in the same shell:
+
+```sh
+python3 tests_regression/multigpu/run_tests.py \
+  --new "$build_dir/normal/gpumd" --zheyong "$build_dir/zheyong/gpumd" \
+  --backend "$backend" --devices 0 \
+  --output "$build_dir/results"
+```
+
+An existing ordinary executable built from the same source and configuration
+can be reused as `--new`; in that case only the isolated macro build is
+needed. Keep the two executables under distinct paths. The macro build always
+uses three logical partitions, even when only one physical GPU is visible.
+All three workspaces occupy that GPU's memory. Physical multi-GPU correctness,
+peer access, device switching, synchronization and performance still require
+the tests below when hardware is available.
 
 ## Correctness on two AMD GPUs
 
@@ -70,12 +152,13 @@ the largest count; larger configurations also require more memory.
 | `liquid` | Short dynamics from a common equilibrated Cu liquid snapshot |
 | `energy_solid`, `energy_liquid` | NVE total-energy drift over 500 fs |
 
-On two GPUs the ordinary correctness inputs contain 6,144 atoms, except the
-intentionally sparse cases. The x/y/z cases have the same size in different
-orientations. NEP89's 6 A radial cutoff sets the geometry: at least ten bins
-of width cutoff/2 per GPU along the partition direction, with a margin for
-skew and pressure coupling. The empty-domain case is a diagnostic stress
-test, not a performance workload.
+The ordinary correctness inputs contain 6,144 atoms for two physical GPUs
+and 9,216 atoms in `--zheyong` mode, except the intentionally sparse cases.
+The x/y/z cases have the same size in different orientations. NEP89's 6 A
+radial cutoff sets the geometry: at least ten bins of width cutoff/2 per
+logical partition along the partition direction, with a margin for skew and
+pressure coupling. The empty-domain case is a diagnostic stress test, not a
+performance workload.
 
 The Cu solid starts from an FCC lattice with small deterministic displacements
 and velocities. Masses carry tiny unique offsets (1e-8 Da per input index) to
@@ -106,7 +189,9 @@ equality. Restart checks do not require bitwise continuation of a trajectory.
 For a full correctness result, run all 18 cases (the default) and require
 `Correctness: PASS`, with no failed, erroneous or skipped checks. `--cases
 axis_x,alloy` is a diagnostic subset and is labeled as such. `--list` lists
-cases without launching GPUMD. This package covers ordinary NEP89 only; it
+cases without launching GPUMD. A pass in `--zheyong` mode applies to the
+single-GPU partition tests; it does not satisfy the physical multi-GPU release
+validation. This package covers ordinary NEP89 only; it
 does not establish multi-GPU support for qNEP, spin, temperature-dependent
 NEP, replica dynamics, or every ensemble and measurement.
 
@@ -143,6 +228,9 @@ required to recheck existing output. Execution errors and missing comparisons
 remain errors, even when numerical bounds are changed.
 
 ## Performance
+
+Performance testing uses physical GPUs and requires ordinary builds without
+`-DZHEYONG`.
 
 After correctness passes, measure the original implementation using solid
 and liquid states, three sizes and interleaved repetitions:
