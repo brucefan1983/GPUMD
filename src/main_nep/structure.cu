@@ -113,6 +113,7 @@ void NEP_Data_Reader::read_geometry(const XYZ_Record& record, Structure& structu
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string lattice_string = "lattice=";
     if (tokens[n].substr(0, lattice_string.length()) == lattice_string) {
+      record.validate_array(n, 9);
       has_lattice_in_exyz = true;
       const int transpose_index[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
       for (int m = 0; m < 9; ++m) {
@@ -130,8 +131,8 @@ void NEP_Data_Reader::read_geometry(const XYZ_Record& record, Structure& structu
     PRINT_INPUT_ERROR("'lattice' is missing in the second line of a frame.");
   }
 
-  int species_offset = record.get_property_offset("species");
-  int pos_offset = record.get_property_offset("pos");
+  int species_offset = record.get_property_offset("species", 'S', 1);
+  int pos_offset = record.get_property_offset("pos", 'R', 3);
   if (species_offset < 0) {
     PRINT_INPUT_ERROR("'species' is missing in properties.");
   }
@@ -211,6 +212,7 @@ void NEP_Data_Reader::read_structure(const XYZ_Record& record, Structure& struct
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string virial_string = "virial=";
     if (tokens[n].substr(0, virial_string.length()) == virial_string) {
+      record.validate_array(n, 9);
       structure.has_virial = true;
       const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
       for (int m = 0; m < 9; ++m) {
@@ -230,6 +232,7 @@ void NEP_Data_Reader::read_structure(const XYZ_Record& record, Structure& struct
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string stress_string = "stress=";
     if (tokens[n].substr(0, stress_string.length()) == stress_string) {
+      record.validate_array(n, 9);
       has_stress = true;
       float volume = std::abs(get_det(structure.box_original));
       const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
@@ -271,7 +274,7 @@ void NEP_Data_Reader::read_structure(const XYZ_Record& record, Structure& struct
     }
   }
 
-  int force_offset = record.get_property_offset("force", "forces");
+  int force_offset = record.get_property_offset("force", 'R', 3, "forces");
   if (force_offset < 0) {
     PRINT_INPUT_ERROR("'force' or 'forces' is missing in properties.");
   }
@@ -295,15 +298,14 @@ void read_nep_boundaries(const XYZ_Record& record, Structure& structure)
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string pbc_string = "pbc=";
     if (tokens[n].substr(0, pbc_string.length()) == pbc_string) {
-      if (n + 2 >= tokens.size()) {
-        PRINT_INPUT_ERROR("The pbc field should contain three values.");
+      record.validate_array(n, 3);
+      if (
+        (tokens[n] != "pbc=\"t" && tokens[n] != "pbc=\"f") ||
+        (tokens[n + 1] != "t" && tokens[n + 1] != "f") ||
+        (tokens[n + 2] != "t\"" && tokens[n + 2] != "f\"")) {
+        PRINT_INPUT_ERROR("Each pbc value should be T or F.");
       }
       const char pbc[3] = {tokens[n].back(), tokens[n + 1].front(), tokens[n + 2].front()};
-      for (int d = 0; d < 3; ++d) {
-        if (pbc[d] != 't' && pbc[d] != 'f') {
-          PRINT_INPUT_ERROR("Each pbc value should be T or F.");
-        }
-      }
       if (pbc[0] != pbc[1] || pbc[1] != pbc[2]) {
         PRINT_INPUT_ERROR("Long-range models support only pbc=\"T T T\" or pbc=\"F F F\".");
       }

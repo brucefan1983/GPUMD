@@ -29,6 +29,7 @@ All the characters are case-insensitive.
 ``value`` can be a single item or a number of items enclosed by double quotes, such as ``keyword="value_1 value_2 value_3"``.
 Here, the different values are separated by spaces and spaces after the left ``"`` and before the right ``"`` are allowed.
 For example, one can write ``keyword=" value_1 value_2 value_3 "``.
+Array fields read by the selected model must occur only once and contain exactly the documented number of values in double quotes.
 
 Essentially any keyword is allowed, but we only read the following ones:
 
@@ -89,6 +90,8 @@ Starting from line 3
 ^^^^^^^^^^^^^^^^^^^^
 
 Each line should contain the same number of items, which are determined by the :attr:`property` keywords on line 2.
+The ``properties`` field must occur once and contain complete ``name:type:number_of_columns`` triples with positive column counts.
+Properties read by the selected model must have the documented type and column count and may appear only once, including aliases.
 
 Units
 -----
