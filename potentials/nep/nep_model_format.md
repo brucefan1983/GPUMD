@@ -108,6 +108,8 @@ cutoff <r1> <a1> <r2> <a2> ... <rT> <aT> <max_radial_neighbors> <max_angular_nei
 where `T` is the number of elements.
 
 For types `i` and `j`, the pair cutoffs are `(ri + rj) / 2` and `(ai + aj) / 2`. The final two integers are the largest radial and angular neighbor counts encountered during training. Cutoff distances are in angstroms.
+`gpumd` sizes the radial and angular neighbor lists of a large box at 1.25 times these counts, and those of a small box at 2000 neighbors per atom.
+An atom with more neighbors than a list holds stops `gpumd` with an error that names the list, its capacity and the atom.
 
 ### 3.4 `n_max`
 
