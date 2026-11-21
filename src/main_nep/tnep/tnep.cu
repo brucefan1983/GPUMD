@@ -1141,12 +1141,12 @@ private:
         }
       }
     }
-    // Retain the last atomic tensor property, as in the existing reader.
-    int adipole_offset = record.get_property_offset("adipole", "atomic_dipole");
-    int apol_offset = record.get_property_offset("apol", "atomic_polarizability");
-    int avirial_offset = adipole_offset > apol_offset ? adipole_offset : apol_offset;
+    const bool is_dipole = model_parameters.model_type == 1;
+    const int avirial_offset = is_dipole
+                                 ? record.get_property_offset("adipole", "atomic_dipole")
+                                 : record.get_property_offset("apol", "atomic_polarizability");
     label.has_atomic_virial = avirial_offset >= 0;
-    label.atomic_virial_diag_only = adipole_offset > apol_offset;
+    label.atomic_virial_diag_only = is_dipole;
     if (avirial_offset < 0 && model_parameters.atomic_v == 1) {
       if (model_parameters.model_type == 1) {
         PRINT_INPUT_ERROR("'adipole' or 'atomic_dipole' is missing in properties.");
