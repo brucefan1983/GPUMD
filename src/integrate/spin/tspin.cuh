@@ -15,9 +15,6 @@
 
 /*
 Spin tspin implementation.
-
-Contributors:
-  Chengbing Chen: 1747193328@qq.com
 */
 
 #pragma once
