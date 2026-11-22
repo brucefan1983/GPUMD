@@ -312,8 +312,6 @@ void NEP_MULTIGPU::update_potential(float* parameters, ANN& ann)
   ann.c_type_pair = pointer;
 }
 
-// Match the float positions used by the force kernels when assigning global
-// and local cells, including atoms near partition boundaries.
 static __device__ void find_cell_id(
   const int partition_direction,
   const Box& box,
@@ -565,7 +563,6 @@ static __global__ void find_neighbor_list_large_box(
   int cell_id_x;
   int cell_id_y;
   int cell_id_z;
-  // Use the same binning as the cell lists and halo partitioning.
   find_cell_id(
     partition_direction,
     box,
