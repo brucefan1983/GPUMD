@@ -548,7 +548,7 @@ The model tables in Section 4.1 determine the number of outputs, global paramete
 For `model nep_spin`, `spin_version` identifies the magnetic descriptor and
 parameter layout, independently of `format_version`. Its only supported value
 is `1`. The following fields supplement the common energy-model fields;
-all are required except `spin_type`.
+all are required except `spin_type` and `spin_wall`.
 
 | Field | Version-1 meaning |
 |---|---|
@@ -561,11 +561,25 @@ all are required except `spin_type`.
 | `spin_cutoff ...` | One cutoff, or `T` cutoffs in element order, in angstroms; `3 <= cutoff <= rc_radial`; pair cutoff is their arithmetic mean |
 | `spin_scaler 1` | Per-component scaling is present in `q_scaler` |
 | `spin_type <elements...>` | Optional nonempty subset with independent spin degrees of freedom; defaults to all elements |
+| `spin_wall ...` | Optional longitudinal wall parameters, four numbers per element in element order |
 
 Entries in `spin_type` must be distinct elements from the first line. This
 selection does not change the element order or the sizes of parameter arrays.
 All atom types are energy centers. For descriptor definitions and units, see
 [the Spin potential documentation](../../doc/potentials/nep_spin.rst).
+
+A `spin_wall` record contains exactly `4*T` finite nonnegative numbers. For
+each element on the first line, write
+`low_threshold low_stiffness high_threshold high_stiffness`, in that order.
+Thresholds are in μB. Lower and upper stiffnesses are in eV/μB and eV/μB³,
+respectively. The file stores resolved numbers only; `auto` is invalid.
+Zero stiffness disables the corresponding side, which is written as `0 0`.
+Elements excluded by `spin_type` have both sides disabled (`0 0 0 0`). Each
+enabled side requires a positive threshold. If both sides are enabled for an
+element, its lower threshold must be strictly below its upper threshold.
+Omitting the record disables all walls. The record adds no parameters or
+scalers. See [the spin wall documentation](../../doc/nep/input_parameters/spin_wall.rst)
+for the energy and magnetic-force formulas.
 
 Version 1 requires one hidden layer (`ann N1 0`, `1 <= N1 <= 120`) and uniform
 structural cutoffs with `3 <= rc_angular <= rc_radial <= 100`. Structural

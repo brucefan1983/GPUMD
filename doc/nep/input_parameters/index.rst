@@ -78,6 +78,7 @@ See :ref:`nep.in <nep_in>` for the input format and an example training setup.
 
    spin_version
    spin_type
+   spin_wall
    spin_cutoff
    spin_l_max
    spin_compress

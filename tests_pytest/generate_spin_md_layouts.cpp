@@ -13,7 +13,7 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 // Build with: c++ -std=c++14 -Isrc tests_pytest/generate_spin_md_layouts.cpp -o /path/to/generator
-// Pipe stdout through clang-format --style=file to src/force/nep_spin/spin_md_layouts.cuh.
+// Pipe stdout through clang-format --style=file to src/utilities/nep_spin/spin_md_layouts.cuh.
 #include "main_nep/nep_spin/spin_compile.cuh"
 #include <iostream>
 int main()

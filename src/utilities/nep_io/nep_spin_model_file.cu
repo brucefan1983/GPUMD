@@ -18,9 +18,9 @@ Major contributors:
   Chengbing Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
-#include "force/nep_spin/spin_layout.cuh"
 #include "nep_file.cuh"
 #include "nep_spin_model_file.cuh"
+#include "utilities/nep_spin/spin_layout.cuh"
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -42,6 +42,65 @@ bool to_float(double value, float& result)
   return value == 0 || result != 0;
 }
 } // namespace
+
+bool parse_spin_wall(
+  const std::vector<std::string>& values,
+  const std::vector<int>& active,
+  std::vector<Spin_Walls>& walls,
+  std::vector<Spin_Walls>* automatic,
+  std::string& error)
+{
+  walls.clear();
+  if (automatic)
+    automatic->clear();
+  for (size_t i = 0; i < values.size();) {
+    Spin_Walls numeric{}, margins{};
+    for (int side = 0; side < Spin_Walls::count; ++side) {
+      const bool is_auto = i < values.size() && values[i] == "auto";
+      if (is_auto) {
+        if (!automatic)
+          return fail(error, "spin_wall auto is only allowed in training input.");
+        ++i;
+      }
+      if (values.size() - i < 2)
+        return fail(error, "spin_wall requires a lower and an upper wall in each group.");
+      Spin_Wall wall;
+      if (
+        !NEP_File::parse_double(values[i], wall.threshold) ||
+        !NEP_File::parse_double(values[i + 1], wall.stiffness) || wall.threshold < 0 ||
+        wall.stiffness < 0)
+        return fail(
+          error, "spin_wall requires finite non-negative bounds, margins, and stiffnesses.");
+      i += 2;
+      if (wall.stiffness == 0)
+        continue;
+      if (!is_auto && wall.threshold == 0)
+        return fail(error, "spin_wall requires a positive threshold when stiffness is nonzero.");
+      (is_auto ? margins : numeric).side[side] = wall;
+    }
+    walls.push_back(numeric);
+    if (automatic)
+      automatic->push_back(margins);
+  }
+  const bool shared = walls.size() == 1;
+  if (!shared && walls.size() != active.size())
+    return fail(error, "spin_wall requires one shared group or one group per element.");
+  if (shared) {
+    walls.resize(active.size(), walls.front());
+    if (automatic)
+      automatic->resize(active.size(), automatic->front());
+  }
+  for (size_t t = 0; t < active.size(); ++t) {
+    if (active[t])
+      continue;
+    if (!shared && (walls[t].enabled() || (automatic && (*automatic)[t].enabled())))
+      return fail(error, "spin_wall can only be enabled for active spin types.");
+    walls[t] = {};
+    if (automatic)
+      (*automatic)[t] = {};
+  }
+  return true;
+}
 
 bool NEP_Spin_Model_File::read(std::istream& input, std::string& error)
 {
@@ -161,6 +220,16 @@ bool NEP_Spin_Model_File::read(std::istream& input, std::string& error)
   spin_type.assign(types, 1);
   if (doc.find_field("spin_type") && !active_types("spin_type", spin_type))
     return false;
+
+  spin_walls.resize(types);
+  if (doc.find_field("spin_wall")) {
+    f = field("spin_wall", 4 * types, 4 * types);
+    if (!f || !parse_spin_wall(f->values, spin_type, spin_walls, nullptr, error))
+      return false;
+    for (const auto& walls : spin_walls)
+      if (!walls.ordered())
+        return fail(error, "spin_wall lower threshold must be below the upper threshold.");
+  }
 
   f = field("energy_reference", types, types);
   if (!f)

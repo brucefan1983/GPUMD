@@ -23,8 +23,8 @@ Major contributors:
 #define HAS_VDW_JIT 0
 #define TENSOR_VIRIAL_JIT 0
 #define INITIALIZE_RADIAL_SHEAR_JIT 1
-#include "force/nep_spin/spin_math.cuh"
 #include "main_nep/common/nep_specialized.cuh"
+#include "utilities/nep_spin/spin_math.cuh"
 
 static_assert(NUM_HIDDEN_LAYERS_JIT == 1, "NEP-spin supports one hidden layer");
 
