@@ -14,7 +14,6 @@
 */
 
 #pragma once
-#include "force/nep_spin/spin_storage.cuh"
 #include "main_nep/common/energy_difference.cuh"
 #include "main_nep/common/nep_batch_data.cuh"
 #include "main_nep/common/nep_common.cuh"
@@ -25,6 +24,7 @@
 #include "main_nep/common/nep_training.cuh"
 #include "main_nep/dataset.cuh"
 #include "main_nep/potential.cuh"
+#include "utilities/nep_spin/spin_storage.cuh"
 #include <memory>
 #include <set>
 
@@ -168,6 +168,7 @@ private:
   struct Spin_Workspace {
     nep_spin::Storage spin_layout;
     GPU_Vector<int> spin_type_active;
+    GPU_Vector<Spin_Walls> spin_walls;
     GPU_Vector<float> spin_cutoff_pair;
     GPU_Vector<float> spin_moments;
     GPU_Vector<double> wide_spin_descriptors, wide_radial;

@@ -28,12 +28,12 @@ Major contributors:
 
 #include "nep_spin.cuh"
 #include "nep_spin_small_box.cuh"
-#include "spin_kernels.cuh"
-#include "spin_md_layouts.cuh"
-#include "spin_warp.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_io/nep_spin_model_file.cuh"
+#include "utilities/nep_spin/spin_kernels.cuh"
+#include "utilities/nep_spin/spin_md_layouts.cuh"
+#include "utilities/nep_spin/spin_warp.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <algorithm>
 #include <cmath>
@@ -1582,6 +1582,12 @@ void NEP_Spin::read_model(const char* file_potential)
   const auto& energy_reference = model_.energy_reference;
   data_.energy_reference.resize(energy_reference.size());
   data_.energy_reference.copy_from_host(energy_reference.data());
+  if (std::any_of(file.spin_walls.begin(), file.spin_walls.end(), [](const Spin_Walls& wall) {
+        return wall.enabled();
+      })) {
+    data_.spin_walls.resize(file.spin_walls.size());
+    data_.spin_walls.copy_from_host(file.spin_walls.data());
+  }
   // MD keeps model parameters fixed: contract once, then reuse on every step.
   const int radial_count =
     model_.num_types * model_.num_types * model_.spin_compress * (model_.basis_size_angular + 1);
@@ -1792,6 +1798,14 @@ void NEP_Spin::compute(
 
   constexpr int block_size = 64;
   const int grid_size = (N - 1) / block_size + 1;
+  auto finish = [&]() {
+    if (data_.spin_walls.size()) {
+      add_spin_wall<<<grid_size, block_size>>>(
+        N, type.data(), spin.data(), data_.spin_walls.data(), potential.data(), mforce.data());
+      GPU_CHECK_KERNEL
+    }
+    save_force_snapshot(force, mforce, potential, virial);
+  };
   auto launch_potential = [&]() {
     auto launch = [&](auto precision, const double* wide) {
       auto launch_dim = [&](auto capacity) {
@@ -1932,7 +1946,7 @@ void NEP_Spin::compute(
         potential.data());
       GPU_CHECK_KERNEL
     }
-    save_force_snapshot(force, mforce, potential, virial);
+    finish();
     return;
   }
 
@@ -2122,5 +2136,5 @@ void NEP_Spin::compute(
       potential.data());
     GPU_CHECK_KERNEL
   }
-  save_force_snapshot(force, mforce, potential, virial);
+  finish();
 }

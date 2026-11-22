@@ -23,12 +23,13 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 ------------------------------------------------------------------------------*/
 
 #pragma once
+#include "utilities/nep_spin/spin_wall.cuh"
 
 #include "force/neighbor.cuh"
-#include "force/nep_spin/spin_storage.cuh"
 #include "force/potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/nep_spin/spin_storage.cuh"
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -145,6 +146,7 @@ private:
     GPU_Vector<float> f12y;
     GPU_Vector<float> f12z;
     GPU_Vector<double> energy_reference;
+    GPU_Vector<Spin_Walls> spin_walls;
     GPU_Vector<int> spin_type_active;
     GPU_Vector<float> spin_cutoff_pair;
     GPU_Vector<float> spin_moments;

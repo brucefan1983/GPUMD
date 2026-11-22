@@ -63,10 +63,14 @@ clearing/redeclaration across runs.
 python3 tests_pytest/validate_spin_training.py --check-jit
 python3 tests_pytest/validate_spin_training_lifecycle.py
 python3 tests_pytest/validate_spin_full_virial.py --check-jit
+python3 -m pytest --noconftest -q tests_pytest/test_spin_wall_runtime.py
 python3 tests_pytest/validate_response_file_runtime.py
 python3 tests_pytest/validate_spin_mforce_split.py --devices 1 \
   --output "$RESULTS/split-single"
 ```
+
+The wall tests exercise both MD box paths, native and specialized prediction,
+and the automatic bounds saved at export and restart.
 
 These checks cover input validation, training/prediction and restart,
 native/JIT agreement at fixed parameters, descriptor scaling, magnetic losses,

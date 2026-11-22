@@ -13,7 +13,7 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "force/nep_spin/spin_layout.cuh"
+#include "utilities/nep_spin/spin_layout.cuh"
 #include <iomanip>
 #include <sstream>
 

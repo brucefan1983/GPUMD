@@ -38,13 +38,20 @@ element-dependent neural network used by ordinary NEP4. The total energy is
    U(\{\boldsymbol{r}_i,\boldsymbol{s}_i\})
    = \sum_i \left[
        U_i(\boldsymbol{q}^{i}) + E^0_{Z_i}
+       + E^{\mathrm{wall}}_{Z_i}(|\boldsymbol{s}_i|)
      \right] + U_\mathrm{ZBL},
 
 where :math:`\boldsymbol{r}_i` is the position, :math:`\boldsymbol{s}_i` is a
 Cartesian magnetic-moment vector in Bohr magnetons (muB), :math:`Z_i` denotes the atom type, and
 :math:`E^0_{Z_i}` is a fitted per-type energy baseline. The ZBL term is present
 when ZBL is enabled and contains no spin dependence. The reference energies
-use the shared ``energy_reference`` convention.
+use the shared ``energy_reference`` convention. The optional
+:ref:`spin_wall <kw_spin_wall>` term :math:`E^{\mathrm{wall}}_{Z_i}` is a
+fixed analytic function of the moment magnitude. Its negative spin gradient
+contributes a longitudinal magnetic force. Training, prediction, and MD all
+include these contributions. They vanish for disabled walls and elements
+without active spin degrees of freedom. The wall adds no descriptor
+components or trainable parameters.
 
 This architecture allows the nonlinear network to combine structural and
 magnetic coordinates. Therefore, ``spin_order`` describes the maximum polynomial degree of

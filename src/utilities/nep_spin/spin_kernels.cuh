@@ -16,10 +16,10 @@
 // Chengbing Chen: tiled density construction, shared neighbor adjoints, and solid harmonic
 // gradients.
 #pragma once
-#include "force/nep_spin/spin_storage.cuh"
-#include "force/nep_spin/spin_warp.cuh"
 #include "model/box.cuh"
 #include "spin_math.cuh"
+#include "spin_storage.cuh"
+#include "utilities/nep_spin/spin_warp.cuh"
 #include <type_traits>
 #include <utility>
 
