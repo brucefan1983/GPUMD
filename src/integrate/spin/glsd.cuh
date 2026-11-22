@@ -16,9 +16,6 @@
 /*
 Spin glsd implementation.
 
-Contributors:
-  Chengbing Chen: 1747193328@qq.com
-
 References:
   P. W. Ma and S. L. Dudarev, Phys. Rev. B 86, 054416 (2012).
 */

@@ -20,6 +20,7 @@ Major contributors:
 
 #include "error.cuh"
 #include <cmath>
+#include <cstddef>
 #include <cstring>
 #include <errno.h>
 #include <fstream>
@@ -183,13 +184,22 @@ std::vector<std::string> get_tokens_without_comments(std::ifstream& input)
 int get_int_from_token(const std::string& token, const char* filename, const int line)
 {
   int value = 0;
+  std::size_t parsed = 0;
   try {
-    value = std::stoi(token);
+    value = std::stoi(token, &parsed);
   } catch (const std::exception& e) {
     std::cout << "Standard exception:\n";
     std::cout << "    File:          " << filename << std::endl;
     std::cout << "    Line:          " << line << std::endl;
+    std::cout << "    Token:         '" << token << "'\n";
     std::cout << "    Error message: " << e.what() << std::endl;
+    exit(1);
+  }
+  if (parsed != token.size()) {
+    std::cout << "Input Error:\n";
+    std::cout << "    File:          " << filename << std::endl;
+    std::cout << "    Line:          " << line << std::endl;
+    std::cout << "    Error text:    Invalid integer token '" << token << "'.\n";
     exit(1);
   }
   return value;
@@ -198,21 +208,29 @@ int get_int_from_token(const std::string& token, const char* filename, const int
 double get_double_from_token(const std::string& token, const char* filename, const int line)
 {
   double value = 0;
+  std::size_t parsed = 0;
   try {
-    value = std::stod(token);
+    value = std::stod(token, &parsed);
   } catch (const std::exception& e) {
     std::cout << "Standard exception:\n";
     std::cout << "    File:          " << filename << std::endl;
     std::cout << "    Line:          " << line << std::endl;
+    std::cout << "    Token:         '" << token << "'\n";
     std::cout << "    Error message: " << e.what() << std::endl;
     exit(1);
   }
-  if (std::isinf(value)) {
-    std::cout << "This number is inf.\n";
+  if (parsed != token.size()) {
+    std::cout << "Input Error:\n";
+    std::cout << "    File:          " << filename << std::endl;
+    std::cout << "    Line:          " << line << std::endl;
+    std::cout << "    Error text:    Invalid real token '" << token << "'.\n";
     exit(1);
   }
-  if (std::isnan(value)) {
-    std::cout << "This number is nan.\n";
+  if (!std::isfinite(value)) {
+    std::cout << "Input Error:\n";
+    std::cout << "    File:          " << filename << std::endl;
+    std::cout << "    Line:          " << line << std::endl;
+    std::cout << "    Error text:    Invalid real token '" << token << "': value must be finite.\n";
     exit(1);
   }
   return value;

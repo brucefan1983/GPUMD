@@ -25,6 +25,7 @@ Major contributors:
 #include "structure.cuh"
 #include "utilities/error.cuh"
 #include "xyz_reader.cuh"
+#include <climits>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -44,20 +45,35 @@ static float get_det(const float* box)
          box[2] * (box[3] * box[7] - box[4] * box[6]);
 }
 
-static void change_box(const NEP_Parameters& para, Structure& structure)
+static void print_lattice_input_error(const XYZ_Record& record, const char* reason)
+{
+  const std::string message =
+    record.filename + " line " + std::to_string(record.comment_line_number) + ": " + reason;
+  PRINT_INPUT_ERROR(message.c_str());
+}
+
+static void change_box(const NEP_Parameters& para, const XYZ_Record& record, Structure& structure)
 {
   float a[3] = {structure.box_original[0], structure.box_original[3], structure.box_original[6]};
   float b[3] = {structure.box_original[1], structure.box_original[4], structure.box_original[7]};
   float c[3] = {structure.box_original[2], structure.box_original[5], structure.box_original[8]};
   float det = get_det(structure.box_original);
+  if (!std::isfinite(det) || det == 0.0f) {
+    print_lattice_input_error(record, "Cell volume must be finite and nonzero.");
+  }
   structure.volume = std::abs(det);
+  int num_cells = 1;
   if (structure.pbc) {
-    structure.num_cell[0] =
-      int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(b, c))));
-    structure.num_cell[1] =
-      int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(c, a))));
-    structure.num_cell[2] =
-      int(ceil(2.0f * para.rc_radial_max / (structure.volume / get_area(a, b))));
+    const float area[3] = {get_area(b, c), get_area(c, a), get_area(a, b)};
+    for (int d = 0; d < 3; ++d) {
+      const double count = ceil(2.0f * para.rc_radial_max / (structure.volume / area[d]));
+      if (!std::isfinite(count) || count < 1.0 || count > INT_MAX / num_cells) {
+        print_lattice_input_error(
+          record, "Cell and cutoff require an invalid number of periodic images.");
+      }
+      structure.num_cell[d] = static_cast<int>(count);
+      num_cells *= structure.num_cell[d];
+    }
   } else {
     structure.num_cell[0] = 1;
     structure.num_cell[1] = 1;
@@ -84,9 +100,15 @@ static void change_box(const NEP_Parameters& para, Structure& structure)
   structure.box[16] = structure.box[1] * structure.box[6] - structure.box[0] * structure.box[7];
   structure.box[17] = structure.box[0] * structure.box[4] - structure.box[1] * structure.box[3];
 
-  det *= structure.num_cell[0] * structure.num_cell[1] * structure.num_cell[2];
+  det *= num_cells;
+  if (!std::isfinite(det)) {
+    print_lattice_input_error(record, "Expanded cell volume must be finite.");
+  }
   for (int n = 9; n < 18; n++) {
     structure.box[n] /= det;
+    if (!std::isfinite(structure.box[n])) {
+      print_lattice_input_error(record, "Inverse cell matrix must be finite.");
+    }
   }
 }
 
@@ -113,6 +135,7 @@ void NEP_Data_Reader::read_geometry(const XYZ_Record& record, Structure& structu
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string lattice_string = "lattice=";
     if (tokens[n].substr(0, lattice_string.length()) == lattice_string) {
+      record.validate_array(n, 9);
       has_lattice_in_exyz = true;
       const int transpose_index[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
       for (int m = 0; m < 9; ++m) {
@@ -123,15 +146,15 @@ void NEP_Data_Reader::read_geometry(const XYZ_Record& record, Structure& structu
           xyz_filename.c_str(),
           line_number);
       }
-      change_box(para, structure);
+      change_box(para, record, structure);
     }
   }
   if (!has_lattice_in_exyz) {
     PRINT_INPUT_ERROR("'lattice' is missing in the second line of a frame.");
   }
 
-  int species_offset = record.get_property_offset("species");
-  int pos_offset = record.get_property_offset("pos");
+  int species_offset = record.get_property_offset("species", 'S', 1);
+  int pos_offset = record.get_property_offset("pos", 'R', 3);
   if (species_offset < 0) {
     PRINT_INPUT_ERROR("'species' is missing in properties.");
   }
@@ -211,6 +234,7 @@ void NEP_Data_Reader::read_structure(const XYZ_Record& record, Structure& struct
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string virial_string = "virial=";
     if (tokens[n].substr(0, virial_string.length()) == virial_string) {
+      record.validate_array(n, 9);
       structure.has_virial = true;
       const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
       for (int m = 0; m < 9; ++m) {
@@ -230,6 +254,7 @@ void NEP_Data_Reader::read_structure(const XYZ_Record& record, Structure& struct
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string stress_string = "stress=";
     if (tokens[n].substr(0, stress_string.length()) == stress_string) {
+      record.validate_array(n, 9);
       has_stress = true;
       float volume = std::abs(get_det(structure.box_original));
       const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
@@ -271,7 +296,7 @@ void NEP_Data_Reader::read_structure(const XYZ_Record& record, Structure& struct
     }
   }
 
-  int force_offset = record.get_property_offset("force", "forces");
+  int force_offset = record.get_property_offset("force", 'R', 3, "forces");
   if (force_offset < 0) {
     PRINT_INPUT_ERROR("'force' or 'forces' is missing in properties.");
   }
@@ -295,15 +320,14 @@ void read_nep_boundaries(const XYZ_Record& record, Structure& structure)
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string pbc_string = "pbc=";
     if (tokens[n].substr(0, pbc_string.length()) == pbc_string) {
-      if (n + 2 >= tokens.size()) {
-        PRINT_INPUT_ERROR("The pbc field should contain three values.");
+      record.validate_array(n, 3);
+      if (
+        (tokens[n] != "pbc=\"t" && tokens[n] != "pbc=\"f") ||
+        (tokens[n + 1] != "t" && tokens[n + 1] != "f") ||
+        (tokens[n + 2] != "t\"" && tokens[n + 2] != "f\"")) {
+        PRINT_INPUT_ERROR("Each pbc value should be T or F.");
       }
       const char pbc[3] = {tokens[n].back(), tokens[n + 1].front(), tokens[n + 2].front()};
-      for (int d = 0; d < 3; ++d) {
-        if (pbc[d] != 't' && pbc[d] != 'f') {
-          PRINT_INPUT_ERROR("Each pbc value should be T or F.");
-        }
-      }
       if (pbc[0] != pbc[1] || pbc[1] != pbc[2]) {
         PRINT_INPUT_ERROR("Long-range models support only pbc=\"T T T\" or pbc=\"F F F\".");
       }
@@ -345,6 +369,9 @@ bool NEP_Data_Reader::read_structures(bool is_train, std::vector<Structure>& str
       Structure structure;
       read_structure(record, structure);
       structures.emplace_back(std::move(structure));
+    }
+    if (is_train && structures.empty()) {
+      PRINT_INPUT_ERROR("train.xyz must contain at least one configuration.");
     }
     printf("Number of configurations = %d.\n", (int)structures.size());
     print_summary(structures);

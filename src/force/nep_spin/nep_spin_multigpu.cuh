@@ -15,9 +15,6 @@
 
 /*----------------------------------------------------------------------------80
 Multi-GPU NEP-spin potential interface and domain state.
-
-Contributors:
-Chengbing Chen, 1747193328@qq.com
 ------------------------------------------------------------------------------*/
 
 #pragma once

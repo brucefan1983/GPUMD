@@ -17,7 +17,7 @@
 NNAP interface for GPUMD
 
 Major contributors:
-  Qing'an Li: Initial implementation and short-range ZBL repulsion.
+  Qing'an Li: Initial implementation.
   Ke Xu: Corrected JNI method lookup and JVM initialization.
 ------------------------------------------------------------------------------*/
 

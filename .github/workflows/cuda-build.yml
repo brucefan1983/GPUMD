@@ -5,6 +5,10 @@ on:
     branches:
       - master  # 你可以根据需要调整分支
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest

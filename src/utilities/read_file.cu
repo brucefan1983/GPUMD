@@ -24,6 +24,9 @@ Major contributors:
 #include "error.cuh"
 #include "read_file.cuh"
 #include "utilities/nep_io/nep_file.cuh"
+#include <climits>
+#include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <ctype.h>
 #include <errno.h>
@@ -38,12 +41,12 @@ int is_valid_int(const char* s, int* result)
   }
   char* p;
   errno = 0;
-  *result = (int)strtol(s, &p, 0);
-  if (errno != 0 || s == p || *p != 0) {
+  const long value = strtol(s, &p, 0);
+  if (errno != 0 || s == p || *p != 0 || value < INT_MIN || value > INT_MAX) {
     return 0;
-  } else {
-    return 1;
   }
+  *result = static_cast<int>(value);
+  return 1;
 }
 
 int is_valid_int(const std::string& s, int* result) { return is_valid_int(s.c_str(), result); }
@@ -57,12 +60,12 @@ int is_valid_real(const char* s, double* result)
   }
   char* p;
   errno = 0;
-  *result = strtod(s, &p);
-  if (errno != 0 || s == p || *p != 0) {
+  const double value = strtod(s, &p);
+  if (errno != 0 || s == p || *p != 0 || !std::isfinite(value)) {
     return 0;
-  } else {
-    return 1;
   }
+  *result = value;
+  return 1;
 }
 
 int is_valid_real(const std::string& s, double* result) { return is_valid_real(s.c_str(), result); }

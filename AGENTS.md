@@ -115,16 +115,21 @@ unsupported keywords.
 
 ## Code style and GPU work
 
-- Follow neighboring code. Use clang-format 18 or 19 with the repository's
+- Follow neighboring code. Use clang-format 19 with the repository's
   [.clang-format](.clang-format) configuration. For every PR, format all added
   or modified C++/CUDA source and header files in full, and add contributor
   information as appropriate. Do not reformat unrelated files. Preserve existing
   copyright and license notices and use the project header for new source files.
-- Name the original implementers in the header of each new source file.
-  When a change adds major functionality, fixes a significant correctness issue,
-  substantially improves performance, or substantially refactors an existing
-  file, update its header in the same change to credit the contributors
-  responsible. Describe each contribution briefly and specifically.
+- Add contributor information to implementation files and headers containing
+  substantive function implementations, such as static or inline helpers.
+  Omit it from headers containing only declarations, data structures, or simple
+  accessors. In files with contributor information, name the original
+  implementers. When a change adds major functionality, fixes a significant
+  correctness issue, substantially improves performance, or substantially
+  refactors an existing file, update its header in the same change to credit the
+  contributors responsible. Describe each contribution briefly and specifically.
+  If a contributor is already credited with `Initial implementation`, keep only
+  that attribution for them in that file; do not list their later improvements.
 - Use the existing input utilities to check argument counts, types, ranges, and
   incompatible options. Do not introduce C++ exceptions for error handling.
   Report fatal errors and exit through the appropriate project helper in
