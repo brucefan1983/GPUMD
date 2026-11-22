@@ -213,20 +213,19 @@ def assess(root, report, tolerances):
 
 
 def performance_summary(root, report):
-    if report.get('execution_mode') == 'zheyong':
-        report['performance'] = []
-        report['performance_status'] = 'NOT_RUN'
-        return
+    is_zheyong = report.get('execution_mode') == 'zheyong'
     groups = defaultdict(list)
     for run in report['runs']:
         spec = run['spec']
         if spec['kind'] != 'performance':
             continue
         key = (spec['phase'], spec['size'], spec['profile'], run['build'], run['gpus'])
-        sample = {'path': run['path'], 'repeat': spec['repeat']}
+        sample = {'path': run['path'], 'repeat': spec['repeat'], 'atoms': spec['atoms'],
+                  'partitions': run.get('partitions', run['gpus'])}
         try:
             verify_record(root, run)
-            rates, elapsed = log_rates(root / run['path'] / 'run-01.log', run['gpus'], spec['steps'])
+            rates, elapsed = log_rates(root / run['path'] / 'run-01.log', run['gpus'],
+                                       spec['steps'], sample['partitions'])
             rows = thermo_rows(root / run['path'] / 'thermo.out', spec['thermo_rows'])
             exact(all(0 <= row[0] < 10000 and row[1] >= 0 for row in rows),
                   'Unphysical benchmark temperature or kinetic energy')
@@ -249,7 +248,9 @@ def performance_summary(root, report):
     for key, samples in sorted(groups.items()):
         row = dict(zip(('phase', 'size', 'profile', 'build', 'gpus'), key))
         row['samples'] = samples
-        if len(samples) != report['repeats'] or any(s['status'] != 'PASS' for s in samples):
+        row.update(atoms=samples[0]['atoms'], partitions=samples[0]['partitions'])
+        if (len(samples) != report['repeats'] or any(s['status'] != 'PASS' for s in samples) or
+                any((s['atoms'], s['partitions']) != (row['atoms'], row['partitions']) for s in samples)):
             row['status'] = 'ERROR'
         else:
             rates = [s['rate'] for s in samples]
@@ -262,6 +263,11 @@ def performance_summary(root, report):
         if row['status'] != 'COMPLETE':
             continue
         prefix = (row['phase'], row['size'], row['profile'])
+        if is_zheyong:
+            normal = index.get(prefix + ('new', 1), {})
+            if normal.get('status') == 'COMPLETE' and normal['atoms'] == row['atoms']:
+                row['relative_to_normal'] = row['mean_rate'] / normal['mean_rate']
+            continue
         one = index.get(prefix + (row['build'], 1), {})
         old = index.get(prefix + ('old', row['gpus']), {})
         if one.get('status') == 'COMPLETE':
@@ -277,13 +283,15 @@ def performance_summary(root, report):
         report['performance_status'] = 'ERROR'
     else:
         report['performance_status'] = 'COMPLETE'
+    report['real_multigpu_performance_status'] = 'NOT_RUN' if is_zheyong else report['performance_status']
 
 
 def save_report(destination, report):
     destination.mkdir(parents=True, exist_ok=True)
     write_json(destination / 'report.json', report)
-    fields = ('phase', 'size', 'profile', 'build', 'gpus', 'status', 'mean_rate',
-              'new_over_old', 'scaling', 'efficiency', 'cv_percent')
+    is_zheyong = report.get('execution_mode') == 'zheyong'
+    fields = ('phase', 'size', 'profile', 'build', 'gpus', 'partitions', 'atoms', 'status', 'mean_rate',
+              'relative_to_normal', 'new_over_old', 'scaling', 'efficiency', 'cv_percent')
     with (destination / 'performance.csv').open('w', newline='', encoding='utf-8') as out:
         writer = csv.DictWriter(out, fieldnames=fields, extrasaction='ignore')
         writer.writeheader()
@@ -294,11 +302,11 @@ def save_report(destination, report):
                  report.get('correctness_status', 'NOT_RUN'), report.get('performance_status', 'NOT_RUN')),
              '', 'Scope: {}.'.format(', '.join(report['selected_cases']) if report['mode'] != 'performance' else 'performance only'),
              '', 'Checks: ' + ', '.join('{} {}'.format(counts[s], s) for s in ('PASS', 'FAIL', 'ERROR', 'SKIP')), '']
-    if report.get('execution_mode') == 'zheyong':
-        lines += ['Execution: **ZHEYONG single-physical-GPU partition validation**.',
+    if is_zheyong:
+        lines += ['Execution: **ZHEYONG single-physical-GPU partition tests**.',
                   'Both builds use one physical GPU: new = ordinary NEP; zheyong = three NEP partitions.',
-                  '**Real multi-GPU correctness: NOT_RUN. Multi-GPU performance: NOT_RUN.**',
-                  'This checks partition logic; cross-device transfers, synchronization and scaling still require real GPUs.', '']
+                  '**Real multi-GPU correctness: NOT_RUN. Real multi-GPU performance: NOT_RUN.**',
+                  'Performance compares the two paths on one physical GPU; it does not measure multi-GPU scaling or efficiency.', '']
     if report.get('fatal_error'):
         lines += ['Run stopped: ' + report['fatal_error'], '']
     if report.get('performance_blocked'):
@@ -307,20 +315,26 @@ def save_report(destination, report):
         lines += ['**Focused diagnostics: this is not the full release correctness suite.**', '']
     if report.get('liquid'):
         lines += ['Liquid preparation: ' + json.dumps(report['liquid'], ensure_ascii=False), '']
-    if report.get('execution_mode') != 'zheyong':
+    if is_zheyong:
+        lines += ['| Phase / size / profile | Build | Physical GPUs | NEP partitions | Atoms | Mean atom-step/s | Rate / ordinary | CV (%) |',
+                  '|---|---|---:|---:|---:|---:|---:|---:|']
+    else:
         lines += ['| Phase / size / profile | Build | GPUs | Mean atom-step/s | New / old | Scaling | Efficiency | CV (%) |',
                   '|---|---|---:|---:|---:|---:|---:|---:|']
     for row in report.get('performance', []):
-        values = [format(row[k], '.6g') if row.get(k) is not None else '—' for k in
-                  ('mean_rate', 'new_over_old', 'scaling', 'efficiency', 'cv_percent')]
+        columns = (('mean_rate', 'relative_to_normal', 'cv_percent') if is_zheyong else
+                   ('mean_rate', 'new_over_old', 'scaling', 'efficiency', 'cv_percent'))
+        values = [format(row[k], '.6g') if row.get(k) is not None else '—' for k in columns]
         if row['status'] != 'COMPLETE':
             values[0] = row['status']
+        hardware = str(row['gpus'])
+        if is_zheyong:
+            hardware += ' | {} | {}'.format(row['partitions'], row['atoms'])
         lines.append('| {} / {} / {} | {} | {} | {} |'.format(row['phase'], row['size'], row['profile'],
-                     row['build'], row['gpus'], ' | '.join(values)))
-    if report.get('execution_mode') != 'zheyong':
-        lines += ['', 'Rates are arithmetic means of per-repeat atom-step/s; ratios use those means.',
-                  'Performance completion is not a speedup acceptance gate.',
-                  'Inspect CV and individual samples; CV is undefined for one repeat.', '']
+                     row['build'], hardware, ' | '.join(values)))
+    lines += ['', 'Rates are arithmetic means of per-repeat atom-step/s; ratios use those means.',
+              'Performance completion is not a speedup acceptance gate.',
+              'Inspect CV and individual samples; CV is undefined for one repeat.', '']
     lines += ['Bounds are initial NEP89 test bounds and require calibration on the release hardware.',
               'Correctness NOT_RUN is not a correctness pass.', '', '## Check results', '']
     for check in report.get('correctness_checks', []):
@@ -360,8 +374,8 @@ def arguments(argv=None):
         return args
     if args.new is None or args.backend is None:
         parser.error('--new and --backend are required')
-    if args.zheyong and (args.old is not None or args.counts is not None or args.mode != 'correctness'):
-        parser.error('--zheyong requires --mode correctness and cannot be combined with --old or --counts')
+    if args.zheyong and (args.old is not None or args.counts is not None):
+        parser.error('--zheyong cannot be combined with --old or --counts')
     args.devices = (args.devices if args.devices is not None else ('0' if args.zheyong else '0,1')).split(',')
     if (len(set(args.devices)) != len(args.devices) or
             any(not re.fullmatch(r'0|[1-9]\d*', x) for x in args.devices)):
@@ -444,8 +458,7 @@ def main(argv=None):
               'potential': {'path': str(potential), 'sha256': sha256(potential)},
               'binaries': {k: {'path': str(v), 'sha256': sha256(v)} for k, v in binaries.items()},
               'package_hashes': {p.name: sha256(p) for p in (root / 'code').iterdir()},
-              'expected_performance_groups': (0 if args.zheyong else
-                  len(args.phases) * len(args.sizes) * len(args.profiles) * len(configs)),
+              'expected_performance_groups': len(args.phases) * len(args.sizes) * len(args.profiles) * len(configs),
               'runs': [], 'pairs_order_seed': 1906, 'tolerances': tolerances,
               'correctness_status': 'NOT_RUN', 'performance_status': 'NOT_RUN'}
     try:

@@ -26,7 +26,7 @@ PROPERTIES = 'precision double mass velocity force potential virial group_labels
 NAMES = ('axis_x', 'axis_y', 'axis_z', 'auto', 'triclinic', 'alloy',
          'nonuniform', 'empty', 'partial_pbc', 'migration', 'nvt', 'npt',
          'multi_run', 'append', 'restart', 'liquid', 'energy_solid', 'energy_liquid')
-TILES = {'small': (1, 2, 2), 'medium': (2, 3, 3), 'large': (4, 4, 4)}
+TILES = {'small': (1, 2, 2), 'medium': (2, 3, 3), 'large': (4, 4, 4), 'xlarge': (4, 5, 6)}
 
 
 def crystal(partitions, variant='solid', axis=0):

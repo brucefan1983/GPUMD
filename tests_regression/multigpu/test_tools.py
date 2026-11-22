@@ -16,6 +16,7 @@
 """CPU-only tests of parsing, failure reporting and benchmark arithmetic."""
 
 import contextlib
+import csv
 import io
 import json
 import math
@@ -212,8 +213,9 @@ class ToolTests(unittest.TestCase):
         self.assertEqual(args.devices, ['0'])
         self.assertEqual(args.counts, [1])
         self.assertEqual(runner.arguments(base + ['--devices', '2']).devices, ['2'])
+        for mode in ('performance', 'all'):
+            self.assertEqual(runner.arguments(base + ['--mode', mode]).mode, mode)
         for extra in (['--old', str(binary)], ['--counts', '1,3'], ['--counts', '1'],
-                      ['--mode', 'performance'], ['--mode', 'all'],
                       ['--devices', '0,1'], ['--devices', '-1'], ['--devices', '']):
             with self.subTest(extra=extra), contextlib.redirect_stderr(io.StringIO()), \
                     self.assertRaises(SystemExit) as error:
@@ -274,6 +276,49 @@ class ToolTests(unittest.TestCase):
         report['runs'].pop()
         runner.performance_summary(self.root, report)
         self.assertEqual(report['performance_status'], 'ERROR')
+
+    def test_partition_performance_ratio_and_incomplete_samples(self):
+        report = {'runs': [], 'repeats': 2, 'mode': 'performance',
+                  'execution_mode': 'zheyong', 'expected_performance_groups': 2}
+        for build, partitions, values in (('new', 1, (80, 120)), ('zheyong', 3, (30, 70))):
+            for repeat, rate in enumerate(values, 1):
+                path = '{}-{}'.format(build, repeat)
+                directory = self.root / path
+                directory.mkdir()
+                (directory / 'run-01.log').write_text(timing(1, (20, rate, 10), partitions=partitions))
+                (directory / 'thermo.out').write_text(' '.join(['1'] * 18) + '\n')
+                report['runs'].append({'path': path, 'build': build, 'gpus': 1,
+                    'partitions': partitions, 'process_status': 'COMPLETE',
+                    'input_hashes': {}, 'output_hashes': {}, 'logs': [{'file': 'run-01.log'}],
+                    'spec': {'kind': 'performance', 'phase': 'solid', 'size': 'small',
+                             'profile': 'minimal', 'repeat': repeat, 'steps': [2, 50, 1],
+                             'atoms': 10, 'thermo_rows': 1}})
+        runner.performance_summary(self.root, report)
+        self.assertEqual(report['performance_status'], 'COMPLETE')
+        self.assertEqual(report['real_multigpu_performance_status'], 'NOT_RUN')
+        for row in report['performance']:
+            self.assertEqual(row['atoms'], 10)
+            self.assertFalse({'scaling', 'efficiency', 'new_over_old'} & row.keys())
+            if row['build'] == 'zheyong':
+                self.assertEqual(row['partitions'], 3)
+                self.assertEqual(row['mean_rate'], 50)
+                self.assertEqual(row['relative_to_normal'], .5)
+                self.assertAlmostEqual(row['cv_percent'], 56.5685424949)
+            else:
+                self.assertEqual(row['relative_to_normal'], 1)
+
+        bad_log = self.root / 'zheyong-2' / 'run-01.log'
+        original = bad_log.read_text()
+        bad_log.write_text(original.replace('Try to use 3 GPUs', 'Try to use 2 GPUs'))
+        runner.performance_summary(self.root, report)
+        self.assertEqual(report['performance_status'], 'ERROR')
+        bad_log.write_text(original)
+        report['runs'].pop()
+        runner.performance_summary(self.root, report)
+        row = next(row for row in report['performance'] if row['build'] == 'zheyong')
+        self.assertEqual(row['status'], 'ERROR')
+        self.assertNotIn('mean_rate', row)
+        self.assertNotIn('relative_to_normal', row)
 
     def test_failed_process_cannot_be_a_comparison_pass(self):
         report = {'runs': [{'path': 'bad', 'build': 'new', 'gpus': 1,
@@ -428,6 +473,61 @@ class ToolTests(unittest.TestCase):
         self.assertEqual(report['correctness_status'], 'NOT_RUN')
         self.assertEqual(report['performance_status'], 'COMPLETE')
         self.assertEqual(len(report['performance']), 8)
+
+    def test_partition_performance_controller_and_offline_recheck(self):
+        output = self.root / 'partition-performance'
+        code, report = self.controller(output, ['--mode', 'performance', '--sizes', 'small,xlarge',
+                                               '--profiles', 'minimal,output', '--warmup', '10',
+                                               '--steps', '100'], zheyong=True)
+        self.assertEqual(code, 0, report.get('fatal_error') or report['performance'])
+        self.assertEqual(report['correctness_status'], 'NOT_RUN')
+        self.assertEqual(report['performance_status'], 'COMPLETE')
+        self.assertEqual(report['real_multigpu_correctness_status'], 'NOT_RUN')
+        self.assertEqual(report['real_multigpu_performance_status'], 'NOT_RUN')
+        self.assertEqual(len(report['performance']), 8)
+        self.assertEqual(9216 * math.prod(cases.TILES['xlarge']), 1105920)
+        for row in report['performance']:
+            self.assertEqual(row['gpus'], 1)
+            self.assertEqual(row['partitions'], 3 if row['build'] == 'zheyong' else 1)
+            self.assertEqual(row['atoms'], 2 * math.prod(cases.TILES[row['size']]))
+            self.assertEqual(row['relative_to_normal'], 1)
+            self.assertFalse({'scaling', 'efficiency', 'new_over_old'} & row.keys())
+        for run in report['runs']:
+            if run['spec']['kind'] == 'performance':
+                self.assertEqual(run['spec']['steps'], [10, 100, 1])
+        with (output / 'performance.csv').open() as stream:
+            rows = list(csv.DictReader(stream))
+        self.assertEqual(len(rows), 8)
+        self.assertTrue(all(float(row['relative_to_normal']) == 1 for row in rows))
+        self.assertTrue(all(not row.get('scaling') and not row.get('efficiency') for row in rows))
+
+        before = checks.sha256(output / 'report.json')
+        (self.root / 'emulator').unlink()
+        (self.root / 'emulator_zheyong').unlink()
+        with patch.object(sys, 'argv', ['recheck_results.py', str(output)]), \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(recheck_results.main(), 0)
+        self.assertEqual(checks.sha256(output / 'report.json'), before)
+        rechecked = json.loads(next(output.glob('recheck-*/report.json')).read_text())
+        self.assertEqual(rechecked['performance'], report['performance'])
+        self.assertEqual(rechecked['correctness_status'], 'NOT_RUN')
+        self.assertEqual(rechecked['real_multigpu_performance_status'], 'NOT_RUN')
+
+    def test_partition_all_mode_requires_correctness_pass(self):
+        for fails in (False, True):
+            output = self.root / ('all-failed' if fails else 'all-passed')
+            # An independent comparator verdict isolates the controller gate.
+            verdict = {'comparison_fixture': {'exceedances': int(fails)}}
+            with self.subTest(fails=fails), patch.object(runner, 'compare_runs', return_value=verdict):
+                code, report = self.controller(output, ['--mode', 'all', '--cases', 'axis_x',
+                                                       '--repeats', '1'], zheyong=True)
+                self.assertEqual(code, int(fails))
+                self.assertEqual(report['correctness_status'], 'FAIL' if fails else 'PASS')
+                self.assertEqual(report['performance_status'], 'NOT_RUN' if fails else 'COMPLETE')
+                self.assertEqual(bool(report.get('performance_blocked')), fails)
+                benchmarks = [run for run in report['runs'] if run['spec']['kind'] == 'performance']
+                self.assertEqual(len(benchmarks), 0 if fails else 2)
+                self.assertEqual(report['real_multigpu_performance_status'], 'NOT_RUN')
 
     def test_berendsen_post_rescaling_velocities(self):
         output = self.root / 'berendsen'

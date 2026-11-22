@@ -16,7 +16,7 @@ through `--repo-root` (the repository containing this script by default).
 It does not copy the potential into the test package or modify source code.
 Both executables must support this model's current file format.
 
-## Three-partition correctness on one GPU
+## Three-partition tests on one GPU
 
 Supply an ordinary executable with `--new` and an executable compiled with
 `-DZHEYONG` with `--zheyong`. Both must come from the same source version and
@@ -25,43 +25,41 @@ The runner exposes the same one physical GPU to both processes. It checks
 that both logs report one visible GPU and that only the macro build enters
 the three-partition NEP path.
 
-This mode runs correctness tests only. It rejects `--old`, `--counts`,
-`--mode performance`, and `--mode all`. `--devices` defaults to `0` and must
-select exactly one device. Both executables receive identical inputs sized
-for three partitions: 9,216 atoms for ordinary cases, with sparse cases
-containing fewer atoms. Liquid preparation and the shared restart use the
-ordinary executable. Results check the partitioning, middle-partition path,
-atom order and numerical outputs; the report labels physical multi-GPU
-validation and performance as unverified. It does not compute a simulated
-multi-GPU speedup or efficiency.
+This mode supports `--mode correctness` (the default), `performance`, and
+`all`. It rejects `--old` and `--counts`. `--devices` defaults to `0` and must
+select exactly one device. Correctness inputs are identical for both
+executables and sized for three partitions: 9,216 atoms for ordinary cases,
+with sparse cases containing fewer atoms. Liquid preparation and the shared
+restart use the ordinary executable. Correctness checks cover partitioning,
+the middle-partition path, atom order and numerical outputs. Physical
+multi-GPU validation remains unverified.
 
-### Build without changing the working source tree
+### Build the two executables
 
-These commands copy the current `src` into fresh build directories below
-`reports/`. They preserve local source edits and leave `src/`, `src_old/`,
-their executables, and their Makefiles untouched. Start from ordinary compiler
-flags without `-DZHEYONG`. Clean the copies so old objects cannot retain
-different compiler options. Build only the `gpumd` target.
-
-From the repository root:
+Use `src/gpumd` with `-DDEBUG` and `src_multigpu/gpumd` with
+`-DDEBUG -DZHEYONG`. If these executables already exist with matching source
+and settings, skip the build commands. Otherwise, from the repository root,
+create a fresh copy of `src` (leave an existing `src_multigpu` intact):
 
 ```sh
 set -eu
-mkdir -p tests_regression/multigpu/reports
-build_dir=$(mktemp -d "$PWD/tests_regression/multigpu/reports/zheyong-build.XXXXXX")
-cp -a src "$build_dir/normal"
-cp -a src "$build_dir/zheyong"
+test ! -e src_multigpu
+cp -r src src_multigpu
 ```
 
-Choose one backend. For CUDA, adjust the example architecture to your GPU:
+Clean both builds before changing flags so old objects cannot retain a
+different configuration. Choose one backend. For CUDA, adjust the example
+architecture to your GPU:
 
 ```sh
 backend=cuda
-make -C "$build_dir/normal" -f makefile clean
-make -C "$build_dir/zheyong" -f makefile clean
-make -C "$build_dir/normal" -f makefile -j4 gpumd CUDA_ARCH=-arch=sm_89
-make -C "$build_dir/zheyong" -f makefile -f - -j4 gpumd CUDA_ARCH=-arch=sm_89 <<'MAKE'
-override CFLAGS += -DZHEYONG
+make -C src -f makefile clean
+make -C src_multigpu -f makefile clean
+make -C src -f makefile -f - -j4 gpumd CUDA_ARCH=-arch=sm_89 <<'MAKE'
+override CFLAGS += -DDEBUG
+MAKE
+make -C src_multigpu -f makefile -f - -j4 gpumd CUDA_ARCH=-arch=sm_89 <<'MAKE'
+override CFLAGS += -DDEBUG -DZHEYONG
 MAKE
 ```
 
@@ -69,32 +67,62 @@ For HIP, adjust `HIP_ARCH` as needed:
 
 ```sh
 backend=hip
-make -C "$build_dir/normal" -f makefile.hip clean
-make -C "$build_dir/zheyong" -f makefile.hip clean
-make -C "$build_dir/normal" -f makefile.hip -j4 gpumd HIP_ARCH=gfx1100
-make -C "$build_dir/zheyong" -f makefile.hip -f - -j4 gpumd HIP_ARCH=gfx1100 <<'MAKE'
-override CFLAGS += -DZHEYONG
+make -C src -f makefile.hip clean
+make -C src_multigpu -f makefile.hip clean
+make -C src -f makefile.hip -f - -j4 gpumd HIP_ARCH=gfx1100 <<'MAKE'
+override CFLAGS += -DDEBUG
+MAKE
+make -C src_multigpu -f makefile.hip -f - -j4 gpumd HIP_ARCH=gfx1100 <<'MAKE'
+override CFLAGS += -DDEBUG -DZHEYONG
 MAKE
 ```
 
 The second Makefile is read from standard input after the existing Makefile;
-it appends the macro while preserving the normal flags, including `-DUSE_HIP`.
-Run the comparison in the same shell:
+it appends the macros while preserving the normal flags, including `-DUSE_HIP`.
+No Makefile edits or `src_old` build are required. Run correctness in the same
+shell:
 
 ```sh
 python3 tests_regression/multigpu/run_tests.py \
-  --new "$build_dir/normal/gpumd" --zheyong "$build_dir/zheyong/gpumd" \
+  --new src/gpumd --zheyong src_multigpu/gpumd \
   --backend "$backend" --devices 0 \
-  --output "$build_dir/results"
+  --output tests_regression/multigpu/reports/zheyong-correctness
 ```
 
-An existing ordinary executable built from the same source and configuration
-can be reused as `--new`; in that case only the isolated macro build is
-needed. Keep the two executables under distinct paths. The macro build always
-uses three logical partitions, even when only one physical GPU is visible.
+The macro build always uses three logical partitions on one visible GPU.
 All three workspaces occupy that GPU's memory. Physical multi-GPU correctness,
 peer access, device switching, synchronization and performance still require
 the tests below when hardware is available.
+
+### Large-system performance on one GPU
+
+Compare the ordinary and three-partition paths on the same physical GPU:
+
+```sh
+python3 tests_regression/multigpu/run_tests.py \
+  --new src/gpumd --zheyong src_multigpu/gpumd \
+  --backend cuda --devices 0 --mode performance --phases solid \
+  --sizes medium,large,xlarge --warmup 10 --steps 100 --repeats 3 \
+  --output tests_regression/multigpu/reports/zheyong-performance
+```
+
+Use `--backend hip` for the HIP builds. The three sizes contain 165,888,
+589,824 and 1,105,920 atoms, respectively. Each repetition measures exactly
+100 NVE steps after 10 warmup steps. The default `minimal` profile writes no
+trajectory or thermo during measurement; one final probe step is excluded
+from timing.
+
+The report records one physical GPU, one or three logical partitions, atom
+counts, throughput and CV. `relative_to_normal` divides the mean throughput
+of the partitioned path by that of the ordinary path. It is a comparison of
+two implementations on one GPU; no three-GPU scaling efficiency is reported.
+`Performance: COMPLETE` means this comparison finished. Physical multi-GPU
+performance remains `NOT_RUN`; a performance-only invocation also reports
+correctness as `NOT_RUN`.
+
+Select `--phases liquid` or `--phases solid,liquid` to include liquid inputs.
+Liquid preparation runs separately for 10,000 steps and is not shortened by
+`--steps 100` or included in the measured rate.
 
 ## Correctness on two AMD GPUs
 
@@ -227,9 +255,9 @@ reference available and unchanged for rechecking. No executable or GPU is
 required to recheck existing output. Execution errors and missing comparisons
 remain errors, even when numerical bounds are changed.
 
-## Performance
+## Performance on physical GPUs
 
-Performance testing uses physical GPUs and requires ordinary builds without
+The physical multi-GPU performance tests require ordinary builds without
 `-DZHEYONG`.
 
 After correctness passes, measure the original implementation using solid
@@ -247,9 +275,9 @@ performance only after it passes. A performance-only invocation explicitly
 reports correctness as `NOT_RUN`; it does not inherit a previous pass.
 
 The default is 100 warmup steps followed by 500 measured NVE steps at 0.5 fs,
-with three fresh process repetitions. On two GPUs, small/medium/large sizes
-are 24,576 / 110,592 / 393,216 atoms, generated by replicating the common
-solid or equilibrated liquid input. The same size is used at every GPU count
+with three fresh process repetitions. On two GPUs, small/medium/large/xlarge
+sizes are 24,576 / 110,592 / 393,216 / 737,280 atoms, generated by replicating
+the common solid or equilibrated liquid input. The same size is used at every GPU count
 in a scaling comparison. Each repetition shuffles build/GPU-count order with
 a fixed recorded seed. Avoid concurrent jobs on the selected GPUs.
 
