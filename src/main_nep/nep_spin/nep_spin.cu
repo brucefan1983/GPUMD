@@ -18,7 +18,6 @@ Major contributors:
   Chengbing Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
-#include "force/nep_spin/spin_warp.cuh"
 #include "main_nep/common/nep_init.cuh"
 #include "main_nep/common/nep_io.cuh"
 #include "main_nep/common/nep_model.cuh"
@@ -26,6 +25,7 @@ Major contributors:
 #include "nep_spin.cuh"
 #include "spin_io.cuh"
 #include "utilities/error.cuh"
+#include "utilities/nep_spin/spin_warp.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <algorithm>
 #include <type_traits>

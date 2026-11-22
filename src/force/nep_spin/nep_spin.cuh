@@ -23,7 +23,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 ------------------------------------------------------------------------------*/
 
 #pragma once
-#include "utilities/nep_io/spin_wall.cuh"
+#include "utilities/nep_spin/spin_wall.cuh"
 
 #include "force/neighbor.cuh"
 #include "force/nep_spin/spin_storage.cuh"

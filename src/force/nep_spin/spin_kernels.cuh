@@ -17,9 +17,9 @@
 // gradients.
 #pragma once
 #include "force/nep_spin/spin_storage.cuh"
-#include "force/nep_spin/spin_warp.cuh"
 #include "model/box.cuh"
 #include "spin_math.cuh"
+#include "utilities/nep_spin/spin_warp.cuh"
 #include <type_traits>
 #include <utility>
 

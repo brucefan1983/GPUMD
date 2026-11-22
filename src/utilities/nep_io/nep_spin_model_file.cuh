@@ -13,7 +13,7 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
-#include "spin_wall.cuh"
+#include "utilities/nep_spin/spin_wall.cuh"
 #include <iosfwd>
 #include <string>
 #include <vector>
