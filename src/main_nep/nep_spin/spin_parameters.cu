@@ -18,11 +18,11 @@ Major contributors:
   Chengbing Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
-#include "force/nep_spin/spin_layout.cuh"
 #include "main_nep/common/nep_model.cuh"
 #include "spin_parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/nep_spin/spin_layout.cuh"
 #include "utilities/nep_utilities.cuh"
 #include "utilities/read_file.cuh"
 #include <algorithm>

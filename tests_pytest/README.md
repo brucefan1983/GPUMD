@@ -185,7 +185,7 @@ Regenerate with NumPy, Torch, e3nn and clang-format 17 on `PATH`:
 ```bash
 python tests_pytest/generate_spin_tables.py
 c++ -std=c++14 -Isrc tests_pytest/generate_spin_md_layouts.cpp -o /path/to/generator
-/path/to/generator | clang-format --style=file > src/force/nep_spin/spin_md_layouts.cuh
+/path/to/generator | clang-format --style=file > src/utilities/nep_spin/spin_md_layouts.cuh
 ```
 
 Both outputs use the project license header and repository formatting.

@@ -28,11 +28,11 @@ Major contributors:
 
 #include "nep_spin.cuh"
 #include "nep_spin_small_box.cuh"
-#include "spin_kernels.cuh"
-#include "spin_md_layouts.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include "utilities/nep_io/nep_spin_model_file.cuh"
+#include "utilities/nep_spin/spin_kernels.cuh"
+#include "utilities/nep_spin/spin_md_layouts.cuh"
 #include "utilities/nep_spin/spin_warp.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <algorithm>

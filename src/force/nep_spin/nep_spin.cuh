@@ -26,10 +26,10 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/nep_spin/spin_wall.cuh"
 
 #include "force/neighbor.cuh"
-#include "force/nep_spin/spin_storage.cuh"
 #include "force/potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/nep_spin/spin_storage.cuh"
 #include <cstddef>
 #include <memory>
 #include <string>

@@ -26,9 +26,9 @@ Major contributors:
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 
-#include "force/nep_spin/spin_kernels.cuh"
 #include "spin_compile.cuh"
 #include "spin_training_kernels.cuh"
+#include "utilities/nep_spin/spin_kernels.cuh"
 
 void NEP_Spin_Model::initialize_spin(Spin_Parameters& para, int N, int device_count)
 {

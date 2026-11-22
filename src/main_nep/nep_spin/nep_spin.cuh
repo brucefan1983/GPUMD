@@ -14,7 +14,6 @@
 */
 
 #pragma once
-#include "force/nep_spin/spin_storage.cuh"
 #include "main_nep/common/energy_difference.cuh"
 #include "main_nep/common/nep_batch_data.cuh"
 #include "main_nep/common/nep_common.cuh"
@@ -25,6 +24,7 @@
 #include "main_nep/common/nep_training.cuh"
 #include "main_nep/dataset.cuh"
 #include "main_nep/potential.cuh"
+#include "utilities/nep_spin/spin_storage.cuh"
 #include <memory>
 #include <set>
 

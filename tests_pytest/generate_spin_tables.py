@@ -86,7 +86,7 @@ def main():
     for g, axis, lower, weight in derivative_table(polynomials):
         output.append(f'  {{{g}, {axis}, {lower}, {weight:.17g}}},')
     output += ['};', '} // namespace nep_spin', '']
-    destination = ROOT/'src/force/nep_spin/spin_tables.cuh'
+    destination = ROOT/'src/utilities/nep_spin/spin_tables.cuh'
     formatted = subprocess.check_output(
         ['clang-format', '--style=file', '--assume-filename='+str(destination)],
         input='\n'.join(output), text=True)

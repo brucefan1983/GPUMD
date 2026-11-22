@@ -18,7 +18,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = r'''
-#include "force/nep_spin/spin_layout.cuh"
+#include "utilities/nep_spin/spin_layout.cuh"
 #include "utilities/nep_io/nep_spin_model_file.cuh"
 #include <cassert>
 #include <cmath>
