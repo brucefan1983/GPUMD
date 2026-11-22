@@ -17,10 +17,25 @@
 
 from array import array
 import hashlib
-import json
 import math
 from pathlib import Path
 import re
+
+
+TOLERANCES = {
+    'pos': (0.00002, 0),
+    'unwrapped_position': (0.00002, 0),
+    'vel': (0.00002, 0),
+    'force': (0.0005, 0.00002),
+    'potential': (0.00005, 0),
+    'virial': (0.002, 0.00002),
+    'box': (0.000001, 0),
+    'temperature': (0.003, 0.00002),
+    'pressure': (0.003, 0.00002),
+    'energy_solid': (0.0005, 0),
+    'energy_water': (0.002, 0),
+}
+
 
 class CheckError(Exception):
     pass
@@ -31,13 +46,6 @@ def sha256(path):
         for block in iter(lambda: stream.read(1024 * 1024), b''):
             h.update(block)
     return h.hexdigest()
-
-def write_json(path, data):
-    path = Path(path)
-    temporary = path.with_name(path.name + '.tmp')
-    temporary.write_text(json.dumps(data, indent=2, ensure_ascii=False, allow_nan=False) + '\n',
-                         encoding='utf-8')
-    temporary.replace(path)
 
 def numbers(values, label):
     try:
@@ -93,7 +101,11 @@ def frames(path):
                 raise CheckError('{}: missing/malformed Properties'.format(path))
             schema, data, order = {}, {}, []
             for name, kind, width in zip(raw_schema[::3], raw_schema[1::3], raw_schema[2::3]):
-                name, width = aliases.get(name, name), int(width)
+                name = aliases.get(name, name)
+                try:
+                    width = int(width)
+                except ValueError:
+                    raise CheckError('{}: invalid XYZ property width for {}'.format(path, name))
                 if name in schema or kind not in ('S', 'R', 'I') or width < 1:
                     raise CheckError('{}: invalid XYZ schema'.format(path))
                 schema[name] = (kind, width)
@@ -141,20 +153,6 @@ SCHEMA = {'species': ('S', 1), 'pos': ('R', 3), 'mass': ('R', 1),
 RESTART_SCHEMA = {k: SCHEMA[k] for k in ('species', 'pos', 'mass', 'vel', 'group')}
 
 
-def load_tolerances(path):
-    data = json.loads(Path(path).read_text())
-    required = {'pos', 'unwrapped_position', 'vel', 'force', 'potential', 'virial',
-                'box', 'temperature', 'pressure', 'energy_solid', 'energy_liquid'}
-    if set(data) != required:
-        raise CheckError('Tolerance keys must be exactly: ' + ', '.join(sorted(required)))
-    for key, value in data.items():
-        if (not isinstance(value, list) or len(value) != 2 or
-                any(isinstance(x, bool) or not isinstance(x, (int, float)) or
-                    not math.isfinite(x) or x < 0 for x in value)):
-            raise CheckError('Invalid [atol, rtol] for ' + key)
-    return data
-
-
 def exact(condition, label):
     if not condition:
         raise CheckError(label)
@@ -190,7 +188,7 @@ def header(frame, key, width):
     return values
 
 
-def check_run(directory, initial, spec, tolerances):
+def check_run(directory, initial, spec):
     """Check each executable independently before any baseline comparison."""
     directory = Path(directory)
     n = initial['n']
@@ -201,7 +199,7 @@ def check_run(directory, initial, spec, tolerances):
         energy = [(r[1] + r[2]) / n for r in rows]
         drift = [x - energy[0] for x in energy]
         metrics['NVE_drift_eV_per_atom'] = metric(drift, [0.0] * len(drift),
-                                                  *tolerances[spec['name']])
+                                                  *TOLERANCES[spec['name']])
         exact(not (directory / 'state.xyz').exists(), 'Unexpected trajectory in energy run')
         return metrics
 
@@ -267,8 +265,8 @@ def check_run(directory, initial, spec, tolerances):
         # method. Require observable crossings; a stationary fixture is inadequate.
         length = lattice(initial)[0]
         bins = int(length / 3)
-        partitions = spec.get('max_partitions', spec.get('max_gpus'))
-        width = (bins // partitions) * length / bins
+        exact(bins >= 30, 'Migration box is too small for three NEP partitions')
+        width = (bins // 3) * length / bins
         before = initial['data']['pos'][::3]
         after = full[-1]['data']['unwrapped_position'][::3]
         crossing = sum(math.floor(a / width) != math.floor(b / width)
@@ -278,15 +276,15 @@ def check_run(directory, initial, spec, tolerances):
     return metrics
 
 
-def compare_runs(candidate, reference, spec, tolerances, n):
+def compare_runs(candidate, reference, spec, n):
     if spec['kind'] == 'energy':
-        # Long chaotic trajectories are judged by independent energy conservation,
-        # not per-atom equality. Compare only the earliest sampled total energy.
+        # Each path checks its short NVE drift independently. Compare the first
+        # sampled total energy as well; this is not a long-time stability test.
         a = thermo_rows(Path(candidate) / 'thermo.out', spec['samples'])[0]
         b = thermo_rows(Path(reference) / 'thermo.out', spec['samples'])[0]
         return {'initial_total_energy_per_atom': metric([(a[1] + a[2]) / n],
                                                        [(b[1] + b[2]) / n],
-                                                       *tolerances['potential'])}
+                                                       *TOLERANCES['potential'])}
     checks = {}
     filenames = ['state.xyz', 'restart.xyz'] + (['selected.xyz'] if spec['selected'] else [])
     for filename in filenames:
@@ -300,43 +298,13 @@ def compare_runs(candidate, reference, spec, tolerances, n):
                 if key in ('species', 'group', 'mass'):
                     exact(left['data'][key] == right['data'][key], prefix + key + ' differs')
                 else:
-                    checks[prefix + key] = metric(left['data'][key], right['data'][key], *tolerances[key])
-            checks[prefix + 'box'] = metric(lattice(left), lattice(right), *tolerances['box'])
+                    checks[prefix + key] = metric(left['data'][key], right['data'][key], *TOLERANCES[key])
+            checks[prefix + 'box'] = metric(lattice(left), lattice(right), *TOLERANCES['box'])
     a = thermo_rows(Path(candidate) / 'thermo.out', len(spec['times']))
     b = thermo_rows(Path(reference) / 'thermo.out', len(spec['times']))
     for d in range(18):
         key = 'temperature' if d == 0 else ('potential' if d < 3 else ('pressure' if d < 9 else 'box'))
         factor = n if d in (1, 2) else 1
         checks['thermo:{}'.format(d)] = metric([r[d] / factor for r in a],
-                                              [r[d] / factor for r in b], *tolerances[key])
+                                              [r[d] / factor for r in b], *TOLERANCES[key])
     return checks
-
-
-def check_liquid(directory):
-    frames_out = list(frames(Path(directory) / 'diffusion.xyz'))
-    exact(len(frames_out) == 3, 'Liquid preparation requires three diffusion frames')
-    initial = list(frames(Path(directory) / 'model.xyz'))
-    exact(len(initial) == 1, 'Liquid preparation needs one input structure')
-    initial = initial[0]
-    n = initial['n']
-    indices = list(range(n))
-    schema = {k: SCHEMA[k] for k in ('species', 'pos', 'mass', 'group', 'unwrapped_position')}
-    for i, frame in enumerate(frames_out):
-        check_identity(frame, initial, indices, schema)
-        exact(abs(header(frame, 'time', 1)[0] - (8000 + i * 1000)) < 1e-6,
-              'Unexpected diffusion sample time')
-    first = frames_out[0]['data']['unwrapped_position']
-    result = []
-    for frame in frames_out[1:]:
-        delta = [b - a for a, b in zip(first, frame['data']['unwrapped_position'])]
-        mean = [math.fsum(delta[d::3]) / n for d in range(3)]
-        msd = math.fsum((x - mean[i % 3]) ** 2 for i, x in enumerate(delta)) / n
-        result.append(msd)
-    rows = thermo_rows(Path(directory) / 'thermo.out', 30)
-    temperature = math.fsum(r[0] for r in rows[-10:]) / 10
-    exact(1800 < temperature < 2200, 'Liquid preparation is not near 2000 K')
-    exact(result[-1] > 2 and result[-1] > result[0],
-          'Liquid diffusion gate failed (need growing COM-corrected MSD >2 A^2 in 2 ps); '
-          'inspect preparation logs before calling this a liquid')
-    return {'msd_A2_at_1ps_2ps': result, 'mean_final_temperature_K': temperature,
-            'note': 'Diffusion diagnostic, not a thermodynamic phase determination.'}

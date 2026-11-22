@@ -1,327 +1,121 @@
-# NEP multi-GPU release tests
+# NEP partition tests on one GPU
 
-This is an opt-in test package for the existing single-node NEP force
-implementation. It runs the public `gpumd` executable with one or several
-visible GPUs. A release maintainer runs it before a release; ordinary PRs do
-not need multi-GPU hardware. It is separate from the 255-case GPUMD/NEP
-regression suite and the TB and pytest suites.
+Opt-in release checks for ordinary NEP versus the existing `-DZHEYONG` path:
+one physical GPU, one versus three NEP partitions. Python 3.9+ standard library
+only; Linux with CUDA or HIP. No pytest or NumPy is needed.
 
-Requirements: Python 3.9 or newer (standard library only), Linux, and CUDA or
-HIP. Physical multi-GPU testing needs at least two GPUs. The `--zheyong` mode
-checks three logical partitions on one physical GPU using the existing
-`-DZHEYONG` build option. No pytest, NumPy, MPI, or downloaded dataset is needed.
-The suite references the repository model
-[`NEP89`](../../potentials/nep/nep89_20250409/nep89_20250409.txt)
-through `--repo-root` (the repository containing this script by default).
-It does not copy the potential into the test package or modify source code.
-Both executables must support this model's current file format.
+## Run
 
-## Three-partition tests on one GPU
+Build both executables from the same sources with matching backend,
+architecture and optimization options, differing only in `-DZHEYONG`:
 
-Supply an ordinary executable with `--new` and an executable compiled with
-`-DZHEYONG` with `--zheyong`. Both must come from the same source version and
-use the same backend, architecture and compiler flags apart from that macro.
-The runner exposes the same one physical GPU to both processes. It checks
-that both logs report one visible GPU and that only the macro build enters
-the three-partition NEP path.
-
-This mode supports `--mode correctness` (the default), `performance`, and
-`all`. It rejects `--old` and `--counts`. `--devices` defaults to `0` and must
-select exactly one device. Correctness inputs are identical for both
-executables and sized for three partitions: 9,216 atoms for ordinary cases,
-with sparse cases containing fewer atoms. Liquid preparation and the shared
-restart use the ordinary executable. Correctness checks cover partitioning,
-the middle-partition path, atom order and numerical outputs. Physical
-multi-GPU validation remains unverified.
-
-### Build the two executables
-
-Use `src/gpumd` with `-DDEBUG` and `src_multigpu/gpumd` with
-`-DDEBUG -DZHEYONG`. If these executables already exist with matching source
-and settings, skip the build commands. Otherwise, from the repository root,
-create a fresh copy of `src` (leave an existing `src_multigpu` intact):
-
-```sh
-set -eu
-test ! -e src_multigpu
-cp -r src src_multigpu
-```
-
-Clean both builds before changing flags so old objects cannot retain a
-different configuration. Choose one backend. For CUDA, adjust the example
-architecture to your GPU:
-
-```sh
-backend=cuda
-make -C src -f makefile clean
-make -C src_multigpu -f makefile clean
-make -C src -f makefile -f - -j4 gpumd CUDA_ARCH=-arch=sm_89 <<'MAKE'
-override CFLAGS += -DDEBUG
-MAKE
-make -C src_multigpu -f makefile -f - -j4 gpumd CUDA_ARCH=-arch=sm_89 <<'MAKE'
-override CFLAGS += -DDEBUG -DZHEYONG
-MAKE
-```
-
-For HIP, adjust `HIP_ARCH` as needed:
-
-```sh
-backend=hip
-make -C src -f makefile.hip clean
-make -C src_multigpu -f makefile.hip clean
-make -C src -f makefile.hip -f - -j4 gpumd HIP_ARCH=gfx1100 <<'MAKE'
-override CFLAGS += -DDEBUG
-MAKE
-make -C src_multigpu -f makefile.hip -f - -j4 gpumd HIP_ARCH=gfx1100 <<'MAKE'
-override CFLAGS += -DDEBUG -DZHEYONG
-MAKE
-```
-
-The second Makefile is read from standard input after the existing Makefile;
-it appends the macros while preserving the normal flags, including `-DUSE_HIP`.
-No Makefile edits or `src_old` build are required. Run correctness in the same
-shell:
-
-```sh
-python3 tests_regression/multigpu/run_tests.py \
-  --new src/gpumd --zheyong src_multigpu/gpumd \
-  --backend "$backend" --devices 0 \
-  --output tests_regression/multigpu/reports/zheyong-correctness
-```
-
-The macro build always uses three logical partitions on one visible GPU.
-All three workspaces occupy that GPU's memory. Physical multi-GPU correctness,
-peer access, device switching, synchronization and performance still require
-the tests below when hardware is available.
-
-### Large-system performance on one GPU
-
-Compare the ordinary and three-partition paths on the same physical GPU:
-
-```sh
-python3 tests_regression/multigpu/run_tests.py \
-  --new src/gpumd --zheyong src_multigpu/gpumd \
-  --backend cuda --devices 0 --mode performance --phases solid \
-  --sizes medium,large,xlarge --warmup 10 --steps 100 --repeats 3 \
-  --output tests_regression/multigpu/reports/zheyong-performance
-```
-
-Use `--backend hip` for the HIP builds. The three sizes contain 165,888,
-589,824 and 1,105,920 atoms, respectively. Each repetition measures exactly
-100 NVE steps after 10 warmup steps. The default `minimal` profile writes no
-trajectory or thermo during measurement; one final probe step is excluded
-from timing.
-
-The report records one physical GPU, one or three logical partitions, atom
-counts, throughput and CV. `relative_to_normal` divides the mean throughput
-of the partitioned path by that of the ordinary path. It is a comparison of
-two implementations on one GPU; no three-GPU scaling efficiency is reported.
-`Performance: COMPLETE` means this comparison finished. Physical multi-GPU
-performance remains `NOT_RUN`; a performance-only invocation also reports
-correctness as `NOT_RUN`.
-
-Select `--phases liquid` or `--phases solid,liquid` to include liquid inputs.
-Liquid preparation runs separately for 10,000 steps and is not shortened by
-`--steps 100` or included in the measured rate.
-
-## Correctness on two AMD GPUs
-
-From the repository root:
-
-```sh
-python3 tests_regression/multigpu/run_tests.py \
-  --new src/gpumd --backend hip --devices 0,1 \
-  --output tests_regression/multigpu/reports/release-correctness
-```
-
-This checks the candidate against itself on one and two GPUs. To also compare
-an accepted executable, add `--old src_old/gpumd`:
-
-```sh
-python3 tests_regression/multigpu/run_tests.py \
-  --old src_old/gpumd --new src/gpumd --backend hip --devices 0,1 \
-  --output tests_regression/multigpu/reports/old-new-correctness
-```
-
-Use `--backend cuda` for NVIDIA. Build old and new with the same backend,
-compiler, architecture, feature and optimization flags. Record these with
-`--build-note "..."`. In particular, a CUDA baseline cannot be used on an
-AMD-only host. The runner performs short preflight runs before preparing the
-liquid or starting the suite, and stops if a loader, device, or execution
-check fails. An unavailable GPU or missing library is an error, not a skip.
-
-`--devices` explicitly selects the device order. One-GPU runs use the first
-device; N-GPU runs use the first N. CUDA and HIP visibility aliases are set
-consistently for each subprocess. An inherited `ROCR_VISIBLE_DEVICES` mask
-is retained: HIP indices are then relative to that restricted device set.
-Run in the intended scheduler allocation, with no other conflicting device
-filters. Effective masks and GPUMD's GPU names and peer-access messages are
-retained in the report and process logs.
-
-The default counts are 1 and the number of selected devices. For example,
-on four GPUs use `--devices 0,1,2,3 --counts 1,2,4`. Up to 16 selected GPUs
-are accepted, matching the current NEP implementation. Geometry grows with
-the largest count; larger configurations also require more memory.
-
-## Coverage and acceptance
-
-| Cases | Purpose |
+| Executable | Compile options |
 |---|---|
-| `axis_x`, `axis_y`, `axis_z`, `auto` | Explicit and automatic spatial partitioning; shuffled input IDs |
-| `triclinic` | A valid skewed, fully periodic cell |
-| `alloy` | Cu/Ni/Al types in deliberately shuffled atom order |
-| `nonuniform`, `empty` | Uneven populations and GPU domains with no owned atoms |
-| `partial_pbc` | Nonperiodic y, partition along periodic x |
-| `migration` | Rigid drift across slab and periodic boundaries; require observed crossings |
-| `nvt`, `npt` | Short deterministic Berendsen temperature/pressure coupling |
-| `multi_run` | Output reset between runs, a run with no output, and valid orthogonal `change_box` |
-| `append` | Two executions in the same directory; correct appended frame/row counts |
-| `restart` | Load a real preflight restart shared by every comparison |
-| `liquid` | Short dynamics from a common equilibrated Cu liquid snapshot |
-| `energy_solid`, `energy_liquid` | NVE total-energy drift over 500 fs |
+| `src/gpumd` | `-DDEBUG` |
+| `src_multigpu/gpumd` | `-DDEBUG -DZHEYONG` |
 
-The ordinary correctness inputs contain 6,144 atoms for two physical GPUs
-and 9,216 atoms in `--zheyong` mode, except the intentionally sparse cases.
-The x/y/z cases have the same size in different orientations. NEP89's 6 A
-radial cutoff sets the geometry: at least ten bins of width cutoff/2 per
-logical partition along the partition direction, with a margin for skew and
-pressure coupling. The empty-domain case is a diagnostic stress test, not a
-performance workload.
+`src_multigpu` can be a copy of `src`. Keep its sources in sync when applying
+patches, and clean/rebuild after changing compile flags. The runner prints
+both executable paths and SHA256 hashes, then verifies the expected NEP path
+from each process log. It does not build or modify either executable.
 
-The Cu solid starts from an FCC lattice with small deterministic displacements
-and velocities. Masses carry tiny unique offsets (1e-8 Da per input index) to
-check atom identity independently; these are numerical fixtures, not material
-property benchmarks. The multi-element test is likewise a short numerical
-comparison, not an equilibrium alloy study.
-
-Liquid preparation uses one accepted GPU executable (`--old` when supplied,
-otherwise `--new`): 5 ps at 3000 K, cooling to 2000 K over 2 ps, then 3 ps at
-2000 K. Every comparison uses the same resulting restart. The preparation
-must show increasing center-of-mass-corrected unwrapped MSD above 2 A² over
-the final 2 ps and a final mean temperature between 1800 and 2200 K. The report
-retains these diagnostics. This is evidence of diffusion, not a full phase
-characterization; a failed preparation gate stops the suite.
-
-Each short run checks finite fields, property schemas, atom identities and
-original order, frame counts and times, group subsets, restart contents,
-potential/virial sums and kinetic energy. For Berendsen NVT/NPT, the kinetic
-check accounts for thermo being sampled before the final velocity rescaling.
-Short single-/multi-GPU outputs compare positions, velocities, forces,
-per-atom energies and all nine virial components without sorting the output.
-The first solid case repeats both GPU paths to measure reproducibility.
-With `--old`, every case additionally compares new/old at matching GPU counts
-and old multi-/single-GPU results. Long NVE runs use an independent energy-drift
-bound and an early total-energy comparison rather than chaotic trajectory
-equality. Restart checks do not require bitwise continuation of a trajectory.
-
-For a full correctness result, run all 18 cases (the default) and require
-`Correctness: PASS`, with no failed, erroneous or skipped checks. `--cases
-axis_x,alloy` is a diagnostic subset and is labeled as such. `--list` lists
-cases without launching GPUMD. A pass in `--zheyong` mode applies to the
-single-GPU partition tests; it does not satisfy the physical multi-GPU release
-validation. This package covers ordinary NEP89 only; it
-does not establish multi-GPU support for qNEP, spin, temperature-dependent
-NEP, replica dynamics, or every ensemble and measurement.
-
-## Numerical bounds and rechecking
-
-[`tolerances.json`](tolerances.json) contains explicit `[atol, rtol]` pairs.
-The comparison is `abs(candidate-reference) <= atol + rtol*abs(reference)`.
-Units are Å, Å/fs, eV/Å, eV and GPa as appropriate. Thermo energies are
-normalized per atom. Energy-drift bounds are eV/atom measured from the first
-sample (2.5 fs). Initial absolute bounds include 5e-5 eV for per-atom energy,
-5e-4 eV/Å for force, and 2e-3 eV for each virial component. These are initial
-engineering bounds, **not NEP89 limits calibrated on every CUDA/HIP device**.
-The historical carbon-model comparison does not validate these NEP89 bounds.
-
-On the first hardware run, inspect repeatability controls and raw maximum/RMS
-errors, then decide whether the bounds are suitable. Do not automatically
-relax them to turn failures into passes. Structural, identity and finite-value
-checks cannot be disabled with the tolerance file. Independent aggregation
-checks allow only summation and output-rounding error.
-
-Preserve original reports and evaluate revised bounds without rerunning MD:
+From the repository root, run correctness followed by performance:
 
 ```sh
-python3 tests_regression/multigpu/recheck_results.py \
-  tests_regression/multigpu/reports/old-new-correctness \
-  --tolerances tests_regression/multigpu/tolerances.json
+python3 tests_regression/multigpu/run_tests.py
 ```
 
-Without `--tolerances`, the original report's bounds are used. A new
-`recheck-<timestamp>/` is created, retaining the original report. Inputs,
-outputs and logs are verified against their recorded hashes. Keep the model
-reference available and unchanged for rechecking. No executable or GPU is
-required to recheck existing output. Execution errors and missing comparisons
-remain errors, even when numerical bounds are changed.
-
-## Performance on physical GPUs
-
-The physical multi-GPU performance tests require ordinary builds without
-`-DZHEYONG`.
-
-After correctness passes, measure the original implementation using solid
-and liquid states, three sizes and interleaved repetitions:
+Run either part separately:
 
 ```sh
-python3 tests_regression/multigpu/run_tests.py \
-  --old src_old/gpumd --new src/gpumd --backend hip --devices 0,1 \
-  --mode performance --profiles minimal,output \
-  --output tests_regression/multigpu/reports/old-new-performance
+python3 tests_regression/multigpu/run_tests.py --mode correctness
+python3 tests_regression/multigpu/run_tests.py --mode performance
 ```
 
-`--old` is optional. `--mode all` performs correctness first and starts
-performance only after it passes. A performance-only invocation explicitly
-reports correctness as `NOT_RUN`; it does not inherit a previous pass.
+For AMD, add `--backend hip`. Use `--device 0` to explicitly select one device;
+the default is the first inherited CUDA/HIP visible device, or device 0.
+Optional `--single` and `--zheyong` override the executable paths.
+`--timeout` sets the per-process limit in seconds (default 900).
 
-The default is 100 warmup steps followed by 500 measured NVE steps at 0.5 fs,
-with three fresh process repetitions. On two GPUs, small/medium/large/xlarge
-sizes are 24,576 / 110,592 / 393,216 / 737,280 atoms, generated by replicating
-the common solid or equilibrated liquid input. The same size is used at every GPU count
-in a scaling comparison. Each repetition shuffles build/GPU-count order with
-a fixed recorded seed. Avoid concurrent jobs on the selected GPUs.
+All inputs, outputs and logs live in a temporary directory, removed on success,
+failure or interruption. Nothing is written to the repository. Results appear
+only on screen: per-case correctness, numerical failure details or the last
+25 process-log lines on execution failure, and the performance table.
 
-`minimal` has no measured trajectory or thermo output. `output` writes thermo
-about five times and one position frame during the measured run. Its timing
-therefore includes that I/O. An additional one-step run after measurement
-checks finite thermodynamics. The reported rate comes from GPUMD's second
-`run`, excluding model loading, input replication, warmup and the final probe.
-Process wall times are retained separately. Liquid preparation is also excluded.
+## Correctness
 
-Performance reports use the arithmetic mean of each repetition's atom-step/s;
-new/old and scaling ratios divide those means. Efficiency is scaling divided
-by GPU count. CV is the sample standard deviation divided by the mean,
-**expressed as a percentage**, and is undefined with only one repetition.
-Incomplete or failed groups do not receive a successful aggregate rate.
-There is no automatic speedup pass/fail threshold. Inspect variance and
-individual rates before drawing conclusions; increase `--steps` and
-`--repeats` when runs are too short or unstable.
+Each row shows independent checks of the ordinary and partitioned paths,
+followed by their numerical comparison. A complete pass is **20/20**: 18 cases
+and one repeatability check for each path. Missing output, non-finite values,
+wrong partition counts, errors or skipped comparisons cannot pass.
 
-Use `--sizes small`, `--phases solid`, `--profiles minimal`, `--steps`,
-`--warmup`, and `--repeats` for focused benchmarks. The per-process timeout
-is 7200 seconds by default; increase `--timeout` for slower or larger runs.
-Runtime and retained disk usage depend on hardware and selected profiles.
+| Cases | Coverage |
+|---|---|
+| `axis_x`, `axis_y`, `axis_z`, `auto` | Explicit/automatic partition direction; shuffled atom order |
+| `triclinic`, `partial_pbc` | Skewed box and nonperiodic y |
+| `alloy` | Cu/Ni/Al element mapping |
+| `nonuniform`, `empty`, `migration` | Uneven/empty partitions and observed slab/PBC crossings |
+| `nvt`, `npt` | Berendsen temperature/pressure coupling |
+| `multi_run`, `append`, `restart` | Output lifecycle, valid orthogonal box change, shared real restart |
+| `water` | Short liquid-water trajectory |
+| `energy_solid`, `energy_water` | 100-step NVE drift checks |
 
-## Reports and package self-tests
+Ordinary cases run 10 steps; multiple-run, append and repeatability controls
+use at most 20 steps per path. Energy checks run 100 steps (25 fs for solid,
+10 fs for water); they do not establish long-time energy conservation.
 
-Every invocation requires a fresh output directory. Nothing removes old
-results. `summary.md` gives status and comparisons; `report.json` includes
-process order, effective environment, binary/model/input/output hashes,
-individual metrics and timings; `performance.csv` contains aggregate rates.
-The scripts used for the run are copied into `code/` for provenance. All
-inputs and logs remain in their individual run directories. Generated reports
-are ignored by Git. Return code is nonzero for execution, validation or
-comparison failures, including timeouts. Prerequisite failures are explicit;
-they cannot silently become passing comparisons.
+Checks include atom identity/order, XYZ metadata, frame counts and times,
+selected groups, restart contents, energy/virial sums and kinetic energy.
+Positions, velocities, forces, per-atom energies, virials and thermodynamics
+are compared with fixed bounds in `checks.py` (`TOLERANCES`):
+per-atom potential `atol=5e-5` eV, force
+`atol=5e-4` eV/angstrom with `rtol=2e-5`, for example. Failures show maximum
+and RMS error, tolerances and the number of values outside the bounds.
 
-Run the standard-library CPU checks separately:
+The FCC Cu input has 9,216 atoms, except intentionally sparse cases. Water
+has 6,048 atoms, replicated from the existing
+[63-atom liquid-water MD snapshot](../../tests_pytest/fixtures/structures/water-nat63-from-md.xyz).
+Fixed velocities, shuffled IDs and tiny unique mass offsets make these
+numerical test fixtures. No melting/equilibration stage is run; the water
+snapshot is not claimed to be equilibrated under NEP89.
+
+The potential is referenced directly from
+[NEP89](../../potentials/nep/nep89_20250409/nep89_20250409.txt).
+No duplicate potential or water data is included.
+
+## Performance
+
+Only two large workloads are measured:
+
+| System | Atoms | NVE time step |
+|---|---:|---:|
+| Cu solid | 1,105,920 | 0.5 fs |
+| Liquid water | 1,102,248 | 0.25 fs |
+
+Each path runs three fresh processes per workload, alternating execution order.
+Each process has 10 warmup steps and **100 measured steps**. The last measured
+step writes one thermo row, synchronizing GPU work before GPUMD stops its
+timer; this small output cost is included in both rates. No trajectory is
+written. Throughput comes from the measured run and is checked against
+`atoms * 100 / elapsed`.
+
+The screen table shows both arithmetic mean throughputs in **atom-step/s**,
+the ratio **ZHEYONG / single**, and both sample CVs in percent. There is no
+speedup pass/fail threshold. `Performance: COMPLETE` requires every sample
+to finish and pass the timing/finite-output checks. If a later workload fails,
+the table still shows any fully completed workload; partial groups have no mean.
+
+In `all` mode, correctness must pass before performance starts. Performance-only
+mode runs a small preflight pair and explicitly reports full correctness as
+`NOT_RUN`. These are single-device partition tests; they do not measure physical
+multi-GPU scaling, communication or efficiency. The package remains separate
+from the 255-case regression suite and is not required for every PR.
+
+## Test the Python tools
 
 ```sh
-python3 -m unittest discover -s tests_regression/multigpu -p 'test_*.py' -v
+python3 -B tests_regression/multigpu/test_tools.py
 ```
 
-These validate readers, corrupted/truncated output handling, identity checks,
-device selection, failure propagation, result rechecking and performance
-arithmetic. Small temporary executable emulators exercise the controller;
-they are not GPU or NEP physics tests. Real CUDA/HIP validation remains a
-release-machine task.
+These CPU checks cover parsing, independent numerical checks, controller
+failures/cleanup and performance arithmetic. They do not validate GPU physics.

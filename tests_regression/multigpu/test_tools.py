@@ -13,33 +13,31 @@
 # Major contributors: Zheyong Fan (NEP multi-GPU release tests).
 
 
-"""CPU-only tests of parsing, failure reporting and benchmark arithmetic."""
+"""CPU-only parser, physical-oracle and temporary-runner checks."""
 
 import contextlib
-import csv
 import io
-import json
 import math
 import os
 from pathlib import Path
-import tempfile
+import re
+import subprocess
 import sys
+import tempfile
 import unittest
 from unittest.mock import patch
 
+sys.dont_write_bytecode = True
 import cases
 import checks
 import run_tests as runner
-import recheck_results
 
-
-# This deliberately simple zero-force executable tests the *test controller*,
-# never GPUMD physics. Small stationary fixtures make its output independent of
-# the production parsers/comparators. It is created only in a temporary directory.
+# A zero-force temporary executable exercises controller behavior, not NEP physics.
 EMULATOR = r'''
 import os, re
 from pathlib import Path
 if os.environ.get('NEP_TEST_EMULATOR_FAIL'):
+    print('synthetic loader failure')
     raise SystemExit(127)
 gpus = len(os.environ.get('HIP_VISIBLE_DEVICES', os.environ.get('CUDA_VISIBLE_DEVICES', '0')).split(','))
 print('number of GPUs =', gpus)
@@ -106,17 +104,17 @@ for line in Path('run.in').read_text().splitlines():
             if restart and step % restart == 0:
                 xyz('restart.xyz', atoms, t, is_restart=True)
         print('Run %d steps.' % steps)
-        print('Time used for this run = 0.01 second.')
-        print('Speed of this run = %g atom*step/second.' % (len(atoms) * steps / .01))
+        elapsed = .02 if partitions == 3 else .01
+        print('Time used for this run = %g second.' % elapsed)
+        print('Speed of this run = %g atom*step/second.' % (len(atoms) * steps / elapsed))
         dumps, thermo, restart = [], 0, 0
 '''
 
 
-def timing(gpus, rates=(20, 100, 10), steps=(2, 50, 1), atoms=10, partitions=None):
-    text = 'number of GPUs = {}\n'.format(gpus)
-    partitions = gpus if partitions is None else partitions
-    if partitions > 1:
-        text += 'Try to use {} GPUs for the NEP part.\n'.format(partitions)
+def timing(build='single', rates=(100, 2000), steps=(10, 100), atoms=10):
+    text = 'number of GPUs = 1\n'
+    if build == 'zheyong':
+        text += 'Try to use 3 GPUs for the NEP part.\n'
     for steps_i, rate in zip(steps, rates):
         text += ('Run {} steps.\nTime used for this run = {} second.\n'
                  'Speed of this run = {} atom*step/second.\n').format(steps_i, atoms * steps_i / rate, rate)
@@ -126,456 +124,323 @@ def timing(gpus, rates=(20, 100, 10), steps=(2, 50, 1), atoms=10, partitions=Non
 class ToolTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-
-    def tearDown(self):
-        self.temp.cleanup()
+        self.tiny = {'box': [[30, 0, 0], [0, 30, 0], [0, 0, 30]], 'pbc': [True] * 3,
+                     'atoms': [['Cu', [1, 2, 3], [0, 0, 0], 63.546],
+                               ['Cu', [5, 6, 7], [0, 0, 0], 63.546001]]}
 
     def xyz(self, text):
         path = self.root / 'sample.xyz'
         path.write_text(text)
         return path
 
-    def test_xyz_aliases_and_integer_groups(self):
-        frame = cases.only_frame(self.xyz('1\nProperties=species:S:1:forces:R:3:energy_atom:R:1:group:I:1\nCu 1 2 3 4 0\n'))
+    def executable(self, name):
+        path = self.root / name
+        path.write_text('#!' + sys.executable + '\n' + EMULATOR)
+        path.chmod(0o755)
+        return path
+
+    def sample(self):
+        directory = self.root / 'sample'
+        directory.mkdir()
+        cases.write_state(directory / 'model.xyz', self.tiny)
+        text, spec = cases.correctness('axis_x')
+        (directory / 'run.in').write_text(text)
+        subprocess.run([str(self.executable('emulator'))], cwd=directory, check=True,
+                       stdout=subprocess.DEVNULL, env=runner.device_environment('cuda', '0'))
+        return directory, cases.only_frame(directory / 'model.xyz'), spec
+
+    def rewrite_xyz(self, path, change):
+        frames = list(checks.frames(path))
+        change(frames)
+        with path.open('w') as stream:
+            for frame in frames:
+                stream.write(str(frame['n']) + '\n' + ' '.join(
+                    '{}="{}"'.format(k, v) for k, v in frame['meta'].items()) + '\n')
+                for i in range(frame['n']):
+                    values = [str(frame['data'][k][i * width + j])
+                              for k, (_, width) in frame['schema'].items() for j in range(width)]
+                    stream.write(' '.join(values) + '\n')
+
+    def test_fixed_case_and_performance_contract(self):
+        self.assertEqual(len(set(cases.NAMES)), 18)
+        self.assertEqual(sum(name.startswith('energy_') for name in cases.NAMES), 2)
+        self.assertIn('water', cases.NAMES)
+        for name in cases.NAMES:
+            text, spec = cases.correctness(name)
+            self.assertLessEqual(sum(spec['steps']) * spec['executions'], 100)
+            self.assertEqual([int(x) for x in re.findall(r'^run (\d+)$', text, re.M)], spec['steps'])
+        self.assertEqual((cases.WARMUP, cases.STEPS, cases.REPEATS), (10, 100, 3))
+        self.assertEqual(9216 * math.prod(cases.PERFORMANCE['solid']), 1105920)
+        self.assertEqual(63 * math.prod(cases.PERFORMANCE['water']), 1102248)
+        for phase in cases.PERFORMANCE:
+            text = cases.performance(phase)
+            self.assertEqual(re.findall(r'^run (\d+)$', text, re.M), ['10', '100'])
+            self.assertNotIn('dump_xyz', text)
+            self.assertTrue(text.endswith('dump_thermo 100\nrun 100\n'))
+
+    def test_numerical_bounds_are_preserved(self):
+        self.assertEqual(checks.TOLERANCES, {
+            'pos': (2e-5, 0), 'unwrapped_position': (2e-5, 0), 'vel': (2e-5, 0),
+            'force': (5e-4, 2e-5), 'potential': (5e-5, 0), 'virial': (.002, 2e-5),
+            'box': (1e-6, 0), 'temperature': (.003, 2e-5), 'pressure': (.003, 2e-5),
+            'energy_solid': (5e-4, 0), 'energy_water': (.002, 0)})
+
+    def test_water_composition_geometry_and_atom_identity(self):
+        water = cases.water(runner.REPO)
+        self.assertEqual(len(water['atoms']), 6048)
+        self.assertEqual(sum(a[0] == 'H' for a in water['atoms']), 4032)
+        self.assertEqual(len(set(a[3] for a in water['atoms'])), 6048)
+        self.assertGreaterEqual(int(water['box'][0][0] / 3) // 3, 10)
+        for d in range(3):
+            self.assertAlmostEqual(math.fsum(a[3] * a[2][d] for a in water['atoms']), 0, places=10)
+        for axis in range(3):
+            crystal = cases.crystal(axis=axis)
+            self.assertEqual(len(crystal['atoms']), 9216)
+            self.assertGreaterEqual(int(crystal['box'][axis][axis] / 3) // 3, 10)
+
+    def test_xyz_aliases_and_malformed_records(self):
+        frame = cases.only_frame(self.xyz('1\nProperties=forces:R:3:energy_atom:R:1:group:I:1\n1 2 3 4 0\n'))
         self.assertEqual(list(frame['data']['force']), [1, 2, 3])
         self.assertEqual(list(frame['data']['potential']), [4])
-
-    def test_xyz_rejects_bad_records(self):
-        for body in ('1 2', '1 2 nan', '1 2 inf', '1 2 1e999'):
-            with self.subTest(body=body), self.assertRaises(checks.CheckError):
-                list(checks.frames(self.xyz('1\nProperties=pos:R:3\n' + body + '\n')))
-        with self.assertRaises(checks.CheckError):
-            list(checks.frames(self.xyz('1\nProperties=group:I:1\n0.5\n')))
-
-    def test_xyz_duplicate_properties_rejected(self):
-        with self.assertRaises(checks.CheckError):
-            list(checks.frames(self.xyz('1\nProperties=pos:R:1:pos:R:1\n1 2\n')))
-
-    def test_extra_frame_rejected_for_restart(self):
+        bad = ['1\nProperties=pos:R:3\n' + row + '\n'
+               for row in ('1 2', '1 2 3 4', '1 2 nan', '1 2 inf', '1 2 1e999')]
+        bad += ['1\nProperties=group:I:1\n0.5\n', '1\nProperties=pos:R:1:pos:R:1\n1 2\n',
+                '1\nProperties=pos:R:bad\n1\n', '2\nProperties=pos:R:1\n1\n']
+        for text in bad:
+            with self.subTest(text=text), self.assertRaises(checks.CheckError):
+                list(checks.frames(self.xyz(text)))
         with self.assertRaises(checks.CheckError):
             cases.only_frame(self.xyz('1\nProperties=pos:R:1\n1\n' * 2))
 
-    def test_thermo_comments_and_count(self):
+    def test_thermo_shape_count_and_finite_values(self):
         path = self.root / 'thermo.out'
-        path.write_text('# dump_thermo 1\n# format_version 1\n' + ' '.join(['1'] * 18) + '\n')
+        row = ' '.join(['1'] * 18) + '\n'
+        path.write_text('# format_version 1\n' + row)
         self.assertEqual(len(checks.thermo_rows(path, 1)), 1)
-        with self.assertRaises(checks.CheckError):
-            checks.thermo_rows(path, 2)
+        for text in ('', row + row, ' '.join(['1'] * 17), row.replace('1', 'nan', 1)):
+            path.write_text(text)
+            with self.subTest(text=text), self.assertRaises(checks.CheckError):
+                checks.thermo_rows(path, 1)
 
-    def test_metric_threshold_and_nonfinite(self):
+    def test_metric_uses_absolute_and_relative_bounds(self):
         result = checks.metric([1, 2.1, -3.2], [1, 2, -3], .05)
         self.assertEqual(result['exceedances'], 2)
         self.assertAlmostEqual(result['max_abs'], .2)
-        self.assertAlmostEqual(result['rms'], (.05 / 3) ** .5)
-        with self.assertRaises(checks.CheckError):
-            checks.metric([float('nan')], [0], 1)
-
-    def test_bad_tolerances_rejected(self):
-        path = self.root / 'tol.json'
-        tol = checks.load_tolerances(runner.HERE / 'tolerances.json')
-        for value in ([float('inf'), 0], [-1, 0], [1], [True, 0]):
-            tol['force'] = value
-            path.write_text(json.dumps(tol))
+        self.assertAlmostEqual(result['rms'], math.sqrt(.05 / 3))
+        self.assertEqual(checks.metric([102], [100], .5, .02)['exceedances'], 0)
+        for left, right in (([], []), ([1], [1, 2]), ([float('nan')], [0])):
             with self.assertRaises(checks.CheckError):
-                checks.load_tolerances(path)
+                checks.metric(left, right, 1)
 
-    def test_log_requires_multi_gpu_execution(self):
-        path = self.root / 'run.log'
-        path.write_text(timing(2))
-        self.assertEqual(runner.log_rates(path, 2, [2, 50, 1])[0], [20, 100, 10])
-        for bad in (timing(1), timing(2).replace('Try to use 2 GPUs for the NEP part.\n', ''),
-                    timing(2).replace('Run 50 steps.', 'Run 40 steps.')):
-            path.write_text(bad)
+    def test_logs_require_one_gpu_correct_partition_and_complete_runs(self):
+        for build in ('single', 'zheyong'):
+            text = timing(build)
+            self.assertEqual(runner.log_rates(text, build, [10, 100])[0], [100, 2000])
+            bad = [text.replace('number of GPUs = 1', 'number of GPUs = 3'),
+                   text.replace('Run 100 steps.', 'Run 99 steps.'), text + 'Run 1 steps.\n',
+                   text.replace('Time used for this run = 0.5 second.\n', ''),
+                   text.replace('= 2000 atom*step', '= nan atom*step'),
+                   text.replace('= 2000 atom*step', '= 0 atom*step')]
+            bad.append(timing('zheyong' if build == 'single' else 'single'))
+            bad.append(text.replace('Try to use 3 GPUs', 'Try to use 2 GPUs') if build == 'zheyong'
+                       else text + 'Try to use 2 GPUs for the NEP part.\n')
+            for log in bad:
+                with self.subTest(build=build, log=log), self.assertRaises(checks.CheckError):
+                    runner.log_rates(log, build, [10, 100])
+
+    def test_device_aliases_inherited_selection_and_invalid_masks(self):
+        with patch.dict(os.environ, {'CUDA_VISIBLE_DEVICES': '4,5', 'HIP_VISIBLE_DEVICES': '2,3',
+                                     'ROCR_VISIBLE_DEVICES': '6,7'}):
+            cuda = runner.device_environment('cuda', None)
+            hip = runner.device_environment('hip', None)
+            self.assertEqual(cuda['CUDA_VISIBLE_DEVICES'], '4')
+            self.assertEqual(hip['HIP_VISIBLE_DEVICES'], '2')
+            self.assertNotIn('HIP_VISIBLE_DEVICES', cuda)
+            self.assertNotIn('CUDA_VISIBLE_DEVICES', hip)
+            self.assertEqual(hip['ROCR_VISIBLE_DEVICES'], '6,7')
+        for device in ('', '-1', '0,1'):
             with self.assertRaises(checks.CheckError):
-                runner.log_rates(path, 2, [2, 50, 1])
+                runner.device_environment('cuda', device)
 
-    def test_zheyong_log_requires_one_gpu_and_three_partitions(self):
-        path = self.root / 'run.log'
-        path.write_text(timing(1, partitions=3))
-        self.assertEqual(runner.log_rates(path, 1, [2, 50, 1], 3)[0], [20, 100, 10])
-        # A macro build must not masquerade as the ordinary single-GPU control.
+    def test_independent_output_checks_and_missing_files(self):
+        directory, initial, spec = self.sample()
+        self.assertEqual(runner.assess(checks.check_run, directory, initial, spec)[0], 'PASS')
+        for name in ('state.xyz', 'selected.xyz', 'restart.xyz', 'thermo.out'):
+            path = directory / name
+            data = path.read_bytes()
+            path.unlink()
+            self.assertEqual(runner.assess(checks.check_run, directory, initial, spec)[0], 'ERROR')
+            path.write_bytes(data)
+
+    def test_wrong_identity_group_time_and_frame_count_fail(self):
+        directory, initial, spec = self.sample()
+        path = directory / 'state.xyz'
+        original = path.read_bytes()
+        changes = [lambda f: f[0]['data']['mass'].reverse(),
+                   lambda f: f[0]['data']['group'].__setitem__(0, 1),
+                   lambda f: f[0]['meta'].__setitem__('time', '9'), lambda f: f.pop()]
+        for change in changes:
+            path.write_bytes(original)
+            self.rewrite_xyz(path, change)
+            self.assertEqual(runner.assess(checks.check_run, directory, initial, spec)[0], 'FAIL')
+        path.write_bytes(original)
+        self.rewrite_xyz(directory / 'selected.xyz', lambda f: f[0]['data']['pos'].__setitem__(0, 99))
+        self.assertEqual(runner.assess(checks.check_run, directory, initial, spec)[0], 'FAIL')
+
+    def test_wrong_energy_and_virial_sums_fail_independently(self):
+        directory, initial, spec = self.sample()
+        path = directory / 'state.xyz'
+        original = path.read_bytes()
+        for key in ('potential', 'virial'):
+            path.write_bytes(original)
+            self.rewrite_xyz(path, lambda f: f[0]['data'][key].__setitem__(0, 1))
+            status, details = runner.assess(checks.check_run, directory, initial, spec)
+            self.assertEqual(status, 'FAIL')
+        path.write_bytes(original)
+        self.rewrite_xyz(path, lambda f: f[0]['meta'].__setitem__('energy', '1'))
+        self.assertEqual(runner.assess(checks.check_run, directory, initial, spec)[0], 'FAIL')
+
+    def test_berendsen_kinetic_energy_is_sampled_before_rescaling(self):
+        directory, initial, _ = self.sample()
+        def velocities(frames):
+            for frame in frames:
+                for i, mass in enumerate(frame['data']['mass']):
+                    frame['data']['vel'][3 * i] = math.sqrt(3 * 8.617343e-5 * 201 / mass) / 10.18051
+        for name in ('state.xyz', 'selected.xyz', 'restart.xyz'):
+            self.rewrite_xyz(directory / name, velocities)
+        row = [200, 3 * 8.617343e-5 * 200] + [0] * 7 + [x for r in self.tiny['box'] for x in r]
+        (directory / 'thermo.out').write_text((' '.join(map(str, row)) + '\n') * 2)
+        _, spec = cases.correctness('nvt')
+        self.assertEqual(runner.assess(checks.check_run, directory, initial, spec)[0], 'PASS')
+        spec.pop('berendsen')
+        self.assertEqual(runner.assess(checks.check_run, directory, initial, spec)[0], 'FAIL')
+
+    def test_nve_drift_is_normalized_per_atom(self):
+        initial = {'n': 2}
+        _, spec = cases.correctness('energy_solid')
+        path = self.root / 'thermo.out'
+        def write_energy(total_drift):
+            rows = [[0, 0, total_drift * i / 9] + [0] * 15 for i in range(10)]
+            path.write_text('\n'.join(' '.join(map(str, row)) for row in rows) + '\n')
+        write_energy(.0008)
+        self.assertEqual(runner.assess(checks.check_run, self.root, initial, spec)[0], 'PASS')
+        write_energy(.0012)
+        self.assertEqual(runner.assess(checks.check_run, self.root, initial, spec)[0], 'FAIL')
+
+    def test_performance_uses_measured_run_and_atom_normalization(self):
+        path = self.root / 'thermo.out'
+        path.write_text(' '.join(['0'] * 18) + '\n')
+        sample = ([999, 2000], [.1, .5])
+        self.assertEqual(runner.performance_rate(self.root, sample, 10), 2000)
         with self.assertRaises(checks.CheckError):
-            runner.log_rates(path, 1, [2, 50, 1])
-        for bad in (timing(1), timing(1, partitions=2), timing(3),
-                    timing(1, partitions=3).replace('Run 50 steps.', 'Run 40 steps.')):
-            path.write_text(bad)
-            with self.subTest(log=bad), self.assertRaises(checks.CheckError):
-                runner.log_rates(path, 1, [2, 50, 1], 3)
+            runner.performance_rate(self.root, sample, 11)
+        path.unlink()
+        with self.assertRaises(OSError):
+            runner.performance_rate(self.root, sample, 10)
+        a, acv = runner.rate_stats([80, 100, 120])
+        b, bcv = runner.rate_stats([30, 50, 70])
+        self.assertEqual((a, b, acv, bcv, b / a), (100, 50, 20, 40, .5))
+        for rates in ([1, 2], [1, 2, float('nan')], [1, 2, 0]):
+            with self.assertRaises(checks.CheckError):
+                runner.rate_stats(rates)
 
-    def test_zheyong_cli_constraints_and_device_defaults(self):
-        binary = self.root / 'gpumd'
-        binary.write_text('#!/bin/sh\nexit 0\n')
-        binary.chmod(0o755)
-        base = ['--new', str(binary), '--zheyong', str(binary), '--backend', 'hip',
-                '--output', str(self.root / 'results')]
-        args = runner.arguments(base)
-        self.assertEqual(args.devices, ['0'])
-        self.assertEqual(args.counts, [1])
-        self.assertEqual(runner.arguments(base + ['--devices', '2']).devices, ['2'])
-        for mode in ('performance', 'all'):
-            self.assertEqual(runner.arguments(base + ['--mode', mode]).mode, mode)
-        for extra in (['--old', str(binary)], ['--counts', '1,3'], ['--counts', '1'],
-                      ['--devices', '0,1'], ['--devices', '-1'], ['--devices', '']):
-            with self.subTest(extra=extra), contextlib.redirect_stderr(io.StringIO()), \
-                    self.assertRaises(SystemExit) as error:
-                runner.arguments(base + extra)
-            self.assertEqual(error.exception.code, 2)
-
-    def test_device_aliases_and_scheduler_mask(self):
-        with patch.dict(os.environ, {'ROCR_VISIBLE_DEVICES': '2,3', 'CUDA_VISIBLE_DEVICES': '9'}):
-            env = runner.device_environment('hip', ['0', '1'])
-        self.assertEqual(env['HIP_VISIBLE_DEVICES'], '0,1')
-        self.assertEqual(env['ROCR_VISIBLE_DEVICES'], '2,3')
-        self.assertNotIn('CUDA_VISIBLE_DEVICES', env)
-
-    def test_crystal_identity_and_legal_partition_lengths(self):
-        for partitions in (2, 3):
-            for axis in range(3):
-                state = cases.crystal(partitions, axis=axis)
-                self.assertGreaterEqual(int(state['box'][axis][axis] / 3) // partitions, 10)
-                path = self.root / 'model.xyz'
-                cases.write_state(path, state)
-                frame = cases.only_frame(path)
-                self.assertEqual(frame['n'], 3072 * partitions)
-                self.assertEqual(len(set(frame['data']['mass'])), frame['n'])
-
-    def test_wrong_atom_identity_rejected(self):
-        state = cases.crystal(2)
-        path = self.root / 'model.xyz'
-        cases.write_state(path, state)
-        initial = cases.only_frame(path)
-        frame = cases.only_frame(path)
-        frame['data']['mass'][0], frame['data']['mass'][1] = frame['data']['mass'][1], frame['data']['mass'][0]
-        with self.assertRaises(checks.CheckError):
-            checks.check_identity(frame, initial, list(range(initial['n'])), initial['schema'])
-
-    def test_performance_ratio_of_means_and_cv_percent(self):
-        report = {'runs': [], 'repeats': 2, 'mode': 'performance', 'expected_performance_groups': 4}
-        for build, count, values in (('old', 1, (80, 120)), ('old', 2, (140, 180)),
-                                     ('new', 1, (90, 110)), ('new', 2, (180, 220))):
-            for repeat, rate in enumerate(values):
-                path = '{}-{}-{}'.format(build, count, repeat)
-                directory = self.root / path
-                directory.mkdir()
-                (directory / 'run-01.log').write_text(timing(count, (20, rate, 10)))
-                (directory / 'thermo.out').write_text(' '.join(['1'] * 18) + '\n')
-                report['runs'].append({'path': path, 'build': build, 'gpus': count,
-                    'process_status': 'COMPLETE', 'input_hashes': {}, 'output_hashes': {},
-                    'logs': [{'file': 'run-01.log'}], 'spec': {'kind': 'performance', 'phase': 'solid',
-                    'size': 'small', 'profile': 'minimal', 'repeat': repeat, 'steps': [2, 50, 1],
-                    'atoms': 10, 'thermo_rows': 1}})
-        runner.performance_summary(self.root, report)
-        row = next(r for r in report['performance'] if r['build'] == 'new' and r['gpus'] == 2)
-        self.assertEqual(row['mean_rate'], 200)
-        self.assertEqual(row['new_over_old'], 1.25)
-        self.assertEqual(row['scaling'], 2)
-        self.assertEqual(row['efficiency'], 1)
-        self.assertAlmostEqual(row['cv_percent'], 14.1421356237)
-        self.assertEqual(report['performance_status'], 'COMPLETE')
-        report['runs'].pop()
-        runner.performance_summary(self.root, report)
-        self.assertEqual(report['performance_status'], 'ERROR')
-
-    def test_partition_performance_ratio_and_incomplete_samples(self):
-        report = {'runs': [], 'repeats': 2, 'mode': 'performance',
-                  'execution_mode': 'zheyong', 'expected_performance_groups': 2}
-        for build, partitions, values in (('new', 1, (80, 120)), ('zheyong', 3, (30, 70))):
-            for repeat, rate in enumerate(values, 1):
-                path = '{}-{}'.format(build, repeat)
-                directory = self.root / path
-                directory.mkdir()
-                (directory / 'run-01.log').write_text(timing(1, (20, rate, 10), partitions=partitions))
-                (directory / 'thermo.out').write_text(' '.join(['1'] * 18) + '\n')
-                report['runs'].append({'path': path, 'build': build, 'gpus': 1,
-                    'partitions': partitions, 'process_status': 'COMPLETE',
-                    'input_hashes': {}, 'output_hashes': {}, 'logs': [{'file': 'run-01.log'}],
-                    'spec': {'kind': 'performance', 'phase': 'solid', 'size': 'small',
-                             'profile': 'minimal', 'repeat': repeat, 'steps': [2, 50, 1],
-                             'atoms': 10, 'thermo_rows': 1}})
-        runner.performance_summary(self.root, report)
-        self.assertEqual(report['performance_status'], 'COMPLETE')
-        self.assertEqual(report['real_multigpu_performance_status'], 'NOT_RUN')
-        for row in report['performance']:
-            self.assertEqual(row['atoms'], 10)
-            self.assertFalse({'scaling', 'efficiency', 'new_over_old'} & row.keys())
-            if row['build'] == 'zheyong':
-                self.assertEqual(row['partitions'], 3)
-                self.assertEqual(row['mean_rate'], 50)
-                self.assertEqual(row['relative_to_normal'], .5)
-                self.assertAlmostEqual(row['cv_percent'], 56.5685424949)
-            else:
-                self.assertEqual(row['relative_to_normal'], 1)
-
-        bad_log = self.root / 'zheyong-2' / 'run-01.log'
-        original = bad_log.read_text()
-        bad_log.write_text(original.replace('Try to use 3 GPUs', 'Try to use 2 GPUs'))
-        runner.performance_summary(self.root, report)
-        self.assertEqual(report['performance_status'], 'ERROR')
-        bad_log.write_text(original)
-        report['runs'].pop()
-        runner.performance_summary(self.root, report)
-        row = next(row for row in report['performance'] if row['build'] == 'zheyong')
-        self.assertEqual(row['status'], 'ERROR')
-        self.assertNotIn('mean_rate', row)
-        self.assertNotIn('relative_to_normal', row)
-
-    def test_failed_process_cannot_be_a_comparison_pass(self):
-        report = {'runs': [{'path': 'bad', 'build': 'new', 'gpus': 1,
-                           'spec': {'name': 'axis_x', 'kind': 'short'},
-                           'process_status': 'ERROR', 'error': 'Exit code 127'}],
-                  'selected_cases': ['axis_x'], 'mode': 'correctness'}
-        runner.assess(self.root, report, {})
-        self.assertEqual(report['correctness_status'], 'ERROR')
-        self.assertIn('127', report['correctness_checks'][0]['error'])
-
-    def test_input_mutation_is_detected(self):
-        path = self.root / 'model.xyz'
-        path.write_text('original')
-        digest = checks.sha256(path)
-        path.write_text('changed')
-        with self.assertRaises(checks.CheckError):
-            runner.verify_record(self.root, {'path': '.', 'process_status': 'COMPLETE',
-                                 'input_hashes': {'model.xyz': digest}, 'output_hashes': {}})
-
-    def controller(self, output, extra, zheyong=False):
-        binary = self.root / 'emulator'
-        binary.write_text('#!' + sys.executable + '\n' + EMULATOR)
-        binary.chmod(0o755)
-        if zheyong:
-            macro_binary = self.root / 'emulator_zheyong'
-            macro_binary.write_bytes(binary.read_bytes())
-            macro_binary.chmod(0o755)
-            comparison = ['--zheyong', str(macro_binary)]
-        else:
-            comparison = ['--old', str(binary)]
+    def controller(self, mode, fail=False):
+        single, zheyong = self.executable('emulator'), self.executable('emulator_zheyong')
         potential = self.root / cases.POTENTIAL
         potential.parent.mkdir(parents=True, exist_ok=True)
         potential.write_text('nep 89 Cu\nformat_version 1\nmodel nep\nzbl 1 2\ncutoff 6 5 274 158\n')
-        tiny = {'box': [[12, 0, 0], [0, 12, 0], [0, 0, 12]], 'pbc': [True] * 3,
-                'atoms': [['Cu', [1, 2, 3], [0, 0, 0], 63.546],
-                          ['Cu', [5, 6, 7], [0, 0, 0], 63.546001]]}
-        with patch.object(cases, 'crystal', return_value=tiny) as geometry, contextlib.redirect_stdout(io.StringIO()), \
-                contextlib.redirect_stderr(io.StringIO()):
-            code = runner.main(['--new', str(binary), '--backend', 'hip',
-                                '--repo-root', str(self.root), '--output', str(output),
-                                '--cases', 'axis_x,append', '--repeats', '2',
-                                '--sizes', 'small', '--phases', 'solid', '--steps', '5',
-                                '--warmup', '2'] + comparison + extra)
-        self.geometry_calls = geometry.call_args_list
-        return code, json.loads((output / 'report.json').read_text())
+        created = []
+        def temporary(**kwargs):
+            temporary = tempfile.TemporaryDirectory(dir=self.root, **kwargs)
+            created.append(Path(temporary.name))
+            return temporary
+        output = io.StringIO()
+        # Fixture sizing and the fixed production inventory are tested separately.
+        names = ('axis_x', 'append', 'restart', 'water', 'energy_solid', 'energy_water')
+        with patch.object(runner, 'REPO', self.root), patch.object(runner, 'TemporaryDirectory', temporary), \
+                patch.object(cases, 'NAMES', names), patch.object(cases, 'crystal', return_value=self.tiny), \
+                patch.object(cases, 'water', return_value=self.tiny), \
+                patch.object(cases, 'PERFORMANCE', {'solid': (2, 1, 1), 'water': (1, 2, 1)}), \
+                patch.dict(os.environ, {'NEP_TEST_EMULATOR_FAIL': '1' if fail else ''}), \
+                contextlib.redirect_stdout(output):
+            code = runner.main(['--single', str(single), '--zheyong', str(zheyong), '--mode', mode])
+        self.assertTrue(created)
+        self.assertTrue(all(not path.exists() for path in created))
+        self.assertFalse((self.root / 'reports').exists())
+        return code, output.getvalue()
 
-    def test_zheyong_controller_comparisons_and_offline_recheck(self):
-        output = self.root / 'zheyong'
-        code, report = self.controller(output, ['--cases', 'axis_x,append,restart'], zheyong=True)
-        self.assertEqual(code, 0, report.get('fatal_error') or report['correctness_checks'])
-        self.assertEqual(report['execution_mode'], 'zheyong')
-        self.assertEqual(report['counts'], [1])
-        self.assertEqual(report['max_partitions'], 3)
-        self.assertEqual(report['correctness_status'], 'PASS')
-        self.assertEqual(report['real_multigpu_correctness_status'], 'NOT_RUN')
-        self.assertEqual(report['performance_status'], 'NOT_RUN')
-        self.assertEqual(report['performance'], [])
-        self.assertTrue(self.geometry_calls)
-        self.assertTrue(all(call.args[0] == 3 for call in self.geometry_calls))
-        names = {check['name'] for check in report['correctness_checks']}
-        for name in ('axis_x', 'append', 'restart'):
-            self.assertIn(name + ': zheyong_1 / new_1', names)
-            runs = [run for run in report['runs'] if run['path'].startswith('correctness/' + name + '/')]
-            self.assertTrue(all(run['input_hashes'] == runs[0]['input_hashes'] for run in runs))
-        for build in ('new', 'zheyong'):
-            self.assertIn('axis_x: {0}_repeat_1 / {0}_1'.format(build), names)
-        for run in report['runs']:
-            self.assertEqual(run['gpus'], 1)
-            self.assertEqual(run['partitions'], 3 if run['build'].startswith('zheyong') else 1)
-            self.assertEqual(run['environment']['HIP_VISIBLE_DEVICES'], '0')
-        self.assertEqual((output / 'inputs/restart.xyz').read_bytes(),
-                         (output / 'preflight/new_1/restart.xyz').read_bytes())
-        before = checks.sha256(output / 'report.json')
-        (self.root / 'emulator').unlink()
-        (self.root / 'emulator_zheyong').unlink()
-        with patch.object(sys, 'argv', ['recheck_results.py', str(output)]), \
-                contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(recheck_results.main(), 0)
-        self.assertEqual(checks.sha256(output / 'report.json'), before)
-        rechecked = json.loads(next(output.glob('recheck-*/report.json')).read_text())
-        self.assertEqual(rechecked['execution_mode'], 'zheyong')
-        self.assertEqual(rechecked['correctness_status'], 'PASS')
-        self.assertEqual(rechecked['real_multigpu_correctness_status'], 'NOT_RUN')
-        self.assertEqual(rechecked['performance_status'], 'NOT_RUN')
-        self.assertEqual(rechecked['performance'], [])
+    def test_controller_all_mode_and_temporary_cleanup(self):
+        code, output = self.controller('all')
+        self.assertEqual(code, 0, output)
+        self.assertIn('Correctness: PASS (8/8)', output)
+        self.assertIn('Performance: COMPLETE', output)
+        self.assertEqual(output.count('0.500x'), 2)
+        self.assertNotIn('FAIL', output)
+        self.assertNotIn('ERROR', output)
 
-    def test_zheyong_liquid_preparation_uses_normal_build(self):
-        # The liquid physics gate has a separate independent MSD test below.
-        # Here only controller selection and reuse of the common state are tested.
-        output = self.root / 'liquid'
-        with patch.object(runner, 'check_liquid', return_value={'controller_fixture': True}):
-            code, report = self.controller(output, ['--cases', 'liquid'], zheyong=True)
-        self.assertEqual(code, 0, report.get('fatal_error') or report['correctness_checks'])
-        prep = next(run for run in report['runs'] if run['spec']['kind'] == 'preparation')
-        self.assertEqual((prep['build'], prep['gpus'], prep['partitions']), ('new', 1, 1))
-        prepared = (output / 'preparation/liquid/restart.xyz').read_bytes()
-        for build in ('new', 'zheyong'):
-            self.assertEqual((output / ('correctness/liquid/' + build + '_1/model.xyz')).read_bytes(), prepared)
-
-    def test_controller_end_to_end_and_recheck_inputs(self):
-        output = self.root / 'results'
-        code, report = self.controller(output, [])
-        self.assertEqual(code, 0, report.get('fatal_error') or report['correctness_checks'])
-        self.assertEqual(report['correctness_status'], 'PASS')
-        self.assertEqual(report['performance_status'], 'NOT_RUN')
-        runner.assess(output, report, report['tolerances'])
-        self.assertEqual(report['correctness_status'], 'PASS')
-        before = checks.sha256(output / 'report.json')
-        (self.root / 'emulator').unlink()
-        with patch.object(sys, 'argv', ['recheck_results.py', str(output)]), \
-                contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(recheck_results.main(), 0)
-        self.assertEqual(checks.sha256(output / 'report.json'), before)
-        self.assertEqual(len(list(output.glob('recheck-*/summary.md'))), 1)
-        path = output / 'correctness/append/new_2/state.xyz'
-        path.write_text(path.read_text().replace('63.546', '63.646', 1))
-        runner.assess(output, report, report['tolerances'])
-        self.assertEqual(report['correctness_status'], 'ERROR')
-
-    def test_controller_missing_library_fails_before_workloads(self):
-        with patch.dict(os.environ, {'NEP_TEST_EMULATOR_FAIL': '1'}):
-            code, report = self.controller(self.root / 'failed', [])
+    def test_completed_performance_survives_later_system_failure(self):
+        execute = runner.Runner.execute
+        completed = []
+        def fail_water(instance, label, build, *args):
+            if label.startswith('performance/water/'):
+                raise checks.CheckError('synthetic water failure')
+            result = execute(instance, label, build, *args)
+            if label.startswith('performance/solid/'):
+                completed.append(build)
+            return result
+        with patch.object(runner.Runner, 'execute', autospec=True, side_effect=fail_water):
+            code, output = self.controller('performance')
+        self.assertEqual(completed.count('single'), 3)
+        self.assertEqual(completed.count('zheyong'), 3)
         self.assertEqual(code, 1)
-        self.assertEqual(report['correctness_status'], 'ERROR')
-        self.assertEqual(len(report['runs']), 1)
-        self.assertIn('127', report['fatal_error'])
+        self.assertRegex(output, r'(?m)^solid\s+4\s+4\.000000e\+04\s+2\.000000e\+04\s+0\.500x')
+        self.assertNotRegex(output, r'(?m)^water\s')
+        self.assertIn('ERROR: synthetic water failure', output)
+        self.assertIn('Correctness: NOT_RUN. Performance: ERROR', output)
 
-    def test_offline_recheck_accepts_legacy_multigpu_report(self):
-        output = self.root / 'legacy'
-        code, report = self.controller(output, [])
-        self.assertEqual(code, 0)
-        for key in ('execution_mode', 'max_partitions', 'real_multigpu_correctness_status'):
-            report.pop(key, None)
-        for run in report['runs']:
-            run.pop('partitions', None)
-            spec = run['spec']
-            if 'max_partitions' in spec:
-                spec['max_gpus'] = spec.pop('max_partitions')
-        checks.write_json(output / 'report.json', report)
-        (self.root / 'emulator').unlink()
-        with patch.object(sys, 'argv', ['recheck_results.py', str(output)]), \
-                contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(recheck_results.main(), 0)
-        rechecked = json.loads(next(output.glob('recheck-*/report.json')).read_text())
-        self.assertEqual(rechecked['correctness_status'], 'PASS')
-        self.assertEqual(rechecked['performance_status'], 'NOT_RUN')
+    def test_process_failure_is_nonzero_and_blocks_performance(self):
+        code, output = self.controller('performance', fail=True)
+        self.assertEqual(code, 1)
+        self.assertIn('exited with code 127', output)
+        self.assertIn('synthetic loader failure', output)
+        self.assertIn('Performance blocked', output)
+        self.assertIn('Correctness: NOT_RUN. Performance: NOT_RUN', output)
 
-    def test_performance_only_does_not_claim_correctness(self):
-        code, report = self.controller(self.root / 'performance', ['--mode', 'performance',
-                                                                 '--profiles', 'minimal,output'])
-        self.assertEqual(code, 0, report.get('fatal_error') or report['performance'])
-        self.assertEqual(report['correctness_status'], 'NOT_RUN')
-        self.assertEqual(report['performance_status'], 'COMPLETE')
-        self.assertEqual(len(report['performance']), 8)
+    def test_first_case_execution_error_stops_remaining_correctness(self):
+        code, output = self.controller('all', fail=True)
+        self.assertEqual(code, 1)
+        self.assertIn('Correctness: FAIL (0/8)', output)
+        self.assertIn('remaining checks NOT_RUN', output)
+        self.assertNotIn('repeat_single', output)
+        self.assertNotIn('energy_water', output)
+        self.assertIn('Performance blocked', output)
 
-    def test_partition_performance_controller_and_offline_recheck(self):
-        output = self.root / 'partition-performance'
-        code, report = self.controller(output, ['--mode', 'performance', '--sizes', 'small,xlarge',
-                                               '--profiles', 'minimal,output', '--warmup', '10',
-                                               '--steps', '100'], zheyong=True)
-        self.assertEqual(code, 0, report.get('fatal_error') or report['performance'])
-        self.assertEqual(report['correctness_status'], 'NOT_RUN')
-        self.assertEqual(report['performance_status'], 'COMPLETE')
-        self.assertEqual(report['real_multigpu_correctness_status'], 'NOT_RUN')
-        self.assertEqual(report['real_multigpu_performance_status'], 'NOT_RUN')
-        self.assertEqual(len(report['performance']), 8)
-        self.assertEqual(9216 * math.prod(cases.TILES['xlarge']), 1105920)
-        for row in report['performance']:
-            self.assertEqual(row['gpus'], 1)
-            self.assertEqual(row['partitions'], 3 if row['build'] == 'zheyong' else 1)
-            self.assertEqual(row['atoms'], 2 * math.prod(cases.TILES[row['size']]))
-            self.assertEqual(row['relative_to_normal'], 1)
-            self.assertFalse({'scaling', 'efficiency', 'new_over_old'} & row.keys())
-        for run in report['runs']:
-            if run['spec']['kind'] == 'performance':
-                self.assertEqual(run['spec']['steps'], [10, 100, 1])
-        with (output / 'performance.csv').open() as stream:
-            rows = list(csv.DictReader(stream))
-        self.assertEqual(len(rows), 8)
-        self.assertTrue(all(float(row['relative_to_normal']) == 1 for row in rows))
-        self.assertTrue(all(not row.get('scaling') and not row.get('efficiency') for row in rows))
+    def test_invalid_original_skips_its_repeat_and_restart(self):
+        check_run = runner.check_run
+        def invalid_single(directory, *args):
+            if directory.parent.name == 'axis_x' and directory.name == 'single':
+                raise checks.CheckError('synthetic invalid original')
+            return check_run(directory, *args)
+        with patch.object(runner, 'check_run', side_effect=invalid_single):
+            code, output = self.controller('correctness')
+        self.assertEqual(code, 1)
+        self.assertRegex(output, r'repeat_single\s+SKIP\s+-\s+SKIP')
+        self.assertRegex(output, r'repeat_zheyong\s+-\s+PASS\s+PASS')
+        self.assertRegex(output, r'restart\s+SKIP\s+SKIP\s+SKIP')
+        self.assertRegex(output, r'energy_water\s+PASS\s+PASS\s+PASS')
+        self.assertIn('Correctness: FAIL (5/8)', output)
 
-        before = checks.sha256(output / 'report.json')
-        (self.root / 'emulator').unlink()
-        (self.root / 'emulator_zheyong').unlink()
-        with patch.object(sys, 'argv', ['recheck_results.py', str(output)]), \
-                contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(recheck_results.main(), 0)
-        self.assertEqual(checks.sha256(output / 'report.json'), before)
-        rechecked = json.loads(next(output.glob('recheck-*/report.json')).read_text())
-        self.assertEqual(rechecked['performance'], report['performance'])
-        self.assertEqual(rechecked['correctness_status'], 'NOT_RUN')
-        self.assertEqual(rechecked['real_multigpu_performance_status'], 'NOT_RUN')
-
-    def test_partition_all_mode_requires_correctness_pass(self):
-        for fails in (False, True):
-            output = self.root / ('all-failed' if fails else 'all-passed')
-            # An independent comparator verdict isolates the controller gate.
-            verdict = {'comparison_fixture': {'exceedances': int(fails)}}
-            with self.subTest(fails=fails), patch.object(runner, 'compare_runs', return_value=verdict):
-                code, report = self.controller(output, ['--mode', 'all', '--cases', 'axis_x',
-                                                       '--repeats', '1'], zheyong=True)
-                self.assertEqual(code, int(fails))
-                self.assertEqual(report['correctness_status'], 'FAIL' if fails else 'PASS')
-                self.assertEqual(report['performance_status'], 'NOT_RUN' if fails else 'COMPLETE')
-                self.assertEqual(bool(report.get('performance_blocked')), fails)
-                benchmarks = [run for run in report['runs'] if run['spec']['kind'] == 'performance']
-                self.assertEqual(len(benchmarks), 0 if fails else 2)
-                self.assertEqual(report['real_multigpu_performance_status'], 'NOT_RUN')
-
-    def test_berendsen_post_rescaling_velocities(self):
-        output = self.root / 'berendsen'
-        _, report = self.controller(output, [])
-        directory = output / 'correctness/axis_x/new_1'
-        for name in ('state.xyz', 'selected.xyz', 'restart.xyz'):
-            parsed = list(checks.frames(directory / name))
-            with (directory / name).open('w') as out:
-                for frame in parsed:
-                    data = frame['data']
-                    for i, mass in enumerate(data['mass']):
-                        # T_before=200, target=300, tau=100 gives T_after=201.
-                        speed = math.sqrt(3 * 8.617343e-5 * 201 / mass) / 10.18051
-                        data['vel'][3 * i] = speed if data['group'][i] == 0 else -speed
-                    out.write(str(frame['n']) + '\n' + ' '.join(
-                        '{}="{}"'.format(k, v) for k, v in frame['meta'].items()) + '\n')
-                    for i in range(frame['n']):
-                        values = [str(data[k][i * width + j]) for k, (_, width) in frame['schema'].items()
-                                  for j in range(width)]
-                        out.write(' '.join(values) + '\n')
-        rows = checks.thermo_rows(directory / 'thermo.out')
-        for row in rows:
-            row[0], row[1] = 200, 1.5 * 2 * 8.617343e-5 * 200
-        (directory / 'thermo.out').write_text('\n'.join(' '.join(map(str, r)) for r in rows) + '\n')
-        _, spec = cases.correctness('nvt')
-        metrics = checks.check_run(directory, cases.only_frame(directory / 'model.xyz'), spec, report['tolerances'])
-        self.assertFalse([k for k, v in metrics.items() if v['exceedances']])
-
-    def test_liquid_requires_growth_and_removes_rigid_translation(self):
-        state = {'box': [[12, 0, 0], [0, 12, 0], [0, 0, 12]], 'pbc': [True] * 3,
-                 'atoms': [['Cu', [1, 2, 3], [0, 0, 0], 63.546],
-                           ['Cu', [5, 6, 7], [0, 0, 0], 63.546001]]}
-        cases.write_state(self.root / 'model.xyz', state)
-        (self.root / 'thermo.out').write_text(('2000 ' + ' '.join(['1'] * 17) + '\n') * 30)
-        for translation_only in (False, True):
-            with (self.root / 'diffusion.xyz').open('w') as out:
-                for step in range(3):
-                    out.write('2\npbc="T T T" Lattice="12 0 0 0 12 0 0 0 12" Time={} '
-                              'Properties=species:S:1:pos:R:3:mass:R:1:group:I:1:unwrapped_position:R:3\n'.format(8000 + step * 1000))
-                    for i, atom in enumerate(state['atoms']):
-                        x, y, z = atom[1]
-                        shift = step if translation_only or i == 0 else -step
-                        out.write('Cu {} {} {} {} {} {} {} {}\n'.format(x, y, z, atom[3], i, x + shift, y, z))
-            if translation_only:
-                with self.assertRaises(checks.CheckError):
-                    checks.check_liquid(self.root)
-            else:
-                self.assertEqual(checks.check_liquid(self.root)['msd_A2_at_1ps_2ps'], [1, 4])
+    def test_numerical_failure_blocks_performance_and_cleans_up(self):
+        verdict = {'force': checks.metric([1], [0], 0)}
+        with patch.object(runner, 'compare_runs', return_value=verdict):
+            code, output = self.controller('all')
+        self.assertEqual(code, 1)
+        self.assertIn('Correctness: FAIL', output)
+        self.assertIn('Performance blocked', output)
+        self.assertNotIn('PERFORMANCE: 10', output)
+        self.assertIn('max_abs=', output)
 
 
 if __name__ == '__main__':

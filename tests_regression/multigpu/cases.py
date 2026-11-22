@@ -19,22 +19,38 @@ import math
 from pathlib import Path
 import random
 
-from checks import CheckError, frames
+from checks import CheckError, frames, header
 
 POTENTIAL = 'potentials/nep/nep89_20250409/nep89_20250409.txt'
+WATER = 'tests_pytest/fixtures/structures/water-nat63-from-md.xyz'
 PROPERTIES = 'precision double mass velocity force potential virial group_labels unwrapped_position'
 NAMES = ('axis_x', 'axis_y', 'axis_z', 'auto', 'triclinic', 'alloy',
          'nonuniform', 'empty', 'partial_pbc', 'migration', 'nvt', 'npt',
-         'multi_run', 'append', 'restart', 'liquid', 'energy_solid', 'energy_liquid')
-TILES = {'small': (1, 2, 2), 'medium': (2, 3, 3), 'large': (4, 4, 4), 'xlarge': (4, 5, 6)}
+         'multi_run', 'append', 'restart', 'water', 'energy_solid', 'energy_water')
+PARTITIONS = 3
+PERFORMANCE = {'solid': (4, 5, 6), 'water': (27, 18, 36)}
+WARMUP = 10
+STEPS = 100
+REPEATS = 3
 
 
-def crystal(partitions, variant='solid', axis=0):
-    # For rc=6 A, each partition needs >=10 bins of width rc/2. Leave room for
-    # skew and NPT changes. Dimensions depend on the largest partition count.
-    a = 3.80 if variant == 'liquid_seed' else 3.615
+def prepare_atoms(atoms, rng):
+    rng.shuffle(atoms)  # Input IDs deliberately differ from spatial order.
+    for i, atom in enumerate(atoms):
+        atom[3] += i * 1e-8  # Unique mass tags independently check atom order.
+    total_mass = math.fsum(atom[3] for atom in atoms)
+    mean = [math.fsum(atom[3] * atom[2][j] for atom in atoms) / total_mass for j in range(3)]
+    for atom in atoms:
+        for j in range(3):
+            atom[2][j] -= mean[j]
+
+
+def crystal(variant='solid', axis=0):
+    # For rc=6 A, each of three partitions needs >=10 bins of width rc/2.
+    # The 130 A cutting direction leaves room for skew and NPT changes.
+    a = 3.615
     dims = [8, 8, 8]
-    dims[axis] = 12 * partitions
+    dims[axis] = 12 * PARTITIONS
     box = [[a * dims[i] if i == j else 0.0 for j in range(3)] for i in range(3)]
     if variant == 'triclinic':
         box[1][0], box[2][1] = 1.2, 0.8
@@ -47,7 +63,7 @@ def crystal(partitions, variant='solid', axis=0):
                 for b in basis:
                     frac = [(i + s + .015 + rng.uniform(-.002, .002)) / d
                             for i, s, d in zip((ix, iy, iz), b, dims)]
-                    if variant == 'empty' and not (.18 / partitions < frac[0] < .78 / partitions):
+                    if variant == 'empty' and not (.18 / PARTITIONS < frac[0] < .78 / PARTITIONS):
                         continue
                     if variant == 'nonuniform' and frac[0] > .4 and rng.random() < .6:
                         continue
@@ -56,17 +72,39 @@ def crystal(partitions, variant='solid', axis=0):
                     mass = {'Cu': 63.546, 'Ni': 58.6934, 'Al': 26.9815385}[element]
                     sigma = math.sqrt(8.617343e-5 * 300 / mass) / 10.18051
                     atoms.append([element, pos, [rng.gauss(0, sigma) for _ in range(3)], mass])
-    rng.shuffle(atoms)  # Input IDs deliberately differ from spatial order.
-    mean = [math.fsum(atom[3] * atom[2][j] for atom in atoms) /
-            math.fsum(atom[3] for atom in atoms) for j in range(3)]
-    for i, atom in enumerate(atoms):
-        for j in range(3):
-            atom[2][j] -= mean[j]
-        if variant == 'migration':
+    prepare_atoms(atoms, rng)
+    if variant == 'migration':
+        for atom in atoms:
             atom[2][axis] -= .5  # A/fs; rigid translation exercises slab/PBC crossings.
-        atom[3] += i * 1e-8  # Small unique mass tags independently check atom order.
     return {'box': box, 'pbc': (True, False, True) if variant == 'partial_pbc'
             else (True, True, True), 'atoms': atoms}
+
+
+def water(repo, repeats=(12, 2, 4)):
+    # Reuse an MD snapshot of 21 water molecules; no melting/equilibration run.
+    # Default copies give 6048 atoms in a 102.17 x 24.56 x 24.72 A periodic box.
+    frame = only_frame(Path(repo) / WATER)
+    species = frame['data'].get('species', [])
+    if (frame['n'] != 63 or species.count('H') != 42 or species.count('O') != 21 or
+            frame['schema'] != {'species': ('S', 1), 'pos': ('R', 3)} or
+            frame['meta'].get('pbc', '').upper().split() != ['T', 'T', 'T']):
+        raise CheckError('Expected the periodic 63-atom liquid-water snapshot: ' + WATER)
+    lattice = header(frame, 'lattice', 9)
+    box = [lattice[i:i + 3] for i in (0, 3, 6)]
+    rng = random.Random(1906)
+    atoms = []
+    for ix in range(repeats[0]):
+        for iy in range(repeats[1]):
+            for iz in range(repeats[2]):
+                shift = [sum(n * row[j] for n, row in zip((ix, iy, iz), box)) for j in range(3)]
+                for i, element in enumerate(species):
+                    pos = [frame['data']['pos'][3 * i + j] + shift[j] for j in range(3)]
+                    mass = {'H': 1.008, 'O': 15.999}[element]
+                    sigma = math.sqrt(8.617343e-5 * 300 / mass) / 10.18051
+                    atoms.append([element, pos, [rng.gauss(0, sigma) for _ in range(3)], mass])
+    prepare_atoms(atoms, rng)
+    return {'box': [[value * copies for value in row] for copies, row in zip(repeats, box)],
+            'pbc': (True, True, True), 'atoms': atoms}
 
 
 def write_state(path, state):
@@ -115,9 +153,11 @@ def correctness(name):
     spec = {'name': name, 'axis': axis, 'executions': 1, 'times': [.25, .5],
             'steps': [10], 'selected': True, 'kind': 'short', 'changing_box': False}
     if name.startswith('energy_'):
-        text = 'potential potential.txt x\ntime_step .25\nensemble nve\n'
-        text += 'dump_thermo 10\nrun 2000\n'
-        spec.update(kind='energy', times=[], selected=False, steps=[2000], samples=200)
+        # A short NVE check; this does not establish long-time energy stability.
+        dt = '.1' if name == 'energy_water' else '.25'
+        text = 'potential potential.txt x\ntime_step {}\nensemble nve\n'.format(dt)
+        text += 'dump_thermo 10\nrun 100\n'
+        spec.update(kind='energy', times=[], selected=False, steps=[100], samples=10)
     elif name == 'multi_run':
         text += segment(5, 5)
         text += 'ensemble nve\nrun 5\nchange_box .01 .02 .03\n' + segment(5, 5)
@@ -134,24 +174,11 @@ def correctness(name):
     return text, spec
 
 
-def liquid_preparation():
-    # Melt a Cu crystal, cool to 2000 K, then measure diffusion at constant T.
-    text = ('potential potential.txt\nvelocity 3000 seed 1906\ntime_step 1\n'
-            'ensemble nvt_ber 3000 3000 100\nrun 5000\n'
-            'ensemble nvt_ber 3000 2000 100\nrun 2000\n'
-            'ensemble nvt_ber 2000 2000 100\ndump_thermo 100\n'
-            'dump_xyz 1000 diffusion.xyz precision double mass group_labels unwrapped_position\n'
-            'dump_restart 3000\nrun 3000\n')
-    return text
-
-
-def performance(size, profile, warmup, steps):
-    tile = TILES[size]
-    text = 'replicate {} {} {}\npotential potential.txt x\ntime_step .5\n'.format(*tile)
-    text += 'ensemble nve\nrun {}\nensemble nve\n'.format(warmup)
-    if profile == 'output':
-        text += 'dump_thermo {}\ndump_xyz {} trajectory.xyz\n'.format(max(1, steps // 5), steps)
-    text += 'run {}\n'.format(steps)
-    # An untimed final run checks finite thermodynamics and flushes GPU work.
-    text += 'ensemble nve\ndump_thermo 1\nrun 1\n'
+def performance(phase):
+    tile = PERFORMANCE[phase]
+    dt = '.25' if phase == 'water' else '.5'
+    text = 'replicate {} {} {}\npotential potential.txt x\n'.format(*tile)
+    text += 'time_step {}\nensemble nve\nrun {}\n'.format(dt, WARMUP)
+    # One final thermo sample synchronizes GPU work before GPUMD stops its timer.
+    text += 'ensemble nve\ndump_thermo {}\nrun {}\n'.format(STEPS, STEPS)
     return text

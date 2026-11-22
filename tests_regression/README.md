@@ -15,7 +15,7 @@ expected behavior rather than a baseline executable; they are in
 | `gpumd/` | 231 simulation cases, their fixtures, all 25 cross-case relations, and PPPM checks |
 | `nep/` | 24 training and prediction cases and their fixtures |
 | `tb/` | 32 tight-binding training cases with their own comparison runner |
-| `multigpu/` | Opt-in NEP89 single-node multi-GPU correctness and performance tests before releases |
+| `multigpu/` | Opt-in NEP89 single-GPU partition correctness and performance checks |
 | `manifest.json` | Shared schema version and default timeout |
 | `run_regression.py` | Shared command-line entry, execution, comparison, and reporting |
 | `post_checks.py` | Semantic checks used by both executables |
@@ -31,8 +31,9 @@ using the commands in [tb/README.md](tb/README.md). The shared `--suite full`
 command covers the 255 GPUMD/NEP cases and 25 relations.
 
 The [multi-GPU package](multigpu/README.md) has a separate standard-library
-runner for CUDA and HIP. Release maintainers run it on suitable hardware;
-it is not part of `--suite full` or a requirement for every PR.
+runner for CUDA and HIP. It compares ordinary NEP and `-DZHEYONG` (three
+partitions) on one physical GPU, prints results on screen, and removes all
+temporary run files. It is not part of `--suite full` or a requirement for every PR.
 
 ## Running the tests
 
