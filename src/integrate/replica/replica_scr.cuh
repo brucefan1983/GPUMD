@@ -18,10 +18,6 @@ Isotropic stochastic cell rescaling (SCR) barostat for one replica of NPT
 replica-exchange molecular dynamics.
 
 Reference: M. Bernetti and G. Bussi, J. Chem. Phys. 153, 114107 (2020).
-
-Major contributors:
-  Jiuyang Shi: Initial implementation.
-  Wenhao Luo: Integration into the gpumd replica runtime.
 ------------------------------------------------------------------------------*/
 
 #pragma once

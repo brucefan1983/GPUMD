@@ -1,5 +1,4 @@
 .. _replica_remd_npt_output:
-.. _replica_remd_tp_output:
 
 NPT REMD output files
 =====================
@@ -10,7 +9,7 @@ replica indices, grid indices and counts are dimensionless integers; indices sta
 at zero. Condition labels are ``p_index * M_T + t_index``.
 Collect equilibrium statistics by condition label, because replicas change conditions.
 
-``remd_tp_conditions.out``
+``remd_npt_conditions.out``
 --------------------------
 
 Written once and overwritten on resume. Full column order::
@@ -20,7 +19,7 @@ Written once and overwritten on resume. Full column order::
 Temperature is in K; pressure is in GPa. This table maps every condition label
 to its grid position and target conditions.
 
-``remd_tp_exchange.out``
+``remd_npt_exchange.out``
 ------------------------
 
 One row per attempted pair, describing states before swapping::
@@ -31,7 +30,7 @@ One row per attempted pair, describing states before swapping::
 potential energies in eV and volumes in Angstrom cubed. The log ratio and
 probability are dimensionless; ``accepted`` is 0 or 1.
 
-``remd_tp_status.out``
+``remd_npt_status.out``
 ----------------------
 
 Written initially and at exchange, trajectory and final boundaries, after any
@@ -39,7 +38,7 @@ exchange. Column order::
 
   step condition_label_of_replica_0 condition_label_of_replica_1 ...
 
-``remd_tp_thermo.out``
+``remd_npt_thermo.out``
 ----------------------
 
 Column order is one production step followed by three columns per replica::
@@ -52,7 +51,7 @@ Rows are written initially and at exchange, trajectory-output, progress-report
 and final advancement boundaries. Sampling intervals can be nonuniform. Use the
 step column when selecting or time-weighting samples.
 
-``remd_tp_pairs.out``
+``remd_npt_pairs.out``
 ---------------------
 
 One row per neighboring condition pair; overwritten at normal completion. Columns::

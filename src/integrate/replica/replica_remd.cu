@@ -23,7 +23,7 @@ Reference for temperature-pressure exchange:
 T. Okabe, M. Kawata, Y. Okamoto, and M. Mikami, Chem. Phys. Lett. 335, 435 (2001).
 
 Major contributors:
-  Wenhao Luo: Initial implementation; integration of the NPT mode into this driver.
+  Wenhao Luo: Initial implementation.
   Jiuyang Shi: NPT temperature-pressure exchange, proposed and first implemented
     as a standalone replica program.
 ------------------------------------------------------------------------------*/
@@ -277,16 +277,6 @@ void REMD_Config::parse(
   internal_seed = draw_internal_seed();
 }
 
-// ensemble npt_scr <T_1> <T_2> <T_coup> <p_hydro> <C_hydro> <p_coup>
-struct Barostat_Input {
-  double temperature_1 = 0.0;        // K
-  double temperature_2 = 0.0;        // K
-  double temperature_coupling = 0.0; // MD steps
-  double pressure = 0.0;             // GPa
-  double bulk_modulus = 0.0;         // GPa
-  double pressure_coupling = 0.0;    // MD steps
-};
-
 class REMD_Driver
 {
 public:
@@ -301,6 +291,16 @@ public:
   void run();
 
 private:
+  // ensemble npt_scr <T_1> <T_2> <T_coup> <p_hydro> <C_hydro> <p_coup>
+  struct Barostat_Input {
+    double temperature_1 = 0.0;        // K
+    double temperature_2 = 0.0;        // K
+    double temperature_coupling = 0.0; // MD steps
+    double pressure = 0.0;             // GPa
+    double bulk_modulus = 0.0;         // GPa
+    double pressure_coupling = 0.0;    // MD steps
+  };
+
   REMD_Config config_;
   Barostat_Input barostat_input_;
   std::vector<std::string> restart_scr_states_;
@@ -333,7 +333,7 @@ private:
   std::string output_file(const char* kind) const
   {
     if (config_.is_npt)
-      return std::string("remd_tp_") + kind + ".out";
+      return std::string("remd_npt_") + kind + ".out";
     if (std::string(kind) == "status")
       return "remd_temperature_status.out";
     return std::string("remd_") + kind + ".out";
@@ -752,7 +752,7 @@ void REMD_Driver::equilibrate()
 void REMD_Driver::write_temperature_ladder() const
 {
   if (config_.is_npt) {
-    FILE* file = my_fopen("remd_tp_conditions.out", "w");
+    FILE* file = my_fopen("remd_npt_conditions.out", "w");
     fprintf(file, "# label temperature_index pressure_index temperature(K) pressure(GPa)\n");
     for (int label = 0; label < config_.replicas; ++label)
       fprintf(
@@ -814,7 +814,7 @@ void REMD_Driver::write_thermo(const long long step, FILE* file) const
 void REMD_Driver::write_ladder_report() const
 {
   if (config_.is_npt) {
-    FILE* file = my_fopen("remd_tp_pairs.out", "w");
+    FILE* file = my_fopen("remd_npt_pairs.out", "w");
     fprintf(
       file,
       "# direction label_a label_b T_a T_b P_a P_b attempts accepted acceptance_ratio "
@@ -1167,10 +1167,9 @@ void REMD_Driver::write_npt_checkpoint(FILE* file) const
   fprintf(file, "grid %d %d\npressure_table", config_.num_temperatures(), config_.num_pressures);
   for (double pressure : config_.pressure_table)
     fprintf(file, " %.17g", pressure);
-  // The last field names the coupled directions; only isotropic (xyz) coupling is supported.
   fprintf(
     file,
-    "\nbarostat %.17g %.17g %d xyz\n",
+    "\nbarostat %.17g %.17g %d\n",
     barostat_input_.bulk_modulus,
     barostat_input_.pressure_coupling,
     config_.pcouple_interval);
@@ -1192,13 +1191,11 @@ void REMD_Driver::read_npt_checkpoint(std::istream& input)
   }
   double modulus = 0, tau = 0;
   int interval = 0;
-  std::string couple;
   read_restart_key(input, "REMD", "barostat");
   if (
-    !(input >> modulus >> tau >> interval >> couple) ||
+    !(input >> modulus >> tau >> interval) ||
     !values_match(modulus, barostat_input_.bulk_modulus) ||
-    !values_match(tau, barostat_input_.pressure_coupling) || interval != config_.pcouple_interval ||
-    couple != "xyz")
+    !values_match(tau, barostat_input_.pressure_coupling) || interval != config_.pcouple_interval)
     PRINT_INPUT_ERROR("REMD restart barostat does not match the input.");
   for (int r = 0; r < config_.replicas; ++r) {
     int id = -1;

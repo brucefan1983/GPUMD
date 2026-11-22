@@ -49,7 +49,7 @@ def volume(header):
     return h[0] * h[4] * h[8]
 
 
-class RemdTPRegression(unittest.TestCase):
+class RemdNPTRegression(unittest.TestCase):
     setUp = base.ReplicaRegression.setUp
     prepare = base.ReplicaRegression.prepare
 
@@ -61,7 +61,7 @@ class RemdTPRegression(unittest.TestCase):
     def prepare_orthogonal_pbte(self, name, repeat=2, strain=1):
         directory = self.prepare(name)
         # The original PbTe fixture is triclinic and is deliberately unsupported
-        # by REMD-TP. Use a 2x2x2 conventional rocksalt cell with the same NEP.
+        # by NPT REMD. Use a 2x2x2 conventional rocksalt cell with the same NEP.
         lattice = 6.570392 * strain
         basis = [('Te', 0, 0, 0), ('Te', 0, .5, .5), ('Te', .5, 0, .5), ('Te', .5, .5, 0),
                  ('Pb', .5, 0, 0), ('Pb', 0, .5, 0), ('Pb', 0, 0, .5), ('Pb', .5, .5, .5)]
@@ -74,7 +74,7 @@ class RemdTPRegression(unittest.TestCase):
             'Properties=species:S:1:pos:R:3\n' + '\n'.join(atoms) + '\n')
         return directory
 
-    def run_tp(self, directory, steps, *, temp=(300, 400, 2), pressure=(0, 0, 1),
+    def run_npt(self, directory, steps, *, temp=(300, 400, 2), pressure=(0, 0, 1),
                exchange=10, interval=10, modulus=2, tau_p=1000, tau_t=100,
                equilibrate=0, resume=False, grid=None, ladder=True, dump=0, error=None,
                timeout=120, dt=0.5, properties='velocity'):
@@ -157,8 +157,8 @@ class RemdTPRegression(unittest.TestCase):
 
     def test_coincident_temperature_exchange_keeps_barostat(self):
         directory = self.prepare('coincident', free=True)
-        self.run_tp(directory, 100)
-        rows = base.data_rows(directory / 'remd_tp_exchange.out')
+        self.run_npt(directory, 100)
+        rows = base.data_rows(directory / 'remd_npt_exchange.out')
         self.assertEqual(len(rows), 10)
         self.assertTrue(all(row[-1] == '1' for row in rows))
         for replica in range(2):
@@ -167,7 +167,7 @@ class RemdTPRegression(unittest.TestCase):
             self.assertNotEqual(volume(header), 27000)
         before = [next(xyz_frames(directory / f'remd_replica_{r}_restart.xyz'))[0]
                   for r in range(2)]
-        self.run_tp(directory, 1, resume=True)
+        self.run_npt(directory, 1, resume=True)
         for r in range(2):
             header, _ = next(xyz_frames(directory / f'remd_replica_{r}_restart.xyz'))
             self.assertNotEqual(volume(header), volume(before[r]))
@@ -175,13 +175,13 @@ class RemdTPRegression(unittest.TestCase):
 
     def test_pressure_is_measured_after_bdp_without_exchange(self):
         directory = self.prepare('bdp_pressure', free=True)
-        self.run_tp(directory, 10, exchange=1000, tau_t=1)
+        self.run_npt(directory, 10, exchange=1000, tau_t=1)
         for replica in range(2):
             self.assert_cached_pressure(directory, replica)
 
     def test_exchange_between_barostat_steps_adds_no_update(self):
         directory = self.prepare('off_interval', free=True)
-        self.run_tp(directory, 9, exchange=3)
+        self.run_npt(directory, 9, exchange=3)
         for r in range(2):
             header, _ = next(xyz_frames(directory / f'remd_replica_{r}_restart.xyz'))
             self.assertEqual(volume(header), 27000)
@@ -189,7 +189,7 @@ class RemdTPRegression(unittest.TestCase):
 
     def test_isotropic_box_scaling(self):
         directory = self.prepare('isotropic', free=True)
-        self.run_tp(directory, 31)
+        self.run_npt(directory, 31)
         for r in range(2):
             header, _ = next(xyz_frames(directory / f'remd_replica_{r}_restart.xyz'))
             h = list(map(float, header['Lattice'].split()))
@@ -200,14 +200,14 @@ class RemdTPRegression(unittest.TestCase):
 
     def test_pressure_defaults_to_npt_scr_pressure(self):
         directory = self.prepare('default_pressure', free=True)
-        self.run_tp(directory, 10, temp=(300, 400, 2), pressure=(.001, .001, 1), ladder=False)
+        self.run_npt(directory, 10, temp=(300, 400, 2), pressure=(.001, .001, 1), ladder=False)
         state = metadata(directory)
         self.assertEqual(state[('grid',)], ['2', '1'])
         self.assertEqual([float(x) for x in state[('pressure_table',)]], [.001, .001])
 
     def test_npt_scr_uses_ordinary_md_syntax(self):
         directory = self.prepare('ordinary_syntax', free=True)
-        self.run_tp(directory, 1)
+        self.run_npt(directory, 1)
         original = (directory / 'run.in').read_text()
         ensemble = 'ensemble npt_scr 300 400 100 0 2 1000'
         self.assertIn(ensemble, original)
@@ -245,8 +245,8 @@ class RemdTPRegression(unittest.TestCase):
                     (directory / grid).write_text('0 .001 .002\n.0001 .0011 .0021\n.0002 .0012 .0022\n')
                 options = dict(temp=(300, 450 if nt > 1 else 300, nt),
                                pressure=(0, .0022 if sheared else .002, np), grid=grid)
-                self.run_tp(directory, 40, **options)
-                rows = base.data_rows(directory / 'remd_tp_exchange.out')
+                self.run_npt(directory, 40, **options)
+                rows = base.data_rows(directory / 'remd_npt_exchange.out')
                 phases = [('T', 0), ('P', 0), ('T', 1), ('P', 1)] if nt > 1 else [('P', 0), ('P', 1)] * 2
                 expected = []
                 for step, (direction, parity) in zip((10, 20, 30, 40), phases):
@@ -304,12 +304,12 @@ class RemdTPRegression(unittest.TestCase):
                     directory = self.prepare(name, free=True) if free else self.prepare_orthogonal_pbte(name)
                     options = dict(temp=(300, 400, 2), pressure=(0, .001, 2),
                                    exchange=7, interval=5, modulus=100, dump=3)
-                    self.run_tp(directory, 10, equilibrate=equilibration, **options)
+                    self.run_npt(directory, 10, equilibrate=equilibration, **options)
                     split = self.root / f'split_{free}_{equilibration}'
                     shutil.copytree(directory, split)
-                    self.run_tp(directory, 23, resume=True, **options)
-                    self.run_tp(split, 5, resume=True, **options)
-                    self.run_tp(split, 18, resume=True, **options)
+                    self.run_npt(directory, 23, resume=True, **options)
+                    self.run_npt(split, 5, resume=True, **options)
+                    self.run_npt(split, 18, resume=True, **options)
                     self.assert_checkpoint_valid(directory, 33, 4, equilibration)
                     self.assert_checkpoint_valid(split, 33, 4, equilibration)
                     self.assertEqual(metadata(directory)[('exchange_count',)],
@@ -323,13 +323,13 @@ class RemdTPRegression(unittest.TestCase):
             with self.subTest(checkpoint_steps=steps):
                 directory = self.prepare_orthogonal_pbte(f'repeat_{steps}', strain=.97)
                 options = dict(exchange=5, interval=5, modulus=100, dump=1)
-                self.run_tp(directory, steps, **options)
+                self.run_npt(directory, steps, **options)
                 checkpoint = metadata(directory)
                 repeats = []
                 for index in range(2):
                     path = self.root / f'repeated_{steps}_{index}'
                     shutil.copytree(directory, path)
-                    self.run_tp(path, 11, resume=True, **options)
+                    self.run_npt(path, 11, resume=True, **options)
                     repeats.append(path)
                     self.assert_checkpoint_valid(path, steps + 11, 2)
                     state = metadata(path)
@@ -365,7 +365,7 @@ class RemdTPRegression(unittest.TestCase):
 
     def test_missing_and_duplicate_restart_metadata(self):
         directory = self.prepare('metadata_validation', free=True)
-        self.run_tp(directory, 10)
+        self.run_npt(directory, 10)
         path = directory / 'remd_restart.meta'
         lines = [x for x in path.read_text().splitlines() if x]
         for index, line in enumerate(lines):
@@ -374,31 +374,31 @@ class RemdTPRegression(unittest.TestCase):
                     edited = lines + [line] if duplicate else lines[:index] + lines[index + 1:]
                     path.write_text('\n'.join(edited) + '\n')
                     before = path.read_bytes()
-                    self.run_tp(directory, 1, resume=True, error='REMD')
+                    self.run_npt(directory, 1, resume=True, error='REMD')
                     self.assertEqual(path.read_bytes(), before)
 
     def test_restart_version_and_parameters(self):
         directory = self.prepare('restart_parameters', free=True)
-        self.run_tp(directory, 10)
+        self.run_npt(directory, 10)
         path = directory / 'remd_restart.meta'
         original = path.read_text()
         version = metadata(directory)[('format_version',)][0]
         path.write_text(original.replace(f'format_version {version}', 'format_version 2'))
-        self.run_tp(directory, 1, resume=True, error='Unsupported REMD restart format_version')
+        self.run_npt(directory, 1, resume=True, error='Unsupported REMD restart format_version')
         path.write_text(original)
         for options in (dict(exchange=11), dict(interval=5), dict(modulus=3), dict(tau_p=1100),
                         dict(tau_t=101), dict(temp=(300, 401, 2))):
             with self.subTest(options=options):
-                self.run_tp(directory, 1, resume=True, error='REMD restart', **options)
+                self.run_npt(directory, 1, resume=True, error='REMD restart', **options)
         # Singular/plural messages differ for grid vs other parameter checks;
         # potential identity is also checked independently of the XYZ files.
         potential = directory / 'nep.txt'
         potential.write_text(potential.read_text() + '\n')
-        self.run_tp(directory, 1, resume=True, error='potential file does not match')
+        self.run_npt(directory, 1, resume=True, error='potential file does not match')
 
     def test_restart_xyz_validation(self):
         directory = self.prepare('xyz_validation', free=True)
-        self.run_tp(directory, 10)
+        self.run_npt(directory, 10)
         path = directory / 'remd_replica_0_restart.xyz'
         original = path.read_text()
         changes = [
@@ -410,32 +410,32 @@ class RemdTPRegression(unittest.TestCase):
         for old, new, error in changes:
             with self.subTest(change=new):
                 path.write_text(original.replace(old, new))
-                self.run_tp(directory, 1, resume=True, error=error)
+                self.run_npt(directory, 1, resume=True, error=error)
         for lattice in ('0 0 0 0 30 0 0 0 30', '30 0 0 5 30 0 0 0 30',
                         '30 0 0 0 30 0 0 0 30 1'):
             with self.subTest(lattice=lattice):
                 path.write_text(re.sub(r'Lattice="[^"]+"', f'Lattice="{lattice}"', original))
-                self.run_tp(directory, 1, resume=True, error='REMD')
+                self.run_npt(directory, 1, resume=True, error='REMD')
         # A nonperiodic model is rejected before the restart files are read.
         path.write_text(original)
         model = directory / 'model.xyz'
         model.write_text(model.read_text().replace('pbc="T T T"', 'pbc="F F T"'))
-        self.run_tp(directory, 1, resume=True, error='periodic boundaries in all directions')
+        self.run_npt(directory, 1, resume=True, error='periodic boundaries in all directions')
 
     def test_reject_nonfinite_barostat_parameters(self):
         directory = self.prepare('nonfinite', free=True)
         for option in ('tau_t', 'modulus', 'tau_p'):
             for value in ('nan', 'inf', '-inf'):
                 with self.subTest(option=option, value=value):
-                    self.run_tp(directory, 1, error='npt_scr', **{option: value})
+                    self.run_npt(directory, 1, error='npt_scr', **{option: value})
 
     def test_reject_qnep_and_nonperiodic_coupling(self):
         directory = self.prepare('charge', charge=True)
-        self.run_tp(directory, 1, error='energy NEP model')
+        self.run_npt(directory, 1, error='energy NEP model')
         directory = self.prepare('nonperiodic', free=True)
         path = directory / 'model.xyz'
         path.write_text(path.read_text().replace('pbc="T T T"', 'pbc="F T T"'))
-        self.run_tp(directory, 1, error='periodic boundaries in all directions')
+        self.run_npt(directory, 1, error='periodic boundaries in all directions')
 
     def test_species_subset_matches_plain_gpumd(self):
         directory = self.prepare_orthogonal_pbte('subset')
@@ -445,8 +445,8 @@ class RemdTPRegression(unittest.TestCase):
         (directory / 'model.xyz').write_text(f'{len(atoms)}\n{header}\n' + '\n'.join(atoms) + '\n')
         plain = self.root / 'plain'
         shutil.copytree(directory, plain)
-        self.run_tp(directory, 1)
-        energy = float(base.data_rows(directory / 'remd_tp_thermo.out')[0][2])
+        self.run_npt(directory, 1)
+        energy = float(base.data_rows(directory / 'remd_npt_thermo.out')[0][2])
         (plain / 'run.in').write_text(
             'potential nep.txt\ntime_step 0.0001\nensemble nve\ndump_thermo 1\nrun 1\n')
         result = subprocess.run([str(base.BINARY)], cwd=plain, env=base.ENV,
@@ -459,7 +459,7 @@ class RemdTPRegression(unittest.TestCase):
         for repeat in (2, 4):  # small-box and large-box paths
             with self.subTest(repeat=repeat):
                 directory = self.prepare_orthogonal_pbte(f'deform_{repeat}', repeat=repeat, strain=.97)
-                self.run_tp(directory, 11, interval=2, modulus=100, tau_p=1000,
+                self.run_npt(directory, 11, interval=2, modulus=100, tau_p=1000,
                             dump=1, properties='mass velocity force potential virial', exchange=1000)
                 for replica in range(2):
                     frames = list(xyz_frames(directory / f'trajectory_replica_{replica}.xyz'))
@@ -500,8 +500,8 @@ class RemdTPRegression(unittest.TestCase):
                 options = dict(exchange=exchange, interval=1, tau_t=1, modulus=100, tau_p=1000,
                                dump=1, properties='mass velocity force potential virial')
                 for attempt in range(32):
-                    self.run_tp(directory, 1, resume=attempt > 0, **options)
-                    if exchange == 1000 or base.data_rows(directory / 'remd_tp_exchange.out')[-1][-1] == '1':
+                    self.run_npt(directory, 1, resume=attempt > 0, **options)
+                    if exchange == 1000 or base.data_rows(directory / 'remd_npt_exchange.out')[-1][-1] == '1':
                         break
                 else:
                     self.fail('No accepted temperature exchange in 32 attempts')
@@ -511,7 +511,7 @@ class RemdTPRegression(unittest.TestCase):
     def test_interacting_exchange_has_nontrivial_probability(self):
         directory = self.prepare_orthogonal_pbte('nontrivial')
         options = dict(exchange=1, interval=10, tau_t=1e20, modulus=100, tau_p=1e20, dt=1e-6)
-        self.run_tp(directory, 1, **options)
+        self.run_npt(directory, 1, **options)
         header, rows = next(xyz_frames(directory / 'remd_replica_0_restart.xyz'))
         reference_a = self.plain_snapshot(directory, header, rows, 'energy_a')
         shifted = [row[:] for row in rows]
@@ -531,8 +531,8 @@ class RemdTPRegression(unittest.TestCase):
                 atom[1:4] = row[1:4]
                 lines[i + 2] = ' '.join(atom)
             path.write_text('\n'.join(lines) + '\n')
-        self.run_tp(directory, 1, resume=True, **options)
-        row = base.data_rows(directory / 'remd_tp_exchange.out')[-1]
+        self.run_npt(directory, 1, resume=True, **options)
+        row = base.data_rows(directory / 'remd_npt_exchange.out')[-1]
         ta, tb, pa, pb, ei, ej, vi, vj = map(float, row[6:14])
         expected = ((1 / ta - 1 / tb) * (ei - ej) +
                     (pa / ta - pb / tb) * (vi - vj) / PRESSURE_UNIT) / K_B
@@ -544,10 +544,9 @@ class RemdTPRegression(unittest.TestCase):
 
     def test_unified_entry_and_ensemble_compatibility(self):
         directory = self.prepare('entry', free=True)
-        self.run_tp(directory, 1)
+        self.run_npt(directory, 1)
         original = (directory / 'run.in').read_text()
-        invalid = [original.replace('multi_replica remd ', 'multi_replica remd_tp '),
-                   original.replace('ensemble npt_scr 300 400 100 0 2 1000',
+        invalid = [original.replace('ensemble npt_scr 300 400 100 0 2 1000',
                                     'ensemble nvt_bdp 300 400 100').replace('temp 300 400 2', 'temp 300 400'),
                    original.replace('multi_replica remd ', 'multi_replica remd pcouple_interval 5 ')
                    .replace('ensemble npt_scr 300 400 100 0 2 1000', 'ensemble nvt_bdp 300 400 100')
@@ -607,7 +606,7 @@ class RemdTPRegression(unittest.TestCase):
             f'{n}\npbc="T T T" Lattice="{length} 0 0 0 {length} 0 0 0 {length}" '
             'Properties=species:S:1:pos:R:3\n' + '\n'.join(atoms) + '\n')
         pressure = n * K_B * temperature / length ** 3 * PRESSURE_UNIT
-        self.run_tp(directory, int(os.environ.get('REPLICA_SAMPLING_STEPS', '2000000')), temp=(temperature, temperature, 1),
+        self.run_npt(directory, int(os.environ.get('REPLICA_SAMPLING_STEPS', '2000000')), temp=(temperature, temperature, 1),
                     pressure=(pressure, pressure * 1.2, 2), exchange=100, interval=1,
                     modulus=.002, tau_p=1000, tau_t=10, equilibrate=100000, dump=100,
                     timeout=int(os.environ.get('REPLICA_SAMPLING_TIMEOUT', '3600')))

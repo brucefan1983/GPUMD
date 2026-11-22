@@ -19,7 +19,7 @@ class RemdHost(unittest.TestCase):
         command += ["-std=c++14", "-O2", "-Wall", "-Wextra", "-Werror"]
         command += shlex.split(os.environ.get("REPLICA_HOST_CXXFLAGS", ""))
         command += ["-I", str(ROOT / "src"),
-                    str(Path(__file__).with_name("remd_tp_host_harness.cpp")), "-o", str(cls.binary)]
+                    str(Path(__file__).with_name("remd_npt_host_harness.cpp")), "-o", str(cls.binary)]
         result = subprocess.run(command, capture_output=True, text=True)
         if result.returncode:
             raise RuntimeError(result.stdout + result.stderr)

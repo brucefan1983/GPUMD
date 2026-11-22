@@ -157,8 +157,8 @@ or failed assertion fails the test. The suite does not modify CI and
 does not cover multiple GPUs, long-time sampling accuracy, or performance.
 
 The NPT extension of REMD uses the same `multi_replica remd` entry and is covered
-by `test_remd_tp.py` (the historical test filename does not name an input mode).
-Run `python3 tests_pytest/test_remd_tp.py` with `GPUMD` set to the candidate binary.
+by `test_remd_npt.py`.
+Run `python3 tests_pytest/test_remd_npt.py` with `GPUMD` set to the candidate binary.
 It checks that NPT uses the isotropic `npt_scr` syntax of ordinary MD, rejects
 the other pressure-control forms, and defaults to the `npt_scr` pressure without
 a ladder. The suite includes strained small/large-box force and full per-atom virial
@@ -172,11 +172,10 @@ Set `REPLICA_SAMPLING=1` for ideal-gas sampling; `REPLICA_SAMPLING_STEPS` change
 its length (at least 1000000 steps). Ordinary MD reference snapshots use zero MD
 time step and `dump_xyz ... precision double mass velocity force potential virial`.
 
-CPU-only checks run with `python3 tests_pytest/test_remd_tp_host.py`. The C++
+CPU-only checks run with `python3 tests_pytest/test_remd_npt_host.py`. The C++
 harness includes the production `remd_utilities.cuh` directly and tests grid
 validation, pair schedules, Boltzmann log weights, SCR moments, and state/RNG
-serialization. It no longer extracts source strings or substitutes a REMD driver.
-The metadata/XYZ integration checks use the real GPU executable.
+serialization. The metadata/XYZ integration checks use the real GPU executable.
 
 ## Spin validation
 
