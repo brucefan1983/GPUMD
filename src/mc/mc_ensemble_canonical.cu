@@ -20,8 +20,8 @@ Major contributors:
   Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
-#include "mc_ensemble_canonical.cuh"
 #include "force/neighbor_overflow.cuh"
+#include "mc_ensemble_canonical.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cstring>

@@ -27,8 +27,8 @@ Major contributors:
   Benrui Tang: Add qNEP mode 3.
 ------------------------------------------------------------------------------*/
 
-#include "force/neighbor_overflow.cuh"
 #include "force/neighbor.cuh"
+#include "force/neighbor_overflow.cuh"
 #include "nep_charge.cuh"
 #include "nep_charge_small_box.cuh"
 #include "utilities/common.cuh"

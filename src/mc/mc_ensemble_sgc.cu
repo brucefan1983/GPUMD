@@ -30,8 +30,8 @@ Major contributors:
   dingxu2016: Corrected the composition bias in VCSGC acceptance probabilities.
 ------------------------------------------------------------------------------*/
 
-#include "mc_ensemble_sgc.cuh"
 #include "force/neighbor_overflow.cuh"
+#include "mc_ensemble_sgc.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cstring>

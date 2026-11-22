@@ -23,8 +23,8 @@ Major contributors:
   Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
-#include "force/neighbor_overflow.cuh"
 #include "force/neighbor.cuh"
+#include "force/neighbor_overflow.cuh"
 #include "nep_charge_vdw.cuh"
 #include "nep_charge_vdw_small_box.cuh"
 #include "utilities/common.cuh"
