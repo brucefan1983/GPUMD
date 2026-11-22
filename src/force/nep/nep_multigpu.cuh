@@ -37,7 +37,7 @@ struct NEP_MULTIGPU_Data {
   GPU_Vector<int> cell_contents;
 
   GPU_Vector<int> type;
-  GPU_Vector<double> position;
+  GPU_Vector<float> position;
   GPU_Vector<double> force;
   GPU_Vector<double> potential;
   GPU_Vector<double> virial;
@@ -64,7 +64,7 @@ struct NEP_TEMP_Data {
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
   GPU_Vector<int> type;
-  GPU_Vector<double> position;
+  GPU_Vector<float> position;
   GPU_Vector<double> force;
   GPU_Vector<double> potential;
   GPU_Vector<double> virial;
