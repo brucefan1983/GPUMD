@@ -41,7 +41,7 @@ struct Spin_Walls {
 #if defined(__CUDACC__) || defined(__HIPCC__)
 __host__ __device__
 #endif
-  inline double
+  static inline double
   evaluate_spin_wall(const Spin_Walls& walls, const double (&spin)[3], double (&mforce)[3])
 {
   const double scale = fmax(fabs(spin[0]), fmax(fabs(spin[1]), fabs(spin[2])));
