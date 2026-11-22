@@ -15,8 +15,7 @@
 
 /*----------------------------------------------------------------------------80
 Major contributors:
-  Chengbing Chen: Longitudinal spin wall formulation in TorchNEP.
-  OpenAI Codex: GPUMD integration.
+  Chengbing Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #pragma once
