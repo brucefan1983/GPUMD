@@ -49,7 +49,7 @@ struct Spin_Data {
   std::vector<float> get_rmse_mforce_parallel(Spin_Parameters&, Dataset&, bool, int);
   std::vector<float> get_rmse_mforce_perp(Spin_Parameters&, Dataset&, bool, int);
   std::vector<float> get_rmse_tau(Spin_Parameters&, Dataset&, bool, int);
-  std::vector<float> get_full_virial_rmse(Spin_Parameters&, Dataset&, bool, int);
+  std::vector<float> get_rmse_virial(Spin_Parameters&, Dataset&, bool, int);
 
 private:
   GPU_Vector<int> full_virial_mask_gpu;

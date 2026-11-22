@@ -393,8 +393,11 @@ int NEP_Spin_Model::prepare_data()
   }
   initialize(para, capacity, training->device_count);
   if (!para.prediction) {
-    energy_loss.initialize(para);
     const int size = (para.num_types + 1) * para.population_size;
+    fitness_energy.resize(size);
+    fitness_force.resize(size);
+    fitness_virial.resize(size);
+    fitness_ediff.resize(para.population_size);
     fitness_mforce.assign(size, 0.0f);
     fitness_tau.assign(size, 0.0f);
     fitness_response.assign(size, 0.0f);
@@ -465,15 +468,14 @@ void NEP_Spin_Model::evaluate(int batch, const float* population)
     const float* parameters = population + first * para.number_of_variables;
     find_force(para, parameters, training->train_set[batch], false, count);
     for (int device = 0; device < count; ++device) {
+      const int candidate = first + device;
       Dataset& data = training->train_set[batch][device];
-      energy_loss.evaluate(
-        para,
-        data,
-        energy_difference,
-        batch,
-        first + device,
-        device,
-        magnetic(data).get_full_virial_rmse(para, data, true, device));
+      double energy_shift;
+      const auto energy_rmse = data.get_rmse_energy(para, energy_shift, true, true, device);
+      const auto force_rmse = data.get_rmse_force(para, true, device);
+      const auto virial_rmse = magnetic(data).get_rmse_virial(para, data, true, device);
+      fitness_ediff[candidate] =
+        para.lambda_d * energy_difference.get_rmse_train(data, batch, device);
       auto m = para.split_mforce_loss
                  ? magnetic(data).get_rmse_mforce_parallel(para, data, true, device)
                  : magnetic(data).get_rmse_mforce(para, data, true, device);
@@ -482,7 +484,10 @@ void NEP_Spin_Model::evaluate(int batch, const float* population)
         perpendicular = magnetic(data).get_rmse_mforce_perp(para, data, true, device);
       auto t = magnetic(data).get_rmse_tau(para, data, true, device);
       for (int type = 0; type <= para.num_types; ++type) {
-        const int index = first + device + type * para.population_size;
+        const int index = candidate + type * para.population_size;
+        fitness_energy[index] = para.lambda_e * energy_rmse[type];
+        fitness_force[index] = para.lambda_f * force_rmse[type];
+        fitness_virial[index] = para.lambda_v * virial_rmse[type];
         fitness_mforce[index] = para.split_mforce_loss ? para.lambda_m_parallel * m[type] +
                                                            para.lambda_m_perp * perpendicular[type]
                                                        : para.lambda_m * m[type];
@@ -502,10 +507,15 @@ void NEP_Spin_Model::evaluate(int batch, const float* population)
 void NEP_Spin_Model::accumulate_fitness(float* total)
 {
   auto& para = *model_parameters;
-  energy_loss.accumulate_fitness(para, total);
-  for (int i = 0; i < fitness_mforce.size(); ++i)
-    total[i] = total[i] + fitness_mforce[i] + fitness_tau[i] + fitness_response[i];
-  energy_loss.accumulate_energy_difference(para, total);
+  for (int type = 0; type <= para.num_types; ++type) {
+    for (int candidate = 0; candidate < para.population_size; ++candidate) {
+      const int index = candidate + type * para.population_size;
+      // Keep the existing accumulation order for SNES candidate ranking.
+      total[index] = total[index] + fitness_energy[index] + fitness_force[index] +
+                     fitness_virial[index] + fitness_mforce[index] + fitness_tau[index] +
+                     fitness_response[index] + fitness_ediff[candidate];
+    }
+  }
 }
 void NEP_Spin_Model::print_training_header()
 {
@@ -536,7 +546,8 @@ write_spin_virial(FILE* file, const Dataset& data, int nc, const Spin_Data::Labe
   const int start = data.Na_sum_cpu[nc];
   const int count = data.Na_cpu[nc];
   const double missing = -1e6;
-  double predicted[9] = {}, reference[9] = {};
+  double predicted[9] = {};
+  double reference[9] = {};
   for (int d = 0; d < 9; ++d) {
     for (int a = start; a < start + count; ++a)
       predicted[d] += data.virial_cpu[d * data.N + a];
@@ -546,24 +557,19 @@ write_spin_virial(FILE* file, const Dataset& data, int nc, const Spin_Data::Labe
     reference[d] = data.virial_ref_cpu[d * data.Nc + nc];
   std::copy(label.antisymmetric_virial.begin(), label.antisymmetric_virial.end(), reference + 6);
 
-  for (const double* v : {predicted, reference}) {
-    const double tensor[9] = {
-      v[0],
-      v[3] + v[6],
-      v[5] - v[8],
-      v[3] - v[6],
-      v[1],
-      v[4] + v[7],
-      v[5] + v[8],
-      v[4] - v[7],
-      v[2]};
-    for (int d = 0; d < 9; ++d) {
-      const bool target = v == reference;
-      fprintf(
-        file,
-        "%.9g%c",
-        target && !data.structures[nc].has_virial ? missing : tensor[d],
-        target && d == 8 ? '\n' : ' ');
+  for (bool is_reference : {false, true}) {
+    const double* v = is_reference ? reference : predicted;
+    // Reconstruct the Cartesian rows from the symmetric and antisymmetric parts.
+    const double tensor[3][3] = {
+      {v[0], v[3] + v[6], v[5] - v[8]},
+      {v[3] - v[6], v[1], v[4] + v[7]},
+      {v[5] + v[8], v[4] - v[7], v[2]}};
+    const bool missing_reference = is_reference && !data.structures[nc].has_virial;
+    for (int row = 0; row < 3; ++row) {
+      for (int col = 0; col < 3; ++col) {
+        const char separator = is_reference && row == 2 && col == 2 ? '\n' : ' ';
+        fprintf(file, "%.9g%c", missing_reference ? missing : tensor[row][col], separator);
+      }
     }
   }
 }
@@ -594,13 +600,47 @@ void NEP_Spin_Model::write_magnetic_predictions(
   }
   fclose(file);
 }
+
 void NEP_Spin_Model::write_predictions(
   const char* prefix, const std::vector<std::pair<Dataset*, int>>& structures)
 {
-  write_nep_energy_predictions(prefix, structures, [this](FILE* file, Dataset& data, int nc) {
-    write_spin_virial(file, data, nc, magnetic(data).labels[nc]);
-  });
+  const std::string suffix = std::string("_") + prefix + ".out";
+  FILE* energy = my_fopen(("energy" + suffix).c_str(), "w");
+  FILE* force = my_fopen(("force" + suffix).c_str(), "w");
+  FILE* virial = my_fopen(("virial" + suffix).c_str(), "w");
+  FILE* stress = my_fopen(("stress" + suffix).c_str(), "w");
+  for (const auto& entry : structures) {
+    auto& data = *entry.first;
+    const int nc = entry.second;
+    const int start = data.Na_sum_cpu[nc];
+    const int count = data.Na_cpu[nc];
+    double total_energy = 0.0;
+    for (int atom = start; atom < start + count; ++atom)
+      total_energy += data.energy_cpu[atom];
+    fprintf(energy, "%.17g %.17g\n", total_energy / count, data.energy_ref_cpu[nc]);
+    write_nep_atomic_predictions(
+      3, force, data.force_cpu.data(), data.force_ref_cpu.data(), data, nc);
+    write_spin_virial(virial, data, nc, magnetic(data).labels[nc]);
+    write_nep_structure_predictions(
+      true, 6, stress, data.virial_cpu.data(), data.virial_ref_cpu.data(), data, nc);
+  }
+  for (FILE* file : {energy, force, virial, stress})
+    fclose(file);
   write_magnetic_predictions(prefix, structures);
+}
+
+NEP_Energy_Error NEP_Spin_Model::get_energy_error(Dataset& data, bool is_train, int batch)
+{
+  auto& para = *model_parameters;
+  NEP_Energy_Error error;
+  error.energy = data.get_rmse_energy(para, error.energy_shift, false, is_train, 0).back();
+  error.force = data.get_rmse_force(para, false, 0).back();
+  error.virial = magnetic(data).get_rmse_virial(para, data, false, 0).back();
+  if (para.has_ediff_combinations) {
+    error.ediff = is_train ? energy_difference.get_rmse_train(data, batch, 0)
+                           : energy_difference.get_rmse_test(data, 0);
+  }
+  return error;
 }
 
 void NEP_Spin_Model::report_error(const TrainingReport& report)
@@ -608,13 +648,7 @@ void NEP_Spin_Model::report_error(const TrainingReport& report)
   auto& para = *model_parameters;
   find_force(para, report.parameters, training->train_set[report.batch], false, 1);
   Dataset& data = training->train_set[report.batch][0];
-  auto train = energy_loss.get_error(
-    para,
-    data,
-    energy_difference,
-    true,
-    report.batch,
-    magnetic(data).get_full_virial_rmse(para, data, false, 0));
+  auto train = get_energy_error(data, true, report.batch);
   const float mt = magnetic(data).get_rmse_mforce(para, data, false, 0).back();
   const float tt = magnetic(data).get_rmse_tau(para, data, false, 0).back();
   float mp_train = 0, mt_train = 0, mp_test = 0, mt_test = 0;
@@ -628,13 +662,7 @@ void NEP_Spin_Model::report_error(const TrainingReport& report)
   if (training->has_test_set) {
     find_force(para, report.parameters, training->test_set, false, 1);
     Dataset& data = training->test_set[0];
-    test = energy_loss.get_error(
-      para,
-      data,
-      energy_difference,
-      false,
-      0,
-      magnetic(data).get_full_virial_rmse(para, data, false, 0));
+    test = get_energy_error(data, false, 0);
     mv = magnetic(data).get_rmse_mforce(para, data, false, 0).back();
     tv = magnetic(data).get_rmse_tau(para, data, false, 0).back();
     if (para.split_mforce_loss) {

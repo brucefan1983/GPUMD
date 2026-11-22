@@ -15,7 +15,6 @@
 
 #pragma once
 #include <cstdio>
-#include <functional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -54,6 +53,4 @@ void write_nep_structure_predictions(
 void write_nep_atomic_predictions(
   int num_components, FILE* fid, float* prediction, float* reference, Dataset& dataset, int nc);
 void write_nep_energy_predictions(
-  const std::string& label,
-  const std::vector<std::pair<Dataset*, int>>& structures,
-  const std::function<void(FILE*, Dataset&, int)>& write_virial = {});
+  const std::string& label, const std::vector<std::pair<Dataset*, int>>& structures);

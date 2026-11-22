@@ -257,11 +257,11 @@ static __global__ void gpu_sum_spin_virial_error(
   }
 }
 
-std::vector<float> Spin_Data::get_full_virial_rmse(
-  Spin_Parameters& para, Dataset& data, bool use_weight, int device_id)
+std::vector<float>
+Spin_Data::get_rmse_virial(Spin_Parameters& para, Dataset& data, bool use_weight, int device_id)
 {
   if (full_virial_mask_gpu.size() == 0)
-    return {}; // The common six-component loss handles symmetric-only batches.
+    return data.get_rmse_virial(para, use_weight, device_id);
   CHECK(gpuSetDevice(device_id));
   const int block_size = 256;
   const float shear_weight = use_weight ? para.lambda_shear * para.lambda_shear : 1.0f;
