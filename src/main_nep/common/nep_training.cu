@@ -301,13 +301,16 @@ void NEP_Energy_Loss::evaluate(
   EnergyDifference& energy_difference,
   int batch,
   int candidate,
-  int device_id)
+  int device_id,
+  const std::vector<float>& virial_rmse)
 {
   double energy_shift_per_structure_not_used;
   auto rmse_energy_array =
     data.get_rmse_energy(para, energy_shift_per_structure_not_used, true, true, device_id);
   auto rmse_force_array = data.get_rmse_force(para, true, device_id);
-  auto rmse_virial_array = data.get_rmse_virial(para, true, device_id);
+  const auto default_virial_rmse =
+    virial_rmse.empty() ? data.get_rmse_virial(para, true, device_id) : std::vector<float>{};
+  const auto& rmse_virial_array = virial_rmse.empty() ? default_virial_rmse : virial_rmse;
   for (int t = 0; t <= para.num_types; ++t) {
     int index = candidate + t * para.population_size;
     fitness_energy[index] = para.lambda_e * rmse_energy_array[t];
@@ -344,12 +347,14 @@ NEP_Energy_Error NEP_Energy_Loss::get_error(
   Dataset& data,
   EnergyDifference& energy_difference,
   bool is_train,
-  int batch)
+  int batch,
+  const std::vector<float>& virial_rmse)
 {
   NEP_Energy_Error error;
   error.energy = data.get_rmse_energy(para, error.energy_shift, false, is_train, 0).back();
   error.force = data.get_rmse_force(para, false, 0).back();
-  error.virial = data.get_rmse_virial(para, false, 0).back();
+  error.virial =
+    virial_rmse.empty() ? data.get_rmse_virial(para, false, 0).back() : virial_rmse.back();
   if (para.has_ediff_combinations) {
     error.ediff = is_train ? energy_difference.get_rmse_train(data, batch, 0)
                            : energy_difference.get_rmse_test(data, 0);

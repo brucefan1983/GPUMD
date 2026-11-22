@@ -86,13 +86,8 @@ void write_nep_atomic_predictions(
   }
 }
 
-static void update_energy_force_virial(
-  FILE* fid_energy,
-  FILE* fid_force,
-  FILE* fid_virial,
-  FILE* fid_stress,
-  Dataset& dataset,
-  const int nc)
+static void update_energy_force_stress(
+  FILE* fid_energy, FILE* fid_force, FILE* fid_stress, Dataset& dataset, const int nc)
 {
   int offset = dataset.Na_sum_cpu[nc];
   for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
@@ -114,8 +109,6 @@ static void update_energy_force_virial(
   }
   fprintf(fid_energy, "%.17g %.17g\n", energy / dataset.Na_cpu[nc], dataset.energy_ref_cpu[nc]);
 
-  write_nep_structure_predictions(
-    false, 6, fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset, nc);
   write_nep_structure_predictions(
     true, 6, fid_stress, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset, nc);
 }
@@ -247,15 +240,24 @@ static FILE* open_prediction_file(const char* quantity, const std::string& label
 }
 
 void write_nep_energy_predictions(
-  const std::string& label, const std::vector<std::pair<Dataset*, int>>& structures)
+  const std::string& label,
+  const std::vector<std::pair<Dataset*, int>>& structures,
+  const std::function<void(FILE*, Dataset&, int)>& write_virial)
 {
   FILE* fid_force = open_prediction_file("force", label);
   FILE* fid_energy = open_prediction_file("energy", label);
   FILE* fid_virial = open_prediction_file("virial", label);
   FILE* fid_stress = open_prediction_file("stress", label);
   for (const auto& structure : structures) {
-    update_energy_force_virial(
-      fid_energy, fid_force, fid_virial, fid_stress, *structure.first, structure.second);
+    auto& data = *structure.first;
+    const int nc = structure.second;
+    update_energy_force_stress(fid_energy, fid_force, fid_stress, data, nc);
+    if (write_virial) {
+      write_virial(fid_virial, data, nc);
+    } else {
+      write_nep_structure_predictions(
+        false, 6, fid_virial, data.virial_cpu.data(), data.virial_ref_cpu.data(), data, nc);
+    }
   }
   fclose(fid_energy);
   fclose(fid_force);

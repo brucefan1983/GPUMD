@@ -164,6 +164,26 @@ The spin torque used for training diagnostics is
 ZBL contributes to energy, atomic force, and virial but not to magnetic force
 or torque because it is spin independent.
 
+.. _spin_full_virial:
+
+Full virial supervision
+=======================
+
+NEP-Spin can fit the virial at fixed Cartesian spins from :ref:`virial labels <train_test_xyz>`.
+The full tensor includes the structural, spin and ZBL derivatives. Only the spin term can contribute to the antisymmetric part of the cell virial.
+For the convention :math:`W_{ij}=-\partial U/\partial F_{ji}`, rotational invariance of the joint spin and lattice rotation gives
+
+.. math::
+
+   (W_{yz}-W_{zy},\, W_{zx}-W_{xz},\, W_{xy}-W_{yx})
+   = -\sum_i \boldsymbol{s}_i\times\boldsymbol{M}_i.
+
+The :ref:`lambda_v <kw_lambda_v>` objective measures the per-atom virial error.
+A frame with an asymmetric ``virial`` contributes nine Cartesian residuals to this RMSE.
+A symmetric ``virial`` or a ``stress`` field alone contributes the six usual symmetric residuals.
+Frames without a virial reference are excluded. The denominator is the total number of supervised components.
+:ref:`lambda_shear <kw_lambda_shear>` weights all off-diagonal residuals in the training loss.
+
 Spin loss terms
 ===============
 

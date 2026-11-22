@@ -75,7 +75,8 @@ public:
     EnergyDifference& energy_difference,
     int batch,
     int candidate,
-    int device_id);
+    int device_id,
+    const std::vector<float>& virial_rmse = {});
   void accumulate_fitness(const NEP_Energy_Parameters& para, float* fitness_total);
   void accumulate_energy_difference(const NEP_Energy_Parameters& para, float* fitness_total);
   NEP_Energy_Error get_error(
@@ -83,7 +84,8 @@ public:
     Dataset& data,
     EnergyDifference& energy_difference,
     bool is_train,
-    int batch);
+    int batch,
+    const std::vector<float>& virial_rmse = {});
 
 private:
   std::vector<float> fitness_energy;

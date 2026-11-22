@@ -144,7 +144,7 @@ def main():
                 execute(directory, INPUT.format(C=3,L=2,S=2)+f'prediction 1\nnep_compile {jit}\n',
                         training_xyz(case), geometry_model)
                 states[jit,index] = sum((sum(columns(directory/(field+'_train.out'),width), [])
-                    for field,width in (('energy',2),('force',6),('mforce',6),('virial',12))), [])
+                    for field,width in (('energy',2),('force',6),('mforce',6),('virial',18))), [])
                 if args.require_jit and jit:
                     assert 'Spin aggregate JIT ready:' in (directory/'stdout.log').read_text()
                 if not triclinic and not jit:

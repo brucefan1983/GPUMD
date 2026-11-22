@@ -363,19 +363,19 @@ def validate_training_and_prediction(
         raise RuntimeError(result.stdout + result.stderr)
 
     report = {"training_loss": loss, "descriptor_dim": descriptor_dim}
-    for name, width in (("energy", 2), ("force", 6), ("mforce", 6), ("virial", 12)):
+    for name, width in (("energy", 2), ("force", 6), ("mforce", 6), ("virial", 18)):
         rows = columns(prediction / (name + "_train.out"), width)
         assert rows and all(math.isfinite(x) for x in flatten(rows)), name
     if not small_cell:
         # These isolated four-atom clusters have no bonds across periodic boundaries.
-        # Their symmetric virial is the moment of their Cartesian forces, even with SOC.
+        # Their virial is the moment of their Cartesian forces, even with SOC.
         forces = columns(prediction / "force_train.out", 3)
-        for frame, row in enumerate(columns(prediction / "virial_train.out", 6)):
+        for frame, row in enumerate(columns(prediction / "virial_train.out", 9)):
             coords = [list(map(float, line.split()[1:4]))
                       for line in xyz.splitlines()[6 * frame + 2:6 * frame + 6]]
             atoms = list(zip(coords, forces[4 * frame:4 * frame + 4]))
-            expected = [sum(r[i] * f[j] + r[j] * f[i] for r, f in atoms) / 8
-                        for i, j in ((0, 0), (1, 1), (2, 2), (0, 1), (1, 2), (2, 0))]
+            expected = [sum(r[i] * f[j] for r, f in atoms) / 4
+                        for i in range(3) for j in range(3)]
             assert maximum_error(row, expected) < parity_tolerance(row, expected)
     if check_restart:
         # Zero search variance freezes the saved parameter vector. A restart must
@@ -537,7 +537,7 @@ def validate_default_shape(root):
         files = ["nep.txt", "nep.restart"]
         if stage == "prediction":
             for name, width, rows in (("energy", 2, 3), ("force", 6, 12),
-                                      ("mforce", 6, 12), ("virial", 12, 3)):
+                                      ("mforce", 6, 12), ("virial", 18, 3)):
                 filename = f"{name}_train.out"
                 files.append(filename)
                 values = columns(cases[0] / filename, width)
@@ -581,7 +581,7 @@ def validate_shared_nep_io(root):
     if result.returncode:
         raise RuntimeError(result.stdout + result.stderr)
     predictions = [(root / (name + "_train.out")).read_text() for name in ("energy", "force", "virial")]
-    for row in columns(root / "virial_train.out", 12)[:2]:
+    for row in columns(root / "virial_train.out", 13)[:2]:
         assert row[6:] == [0, 0, 0, 1.5, 2.75, 4]
     (root / "nep.in").write_text(config + "prediction 1\n")
     result = run(NEP, root)
@@ -594,8 +594,9 @@ def validate_shared_nep_io(root):
         (spin / "nep.in").write_text(settings)
         result = run(NEP, spin)
         assert result.returncode == 0, result.stdout + result.stderr
-    for row in columns(spin / "virial_train.out", 12)[:2]:
-        assert row[6:] == [0, 0, 0, 1, 2, 3]
+    spin_rows = columns(spin / "virial_train.out", 19)
+    assert spin_rows[0][9:] == [x / 4 for x in (0, 2, 8, 6, 0, 5, 16, 11, 0)]
+    assert spin_rows[1][9:] == [0, 1, 3, 1, 0, 2, 3, 2, 0]
     return "training/restart/prediction passed"
 
 

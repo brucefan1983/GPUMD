@@ -162,6 +162,7 @@ private:
   void initialize_additional_outputs(Dataset&, int);
   void find_additional_force(Spin_Parameters&, Dataset&, int);
   float response_loss(int);
+  void write_predictions(const char*, const std::vector<std::pair<Dataset*, int>>&);
   void write_magnetic_predictions(const char*, const std::vector<std::pair<Dataset*, int>>&);
   struct Spin_Workspace {
     nep_spin::Storage spin_layout;

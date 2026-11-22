@@ -349,7 +349,7 @@ seed 3401
             p=workdir/f'{name}-jit{jit}';execute(p,text+f'prediction 1\noutput_descriptor 2\nnep_compile {jit}\n',xyz,model)
             if jit:
                 assert 'Spin aggregate JIT ready:' in (p/'stdout.log').read_text()
-            energy=columns(p/'energy_train.out',1);force=columns(p/'force_train.out',3);mforce=columns(p/'mforce_train.out',3);virial=columns(p/'virial_train.out',6)
+            energy=columns(p/'energy_train.out',1);force=columns(p/'force_train.out',3);mforce=columns(p/'mforce_train.out',3);virial=columns(p/'virial_train.out',9)
             q=columns(p/'descriptor.out',ref['dimension'])
             assert len(q)==len(force)==len(mforce)==4*len(ref['cases'])
             assert len(energy)==len(virial)==len(ref['cases'])
@@ -357,7 +357,7 @@ seed 3401
             for k,case in enumerate(ref['cases']):
                 errors['energy']=max(errors['energy'],abs(4*energy[k][0]-case['energy']))
                 for field,rows in [('force',force),('mforce',mforce)]:errors[field]=max(errors[field],max_error(rows[4*k:4*k+4],case[field]))
-                errors['virial']=max(errors['virial'],max_error([4*x for x in virial[k]],[case['virial'][t] for t in (0,4,8,1,5,6)]))
+                errors['virial']=max(errors['virial'],max_error([4*x for x in virial[k]],case['virial']))
                 errors['descriptor']=max(errors['descriptor'],max_error([row[30:] for row in q[4*k:4*k+4]],[[x*scale for x,scale in zip(row,ref['scaler'][30:])] for row in case['descriptor']]))
                 torque=[sum(s[(d+1)%3]*h[(d+2)%3]-s[(d+2)%3]*h[(d+1)%3] for s,h in zip(case['spins'],mforce[4*k:4*k+4])) for d in range(3)]
                 errors['net_spin_torque']=max(errors['net_spin_torque'],max(abs(x) for x in torque))

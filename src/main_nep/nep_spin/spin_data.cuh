@@ -23,6 +23,8 @@ struct Spin_Data {
     std::vector<std::array<double, 3>> position;
   };
   struct Labels {
+    bool has_full_virial = false;
+    std::array<float, 3> antisymmetric_virial{}; // half differences: xy, yz, zx
     int has_mforce = 0, has_spin_response_metadata = 0, has_spin_response = 0;
     double spin_response_coordinate = 0.0;
     std::string spin_response_probe, spin_response_group;
@@ -47,4 +49,9 @@ struct Spin_Data {
   std::vector<float> get_rmse_mforce_parallel(Spin_Parameters&, Dataset&, bool, int);
   std::vector<float> get_rmse_mforce_perp(Spin_Parameters&, Dataset&, bool, int);
   std::vector<float> get_rmse_tau(Spin_Parameters&, Dataset&, bool, int);
+  std::vector<float> get_full_virial_rmse(Spin_Parameters&, Dataset&, bool, int);
+
+private:
+  GPU_Vector<int> full_virial_mask_gpu;
+  GPU_Vector<float> antisymmetric_virial_ref_gpu;
 };

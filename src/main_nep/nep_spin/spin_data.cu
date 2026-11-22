@@ -96,6 +96,8 @@ void Spin_Data::construct(
 {
   const int N = dataset.N, Nc = dataset.Nc;
   labels.reserve(Nc);
+  dataset.virial.resize(size_t(9) * N);
+  dataset.virial_cpu.resize(size_t(9) * N);
   std::vector<double> position(3 * N), moments(3 * N), cells(9 * Nc);
   mforce_ref_cpu.resize(3 * N);
   mforce_cpu.resize(3 * N);
@@ -134,6 +136,20 @@ void Spin_Data::construct(
   r_spin.copy_from_host(position.data());
   spin.resize(3 * N);
   spin.copy_from_host(moments.data());
+  if (std::any_of(
+        labels.begin(), labels.end(), [](const Labels& l) { return l.has_full_virial; })) {
+    std::vector<int> mask(Nc);
+    std::vector<float> antisymmetric(3 * Nc);
+    for (int n = 0; n < Nc; ++n) {
+      mask[n] = labels[n].has_full_virial;
+      for (int d = 0; d < 3; ++d)
+        antisymmetric[d * Nc + n] = labels[n].antisymmetric_virial[d];
+    }
+    full_virial_mask_gpu.resize(Nc);
+    full_virial_mask_gpu.copy_from_host(mask.data());
+    antisymmetric_virial_ref_gpu.resize(antisymmetric.size());
+    antisymmetric_virial_ref_gpu.copy_from_host(antisymmetric.data());
+  }
   mforce.resize(3 * N);
   mforce.fill(0.0f);
   mforce_ref_gpu.resize(3 * N);
@@ -187,6 +203,102 @@ void Spin_Data::construct(
     r12_spin.data());
   GPU_CHECK_KERNEL
 }
+static __global__ void gpu_sum_spin_virial_error(
+  const int N,
+  const float shear_weight,
+  const int* g_Na,
+  const int* g_Na_sum,
+  const float* g_virial,
+  const float* g_virial_ref,
+  const float* antisymmetric_ref,
+  const int* has_full_virial,
+  float* error_gpu)
+{
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int Na = g_Na[bid];
+  int N1 = g_Na_sum[bid];
+  int N2 = N1 + Na;
+  const bool full = has_full_virial[bid];
+  const int count = full ? 9 : 6;
+  extern __shared__ float s_virial[];
+  for (int d = 0; d < count; ++d) {
+    s_virial[d * blockDim.x + tid] = 0.0f;
+  }
+
+  for (int n = N1 + tid; n < N2; n += blockDim.x) {
+    for (int d = 0; d < count; ++d) {
+      s_virial[d * blockDim.x + tid] += g_virial[d * N + n];
+    }
+  }
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      for (int d = 0; d < count; ++d) {
+        s_virial[d * blockDim.x + tid] += s_virial[d * blockDim.x + tid + offset];
+      }
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    float error_sum = 0.0f;
+    // Each symmetric mean and antisymmetric half-difference contributes twice
+    // to the squared norm of the reconstructed off-diagonal entries.
+    const float off_diagonal_weight = full ? 2.0f * shear_weight : shear_weight;
+    for (int d = 0; d < count; ++d) {
+      const float reference =
+        d < 6 ? g_virial_ref[d * gridDim.x + bid] : antisymmetric_ref[(d - 6) * gridDim.x + bid];
+      const float diff = s_virial[d * blockDim.x] / Na - reference;
+      error_sum += (d >= 3) ? (off_diagonal_weight * diff * diff) : (diff * diff);
+    }
+    error_gpu[bid] = error_sum;
+  }
+}
+
+std::vector<float> Spin_Data::get_full_virial_rmse(
+  Spin_Parameters& para, Dataset& data, bool use_weight, int device_id)
+{
+  if (full_virial_mask_gpu.size() == 0)
+    return {}; // The common six-component loss handles symmetric-only batches.
+  CHECK(gpuSetDevice(device_id));
+  const int block_size = 256;
+  const float shear_weight = use_weight ? para.lambda_shear * para.lambda_shear : 1.0f;
+  gpu_sum_spin_virial_error<<<data.Nc, block_size, sizeof(float) * block_size * 9>>>(
+    data.N,
+    shear_weight,
+    data.Na.data(),
+    data.Na_sum.data(),
+    data.virial.data(),
+    data.virial_ref_gpu.data(),
+    antisymmetric_virial_ref_gpu.data(),
+    full_virial_mask_gpu.data(),
+    data.error_gpu.data());
+  GPU_CHECK_KERNEL
+  data.error_gpu.copy_to_host(data.error_cpu.data());
+
+  std::vector<float> rmse(para.num_types + 1, 0.0f);
+  std::vector<int> count(para.num_types + 1, 0);
+  for (int n = 0; n < data.Nc; ++n) {
+    if (!data.structures[n].has_virial)
+      continue;
+    const float error =
+      use_weight ? data.weight_cpu[n] * data.weight_cpu[n] * data.error_cpu[n] : data.error_cpu[n];
+    for (int t = 0; t <= para.num_types; ++t) {
+      if (data.has_type[t * data.Nc + n]) {
+        rmse[t] += error;
+        count[t] += labels[n].has_full_virial ? 9 : 6;
+      }
+    }
+  }
+  for (int t = 0; t <= para.num_types; ++t) {
+    if (count[t] > 0)
+      rmse[t] = sqrt(rmse[t] / count[t]);
+  }
+  return rmse;
+}
+
 namespace
 {
 enum class MagneticError { Cartesian, Torque, Parallel, Perpendicular };
