@@ -13,8 +13,8 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 // Compare the shared polynomial path with the generic adjoint, including tail tiles.
-#include "force/nep_spin/spin_kernels.cuh"
-#include "force/nep_spin/spin_md_layouts.cuh"
+#include "utilities/nep_spin/spin_kernels.cuh"
+#include "utilities/nep_spin/spin_md_layouts.cuh"
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>

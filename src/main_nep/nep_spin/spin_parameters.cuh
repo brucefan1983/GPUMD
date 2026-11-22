@@ -33,6 +33,10 @@ public:
   int number_of_variables_spin_projection = 0;
   std::vector<int> spin_type_active;
   std::vector<float> spin_cutoff_by_type;
+  const std::vector<Spin_Walls>& spin_walls() const { return spin_walls_; }
+  bool needs_spin_wall_bounds() const;
+  void
+  resolve_spin_wall_bounds(const std::vector<double>& minima, const std::vector<double>& maxima);
   GPU_Vector<float> q_scaler_square_sum[16];
   GPU_Vector<unsigned long long> q_scaler_count[16];
 
@@ -42,6 +46,11 @@ private:
   void read_zbl_in() override;
   std::vector<std::string> spin_type_names;
   void initialize_spin_checkpoint();
+  void configure_spin_walls(const std::vector<Spin_Walls>& checkpoint);
+  void validate_spin_wall_order() const;
+  std::vector<Spin_Walls> spin_walls_;
+  std::vector<std::string> spin_wall_input_;
+  std::vector<Spin_Walls> auto_walls_; // threshold stores the margin until resolution
   void validate_spin_parameters();
   void calculate_spin_dimensions();
   bool is_lambda_m_set = false;

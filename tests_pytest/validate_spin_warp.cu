@@ -13,7 +13,7 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 // Standalone CUDA/HIP regression: logical tiles, upper wave64 lanes and tails.
-#include "force/nep_spin/spin_warp.cuh"
+#include "utilities/nep_spin/spin_warp.cuh"
 #include <cstdio>
 #include <cstdlib>
 #ifdef USE_HIP

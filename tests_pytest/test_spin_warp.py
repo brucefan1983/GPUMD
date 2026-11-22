@@ -47,7 +47,7 @@ template<class Mask> expected_mask __ballot_sync(Mask mask, int predicate) {
 }
 ''')
     main = tmp_path / 'main.cpp'
-    main.write_text('''#include "force/nep_spin/spin_warp.cuh"
+    main.write_text('''#include "utilities/nep_spin/spin_warp.cuh"
 #include <cassert>
 int main() {
   warpSize = WAVE;
