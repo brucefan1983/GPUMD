@@ -312,12 +312,14 @@ void NEP_MULTIGPU::update_potential(float* parameters, ANN& ann)
   ann.c_type_pair = pointer;
 }
 
+// Match the float positions used by the force kernels when assigning global
+// and local cells, including atoms near partition boundaries.
 static __device__ void find_cell_id(
   const int partition_direction,
   const Box& box,
-  const double x,
-  const double y,
-  const double z,
+  const float x,
+  const float y,
+  const float z,
   const double rc_inv,
   const int nx,
   const int ny,
@@ -358,9 +360,9 @@ static __device__ void find_cell_id(
 static __device__ void find_cell_id(
   const int partition_direction,
   const Box& box,
-  const double x,
-  const double y,
-  const double z,
+  const float x,
+  const float y,
+  const float z,
   const double rc_inv,
   const int nx,
   const int ny,
@@ -384,14 +386,15 @@ static __device__ void find_cell_id(
     cell_id);
 }
 
+template <typename T>
 static __global__ void find_cell_counts(
   const int partition_direction,
   const Box box,
   const int N,
   int* cell_count,
-  const double* x,
-  const double* y,
-  const double* z,
+  const T* x,
+  const T* y,
+  const T* z,
   const int nx,
   const int ny,
   const int nz,
@@ -405,6 +408,7 @@ static __global__ void find_cell_counts(
   }
 }
 
+template <typename T>
 static __global__ void find_cell_contents(
   const int partition_direction,
   const Box box,
@@ -412,9 +416,9 @@ static __global__ void find_cell_contents(
   int* cell_count,
   const int* cell_count_sum,
   int* cell_contents,
-  const double* x,
-  const double* y,
-  const double* z,
+  const T* x,
+  const T* y,
+  const T* z,
   const int nx,
   const int ny,
   const int nz,
@@ -437,6 +441,7 @@ static void __global__ set_to_zero(int size, int* data)
   }
 }
 
+template <typename T>
 static void find_cell_list(
   gpuStream_t& stream,
   const int partition_direction,
@@ -444,7 +449,7 @@ static void find_cell_list(
   const int* num_bins,
   Box& box,
   const int N,
-  const GPU_Vector<double>& position_per_atom,
+  const GPU_Vector<T>& position_per_atom,
   GPU_Vector<int>& cell_count,
   GPU_Vector<int>& cell_count_sum,
   GPU_Vector<int>& cell_contents)
@@ -453,9 +458,9 @@ static void find_cell_list(
   const int block_size = 256;
   const int grid_size = (N - 1) / block_size + 1;
   const double rc_inv = 1.0 / rc;
-  const double* x = position_per_atom.data();
-  const double* y = position_per_atom.data() + offset;
-  const double* z = position_per_atom.data() + offset * 2;
+  const T* x = position_per_atom.data();
+  const T* y = position_per_atom.data() + offset;
+  const T* z = position_per_atom.data() + offset * 2;
   const int N_cells = num_bins[0] * num_bins[1] * num_bins[2];
 
   // number of cells is allowed to be larger than the number of atoms
@@ -476,7 +481,7 @@ static void find_cell_list(
     cell_contents.size(), cell_contents.data());
   GPU_CHECK_KERNEL
 
-  find_cell_counts<<<grid_size, block_size, 0, stream>>>(
+  find_cell_counts<T><<<grid_size, block_size, 0, stream>>>(
     partition_direction,
     box,
     N,
@@ -504,7 +509,7 @@ static void find_cell_list(
     cell_count.size(), cell_count.data());
   GPU_CHECK_KERNEL
 
-  find_cell_contents<<<grid_size, block_size, 0, stream>>>(
+  find_cell_contents<T><<<grid_size, block_size, 0, stream>>>(
     partition_direction,
     box,
     N,
@@ -535,9 +540,9 @@ static __global__ void find_neighbor_list_large_box(
   const int* __restrict__ g_cell_count,
   const int* __restrict__ g_cell_count_sum,
   const int* __restrict__ g_cell_contents,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
+  const float* __restrict__ g_x,
+  const float* __restrict__ g_y,
+  const float* __restrict__ g_z,
   int* g_NN_radial,
   int* g_NL_radial,
   int* g_NN_angular,
@@ -657,9 +662,9 @@ static __global__ void find_descriptor(
   const int* g_NN_angular,
   const int* g_NL_angular,
   const int* __restrict__ g_type,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
+  const float* __restrict__ g_x,
+  const float* __restrict__ g_y,
+  const float* __restrict__ g_z,
   double* g_pe,
   float* g_Fp,
   double* g_virial,
@@ -779,9 +784,9 @@ static __global__ void find_force_radial(
   const int* g_NN,
   const int* g_NL,
   const int* __restrict__ g_type,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
+  const float* __restrict__ g_x,
+  const float* __restrict__ g_y,
+  const float* __restrict__ g_z,
   const float* __restrict__ g_Fp,
   double* g_fx,
   double* g_fy,
@@ -885,9 +890,9 @@ static __global__ void find_partial_force_angular(
   const int* g_NN_angular,
   const int* g_NL_angular,
   const int* __restrict__ g_type,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
+  const float* __restrict__ g_x,
+  const float* __restrict__ g_y,
+  const float* __restrict__ g_z,
   const float* __restrict__ g_Fp,
   const float* __restrict__ g_sum_fxyz,
   float* g_f12x,
@@ -982,9 +987,9 @@ static __global__ void find_force_ZBL(
   const int* g_NN,
   const int* g_NL,
   const int* __restrict__ g_type,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
+  const float* __restrict__ g_x,
+  const float* __restrict__ g_y,
+  const float* __restrict__ g_z,
   double* g_fx,
   double* g_fy,
   double* g_fz,
@@ -1099,7 +1104,7 @@ static __global__ void distribute_position(
   const int* g_type_global,
   const double* g_position_global,
   int* g_type_local,
-  double* g_position_local)
+  float* g_position_local)
 {
   int n_local = blockIdx.x * blockDim.x + threadIdx.x;
   if (n_local < N3) {
@@ -1115,7 +1120,7 @@ static __global__ void distribute_position(
     g_type_local[n_local] = g_type_global[n_global];
     for (int d = 0; d < 3; ++d) {
       g_position_local[n_local + d * num_atoms_local] =
-        g_position_global[n_global + d * num_atoms_gobal];
+        static_cast<float>(g_position_global[n_global + d * num_atoms_gobal]);
     }
   }
 }
@@ -1159,9 +1164,9 @@ static __global__ void gpu_find_force_many_body(
   const float* __restrict__ g_f12x,
   const float* __restrict__ g_f12y,
   const float* __restrict__ g_f12z,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
+  const float* __restrict__ g_x,
+  const float* __restrict__ g_y,
+  const float* __restrict__ g_z,
   double* g_fx,
   double* g_fy,
   double* g_fz,
@@ -1416,7 +1421,7 @@ void NEP_MULTIGPU::compute(
       CHECK(gpuMemcpy(
         nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * d,
         nep_temp_data.position.data() + nep_temp_data.num_atoms_per_gpu * d,
-        sizeof(double) * nep_data[gpu].N3,
+        sizeof(float) * nep_data[gpu].N3,
         gpuMemcpyDeviceToDevice));
     }
   }
@@ -1655,9 +1660,9 @@ static __global__ void find_descriptor(
   const int* g_NN_angular,
   const int* g_NL_angular,
   const int* __restrict__ g_type,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
+  const float* __restrict__ g_x,
+  const float* __restrict__ g_y,
+  const float* __restrict__ g_z,
   double* g_pe,
   float* g_Fp,
   double* g_virial,
@@ -1931,7 +1936,7 @@ void NEP_MULTIGPU::compute(
       CHECK(gpuMemcpy(
         nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * d,
         nep_temp_data.position.data() + nep_temp_data.num_atoms_per_gpu * d,
-        sizeof(double) * nep_data[gpu].N3,
+        sizeof(float) * nep_data[gpu].N3,
         gpuMemcpyDeviceToDevice));
     }
   }
