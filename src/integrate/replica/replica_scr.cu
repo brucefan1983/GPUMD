@@ -27,7 +27,6 @@ Major contributors:
 #include "ensemble_bdp_replica.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
-#include "remd_utilities.cuh"
 #include "replica_scr.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -36,6 +35,22 @@ Major contributors:
 #include <cmath>
 #include <iomanip>
 #include <sstream>
+
+// Increment of epsilon = ln V over dt (pressures in eV/A^3, compressibility in
+// (eV/A^3)^-1).
+static double scr_log_volume_increment(
+  const double temperature,
+  const double volume,
+  const double target_pressure,
+  const double pressure,
+  const double compressibility,
+  const double dt_over_tau,
+  const double gaussian)
+{
+  const double kT = K_B * temperature;
+  return -compressibility * dt_over_tau * (target_pressure - pressure) +
+         std::sqrt(2.0 * kT * compressibility * dt_over_tau / volume) * gaussian;
+}
 
 static __global__ void
 gpu_scr_scale(const int number_of_atoms, const double scale, double* position, double* velocity)
@@ -145,26 +160,41 @@ void SCR_Barostat::measure_pressure(
   pending_ = true;
 }
 
+// Format 1: version, step counter, pending flag, the five cached thermo values,
+// the random-number engine, and the normal distribution.
 std::string SCR_Barostat::export_state() const
 {
-  return export_scr_state(step_counter_, pending_, host_thermo_.data(), rng_, normal_);
+  std::ostringstream out;
+  out << 1 << ' ' << step_counter_ << ' ' << (pending_ ? 1 : 0) << ' ' << std::setprecision(17);
+  for (int i = 0; i < 5; ++i)
+    out << host_thermo_[i] << ' ';
+  out << rng_ << ' ' << normal_;
+  return out.str();
 }
 
 bool SCR_Barostat::import_state(const std::string& state)
 {
+  std::istringstream in(state);
+  int version = 0, flag = 0;
   long long counter = 0;
-  bool pending = false;
   double thermo[5];
   std::mt19937 rng;
   std::normal_distribution<double> normal;
+  if (
+    !(in >> version >> counter >> flag) || version != 1 || counter < 0 || (flag != 0 && flag != 1))
+    return false;
+  for (double& value : thermo)
+    if (!(in >> value) || !std::isfinite(value))
+      return false;
+  if (!(in >> rng >> normal) || normal.mean() != 0.0 || normal.stddev() != 1.0)
+    return false;
+  in >> std::ws;
   // A checkpoint is written between steps, so an update is pending exactly when
   // the last integrated step ended an update interval.
-  if (
-    !import_scr_state(state, interval_, counter, pending, thermo, rng, normal) ||
-    pending != (counter > 0 && counter % interval_ == 0))
+  if (!in.eof() || (flag != 0) != (counter > 0 && counter % interval_ == 0))
     return false;
   step_counter_ = counter;
-  pending_ = pending;
+  pending_ = flag != 0;
   for (int i = 0; i < 5; ++i)
     host_thermo_[i] = thermo[i];
   rng_ = rng;

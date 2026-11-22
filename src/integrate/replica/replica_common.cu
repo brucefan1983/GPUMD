@@ -20,6 +20,7 @@ Major contributors:
 
 #include "replica_batch.cuh"
 #include "replica_common.cuh"
+#include "replica_scr.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -98,7 +99,7 @@ bool extract_token_value(const std::string& line, const std::string& key, std::s
   return true;
 }
 
-void validate_xyz_pbc(const std::string& comment, const Box& reference, const char* mode)
+static void validate_xyz_pbc(const std::string& comment, const Box& reference, const char* mode)
 {
   std::string value;
   if (!extract_quoted_value(comment, "pbc", value)) {
@@ -357,81 +358,6 @@ void write_xyz_box(FILE* file, const Box& box, const int precision)
   for (int i = 0; i < 9; ++i)
     fprintf(file, i == 0 ? "%.*g" : " %.*g", precision, box.cpu_h[transpose[i]]);
   fprintf(file, "\" ");
-}
-
-void write_replica_trajectory(
-  FILE* file,
-  Replica_Slot& slot,
-  const Atom& source_atom,
-  const long long step,
-  const double time_step,
-  const bool velocity,
-  const Replica_XYZ_Fields& quantities,
-  const std::string& fields)
-{
-  CHECK(gpuSetDevice(slot.device_id));
-  slot.stream.synchronize();
-  const int n = slot.atom.number_of_atoms;
-  slot.atom.position_per_atom.copy_to_host(slot.atom.cpu_position_per_atom.data());
-  if (velocity)
-    slot.atom.velocity_per_atom.copy_to_host(slot.atom.cpu_velocity_per_atom.data());
-  std::vector<double> force, potential, virial;
-  if (quantities.force) {
-    force.resize(n * 3);
-    slot.atom.force_per_atom.copy_to_host(force.data());
-  }
-  if (quantities.potential) {
-    potential.resize(n);
-    slot.atom.potential_per_atom.copy_to_host(potential.data());
-  }
-  if (quantities.virial) {
-    virial.resize(n * 9);
-    slot.atom.virial_per_atom.copy_to_host(virial.data());
-  }
-  fprintf(
-    file,
-    "%d\nTime=%.8f step=%lld replica=%d temperature_label=%d target_temperature=%.16g ",
-    n,
-    step * time_step * TIME_UNIT_CONVERSION,
-    step,
-    slot.replica_id,
-    slot.temperature_label,
-    slot.target_temperature);
-  fprintf(file, "%s", fields.c_str());
-  write_xyz_box(file, slot.box, 16);
-  fprintf(
-    file,
-    "Properties=species:S:1:pos:R:3%s%s%s%s%s\n",
-    quantities.mass ? ":mass:R:1" : "",
-    velocity ? ":vel:R:3" : "",
-    quantities.force ? ":forces:R:3" : "",
-    quantities.potential ? ":energy_atom:R:1" : "",
-    quantities.virial ? ":virial:R:9" : "");
-  const int tensor_order[9] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
-  for (int i = 0; i < n; ++i) {
-    fprintf(
-      file,
-      "%s %.16g %.16g %.16g",
-      source_atom.cpu_atom_symbol[i].c_str(),
-      slot.atom.cpu_position_per_atom[i],
-      slot.atom.cpu_position_per_atom[i + n],
-      slot.atom.cpu_position_per_atom[i + 2 * n]);
-    if (quantities.mass)
-      fprintf(file, " %.16g", source_atom.cpu_mass[i]);
-    if (velocity)
-      for (int d = 0; d < 3; ++d)
-        fprintf(file, " %.16g", slot.atom.cpu_velocity_per_atom[i + d * n] / TIME_UNIT_CONVERSION);
-    if (quantities.force)
-      for (int d = 0; d < 3; ++d)
-        fprintf(file, " %.16g", force[i + d * n]);
-    if (quantities.potential)
-      fprintf(file, " %.16g", potential[i]);
-    if (quantities.virial)
-      for (int d = 0; d < 9; ++d)
-        fprintf(file, " %.16g", virial[i + tensor_order[d] * n]);
-    fprintf(file, "\n");
-  }
-  fflush(file);
 }
 
 void write_restart_xyz(

@@ -20,7 +20,6 @@
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
-#include "replica_scr.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_pinned_vector.cuh"
 #include "utilities/gpu_stream.cuh"
@@ -42,6 +41,7 @@ namespace replica
 {
 
 class Replica_Batch;
+class SCR_Barostat;
 
 struct Replica_Slot {
   Replica_Slot(int replica_id, int device_id);
@@ -72,7 +72,6 @@ std::string trim_left(const std::string& value);
 unsigned long long hash_file(const std::string& filename);
 bool extract_quoted_value(const std::string& line, const std::string& key, std::string& value);
 bool extract_token_value(const std::string& line, const std::string& key, std::string& value);
-void validate_xyz_pbc(const std::string& comment, const Box& reference, const char* mode);
 void validate_xyz_box(const std::string& comment, const Box& reference, const char* mode);
 
 // Replica restart xyz files store velocities as vel in A/fs. Older files with
@@ -148,15 +147,6 @@ FILE* open_output_file(const std::string& filename, bool resume, const char* mar
 
 // pbc="..." Lattice="..." of an extended xyz comment line, each followed by a space.
 void write_xyz_box(FILE* file, const Box& box, int precision);
-void write_replica_trajectory(
-  FILE* file,
-  Replica_Slot& slot,
-  const Atom& source_atom,
-  long long step,
-  double time_step,
-  bool velocity,
-  const Replica_XYZ_Fields& quantities,
-  const std::string& fields);
 // A replica restart xyz with the positions and velocities of the slot; `fields` follow
 // Properties on the comment line.
 void write_restart_xyz(

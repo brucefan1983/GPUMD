@@ -30,9 +30,9 @@ Major contributors:
 
 #include "main_gpumd/velocity.cuh"
 #include "model/read_xyz.cuh"
-#include "remd_utilities.cuh"
 #include "replica.cuh"
 #include "replica_common.cuh"
+#include "replica_scr.cuh"
 #include "replica_velocity.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -50,6 +50,7 @@ Major contributors:
 #include <random>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace
@@ -75,7 +76,13 @@ int next_periodic_event(
     std::min<long long>(final_local_step, static_cast<long long>(local_step) + steps));
 }
 
-struct REMD_Config : REMD_Grid {
+struct REMD_Pair {
+  int direction; // 0: temperature, 1: pressure
+  int first;
+  int second;
+};
+
+struct REMD_Config {
   enum Temperature_Style { geometric, linear };
 
   int replicas = 0;
@@ -84,6 +91,7 @@ struct REMD_Config : REMD_Grid {
   int equilibration_steps = 0;
   int dump_interval = 0;
   int pcouple_interval = 10; // NPT: MD steps between barostat updates
+  bool is_npt = false;
   bool resume = false;
   bool dump_xyz = false;
   bool dump_velocity = false;
@@ -91,6 +99,9 @@ struct REMD_Config : REMD_Grid {
   Temperature_Style temperature_style = geometric;
   std::string resume_prefix;
   std::string dump_prefix;
+  std::vector<double> temperatures;
+  int num_pressures = 1;
+  std::vector<double> pressure_table; // GPa; row-major [temperature][pressure]
   std::vector<double> betas;
   unsigned int internal_seed = 1;
 
@@ -99,7 +110,105 @@ struct REMD_Config : REMD_Grid {
     const std::vector<std::string>& dump_command,
     bool npt,
     double ensemble_pressure);
+
+  int num_temperatures() const { return static_cast<int>(temperatures.size()); }
+  int label(int t, int p) const { return p * num_temperatures() + t; }
+  double temperature(int label) const { return temperatures[label % num_temperatures()]; }
+  double pressure(int label) const
+  {
+    return is_npt ? pressure_table
+                      [(label % num_temperatures()) * num_pressures + label / num_temperatures()]
+                  : 0.0;
+  }
+
+  std::string validate() const
+  {
+    if (
+      temperatures.empty() || num_pressures <= 0 ||
+      static_cast<long long>(num_temperatures()) * num_pressures != replicas)
+      return "REMD grid dimensions must multiply to the replica count.";
+    for (size_t i = 0; i < temperatures.size(); ++i)
+      if (
+        !std::isfinite(temperatures[i]) || temperatures[i] <= 0 ||
+        (i && temperatures[i] <= temperatures[i - 1]))
+        return "REMD temperatures must be positive, finite and strictly increasing.";
+    if (!is_npt && (num_pressures != 1 || !pressure_table.empty()))
+      return "NVT REMD does not accept pressure conditions.";
+    if (is_npt) {
+      if (pressure_table.size() != static_cast<size_t>(replicas))
+        return "NPT REMD needs one pressure for each condition.";
+      for (int t = 0; t < num_temperatures(); ++t)
+        for (int p = 0; p < num_pressures; ++p) {
+          const double value = pressure_table[t * num_pressures + p];
+          if (!std::isfinite(value) || (p && value <= pressure_table[t * num_pressures + p - 1]))
+            return "REMD pressures must be finite and increasing within each temperature row.";
+        }
+    }
+    return {};
+  }
+
+  // Exchange pairs of one round. Temperature and pressure edges alternate, each with
+  // even and odd phases; an axis with two conditions has only the even phase.
+  std::vector<REMD_Pair> pairs(long long round) const
+  {
+    std::vector<std::pair<int, int>> phases;
+    const int sizes[2] = {num_temperatures(), num_pressures};
+    for (int parity = 0; parity < 2; ++parity)
+      for (int direction = 0; direction < 2; ++direction)
+        if (sizes[direction] > 1)
+          phases.emplace_back(direction, sizes[direction] == 2 ? 0 : parity);
+    std::vector<REMD_Pair> result;
+    if (phases.empty())
+      return result;
+    const auto phase = phases[round % phases.size()];
+    if (phase.first == 0) {
+      for (int p = 0; p < num_pressures; ++p)
+        for (int t = phase.second; t + 1 < num_temperatures(); t += 2)
+          result.push_back({0, label(t, p), label(t + 1, p)});
+    } else {
+      for (int t = 0; t < num_temperatures(); ++t)
+        for (int p = phase.second; p + 1 < num_pressures; p += 2)
+          result.push_back({1, label(t, p), label(t, p + 1)});
+    }
+    return result;
+  }
+
+  size_t statistic_index(const REMD_Pair& pair) const
+  {
+    return is_npt
+             ? static_cast<size_t>(pair.direction) * num_temperatures() * num_pressures + pair.first
+             : static_cast<size_t>(pair.first);
+  }
+
+  std::vector<long long> attempt_counts(long long rounds) const
+  {
+    const size_t count = static_cast<size_t>(num_temperatures()) * num_pressures;
+    std::vector<long long> result(is_npt ? 2 * count : count - 1, 0);
+    const int period = 2 * ((num_temperatures() > 1) + (num_pressures > 1));
+    for (int phase = 0; phase < period; ++phase)
+      for (const auto& pair : pairs(phase))
+        result[statistic_index(pair)] += rounds / period + (phase < rounds % period);
+    return result;
+  }
 };
+
+// Logarithm of the acceptance ratio for exchanging the states i and j between the
+// conditions a and b (pressures in eV/A^3).
+double remd_log_ratio(
+  const double temperature_a,
+  const double temperature_b,
+  const double pressure_a,
+  const double pressure_b,
+  const double energy_i,
+  const double energy_j,
+  const double volume_i,
+  const double volume_j)
+{
+  const double beta_a = 1.0 / (K_B * temperature_a);
+  const double beta_b = 1.0 / (K_B * temperature_b);
+  return (beta_a - beta_b) * (energy_i - energy_j) +
+         (beta_a * pressure_a - beta_b * pressure_b) * (volume_i - volume_j);
+}
 
 bool is_finite_real(const char* text, double* value)
 {
@@ -263,7 +372,7 @@ void REMD_Config::parse(
         pressure_table.insert(pressure_table.end(), pressures.begin(), pressures.end());
     }
   }
-  const std::string error = validate(replicas);
+  const std::string error = validate();
   if (!error.empty())
     PRINT_INPUT_ERROR(error.c_str());
   betas.resize(nt);
@@ -912,21 +1021,80 @@ void REMD_Driver::write_trajectories(const long long step)
 {
   if (!config_.dump_xyz)
     return;
+  const Replica_XYZ_Fields& quantities = config_.dump_fields;
+  const bool velocity = config_.dump_velocity;
+  const int n = source_atom_.number_of_atoms;
+  const int tensor_order[9] = {0, 3, 4, 6, 1, 5, 7, 8, 2}; // xx xy xz yx yy yz zx zy zz
+  std::vector<double> force, potential, virial;
   for (Replica_Slot* slot : runtime_.slots()) {
-    std::ostringstream fields;
-    if (config_.is_npt)
-      fields << std::setprecision(16) << "condition_label=" << slot->temperature_label
-             << " target_pressure=" << pressure_of(slot->temperature_label)
-             << " potential_energy=" << slot->potential_energy << ' ';
-    write_replica_trajectory(
-      trajectory_files_[slot->replica_id],
-      *slot,
-      source_atom_,
+    CHECK(gpuSetDevice(slot->device_id));
+    slot->stream.synchronize();
+    slot->atom.position_per_atom.copy_to_host(slot->atom.cpu_position_per_atom.data());
+    if (velocity)
+      slot->atom.velocity_per_atom.copy_to_host(slot->atom.cpu_velocity_per_atom.data());
+    if (quantities.force) {
+      force.resize(n * 3);
+      slot->atom.force_per_atom.copy_to_host(force.data());
+    }
+    if (quantities.potential) {
+      potential.resize(n);
+      slot->atom.potential_per_atom.copy_to_host(potential.data());
+    }
+    if (quantities.virial) {
+      virial.resize(n * 9);
+      slot->atom.virial_per_atom.copy_to_host(virial.data());
+    }
+    FILE* file = trajectory_files_[slot->replica_id];
+    fprintf(
+      file,
+      "%d\nTime=%.8f step=%lld replica=%d temperature_label=%d target_temperature=%.16g ",
+      n,
+      step * time_step_ * TIME_UNIT_CONVERSION,
       step,
-      time_step_,
-      config_.dump_velocity,
-      config_.dump_fields,
-      fields.str());
+      slot->replica_id,
+      slot->temperature_label,
+      slot->target_temperature);
+    if (config_.is_npt)
+      fprintf(
+        file,
+        "condition_label=%d target_pressure=%.16g potential_energy=%.16g ",
+        slot->temperature_label,
+        pressure_of(slot->temperature_label),
+        slot->potential_energy);
+    write_xyz_box(file, slot->box, 16);
+    fprintf(
+      file,
+      "Properties=species:S:1:pos:R:3%s%s%s%s%s\n",
+      quantities.mass ? ":mass:R:1" : "",
+      velocity ? ":vel:R:3" : "",
+      quantities.force ? ":forces:R:3" : "",
+      quantities.potential ? ":energy_atom:R:1" : "",
+      quantities.virial ? ":virial:R:9" : "");
+    for (int i = 0; i < n; ++i) {
+      fprintf(
+        file,
+        "%s %.16g %.16g %.16g",
+        source_atom_.cpu_atom_symbol[i].c_str(),
+        slot->atom.cpu_position_per_atom[i],
+        slot->atom.cpu_position_per_atom[i + n],
+        slot->atom.cpu_position_per_atom[i + 2 * n]);
+      if (quantities.mass)
+        fprintf(file, " %.16g", source_atom_.cpu_mass[i]);
+      if (velocity)
+        for (int d = 0; d < 3; ++d)
+          fprintf(
+            file, " %.16g", slot->atom.cpu_velocity_per_atom[i + d * n] / TIME_UNIT_CONVERSION);
+      if (quantities.force)
+        for (int d = 0; d < 3; ++d)
+          fprintf(file, " %.16g", force[i + d * n]);
+      if (quantities.potential)
+        fprintf(file, " %.16g", potential[i]);
+      if (quantities.virial)
+        for (int d = 0; d < 9; ++d)
+          fprintf(file, " %.16g", virial[i + tensor_order[d] * n]);
+      fprintf(file, "\n");
+    }
+    fflush(file);
   }
 }
 

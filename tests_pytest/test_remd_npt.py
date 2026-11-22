@@ -236,18 +236,23 @@ class RemdNPTRegression(unittest.TestCase):
                 self.assertIn(error, result.stdout + result.stderr)
 
     def test_pressure_and_sheared_grid_exchange_rules(self):
-        for sheared, nt, np in ((False, 1, 3), (False, 3, 3), (True, 3, 3)):
-            with self.subTest(sheared=sheared, nt=nt):
-                directory = self.prepare(f'grid_{nt}_{sheared}', free=True)
+        for sheared, nt, np in ((False, 1, 3), (False, 3, 3), (True, 3, 3), (False, 1, 2), (False, 2, 1)):
+            with self.subTest(sheared=sheared, nt=nt, np=np):
+                directory = self.prepare(f'grid_{nt}x{np}_{sheared}', free=True)
                 grid = None
                 if sheared:
                     grid = 'pressures.dat'
                     (directory / grid).write_text('0 .001 .002\n.0001 .0011 .0021\n.0002 .0012 .0022\n')
                 options = dict(temp=(300, 450 if nt > 1 else 300, nt),
-                               pressure=(0, .0022 if sheared else .002, np), grid=grid)
+                               pressure=(0, (.0022 if sheared else .002) if np > 1 else 0, np), grid=grid)
                 self.run_npt(directory, 40, **options)
                 rows = base.data_rows(directory / 'remd_npt_exchange.out')
-                phases = [('T', 0), ('P', 0), ('T', 1), ('P', 1)] if nt > 1 else [('P', 0), ('P', 1)] * 2
+                # Temperature and pressure edges alternate, each with even and odd phases;
+                # an axis with two conditions has only the even phase.
+                sizes = {'T': nt, 'P': np}
+                cycle = [(d, 0 if sizes[d] == 2 else parity)
+                         for parity in (0, 1) for d in ('T', 'P') if sizes[d] > 1]
+                phases = [cycle[r % len(cycle)] for r in range(4)]
                 expected = []
                 for step, (direction, parity) in zip((10, 20, 30, 40), phases):
                     if direction == 'T':
@@ -269,6 +274,26 @@ class RemdNPTRegression(unittest.TestCase):
                     if row[-1] == '1':
                         mapping[i], mapping[j] = mapping[j], mapping[i]
                 self.assertEqual(list(map(int, metadata(directory)[('replica_to_temperature',)])), mapping)
+
+    def test_reject_invalid_pressure_conditions(self):
+        directory = self.prepare('invalid_conditions', free=True)
+        ranges = [dict(pressure=(.002, .001, 3)), dict(pressure=(0, .001, 1)), dict(temp=(400, 300, 2))]
+        for options in ranges:
+            with self.subTest(options=options):
+                self.run_npt(directory, 1, error='REMD range needs min < max', **options)
+        # Two temperatures and two pressures per temperature.
+        grids = [
+            ('0 .001\n.0001\n', 'rows must have the same length'),
+            ('0 .001\n', 'one row per temperature'),
+            ('0 .001\n.0001 .0011\n.0002 .0012\n', 'dimensions exceed the replica count'),
+            ('0 nan\n.0001 .0011\n', 'must contain finite pressures'),
+            ('0 0\n.0001 .0011\n', 'increasing within each temperature row'),
+            ('0 .001 .002\n.0001 .0011 .0021\n', 'dimensions must multiply to the replica count'),
+        ]
+        for text, error in grids:
+            with self.subTest(grid=text):
+                (directory / 'pressures.dat').write_text(text)
+                self.run_npt(directory, 1, pressure=(0, .001, 2), grid='pressures.dat', error=error)
 
     def assert_checkpoint_valid(self, directory, steps, count, equilibration=0):
         state = metadata(directory)
@@ -395,6 +420,30 @@ class RemdNPTRegression(unittest.TestCase):
         potential = directory / 'nep.txt'
         potential.write_text(potential.read_text() + '\n')
         self.run_npt(directory, 1, resume=True, error='potential file does not match')
+
+    def test_corrupted_scr_state_is_rejected(self):
+        directory = self.prepare('scr_state_validation', free=True)
+        self.run_npt(directory, 10)  # an update is pending at the checkpoint
+        path = directory / 'remd_restart.meta'
+        original = path.read_text()
+        line = next(x for x in original.splitlines() if x.startswith('scr_state 0 '))
+        # scr_state <replica> <version> <counter> <pending> <T> <U> <p_xx> <p_yy> <p_zz> <RNG...>
+        tokens = line.split()
+
+        def edited(index, value):
+            return ' '.join(tokens[:index] + [value] + tokens[index + 1:])
+
+        cases = {'version': edited(2, '2'), 'negative counter': edited(3, '-1'),
+                 'pending flag': edited(4, '0'), 'nonfinite pressure': edited(7, 'nan'),
+                 'trailing token': line + ' 0'}
+        for name, replacement in cases.items():
+            with self.subTest(case=name):
+                path.write_text(original.replace(line, replacement))
+                before = path.read_bytes()
+                self.run_npt(directory, 1, resume=True, error='Invalid SCR state in the REMD restart')
+                self.assertEqual(path.read_bytes(), before)
+        path.write_text(original)
+        self.run_npt(directory, 1, resume=True)
 
     def test_restart_xyz_validation(self):
         directory = self.prepare('xyz_validation', free=True)
