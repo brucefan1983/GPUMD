@@ -110,11 +110,11 @@ void write_checkpoint_metadata(FILE* fid_nep, const Spin_Parameters& para)
     }
     fprintf(fid_nep, "\n");
   }
-  if (std::any_of(para.spin_walls.begin(), para.spin_walls.end(), [](const Spin_Walls& wall) {
-        return wall.enabled();
-      })) {
+  const auto& walls = para.spin_walls();
+  if (std::any_of(
+        walls.begin(), walls.end(), [](const Spin_Walls& wall) { return wall.enabled(); })) {
     fprintf(fid_nep, "spin_wall");
-    for (const auto& wall : para.spin_walls)
+    for (const auto& wall : walls)
       for (const auto& side : wall.side)
         fprintf(fid_nep, " %.17g %.17g", side.threshold, side.stiffness);
     fprintf(fid_nep, "\n");

@@ -143,19 +143,23 @@ void Spin_Parameters::configure_spin_walls(const std::vector<Spin_Walls>& checkp
 {
   if (spin_wall_input_.empty()) {
     if (prediction || spin_restart)
-      spin_walls = checkpoint;
+      spin_walls_ = checkpoint;
     else
-      spin_walls.resize(num_types);
+      spin_walls_.resize(num_types);
     return;
   }
   std::string error;
   if (!parse_spin_wall(
-        spin_wall_input_, spin_type_active, spin_walls, prediction ? nullptr : &auto_walls_, error))
+        spin_wall_input_,
+        spin_type_active,
+        spin_walls_,
+        prediction ? nullptr : &auto_walls_,
+        error))
     PRINT_INPUT_ERROR(error.c_str());
   if (spin_restart) {
     for (int t = 0; t < num_types; ++t) {
       for (int side = 0; side < Spin_Walls::count; ++side) {
-        auto& value = spin_walls[t].side[side];
+        auto& value = spin_walls_[t].side[side];
         const auto saved = checkpoint[t].side[side];
         if (auto_walls_[t].side[side].stiffness > 0)
           value = saved;
@@ -189,7 +193,7 @@ void Spin_Parameters::resolve_spin_wall_bounds(
       if (!std::isfinite(bound))
         PRINT_INPUT_ERROR("spin_wall auto produced a non-finite threshold.");
       if (bound > 0)
-        spin_walls[t].side[side] = {bound, spec.stiffness};
+        spin_walls_[t].side[side] = {bound, spec.stiffness};
     }
   }
   auto_walls_.clear();
@@ -198,7 +202,7 @@ void Spin_Parameters::resolve_spin_wall_bounds(
 
 void Spin_Parameters::validate_spin_wall_order() const
 {
-  for (const auto& wall : spin_walls)
+  for (const auto& wall : spin_walls_)
     if (!wall.ordered())
       PRINT_INPUT_ERROR("spin_wall lower threshold must be below the upper threshold.");
 }

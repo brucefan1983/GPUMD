@@ -33,7 +33,7 @@ public:
   int number_of_variables_spin_projection = 0;
   std::vector<int> spin_type_active;
   std::vector<float> spin_cutoff_by_type;
-  std::vector<Spin_Walls> spin_walls;
+  const std::vector<Spin_Walls>& spin_walls() const { return spin_walls_; }
   bool needs_spin_wall_bounds() const;
   void
   resolve_spin_wall_bounds(const std::vector<double>& minima, const std::vector<double>& maxima);
@@ -48,6 +48,7 @@ private:
   void initialize_spin_checkpoint();
   void configure_spin_walls(const std::vector<Spin_Walls>& checkpoint);
   void validate_spin_wall_order() const;
+  std::vector<Spin_Walls> spin_walls_;
   std::vector<std::string> spin_wall_input_;
   std::vector<Spin_Walls> auto_walls_; // threshold stores the margin until resolution
   void validate_spin_parameters();

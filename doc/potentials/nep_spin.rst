@@ -38,13 +38,20 @@ element-dependent neural network used by ordinary NEP4. The total energy is
    U(\{\boldsymbol{r}_i,\boldsymbol{s}_i\})
    = \sum_i \left[
        U_i(\boldsymbol{q}^{i}) + E^0_{Z_i}
+       + E^{\mathrm{wall}}_{Z_i}(|\boldsymbol{s}_i|)
      \right] + U_\mathrm{ZBL},
 
 where :math:`\boldsymbol{r}_i` is the position, :math:`\boldsymbol{s}_i` is a
 Cartesian magnetic-moment vector in Bohr magnetons (muB), :math:`Z_i` denotes the atom type, and
 :math:`E^0_{Z_i}` is a fitted per-type energy baseline. The ZBL term is present
 when ZBL is enabled and contains no spin dependence. The reference energies
-use the shared ``energy_reference`` convention.
+use the shared ``energy_reference`` convention. The optional
+:ref:`spin_wall <kw_spin_wall>` term :math:`E^{\mathrm{wall}}_{Z_i}` is a
+fixed analytic function of the moment magnitude. Its negative spin gradient
+contributes a longitudinal magnetic force. Training, prediction, and MD all
+include these contributions. They vanish for disabled walls and elements
+without active spin degrees of freedom. The wall adds no descriptor
+components or trainable parameters.
 
 This architecture allows the nonlinear network to combine structural and
 magnetic coordinates. Therefore, ``spin_order`` describes the maximum polynomial degree of
@@ -64,7 +71,6 @@ It forms scalar invariants from local spin and geometric densities. The main cho
 * :ref:`spin_l_max <kw_spin_l_max>` bounds the spatial and spin tensor ranks and, in SOC mode, the coupled rank.
 * :ref:`spin_soc <kw_spin_soc>` controls whether spin orientation couples to the local lattice orientation.
 * :ref:`spin_type <kw_spin_type>` selects the elements with active spin degrees of freedom.
-* :ref:`spin_wall <kw_spin_wall>` adds optional longitudinal penalties to the energy and magnetic force.
 
 The spin descriptor reuses the structural angular radial coefficients with its own magnetic cutoff.
 The second :ref:`basis_size <kw_basis_size>` value also sets its radial basis; ``basis_size 8 8`` gives nine basis functions.
