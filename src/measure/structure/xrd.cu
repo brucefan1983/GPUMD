@@ -18,26 +18,15 @@ Major contributors:
   Ke Li: Initial implementation.
 ------------------------------------------------------------------------------*/
 
-#ifdef _WIN32
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
-#include <windows.h>
-#else
-#include <sys/stat.h>
-#endif
-
 #include "integrate/integrate.cuh"
 #include "measure/parse_utilities.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include "xrd.cuh"
 #include <algorithm>
-#include <cerrno>
 #include <cmath>
 #include <iomanip>
 #include <limits>
-#include <map>
 #include <set>
 
 namespace
@@ -46,72 +35,8 @@ constexpr double pi = 3.14159265358979323846;
 constexpr int block_size = 128;
 constexpr int batch_size = 65536;
 constexpr int max_mesh_nodes = 10000000;
-constexpr int custom_gaussians = 4;
 constexpr int builtin_gaussians = 5;
 constexpr double builtin_max_s = 6.0;
-
-#ifdef _WIN32
-using FileIdentity = BY_HANDLE_FILE_INFORMATION;
-
-bool read_file_identity(const std::string& path, FileIdentity& identity)
-{
-  // Use the narrow filename encoding of the input and output streams.
-  const HANDLE file = CreateFileA(
-    path.c_str(),
-    0,
-    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-    nullptr,
-    OPEN_EXISTING,
-    FILE_FLAG_BACKUP_SEMANTICS,
-    nullptr);
-  if (file != INVALID_HANDLE_VALUE) {
-    const bool read = GetFileInformationByHandle(file, &identity) != 0;
-    CloseHandle(file);
-    if (read)
-      return true;
-  } else {
-    const DWORD error = GetLastError();
-    if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND)
-      return false;
-  }
-  PRINT_INPUT_ERROR(("Cannot inspect compute_xrd path: " + path).c_str());
-  return false;
-}
-
-bool same_file_identity(const FileIdentity& a, const FileIdentity& b)
-{
-  return a.dwVolumeSerialNumber == b.dwVolumeSerialNumber && a.nFileIndexHigh == b.nFileIndexHigh &&
-         a.nFileIndexLow == b.nFileIndexLow;
-}
-#else
-using FileIdentity = struct stat;
-
-bool read_file_identity(const std::string& path, FileIdentity& identity)
-{
-  if (stat(path.c_str(), &identity) == 0)
-    return true;
-  if (errno == ENOENT || errno == ENOTDIR)
-    return false;
-  PRINT_INPUT_ERROR(("Cannot inspect compute_xrd path: " + path).c_str());
-  return false;
-}
-
-bool same_file_identity(const FileIdentity& a, const FileIdentity& b)
-{
-  return a.st_dev == b.st_dev && a.st_ino == b.st_ino;
-}
-#endif
-
-void check_distinct_files(const std::string& input, const std::string& output)
-{
-  FileIdentity input_identity{}, output_identity{};
-  if (!read_file_identity(input, input_identity))
-    PRINT_INPUT_ERROR(("Cannot inspect compute_xrd form factor file: " + input).c_str());
-  if (
-    read_file_identity(output, output_identity) &&
-    same_file_identity(input_identity, output_identity))
-    PRINT_INPUT_ERROR("compute_xrd requires different form factor and output filenames.");
-}
 
 struct Node {
   int h, k, l;
@@ -542,7 +467,6 @@ __global__ void xrd_intensities(
   const int number_atoms,
   const int number_selected,
   const int number_factors,
-  const int number_gaussians,
   const int* selected,
   const int* types,
   const FormFactor* factors,
@@ -558,7 +482,7 @@ __global__ void xrd_intensities(
   for (int t = lane; t < number_factors; t += block_size) {
     const auto factor = factors[t];
     double weight = factor.c;
-    for (int j = 0; j < number_gaussians; ++j) {
+    for (int j = 0; j < builtin_gaussians; ++j) {
       weight += factor.a[j] * exp(-factor.b[j] * node.s_squared);
     }
     weights[t] = weight;
@@ -602,20 +526,9 @@ double positive_number(const std::string& value)
   }
   return result;
 }
-
-double finite_coefficient(const std::string& value, const std::string& record)
-{
-  double result;
-  if (!is_valid_real(value, &result) || !std::isfinite(result)) {
-    const std::string error = record + "Invalid coefficient: " + value + ".";
-    PRINT_INPUT_ERROR(error.c_str());
-  }
-  return result;
-}
 } // namespace
 
 struct XRD::Storage {
-  std::map<std::string, FormFactor> input_factors;
   std::vector<Node> nodes;
   std::vector<double> intensities;
   std::vector<FormFactor> cpu_factors;
@@ -660,8 +573,6 @@ XRD::XRD(const std::vector<std::string>& tokens, const std::vector<Group>& group
         PRINT_INPUT_ERROR("compute_xrd lp expects 0 or 1.");
       }
       use_lp_ = value == "1";
-    } else if (key == "form_factor" && i + 1 < count) {
-      form_factor_filename_ = tokens[++i];
     } else if (key == "file" && i + 1 < count) {
       filename_ = tokens[++i];
     } else {
@@ -672,61 +583,16 @@ XRD::XRD(const std::vector<std::string>& tokens, const std::vector<Group>& group
   if (options.count("scale") && options.count("spacing")) {
     PRINT_INPUT_ERROR("Specify one of compute_xrd scale or spacing.");
   }
-  if (form_factor_filename_.empty()) {
-    const double max_s = std::sin(angle_max_ * pi / 360.0) / wavelength_;
-    if (max_s > builtin_max_s) {
-      PRINT_INPUT_ERROR(
-        "compute_xrd built-in form factors require sin(theta)/wavelength <= 6 A^-1. "
-        "Adjust two_theta or specify form_factor <filename>.");
-    }
-  } else {
-    read_form_factors();
+  const double max_s = std::sin(angle_max_ * pi / 360.0) / wavelength_;
+  if (max_s > builtin_max_s) {
+    PRINT_INPUT_ERROR("compute_xrd built-in form factors require sin(theta)/wavelength <= 6 A^-1. "
+                      "Adjust the wavelength or upper two_theta limit.");
   }
   printf(
     "Compute X-ray diffraction every %d steps at wavelength %.8g A.\n", interval_, wavelength_);
 }
 
 XRD::~XRD() = default;
-
-void XRD::read_form_factors()
-{
-  std::ifstream input(form_factor_filename_);
-  const std::string source = "compute_xrd form factor file " + form_factor_filename_;
-  if (!input) {
-    const std::string error = "Cannot open " + source + ".";
-    PRINT_INPUT_ERROR(error.c_str());
-  }
-  std::string line;
-  for (size_t line_number = 1; std::getline(input, line); ++line_number) {
-    const auto tokens = get_tokens_without_comments(line);
-    if (tokens.empty()) {
-      continue;
-    }
-    const std::string record = source + ", line " + std::to_string(line_number) + ": ";
-    if (tokens.size() != 2 * custom_gaussians + 2) {
-      const std::string error = record + "Expected an element and nine coefficients.";
-      PRINT_INPUT_ERROR(error.c_str());
-    }
-    FormFactor factor{};
-    for (int j = 0; j < custom_gaussians; ++j) {
-      factor.a[j] = finite_coefficient(tokens[1 + 2 * j], record);
-      factor.b[j] = finite_coefficient(tokens[2 + 2 * j], record);
-    }
-    factor.c = finite_coefficient(tokens.back(), record);
-    if (!storage_->input_factors.emplace(tokens[0], factor).second) {
-      const std::string error = record + "Duplicate element " + tokens[0] + ".";
-      PRINT_INPUT_ERROR(error.c_str());
-    }
-  }
-  if (input.bad() || !input.eof()) {
-    const std::string error = "Failed to read " + source + ".";
-    PRINT_INPUT_ERROR(error.c_str());
-  }
-  if (storage_->input_factors.empty()) {
-    const std::string error = "No coefficients in " + source + ".";
-    PRINT_INPUT_ERROR(error.c_str());
-  }
-}
 
 void XRD::pre_run(
   int number_of_steps, double, Integrate&, std::vector<Group>& groups, Atom& atom, Box& box, Force&)
@@ -750,8 +616,6 @@ void XRD::pre_run(
   update_factors(atom, groups);
 
   update_mesh(box);
-  if (!form_factor_filename_.empty())
-    check_distinct_files(form_factor_filename_, filename_);
   output_.open(filename_, std::ios::app);
   if (!output_) {
     const std::string error = "Cannot open compute_xrd output: " + filename_;
@@ -775,22 +639,9 @@ void XRD::update_factors(const Atom& atom, const std::vector<Group>& groups)
     const int type = atom.cpu_type[j];
     if (!storage_->factor_initialized[type]) {
       const auto& element = atom.cpu_atom_symbol[j];
-      const FormFactor* factor = nullptr;
-      if (form_factor_filename_.empty()) {
-        factor = find_builtin_form_factor(element);
-      } else {
-        const auto entry = storage_->input_factors.find(element);
-        if (entry != storage_->input_factors.end()) {
-          factor = &entry->second;
-        }
-      }
+      const FormFactor* factor = find_builtin_form_factor(element);
       if (!factor) {
-        const std::string error = form_factor_filename_.empty()
-                                    ? "No built-in compute_xrd form factor for " + element +
-                                        ". Specify form_factor <filename>."
-                                    : "Missing element " + element +
-                                        " in compute_xrd form factor file " +
-                                        form_factor_filename_ + ".";
+        const std::string error = "No built-in compute_xrd form factor for " + element + ".";
         PRINT_INPUT_ERROR(error.c_str());
       }
       storage_->cpu_factors[type] = *factor;
@@ -937,7 +788,6 @@ void XRD::end_of_step(
     const auto& group = groups[grouping_method_];
     selected = group.contents.data() + group.cpu_size_sum[group_id_];
   }
-  const int number_gaussians = form_factor_filename_.empty() ? builtin_gaussians : custom_gaussians;
   for (size_t start = 0; start < storage_->nodes.size(); start += batch_size) {
     const int count = std::min(storage_->nodes.size() - start, static_cast<size_t>(batch_size));
     if (storage_->nodes.size() > batch_size) {
@@ -948,7 +798,6 @@ void XRD::end_of_step(
       atom.number_of_atoms,
       number_selected_,
       storage_->cpu_factors.size(),
-      number_gaussians,
       selected,
       atom.type.data(),
       storage_->factors.data(),

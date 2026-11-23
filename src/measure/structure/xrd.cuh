@@ -56,7 +56,6 @@ public:
 
 private:
   struct Storage;
-  void read_form_factors();
   void update_factors(const Atom& atom, const std::vector<Group>& groups);
   void update_mesh(const Box& box);
 
@@ -71,7 +70,6 @@ private:
   int grouping_method_ = -1;
   int group_id_ = -1;
   int number_selected_ = 0;
-  std::string form_factor_filename_;
   std::string filename_ = "xrd.txt";
   std::ofstream output_;
   std::unique_ptr<Storage> storage_;

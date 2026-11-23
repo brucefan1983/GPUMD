@@ -35,13 +35,12 @@ at step ``interval`` of that run.
   the mean inverse box length over the periodic axes.
 * ``spacing <gx> <gy> <gz>`` sets fixed positive grid spacings in Å⁻¹.
   It is mutually exclusive with ``scale`` and required for a fully nonperiodic box.
-* ``form_factor <filename>`` uses the coefficients in a custom file for all sampled elements.
 * ``file <filename>`` sets the output filename (default ``xrd.txt``).
 
 Built-in form factors
 ---------------------
 
-By default, GPUMD looks up the neutral-atom X-ray form factor for each
+GPUMD looks up the built-in neutral-atom X-ray form factor for each
 sampled element using the exact symbol in ``model.xyz``. The table covers
 98 elements, H through Cf (atomic numbers 1–98), using the plain element
 labels in the source data (for example, ``Si`` for silicon).
@@ -49,8 +48,9 @@ labels in the source data (for example, ``Si`` for silicon).
 The five-Gaussian fit is :math:`f_0(s)=c+\sum_{i=1}^{5}a_i\exp(-b_i s^2)`,
 where :math:`s=\sin(\theta)/\lambda` in Å⁻¹ and
 :math:`0 \le s \le 6` Å⁻¹. If the requested angle range extends past
-this limit or a sampled element is missing, supply an appropriate custom
-coefficient file or adjust the input.
+this limit, adjust the wavelength or upper scattering-angle bound. Every
+sampled element must be in the table. The form factors describe normal
+elastic scattering by neutral atoms.
 
 The coefficients use the fit in :cite:p:`Waasmaier1995`.
 The numbers are taken from the
@@ -59,32 +59,6 @@ whose `data license <https://github.com/xraypy/XrayDB/blob/96911505a105549100d18
 is CC0 1.0.
 
 For example, use ``compute_xrd 1000 1.5406 two_theta 10 100``.
-
-Custom form factor file
------------------------
-
-The optional ``form_factor`` option takes a path relative to the simulation
-working directory or an absolute path. Supply one row per sampled element
-with the exact symbol used in ``model.xyz`` and nine finite coefficients in
-this order. Blank lines and ``#`` comments are allowed. Enter each symbol
-only once.
-
-.. code-block:: text
-
-   # element a1 b1 a2 b2 a3 b3 a4 b4 c
-   C 2.31000 20.8439 1.02000 10.2075 1.58860 0.568700 0.865000 51.6512 0.215600
-
-For example, save this row as ``xrd_factors.txt`` and use
-``compute_xrd 1000 1.5406 form_factor xrd_factors.txt two_theta 10 100``.
-
-The custom four-Gaussian form factor is
-:math:`f(s)=c+\sum_{i=1}^{4}a_i\exp(-b_i s^2)`, where
-:math:`s=\sin(\theta)/\lambda` in Å⁻¹. The example is the neutral-carbon
-(C RHF) entry in Table 6.1.1.4 of :cite:p:`Brown2006`,
-for the four-Gaussian approximation over :math:`0 \le s \le 2` Å⁻¹.
-Choose coefficients and an angular range appropriate to the scattering
-model and the fit's range. For an analytic unit-scatterer check, set all
-four amplitude–exponent pairs to zero and ``c`` to 1.
 
 Structure factor and intensity
 ------------------------------

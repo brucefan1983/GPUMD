@@ -8,7 +8,9 @@
 :ref:`compute_xrd <kw_compute_xrd>` appends one block per sample. The first
 line begins with ``# step`` and records the run-local step, number of
 reciprocal points, number of sampled atoms, wavelength in Å, LP flag and
-the three mesh spacings in Å⁻¹. A column header follows.
+the three mesh spacings in Å⁻¹. A column header follows. When reading this
+file, use the reported number of points to identify an incomplete block
+if a run was interrupted while writing.
 
 .. code-block:: none
 
