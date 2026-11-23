@@ -6,9 +6,6 @@
 ===================
 
 Calculate kinematic X-ray diffraction intensities on a reciprocal-space grid.
-Write one intensity for each sampled point to :ref:`xrd.out <xrd_out>` in the working directory.
-To obtain a powder pattern, sum the intensities in bins of equal scattering
-angle. See the `worked examples in GPUMD-Tutorials <https://github.com/brucefan1983/GPUMD-Tutorials>`_.
 For the reciprocal grid and kinematic diffraction convention, see
 [Coleman2013]_.
 
@@ -18,6 +15,9 @@ Syntax
 .. code-block:: none
 
    compute_xrd <interval> <wavelength> [options]
+
+Parameters
+----------
 
 The sampling interval is a positive integer in MD steps and the wavelength is
 in Å. Declare the command before each ``run`` that uses it. The first sample is
@@ -36,8 +36,26 @@ at step ``interval`` of that run.
 * ``spacing <gx> <gy> <gz>`` sets fixed positive grid spacings in Å⁻¹.
   It is mutually exclusive with ``scale`` and required for a fully nonperiodic box.
 
+Output
+------
+
+Write one intensity for each sampled point to :ref:`xrd.out <xrd_out>` in the working directory.
+To obtain a powder pattern, sum the intensities in bins of equal scattering
+angle.
+See :ref:`xrd.out <xrd_out>` for the normalization of the stored intensity.
+
+Examples
+--------
+
+For example, use ``compute_xrd 1000 1.5406 two_theta 10 100``.
+
+See the `worked examples in GPUMD-Tutorials <https://github.com/brucefan1983/GPUMD-Tutorials>`_.
+
+Notes
+-----
+
 Built-in form factors
----------------------
+^^^^^^^^^^^^^^^^^^^^^
 
 GPUMD looks up the built-in neutral-atom X-ray form factor for each
 sampled element using the exact symbol in ``model.xyz``. The table covers
@@ -57,10 +75,8 @@ The numbers are taken from the
 whose `data license <https://github.com/xraypy/XrayDB/blob/96911505a105549100d183a6268cb3fdfd6445d3/LICENSE>`_
 is CC0 1.0.
 
-For example, use ``compute_xrd 1000 1.5406 two_theta 10 100``.
-
 Structure factor and intensity
-------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For mesh indices :math:`(h,k,l)` and spacings :math:`(g_x,g_y,g_z)`,
 the reciprocal vector is :math:`\mathbf{g}=(h g_x,k g_y,l g_z)`
@@ -94,10 +110,8 @@ The multiplier for the Lorentz–polarization option is
       1, & \text{if lp is 0}.
    \end{cases}
 
-See :ref:`xrd.out <xrd_out>` for the normalization of the stored intensity.
-
 Sampling conventions
---------------------
+^^^^^^^^^^^^^^^^^^^^
 
 Use an axis-aligned orthogonal box. Automated spacing is based on the whole
 simulation box, including when a group is selected, and updates when the box
