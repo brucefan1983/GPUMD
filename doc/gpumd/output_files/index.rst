@@ -149,6 +149,10 @@ A file page describes its columns, units, and any headers or blocks needed to se
      - :ref:`compute_rdf <kw_compute_rdf>`
      - Radial distribution function (:term:`RDF`)
      - Append
+   * - :ref:`xrd.out <xrd_out>`
+     - :ref:`compute_xrd <kw_compute_xrd>`
+     - X-ray diffraction intensities on a reciprocal-space grid
+     - Append
    * - :ref:`adf.out <adf_out>`
      - :ref:`compute_adf <kw_compute_adf>`
      - Angular distribution function (:term:`ADF`)
@@ -228,6 +232,7 @@ A file page describes its columns, units, and any headers or blocks needed to se
    viscosity_out
    onsager_out
    rdf_out
+   xrd_out
    adf_out
    mcmd_out
    lsqt_dos_out
