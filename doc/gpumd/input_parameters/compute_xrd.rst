@@ -10,7 +10,7 @@ Write one intensity for each sampled point to :ref:`xrd.out <xrd_out>` in the wo
 To obtain a powder pattern, sum the intensities in bins of equal scattering
 angle. See the `worked examples in GPUMD-Tutorials <https://github.com/brucefan1983/GPUMD-Tutorials>`_.
 For the reciprocal grid and kinematic diffraction convention, see
-:cite:p:`Coleman2013`.
+[Coleman2013]_.
 
 Syntax
 ------
@@ -51,7 +51,7 @@ this limit, adjust the wavelength or upper scattering-angle bound. Every
 sampled element must be in the table. The form factors describe normal
 elastic scattering by neutral atoms.
 
-The coefficients use the fit in :cite:p:`Waasmaier1995`.
+The coefficients use the fit in [Waasmaier1995]_.
 The numbers are taken from the
 `XrayDB data archive <https://github.com/xraypy/XrayDB/blob/96911505a105549100d183a6268cb3fdfd6445d3/data_sources/waasmaeir_kirfel.dat>`_,
 whose `data license <https://github.com/xraypy/XrayDB/blob/96911505a105549100d183a6268cb3fdfd6445d3/LICENSE>`_
@@ -108,8 +108,3 @@ The calculation uses the coordinate images supplied by the simulation.
 
 For PIMD, RPMD and TRPMD, GPUMD samples bead 0, following the convention
 of :ref:`compute_rdf <kw_compute_rdf>`.
-
-References
-----------
-
-.. bibliography:: ../../xrd.bib

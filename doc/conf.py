@@ -43,7 +43,7 @@ extensions = [
     'sphinxcontrib.bibtex',
     'nbsphinx',
     'sphinx_tabs.tabs']
-bibtex_bibfiles = ['publications.bib', 'xrd.bib']
+bibtex_bibfiles = ['publications.bib']
 
 graphviz_output_format = 'svg'
 templates_path = ['_templates']

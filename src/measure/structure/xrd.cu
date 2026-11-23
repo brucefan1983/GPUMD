@@ -542,10 +542,13 @@ XRD::XRD(const std::vector<std::string>& tokens, const std::vector<Group>& group
   : storage_(std::make_unique<Storage>())
 {
   action_name = "compute_xrd";
+  printf("Compute X-ray diffraction (XRD).\n");
   if (tokens.size() < 3 || !is_valid_int(tokens[1], &interval_) || interval_ <= 0) {
     PRINT_INPUT_ERROR("Expected compute_xrd <positive interval> <wavelength> [options].");
   }
   wavelength_ = positive_number(tokens[2]);
+  printf("    XRD sample interval (steps) is %d.\n", interval_);
+  printf("    X-ray wavelength is %.8g A.\n", wavelength_);
 
   std::set<std::string> options;
   const int count = tokens.size();
@@ -586,8 +589,13 @@ XRD::XRD(const std::vector<std::string>& tokens, const std::vector<Group>& group
     PRINT_INPUT_ERROR("compute_xrd built-in form factors require sin(theta)/wavelength <= 6 A^-1. "
                       "Adjust the wavelength or upper two_theta limit.");
   }
-  printf(
-    "Compute X-ray diffraction every %d steps at wavelength %.8g A.\n", interval_, wavelength_);
+  printf("    2theta range is %.8g to %.8g degrees.\n", angle_min_, angle_max_);
+  printf("    Lorentz-polarization correction is %s.\n", use_lp_ ? "enabled" : "disabled");
+  if (manual_) {
+    printf("    reciprocal-space spacing is %.8g %.8g %.8g A^-1.\n", mesh_[0], mesh_[1], mesh_[2]);
+  } else {
+    printf("    reciprocal-space scale is %.8g %.8g %.8g.\n", mesh_[0], mesh_[1], mesh_[2]);
+  }
 }
 
 XRD::~XRD() = default;
