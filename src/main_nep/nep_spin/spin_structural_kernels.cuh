@@ -15,7 +15,7 @@
 
 /*----------------------------------------------------------------------------80
 Major contributors:
-  Chengbing Chen: Ported the cooperative structural training kernels.
+  Chengbing Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #pragma once
