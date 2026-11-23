@@ -18,12 +18,22 @@ Major contributors:
   Ke Li: Initial implementation.
 ------------------------------------------------------------------------------*/
 
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
+#include <sys/stat.h>
+#endif
+
 #include "integrate/integrate.cuh"
 #include "measure/parse_utilities.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include "xrd.cuh"
 #include <algorithm>
+#include <cerrno>
 #include <cmath>
 #include <iomanip>
 #include <limits>
@@ -39,6 +49,69 @@ constexpr int max_mesh_nodes = 10000000;
 constexpr int custom_gaussians = 4;
 constexpr int builtin_gaussians = 5;
 constexpr double builtin_max_s = 6.0;
+
+#ifdef _WIN32
+using FileIdentity = BY_HANDLE_FILE_INFORMATION;
+
+bool read_file_identity(const std::string& path, FileIdentity& identity)
+{
+  // Use the narrow filename encoding of the input and output streams.
+  const HANDLE file = CreateFileA(
+    path.c_str(),
+    0,
+    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+    nullptr,
+    OPEN_EXISTING,
+    FILE_FLAG_BACKUP_SEMANTICS,
+    nullptr);
+  if (file != INVALID_HANDLE_VALUE) {
+    const bool read = GetFileInformationByHandle(file, &identity) != 0;
+    CloseHandle(file);
+    if (read)
+      return true;
+  } else {
+    const DWORD error = GetLastError();
+    if (error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND)
+      return false;
+  }
+  PRINT_INPUT_ERROR(("Cannot inspect compute_xrd path: " + path).c_str());
+  return false;
+}
+
+bool same_file_identity(const FileIdentity& a, const FileIdentity& b)
+{
+  return a.dwVolumeSerialNumber == b.dwVolumeSerialNumber && a.nFileIndexHigh == b.nFileIndexHigh &&
+         a.nFileIndexLow == b.nFileIndexLow;
+}
+#else
+using FileIdentity = struct stat;
+
+bool read_file_identity(const std::string& path, FileIdentity& identity)
+{
+  if (stat(path.c_str(), &identity) == 0)
+    return true;
+  if (errno == ENOENT || errno == ENOTDIR)
+    return false;
+  PRINT_INPUT_ERROR(("Cannot inspect compute_xrd path: " + path).c_str());
+  return false;
+}
+
+bool same_file_identity(const FileIdentity& a, const FileIdentity& b)
+{
+  return a.st_dev == b.st_dev && a.st_ino == b.st_ino;
+}
+#endif
+
+void check_distinct_files(const std::string& input, const std::string& output)
+{
+  FileIdentity input_identity{}, output_identity{};
+  if (!read_file_identity(input, input_identity))
+    PRINT_INPUT_ERROR(("Cannot inspect compute_xrd form factor file: " + input).c_str());
+  if (
+    read_file_identity(output, output_identity) &&
+    same_file_identity(input_identity, output_identity))
+    PRINT_INPUT_ERROR("compute_xrd requires different form factor and output filenames.");
+}
 
 struct Node {
   int h, k, l;
@@ -599,9 +672,6 @@ XRD::XRD(const std::vector<std::string>& tokens, const std::vector<Group>& group
   if (options.count("scale") && options.count("spacing")) {
     PRINT_INPUT_ERROR("Specify one of compute_xrd scale or spacing.");
   }
-  if (form_factor_filename_ == filename_) {
-    PRINT_INPUT_ERROR("compute_xrd requires different form factor and output filenames.");
-  }
   if (form_factor_filename_.empty()) {
     const double max_s = std::sin(angle_max_ * pi / 360.0) / wavelength_;
     if (max_s > builtin_max_s) {
@@ -680,6 +750,8 @@ void XRD::pre_run(
   update_factors(atom, groups);
 
   update_mesh(box);
+  if (!form_factor_filename_.empty())
+    check_distinct_files(form_factor_filename_, filename_);
   output_.open(filename_, std::ios::app);
   if (!output_) {
     const std::string error = "Cannot open compute_xrd output: " + filename_;

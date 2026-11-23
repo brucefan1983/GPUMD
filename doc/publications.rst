@@ -6,84 +6,84 @@ Publications
 
 2027
 ====
-.. bibliography::
+.. bibliography:: publications.bib
    :list: enumerated
-   :filter: year % "2027" and "xrd-reference" not in keywords
+   :filter: year % "2027"
 
 2026
 ====
-.. bibliography::
+.. bibliography:: publications.bib
    :list: enumerated
-   :filter: year % "2026" and "xrd-reference" not in keywords
+   :filter: year % "2026"
    
 2025
 ====
-.. bibliography::
+.. bibliography:: publications.bib
    :list: enumerated
-   :filter: year % "2025" and "xrd-reference" not in keywords
+   :filter: year % "2025"
    
 2024
 ====
-.. bibliography::
+.. bibliography:: publications.bib
    :list: enumerated
-   :filter: year % "2024" and "xrd-reference" not in keywords
+   :filter: year % "2024"
 
 2023
 ====
-.. bibliography::
+.. bibliography:: publications.bib
    :list: enumerated
-   :filter: year % "2023" and "xrd-reference" not in keywords
+   :filter: year % "2023"
 
 2022
 ====
-.. bibliography::
+.. bibliography:: publications.bib
    :list: enumerated
-   :filter: year % "2022" and "xrd-reference" not in keywords
+   :filter: year % "2022"
 
 2021
 ====
-.. bibliography::
+.. bibliography:: publications.bib
    :list: enumerated
-   :filter: year % "2021" and "xrd-reference" not in keywords
+   :filter: year % "2021"
 
 2020
 ====
-.. bibliography::
+.. bibliography:: publications.bib
    :list: enumerated
-   :filter: year % "2020" and "xrd-reference" not in keywords
+   :filter: year % "2020"
 
 2019
 ====
-.. bibliography::
+.. bibliography:: publications.bib
    :list: enumerated
-   :filter: year % "2019" and "xrd-reference" not in keywords
+   :filter: year % "2019"
 
 2018
 ====
-.. bibliography::
+.. bibliography:: publications.bib
    :list: enumerated
-   :filter: year % "2018" and "xrd-reference" not in keywords
+   :filter: year % "2018"
 
 2017
 ====
-.. bibliography::
+.. bibliography:: publications.bib
    :list: enumerated
-   :filter: year % "2017" and "xrd-reference" not in keywords
+   :filter: year % "2017"
 
 2016
 ====
-.. bibliography::
+.. bibliography:: publications.bib
    :list: enumerated
-   :filter: year % "2016" and "xrd-reference" not in keywords
+   :filter: year % "2016"
 
 2015
 ====
-.. bibliography::
+.. bibliography:: publications.bib
    :list: enumerated
-   :filter: year % "2015" and "xrd-reference" not in keywords
+   :filter: year % "2015"
 
 2013
 ====
-.. bibliography::
+.. bibliography:: publications.bib
    :list: enumerated
-   :filter: year % "2013" and "xrd-reference" not in keywords
+   :filter: year % "2013"

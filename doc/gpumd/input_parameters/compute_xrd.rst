@@ -9,7 +9,8 @@ Calculate kinematic X-ray diffraction intensities on a reciprocal-space grid.
 Write one intensity for each sampled point to :ref:`xrd.txt <xrd_txt>`.
 To obtain a powder pattern, sum the intensities in bins of equal scattering
 angle. See the `worked examples in GPUMD-Tutorials <https://github.com/brucefan1983/GPUMD-Tutorials>`_.
-For a related virtual-diffraction method, see [Coleman2013]_.
+For the reciprocal grid and kinematic diffraction convention, see
+:cite:p:`Coleman2013`.
 
 Syntax
 ------
@@ -22,7 +23,11 @@ The sampling interval is a positive integer in MD steps and the wavelength is
 in Å. Declare the command before each ``run`` that uses it. The first sample is
 at step ``interval`` of that run.
 
-* ``two_theta <min> <max>`` sets the scattering-angle range in degrees (default 1 to 179).
+* ``two_theta <min> <max>`` sets the scattering-angle range in degrees
+  (default 1 to 179). The input must satisfy
+  :math:`0^\circ \le (2\theta)_{\min} < (2\theta)_{\max} \le 180^\circ`.
+  GPUMD omits the forward- and backscattering points at 0° and 180° for
+  both settings of ``lp``.
 * ``lp <0|1>`` disables or enables the Lorentz–polarization correction (default 1).
 * ``group <method> <id>`` samples a selected atom group (default all atoms).
 * ``scale <sx> <sy> <sz>`` multiplies the inverse box lengths by positive
@@ -47,7 +52,7 @@ where :math:`s=\sin(\theta)/\lambda` in Å⁻¹ and
 this limit or a sampled element is missing, supply an appropriate custom
 coefficient file or adjust the input.
 
-The coefficients use the fit in [Waasmaier1995]_.
+The coefficients use the fit in :cite:p:`Waasmaier1995`.
 The numbers are taken from the
 `XrayDB data archive <https://github.com/xraypy/XrayDB/blob/96911505a105549100d183a6268cb3fdfd6445d3/data_sources/waasmaeir_kirfel.dat>`_,
 whose `data license <https://github.com/xraypy/XrayDB/blob/96911505a105549100d183a6268cb3fdfd6445d3/LICENSE>`_
@@ -75,11 +80,48 @@ For example, save this row as ``xrd_factors.txt`` and use
 The custom four-Gaussian form factor is
 :math:`f(s)=c+\sum_{i=1}^{4}a_i\exp(-b_i s^2)`, where
 :math:`s=\sin(\theta)/\lambda` in Å⁻¹. The example is the neutral-carbon
-(C RHF) entry in Table 6.1.1.4 of [Brown2006]_,
+(C RHF) entry in Table 6.1.1.4 of :cite:p:`Brown2006`,
 for the four-Gaussian approximation over :math:`0 \le s \le 2` Å⁻¹.
 Choose coefficients and an angular range appropriate to the scattering
 model and the fit's range. For an analytic unit-scatterer check, set all
 four amplitude–exponent pairs to zero and ``c`` to 1.
+
+Structure factor and intensity
+------------------------------
+
+For mesh indices :math:`(h,k,l)` and spacings :math:`(g_x,g_y,g_z)`,
+the reciprocal vector is :math:`\mathbf{g}=(h g_x,k g_y,l g_z)`
+in cycles per Å. For wavelength :math:`\lambda` in Å, the Bragg angle and
+the form-factor argument satisfy
+
+.. math::
+
+   2\theta = 2\arcsin\left(\frac{\lambda|\mathbf{g}|}{2}\right),
+   \qquad s = \frac{\sin\theta}{\lambda} = \frac{|\mathbf{g}|}{2}.
+
+Let :math:`\mathbf{r}_j` be the Cartesian position in Å of sampled atom
+:math:`j`, :math:`f_j(s)` its atomic form factor and
+:math:`N_{\mathrm{sel}}` the number of sampled atoms. The structure factor
+and the uncorrected kinematic intensity are
+
+.. math::
+
+   F(\mathbf{g}) =
+   \sum_{j=1}^{N_{\mathrm{sel}}} f_j(s)
+   \exp\!\left(2\pi i\,\mathbf{g}\cdot\mathbf{r}_j\right),
+   \qquad I_{\mathrm{kin}}(\mathbf{g}) = |F(\mathbf{g})|^2.
+
+The multiplier for the Lorentz–polarization option is
+
+.. math::
+
+   L_P(\theta) =
+   \begin{cases}
+      \dfrac{1+\cos^2(2\theta)}{\cos\theta\,\sin^2\theta}, & \text{if lp is 1},\\
+      1, & \text{if lp is 0}.
+   \end{cases}
+
+See :ref:`xrd.txt <xrd_txt>` for the normalization of the stored intensity.
 
 Sampling conventions
 --------------------
@@ -93,3 +135,8 @@ The calculation uses the coordinate images supplied by the simulation.
 
 For PIMD, RPMD and TRPMD, GPUMD samples bead 0, following the convention
 of :ref:`compute_rdf <kw_compute_rdf>`.
+
+References
+----------
+
+.. bibliography:: ../../xrd.bib

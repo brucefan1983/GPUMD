@@ -17,6 +17,18 @@ the three mesh spacings in Å⁻¹. A column header follows.
 Each data row is one reciprocal-space sample. The integers ``h k l``
 index the sampling mesh, with vector components equal to the indices
 times the corresponding spacings. They need not be Miller indices of
-the crystal. The angle is in degrees. Intensity is the squared modulus
-of the structure factor per sampled atom, with the Lorentz–polarization
-factor applied if enabled. Angle bins can be formed by summing these rows.
+the crystal. The ``two_theta_deg`` column is the scattering angle
+:math:`2\theta` in degrees and contains only angles strictly between
+0° and 180°, even when ``two_theta`` uses these values as input bounds.
+
+The ``intensity`` column is
+
+.. math::
+
+   I_{\mathrm{out}}(\mathbf{g})
+   = \frac{L_P(\theta)\,|F(\mathbf{g})|^2}{N_{\mathrm{sel}}}.
+
+Here :math:`N_{\mathrm{sel}}` is the number of atoms in the sampled group,
+or the total number of atoms when ``group`` is omitted.
+:ref:`compute_xrd <kw_compute_xrd>` defines :math:`F` and :math:`L_P`.
+To form a powder pattern, sum these intensities in angle bins.

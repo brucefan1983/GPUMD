@@ -43,7 +43,7 @@ extensions = [
     'sphinxcontrib.bibtex',
     'nbsphinx',
     'sphinx_tabs.tabs']
-bibtex_bibfiles = ['publications.bib']
+bibtex_bibfiles = ['publications.bib', 'xrd.bib']
 
 graphviz_output_format = 'svg'
 templates_path = ['_templates']
@@ -112,10 +112,7 @@ def add_publication_counts(app, doctree):
         return
     bibfile = os.path.join(app.srcdir, 'publications.bib')
     app.env.note_dependency(bibfile)
-    counts = Counter(
-        entry.fields.get('year') for entry in parse_file(bibfile).entries.values()
-        if 'xrd-reference' not in entry.fields.get('keywords', '')
-    )
+    counts = Counter(entry.fields.get('year') for entry in parse_file(bibfile).entries.values())
     for title in doctree.findall(nodes.title):
         year = title.astext()
         if re.fullmatch(r'\d{4}', year):

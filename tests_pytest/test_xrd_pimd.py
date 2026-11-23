@@ -1,5 +1,6 @@
 """Exercise the XRD interface and check single-bead sampling."""
 
+import os
 import subprocess
 
 import numpy as np
@@ -118,6 +119,51 @@ def test_xrd_rejects_invalid_form_factors(tmp_path, gpumd_command, option, coeff
     output = result.stdout + result.stderr
     assert result.returncode != 0 and message in output, output
     assert not (tmp_path / 'xrd.txt').exists()
+
+
+@pytest.mark.fast
+@pytest.mark.parametrize('alias', ['literal', 'relative', 'absolute', 'symlink', 'hardlink', 'default'])
+def test_xrd_preserves_form_factor_file(tmp_path, gpumd_command, alias):
+    atoms = bulk('C', 'diamond', a=3.567, cubic=True)
+    write_xyz(str(tmp_path / 'model.xyz'), atoms)
+    original = UNIT_CARBON.encode('ascii')
+    factors = tmp_path / ('xrd.txt' if alias == 'default' else 'factors.txt')
+    factors.write_bytes(original)
+    source = factors.name
+    output = factors.name
+    if alias == 'relative':
+        output = './factors.txt'
+    elif alias == 'absolute':
+        output = factors.resolve().as_posix()
+    elif alias == 'symlink':
+        output = 'alias.txt'
+        try:
+            (tmp_path / output).symlink_to(factors)
+        except OSError as error:
+            if getattr(error, 'winerror', None) == 1314:
+                pytest.skip('Creating symlinks requires additional Windows permissions')
+            raise
+    elif alias == 'hardlink':
+        output = 'alias.txt'
+        os.link(factors, tmp_path / output)
+    elif alias == 'default':
+        source = './xrd.txt'
+    output_option = '' if alias == 'default' else f' file {output}'
+
+    (tmp_path / 'run.in').write_text(
+        f'potential {MODELS_DIR / "nep_C.txt"}\n'
+        'velocity 300 seed 7\n'
+        'ensemble nve\n'
+        'time_step 0\n'
+        f'compute_xrd 1 1.5 form_factor {source}{output_option}\n'
+        'run 1\n'
+    )
+    result = subprocess.run(
+        [gpumd_command], cwd=tmp_path, capture_output=True, text=True, check=False
+    )
+    assert factors.read_bytes() == original
+    assert result.returncode != 0
+    assert 'requires different form factor and output filenames' in result.stdout + result.stderr
 
 
 @pytest.mark.fast
