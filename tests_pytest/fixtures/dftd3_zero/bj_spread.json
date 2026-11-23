@@ -1,0 +1,39 @@
+{
+ "_provenance": {
+  "binary": "upstream/master 84fd855e (src/ unmodified), built sm_86 CUDA 12.3",
+  "repeats": 60,
+  "safety_factor": 3.0,
+  "gpu_and_driver": "NVIDIA RTX A6000, 595.71.05",
+  "note": "spread = max - min over the repeats and the frozen run; per group"
+ },
+ "water27": {
+  "energy": 0.0,
+  "virial": 8.673617379884035e-19,
+  "force": 4.336808689942018e-19,
+  "distinct_outputs": 4
+ },
+ "graphite": {
+  "energy": 0.0,
+  "virial": 2.7755575615628914e-17,
+  "force": 1.734723475976807e-18,
+  "distinct_outputs": 4
+ },
+ "water27_tri": {
+  "energy": 0.0,
+  "virial": 0.0,
+  "force": 4.336808689942018e-19,
+  "distinct_outputs": 2
+ },
+ "benzene_dimer": {
+  "energy": 0.0,
+  "virial": 0.0,
+  "force": 0.0,
+  "distinct_outputs": 1
+ },
+ "tiny24": {
+  "energy": 0.0,
+  "virial": 0.0,
+  "force": 0.0,
+  "distinct_outputs": 1
+ }
+}

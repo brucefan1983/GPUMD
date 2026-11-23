@@ -29,6 +29,7 @@ optional interfaces enabled. See their individual READMEs and the installation g
 | `gpumd_static` | Run a one-step static force calculation with NEP. |
 | `gpumd_static_qnep` | Run a one-step static force calculation with qNEP. |
 | `gpumd_dynamic` | Run a short NVT molecular-dynamics simulation with NEP. |
+| `gpumd_dftd3_zero` | Run a short NVT simulation with NEP plus the DFT-D3(0) dispersion correction. |
 | `gpumd_dp_pytorch` | Run GPUMD with a DeePMD-kit PyTorch model. |
 | `gpumd_nnap` | Run GPUMD with an NNAP potential. |
 

@@ -61,9 +61,23 @@ void NEP::initialize_dftd3(const RunInput& run_input)
     const std::vector<std::string>& tokens = line.tokens;
     if (!tokens.empty() && tokens[0] == "dftd3") {
       has_dftd3 = true;
-      if (tokens.size() != 4) {
-        std::cout << "dftd3 must have 3 parameters\n";
+      if (tokens.size() < 4) {
+        std::cout << "dftd3 must have 3 parameters (functional, potential cutoff, coordination "
+                     "number cutoff) and an optional damping (zero or bj)\n";
         exit(1);
+      }
+      if (tokens.size() > 5) {
+        std::cout << "dftd3 has too many parameters; the syntax is dftd3 <functional> "
+                     "<rc_potential> <rc_cn> [zero|bj] (the damping must be zero or bj)\n";
+        exit(1);
+      }
+      std::string damping = "bj";
+      if (tokens.size() == 5) {
+        damping = tokens[4];
+        if (damping != "zero" && damping != "bj") {
+          std::cout << "dftd3 damping must be zero or bj (lower case), not " << damping << "\n";
+          exit(1);
+        }
       }
       std::string xc_functional = tokens[1];
       float rc_potential = get_double_from_token(tokens[2], __FILE__, __LINE__);
@@ -72,7 +86,8 @@ void NEP::initialize_dftd3(const RunInput& run_input)
         xc_functional,
         rc_potential,
         rc_coordination_number,
-        get_first_potential_filename(run_input));
+        get_first_potential_filename(run_input),
+        damping);
       break;
     }
   }

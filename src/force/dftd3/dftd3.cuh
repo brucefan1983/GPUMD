@@ -27,12 +27,16 @@ public:
     float s8 = 0.0;
     float a1 = 0.0;
     float a2 = 0.0;
+    int damping = 0; // 0: BJ damping, 1: zero damping, D3(0)
+    float sr6 = 0.0; // zero damping only: scaling of R0 in f6 (alpha6 = 14)
+    float sr8 = 1.0; // zero damping only: scaling of R0 in f8 (alpha8 = 16)
     int atomic_number[94];
   };
 
   DFTD3_Para dftd3_para;
 
   bool enabled = false;
+  bool elements_checked = false; // zero damping: Z <= 86 checked for the atoms of the system
   float rc_radial = 15.0;
   float rc_angular = 10.0;
   GPU_Vector<float> cn_w;
@@ -85,9 +89,13 @@ public:
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
 
+  // Zero damping, D3(0), is tabulated for Z <= 86 only: exit with an error for other elements.
+  void check_elements(const GPU_Vector<int>& type);
+
   void initialize(
     std::string& ex_functional,
     const float rc_radial,
     const float rc_angular,
-    const std::string& potential_file_name);
+    const std::string& potential_file_name,
+    const std::string& damping = "bj");
 };
