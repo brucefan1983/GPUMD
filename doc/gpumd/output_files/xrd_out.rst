@@ -1,8 +1,8 @@
-.. _xrd_txt:
+.. _xrd_out:
 .. index::
-   single: xrd.txt (output file)
+   single: xrd.out (output file)
 
-``xrd.txt``
+``xrd.out``
 ===========
 
 :ref:`compute_xrd <kw_compute_xrd>` appends one block per sample. The first

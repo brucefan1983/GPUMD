@@ -70,7 +70,6 @@ private:
   int grouping_method_ = -1;
   int group_id_ = -1;
   int number_selected_ = 0;
-  std::string filename_ = "xrd.txt";
   std::ofstream output_;
   std::unique_ptr<Storage> storage_;
 };

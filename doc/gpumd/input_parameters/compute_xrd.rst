@@ -6,7 +6,7 @@
 ===================
 
 Calculate kinematic X-ray diffraction intensities on a reciprocal-space grid.
-Write one intensity for each sampled point to :ref:`xrd.txt <xrd_txt>`.
+Write one intensity for each sampled point to :ref:`xrd.out <xrd_out>` in the working directory.
 To obtain a powder pattern, sum the intensities in bins of equal scattering
 angle. See the `worked examples in GPUMD-Tutorials <https://github.com/brucefan1983/GPUMD-Tutorials>`_.
 For the reciprocal grid and kinematic diffraction convention, see
@@ -35,7 +35,6 @@ at step ``interval`` of that run.
   the mean inverse box length over the periodic axes.
 * ``spacing <gx> <gy> <gz>`` sets fixed positive grid spacings in Å⁻¹.
   It is mutually exclusive with ``scale`` and required for a fully nonperiodic box.
-* ``file <filename>`` sets the output filename (default ``xrd.txt``).
 
 Built-in form factors
 ---------------------
@@ -95,7 +94,7 @@ The multiplier for the Lorentz–polarization option is
       1, & \text{if lp is 0}.
    \end{cases}
 
-See :ref:`xrd.txt <xrd_txt>` for the normalization of the stored intensity.
+See :ref:`xrd.out <xrd_out>` for the normalization of the stored intensity.
 
 Sampling conventions
 --------------------

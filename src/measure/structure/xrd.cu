@@ -573,8 +573,6 @@ XRD::XRD(const std::vector<std::string>& tokens, const std::vector<Group>& group
         PRINT_INPUT_ERROR("compute_xrd lp expects 0 or 1.");
       }
       use_lp_ = value == "1";
-    } else if (key == "file" && i + 1 < count) {
-      filename_ = tokens[++i];
     } else {
       const std::string error = "Invalid or incomplete compute_xrd option: " + key;
       PRINT_INPUT_ERROR(error.c_str());
@@ -616,10 +614,9 @@ void XRD::pre_run(
   update_factors(atom, groups);
 
   update_mesh(box);
-  output_.open(filename_, std::ios::app);
+  output_.open("xrd.out", std::ios::app);
   if (!output_) {
-    const std::string error = "Cannot open compute_xrd output: " + filename_;
-    PRINT_INPUT_ERROR(error.c_str());
+    PRINT_INPUT_ERROR("Cannot open compute_xrd output xrd.out.");
   }
   output_ << std::setprecision(17);
 }
