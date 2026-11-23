@@ -171,6 +171,26 @@ The spin torque used for training diagnostics is
 ZBL contributes to energy, atomic force, and virial but not to magnetic force
 or torque because it is spin independent.
 
+.. _spin_full_virial:
+
+Full virial supervision
+=======================
+
+NEP-Spin takes the full cell tensor from the nine-component :ref:`virial field <train_test_xyz>`.
+The deformation gradient :math:`F` acts on the cell and atomic positions while the Cartesian spins are held fixed.
+The virial is :math:`W_{ij}=-\left.\partial U/\partial F_{ji}\right|_{F=I}`, evaluated at the undeformed configuration.
+The full tensor includes the structural, spin and ZBL derivatives. Only the spin term can contribute to the antisymmetric part of the cell virial.
+Rotational invariance of the joint spin and lattice rotation gives
+
+.. math::
+
+   (W_{yz}-W_{zy},\, W_{zx}-W_{xz},\, W_{xy}-W_{yx})
+   = -\sum_i \boldsymbol{s}_i\times\boldsymbol{M}_i.
+
+The :ref:`lambda_v <kw_lambda_v>` objective uses all nine Cartesian residuals of the per-atom virial for every labeled frame, including symmetric and zero tensors.
+The RMSE divides the sum of squared residuals by nine times the number of frames with a ``virial`` label; unlabeled frames do not contribute.
+For the training loss, the structure ``weight`` multiplies every residual and :ref:`lambda_shear <kw_lambda_shear>` also multiplies each off-diagonal residual before squaring.
+
 Spin loss terms
 ===============
 
@@ -251,7 +271,6 @@ The exported ``nep.txt`` uses ``format_version 1``, ``model nep_spin``, and ``sp
 Universal :ref:`ZBL <kw_zbl>` is optional; flexible ZBL is not supported.
 Parameters from the previous Spin3 descriptor layout are incompatible with this model.
 See :ref:`spin_version <kw_spin_version>` for the training settings and compatibility requirements.
-Spin virial and stress labels use the symmetric tensor part when reduced to six components.
 The parameter and scaler layouts are specified in
 `the NEP model format <https://github.com/brucefan1983/GPUMD/blob/master/potentials/nep/nep_model_format.md>`_.
 

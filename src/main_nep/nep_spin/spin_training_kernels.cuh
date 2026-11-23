@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Chengbing Chen: Initial implementation.
+------------------------------------------------------------------------------*/
+
 #pragma once
 namespace
 {
@@ -39,12 +44,14 @@ __global__ void add_spin_training_outputs(
       static_cast<float>(spin_virial[component * atom_count + atom]);
   }
   // Fixed spins with SOC allow a torque. Symmetric strain couples to (W + W^T)/2.
-  constexpr int upper[3] = {3, 5, 4}; // xy, yz, xz
-  constexpr int lower[3] = {6, 8, 7}; // yx, zy, zx
+  constexpr int forward[3] = {3, 5, 7}; // xy, yz, zx
+  constexpr int reverse[3] = {6, 8, 4}; // yx, zy, xz
   for (int shear = 0; shear < 3; ++shear) {
-    const double symmetric = 0.5 * (spin_virial[upper[shear] * atom_count + atom] +
-                                    spin_virial[lower[shear] * atom_count + atom]);
-    virial[(shear + 3) * atom_count + atom] += static_cast<float>(symmetric);
+    const double a = spin_virial[forward[shear] * atom_count + atom];
+    const double b = spin_virial[reverse[shear] * atom_count + atom];
+    virial[(shear + 3) * atom_count + atom] += static_cast<float>(0.5 * (a + b));
+    // The structural and ZBL contributions are symmetric after summing atoms.
+    virial[(shear + 6) * atom_count + atom] = static_cast<float>(0.5 * (a - b));
   }
 }
 

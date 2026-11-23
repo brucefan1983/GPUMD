@@ -99,7 +99,7 @@ private:
   std::vector<Dataset> response_set;
   std::vector<std::unique_ptr<Spin_Data>> response_data;
   std::vector<float> fitness_mforce, fitness_tau, fitness_response;
-  NEP_Energy_Loss energy_loss;
+  std::vector<float> fitness_energy, fitness_force, fitness_virial, fitness_ediff;
   EnergyDifference energy_difference;
   NEP_Neighbor neighbor[16];
   NEP_Descriptor_Parameters paramb;
@@ -162,6 +162,8 @@ private:
   void initialize_additional_outputs(Dataset&, int);
   void find_additional_force(Spin_Parameters&, Dataset&, int);
   float response_loss(int);
+  NEP_Energy_Error get_energy_error(Dataset&, bool is_train, int batch);
+  void write_predictions(const char*, const std::vector<std::pair<Dataset*, int>>&);
   void write_magnetic_predictions(const char*, const std::vector<std::pair<Dataset*, int>>&);
   struct Spin_Workspace {
     nep_spin::Storage spin_layout;
