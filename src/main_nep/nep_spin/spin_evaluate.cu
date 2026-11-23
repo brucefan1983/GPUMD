@@ -15,7 +15,7 @@
 
 /*----------------------------------------------------------------------------80
 Major contributors:
-  Chengbing Chen: Initial implementation. Managed device workspaces for specialized spin evaluation.
+  Chengbing Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "main_nep/dataset.cuh"
@@ -26,9 +26,9 @@ Major contributors:
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 
-#include "force/nep_spin/spin_kernels.cuh"
 #include "spin_compile.cuh"
 #include "spin_training_kernels.cuh"
+#include "utilities/nep_spin/spin_kernels.cuh"
 
 void NEP_Spin_Model::initialize_spin(Spin_Parameters& para, int N, int device_count)
 {
@@ -37,12 +37,19 @@ void NEP_Spin_Model::initialize_spin(Spin_Parameters& para, int N, int device_co
   spin_projection_offset_ =
     para.number_of_variables_descriptor - para.number_of_variables_spin_projection;
   num_types_ = para.num_types;
+  const auto& walls = para.spin_walls();
+  const bool has_wall =
+    std::any_of(walls.begin(), walls.end(), [](const Spin_Walls& wall) { return wall.enabled(); });
 
   for (int device_id = 0; device_id < device_count; ++device_id) {
     CHECK(gpuSetDevice(device_id));
     auto& data = spin_data_[device_id];
     data.spin_type_active.resize(num_types_);
     data.spin_type_active.copy_from_host(para.spin_type_active.data());
+    if (has_wall) {
+      data.spin_walls.resize(walls.size());
+      data.spin_walls.copy_from_host(walls.data());
+    }
     std::vector<float> spin_cutoff_pair(static_cast<std::size_t>(num_types_) * num_types_);
     for (int type_i = 0; type_i < num_types_; ++type_i) {
       for (int type_j = 0; type_j < num_types_; ++type_j) {

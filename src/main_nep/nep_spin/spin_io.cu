@@ -110,10 +110,18 @@ void write_checkpoint_metadata(FILE* fid_nep, const Spin_Parameters& para)
     }
     fprintf(fid_nep, "\n");
   }
+  const auto& walls = para.spin_walls();
+  if (std::any_of(
+        walls.begin(), walls.end(), [](const Spin_Walls& wall) { return wall.enabled(); })) {
+    fprintf(fid_nep, "spin_wall");
+    for (const auto& wall : walls)
+      for (const auto& side : wall.side)
+        fprintf(fid_nep, " %.17g %.17g", side.threshold, side.stiffness);
+    fprintf(fid_nep, "\n");
+  }
 }
-} // namespace
 
-void read_spin_model(Spin_Parameters& para, float* parameters)
+NEP_Spin_Model_File load_spin_model(Spin_Parameters& para, float* parameters)
 {
   std::ifstream input("nep.txt");
   NEP_Spin_Model_File model;
@@ -132,6 +140,13 @@ void read_spin_model(Spin_Parameters& para, float* parameters)
     para.q_scaler_gpu[d].copy_from_host(para.q_scaler_cpu.data());
   }
   CHECK(gpuSetDevice(0));
+  return model;
+}
+} // namespace
+
+void read_spin_model(Spin_Parameters& para, float* parameters)
+{
+  load_spin_model(para, parameters);
 }
 
 void Spin_Parameters::initialize_spin_checkpoint()
@@ -159,7 +174,9 @@ void Spin_Parameters::initialize_spin_checkpoint()
   CHECK(gpuSetDevice(0));
   if (para.prediction || para.spin_restart || para.import_q_scaler) {
     std::vector<float> parameters(para.number_of_variables);
-    read_spin_model(para, parameters.data());
+    configure_spin_walls(load_spin_model(para, parameters.data()).spin_walls);
+  } else {
+    configure_spin_walls({});
   }
   if (para.spin_restart) {
     std::vector<float> mu, sigma;

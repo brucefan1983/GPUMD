@@ -27,7 +27,7 @@ SOURCE = r'''
 #include <cuda_runtime.h>
 #include <cmath>
 #include <cstdio>
-#include "force/nep_spin/spin_math.cuh"
+#include "utilities/nep_spin/spin_math.cuh"
 constexpr int D=64, H=30, P=H*D+2*H+1;
 __global__ void evaluate(float* p, float* q, double* result) {
   double energy=0, gradient[D]={};

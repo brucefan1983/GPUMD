@@ -15,17 +15,19 @@
 
 /*----------------------------------------------------------------------------80
 Major contributors:
-  Chengbing Chen: Initial implementation. Reused forward geometry in the training adjoint.
+  Chengbing Chen: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #ifdef NEP_SPECIALIZED_RUNTIME_BUILD
-#include "force/nep_spin/spin_kernels.cuh"
-#include "force/nep_spin/spin_layout.cuh"
-#include "force/nep_spin/spin_md_layouts.cuh"
+// The generated configuration uses the Spin layout types.
+#include "utilities/nep_spin/spin_layout.cuh"
+
 #include "model/box.cuh"
 #include "nep_special_config.cuh"
 #include "nep_spin.cuh"
 #include "utilities/gpu_macro.cuh"
+#include "utilities/nep_spin/spin_kernels.cuh"
+#include "utilities/nep_spin/spin_md_layouts.cuh"
 #include <type_traits>
 
 namespace

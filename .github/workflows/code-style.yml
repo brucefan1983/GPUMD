@@ -1,0 +1,55 @@
+name: Code style
+
+on:
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  style:
+    runs-on: ubuntu-24.04
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+
+    steps:
+      - name: Checkout code
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang-format-19
+          clang-format-19 --version
+
+      - name: Check formatting of changed source files
+        shell: bash
+        run: |
+          # Validate the configuration even when no source files changed.
+          clang-format-19 --style=file:.clang-format --dump-config > /dev/null
+
+          git diff --name-only --diff-filter=ACMR -z "$BASE_SHA"...HEAD -- \
+            '*.c' '*.cc' '*.cpp' '*.cxx' '*.h' '*.hh' '*.hpp' '*.hxx' \
+            '*.cu' '*.cuh' > "$RUNNER_TEMP/clang-format-files"
+
+          format_status=0
+          while IFS= read -r -d '' file; do
+            printf 'Checking %s\n' "$file"
+            clang-format-19 --style=file --dry-run --Werror "./$file" || format_status=1
+          done < "$RUNNER_TEMP/clang-format-files"
+          exit "$format_status"
+
+      - name: Check whitespace in the PR diff
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        shell: bash
+        run: git diff --check "$BASE_SHA"...HEAD

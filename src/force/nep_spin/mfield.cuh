@@ -15,9 +15,6 @@
 
 /*----------------------------------------------------------------------------80
 Action interface and state for external magnetic fields in NEP-spin.
-
-Contributors:
-Chengbing Chen, 1747193328@qq.com
 ------------------------------------------------------------------------------*/
 
 #pragma once

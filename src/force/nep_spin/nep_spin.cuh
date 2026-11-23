@@ -16,9 +16,6 @@
 /*----------------------------------------------------------------------------80
 NEP-spin potential interface, model parameters, and GPU workspaces.
 
-Contributors:
-Chengbing Chen, 1747193328@qq.com
-
 References:
 Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to
@@ -26,12 +23,13 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 ------------------------------------------------------------------------------*/
 
 #pragma once
+#include "utilities/nep_spin/spin_wall.cuh"
 
 #include "force/neighbor.cuh"
-#include "force/nep_spin/spin_storage.cuh"
 #include "force/potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "utilities/nep_spin/spin_storage.cuh"
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -148,6 +146,7 @@ private:
     GPU_Vector<float> f12y;
     GPU_Vector<float> f12z;
     GPU_Vector<double> energy_reference;
+    GPU_Vector<Spin_Walls> spin_walls;
     GPU_Vector<int> spin_type_active;
     GPU_Vector<float> spin_cutoff_pair;
     GPU_Vector<float> spin_moments;

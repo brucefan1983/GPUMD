@@ -26,6 +26,7 @@ Major contributors:
 #include <array>
 #include <cmath>
 #include <fstream>
+#include <limits>
 #include <map>
 #include <sstream>
 
@@ -37,8 +38,7 @@ static void read_spin_geometry(const XYZ_Record& record, Spin_Data::Geometry& ge
     const std::string key = "lattice=";
     if (record.tokens[n].compare(0, key.size(), key) != 0)
       continue;
-    if (n + 8 >= record.tokens.size())
-      PRINT_INPUT_ERROR("Incomplete spin lattice tensor.");
+    record.validate_array(n, 9);
     const int transpose[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
     for (int k = 0; k < 9; ++k) {
       const auto& token = record.tokens[n + k];
@@ -52,7 +52,7 @@ static void read_spin_geometry(const XYZ_Record& record, Spin_Data::Geometry& ge
   }
   if (!has_cell)
     PRINT_INPUT_ERROR("'lattice' is missing in the second line of a frame.");
-  const int pos = record.get_property_offset("pos");
+  const int pos = record.get_property_offset("pos", 'R', 3);
   if (pos < 0)
     PRINT_INPUT_ERROR("'pos' is missing in properties.");
   geometry.position.resize(record.num_atoms);
@@ -65,8 +65,7 @@ static void read_spin_geometry(const XYZ_Record& record, Spin_Data::Geometry& ge
 static void read_spin_tensor(
   const XYZ_Record& record, size_t first, size_t key_length, double scale, float* result)
 {
-  if (first + 8 >= record.tokens.size())
-    PRINT_INPUT_ERROR("Incomplete spin virial/stress tensor.");
+  record.validate_array(first, 9);
   double tensor[9];
   for (int k = 0; k < 9; ++k) {
     const auto& token = record.tokens[first + k];
@@ -273,6 +272,25 @@ void NEP_Spin_Model::Spin_Reader::read_structure(const XYZ_Record& record, Struc
 void NEP_Spin_Model::Spin_Reader::prepare_train(
   std::vector<Structure>& structures, int batch_size, int& batches, std::vector<int>& sizes)
 {
+  if (parameters.needs_spin_wall_bounds()) {
+    const double infinity = std::numeric_limits<double>::infinity();
+    std::vector<double> minima(parameters.num_types, infinity);
+    std::vector<double> maxima(parameters.num_types, -infinity);
+    for (const auto& structure : structures) {
+      const auto& label = labels.at(structure.index_in_file);
+      for (int a = 0; a < structure.num_atom; ++a) {
+        const int type = structure.type[a];
+        if (!parameters.spin_type_active[type])
+          continue;
+        const double norm = std::hypot(std::hypot(label.sx[a], label.sy[a]), label.sz[a]);
+        if (!std::isfinite(norm))
+          PRINT_INPUT_ERROR("Cannot resolve spin wall auto from a non-finite training moment.");
+        minima[type] = std::min(minima[type], norm);
+        maxima[type] = std::max(maxima[type], norm);
+      }
+    }
+    parameters.resolve_spin_wall_bounds(minima, maxima);
+  }
   for (const auto& structure : structures) {
     const auto& label = labels.at(structure.index_in_file);
     if (label.has_spin_response_metadata)
