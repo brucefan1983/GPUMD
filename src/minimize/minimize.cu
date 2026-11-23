@@ -42,6 +42,9 @@ void Minimize::parse_minimize(
   std::vector<Group>& group)
 {
   const int num_param = tokens.size();
+  if (num_param < 2) {
+    PRINT_INPUT_ERROR("minimize requires a minimizer type.");
+  }
   int minimizer_type = 0;
   int number_of_steps = 0;
   double force_tolerance = 0.0;
