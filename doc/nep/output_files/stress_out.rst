@@ -19,3 +19,7 @@ For a structure without target virial or stress, a target value of -1e6 will be 
 The stress values are in units of GPa.
 Both predicted and target values use :math:`\mathbf{W}/V`, with diagonal components positive under compression, and contain no kinetic contribution.
 This is opposite in sign to the :math:`-\mathbf{W}/V` convention for the ``stress`` field in :ref:`train.xyz and test.xyz <train_test_xyz>`.
+
+NEP-Spin also writes 12 columns, derived from the symmetric part of each full virial,
+:math:`(\mathbf{W}+\mathbf{W}^{\mathsf{T}})/(2V)`, converted to GPa.
+These files are derived outputs; NEP-Spin does not read the ``stress`` input field.

@@ -44,15 +44,12 @@ Essentially any keyword is allowed, but we only read the following ones:
 * :attr:`energy=energy_value` such as :attr:`energy=-123.4` is mandatory and gives the target energy of the structure, which is :math:`-123.4` eV in this example.
 * :attr:`virial="vxx vxy vxz vyx vyy vyz vzx vzy vzz"` is optional and gives the :math:`3\times3` virial tensor of the structure in eV.
   Positive and negative values represent compressed and stretched states, respectively.
+  NEP-Spin supervises all nine components, including for symmetric or zero tensors. See :ref:`spin_full_virial`.
 * :attr:`stress="sxx sxy sxz syx syy syz szx szy szz"` is optional and gives the :math:`3\times3` stress tensor of the structure in eV/Å\ :math:`^3`.
   Positive and negative values represent stretched and compressed states, respectively.
-  If both :attr:`virial` and :attr:`stress` are present, the virial is used.
+  NEP-Spin rejects this field, even when :attr:`virial` is also present.
+  For other models, if both :attr:`virial` and :attr:`stress` are present, the virial is used.
   During potential training, the two tensors must agree after conversion to per-atom virials, within :math:`10^{-3}` eV/atom for each independent component; otherwise training stops with an input error.
-* For NEP-Spin, use the same row-major ``virial`` field to supply the total cell tensor at fixed Cartesian spins.
-  Here :math:`W_{ij}=-\partial U/\partial F_{ji}`, where :math:`F` acts on the cell and positions.
-  If any pair of transposed entries differs, the frame supplies nine targets. A symmetric ``virial`` or a ``stress`` field alone supplies six symmetric targets.
-  If both fields are present, the consistency check compares their symmetric parts.
-  See :ref:`spin_full_virial` for the loss and output convention.
 * :attr:`weight=relative_weight` is optional and gives the relative weight for the current structure in the total loss function.
 * :attr:`energy_weight=relative_weight` is optional and defaults to 1. It multiplies the squared energy error for the current structure, in addition to the weighting specified by :attr:`weight`.
 * :attr:`charge=total_charge` is optional for ``qnep1``, ``qnep2``, ``qnep3``, and ``qnep3_vdw`` models. It gives the total charge of the structure in units of elementary charge e and defaults to 0.

@@ -20,6 +20,5 @@ The virial values are in units of eV/atom.
 
 For NEP-Spin, the same files have 18 columns: nine predicted components followed by nine reference components, both in the row-major order of the input ``virial`` field
 (:math:`xx,xy,xz,yx,yy,yz,zx,zy,zz`).
-A symmetric ``virial`` or a ``stress``-only reference is written as a symmetric tensor; only its six independent components are supervised.
 For a frame without a reference, all nine reference values are ``-1e6``.
-The ``stress_*.out`` files still contain six predicted and six reference components.
+See :ref:`stress_out` for the derived six-component stress output.

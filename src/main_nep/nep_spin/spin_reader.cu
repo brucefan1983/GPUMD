@@ -62,8 +62,7 @@ static void read_spin_geometry(const XYZ_Record& record, Spin_Data::Geometry& ge
         record.atoms[a][pos + d], record.filename.c_str(), record.comment_line_number + a + 1);
 }
 
-static bool read_spin_tensor(
-  const XYZ_Record& record, size_t first, double scale, bool is_virial, float* result)
+static void read_spin_tensor(const XYZ_Record& record, size_t first, double scale, float* result)
 {
   record.validate_array(first, 9);
   double tensor[9];
@@ -75,9 +74,6 @@ static bool read_spin_tensor(
       record.filename.c_str(),
       record.comment_line_number);
   }
-  // shortcut: symmetric virials use six labels, even if measured as a full tensor.
-  const bool full =
-    is_virial && (tensor[1] != tensor[3] || tensor[5] != tensor[7] || tensor[6] != tensor[2]);
   const double projected[9] = {
     tensor[0] * scale,
     tensor[4] * scale,
@@ -88,12 +84,11 @@ static bool read_spin_tensor(
     (tensor[1] - tensor[3]) * (.5 * scale),
     (tensor[5] - tensor[7]) * (.5 * scale),
     (tensor[6] - tensor[2]) * (.5 * scale)};
-  for (int d = 0; d < (full ? 9 : 6); ++d) {
+  for (int d = 0; d < 9; ++d) {
     if (!std::isfinite(projected[d]) || std::abs(projected[d]) > std::numeric_limits<float>::max())
       PRINT_INPUT_ERROR("Per-atom virial values must be finite and within the float range.");
     result[d] = projected[d];
   }
-  return full;
 }
 
 // A local displacement for differentiating a sampled spin path. The sphere log
@@ -163,46 +158,31 @@ void NEP_Spin_Model::Spin_Reader::read_structure(const XYZ_Record& record, Struc
   labels.emplace_back();
   auto& label = labels.back();
   read_spin_geometry(record, label.geometry);
-  const auto& h = label.geometry.cell;
-  const double volume = std::abs(
-    h[0] * (h[4] * h[8] - h[5] * h[7]) - h[1] * (h[3] * h[8] - h[5] * h[6]) +
-    h[2] * (h[3] * h[7] - h[4] * h[6]));
-  float virial[9] = {}, stress[6] = {};
-  bool has_virial = false, has_stress = false;
+  for (const auto& token : record.tokens) {
+    if (token.compare(0, 7, "stress=") == 0)
+      PRINT_INPUT_ERROR(
+        "NEP-Spin does not accept stress labels. Use the nine-component virial field.");
+  }
+
+  float virial[9] = {};
+  bool has_virial = false;
   // Common energy/force handling receives no model-specific tensor labels.
   XYZ_Record energy_record = record;
-  for (size_t n = 0; n < energy_record.tokens.size();) {
-    const auto& token = energy_record.tokens[n];
-    const bool v = token.compare(0, 7, "virial=") == 0;
-    const bool p = token.compare(0, 7, "stress=") == 0;
-    if (!v && !p) {
-      ++n;
+  for (size_t n = 0; n < record.tokens.size(); ++n) {
+    if (record.tokens[n].compare(0, 7, "virial=") != 0)
       continue;
-    }
-    if (v) {
-      label.has_full_virial =
-        read_spin_tensor(energy_record, n, 1.0 / record.num_atoms, true, virial);
-      has_virial = true;
-    } else {
-      read_spin_tensor(energy_record, n, -volume / record.num_atoms, false, stress);
-      has_stress = true;
-    }
+    read_spin_tensor(record, n, 1.0 / record.num_atoms, virial);
+    has_virial = true;
     energy_record.tokens.erase(
       energy_record.tokens.begin() + n, energy_record.tokens.begin() + n + 9);
+    break;
   }
   NEP_Energy_Reader::read_structure(energy_record, structure);
-  if (has_virial && has_stress) {
-    for (int d = 0; d < 6; ++d)
-      if (std::abs(virial[d] - stress[d]) > 1e-3f && para.prediction == 0)
-        PRINT_INPUT_ERROR("Virials and stresses for structure are inconsistent!");
-    if (para.prediction == 0)
-      printf("Structure has both defined virials and stresses. Will use virial information.\n");
-  }
-  structure.has_virial = has_virial || has_stress;
-  for (int d = 0; d < 6; ++d)
-    structure.virial[d] = has_virial ? virial[d] : (has_stress ? stress[d] : -1e6f);
-  if (label.has_full_virial)
+  if (has_virial) {
+    structure.has_virial = true;
+    std::copy_n(virial, 6, structure.virial);
     std::copy_n(virial + 6, 3, label.antisymmetric_virial.begin());
+  }
   int spin_offset = -1, mforce_offset = -1, offset = 0;
   for (int k = 0; k < record.properties.size() / 3; ++k) {
     const auto& name = record.properties[3 * k];

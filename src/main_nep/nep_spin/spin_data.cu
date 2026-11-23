@@ -136,20 +136,13 @@ void Spin_Data::construct(
   r_spin.copy_from_host(position.data());
   spin.resize(3 * N);
   spin.copy_from_host(moments.data());
-  if (std::any_of(
-        labels.begin(), labels.end(), [](const Labels& l) { return l.has_full_virial; })) {
-    std::vector<int> mask(Nc);
-    std::vector<float> antisymmetric(3 * Nc);
-    for (int n = 0; n < Nc; ++n) {
-      mask[n] = labels[n].has_full_virial;
-      for (int d = 0; d < 3; ++d)
-        antisymmetric[d * Nc + n] = labels[n].antisymmetric_virial[d];
-    }
-    full_virial_mask_gpu.resize(Nc);
-    full_virial_mask_gpu.copy_from_host(mask.data());
-    antisymmetric_virial_ref_gpu.resize(antisymmetric.size());
-    antisymmetric_virial_ref_gpu.copy_from_host(antisymmetric.data());
+  std::vector<float> antisymmetric(3 * Nc);
+  for (int n = 0; n < Nc; ++n) {
+    for (int d = 0; d < 3; ++d)
+      antisymmetric[d * Nc + n] = labels[n].antisymmetric_virial[d];
   }
+  antisymmetric_virial_ref_gpu.resize(antisymmetric.size());
+  antisymmetric_virial_ref_gpu.copy_from_host(antisymmetric.data());
   mforce.resize(3 * N);
   mforce.fill(0.0f);
   mforce_ref_gpu.resize(3 * N);
@@ -211,7 +204,6 @@ static __global__ void gpu_sum_spin_virial_error(
   const float* g_virial,
   const float* g_virial_ref,
   const float* antisymmetric_ref,
-  const int* has_full_virial,
   float* error_gpu)
 {
   int tid = threadIdx.x;
@@ -219,15 +211,13 @@ static __global__ void gpu_sum_spin_virial_error(
   int Na = g_Na[bid];
   int N1 = g_Na_sum[bid];
   int N2 = N1 + Na;
-  const bool full = has_full_virial[bid];
-  const int count = full ? 9 : 6;
   extern __shared__ float s_virial[];
-  for (int d = 0; d < count; ++d) {
+  for (int d = 0; d < 9; ++d) {
     s_virial[d * blockDim.x + tid] = 0.0f;
   }
 
   for (int n = N1 + tid; n < N2; n += blockDim.x) {
-    for (int d = 0; d < count; ++d) {
+    for (int d = 0; d < 9; ++d) {
       s_virial[d * blockDim.x + tid] += g_virial[d * N + n];
     }
   }
@@ -235,7 +225,7 @@ static __global__ void gpu_sum_spin_virial_error(
 
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
-      for (int d = 0; d < count; ++d) {
+      for (int d = 0; d < 9; ++d) {
         s_virial[d * blockDim.x + tid] += s_virial[d * blockDim.x + tid + offset];
       }
     }
@@ -246,8 +236,8 @@ static __global__ void gpu_sum_spin_virial_error(
     float error_sum = 0.0f;
     // Each symmetric mean and antisymmetric half-difference contributes twice
     // to the squared norm of the reconstructed off-diagonal entries.
-    const float off_diagonal_weight = full ? 2.0f * shear_weight : shear_weight;
-    for (int d = 0; d < count; ++d) {
+    const float off_diagonal_weight = 2.0f * shear_weight;
+    for (int d = 0; d < 9; ++d) {
       const float reference =
         d < 6 ? g_virial_ref[d * gridDim.x + bid] : antisymmetric_ref[(d - 6) * gridDim.x + bid];
       const float diff = s_virial[d * blockDim.x] / Na - reference;
@@ -260,8 +250,6 @@ static __global__ void gpu_sum_spin_virial_error(
 std::vector<float>
 Spin_Data::get_rmse_virial(Spin_Parameters& para, Dataset& data, bool use_weight, int device_id)
 {
-  if (full_virial_mask_gpu.size() == 0)
-    return data.get_rmse_virial(para, use_weight, device_id);
   CHECK(gpuSetDevice(device_id));
   const int block_size = 256;
   const float shear_weight = use_weight ? para.lambda_shear * para.lambda_shear : 1.0f;
@@ -273,7 +261,6 @@ Spin_Data::get_rmse_virial(Spin_Parameters& para, Dataset& data, bool use_weight
     data.virial.data(),
     data.virial_ref_gpu.data(),
     antisymmetric_virial_ref_gpu.data(),
-    full_virial_mask_gpu.data(),
     data.error_gpu.data());
   GPU_CHECK_KERNEL
   data.error_gpu.copy_to_host(data.error_cpu.data());
@@ -288,7 +275,7 @@ Spin_Data::get_rmse_virial(Spin_Parameters& para, Dataset& data, bool use_weight
     for (int t = 0; t <= para.num_types; ++t) {
       if (data.has_type[t * data.Nc + n]) {
         rmse[t] += error;
-        count[t] += labels[n].has_full_virial ? 9 : 6;
+        count[t] += 9;
       }
     }
   }

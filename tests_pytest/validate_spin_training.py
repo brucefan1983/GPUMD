@@ -480,11 +480,13 @@ def validate_native_compiled_checkpoint(root):
                     "GPUMD_SRC does not point to a valid GPUMD src directory" not in result.stderr or
                     "Spin aggregate JIT ready:" in result.stdout):
                 raise AssertionError("Expected native fallback after JIT initialization failed")
+            virial = columns(case / "virial_test.out", 19)
+            assert virial and all(len(row) == 18 for row in virial), case
             if mode == "native":
                 native = case
                 continue
             errors = {}
-            for name, width in (("energy", 1), ("force", 3), ("virial", 6), ("mforce", 3)):
+            for name, width in (("energy", 1), ("force", 3), ("virial", 9), ("mforce", 3)):
                 values = [columns(path / f"{name}_test.out", width) for path in (native, case)]
                 error = maximum_error(*values)
                 tolerance = parity_tolerance(*values)
@@ -562,10 +564,12 @@ def validate_shared_nep_io(root):
     config = "\n".join(line for line in NEP_IN.splitlines()
         if not line.startswith(("spin_", "lambda_m", "lambda_tau"))) + "\n"
     # Use asymmetric tensors to distinguish ordinary NEP and spin label conventions.
-    xyz = TRAIN_XYZ.replace('virial="0 0 0 0 0 0 0 0 0"',
-                            'virial="0 2 8 6 0 5 16 11 0"', 1)
-    stress = " ".join(str(-v / 24**3) for v in (0, 2, 8, 6, 0, 5, 16, 11, 0))
-    xyz = xyz.replace('virial="0 0 0 0 0 0 0 0 0"', f'stress="{stress}"', 1)
+    tensor = (0, 2, 8, 6, 0, 5, 16, 11, 0)
+    zero_virial = 'virial="0 0 0 0 0 0 0 0 0"'
+    virial = 'virial="' + " ".join(map(str, tensor)) + '"'
+    spin_xyz = TRAIN_XYZ.replace(zero_virial, virial, 2)
+    stress = " ".join(str(-v / 24**3) for v in tensor)
+    xyz = TRAIN_XYZ.replace(zero_virial, f'stress="{stress}"', 1).replace(zero_virial, virial, 1)
     write_case(root, config, xyz)
     result = run(NEP, root)
     if result.returncode:
@@ -589,14 +593,14 @@ def validate_shared_nep_io(root):
         raise RuntimeError(result.stdout + result.stderr)
     assert predictions == [(root / (name + "_train.out")).read_text() for name in ("energy", "force", "virial")]
     spin = root / "spin"
-    write_case(spin, NEP_IN, xyz)
+    write_case(spin, NEP_IN, spin_xyz)
     for settings in (NEP_IN, NEP_IN + "prediction 1\n"):
         (spin / "nep.in").write_text(settings)
         result = run(NEP, spin)
         assert result.returncode == 0, result.stdout + result.stderr
     spin_rows = columns(spin / "virial_train.out", 19)
-    assert spin_rows[0][9:] == [x / 4 for x in (0, 2, 8, 6, 0, 5, 16, 11, 0)]
-    assert spin_rows[1][9:] == [0, 1, 3, 1, 0, 2, 3, 2, 0]
+    for row in spin_rows[:2]:
+        assert row[9:] == [x / 4 for x in tensor]
     return "training/restart/prediction passed"
 
 
