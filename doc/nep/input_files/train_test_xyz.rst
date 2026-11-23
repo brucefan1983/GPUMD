@@ -44,7 +44,7 @@ Essentially any keyword is allowed, but we only read the following ones:
 * :attr:`energy=energy_value` such as :attr:`energy=-123.4` is mandatory and gives the target energy of the structure, which is :math:`-123.4` eV in this example.
 * :attr:`virial="vxx vxy vxz vyx vyy vyz vzx vzy vzz"` is optional and gives the :math:`3\times3` virial tensor of the structure in eV.
   Positive and negative values represent compressed and stretched states, respectively.
-  NEP-Spin supervises all nine components, including for symmetric or zero tensors. See :ref:`spin_full_virial`.
+  NEP-Spin does not assume that the virial tensor is symmetric.
 * :attr:`stress="sxx sxy sxz syx syy syz szx szy szz"` is optional and gives the :math:`3\times3` stress tensor of the structure in eV/Å\ :math:`^3`.
   Positive and negative values represent stretched and compressed states, respectively.
   NEP-Spin rejects this field, even when :attr:`virial` is also present.
