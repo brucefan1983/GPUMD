@@ -191,6 +191,10 @@ The :ref:`lambda_v <kw_lambda_v>` objective uses all nine Cartesian residuals of
 The RMSE divides the sum of squared residuals by nine times the number of frames with a ``virial`` label; unlabeled frames do not contribute.
 For the training loss, the structure ``weight`` multiplies every residual and :ref:`lambda_shear <kw_lambda_shear>` also multiplies each off-diagonal residual before squaring.
 
+For NPT molecular dynamics, the barostat uses the symmetric part
+:math:`(\mathbf{W} + \mathbf{W}^{T})/2` of the potential virial.
+The force calculation and the per-atom ``dump_xyz`` virial retain all nine components.
+
 Spin loss terms
 ===============
 

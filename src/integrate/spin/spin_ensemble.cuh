@@ -47,6 +47,7 @@ private:
   class Lattice_MTTK;
   Force& force_;
   Spin_Potential* potential_ = nullptr;
+  GPU_Vector<double> pressure_virial_;
   std::unique_ptr<Ensemble> lattice_;
   std::unique_ptr<Spin_Integrator> spin_integrator;
   double temperature1 = 0.0, temperature2 = 0.0;
@@ -63,6 +64,7 @@ private:
   bool use_spin_tspin = false, use_spin_sib = false, use_spin_glsd = false,
        spin_lattice_enabled = true;
   Spin_Force_Snapshot modifiers_;
+  const GPU_Vector<double>& prepare_pressure_virial(const Atom& atom);
   Box start_box_;
   GPU_Vector<double> start_position_, endpoint_position_;
   GPU_Vector<int> endpoint_images_;

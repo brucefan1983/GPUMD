@@ -82,6 +82,8 @@ void Spin_Ensemble::initialize_run(
     spin_integrator->temperature = temperature;
   }
 
+  if (type == EnsembleType::MTTK)
+    pressure_virial_.resize(6 * static_cast<size_t>(atom.number_of_atoms));
   if (!use_spin_tspin) {
     const size_t n = atom.number_of_atoms;
     modifiers_.force.resize(3 * n);
@@ -105,8 +107,11 @@ void Spin_Ensemble::initialize_before_first_step(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (lattice_)
+  if (lattice_) {
+    // The first lattice step uses the virial from the initial force evaluation.
+    prepare_pressure_virial(atom);
     lattice_->initialize_before_first_step(dt, steps, group, box, atom, thermo);
+  }
 }
 void Spin_Ensemble::finalize_run(const Atom& atom, const Box& box)
 {
@@ -161,6 +166,9 @@ void Spin_Ensemble::compute2(
   if (coupled_glsd)
     refresh_endpoint(dt, force, box, atom, group, thermo);
   if (lattice_) {
+    // GLSD already projected the corrected virial in refresh_endpoint.
+    if (!coupled_glsd)
+      prepare_pressure_virial(atom);
     lattice_->compute2(dt, step, steps, group, box, atom, thermo, force);
     energy_transferred[0] = lattice_->energy_transferred[0];
     energy_transferred[1] = lattice_->energy_transferred[1];

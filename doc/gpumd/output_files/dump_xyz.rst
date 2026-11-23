@@ -24,6 +24,13 @@ The following per-atom quantities are included when the corresponding keyword is
 :attr:`unwrapped_position`, :attr:`virial`, and :attr:`group_labels`.
 The comment line of each frame always carries the time, the periodic boundary flags, the cell,
 and the total energy, virial, and stress.
+With a NEP-Spin potential, the header field ``virial`` sums the raw per-atom
+virials over the whole system in eV, in row-major order
+``xx xy xz yx yy yz zx zy zz``.
+The three pairs of off-diagonal entries can differ, even when the trajectory
+contains only a group or omits per-atom virials.
+In spin NPT, the separate header field ``stress`` contains the pressure
+computed from the symmetric virial and the lattice kinetic term.
 
 File format
 -----------

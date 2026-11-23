@@ -87,7 +87,7 @@ protected:
     const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo);
   void find_current_pressure(
     const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo);
-  void find_thermo(
+  virtual void find_thermo(
     const std::vector<Group>& group, const Box& box, const Atom& atom, GPU_Vector<double>& thermo);
   void get_h_matrix_from_box(Box& box);
   void copy_h_matrix_to_box(Box& box);

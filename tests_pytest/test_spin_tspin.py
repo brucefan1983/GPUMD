@@ -399,7 +399,18 @@ def test_element_mass_factor_zero_freezes_only_selected_spins(tmp_path):
     assert "spin mass factor for Ge is 1.5" in result.stdout
 
 
-def test_npt_tspin_runs_with_spin_force_path(tmp_path):
+@pytest.mark.parametrize(
+    "ensemble, replicas",
+    [
+        ("nve", 1),
+        ("npt_tspin temp 300 300 tri 0 0 seed 13579", 1),
+        ("npt_tspin temp 300 300 tri 0 0 seed 13579", 10),
+        ("npt_sib temp 300 300 tri 0 0 alpha 0 seed 13579", 1),
+        ("npt_glsd temp 300 300 tri 0 0 damping 0 seed 13579", 1),
+    ],
+    ids=["nve", "npt_tspin_small", "npt_tspin_large", "npt_sib", "npt_glsd"],
+)
+def test_spin_xyz_full_virial_and_npt_stress(tmp_path, ensemble, replicas):
     fixture = Path(__file__).parent / "fixtures" / "nep_spin"
     _, oracle = load_fixture("c3l2s2_fege")
     case = oracle["cases"]["noncollinear"]
@@ -418,19 +429,34 @@ def test_npt_tspin_runs_with_spin_force_path(tmp_path):
         lines.append(symbol + " " + " ".join(str(value) for value in values))
     (directory / "model.xyz").write_text("\n".join(lines) + "\n")
     (directory / "run.in").write_text(
+        f"replicate {replicas} {replicas} {replicas}\n"
         "potential nep.txt\n"
-        "ensemble npt_tspin temp 300 300 iso 0 0 "
-        "tperiod 100 pperiod 1000 seed 13579\n"
+        f"ensemble {ensemble}\n"
         "time_step 0.01\n"
-        "dump_xyz 1 state.xyz mass spin mforce spin_velocity\n"
-        "run 1\n")
+        "dump_xyz 2 state.xyz mass velocity virial precision double\n"
+        "dump_xyz 2 bare.xyz precision double\n"
+        "run 2\n")
     result = subprocess.run(
         [str(GPUMD)], cwd=directory,
         capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stdout + result.stderr
-    actual = _read_spin_frame(directory / "state.xyz")
-    assert np.all(np.isfinite(actual["spin"]))
-    assert np.all(np.isfinite(actual["mforce"]))
+    frame = directory / "state.xyz"
+    rows = frame.read_text().splitlines()
+    assert int(rows[0]) == len(case["types"]) * replicas**3
+    atoms = np.loadtxt(rows[2:], usecols=range(4, 17))
+    mass = atoms[:, 0]
+    velocity = atoms[:, 1:4] * TIME_UNIT_CONVERSION
+    virial = atoms[:, 4:].sum(axis=0).reshape(3, 3)
+    volume = abs(np.linalg.det(_read_last_lattice(frame).reshape(3, 3)))
+    assert np.max(np.abs(virial - virial.T)) / volume > 1e-8
+    for comment in (rows[1], (directory / "bare.xyz").read_text().splitlines()[1]):
+        header = np.fromstring(re.search(r'\bvirial="([^"]+)"', comment)[1], sep=" ")
+        np.testing.assert_allclose(header.reshape(3, 3), virial, rtol=0, atol=1e-11)
+    if ensemble.startswith("npt_"):
+        kinetic = (velocity.T * mass) @ velocity
+        expected = (0.5 * (virial + virial.T) + kinetic) / volume
+        stress = np.fromstring(re.search(r'\bstress="([^"]+)"', rows[1])[1], sep=" ")
+        np.testing.assert_allclose(stress.reshape(3, 3), expected, rtol=0, atol=1e-11)
 
 
 def test_tspin_requires_spin_potential(tmp_path):
