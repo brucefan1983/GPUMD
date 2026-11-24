@@ -342,7 +342,7 @@ INPUT_ERRORS = {
     'nan lambda_d': (
         's0 - s1\n',
         {'lambda_d': 'nan'},
-        'should be a finite positive number within the range of float',
+        'Energy difference loss weight should be a number.',
     ),
     'negative lambda_d': (
         's0 - s1\n',
