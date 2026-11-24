@@ -57,55 +57,30 @@ public:
     const double temperature) override;
 
 private:
-  // Sampling control
-  int sample_interval_ = 1;
-  int output_interval_ = 1;
-
-  // Bin configuration
-  int dim_;              // 1 = bin/1d, 2 = bin/2d, 3 = bin/3d
-  int axis_[3];          // Which axes to bin: 0=x, 1=y, 2=z
-  double origin_[3];     // Bin origin coordinates
-  double delta_[3];      // Bin width per dimension
-  double invdelta_[3];   // 1/delta for fast binning
-  int nlayers_[3];       // Number of bins per dimension
-  double box_length_[3]; // Box length along each binned axis
-  int nchunk_;           // Total number of chunks
-  int ncoord_;           // Number of coordinates per chunk (= dim_)
-
-  // Chunk assignments (GPU)
-  GPU_Vector<int> ichunk_; // ichunk_[i] = chunk ID for atom i
-
-  // Chunk geometry (CPU)
-  std::vector<double> chunk_volume_cpu_;
-  std::vector<double> chunk_coords_cpu_;
-
-  // Properties to compute
-  int compute_temperature_ = 0;
-  int compute_density_number_ = 0;
-  int compute_density_mass_ = 0;
-  int compute_vx_ = 0;
-  int compute_vy_ = 0;
-  int compute_vz_ = 0;
-  int compute_fx_ = 0;
-  int compute_fy_ = 0;
-  int compute_fz_ = 0;
-  int number_of_scalars_ = 0;
-
-  // Accumulation arrays
-  GPU_Vector<int> gpu_count_;
-  GPU_Vector<double> gpu_values_;
-  std::vector<int> cpu_count_sum_;
-  std::vector<double> cpu_values_sum_;
+  enum Quantity { Temperature, NumberDensity, MassDensity, Vx, Vy, Vz, Fx, Fy, Fz };
+  std::vector<Quantity> quantities_;
+  int sample_interval_;
+  int output_interval_;
   int num_samples_ = 0;
 
-  // Output
+  int dim_;
+  int axis_[3];
+  int nlayers_[3];
+  double bins_per_fraction_[3]; // initial face spacing divided by requested bin width
+  int nchunk_ = 1;
+  std::vector<double> volume_fraction_;
+  std::vector<double> center_fraction_;
+  double thickness_sum_[3] = {};
+
+  GPU_Vector<int> ichunk_;
+  GPU_Vector<int> gpu_count_;
+  GPU_Vector<double> gpu_values_;
+  std::vector<int> cpu_count_;
+  std::vector<double> cpu_values_;
+  std::vector<long long> count_sum_;
+  std::vector<double> values_sum_;
   FILE* fid_ = nullptr;
 
-  void parse(const std::vector<std::string>& tokens, Box& box);
-  int parse_bin_params(const std::vector<std::string>& tokens, int num_param, int start, Box& box);
-  void assign_chunks(const Atom& atom, const Box& box);
-  void sample(const Atom& atom);
-  void output_results(int step);
-  void calculate_chunk_volumes(const Box& box);
-  void calculate_chunk_coords(const Box& box);
+  void sample(const Atom& atom, const Box& box);
+  void output_results();
 };

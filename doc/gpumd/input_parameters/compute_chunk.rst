@@ -37,7 +37,7 @@ Parameters
 
 * ``origin`` (or ``origin1``, ``origin2``, ``origin3``): The bin origin. Currently only ``lower`` is supported, meaning bins start from the lower boundary of the simulation box (coordinate 0).
 
-* ``delta`` (or ``delta1``, ``delta2``, ``delta3``): The bin width in Ångströms. The number of bins along each axis is automatically calculated as :math:`\lceil L / \delta \rceil`, where :math:`L` is the box length along that axis. The last bin may be narrower than :math:`\delta` if :math:`L` is not an integer multiple of :math:`\delta`; its volume and center coordinate are computed using the actual width.
+* ``delta`` (or ``delta1``, ``delta2``, ``delta3``): The bin width in Ångströms. The number of bins along each axis is automatically calculated as :math:`\lceil L / \delta \rceil`, where :math:`L` is the face spacing along that axis when the command is issued. The last bin may be narrower than :math:`\delta` if :math:`L` is not an integer multiple of :math:`\delta`; its volume and center coordinate are computed using the actual width.
 
 Starting after the binning parameters, one can list the quantities to be computed.
 The allowed names for ``quantity`` are:
@@ -54,7 +54,14 @@ The allowed names for ``quantity`` are:
 
 One can write one or more (distinct) names in any order.
 
-For triclinic (non-orthogonal) simulation boxes, the box length along each axis is computed as the geometric thickness :math:`L = V / A`, where :math:`V` is the box volume and :math:`A` is the cross-sectional area perpendicular to that axis. This is consistent with GPUMD's internal geometry calculations.
+The axes ``x``, ``y``, and ``z`` select the fractional coordinates along the three cell vectors.
+For a triclinic cell, bin boundaries are parallel to the corresponding cell faces.
+The distance from the lower face is :math:`s L`, where :math:`s` is the fractional coordinate and :math:`L = V/A` is the spacing between those faces.
+Periodic coordinates wrap into the cell. At a free boundary, atoms outside the cell are assigned to the nearest end bin.
+
+The bin boundaries stay fixed in fractional coordinates during the run.
+Each bin occupies a fraction of the instantaneous cell volume equal to the product of its fractional widths along the binned axes.
+For a changing cell, the output averages the instantaneous bin-center distances and densities over the sampled steps.
 
 Output
 ------
@@ -81,7 +88,7 @@ The columns are:
   - ``fx``, ``fy``, ``fz``: eV/Å
 
 The temperature is computed from the kinetic energy of the atoms in each chunk as :math:`T = 2 E_\text{k} / (3 k_\text{B} N)`, where :math:`E_\text{k}` is the total kinetic energy, :math:`N` is the atom count, and :math:`k_\text{B}` is the Boltzmann constant.
-The velocity and force values are per-atom averages within each chunk.
+Velocity and force components are Cartesian and are averaged over the atoms sampled in each chunk.
 
 For example, the command::
 
