@@ -79,20 +79,22 @@ __global__ void gpu_sum(const int size, double* a, double* result)
     *result = data[0];
 }
 
-double sum(GPU_Vector<double>& a)
+double sum(GPU_Vector<double>& a, GPU_Vector<double>& result)
 {
   double ret;
-  GPU_Vector<double> result(1);
   gpu_sum<<<1, 1024>>>(a.size(), a.data(), result.data());
   result.copy_to_host(&ret);
   return ret;
 }
 
-double dot(GPU_Vector<double>& a, GPU_Vector<double>& b)
+double dot(
+  GPU_Vector<double>& a,
+  GPU_Vector<double>& b,
+  GPU_Vector<double>& temp,
+  GPU_Vector<double>& result)
 {
-  GPU_Vector<double> temp(a.size());
   pairwise_product(a, b, temp);
-  return sum(temp);
+  return sum(temp, result);
 }
 
 void scalar_multiply(const double& a, GPU_Vector<double>& b, GPU_Vector<double>& c)
@@ -122,6 +124,7 @@ void Minimizer_FIRE::compute(
   GPU_Vector<double> v(size, 0);
   GPU_Vector<double> temp1(size);
   GPU_Vector<double> temp2(size);
+  GPU_Vector<double> dot_result(1);
 
   printf("\nEnergy minimization started.\n");
 
@@ -148,7 +151,7 @@ void Minimizer_FIRE::compute(
         break;
     }
 
-    P = dot(v, atom.force_per_atom);
+    P = dot(v, atom.force_per_atom, temp1, dot_result);
 
     if (P > 0) {
       if (N_neg > N_min) {
@@ -172,8 +175,8 @@ void Minimizer_FIRE::compute(
 
     // md step
     // implicit Euler integration
-    double F_modulus = sqrt(dot(atom.force_per_atom, atom.force_per_atom));
-    double v_modulus = sqrt(dot(v, v));
+    double F_modulus = sqrt(dot(atom.force_per_atom, atom.force_per_atom, temp1, dot_result));
+    double v_modulus = sqrt(dot(v, v, temp1, dot_result));
     // dv = F/m*dt
     scalar_multiply(dt / m, atom.force_per_atom, temp2);
     vector_sum(v, temp2, v);

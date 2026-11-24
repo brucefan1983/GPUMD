@@ -210,20 +210,22 @@ __global__ void gpu_sum(const int size, double* a, double* result)
     *result = data[0];
 }
 
-double sum(GPU_Vector<double>& a)
+double sum(GPU_Vector<double>& a, GPU_Vector<double>& result)
 {
   double ret;
-  GPU_Vector<double> result(1);
   gpu_sum<<<1, 1024>>>(a.size(), a.data(), result.data());
   result.copy_to_host(&ret);
   return ret;
 }
 
-double dot(GPU_Vector<double>& a, GPU_Vector<double>& b)
+double dot(
+  GPU_Vector<double>& a,
+  GPU_Vector<double>& b,
+  GPU_Vector<double>& temp,
+  GPU_Vector<double>& result)
 {
-  GPU_Vector<double> temp(a.size());
   pairwise_product(a, b, temp);
-  return sum(temp);
+  return sum(temp, result);
 }
 
 void scalar_multiply(const double& a, GPU_Vector<double>& b, GPU_Vector<double>& c)
@@ -255,6 +257,8 @@ void Minimizer_FIRE_Box_Change::compute(
   GPU_Vector<double> temp2(size + 9);
   GPU_Vector<double> force_temp(size + 9, 0.0);
   GPU_Vector<double> virialtot(9);
+  GPU_Vector<double> dot_result(1);
+  GPU_Vector<double> strain_increment(9);
 
   double L_scale = std::cbrt(box.get_volume());
   const double stress_tolerance_GPa = 1e-4;
@@ -349,7 +353,7 @@ void Minimizer_FIRE_Box_Change::compute(
       }
     }
 
-    P = dot(v, force_temp);
+    P = dot(v, force_temp, temp1, dot_result);
 
     if (P > 0) {
       if (N_pos > N_min) {
@@ -371,8 +375,8 @@ void Minimizer_FIRE_Box_Change::compute(
     }
 
     // MD Step - Implicit Euler Integration for Generalized Vector
-    double F_modulus = sqrt(dot(force_temp, force_temp));
-    double v_modulus = sqrt(dot(v, v));
+    double F_modulus = sqrt(dot(force_temp, force_temp, temp1, dot_result));
+    double v_modulus = sqrt(dot(v, v, temp1, dot_result));
 
     // dv = F/m*dt
     scalar_multiply(dt / m, force_temp, temp2);
@@ -402,16 +406,12 @@ void Minimizer_FIRE_Box_Change::compute(
     box.get_inverse();
 
     // 2. dr = v*dt + dEps*r
-    double* d_dEps;
-    gpuMalloc(&d_dEps, 9 * sizeof(double));
-    gpuMemcpy(d_dEps, dEps, 9 * sizeof(double), gpuMemcpyHostToDevice);
+    strain_increment.copy_from_host(dEps);
 
     int threadsPerBlock = 128;
     int blocksPerGrid = (number_of_atoms_ - 1) / threadsPerBlock + 1;
     update_pos_with_strain_kernel<<<blocksPerGrid, threadsPerBlock>>>(
-      number_of_atoms_, position_per_atom.data(), v.data(), d_dEps, dt);
-
-    gpuFree(d_dEps);
+      number_of_atoms_, position_per_atom.data(), v.data(), strain_increment.data(), dt);
   }
 
   printf("Energy minimization finished.\n\n");
