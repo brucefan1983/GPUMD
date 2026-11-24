@@ -2,7 +2,7 @@
 .. index::
    single: compute_orientorder (keyword in run.in)
 
-:attr:`compute_orientorder`
+``compute_orientorder``
 ============================
 
 This keyword computes the local, rotationally invariant Steinhardt order parameters

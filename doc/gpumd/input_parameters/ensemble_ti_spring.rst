@@ -1,6 +1,6 @@
 .. _kw_ensemble_ti_spring:
 
-:attr:`ensemble` (TI_Spring)
+``ensemble`` (TI_Spring)
 ============================
 
 This keyword is used to set up a nonequilibrium thermodynamic integration integrator. See [Freitas2016]_ for more details.
@@ -15,12 +15,12 @@ Syntax
 Parameters
 ----------
 
-- :attr:`<temperature>`: The temperature of the simulation.
-- :attr:`<tau_temperature>`: Thermostat coupling period in time steps; optional, with a default of ``100``.
-- :attr:`<equilibrium_time>`: The number of time steps to equilibrate the system.
-- :attr:`<switch_time>`: The number of time steps to vary lambda from 0 to 1.
-- :attr:`<element_name>` and :attr:`<spring_constant>`: Specify the spring constants of elements.
-- :attr:`<pressure>`: Although this is an NVT ensemble, you can assign a pressure value to help GPUMD compute the Gibbs free energy. It does not affect the simulation process.
+- ``<temperature>``: The temperature of the simulation.
+- ``<tau_temperature>``: Thermostat coupling period in time steps; optional, with a default of ``100``.
+- ``<equilibrium_time>``: The number of time steps to equilibrate the system.
+- ``<switch_time>``: The number of time steps to vary lambda from 0 to 1.
+- ``<element_name>`` and ``<spring_constant>``: Specify the spring constants of elements.
+- ``<pressure>``: Although this is an NVT ensemble, you can assign a pressure value to help GPUMD compute the Gibbs free energy. It does not affect the simulation process.
 
 Please note that the spring constants should be placed at the end of the command. If the ``spring`` keyword is omitted, the spring constants are estimated from the atomic MSD during the initial equilibration, which requires ``tequil`` greater than zero.
 Specify both ``tequil`` and ``tswitch``, or omit both.

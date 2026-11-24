@@ -36,7 +36,7 @@ If there is only one atom type, the potential file for this potential model read
   lj 1 element
   epsilon sigma cutoff
 
-Here, :attr:`cutoff` is the cutoff distance and :attr:`element` is the chemical symbol of the element.
+Here, ``cutoff`` is the cutoff distance and ``element`` is the chemical symbol of the element.
 
 If there are two atom types, the potential file reads::
 

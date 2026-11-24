@@ -2,7 +2,7 @@
 .. index::
    single: active (keyword in run.in)
 
-:attr:`active`
+``active``
 =====================
 
 Run on-the-fly active learning, based on committee uncertainty estimates over a group of supplied NEP potentials.
@@ -22,11 +22,11 @@ Syntax
 Parameters
 ----------
 
-:attr:`interval` is the interval (number of steps) between checking the uncertainty. If set to 1, the uncertainty will be computed for every step of the MD simulation.
-:attr:`has_velocity` can be 1 or 0, which means the velocities will or will not be included in the exyz output.
-:attr:`has_force` can be 1 or 0, which means the forces will or will not be included in the exyz output.
-:attr:`has_uncertainty` can be 1 or 0, which means the per atom uncertainties will or will not be included in the exyz output.
-:attr:`threshold` is a non-negative float, and corresponds to the threshold :math:`\delta` in units of eV/Å.
+``interval`` is the interval (number of steps) between checking the uncertainty. If set to 1, the uncertainty will be computed for every step of the MD simulation.
+``has_velocity`` can be 1 or 0, which means the velocities will or will not be included in the exyz output.
+``has_force`` can be 1 or 0, which means the forces will or will not be included in the exyz output.
+``has_uncertainty`` can be 1 or 0, which means the per atom uncertainties will or will not be included in the exyz output.
+``threshold`` is a non-negative float, and corresponds to the threshold :math:`\delta` in units of eV/Å.
 
 Output
 ------

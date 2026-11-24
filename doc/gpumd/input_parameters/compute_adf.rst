@@ -2,7 +2,7 @@
 .. index::
    single: compute_adf (keyword in run.in)
 
-:attr:`compute_adf`
+``compute_adf``
 ===================
 
 This keyword computes the angular distribution function (:term:`ADF`) for all atoms or specific triples of species. Each :term:`ADF` is represented as a histogram, created by measuring the angles formed between a central atom and two neighboring atoms, and binning these angles into `num_bins` bins. Each neighbor must satisfy :math:`r_{\min} \le r < r_{\max}` for its specified radial window. The lower bound is included and the upper bound is excluded. Zero-length center-neighbor vectors are excluded because their angle is undefined.

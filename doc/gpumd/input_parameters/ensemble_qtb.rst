@@ -4,14 +4,14 @@
    single: npt_qtb (keyword in run.in)
    single: Quantum Thermal Bath
 
-:attr:`ensemble` (QTB)
+``ensemble`` (QTB)
 ======================
 
-The variants of the :attr:`ensemble` keyword described on this page implement the Quantum Thermal Bath (QTB) method [Dammak2009]_.
+The variants of the ``ensemble`` keyword described on this page implement the Quantum Thermal Bath (QTB) method [Dammak2009]_.
 The QTB thermostat is a Langevin-type thermostat that uses colored noise with a quantum Bose-Einstein energy spectrum instead of classical white noise.
 This allows approximate inclusion of nuclear quantum effects (zero-point energy and quantum heat capacity) in otherwise classical MD simulations.
 
-The :attr:`npt_qtb` variant combines the QTB thermostat with the Parrinello-Rahman (MTTK) barostat [Martyna1994]_, equivalent to LAMMPS ``fix nph`` + ``fix qtb``.
+The ``npt_qtb`` variant combines the QTB thermostat with the Parrinello-Rahman (MTTK) barostat [Martyna1994]_, equivalent to LAMMPS ``fix nph`` + ``fix qtb``.
 
 Syntax
 ------
@@ -24,32 +24,32 @@ Syntax
 Parameters
 ----------
 
-:attr:`nvt_qtb`
+``nvt_qtb``
 ^^^^^^^^^^^^^^^
 
-* :attr:`<T_1>` and :attr:`<T_2>`: Initial and final target temperature (K). The target temperature varies linearly during the run.
-* :attr:`<T_coup>`: Thermostat coupling parameter (in units of timestep). Controls the friction coefficient: :math:`\gamma = 1 / (\text{T\_coup} \times dt)`.
-* :attr:`f_max`: (Optional, default 200) Maximum frequency of the QTB filter in ps\ :sup:`-1`. Should be larger than the highest phonon frequency in the system.
-* :attr:`N_f`: (Optional, default 100) Number of frequency points in the filter. The filter uses :math:`2 N_f` points total.
+* ``<T_1>`` and ``<T_2>``: Initial and final target temperature (K). The target temperature varies linearly during the run.
+* ``<T_coup>``: Thermostat coupling parameter (in units of timestep). Controls the friction coefficient: :math:`\gamma = 1 / (\text{T\_coup} \times dt)`.
+* ``f_max``: (Optional, default 200) Maximum frequency of the QTB filter in ps\ :sup:`-1`. Should be larger than the highest phonon frequency in the system.
+* ``N_f``: (Optional, default 100) Number of frequency points in the filter. The filter uses :math:`2 N_f` points total.
 
-:attr:`npt_qtb`
+``npt_qtb``
 ^^^^^^^^^^^^^^^
 
 Pressure control parameters:
 
-* :attr:`<direction>`: One or more of ``iso``, ``aniso``, ``tri``, ``x``, ``y``, ``z``. Same syntax as :ref:`npt_mttk <mttk>`.
-* :attr:`<p_1>` and :attr:`<p_2>`: Initial and final target pressure (GPa).
+* ``<direction>``: One or more of ``iso``, ``aniso``, ``tri``, ``x``, ``y``, ``z``. Same syntax as :ref:`npt_mttk <mttk>`.
+* ``<p_1>`` and ``<p_2>``: Initial and final target pressure (GPa).
 
 Temperature and coupling parameters:
 
-* :attr:`temp <T_1> <T_2>`: Initial and final target temperature (K).
-* :attr:`tperiod <tau_T>`: QTB thermostat coupling period (in units of timestep). Controls friction: :math:`\gamma = 1 / (\text{tperiod} \times dt)`.
-* :attr:`pperiod <tau_p>`: Barostat coupling period (in units of timestep, must be :math:`\geq 200`).
+* ``temp <T_1> <T_2>``: Initial and final target temperature (K).
+* ``tperiod <tau_T>``: QTB thermostat coupling period (in units of timestep). Controls friction: :math:`\gamma = 1 / (\text{tperiod} \times dt)`.
+* ``pperiod <tau_p>``: Barostat coupling period (in units of timestep, must be :math:`\geq 200`).
 
-QTB-specific optional parameters (same as :attr:`nvt_qtb`):
+QTB-specific optional parameters (same as ``nvt_qtb``):
 
-* :attr:`f_max`: Maximum frequency (ps\ :sup:`-1`, default 200).
-* :attr:`N_f`: Number of frequency points (default 100).
+* ``f_max``: Maximum frequency (ps\ :sup:`-1`, default 200).
+* ``N_f``: Number of frequency points (default 100).
 
 Output
 ------
@@ -101,8 +101,8 @@ Notes
 * The QTB method generates colored noise whose power spectrum matches the quantum energy distribution :math:`E(\omega) = \hbar\omega[\frac{1}{2} + n_{BE}(\omega, T)]`, where :math:`n_{BE}` is the Bose-Einstein distribution.
 * The kinetic temperature reported in ``thermo.out`` will be higher than the target temperature due to zero-point energy contributions. This is expected behavior.
 * For liquid water at 300 K, the kinetic temperature is typically around 1000-1100 K.
-* The :attr:`npt_qtb` ensemble uses the MTTK (Martyna-Tuckerman-Tobias-Klein) integrator for pressure control, which is the same as :ref:`npt_mttk <mttk>` but with the Nosé-Hoover chain thermostat replaced by the QTB thermostat.
-* The :attr:`f_max` parameter should be set larger than the highest phonon frequency in the system. For water, 200 ps\ :sup:`-1` is sufficient.
+* The ``npt_qtb`` ensemble uses the MTTK (Martyna-Tuckerman-Tobias-Klein) integrator for pressure control, which is the same as :ref:`npt_mttk <mttk>` but with the Nosé-Hoover chain thermostat replaced by the QTB thermostat.
+* The ``f_max`` parameter should be set larger than the highest phonon frequency in the system. For water, 200 ps\ :sup:`-1` is sufficient.
 
 .. only:: html
 

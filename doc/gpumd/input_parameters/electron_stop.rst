@@ -2,7 +2,7 @@
 .. index::
    single: electron_stop (keyword in run.in)
 
-:attr:`electron_stop`
+``electron_stop``
 =====================
 
 This keyword is used to apply electron stopping forces to high-energy atoms during a run.

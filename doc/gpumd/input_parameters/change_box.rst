@@ -2,7 +2,7 @@
 .. index::
    single: change_box (keyword in run.in)
 
-:attr:`change_box`
+``change_box``
 ==================
 
 This keyword changes the simulation box and atomic positions immediately when it is read from ``run.in``.

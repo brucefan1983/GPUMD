@@ -2,7 +2,7 @@
 .. index::
    single: replicate (keyword in run.in)
 
-:attr:`replicate`
+``replicate``
 =================
 
 Replicate the simulation cell along its three cell vectors.
@@ -17,7 +17,7 @@ Syntax
 Parameters
 ----------
 
-Here, :attr:`n_a`, :attr:`n_b` and :attr:`n_c` are the numbers of replicas in the :math:`a`, :math:`b` and :math:`c` directions. They must be positive integers.
+Here, ``n_a``, ``n_b`` and ``n_c`` are the numbers of replicas in the :math:`a`, :math:`b` and :math:`c` directions. They must be positive integers.
 
 Output
 ------

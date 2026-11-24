@@ -1,6 +1,6 @@
 .. _kw_ensemble_heat:
 
-:attr:`ensemble` (thermal transport)
+``ensemble`` (thermal transport)
 ====================================
 
 Heat a source region and cool a sink region for :ref:`nonequilibrium thermal transport <nemd>`.

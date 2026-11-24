@@ -82,4 +82,4 @@ The potential file reads::
   tersoff_mini 1 element
   D alpha r0 S beta n h R S
 
-Here, :attr:`element` is the chemical symbol of the element.
+Here, ``element`` is the chemical symbol of the element.

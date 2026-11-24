@@ -2,10 +2,10 @@
 .. index::
    single: compute_shc (keyword in run.in)
 
-:attr:`compute_shc`
+``compute_shc``
 ===================
 
-The :attr:`compute_shc` keyword is used to compute the nonequilibrium virial-velocity correlation function :math:`K(t)` and the spectral heat current (:term:`SHC`) :math:`J_q(\omega)`, in a given direction, for a group of atoms, as defined in Eq. (18) and the left part of Eq. (20) of [Fan2019]_.
+The ``compute_shc`` keyword is used to compute the nonequilibrium virial-velocity correlation function :math:`K(t)` and the spectral heat current (:term:`SHC`) :math:`J_q(\omega)`, in a given direction, for a group of atoms, as defined in Eq. (18) and the left part of Eq. (20) of [Fan2019]_.
 
 Syntax
 ------
@@ -17,29 +17,29 @@ Syntax
 Parameters
 ----------
 
-:attr:`sample_interval` is the sampling interval (number of steps) between two correlation steps.
+``sample_interval`` is the sampling interval (number of steps) between two correlation steps.
 This parameter must be an integer that is :math:`\geq 1` and :math:`\leq 50`.
 
-:attr:`Nc` is the total number of correlation steps.
+``Nc`` is the total number of correlation steps.
 This parameter must be an integer that is :math:`\geq 100` and :math:`\leq 1000`.
 
-:attr:`transport_direction` is the direction of heat transport to be measured.
+``transport_direction`` is the direction of heat transport to be measured.
 It can only be 0, 1, and 2, corresponding to the :math:`x`, :math:`y`, and :math:`z` directions, respectively.
 
-:attr:`num_omega` is the number of frequency points one wants to consider.
+``num_omega`` is the number of frequency points one wants to consider.
 
-:attr:`max_omega` is the maximum angular frequency (in units of THz) one wants to consider.
-The angular frequency data will be :attr:`max_omega/num_omega, 2*max_omega/num_omega, ..., max_omega`.
+``max_omega`` is the maximum angular frequency (in units of THz) one wants to consider.
+The angular frequency data will be ``max_omega/num_omega, 2*max_omega/num_omega, ..., max_omega``.
 
-:attr:`<optional_arg>` can only be :attr:`group`, which requires two parameters::
+``<optional_arg>`` can only be ``group``, which requires two parameters::
 
    group <grouping_method> <group_id>
 
-This means that :math:`K(t)` will be calculated for atoms in group :attr:`group_id` of grouping method :attr:`grouping_method`.
-Usually, :attr:`group_id` should be :math:`\geq 0` and smaller than the number of groups in grouping method :attr:`grouping_method`.
-If :attr:`grouping_method` is assigned and :attr:`group_id` is -1, it means to calculate the :math:`K(t)` for every :attr:`group_id` except for :attr:`group_id` 0 in the assigned :attr:`grouping_method`.
-Since it is very time and memory consuming to calculate the all group :math:`K(t)` for a large system, so one can assign the part that don't want to calculate to :attr:`group_id` 0.
-Also, grouping method :attr:`grouping_method` must be defined in the :ref:`simulation model input file <model_xyz>`.
+This means that :math:`K(t)` will be calculated for atoms in group ``group_id`` of grouping method ``grouping_method``.
+Usually, ``group_id`` should be :math:`\geq 0` and smaller than the number of groups in grouping method ``grouping_method``.
+If ``grouping_method`` is assigned and ``group_id`` is -1, it means to calculate the :math:`K(t)` for every ``group_id`` except for ``group_id`` 0 in the assigned ``grouping_method``.
+Since it is very time and memory consuming to calculate the all group :math:`K(t)` for a large system, so one can assign the part that don't want to calculate to ``group_id`` 0.
+Also, grouping method ``grouping_method`` must be defined in the :ref:`simulation model input file <model_xyz>`.
 If this option is missing, it means computing :math:`K(t)` for the whole system.
 
 Output
@@ -75,7 +75,7 @@ The command::
 
 means that
 
-* you want to calculate :math:`K(t)` for atoms in group :attr:`4` defined in grouping method :attr:`0`
+* you want to calculate :math:`K(t)` for atoms in group ``4`` defined in grouping method ``0``
 * the sampling interval is 1 (sample the data at each time step)
 * the maximum number of correlation steps is 500
 * the transport direction is :math:`y`
@@ -91,7 +91,7 @@ The command::
 
 means that
 
-* you want to calculate :math:`K(t)` for all :attr:`group_id` except for :attr:`group_id` 0 defined in grouping method :attr:`1`
+* you want to calculate :math:`K(t)` for all ``group_id`` except for ``group_id`` 0 defined in grouping method ``1``
 * the sampling interval is 1 (sample the data at each time step)
 * the maximum number of correlation steps is 500
 * the transport direction is :math:`y`

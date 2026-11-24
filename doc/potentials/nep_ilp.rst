@@ -71,33 +71,33 @@ Load the model in ``run.in`` with::
 
   potential <ilp file> <nep map file>
 
-where :attr:`ilp file` and :attr:`nep map file` are the filenames of
+where ``ilp file`` and ``nep map file`` are the filenames of
 the :term:`ILP` potential file and :term:`NEP` mapping file.
 
-:attr:`ilp file` is similar to other empirical potential files in :program:`GPUMD`.
-But in addition, :term:`ILP` uses different :attr:`group_ids` to identify the different layers, so
-you need to add two :attr:`group_methods` in :attr:`ilp file`::
+``ilp file`` is similar to other empirical potential files in :program:`GPUMD`.
+But in addition, :term:`ILP` uses different ``group_ids`` to identify the different layers, so
+you need to add two ``group_methods`` in ``ilp file``::
 
   nep_ilp <number of atom types> <list of elements>
   <group_method for layers> <group_method for sublayers>
   beta alpha delta epsilon C d sR reff C6 S rcut1 rcut2
   ...
 
-* :attr:`nep_ilp` is the name of this hybrid potential.
-* :attr:`number of atom types` is the number of atom types defined in the ``model.xyz``.
-* :attr:`list of element` is a list of all the elements in the potential (can be in any order).
-* :attr:`group_method for layers` is the :attr:`group_method` set in ``model.xyz``
+* ``nep_ilp`` is the name of this hybrid potential.
+* ``number of atom types`` is the number of atom types defined in the ``model.xyz``.
+* ``list of element`` is a list of all the elements in the potential (can be in any order).
+* ``group_method for layers`` is the ``group_method`` set in ``model.xyz``
   to identify different layers. For example, monolayer graphene and monolayer
   :math:`\mathrm{MoS}_2` are both single layer so for the atoms in each layer
-  the :attr:`group_id` of :attr:`group_method for layers` are the same.
-* :attr:`group_method for sublayers` is used to identify the different sublayers.
+  the ``group_id`` of ``group_method for layers`` are the same.
+* ``group_method for sublayers`` is used to identify the different sublayers.
   For example, monolayer graphene contains one sublayer while monolayer :math:`\mathrm{MoS}_2`
   contains three sublayers, one Mo sublayer and two S sublayers. For the atoms in each sublayer
-  the :attr:`group_id` of :attr:`group_method for sublayers` are the same.
-* The last line(s) is(are) parameters of :term:`ILP`. :attr:`rcut1` is used for calculating the normal vectors
-  and :attr:`rcut2` is the cutoff of :term:`ILP`, usually 16Å.
+  the ``group_id`` of ``group_method for sublayers`` are the same.
+* The last line(s) is(are) parameters of :term:`ILP`. ``rcut1`` is used for calculating the normal vectors
+  and ``rcut2`` is the cutoff of :term:`ILP`, usually 16Å.
 
-:attr:`nep_map_file` can map one or more :term:`NEP` potential files to
+``nep_map_file`` can map one or more :term:`NEP` potential files to
 different layers. The setting is as::
 
   <group_method for layers> <number of NEP files> <list of NEP files>
@@ -106,16 +106,16 @@ different layers. The setting is as::
   <NEP_id for group_1>
   ...
 
-* :attr:`group_method for layers` is the same as the setting in :attr:`ilp file`.
-* :attr:`number of NEP files` is the number of :term:`NEP` files used in your
+* ``group_method for layers`` is the same as the setting in ``ilp file``.
+* ``number of NEP files`` is the number of :term:`NEP` files used in your
   simulation.
-* :attr:`list of NEP files` is a list of all the :term:`NEP` filenames. Note
-  that the first file will be identified as :attr:`NEP_0` and then :attr:`NEP_1` and so on.
-* :attr:`number of groups` is the number of groups in :attr:`group_method for layers`.
-* The last :attr:`number of groups` lines map the :term:`NEP` to each group.
-  If :attr:`NEP_id for group_0` is set to 0, the intralayer interactions between
-  atoms within :attr:`group_id` 0 are computed by the first :term:`NEP` file (:attr:`NEP_0`)
-  in :attr:`list of NEP files`. If set to 1, then computed by the second :term:`NEP` file (:attr:`NEP_1`) and so on.
+* ``list of NEP files`` is a list of all the :term:`NEP` filenames. Note
+  that the first file will be identified as ``NEP_0`` and then ``NEP_1`` and so on.
+* ``number of groups`` is the number of groups in ``group_method for layers``.
+* The last ``number of groups`` lines map the :term:`NEP` to each group.
+  If ``NEP_id for group_0`` is set to 0, the intralayer interactions between
+  atoms within ``group_id`` 0 are computed by the first :term:`NEP` file (``NEP_0``)
+  in ``list of NEP files``. If set to 1, then computed by the second :term:`NEP` file (``NEP_1``) and so on.
 
 
 
@@ -137,15 +137,15 @@ Assume that ``C.nep`` begins with::
   format_version 1
   model nep
 
-and :attr:`group_method` 0 is used to identify the different layers. Then ``C.ilp``
+and ``group_method`` 0 is used to identify the different layers. Then ``C.ilp``
 is required to set as::
 
   nep_ilp 1 C
   0 0
   beta_CC alpha_CC delta_CC epsilon_CC C_CC d_CC sR_CC reff_CC C6_CC S_CC rcut1_CC rcut2_CC
 
-The first **0** in the second line represents :term:`ILP` potential uses :attr:`group_method` 0 to identify different
-layers. The second **0** represents :attr:`group_method` 0 is used to identify the sublayers. For
+The first **0** in the second line represents :term:`ILP` potential uses ``group_method`` 0 to identify different
+layers. The second **0** represents ``group_method`` 0 is used to identify the sublayers. For
 the system with only graphene and :math:`h`-BN, just set it the same as the previous number.
 
 
@@ -156,12 +156,12 @@ Then, ``map.nep`` file required to set as::
   0
   0
 
-The first **0** in the first line represents :term:`NEP` potential uses :attr:`group_method` 0 to identify different
+The first **0** in the first line represents :term:`NEP` potential uses ``group_method`` 0 to identify different
 layers.
 The next **1** represents there is just one :term:`NEP` potential file. The number in the second
-line represents there are two groups in the :attr:`group_method` 0.
-The last two lines represent the :attr:`group_0`  and :attr:`group_1` in :attr:`group_method` 0 will use
-``C.nep`` potential file (:attr:`NEP_0`).
+line represents there are two groups in the ``group_method`` 0.
+The last two lines represent the ``group_0``  and ``group_1`` in ``group_method`` 0 will use
+``C.nep`` potential file (``NEP_0``).
 
 
 
@@ -186,10 +186,10 @@ and ``MoS.nep`` begins with::
   format_version 1
   model nep
 
-We also assume the :attr:`group_method` 0 is used to identify the different layers and
-:attr:`group_method` 1 is used to identify the different sublayers for :term:`ILP`. In :attr:`group_method` 1,
+We also assume the ``group_method`` 0 is used to identify the different layers and
+``group_method`` 1 is used to identify the different sublayers for :term:`ILP`. In ``group_method`` 1,
 atoms in the sublayers of Mo and S should be set as the different
-:attr:`group_id`. Then ``BNMoS.ilp`` is required to set as::
+``group_id``. Then ``BNMoS.ilp`` is required to set as::
 
   nep_ilp 4 B N Mo S
   0 1
@@ -204,7 +204,7 @@ atoms in the sublayers of Mo and S should be set as the different
   ...
   beta_SS alpha_SS delta_SS epsilon_SS C_SS d_SS sR_SS reff_SS C6_SS S_SS rcut1_SS rcut2_SS
 
-Assume :attr:`group_id` of :math:`\mathrm{MoS}_2` is 0 and of :math:`h`-BN is 1.
+Assume ``group_id`` of :math:`\mathrm{MoS}_2` is 0 and of :math:`h`-BN is 1.
 Then ``map.nep`` file is set as::
 
   0 2 BN.nep MoS.nep
@@ -212,5 +212,5 @@ Then ``map.nep`` file is set as::
   1
   0
 
-The **1** in the third line means :attr:`group_0` (:math:`\mathrm{MoS}_2`) uses ``MoS.nep`` potential file (:attr:`NEP_1`)
-and the last **0** means :attr:`group_1` (:math:`h`-BN) uses ``BN.nep`` potential file (:attr:`NEP_0`).
+The **1** in the third line means ``group_0`` (:math:`\mathrm{MoS}_2`) uses ``MoS.nep`` potential file (``NEP_1``)
+and the last **0** means ``group_1`` (:math:`h`-BN) uses ``BN.nep`` potential file (``NEP_0``).

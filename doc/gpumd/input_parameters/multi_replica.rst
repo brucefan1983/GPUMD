@@ -3,7 +3,7 @@
 .. index::
    single: multi_replica (keyword in run.in)
 
-:attr:`multi_replica`
+``multi_replica``
 =====================
 
 This keyword selects replica-exchange molecular dynamics (REMD) or parallel replica dynamics (PRD).

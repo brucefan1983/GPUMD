@@ -2,7 +2,7 @@
 .. index::
    single: dump_observer (keyword in run.in)
 
-:attr:`dump_observer`
+``dump_observer``
 =====================
 
 Writes atomistic properties such as positions, velocities and forces for each of the supplied NEP potentials, or for their average, in the `extended XYZ format <https://github.com/libAtoms/extxyz>`_.
@@ -17,11 +17,11 @@ Syntax
 Parameters
 ----------
 
-:attr:`mode` corresponds to the two modes described under Output, and can be either `observe` or `average`.
-:attr:`interval_thermo` parameter is the output interval (number of steps) for writing thermo files.
-:attr:`interval_exyz` parameter is the output interval (number of steps) of writing exyz files.
-:attr:`has_velocity` can be 1 or 0, which means the velocities will or will not be included in the exyz output.
-:attr:`has_force` can be 1 or 0, which means the forces will or will not be included in the exyz output.
+``mode`` corresponds to the two modes described under Output, and can be either `observe` or `average`.
+``interval_thermo`` parameter is the output interval (number of steps) for writing thermo files.
+``interval_exyz`` parameter is the output interval (number of steps) of writing exyz files.
+``has_velocity`` can be 1 or 0, which means the velocities will or will not be included in the exyz output.
+``has_force`` can be 1 or 0, which means the forces will or will not be included in the exyz output.
 
 Output
 ------

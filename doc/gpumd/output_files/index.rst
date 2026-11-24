@@ -82,7 +82,7 @@ A file page describes its columns, units, and any headers or blocks needed to se
      - Structures selected by the NEP extrapolation grade
      - Append
    * - :ref:`ttm_electron_temperature.out <ttm_electron_temperature_out>`
-     - :ref:`ensemble <kw_ensemble>` with :attr:`ttm` or :attr:`heat_ttm`
+     - :ref:`ensemble <kw_ensemble>` with ``ttm`` or ``heat_ttm``
      - Electron temperature snapshots on the TTM grid
      - Overwrite
    * - :ref:`hac.out <hac_out>`

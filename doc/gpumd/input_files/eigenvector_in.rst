@@ -23,7 +23,7 @@ The file therefore contains :math:`3N+9N^2` floating-point values, or :math:`4(3
 The eigenvectors are orthonormal eigenvectors of the mass-weighted dynamical matrix; no additional mass factors should be included in the stored vectors.
 The atom order and masses must match those used in the modal-analysis simulation.
 By default, all atoms participate.
-The :attr:`first_mode` and :attr:`last_mode` arguments are one-based, inclusive indices into this full file; selecting a subset of modes does not change the file layout.
+The ``first_mode`` and ``last_mode`` arguments are one-based, inclusive indices into this full file; selecting a subset of modes does not change the file layout.
 
 Generating the file
 ^^^^^^^^^^^^^^^^^^^

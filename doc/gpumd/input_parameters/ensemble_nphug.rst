@@ -4,7 +4,7 @@
    single: nphug (keyword in run.in)
    single: NPHug integrator
 
-:attr:`ensemble` (NPHug)
+``ensemble`` (NPHug)
 ========================
 
 This keyword sets up a Hugoniot thermostat integrator.
@@ -25,18 +25,18 @@ The parameters can be specified as follows::
 Parameters
 ----------
 
-The :attr:`<direction>` parameter can assume one or more of the following values: ``iso``, ``aniso``, ``tri``, ``x``, ``y``, ``z``.
+The ``<direction>`` parameter can assume one or more of the following values: ``iso``, ``aniso``, ``tri``, ``x``, ``y``, ``z``.
 Here, ``iso``, ``aniso``, and ``tri`` use hydrostatic pressure as the target pressure.
 ``iso`` updates the simulation cell isotropically.
 ``aniso`` updates the dimensions of the simulation cell along :math:`x`, :math:`y`, and :math:`z` independently.
 ``tri`` updates all six degrees of freedom of the simulation cell.
 Using ``x``, ``y``, ``z`` allows one to specify each stress component independently.
 
-The parameters :attr:`<p_1>` and :attr:`<p_2>` specify the target pressure, and they should be equal.
-Finally, the optional parameter :attr:`<tau_press>`, which defaults to ``1000``, determines the period of the barostat in units of the timestep.
+The parameters ``<p_1>`` and ``<p_2>`` specify the target pressure, and they should be equal.
+Finally, the optional parameter ``<tau_press>``, which defaults to ``1000``, determines the period of the barostat in units of the timestep.
 It determines how strongly the system is coupled to the barostat.
 
-If keywords :attr:`<p0>`, :attr:`<v0>` or :attr:`<e0>` are not supplied, these quantities will be calculated on the first step.
+If keywords ``<p0>``, ``<v0>`` or ``<e0>`` are not supplied, these quantities will be calculated on the first step.
 In most cases, you don't need to specify these quantities.
 
 Output

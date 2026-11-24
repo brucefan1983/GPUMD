@@ -16,5 +16,5 @@ The header is followed by one data row per sample.
 * Column 1 gives the simulation time in ps.
 * Columns 2–4 give the unwrapped center-of-mass coordinates :math:`x`, :math:`y`, and :math:`z` in Å.
 
-The first sample is taken after :attr:`sample_interval` MD steps in the current run.
+The first sample is taken after ``sample_interval`` MD steps in the current run.
 Simulation time continues across consecutive ``run`` commands in the same GPUMD process.

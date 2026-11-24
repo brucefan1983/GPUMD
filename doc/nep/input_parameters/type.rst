@@ -2,7 +2,7 @@
 .. index::
    single: type (keyword in nep.in)
 
-:attr:`type`
+``type``
 ============
 
 This is a *mandatory* keyword that specifies the chemical species, for which a model is to be constructed.
@@ -17,7 +17,7 @@ Syntax
 Parameters
 ----------
 
-:attr:`<number_of_species>` must be an integer and :attr:`[<species>]` must be a list of :attr:`<number_of_species>` chemical symbols.
+``<number_of_species>`` must be an integer and ``[<species>]`` must be a list of ``<number_of_species>`` chemical symbols.
 The latter are case-sensitive and must correspond to species in the periodic table.
 
 Output

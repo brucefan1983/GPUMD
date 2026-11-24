@@ -46,14 +46,14 @@ The driver potential file for this potential model reads::
   highest_force_order highest_heat_current_order
   path_to_force_constant_files
 
-* :attr:`fcp` is the name of this potential and tells the code that we are using the force constant potential.
-* :attr:`number_of_atom_types` is the number of atom types defined in the :ref:`simulation model file <model_xyz>`.
-* :attr:`<list of atom symbols>` is a list of all the elements in the potential (can be in any order).
-* :attr:`highest_force_order` is the highest order of the force constants used in the potential.
-  For example, when :attr:`highest_force_order` is 4, second-order, third-order, and fourth-order forces constants will be used (and should be prepared).
-* :attr:`highest_heat_current_order` is the highest order of the force constants used for heat current calculations.
+* ``fcp`` is the name of this potential and tells the code that we are using the force constant potential.
+* ``number_of_atom_types`` is the number of atom types defined in the :ref:`simulation model file <model_xyz>`.
+* ``<list of atom symbols>`` is a list of all the elements in the potential (can be in any order).
+* ``highest_force_order`` is the highest order of the force constants used in the potential.
+  For example, when ``highest_force_order`` is 4, second-order, third-order, and fourth-order forces constants will be used (and should be prepared).
+* ``highest_heat_current_order`` is the highest order of the force constants used for heat current calculations.
   It can only be 2 or 3, which means using the second order force constants only or using both the second and third order force constants for heat current calculations, respectively.
-* :attr:`path_to_force_constant_files` is the path to the force constant files (see below).
+* ``path_to_force_constant_files`` is the path to the force constant files (see below).
   **Important:** There should be no trailing slash (``/``) after the folder name.
 
 Force constant files

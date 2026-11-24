@@ -2,7 +2,7 @@
 .. index::
    single: dump_restart (keyword in run.in)
 
-:attr:`dump_restart`
+``dump_restart``
 ====================
 
 Write the current configuration, including atomic velocities, to :ref:`restart.xyz <restart_xyz>` for continuing a simulation.

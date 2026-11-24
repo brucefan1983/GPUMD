@@ -2,7 +2,7 @@
 .. index::
    single: fine_tune (keyword in nep.in)
 
-:attr:`fine_tune`
+``fine_tune``
 =================
 
 This keyword instructs :program:`nep` to fine tune a model starting from a foundation model.
@@ -17,7 +17,7 @@ Syntax
 Parameters
 ----------
 
-:attr:`<nep_model_file>` is the potential file for the foundation model and :attr:`<nep_restart_file>` is the restart file for the foundation model.
+``<nep_model_file>`` is the potential file for the foundation model and ``<nep_restart_file>`` is the restart file for the foundation model.
 
 Output
 ------
@@ -29,7 +29,7 @@ Examples
 
 The example below uses the foundation model in ``potentials/nep/nep89_20250409``.
 
-The hyperparameters that define the architecture of the foundation model cannot be changed and must be repeated in :attr:`nep.in`.
+The hyperparameters that define the architecture of the foundation model cannot be changed and must be repeated in ``nep.in``.
 In this ``nep.in`` template, replace ``type <your types>`` with the number and chemical symbols of the elements to train::
 
   # for fine-tuning

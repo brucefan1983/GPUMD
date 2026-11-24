@@ -2,7 +2,7 @@
 .. index::
    single: n_max (keyword in nep.in)
 
-:attr:`n_max`
+``n_max``
 =============
 
 This keyword sets the number of radial (:math:`n_\mathrm{max}^\mathrm{R}`) and angular (:math:`n_\mathrm{max}^\mathrm{A}`) descriptor components as introduced in Sect. II.B and Eq. (2) of [Fan2022b]_.
@@ -17,7 +17,7 @@ Syntax
 Parameters
 ----------
 
-:attr:`n_max_R` and :attr:`n_max_A` are :math:`n_\mathrm{max}^\mathrm{R}` and :math:`n_\mathrm{max}^\mathrm{A}`, respectively.
+``n_max_R`` and ``n_max_A`` are :math:`n_\mathrm{max}^\mathrm{R}` and :math:`n_\mathrm{max}^\mathrm{A}`, respectively.
 The two parameters must satisfy :math:`0 \leq n_\mathrm{max}^\mathrm{R} \leq 12` and :math:`0 \leq n_\mathrm{max}^\mathrm{A} \leq 8`.
 
 The default values of :math:`n_\mathrm{max}^\mathrm{R}=6` and :math:`n_\mathrm{max}^\mathrm{A}=6` are usually sufficient.

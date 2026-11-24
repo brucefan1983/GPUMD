@@ -6,15 +6,15 @@
    single: nph_mttk (keyword in run.in)
    single: MTTK integrator
 
-:attr:`ensemble` (MTTK)
+``ensemble`` (MTTK)
 =======================
 
-The variants of the :attr:`ensemble` keyword described on this page implement the Nosé-Hoover thermostat [Hoover1996]_ and the Parrinello-Rahman barostat [Parrinello1981]_.
+The variants of the ``ensemble`` keyword described on this page implement the Nosé-Hoover thermostat [Hoover1996]_ and the Parrinello-Rahman barostat [Parrinello1981]_.
 Both the thermostat and barostat are enhanced by the :ref:`Nosé-Hoover chain method <nose_hoover_chain_thermostat>` as recommended in [Martyna1994]_.
 The resulting so-called Martyna-Tuckerman-Tobias-Klein (:term:`MTTK`) integrators enable one to perform simulations in the canonical (NVT), isothermal-isobaric (NPT), or isenthalpic (NPH) ensembles.
 
 This implementation of the :term:`MTTK` integrator provides more fine-grained control than :ref:`"standard" ensembles <kw_ensemble_standard>`.
-The style of the :attr:`nvt_mttk`, :attr:`npt_mttk`, and :attr:`nph_mttk` keywords is therefore slightly different.
+The style of the ``nvt_mttk``, ``npt_mttk``, and ``nph_mttk`` keywords is therefore slightly different.
 
 Syntax
 ------
@@ -28,20 +28,20 @@ Syntax
 Parameters
 ----------
 
-:attr:`<T_1>` and :attr:`<T_2>` specify the initial and final target temperatures, respectively.
+``<T_1>`` and ``<T_2>`` specify the initial and final target temperatures, respectively.
 The target temperature varies linearly between them during the current run.
-The optional :attr:`<tau_temp>` parameter, which defaults to ``100``, determines the period of the thermostat in units of the timestep.
+The optional ``<tau_temp>`` parameter, which defaults to ``100``, determines the period of the thermostat in units of the timestep.
 It determines how strongly the system is coupled to the thermostat.
 
-The :attr:`<direction>` parameter can assume one or more of the following values: ``iso``, ``aniso``, ``tri``, ``x``, ``y``, ``z``, ``xy``, ``yz``, ``xz``.
+The ``<direction>`` parameter can assume one or more of the following values: ``iso``, ``aniso``, ``tri``, ``x``, ``y``, ``z``, ``xy``, ``yz``, ``xz``.
 Here, ``iso``, ``aniso``, and ``tri`` use hydrostatic pressure as the target pressure.
 ``iso`` updates the simulation cell isotropically.
 ``aniso`` updates the dimensions of the simulation cell along :math:`x`, :math:`y`, and :math:`z` independently.
 ``tri`` updates all six degrees of freedom of the simulation cell.
 Using ``x``, ``y``, ``z``, ``xy``, ``yz``, and ``xz`` allows one to specify each target pressure component independently.
 
-The parameters :attr:`<p_1>` and :attr:`<p_2>` specify the initial and final target pressures for the current run, respectively.
-Finally, the optional parameter :attr:`<tau_press>`, which defaults to ``1000``, determines the period of the barostat in units of the timestep.
+The parameters ``<p_1>`` and ``<p_2>`` specify the initial and final target pressures for the current run, respectively.
+Finally, the optional parameter ``<tau_press>``, which defaults to ``1000``, determines the period of the barostat in units of the timestep.
 It determines how strongly the system is coupled to the barostat and should be :math:`\geq 200` time steps.
 
 Output

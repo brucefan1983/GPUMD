@@ -2,7 +2,7 @@
 .. index::
    single: compute_cmass (keyword in run.in)
 
-:attr:`compute_cmass`
+``compute_cmass``
 =====================
 
 This keyword computes the center of mass from the per-atom masses and unwrapped Cartesian positions.
@@ -19,7 +19,7 @@ Syntax
 Parameters
 ----------
 
-* :attr:`sample_interval` is a positive integer giving the number of MD steps between samples.
+* ``sample_interval`` is a positive integer giving the number of MD steps between samples.
 * ``group <group_method> <group>`` selects one nonempty group by its zero-based grouping method and group ID.
   Omit ``group`` to include all atoms.
 

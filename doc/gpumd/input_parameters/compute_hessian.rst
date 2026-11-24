@@ -2,7 +2,7 @@
 .. index::
    single: compute_hessian (keyword in run.in)
 
-:attr:`compute_hessian`
+``compute_hessian``
 =======================
 
 Compute the Cartesian Hessian analytically for the current atomic positions

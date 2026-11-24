@@ -1,11 +1,11 @@
 .. _kw_ensemble_pimd:
 
-:attr:`ensemble` (PIMD)
+``ensemble`` (PIMD)
 =======================
 
-The :attr:`ensemble` keyword is used to set up an integration method (an integrator).
-The :attr:`pimd` and :attr:`pimd_scr` integrators incorporate nuclear quantum effects in equilibrium properties using path integral molecular dynamics (:term:`PIMD`).
-The :attr:`rpmd` and :attr:`trpmd` integrators provide approximate real-time quantum dynamics [Craig2004]_ [Rossi2014]_.
+The ``ensemble`` keyword is used to set up an integration method (an integrator).
+The ``pimd`` and ``pimd_scr`` integrators incorporate nuclear quantum effects in equilibrium properties using path integral molecular dynamics (:term:`PIMD`).
+The ``rpmd`` and ``trpmd`` integrators provide approximate real-time quantum dynamics [Craig2004]_ [Rossi2014]_.
 
 Syntax
 ------

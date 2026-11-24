@@ -2,7 +2,7 @@
 .. index::
    single: spin_wall (keyword in nep.in)
 
-:attr:`spin_wall`
+``spin_wall``
 =================
 
 This optional ``model nep_spin`` keyword penalizes magnetic moment magnitudes

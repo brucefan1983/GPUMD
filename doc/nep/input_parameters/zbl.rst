@@ -2,7 +2,7 @@
 .. index::
    single: zbl (keyword in nep.in)
 
-:attr:`zbl`
+``zbl``
 ===========
 
 This keyword can be used to spline the pair potential to the universal :term:`ZBL` potential [Ziegler1985]_ at short distances.
@@ -18,7 +18,7 @@ Syntax
 Parameters
 ----------
 
-Here, :attr:`<cutoff>` is a real number that specifies the "outer" cutoff :math:`r_\mathrm{c}^\mathrm{ZBL-outer}`, beyond which the :term:`ZBL` potential is zero.
+Here, ``<cutoff>`` is a real number that specifies the "outer" cutoff :math:`r_\mathrm{c}^\mathrm{ZBL-outer}`, beyond which the :term:`ZBL` potential is zero.
 The "inner" cutoff of the :term:`ZBL` potential, below which value the pair interaction is completely given by the :term:`ZBL` potential, is fixed to half of the outer cutoff, :math:`r_\mathrm{c}^\mathrm{ZBL-inner} = r_\mathrm{c}^\mathrm{ZBL-outer} /2`, which we have empirically found to be a reasonable choice.
 
 When this keyword is absent, the :term:`ZBL` potential will not be enabled and the value of :math:`r_\mathrm{c}^\mathrm{ZBL-outer}` is irrelevant.
@@ -34,7 +34,7 @@ Permissible values are 1 Å :math:`\leq r_\mathrm{c}^\mathrm{ZBL-outer} \leq` 4 
 
 Only ordinary NEP (``model nep``, including its default selection) supports
 flexible ZBL parameters. To use them, enable this keyword
-and provide a ``zbl.in`` file in the working directory; the :attr:`<cutoff>`
+and provide a ``zbl.in`` file in the working directory; the ``<cutoff>``
 parameter is still needed but will not be used. Other models reject flexible
 ZBL. Without this keyword, a ``zbl.in`` file is ignored. In prediction mode,
 ZBL parameters are read from ``nep.txt`` rather than ``zbl.in``.

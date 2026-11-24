@@ -2,7 +2,7 @@
 .. index::
    single: compute_dos (keyword in run.in)
 
-:attr:`compute_dos`
+``compute_dos``
 ===================
 
 This keyword computes the phonon density of states (:term:`PDOS`) using the mass-weighted velocity autocorrelation (:term:`VAC`) function.
@@ -19,27 +19,27 @@ Syntax
 Parameters
 ----------
 
-* :attr:`sample_interval`: Sampling interval of the velocity data
-* :attr:`Nc`: Maximum number of correlation steps
-* :attr:`omega_max`: Maximum angular frequency :math:`\omega_{max}=2\pi\nu_{max}` used in the :term:`PDOS` calculation
+* ``sample_interval``: Sampling interval of the velocity data
+* ``Nc``: Maximum number of correlation steps
+* ``omega_max``: Maximum angular frequency :math:`\omega_{max}=2\pi\nu_{max}` used in the :term:`PDOS` calculation
 
-The optional arguments (:attr:`optional_arg`) provide additional functionality by allowing special keywords.
-The keywords for this function are :attr:`group` and :attr:`num_dos_points`.
+The optional arguments (``optional_arg``) provide additional functionality by allowing special keywords.
+The keywords for this function are ``group`` and ``num_dos_points``.
 These keywords can be used in any order but the parameters associated with each must follow directly.
 
-The option :attr:`group` has two parameters::
+The option ``group`` has two parameters::
 
   group <group_method> <group>
 
-where :attr:`group_method` is the grouping method to use for computation and :attr:`group` is the index of the group to use.
-If :attr:`group` is -1, it means to calculate the DOS for every group in the :attr:`group_method`. If each atom is in one group, one can get the per-atom DOS and then calculate the phonon participation ratio.
+where ``group_method`` is the grouping method to use for computation and ``group`` is the index of the group to use.
+If ``group`` is -1, it means to calculate the DOS for every group in the ``group_method``. If each atom is in one group, one can get the per-atom DOS and then calculate the phonon participation ratio.
 
-The option :attr:`num_dos_points` has one parameter::
+The option ``num_dos_points`` has one parameter::
 
   num_dos_points <points>
 
-where :attr:`points` is the number of frequency points to be used in the DOS calculation.
-It defaults to :attr:`Nc` if the :attr:`num_dos_points` option is not specified.
+where ``points`` is the number of frequency points to be used in the DOS calculation.
+It defaults to ``Nc`` if the ``num_dos_points`` option is not specified.
 
 Output
 ------

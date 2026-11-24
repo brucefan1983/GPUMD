@@ -2,7 +2,7 @@
 .. index::
    single: plumed (keyword in run.in)
 
-:attr:`plumed`
+``plumed``
 ===================
 
 Invoke the `PLUMED <https://www.plumed.org/>`_ plugin during a MD run.
@@ -17,9 +17,9 @@ This keyword has the following format::
 Parameters
 ----------
 
-The :attr:`plumed_file` parameter is the name of the PLUMED input file.
-The :attr:`interval` parameter is the interval (number of steps) of calling the PLUMED subroutines.
-The :attr:`if_restart` parameter determines if the PLUMED plugin should restart its calculations, which includes appending to its output files, reading the previous biases, etc.
+The ``plumed_file`` parameter is the name of the PLUMED input file.
+The ``interval`` parameter is the interval (number of steps) of calling the PLUMED subroutines.
+The ``if_restart`` parameter determines if the PLUMED plugin should restart its calculations, which includes appending to its output files, reading the previous biases, etc.
 
 Output
 ------
@@ -70,4 +70,4 @@ Requirements and specifications
 
 * This keyword requires an external package to operate.
   Instructions for how to set up the `PLUMED package <https://www.plumed.org/>`_ can be found :ref:`here <plumed_setup>`.
-* Increasing the :attr:`interval` parameter will speed up your simulation if you only want PLUMED to calculate collective variables (CVs). But you have to set it to 1 if your simulation was biased by PLUMED.
+* Increasing the ``interval`` parameter will speed up your simulation if you only want PLUMED to calculate collective variables (CVs). But you have to set it to 1 if your simulation was biased by PLUMED.

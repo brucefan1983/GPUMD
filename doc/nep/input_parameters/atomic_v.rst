@@ -2,7 +2,7 @@
 .. index::
    single: atomic_v (keyword in nep.in)
 
-:attr:`atomic_v`
+``atomic_v``
 ================
 
 This keyword selects whether to fit atomic or global quantities for dipoles (``model nep_dipole``) or polarizabilities (``model nep_polarizability``). Only one of atomic and global can be fitted at a time. Fitting both simultaneously is not supported. For the virial tensor (``model nep``), only global fitting is supported.
@@ -17,7 +17,7 @@ Syntax
 Parameters
 ----------
 
-:attr:`<mode>` must be an integer that can assume one of the following values.
+``<mode>`` must be an integer that can assume one of the following values.
 
 =====  ===========================
 Value  Mode

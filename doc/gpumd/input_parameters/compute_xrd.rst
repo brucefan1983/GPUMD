@@ -2,7 +2,7 @@
 .. index::
    single: compute_xrd (keyword in run.in)
 
-:attr:`compute_xrd`
+``compute_xrd``
 ===================
 
 Calculate kinematic X-ray diffraction intensities on a reciprocal-space grid.

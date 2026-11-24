@@ -2,7 +2,7 @@
 .. index::
    single: dump_shock_nemd (keyword in run.in)
 
-:attr:`dump_shock_nemd`
+``dump_shock_nemd``
 =======================
 
 In shock wave piston simulations, it's often crucial to compute thermo information at different regions, both before and after the shock wave passage.
@@ -21,8 +21,8 @@ Syntax
 Parameters
 ----------
 
-- The :attr:`interval` parameter sets the output interval (number of steps).
-- The :attr:`bin_size` parameter, optional with a default value of 10, defines the thickness of each histogram bin in Å.
+- The ``interval`` parameter sets the output interval (number of steps).
+- The ``bin_size`` parameter, optional with a default value of 10, defines the thickness of each histogram bin in Å.
 
 Output
 ------

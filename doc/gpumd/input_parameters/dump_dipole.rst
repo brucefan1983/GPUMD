@@ -2,7 +2,7 @@
 .. index::
    single: dump_dipole (keyword in run.in)
 
-:attr:`dump_dipole`
+``dump_dipole``
 ===================
 
 Predicts the dipole for the current configuration of atoms during MD using a separate ``nep_dipole`` model.
@@ -18,9 +18,9 @@ Syntax
 Parameters
 ----------
 
-:attr:`interval` parameter is a positive integer giving the output interval (number of steps) for evaluating and writing the dipole.
+``interval`` parameter is a positive integer giving the output interval (number of steps) for evaluating and writing the dipole.
 
-:attr:`nep_file` is a :ref:`NEP model file <nep_txt>` with ``model nep_dipole``.
+``nep_file`` is a :ref:`NEP model file <nep_txt>` with ``model nep_dipole``.
 
 Output
 ------

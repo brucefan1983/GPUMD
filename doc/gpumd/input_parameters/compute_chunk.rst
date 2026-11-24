@@ -2,11 +2,11 @@
 .. index::
    single: compute_chunk (keyword in run.in)
 
-:attr:`compute_chunk`
+``compute_chunk``
 =====================
 
 This keyword computes space- and time-averaged per-chunk quantities based on dynamic spatial binning.
-Unlike the :ref:`compute keyword <kw_compute>`, which uses static group assignments defined in the model file, :attr:`compute_chunk` assigns atoms to spatial bins (chunks) based on their real-time coordinates at each sampling step.
+Unlike the :ref:`compute keyword <kw_compute>`, which uses static group assignments defined in the model file, ``compute_chunk`` assigns atoms to spatial bins (chunks) based on their real-time coordinates at each sampling step.
 This is particularly useful for systems where atoms diffuse across spatial regions during the simulation, such as low-density, porous, or amorphous materials in NEMD simulations.
 
 Syntax
@@ -27,30 +27,30 @@ For 3D binning::
 Parameters
 ----------
 
-* :attr:`sample_interval`: Sampling interval in time steps. The quantities are sampled every this many steps.
+* ``sample_interval``: Sampling interval in time steps. The quantities are sampled every this many steps.
 
-* :attr:`output_interval`: Number of samples to average before producing one output. This is consistent with the :ref:`compute keyword <kw_compute>`: one output is produced every :math:`\text{sample\_interval} \times \text{output\_interval}` time steps.
+* ``output_interval``: Number of samples to average before producing one output. This is consistent with the :ref:`compute keyword <kw_compute>`: one output is produced every :math:`\text{sample\_interval} \times \text{output\_interval}` time steps.
 
-* :attr:`bin/1d`, :attr:`bin/2d`, :attr:`bin/3d`: The binning style, specifying 1D, 2D, or 3D spatial binning respectively.
+* ``bin/1d``, ``bin/2d``, ``bin/3d``: The binning style, specifying 1D, 2D, or 3D spatial binning respectively.
 
-* :attr:`dim` (or :attr:`dim1`, :attr:`dim2`, :attr:`dim3`): The axis along which to bin. Must be :attr:`x`, :attr:`y`, or :attr:`z`. For :attr:`bin/2d` and :attr:`bin/3d`, the specified axes must be distinct.
+* ``dim`` (or ``dim1``, ``dim2``, ``dim3``): The axis along which to bin. Must be ``x``, ``y``, or ``z``. For ``bin/2d`` and ``bin/3d``, the specified axes must be distinct.
 
-* :attr:`origin` (or :attr:`origin1`, :attr:`origin2`, :attr:`origin3`): The bin origin. Currently only :attr:`lower` is supported, meaning bins start from the lower boundary of the simulation box (coordinate 0).
+* ``origin`` (or ``origin1``, ``origin2``, ``origin3``): The bin origin. Currently only ``lower`` is supported, meaning bins start from the lower boundary of the simulation box (coordinate 0).
 
-* :attr:`delta` (or :attr:`delta1`, :attr:`delta2`, :attr:`delta3`): The bin width in Ångströms. The number of bins along each axis is automatically calculated as :math:`\lceil L / \delta \rceil`, where :math:`L` is the box length along that axis. The last bin may be narrower than :math:`\delta` if :math:`L` is not an integer multiple of :math:`\delta`; its volume and center coordinate are computed using the actual width.
+* ``delta`` (or ``delta1``, ``delta2``, ``delta3``): The bin width in Ångströms. The number of bins along each axis is automatically calculated as :math:`\lceil L / \delta \rceil`, where :math:`L` is the box length along that axis. The last bin may be narrower than :math:`\delta` if :math:`L` is not an integer multiple of :math:`\delta`; its volume and center coordinate are computed using the actual width.
 
 Starting after the binning parameters, one can list the quantities to be computed.
-The allowed names for :attr:`quantity` are:
+The allowed names for ``quantity`` are:
 
-* :attr:`temperature`, which yields the temperature of each chunk
-* :attr:`density/number`, which yields the number density (atoms per volume) of each chunk
-* :attr:`density/mass`, which yields the mass density of each chunk
-* :attr:`vx`, which yields the average velocity in the x direction
-* :attr:`vy`, which yields the average velocity in the y direction
-* :attr:`vz`, which yields the average velocity in the z direction
-* :attr:`fx`, which yields the average force in the x direction
-* :attr:`fy`, which yields the average force in the y direction
-* :attr:`fz`, which yields the average force in the z direction
+* ``temperature``, which yields the temperature of each chunk
+* ``density/number``, which yields the number density (atoms per volume) of each chunk
+* ``density/mass``, which yields the mass density of each chunk
+* ``vx``, which yields the average velocity in the x direction
+* ``vy``, which yields the average velocity in the y direction
+* ``vz``, which yields the average velocity in the z direction
+* ``fx``, which yields the average force in the x direction
+* ``fy``, which yields the average force in the y direction
+* ``fz``, which yields the average force in the z direction
 
 One can write one or more (distinct) names in any order.
 
@@ -69,16 +69,16 @@ For each output time, there are :math:`N_\text{chunk}` consecutive lines (one pe
 
 The columns are:
 
-* :attr:`chunk_id`: the zero-based index of the chunk (dimensionless integer).
-* :attr:`coord1` (and :attr:`coord2`, :attr:`coord3` for 2D/3D binning): the center coordinates (in units of Å) of the chunk along the corresponding binning axis.
-* :attr:`avg_count`: the time-averaged number of atoms in the chunk (dimensionless).
-* :attr:`value1`, :attr:`value2`, ...: the time-averaged values of the requested quantities, in the same order as specified in the command. The units for each quantity are:
+* ``chunk_id``: the zero-based index of the chunk (dimensionless integer).
+* ``coord1`` (and ``coord2``, ``coord3`` for 2D/3D binning): the center coordinates (in units of Å) of the chunk along the corresponding binning axis.
+* ``avg_count``: the time-averaged number of atoms in the chunk (dimensionless).
+* ``value1``, ``value2``, ...: the time-averaged values of the requested quantities, in the same order as specified in the command. The units for each quantity are:
 
-  - :attr:`temperature`: K
-  - :attr:`density/number`: Å\ :sup:`-3` (number of atoms per volume)
-  - :attr:`density/mass`: amu/Å\ :sup:`3` (total atomic mass per volume)
-  - :attr:`vx`, :attr:`vy`, :attr:`vz`: Å/fs
-  - :attr:`fx`, :attr:`fy`, :attr:`fz`: eV/Å
+  - ``temperature``: K
+  - ``density/number``: Å\ :sup:`-3` (number of atoms per volume)
+  - ``density/mass``: amu/Å\ :sup:`3` (total atomic mass per volume)
+  - ``vx``, ``vy``, ``vz``: Å/fs
+  - ``fx``, ``fy``, ``fz``: eV/Å
 
 The temperature is computed from the kinetic energy of the atoms in each chunk as :math:`T = 2 E_\text{k} / (3 k_\text{B} N)`, where :math:`E_\text{k}` is the total kinetic energy, :math:`N` is the atom count, and :math:`k_\text{B}` is the Boltzmann constant.
 The velocity and force values are per-atom averages within each chunk.
@@ -141,6 +141,6 @@ This computes the temperature and density profiles along z during a Langevin hea
 Notes
 -----
 
-* The :attr:`origin` parameter currently only accepts :attr:`lower`. Numeric origin values are not supported.
+* The ``origin`` parameter currently only accepts ``lower``. Numeric origin values are not supported.
 * This keyword defines spatial bins for measurement and analysis. Spatial heat-bath regions are configured separately using the region form of :ref:`ensemble heat_lan <kw_ensemble_heat>`.
-* Multiple :attr:`compute_chunk` commands can be used in the same run.
+* Multiple ``compute_chunk`` commands can be used in the same run.

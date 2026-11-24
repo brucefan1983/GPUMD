@@ -2,7 +2,7 @@
 .. index::
    single: dump_beads (keyword in run.in)
 
-:attr:`dump_beads`
+``dump_beads``
 ==================
 
 Write bead positions and optional velocities and forces in a PIMD run.
@@ -17,9 +17,9 @@ Syntax
 Parameters
 ----------
 
-* :attr:`interval` is a positive integer giving the output interval in MD steps.
-* :attr:`has_velocity` is an integer flag: 0 omits velocities, and a nonzero value includes them.
-* :attr:`has_force` is an integer flag: 0 omits forces, and a nonzero value includes them.
+* ``interval`` is a positive integer giving the output interval in MD steps.
+* ``has_velocity`` is an integer flag: 0 omits velocities, and a nonzero value includes them.
+* ``has_force`` is an integer flag: 0 omits forces, and a nonzero value includes them.
 
 Positions are always included. All three parameters are required.
 

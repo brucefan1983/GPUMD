@@ -2,7 +2,7 @@
 .. index::
    single: batch (keyword in nep.in)
 
-:attr:`batch`
+``batch``
 =============
 
 This keyword sets the size of each batch used during the :ref:`optimization procedure <nep_optimization_procedure>`.
@@ -17,7 +17,7 @@ Syntax
 Parameters
 ----------
 
-Here, :attr:`<batch_size>` sets the batch size :math:`N_\mathrm{bat}`, which must satisfy :math:`N_\mathrm{bat}\geq 1` and defaults to :math:`N_\mathrm{bat}=1000`.
+Here, ``<batch_size>`` sets the batch size :math:`N_\mathrm{bat}`, which must satisfy :math:`N_\mathrm{bat}\geq 1` and defaults to :math:`N_\mathrm{bat}=1000`.
 This setting does not control :ref:`response.xyz <response_xyz>` data.
 
 Output

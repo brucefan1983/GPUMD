@@ -46,34 +46,34 @@ File format
 This hybrid potential requires 2 potential files: :term:`ILP` potential file and
 :term:`SW` potential file. We have adopted the :term:`ILP` file format that is similar
 but not identical to that used by `lammps <https://docs.lammps.org/pair_ilp_graphene_hbn.html>`_.
-To identify the layers, it's required to set two :attr:`group_methods`
-in ``model.xyz`` file. :attr:`group_method` 0 is used to identify the different layers and :attr:`group_method` 1
+To identify the layers, it's required to set two ``group_methods``
+in ``model.xyz`` file. ``group_method`` 0 is used to identify the different layers and ``group_method`` 1
 is used to identify different sublayers. One transition metal dichalcogenide layer has three sublayers,
 i.e., one :math:`MoS_2` layer has one Mo sublayer and two S sublayers. For atoms in the same layer,
-the :attr:`group_id` of :attr:`group_method` 0 must be the same and for atoms in the same sublayer,
-the :attr:`group_id` of :attr:`group_method` 1 must be the same.
+the ``group_id`` of ``group_method`` 0 must be the same and for atoms in the same sublayer,
+the ``group_id`` of ``group_method`` 1 must be the same.
 For :math:`\mathrm{MX_2}`, M is a transition metal (such as Mo or W), and X is S, Se, or Te.
 
-In ``run.in`` file, the :attr:`potential` setting is as::
+In ``run.in`` file, the ``potential`` setting is as::
 
   potential <ilp file> <sw file>
 
-where :attr:`ilp file` and :attr:`sw file` are the filenames of
+where ``ilp file`` and ``sw file`` are the filenames of
 the :term:`ILP` potential file and :term:`SW` potential file.
-:attr:`ilp file` is similar to other empirical potential files in :program:`GPUMD`::
+``ilp file`` is similar to other empirical potential files in :program:`GPUMD`::
 
   sw_ilp <number of atom types> <list of elements>
   beta alpha delta epsilon C d sR reff C6 S rcut1 rcut2
   ...
 
-* :attr:`sw_ilp` is the name of this hybrid potential.
-* :attr:`number of atom types` is the number of atom types defined in the ``model.xyz``.
+* ``sw_ilp`` is the name of this hybrid potential.
+* ``number of atom types`` is the number of atom types defined in the ``model.xyz``.
   Here, this value must be set to **2** for transition metal dichalcogenide homostructures.
-* :attr:`list of element` is a list of all the elements in the potential.
-* The last line(s) is(are) parameters of :term:`ILP`. :attr:`rcut1` is used for calculating the normal vectors
-  and :attr:`rcut2` is the cutoff of :term:`ILP`, usually 16Å.
+* ``list of element`` is a list of all the elements in the potential.
+* The last line(s) is(are) parameters of :term:`ILP`. ``rcut1`` is used for calculating the normal vectors
+  and ``rcut2`` is the cutoff of :term:`ILP`, usually 16Å.
 
-More specifically, for :math:`\mathrm{MX_2}`, the :attr:`ilp file` is required to set as::
+More specifically, for :math:`\mathrm{MX_2}`, the ``ilp file`` is required to set as::
 
   sw_ilp 2 M X
   beta_MM alpha_MM delta_MM epsilon_MM C_MM d_MM sR_MM reff_MM C6_MM S_MM rcut1_MM rcut2_MM
@@ -81,7 +81,7 @@ More specifically, for :math:`\mathrm{MX_2}`, the :attr:`ilp file` is required t
   beta_XM alpha_XM delta_XM epsilon_XM C_XM d_XM sR_XM reff_XM C6_XM S_XM rcut1_XM rcut2_XM
   beta_XX alpha_XX delta_XX epsilon_XX C_XX d_XX sR_XX reff_XX C6_XX S_XX rcut1_XX rcut2_XX
 
-The :attr:`sw file` use the same atomic type list as the :attr:`ilp file` and just contains parameters
+The ``sw file`` use the same atomic type list as the ``ilp file`` and just contains parameters
 of :term:`SW`. The potential file reads, specifically::
 
   A_MM B_MM a_MM sigma_MM gamma_MM

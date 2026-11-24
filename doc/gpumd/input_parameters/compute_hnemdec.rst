@@ -2,7 +2,7 @@
 .. index::
    single: compute_hnemdec (keyword in run.in)
 
-:attr:`compute_hnemdec`
+``compute_hnemdec``
 =======================
 
 This keyword is used to calculate the multicomponent system thermal conductivity using the :ref:`homogeneous nonequilibrium molecular dynamics Evans-Cummings algorithm <hnemdec>` (:term:`HNEMDEC`) method.
@@ -17,18 +17,18 @@ Syntax
 Parameters
 ----------
 
-:attr:`driving_force` determines which type of driving force to use. It could be zero or non zero positive integer, which means thermal driving force or diffusive driving force.
+``driving_force`` determines which type of driving force to use. It could be zero or non zero positive integer, which means thermal driving force or diffusive driving force.
 In the case of zero, heat flux is equivalent to dissipative flux, with driving force :math:`F_e` in the units of Å\ :sup:`-1`.
 For a non zero positive integer such as :math:`i`, a momentum flux of the :math:`ith` element is produced as dissipative flux, with driving force :math:`F_e` in the units of eV/Å. For a compacted multi-element NEP potential, the element order is the active atom type list printed at initialization; otherwise, it is the order in the first line of nep.txt.
 
-:attr:`output_interval` is the number of MD steps per output block.
+``output_interval`` is the number of MD steps per output block.
 Each row contains coefficients averaged over that block.
 
-:attr:`Fe_x` is the :math:`x` direction component of the external driving force :math:`F_e`.
+``Fe_x`` is the :math:`x` direction component of the external driving force :math:`F_e`.
 
-:attr:`Fe_y` is the :math:`y` direction component of the external driving force :math:`F_e`.
+``Fe_y`` is the :math:`y` direction component of the external driving force :math:`F_e`.
 
-:attr:`Fe_z` is the :math:`z` direction component of the external driving force :math:`F_e`.
+``Fe_z`` is the :math:`z` direction component of the external driving force :math:`F_e`.
 
 Output
 ------
