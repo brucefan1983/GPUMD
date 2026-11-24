@@ -7,7 +7,7 @@
 
 This file contains block averages of components of the Onsager coefficient tensors from the homogeneous nonequilibrium molecular dynamics Evans-Cummings algorithm (:term:`HNEMDEC`) method.
 It is generated when invoking the :ref:`compute_hnemdec keyword <kw_compute_hnemdec>`.
-Each row averages the preceding :attr:`output_interval` MD steps, rather than all steps since the start of the run.
+Each row averages the preceding ``output_interval`` MD steps, rather than all steps since the start of the run.
 Rows are appended to the file, with :math:`3(M+1)` columns for :math:`M` elements and no time column.
 
 File format
@@ -49,7 +49,7 @@ One can obtain the onsager coefficient :math:`\Lambda_{i j}^{ml}` by:
 Obtaining the thermal conductivity
 ----------------------------------
 
-For each driving direction, use separate calculations with thermal driving (:attr:`driving_force` = 0) and diffusive driving for :math:`M-1` selected components.
+For each driving direction, use separate calculations with thermal driving (``driving_force`` = 0) and diffusive driving for :math:`M-1` selected components.
 Use the same temperature, composition, and density, with a sufficiently small positive field along one Cartesian axis per calculation.
 Average the output blocks after equilibration, and save the output from each calculation separately.
 
@@ -71,7 +71,7 @@ For general anisotropic transport, these blocks include the Cartesian components
 For an isotropic system or a Cartesian direction decoupled from the other directions, the calculation reduces to an :math:`M\times M` matrix for that direction.
 
 For example, consider a binary system driven along :math:`x`, retaining the momentum current of the first component.
-Use :attr:`driving_force` = 0 and 1 in separate calculations, and save their outputs as ``onsager_heat.out`` and ``onsager_diffusion.out``.
+Use ``driving_force`` = 0 and 1 in separate calculations, and save their outputs as ``onsager_heat.out`` and ``onsager_diffusion.out``.
 The longitudinal conductivity can then be calculated as follows (the example discards the first 100 output blocks; choose this number from the equilibration behavior):
 
 .. code-block:: python

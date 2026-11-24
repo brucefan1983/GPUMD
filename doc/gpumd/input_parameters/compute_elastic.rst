@@ -2,7 +2,7 @@
 .. index::
    single: compute_elastic (keyword in run.in)
 
-:attr:`compute_elastic`
+``compute_elastic``
 =======================
 
 This keyword computes static elastic constants from potential-energy changes under small deformations, relaxing the atomic positions at each fixed deformed cell.
@@ -17,7 +17,7 @@ Syntax
 Parameters
 ----------
 
-:attr:`strain_value` is the dimensionless amount of strain to be applied in the calculations and must lie in the interval :math:`(0, 0.1]`.
+``strain_value`` is the dimensionless amount of strain to be applied in the calculations and must lie in the interval :math:`(0, 0.1]`.
 
 Output
 ------

@@ -2,10 +2,10 @@
 .. index::
    single: compute_gkma (keyword in run.in)
 
-:attr:`compute_gkma`
+``compute_gkma``
 ====================
 
-The :attr:`compute_gkma` keyword can be used to calculate the modal heat current using the Green-Kubo modal analysis (:term:`GKMA`) method [Lv2016]_.
+The ``compute_gkma`` keyword can be used to calculate the modal heat current using the Green-Kubo modal analysis (:term:`GKMA`) method [Lv2016]_.
 
 Syntax
 ------
@@ -17,16 +17,16 @@ Syntax
 Parameters
 ----------
 
-:attr:`sample_interval` is the sampling interval (in number of steps) used to compute the modal heat current.
+``sample_interval`` is the sampling interval (in number of steps) used to compute the modal heat current.
 
-:attr:`first_mode` and :attr:`last_mode` are the first and last mode, respectively, in the :ref:`eigenvector.in input file <eigenvector_in>` to include in the calculation.
+``first_mode`` and ``last_mode`` are the first and last mode, respectively, in the :ref:`eigenvector.in input file <eigenvector_in>` to include in the calculation.
 
-:attr:`bin_option` determines which binning technique to use.
+``bin_option`` determines which binning technique to use.
 The options are ``bin_size`` and ``f_bin_size``.
 
-:attr:`size` defines how the modes are added to each bin.
-If :attr:`bin_option` is ``bin_size``, then this is an integer describing how many modes are included per bin.
-If :attr:`bin_option` = ``f_bin_size``, then binning is by frequency and this is a float describing the bin size in THz.
+``size`` defines how the modes are added to each bin.
+If ``bin_option`` is ``bin_size``, then this is an integer describing how many modes are included per bin.
+If ``bin_option`` = ``f_bin_size``, then binning is by frequency and this is a float describing the bin size in THz.
 
 Output
 ------

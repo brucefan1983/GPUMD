@@ -2,7 +2,7 @@
 .. index::
    single: output_descriptor (keyword in nep.in)
 
-:attr:`output_descriptor`
+``output_descriptor``
 =========================
 
 Select per-structure or per-atom descriptor output in prediction mode.
@@ -17,7 +17,7 @@ Syntax
 Parameters
 ----------
 
-:attr:`<mode>` must be an integer that can assume one of the following values.
+``<mode>`` must be an integer that can assume one of the following values.
 
 =====  =====================================================
 Value  Mode

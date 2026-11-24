@@ -2,7 +2,7 @@
 .. index::
    single: generation (keyword in nep.in)
 
-:attr:`generation`
+``generation``
 ==================
 
 This keyword sets the number of generations :math:`N_\mathrm{gen}` for the :term:`SNES` algorithm [Schaul2011]_.
@@ -17,7 +17,7 @@ Syntax
 Parameters
 ----------
 
-Here, :attr:`<number_of_generations>` sets :math:`N_\mathrm{gen}`, which must satisfy :math:`0 \leq N_\mathrm{gen}\leq 10^7` and defaults to :math:`N_\mathrm{gen}=10^5`.
+Here, ``<number_of_generations>`` sets :math:`N_\mathrm{gen}`, which must satisfy :math:`0 \leq N_\mathrm{gen}\leq 10^7` and defaults to :math:`N_\mathrm{gen}=10^5`.
 
 Output
 ------

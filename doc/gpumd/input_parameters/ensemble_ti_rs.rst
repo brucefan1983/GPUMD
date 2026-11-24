@@ -1,6 +1,6 @@
 .. _kw_ensemble_ti_rs:
 
-:attr:`ensemble` (TI_RS)
+``ensemble`` (TI_RS)
 ========================
 
 This keyword is used to set up a nonequilibrium thermodynamic integration integrator with Reversible Scaling (RS) path. It calculates Gibbs free energy along an isobaric path. See [Koning2001]_ and [Freitas2016]_ for more details.
@@ -15,11 +15,11 @@ Syntax
 Parameters
 ----------
 
-- :attr:`<tmin>` and :attr:`<tmax>`: The initial and final physical temperatures of the forward path, in kelvin.
-- :attr:`<pressure_control>` and :attr:`<pressure>`: The pressure-control mode and the physical pressure in GPa. See :ref:`MTTK parameters <kw_ensemble_mttk>`.
-- :attr:`<tau_temperature>` and :attr:`<tau_pressure>`: These parameters are optional. See :ref:`MTTK parameters <kw_ensemble_mttk>`.
-- :attr:`<equilibrium_time>`: The number of MD steps in each equilibration stage; a non-negative integer.
-- :attr:`<switch_time>`: The number of MD steps in each switching stage, including both endpoints; an integer of at least 2.
+- ``<tmin>`` and ``<tmax>``: The initial and final physical temperatures of the forward path, in kelvin.
+- ``<pressure_control>`` and ``<pressure>``: The pressure-control mode and the physical pressure in GPa. See :ref:`MTTK parameters <kw_ensemble_mttk>`.
+- ``<tau_temperature>`` and ``<tau_pressure>``: These parameters are optional. See :ref:`MTTK parameters <kw_ensemble_mttk>`.
+- ``<equilibrium_time>``: The number of MD steps in each equilibration stage; a non-negative integer.
+- ``<switch_time>``: The number of MD steps in each switching stage, including both endpoints; an integer of at least 2.
 
 Specify both ``tequil`` and ``tswitch``, or omit both.
 When omitted, they are set to ``floor(0.1 * N)`` and ``floor(0.4 * N)``, respectively, where ``N`` is the number of run steps; the resulting ``tswitch`` must still be at least 2.

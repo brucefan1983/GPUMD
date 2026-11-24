@@ -2,7 +2,7 @@
 .. index::
    single: lambda_spin_response (keyword in nep.in)
 
-:attr:`lambda_spin_response`
+``lambda_spin_response``
 =============================
 
 This keyword sets the weight of grouped magnetic-response loss.

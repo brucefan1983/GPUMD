@@ -2,7 +2,7 @@
 .. index::
    single: compute_dpdt (keyword in run.in)
 
-:attr:`compute_dpdt`
+``compute_dpdt``
 ====================
 
 This keyword calculates the time derivative of the total dipole moment of the simulation cell by contracting each atomic Born effective charge (:term:`BEC`) tensor with the atomic velocity and summing over atoms.
@@ -20,7 +20,7 @@ Parameters
 
 Here,
 
-* :attr:`sampling_interval` is a positive integer giving the number of time steps between samples.
+* ``sampling_interval`` is a positive integer giving the number of time steps between samples.
 
 Output
 ------

@@ -106,10 +106,10 @@ The potential file for the version from [Zhou2004]_ reads::
   eam_zhou_2004 num_types <list of elements>
   r_e f_e rho_e rho_s alpha beta A B kappa lambda F_n0 F_n1 F_n2 F_n3 F_0 F_1 F_2 F_3 eta F_e cutoff
 
-There are :attr:`num_types` rows of parameters but here we have only written a single row above.
-The order of the rows should be consistent with the :attr:`<list of elements>` in the first line.
+There are ``num_types`` rows of parameters but here we have only written a single row above.
+The order of the rows should be consistent with the ``<list of elements>`` in the first line.
 
-The last parameter :attr:`cutoff` is the cutoff distance, which is not intrinsic to the model.
+The last parameter ``cutoff`` is the cutoff distance, which is not intrinsic to the model.
 The order of the parameters is the same as in Table III of [Zhou2004]_.
 For multi-component systems, :program:`GPUMD` will use the largest cutoff for every atom type.
 
@@ -118,7 +118,7 @@ The potential file for the version from [Dai2006]_ reads::
   eam_dai_2006 1 Element
   A d c c_0 c_1 c_2 c_3 c_4 B
 
-Here, :attr:`Element` is the chemical symbol of the element.
+Here, ``Element`` is the chemical symbol of the element.
 
 Table format
 -------------

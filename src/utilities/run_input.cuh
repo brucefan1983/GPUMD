@@ -32,8 +32,6 @@ public:
 
   const std::vector<RunInputLine>& lines() const;
   const RunInputLine* find_first(const std::string& keyword) const;
-  const RunInputLine* find_last(const std::string& keyword) const;
-  std::vector<const RunInputLine*> find_all(const std::string& keyword) const;
   bool contains(const std::string& keyword) const;
 
 private:

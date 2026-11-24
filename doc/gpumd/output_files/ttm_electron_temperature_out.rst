@@ -5,9 +5,9 @@
 ``ttm_electron_temperature.out``
 ================================
 
-This file contains electron temperature snapshots from :attr:`ttm` and
-:attr:`heat_ttm` runs.
-It is written every :attr:`ttm_out_interval` steps and the output mode is overwrite.
+This file contains electron temperature snapshots from ``ttm`` and
+``heat_ttm`` runs.
+It is written every ``ttm_out_interval`` steps and the output mode is overwrite.
 
 File format
 -----------
@@ -32,8 +32,8 @@ followed by one line for each electron grid cell::
 
 where:
 
-* :attr:`ix`, :attr:`iy`, :attr:`iz` are the 1-based electron-grid indices
-* :attr:`T_e` is the electron temperature in K
+* ``ix``, ``iy``, ``iz`` are the 1-based electron-grid indices
+* ``T_e`` is the electron temperature in K
 
 Notes
 -----

@@ -73,7 +73,7 @@ This is an important conclusion in [Li2019]_.
 
 To generate the nonequilibrium steady state, one can use a pair of local thermostats.
 Based on [Li2019]_, the Langevin thermostatting method is recommended.
-Therefore, the :ref:`ensemble <kw_ensemble>` keyword with the first parameter of :attr:`heat_lan` should be used to generate the heat current.
+Therefore, the :ref:`ensemble <kw_ensemble>` keyword with the first parameter of ``heat_lan`` should be used to generate the heat current.
 
 * The :ref:`compute <kw_compute>` keyword should be used to compute the temperature profile and the heat transfer rate :math:`Q`.
 * Related output file: :ref:`compute.out <compute_out>`
@@ -121,7 +121,7 @@ where :math:`\kappa^{\mu\nu}` is the thermal conductivity tensor, :math:`T` is t
 
 A global thermostat should be applied to control the temperature of the system.
 For this, we recommend using the Nosé-Hoover chain thermostat.
-So one should use the :ref:`ensemble <kw_ensemble>` keyword with the first parameter of :attr:`nvt_nhc`.
+So one should use the :ref:`ensemble <kw_ensemble>` keyword with the first parameter of ``nvt_nhc``.
 
 * The :ref:`compute_hnemd <kw_compute_hnemd>` keyword should be used to add the driving force and calculate the thermal conductivity.
 * The computed results are saved to the :ref:`kappa.out <kappa_out>` file.
@@ -299,7 +299,7 @@ The mode-specific nonequilibrium heat current is :math:`\langle J_n^{\mu}(t)\ran
 
 For the :term:`HNEMA` method, we only used the potential part of the heat current.
 A global thermostat should be applied to control the temperature of the system.
-For this, we recommend using the Nosé-Hoover chain thermostat. So one should use the :ref:`ensemble <kw_ensemble>` keyword with the first parameter of :attr:`nvt_nhc`.
+For this, we recommend using the Nosé-Hoover chain thermostat. So one should use the :ref:`ensemble <kw_ensemble>` keyword with the first parameter of ``nvt_nhc``.
 
 
 .. _hnemdec:

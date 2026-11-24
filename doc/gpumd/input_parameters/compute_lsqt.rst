@@ -2,7 +2,7 @@
 .. index::
    single: compute_lsqt (keyword in run.in)
 
-:attr:`compute_lsqt`
+``compute_lsqt``
 ====================
 
 This keyword is used to compute the electronic transport properties using the linear-scaling quantum transport (:term:`LSQT`) [Fan2021b]_ approach.
@@ -20,10 +20,10 @@ This keyword is used as follows::
 Parameters
 ----------
 
-* :attr:`transport_direction` is the transport direction, which can take values ``x``, ``y``, and ``z``.
-* :attr:`num_moments` is the number of the Chebyshev moments for the energy resolution operator.
-* The :attr:`num_energies` energy points increase linearly from :attr:`E_1` (eV) to :attr:`E_2` (eV).
-* :attr:`E_max` (eV) is an energy value that should be (slightly) larger than the maximum of the absolute energy of the tight-binding model. This can be determined by trial and error.
+* ``transport_direction`` is the transport direction, which can take values ``x``, ``y``, and ``z``.
+* ``num_moments`` is the number of the Chebyshev moments for the energy resolution operator.
+* The ``num_energies`` energy points increase linearly from ``E_1`` (eV) to ``E_2`` (eV).
+* ``E_max`` (eV) is an energy value that should be (slightly) larger than the maximum of the absolute energy of the tight-binding model. This can be determined by trial and error.
 
 Output
 ------

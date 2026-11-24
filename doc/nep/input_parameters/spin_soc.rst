@@ -2,7 +2,7 @@
 .. index::
    single: spin_soc (keyword in nep.in)
 
-:attr:`spin_soc`
+``spin_soc``
 =================
 
 This keyword controls whether the descriptor can couple spin direction

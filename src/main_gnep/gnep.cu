@@ -34,7 +34,9 @@ Major contributors:
 #include "parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
-#include "utilities/gnep_utilities.cuh"
+
+#include "gnep_utilities.cuh"
+
 #include "utilities/gpu_vector.cuh"
 #include <algorithm>
 

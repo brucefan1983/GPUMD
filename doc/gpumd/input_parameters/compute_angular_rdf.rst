@@ -2,7 +2,7 @@
 .. index::
    single: compute_angular_rdf (keyword in run.in)
 
-:attr:`compute_angular_rdf`
+``compute_angular_rdf``
 ===========================
 
 This keyword is used to compute the angular-dependent radial distribution function (:term:`ARDF`) for all atoms or pairs of species.
@@ -18,7 +18,7 @@ This keyword is used as follows::
 Parameters
 ----------
 
-This means that the ARDF calculations will be performed every :attr:`interval` steps, with :attr:`r_num_bins` radial bins spanning 0 to :attr:`cutoff` (in units of Ångstrom), and :attr:`angular_num_bins` angular bins spanning :math:`-\pi` to :math:`\pi` (in radians). The output coordinates are the bin centers.
+This means that the ARDF calculations will be performed every ``interval`` steps, with ``r_num_bins`` radial bins spanning 0 to ``cutoff`` (in units of Ångstrom), and ``angular_num_bins`` angular bins spanning :math:`-\pi` to :math:`\pi` (in radians). The output coordinates are the bin centers.
 
 Without the optional parameters, only the total :term:`ARDF` will be calculated.
 

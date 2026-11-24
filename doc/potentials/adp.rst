@@ -68,36 +68,36 @@ The ADP potential file follows the extended DYNAMO setfl format, which is compat
 **Header section** (lines 1-5):
 
 - Lines 1-3: Comment lines (can contain any text, typically author and date information)
-- Line 4: :attr:`Nelements` :attr:`Element1` :attr:`Element2` ... :attr:`ElementN`
+- Line 4: ``Nelements`` ``Element1`` ``Element2`` ... ``ElementN``
 
-  * :attr:`Nelements`: Number of elements in the potential
-  * :attr:`Element1`, :attr:`Element2`, etc.: Element symbols (e.g., Cu, Ta, Mo)
+  * ``Nelements``: Number of elements in the potential
+  * ``Element1``, ``Element2``, etc.: Element symbols (e.g., Cu, Ta, Mo)
 
-- Line 5: :attr:`Nrho` :attr:`drho` :attr:`Nr` :attr:`dr` :attr:`cutoff`
+- Line 5: ``Nrho`` ``drho`` ``Nr`` ``dr`` ``cutoff``
 
-  * :attr:`Nrho`: Number of points in the embedding function :math:`F(\rho)` tabulation
-  * :attr:`drho`: Spacing between tabulated :math:`\rho` values
-  * :attr:`Nr`: Number of points in the pair potential and density function tabulations
-  * :attr:`dr`: Spacing between tabulated :math:`r` values
-  * :attr:`cutoff`: Cutoff distance for all functions (in Angstroms)
+  * ``Nrho``: Number of points in the embedding function :math:`F(\rho)` tabulation
+  * ``drho``: Spacing between tabulated :math:`\rho` values
+  * ``Nr``: Number of points in the pair potential and density function tabulations
+  * ``dr``: Spacing between tabulated :math:`r` values
+  * ``cutoff``: Cutoff distance for all functions (in Angstroms)
 
-**Per-element sections** (repeated :attr:`Nelements` times):
+**Per-element sections** (repeated ``Nelements`` times):
 
 Each element section contains:
 
-- Line 1: :attr:`atomic_number` :attr:`mass` :attr:`lattice_constant` :attr:`lattice_type`
+- Line 1: ``atomic_number`` ``mass`` ``lattice_constant`` ``lattice_type``
 
-  * :attr:`atomic_number`: Atomic number of the element
-  * :attr:`mass`: Atomic mass (in amu)
-  * :attr:`lattice_constant`: Equilibrium lattice constant (in Angstroms)
-  * :attr:`lattice_type`: Crystal structure (e.g., fcc, bcc, hcp)
+  * ``atomic_number``: Atomic number of the element
+  * ``mass``: Atomic mass (in amu)
+  * ``lattice_constant``: Equilibrium lattice constant (in Angstroms)
+  * ``lattice_type``: Crystal structure (e.g., fcc, bcc, hcp)
 
-- Next :attr:`Nrho` values: Embedding function :math:`F(\rho)`
+- Next ``Nrho`` values: Embedding function :math:`F(\rho)`
 
   * Tabulated values of :math:`F` at :math:`\rho = 0, \Delta\rho, 2\Delta\rho, ..., (N_\rho-1)\Delta\rho`
   * Units: eV
 
-- Next :attr:`Nr` values: Electron density function :math:`\rho(r)`
+- Next ``Nr`` values: Electron density function :math:`\rho(r)`
 
   * Tabulated values at :math:`r = 0, \Delta r, 2\Delta r, ..., (N_r-1)\Delta r`
   * Units: electron density
@@ -106,7 +106,7 @@ Each element section contains:
 
 For all element pairs :math:`(i, j)` with :math:`i \geq j` (lower triangular, since :math:`\phi_{ij} = \phi_{ji}`):
 
-- :attr:`Nr` values: Pair potential :math:`\phi_{ij}(r)`
+- ``Nr`` values: Pair potential :math:`\phi_{ij}(r)`
 
   * Tabulated as :math:`r \times \phi(r)` (scaled by distance)
   * Units: eV·Angstrom
@@ -116,7 +116,7 @@ For all element pairs :math:`(i, j)` with :math:`i \geq j` (lower triangular, si
 
 For all element pairs :math:`(i, j)` with :math:`i \geq j`:
 
-- :attr:`Nr` values: Dipole function :math:`u_{ij}(r)`
+- ``Nr`` values: Dipole function :math:`u_{ij}(r)`
 
   * Tabulated as :math:`u(r)` (NOT scaled by distance)
   * Units: eV\ :math:`^{1/2}`/Å
@@ -126,7 +126,7 @@ For all element pairs :math:`(i, j)` with :math:`i \geq j`:
 
 For all element pairs :math:`(i, j)` with :math:`i \geq j`:
 
-- :attr:`Nr` values: Quadrupole function :math:`w_{ij}(r)`
+- ``Nr`` values: Quadrupole function :math:`w_{ij}(r)`
 
   * Tabulated as :math:`w(r)` (NOT scaled by distance)
   * Units: eV\ :math:`^{1/2}`/Å²
@@ -158,7 +158,7 @@ To use an ADP potential in GPUMD, specify it in the :file:`run.in` input file::
 
     potential <potential_file>
 
-where :attr:`<potential_file>` is the path to the ADP potential file.
+where ``<potential_file>`` is the path to the ADP potential file.
 
 Examples
 --------

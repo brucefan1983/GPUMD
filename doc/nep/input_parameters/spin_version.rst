@@ -2,7 +2,7 @@
 .. index::
    single: spin_version (keyword in nep.in)
 
-:attr:`spin_version`
+``spin_version``
 ====================
 
 This keyword specifies the magnetic descriptor version

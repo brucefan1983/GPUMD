@@ -6,7 +6,7 @@
    single: npt_tspin (keyword in run.in)
    single: TSPIN integrator
 
-:attr:`ensemble` (TSPIN)
+``ensemble`` (TSPIN)
 ========================
 
 Use TSPIN to propagate the Cartesian spin coordinates of a Spin potential.

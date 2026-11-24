@@ -5,10 +5,8 @@ steps executed, not just a no-op parse). Does not validate physical correctness 
 io_helpers.py's module docstring.
 
 No qNEP dependency: every case here works identically for plain NEP and qNEP models, so this
-file runs across the full structure x model_type matrix, with skips only for the combinations
-conftest.py's model_path fixture already skips for missing models, plus one deliberate,
-evidenced skip below (change_box/bulk_C, a confirmed GPUMD hang) -- not a blanket "no skip
-logic" file.
+file runs across the full structure x model_type matrix, with skips for combinations
+conftest.py's model_path fixture already skips for missing models.
 """
 from dataclasses import replace
 
@@ -136,9 +134,8 @@ def _resolve_case(case, structure, model_path):
 def test_command_io(tmp_path, structure, structure_name, model_path, model_type, gpumd_command,
                      case):
     if case.name == 'change_box' and structure_name == 'bulk_C':
-        pytest.skip("confirmed GPUMD hang on bulk_C's zero-diagonal box (change_box <delta> "
-                    'never returns); other triclinic boxes work fine -- likely a genuine '
-                    'upstream bug.')
+        # Its zero diagonal box components allow shear but not nonzero diagonal increments.
+        case = replace(case, run_in_lines=[('change_box', [0, 0, 0, 0, 0, 0.01])])
     case = _resolve_case(case, structure, model_path)
     run_and_check(tmp_path, structure, model_path, model_type, gpumd_command, case)
 

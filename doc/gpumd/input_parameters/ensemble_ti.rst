@@ -1,6 +1,6 @@
 .. _kw_ensemble_ti:
 
-:attr:`ensemble` (TI)
+``ensemble`` (TI)
 =====================
 
 Run thermodynamic integration at a fixed coupling parameter ``lambda``.
@@ -16,10 +16,10 @@ Syntax
 Parameters
 ----------
 
-- :attr:`<temperature>`: The temperature of the simulation.
-- :attr:`<tau_temperature>`: Thermostat coupling period in time steps; optional, with a default of ``100``.
-- :attr:`<element_name>` and :attr:`<spring_constant>`: Specify the spring constants of elements.
-- :attr:`<lambda>`: The lambda value of the simulation.
+- ``<temperature>``: The temperature of the simulation.
+- ``<tau_temperature>``: Thermostat coupling period in time steps; optional, with a default of ``100``.
+- ``<element_name>`` and ``<spring_constant>``: Specify the spring constants of elements.
+- ``<lambda>``: The lambda value of the simulation.
 
 Output
 ------

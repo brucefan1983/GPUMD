@@ -2,7 +2,7 @@
 .. index::
    single: dftd3 (keyword in run.in)
 
-:attr:`dftd3`
+``dftd3``
 =============
 
 This keyword is used to add the DFT-D3 dispersion correction to NEP.
@@ -19,7 +19,7 @@ The syntax is::
 Parameters
 ----------
 
-where :attr:`functional` is the exchange-correlation functional used in generating the reference data for training the NEP model, :attr:`potential_cutoff` is the cutoff radius (in units of Angstrom) for the D3 potential, and :attr:`coordination_number_cutoff` is the cutoff radius (in units of Angstrom) for calculating the coordination numbers.
+where ``functional`` is the exchange-correlation functional used in generating the reference data for training the NEP model, ``potential_cutoff`` is the cutoff radius (in units of Angstrom) for the D3 potential, and ``coordination_number_cutoff`` is the cutoff radius (in units of Angstrom) for calculating the coordination numbers.
 
 This keyword can be put anywhere in the ``run.in`` input file.
 

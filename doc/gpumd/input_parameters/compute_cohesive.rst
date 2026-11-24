@@ -2,7 +2,7 @@
 .. index::
    single: compute_cohesive (keyword in run.in)
 
-:attr:`compute_cohesive`
+``compute_cohesive``
 ========================
 
 This keyword is used for computing the cohesive energy curve.
@@ -20,9 +20,9 @@ Parameters
 ----------
 
 Here,
-:attr:`e1` is the positive initial box-scaling factor, and
-:attr:`e2` is the upper target factor, which must be larger than :attr:`e1`.
-:attr:`direction` takes values from 0 to 6, selecting the cell vectors a, b, c, ab, bc, ca, and abc, respectively.
+``e1`` is the positive initial box-scaling factor, and
+``e2`` is the upper target factor, which must be larger than ``e1``.
+``direction`` takes values from 0 to 6, selecting the cell vectors a, b, c, ab, bc, ca, and abc, respectively.
 For an axis-aligned orthogonal cell, these correspond to the x, y, z, xy, yz, zx, and xyz directions.
 Only ``direction=6`` scales the cell isotropically.
 

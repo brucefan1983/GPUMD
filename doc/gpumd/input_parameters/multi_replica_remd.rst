@@ -3,7 +3,7 @@
 .. index::
    single: multi_replica remd (keyword in run.in)
 
-:attr:`multi_replica` (REMD)
+``multi_replica`` (REMD)
 ============================
 
 The ``remd`` mode of :ref:`multi_replica <kw_multi_replica>` selects temperature replica-exchange molecular dynamics (REMD) [Sugita1999]_.

@@ -2,7 +2,7 @@
 .. index::
    single: compute_hac (keyword in run.in)
 
-:attr:`compute_hac`
+``compute_hac``
 ===================
 
 This keyword can be used to calculate the heat current autocorrelation (:term:`HAC`) and running thermal conductivity (:term:`RTC`) using the :ref:`Green-Kubo method <green_kubo_method>`.

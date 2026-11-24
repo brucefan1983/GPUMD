@@ -2,7 +2,7 @@
 .. index::
    single: kspace (keyword in run.in)
 
-:attr:`kspace`
+``kspace``
 ==============
 
 This keyword selects the method for computing the reciprocal-space charge and dispersion contributions in :ref:`long-range NEP models <nep_long_range_models>`.

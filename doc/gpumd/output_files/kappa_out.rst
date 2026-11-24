@@ -7,7 +7,7 @@
 
 This file contains thermal-conductivity tensor components estimated using the homogeneous nonequilibrium molecular dynamics (:term:`HNEMD`) method.
 It is generated when invoking the :ref:`compute_hnemd keyword <kw_compute_hnemd>`.
-Each row is calculated from the heat current averaged over the most recent :attr:`output_interval` MD steps.
+Each row is calculated from the heat current averaged over the most recent ``output_interval`` MD steps.
 The running average can be obtained by cumulatively averaging these rows.
 
 Results are appended to the file.

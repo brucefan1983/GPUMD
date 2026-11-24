@@ -2,7 +2,7 @@
 .. index::
    single: dump_netcdf (keyword in run.in)
 
-:attr:`dump_netcdf`
+``dump_netcdf``
 ===================
 
 Write per-atom data to a user-specified NetCDF trajectory file based on the
@@ -18,25 +18,25 @@ Syntax
 Parameters
 ----------
 
-The :attr:`interval` parameter is the output interval (number of steps) of the atom positions.
-:attr:`filename` is the relative or absolute path of the output file.
-The optional arguments (:attr:`optional_args`) provide additional functionality.
+The ``interval`` parameter is the output interval (number of steps) of the atom positions.
+``filename`` is the relative or absolute path of the output file.
+The optional arguments (``optional_args``) provide additional functionality.
 Currently, the following optional arguments are accepted:
 
-* :attr:`group <grouping_method> <group_id>`
+* ``group <grouping_method> <group_id>``
 
   Write only the atoms of one group.
-  :attr:`grouping_method` selects one of the grouping methods defined by
+  ``grouping_method`` selects one of the grouping methods defined by
   ``group:I:number_of_grouping_methods`` in the :ref:`simulation model file <model_xyz>`.
   Grouping methods are numbered from 0.
-  :attr:`group_id` selects a group label within that grouping method.
+  ``group_id`` selects a group label within that grouping method.
   Both values must identify an existing, non-empty group.
   Without this option all atoms in the system are written.
 
 * Per-atom quantities
 
   Any number of the names below can be given, in any order, each adding one quantity to the
-  output, except that :attr:`unwrapped_position_only` replaces the wrapped positions.
+  output, except that ``unwrapped_position_only`` replaces the wrapped positions.
   The atom types and positions are always written, as the ``type`` and
   ``coordinates`` variables. The positions are wrapped by default.
 
@@ -48,49 +48,49 @@ Currently, the following optional arguments are accepted:
        - Variable
        - Dimensions
        - Unit
-     * - :attr:`velocity`
+     * - ``velocity``
        - ``velocities``
        - ``(frame, atom, spatial)``
        - Å/ps
-     * - :attr:`force`
+     * - ``force``
        - ``forces``
        - ``(frame, atom, spatial)``
        - kcal/mol/Å
-     * - :attr:`unwrapped_position`
+     * - ``unwrapped_position``
        - ``unwrapped_coordinates``
        - ``(frame, atom, spatial)``
        - Å
-     * - :attr:`unwrapped_position_only`
+     * - ``unwrapped_position_only``
        - ``coordinates`` (unwrapped)
        - ``(frame, atom, spatial)``
        - Å
-     * - :attr:`potential`
+     * - ``potential``
        - ``potential_energy``
        - ``(frame, atom)``
        - eV
-     * - :attr:`charge`
+     * - ``charge``
        - ``charge``
        - ``(frame, atom)``
        - e
-     * - :attr:`bec`
+     * - ``bec``
        - ``bec``
        - ``(frame, atom, spatial, spatial)``
        - e
-     * - :attr:`virial`
+     * - ``virial``
        - ``virial``
        - ``(frame, atom, spatial, spatial)``
        - eV
-     * - :attr:`mass`
+     * - ``mass``
        - ``mass``
        - ``(frame, atom)``
        - amu
-     * - :attr:`group_labels`
+     * - ``group_labels``
        - ``group_labels``
        - ``(atom, grouping_method)``
        - --
 
-  The :attr:`unwrapped_position` option keeps wrapped positions in ``coordinates`` and adds
-  ``unwrapped_coordinates``. The :attr:`unwrapped_position_only` option writes only unwrapped
+  The ``unwrapped_position`` option keeps wrapped positions in ``coordinates`` and adds
+  ``unwrapped_coordinates``. The ``unwrapped_position_only`` option writes only unwrapped
   positions in ``coordinates`` and adds the global attribute ``position_mode=unwrapped``.
   These two options are mutually exclusive.
 
@@ -101,20 +101,20 @@ Currently, the following optional arguments are accepted:
   The rank-2 tensors are stored row-major, so ``virial[frame, atom, i, j]`` is the *ij*
   component.
 
-* :attr:`precision <value>`
+* ``precision <value>``
 
-  * If :attr:`value` is ``single``, the output data are 32-bit floating point numbers.
-  * If :attr:`value` is ``double``, the output data are 64-bit floating point numbers.
+  * If ``value`` is ``single``, the output data are 32-bit floating point numbers.
+  * If ``value`` is ``double``, the output data are 64-bit floating point numbers.
 
   The default value is ``single``.
 
-* :attr:`compression none|deflate <level>`
+* ``compression none|deflate <level>``
 
   * ``none`` writes an uncompressed NetCDF file in the 64-bit-offset (CDF-2) format and is the default.
     Here, 64-bit offset refers to the file layout, not the precision of the coordinates and velocities;
     these data use 32-bit floating point numbers when the default ``precision single`` is used.
   * ``deflate`` writes a NetCDF4/HDF5 file using lossless compression and requires NetCDF-C built
-    with NetCDF4/HDF5 and zlib support. :attr:`level` must be an integer from 0 to 9.
+    with NetCDF4/HDF5 and zlib support. ``level`` must be an integer from 0 to 9.
     Level 0 applies no compression. For large, frequently written trajectories, use ``none`` for
     maximum write speed, ``deflate 1`` for a practical balance, or ``deflate 9`` when minimizing
     file size is more important than write speed.
@@ -171,7 +171,7 @@ To dump forces, per-atom potential energies and per-atom virials every 100 steps
 Multiple groups in one run
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Multiple :attr:`dump_netcdf` commands can write different groups during the
+Multiple ``dump_netcdf`` commands can write different groups during the
 same MD run. Each command must use a distinct filename and can use its own
 output interval, so every output file contains one independently sampled group::
 
@@ -198,7 +198,7 @@ Notes
   specified in :ref:`model.xyz <model_xyz>` via ``charge:R:1``.
 * The Born effective charge (:term:`BEC`) requires a qNEP model trained with target :term:`BEC`,
   and is refused for any other model.
-* :attr:`group_labels` requires at least one grouping method to be defined in
+* ``group_labels`` requires at least one grouping method to be defined in
   :ref:`model.xyz <model_xyz>`.
 * The ``type`` and ``mass`` variables both carry a frame dimension, so the species and the mass
   of an atom always refer to the same frame. A trajectory sampled alongside :term:`MC` trials is

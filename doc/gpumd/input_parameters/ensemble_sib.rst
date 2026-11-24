@@ -8,7 +8,7 @@
    single: npt_sib (keyword in run.in)
    single: SIB spin integrator
 
-:attr:`ensemble` (SIB)
+``ensemble`` (SIB)
 ======================
 
 The semi-implicit B (SIB) integrator propagates the direction of each

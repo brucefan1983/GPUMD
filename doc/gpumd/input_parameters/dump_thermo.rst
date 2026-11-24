@@ -2,7 +2,7 @@
 .. index::
    single: dump_thermo (keyword in run.in)
 
-:attr:`dump_thermo`
+``dump_thermo``
 ===================
 
 This keyword controls the writing of global thermodynamic quantities to the :ref:`thermo.out output file <thermo_out>`.

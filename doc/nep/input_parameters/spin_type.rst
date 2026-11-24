@@ -2,7 +2,7 @@
 .. index::
    single: spin_type (keyword in nep.in)
 
-:attr:`spin_type`
+``spin_type``
 ======================
 
 Select the atom types that have independent spin degrees of freedom.

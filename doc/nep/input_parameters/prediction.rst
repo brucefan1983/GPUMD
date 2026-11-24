@@ -2,7 +2,7 @@
 .. index::
    single: prediction (keyword in nep.in)
 
-:attr:`prediction`
+``prediction``
 ==================
 
 Evaluate an existing ``nep.txt`` model on the structures in ``train.xyz``.
@@ -18,7 +18,7 @@ Syntax
 Parameters
 ----------
 
-:attr:`<mode>` must be an integer that can assume one of the following values.
+``<mode>`` must be an integer that can assume one of the following values.
 
 =====  ===========================
 Value  Mode

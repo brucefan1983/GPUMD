@@ -3,7 +3,7 @@
 .. index::
    single: multi_replica prd (keyword in run.in)
 
-:attr:`multi_replica` (PRD)
+``multi_replica`` (PRD)
 ===========================
 
 The ``prd`` mode of :ref:`multi_replica <kw_multi_replica>` selects parallel replica dynamics (PRD) [Voter1998]_.

@@ -2,7 +2,7 @@
 .. index::
    single: compute_phonon (keyword in run.in)
 
-:attr:`compute_phonon`
+``compute_phonon``
 ======================
 
 This keyword can be used to compute the phonon dispersions using the finite-displacement method.
@@ -17,7 +17,7 @@ This keyword is used as follows::
 Parameters
 ----------
 
-:attr:`displacement` is the displacement (in units of Å) for calculating the force constants using the finite-displacement method.
+``displacement`` is the displacement (in units of Å) for calculating the force constants using the finite-displacement method.
 
 Output
 ------
@@ -37,7 +37,7 @@ means that one wants to compute the phonon dispersion using a displacement of 0.
 Notes
 -----
 
-This keyword should occur after all the :attr:`potential` keywords.
+This keyword should occur after all the ``potential`` keywords.
 
 For two-body potentials, the cutoff distance for force constants can be the same as that for force evaluations.
 However, for many-body potentials, the cutoff distance for force constants usually needs to be twice of the potential cutoff distance.

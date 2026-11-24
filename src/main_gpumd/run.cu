@@ -39,6 +39,7 @@ Major contributors:
 #include "utilities/run_input.cuh"
 #include "velocity.cuh"
 #include <chrono>
+#include <cmath>
 
 static __global__ void gpu_find_largest_v2(
   int N, int number_of_rounds, double* g_vx, double* g_vy, double* g_vz, double* g_v2_max)
@@ -565,11 +566,23 @@ void Run::parse_change_box(const std::vector<std::string>& tokens)
   printf("    in zz by %g A.\n", deformation_matrix[2][2]);
   printf("    in yz and zy by strain %g.\n", deformation_matrix[1][2]);
   printf("    in xz and zx by strain %g.\n", deformation_matrix[0][2]);
-  printf("    in xy and yz by strain %g.\n", deformation_matrix[0][1]);
+  printf("    in xy and yx by strain %g.\n", deformation_matrix[0][1]);
 
   for (int d = 0; d < 3; ++d) {
-    deformation_matrix[d][d] =
-      (box.cpu_h[d * 3 + d] + deformation_matrix[d][d]) / box.cpu_h[d * 3 + d];
+    const double delta = deformation_matrix[d][d];
+    const double diagonal = box.cpu_h[d * 3 + d];
+    if (delta == 0.0) {
+      deformation_matrix[d][d] = 1.0;
+    } else {
+      if (diagonal == 0.0) {
+        PRINT_INPUT_ERROR(
+          "change_box cannot apply a nonzero increment to a zero diagonal box component.");
+      }
+      deformation_matrix[d][d] = (diagonal + delta) / diagonal;
+      if (!std::isfinite(deformation_matrix[d][d])) {
+        PRINT_INPUT_ERROR("change_box deformation matrix must be finite.");
+      }
+    }
   }
 
   printf("    Deformation matrix =\n");
@@ -590,21 +603,29 @@ void Run::parse_change_box(const std::vector<std::string>& tokens)
     printf("\n");
   }
 
-  double h_old[9];
-  for (int i = 0; i < 9; ++i) {
-    h_old[i] = box.cpu_h[i];
-  }
-
+  Box new_box;
   for (int r = 0; r < 3; ++r) {
     for (int c = 0; c < 3; ++c) {
       double tmp = 0.0;
       for (int k = 0; k < 3; ++k) {
-        tmp += deformation_matrix[r][k] * h_old[k * 3 + c];
+        tmp += deformation_matrix[r][k] * box.cpu_h[k * 3 + c];
       }
-      box.cpu_h[r * 3 + c] = tmp;
+      new_box.cpu_h[r * 3 + c] = tmp;
     }
   }
-  box.get_inverse();
+  const double volume = new_box.get_volume();
+  if (!std::isfinite(volume) || volume == 0.0) {
+    PRINT_INPUT_ERROR("change_box cell volume must be finite and nonzero.");
+  }
+  new_box.get_inverse();
+  for (int n = 9; n < 18; ++n) {
+    if (!std::isfinite(new_box.cpu_h[n])) {
+      PRINT_INPUT_ERROR("change_box inverse cell matrix must be finite.");
+    }
+  }
+  for (int n = 0; n < 18; ++n) {
+    box.cpu_h[n] = new_box.cpu_h[n];
+  }
 
   const int number_of_atoms = atom.position_per_atom.size() / 3;
   gpu_deform_atom<<<(number_of_atoms - 1) / 128 + 1, 128>>>(

@@ -2,7 +2,7 @@
 .. index::
    single: output_interval (keyword in nep.in)
 
-:attr:`output_interval`
+``output_interval``
 ========================
 
 Set the number of generations between updates of the model and training report.
@@ -17,7 +17,7 @@ Syntax
 Parameters
 ----------
 
-Here, :attr:`<number_of_generations>` must be a positive integer and defaults to :math:`100`.
+Here, ``<number_of_generations>`` must be a positive integer and defaults to :math:`100`.
 
 Output
 ------

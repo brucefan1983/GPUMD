@@ -2,7 +2,7 @@
 .. index::
    single: spin_cutoff (keyword in nep.in)
 
-:attr:`spin_cutoff`
+``spin_cutoff``
 ====================
 
 This keyword sets the magnetic cutoff distance in Å.

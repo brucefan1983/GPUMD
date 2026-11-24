@@ -2,7 +2,7 @@
 .. index::
    single: lambda_m (keyword in nep.in)
 
-:attr:`lambda_m`
+``lambda_m``
 =================
 
 This keyword sets the weight of Cartesian magnetic-force RMSE in the loss.

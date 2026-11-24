@@ -2,7 +2,7 @@
 .. index::
    single: potential (keyword in run.in)
 
-:attr:`potential`
+``potential``
 =================
 
 This keyword is used to specify the interatomic potential model for the system.
@@ -20,7 +20,7 @@ Syntax
 Parameters
 ----------
 
-The first parameter, :attr:`potential_filename`, is the filename (including
+The first parameter, ``potential_filename``, is the filename (including
 relative or absolute path) of the potential file to be used. Some potential
 types require additional parameters, as described in their corresponding
 sections.
@@ -33,7 +33,7 @@ optionally specify the spatial partition direction::
 
   potential <potential_filename> [partition_direction]
 
-Here, :attr:`partition_direction` can be ``x``, ``y``, or ``z``. These
+Here, ``partition_direction`` can be ``x``, ``y``, or ``z``. These
 correspond to the ``a``, ``b``, and ``c`` directions, respectively, for a
 triclinic box. If the direction is omitted, GPUMD selects it automatically,
 normally along the thickest direction of the box.

@@ -2,7 +2,7 @@
 .. index::
    single: velocity (keyword in run.in)
 
-:attr:`velocity`
+``velocity``
 ================
 
 This keyword initializes atomic velocities at a specified temperature when ``model.xyz`` contains no velocity data.
@@ -19,7 +19,7 @@ Parameters
 ----------
 
 * The temperature is in units of kelvin (K).
-* The optional positive integer :attr:`seed_number` makes the randomly generated velocities reproducible.
+* The optional positive integer ``seed_number`` makes the randomly generated velocities reproducible.
 
 Output
 ------

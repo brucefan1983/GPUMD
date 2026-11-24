@@ -2,7 +2,7 @@
 .. index::
    single: cutoff (keyword in nep.in)
 
-:attr:`cutoff`
+``cutoff``
 ==============
 
 This keyword enables one to specify the radial (:math:`r_\mathrm{c}^\mathrm{R}`) and angular (:math:`r_\mathrm{c}^\mathrm{A}`) cutoffs of the :term:`NEP` model.
@@ -19,7 +19,7 @@ Syntax
 Parameters
 ----------
 
-:attr:`<radial_cutoff>` and :attr:`<angular_cutoff>` correspond to :math:`r_\mathrm{c}^\mathrm{R}` and :math:`r_\mathrm{c}^\mathrm{A}`, respectively.
+``<radial_cutoff>`` and ``<angular_cutoff>`` correspond to :math:`r_\mathrm{c}^\mathrm{R}` and :math:`r_\mathrm{c}^\mathrm{A}`, respectively.
 The cutoffs must satisfy the conditions 3 Å :math:`\leq r_\mathrm{c}^\mathrm{A} \leq r_\mathrm{c}^\mathrm{R} \leq` 100 Å.
 This upper limit is an input constraint, not a recommended cutoff.
 

@@ -2,7 +2,7 @@
 .. index::
    single: spin_order (keyword in nep.in)
 
-:attr:`spin_order`
+``spin_order``
 ===================
 
 This keyword sets the maximum polynomial degree of primitive spin inputs.

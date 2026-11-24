@@ -2,7 +2,7 @@
 .. index::
    single: dump_polarizability (keyword in run.in)
 
-:attr:`dump_polarizability`
+``dump_polarizability``
 ===========================
 
 Predicts the polarizability for the current configuration of atoms during MD using a separate ``nep_polarizability`` model.
@@ -18,9 +18,9 @@ Syntax
 Parameters
 ----------
 
-:attr:`interval` parameter is a positive integer giving the output interval (number of steps) for evaluating and writing the polarizability.
+``interval`` parameter is a positive integer giving the output interval (number of steps) for evaluating and writing the polarizability.
 
-:attr:`nep_file` is a :ref:`NEP model file <nep_txt>` with ``model nep_polarizability``.
+``nep_file`` is a :ref:`NEP model file <nep_txt>` with ``model nep_polarizability``.
 
 Output
 ------
