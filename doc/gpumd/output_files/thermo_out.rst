@@ -13,7 +13,10 @@ Results are appended to the file.
 File format
 -----------
 
-There are 18 columns in this output file, each containing the values of a quantity at increasing time points::
+Comment lines starting with ``#`` record the output settings and column names.
+A new header is appended for each run that uses ``dump_thermo``.
+
+The numerical data have 18 columns, each containing the values of a quantity at increasing time points::
 
   column   1 2 3 4  5  6  7   8   9   10 11 12 13 14 15 16 17 18
   quantity T K U Pxx Pyy Pzz Pyz Pxz Pxy ax ay az bx by bz cx cy cz
