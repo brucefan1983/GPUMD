@@ -33,7 +33,7 @@ def execute(directory, config, xyz=base.TRAIN_XYZ, model=None, restart=None, err
 def predict(directory, model, xyz=base.TRAIN_XYZ, config=NO_MASKS):
     execute(directory, config + "prediction 1\n", xyz, model)
     return {name: base.columns(directory / f"{name}_train.out", width)
-            for name, width in (("energy", 1), ("force", 3), ("virial", 6), ("mforce", 3))}
+            for name, width in (("energy", 1), ("force", 3), ("virial", 9), ("mforce", 3))}
 
 
 def compare(left, right):

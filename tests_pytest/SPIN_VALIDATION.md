@@ -62,6 +62,7 @@ clearing/redeclaration across runs.
 ```sh
 python3 tests_pytest/validate_spin_training.py --check-jit
 python3 tests_pytest/validate_spin_training_lifecycle.py
+python3 tests_pytest/validate_spin_full_virial.py --check-jit
 python3 -m pytest --noconftest -q tests_pytest/test_spin_wall_runtime.py
 python3 tests_pytest/validate_response_file_runtime.py
 python3 tests_pytest/validate_spin_mforce_split.py --devices 1 \

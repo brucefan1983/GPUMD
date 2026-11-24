@@ -23,7 +23,18 @@ Major contributors:
 #define HAS_VDW_JIT 0
 #define TENSOR_VIRIAL_JIT 0
 #define INITIALIZE_RADIAL_SHEAR_JIT 1
+// Use Spin's launchers while reusing the shared angular force and device helpers.
+#define nep_train_launch_descriptor_radial                                                         \
+  __attribute__((visibility("hidden"))) spin_structural_baseline_descriptor_radial
+#define nep_train_launch_descriptor_angular                                                        \
+  __attribute__((visibility("hidden"))) spin_structural_baseline_descriptor_angular
+#define nep_train_launch_force_radial                                                              \
+  __attribute__((visibility("hidden"))) spin_structural_baseline_force_radial
 #include "main_nep/common/nep_specialized.cuh"
+#undef nep_train_launch_descriptor_radial
+#undef nep_train_launch_descriptor_angular
+#undef nep_train_launch_force_radial
+#include "spin_structural_kernels.cuh"
 #include "utilities/nep_spin/spin_math.cuh"
 
 static_assert(NUM_HIDDEN_LAYERS_JIT == 1, "NEP-spin supports one hidden layer");

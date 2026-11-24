@@ -54,9 +54,8 @@ def check_prediction(directory, state):
     errors = {'energy': abs(n*columns(directory/'energy_train.out', 1)[0][0]-state['energy'])}
     for field in ('force', 'mforce'):
         errors[field] = max_error(columns(directory/f'{field}_train.out', 3), state[field])
-    v = np.array(state['virial']).reshape(3, 3)
-    symmetric = [(v[i,j]+v[j,i])/2 for i,j in ((0,0),(1,1),(2,2),(0,1),(1,2),(2,0))]
-    errors['virial'] = max_error([n*x for x in columns(directory/'virial_train.out', 6)[0]], symmetric)
+    errors['virial'] = max_error(
+        [n*x for x in columns(directory/'virial_train.out', 9)[0]], state['virial'])
     assert max(errors.values()) < 5e-5, (directory, errors)
     return errors
 
