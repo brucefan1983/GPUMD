@@ -41,6 +41,7 @@ namespace replica
 {
 
 class Replica_Batch;
+class SCR_Barostat;
 
 struct Replica_Slot {
   Replica_Slot(int replica_id, int device_id);
@@ -61,6 +62,7 @@ struct Replica_Slot {
   std::vector<Group> group;
   GPU_Vector<double> thermo;
   std::unique_ptr<Ensemble_BDP_Replica> thermostat;
+  std::unique_ptr<SCR_Barostat> barostat; // only for NPT replica modes
   GPU_Pinned_Vector<double> host_thermo;
 };
 
@@ -99,6 +101,13 @@ void parse_replicas_option(
   const char* mode,
   int& replicas,
   int& replicas_per_gpu);
+struct Replica_XYZ_Fields {
+  bool mass = false;
+  bool force = false;
+  bool potential = false;
+  bool virial = false;
+};
+
 // dump_xyz -1 group interval filename [velocity], the velocity only if allowed.
 void parse_dump_xyz(
   const std::vector<std::string>& dump_command,
@@ -106,7 +115,8 @@ void parse_dump_xyz(
   bool allow_velocity,
   int& dump_interval,
   std::string& dump_prefix,
-  bool& dump_velocity);
+  bool& dump_velocity,
+  Replica_XYZ_Fields* fields = nullptr);
 unsigned int draw_internal_seed();
 // One NEP or qNEP potential; kspace_method becomes "none" for NEP. Returns the file hash.
 unsigned long long validate_potential(
@@ -145,12 +155,15 @@ void write_restart_xyz(
   const Atom& source_atom,
   const std::string& fields);
 // Checks the atom count and the box of a restart xyz and returns its comment line.
+// With restored_box (NPT), the orthogonal box is read from the file instead of
+// being required to match model.xyz.
 std::string read_restart_xyz_header(
   std::ifstream& input,
   const std::string& filename,
   const Atom& source_atom,
   const Box& source_box,
-  const char* what);
+  const char* what,
+  Box* restored_box = nullptr);
 // The atoms of a replica restart xyz, into atom.cpu_position_per_atom and cpu_velocity_per_atom.
 void read_restart_xyz_atoms(
   std::istream& input,

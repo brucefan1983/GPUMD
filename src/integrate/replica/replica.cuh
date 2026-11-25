@@ -18,7 +18,7 @@ Replica dynamics: replica-exchange molecular dynamics (REMD) and parallel
 replica dynamics (PRD) of several replicas of the system of model.xyz.
 
 A run.in with a multi_replica command is a replica run. It contains one
-potential (energy NEP or qNEP), one ensemble (nvt_bdp), the multi_replica
+potential (energy NEP or qNEP), one ensemble (nvt_bdp, or npt_scr for NPT REMD), the multi_replica
 command, and one final run command, plus optionally time_step, kspace and
 dump_xyz. The replicas are distributed over the visible GPUs; see
 integrate/replica/replica_common.cuh for how they are integrated.

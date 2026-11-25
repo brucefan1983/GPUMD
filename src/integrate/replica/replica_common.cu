@@ -20,6 +20,7 @@ Major contributors:
 
 #include "replica_batch.cuh"
 #include "replica_common.cuh"
+#include "replica_scr.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -98,7 +99,7 @@ bool extract_token_value(const std::string& line, const std::string& key, std::s
   return true;
 }
 
-void validate_xyz_box(const std::string& comment, const Box& reference, const char* mode)
+static void validate_xyz_pbc(const std::string& comment, const Box& reference, const char* mode)
 {
   std::string value;
   if (!extract_quoted_value(comment, "pbc", value)) {
@@ -117,7 +118,12 @@ void validate_xyz_box(const std::string& comment, const Box& reference, const ch
     const std::string message = std::string(mode) + " restart xyz pbc does not match model.xyz.";
     PRINT_INPUT_ERROR(message.c_str());
   }
+}
 
+void validate_xyz_box(const std::string& comment, const Box& reference, const char* mode)
+{
+  validate_xyz_pbc(comment, reference, mode);
+  std::string value, trailing;
   if (!extract_quoted_value(comment, "Lattice", value)) {
     const std::string message = std::string(mode) + " restart xyz is missing Lattice.";
     PRINT_INPUT_ERROR(message.c_str());
@@ -215,7 +221,8 @@ void parse_dump_xyz(
   const bool allow_velocity,
   int& dump_interval,
   std::string& dump_prefix,
-  bool& dump_velocity)
+  bool& dump_velocity,
+  Replica_XYZ_Fields* fields)
 {
   if (dump_command.size() < 5 || dump_command[0] != "dump_xyz")
     mode_error(mode, "dump_xyz command is invalid.");
@@ -234,10 +241,18 @@ void parse_dump_xyz(
   for (size_t i = 5; i < dump_command.size(); ++i) {
     if (allow_velocity && dump_command[i] == "velocity")
       dump_velocity = true;
+    else if (allow_velocity && fields && dump_command[i] == "mass")
+      fields->mass = true;
+    else if (allow_velocity && fields && dump_command[i] == "force")
+      fields->force = true;
+    else if (allow_velocity && fields && dump_command[i] == "potential")
+      fields->potential = true;
+    else if (allow_velocity && fields && dump_command[i] == "virial")
+      fields->virial = true;
     else
       mode_error(
         mode,
-        allow_velocity ? "dump_xyz supports positions and optional velocity only."
+        allow_velocity ? "Unsupported REMD dump_xyz property."
                        : "dump_xyz supports positions only.");
   }
 }
@@ -380,7 +395,8 @@ std::string read_restart_xyz_header(
   const std::string& filename,
   const Atom& source_atom,
   const Box& source_box,
-  const char* what)
+  const char* what,
+  Box* restored_box)
 {
   if (!input.is_open())
     mode_error(what, "restart: cannot open " + filename + ".");
@@ -391,7 +407,27 @@ std::string read_restart_xyz_header(
   std::string comment;
   if (!std::getline(input, comment))
     mode_error(what, "restart xyz has no comment line.");
-  validate_xyz_box(comment, source_box, what);
+  if (restored_box) {
+    validate_xyz_pbc(comment, source_box, what);
+    std::string text, trailing;
+    if (!extract_quoted_value(comment, "Lattice", text))
+      mode_error(what, "restart xyz is missing Lattice.");
+    std::istringstream lattice(text);
+    const int transpose[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
+    for (int i = 0; i < 9; ++i) {
+      double value = 0;
+      if (!(lattice >> value) || !std::isfinite(value) || (i % 4 == 0 ? value <= 0 : value != 0))
+        mode_error(what, "restart xyz requires a positive finite orthogonal Lattice.");
+      restored_box->cpu_h[transpose[i]] = value;
+    }
+    if (lattice >> trailing)
+      mode_error(what, "restart xyz has too many Lattice values.");
+    if (!std::isfinite(restored_box->get_volume()) || restored_box->get_volume() <= 0)
+      mode_error(what, "restart xyz has an invalid box volume.");
+    restored_box->get_inverse();
+  } else {
+    validate_xyz_box(comment, source_box, what);
+  }
   return comment;
 }
 
@@ -426,6 +462,9 @@ void read_restart_xyz_atoms(
         mode_error(mode, "restart xyz contains a non-finite atom value.");
     }
   }
+  std::string trailing;
+  if (input >> trailing)
+    mode_error(mode, "restart xyz contains extra atom data or frames.");
 }
 
 void read_restart_metadata_header(
@@ -744,6 +783,13 @@ void Replica_Runtime::initialize_batches()
   const bool is_forced = forced != nullptr && forced[0] != '\0';
   if (is_forced && std::string(forced) != "0" && std::string(forced) != "1")
     PRINT_INPUT_ERROR("GPUMD_REPLICA_BATCH should be 0 or 1.");
+  // Batched kernels currently share one box; NPT replicas have independent boxes.
+  for (const Replica_Slot* slot : replica_slots_) {
+    if (slot->barostat) {
+      printf("    batched integration: off (independent NPT replica boxes).\n");
+      return;
+    }
+  }
   if (is_forced && forced[0] == '0') {
     printf("    batched integration: off (GPUMD_REPLICA_BATCH=0).\n");
     return;
@@ -870,6 +916,9 @@ void Replica_Runtime::advance_device(
       if (!active_slots[local_slot])
         continue;
       Replica_Slot& slot = *device.slots[local_slot];
+      if (slot.barostat)
+        slot.barostat->apply_pending_update(
+          slot.target_temperature, slot.box, slot.atom, slot.stream.get());
       slot.thermostat->compute1(time_step_, slot.atom, slot.stream.get());
       device.force.compute(
         slot.box,
@@ -881,6 +930,8 @@ void Replica_Runtime::advance_device(
         slot.stream.get());
       slot.thermostat->compute2(
         time_step_, slot.box.get_volume(), slot.atom, slot.thermo, slot.stream.get());
+      if (slot.barostat)
+        slot.barostat->end_step(slot.box, slot.atom, *slot.thermostat, slot.thermo, slot.stream);
     }
   }
 
