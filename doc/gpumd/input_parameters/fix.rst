@@ -5,7 +5,7 @@
 ``fix``
 ===========
 
-Freeze a group of atoms by setting their velocities and forces to zero.
+Freeze the positions of a group of atoms.
 
 Syntax
 ------
