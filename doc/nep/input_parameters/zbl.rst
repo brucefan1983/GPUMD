@@ -5,7 +5,7 @@
 ``zbl``
 ===========
 
-This keyword can be used to spline the pair potential to the universal :term:`ZBL` potential [Ziegler1985]_ at short distances.
+This keyword adds the universal :term:`ZBL` potential [Ziegler1985]_ to the :term:`NEP` energy at short distances.
 This is useful, for example, for models to be used in simulations of ion irradiation or extreme compression, when the interatomic distances can become very short.
 
 Syntax
@@ -19,7 +19,8 @@ Parameters
 ----------
 
 Here, ``<cutoff>`` is a real number that specifies the "outer" cutoff :math:`r_\mathrm{c}^\mathrm{ZBL-outer}`, beyond which the :term:`ZBL` potential is zero.
-The "inner" cutoff of the :term:`ZBL` potential, below which value the pair interaction is completely given by the :term:`ZBL` potential, is fixed to half of the outer cutoff, :math:`r_\mathrm{c}^\mathrm{ZBL-inner} = r_\mathrm{c}^\mathrm{ZBL-outer} /2`, which we have empirically found to be a reasonable choice.
+The "inner" cutoff, below which the :term:`ZBL` contribution is applied in full, is fixed to half of the outer cutoff, :math:`r_\mathrm{c}^\mathrm{ZBL-inner} = r_\mathrm{c}^\mathrm{ZBL-outer} /2`, which we have empirically found to be a reasonable choice.
+Between the inner and outer cutoffs, the :term:`ZBL` contribution is smoothly switched off.
 
 When this keyword is absent, the :term:`ZBL` potential will not be enabled and the value of :math:`r_\mathrm{c}^\mathrm{ZBL-outer}` is irrelevant.
 

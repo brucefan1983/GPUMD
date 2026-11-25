@@ -545,7 +545,7 @@ static __device__ void calc_normal(
         }
       }
     }
-    // Calculte dNave/dri, defined as dpvdri
+    // Calculate dNave/dri, defined as dpvdri
     for (id = 0; id < 3; id++) {
       for (ip = 0; ip < 3; ip++) {
         dpvdri[id][ip] = 0.0;

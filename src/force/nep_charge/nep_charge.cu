@@ -1267,7 +1267,7 @@ static __global__ void find_charge_self_energy(
   }
 }
 
-// large box fo MD applications
+// large box for MD applications
 void NEP_Charge::compute_large_box(
   Box& box,
   const GPU_Vector<int>& type,

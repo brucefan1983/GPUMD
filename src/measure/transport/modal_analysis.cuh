@@ -136,7 +136,7 @@ private:
 
   gpublasHandle_t ma_handle;
 
-  // stress by by square root mass (intermediate term)
+  // stress by square root mass (intermediate term)
   GPU_Vector<float> smx;
   GPU_Vector<float> smy;
   GPU_Vector<float> smz;

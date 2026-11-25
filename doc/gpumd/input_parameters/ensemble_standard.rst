@@ -69,7 +69,7 @@ Choose one of the following forms for ``pressure_control_parameters``:
 
      <p_xx> <p_yy> <p_zz> <p_yz> <p_xz> <p_xy> <C_xx> <C_yy> <C_zz> <C_yz> <C_xz> <C_xy> <p_coup>
 
-  The simulation box must be triclinic and all the directions must be periodic.
+  The initial simulation box can be orthogonal or triclinic, and all directions must be periodic.
   All cell components will be controlled independently according to the 6 target pressure components.
 
   Elastic constants in literature may use a different nomenclature. The correspondence is as follows:
