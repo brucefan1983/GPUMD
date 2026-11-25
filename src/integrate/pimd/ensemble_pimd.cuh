@@ -88,7 +88,7 @@ protected:
   GPU_Vector<double> kinetic_energy_virial_part;
   std::vector<double> eco_independent_frequencies;
 
-  GPU_Vector<double> sum_1024; // for intermidiate summation
+  GPU_Vector<double> sum_1024; // for intermediate summation
 
   void initialize(Atom& atom);
   void update_eco_modes();

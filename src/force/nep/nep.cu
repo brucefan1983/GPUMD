@@ -752,7 +752,7 @@ static __global__ void find_force_ZBL(
   }
 }
 
-// large box fo MD applications
+// large box for MD applications
 void NEP::compute_large_box(
   Box& box,
   const GPU_Vector<int>& type,
