@@ -38,6 +38,9 @@ Major contributors:
 #include "force/ilp/ilp_nep.cuh"
 #include "force/ilp/ilp_tersoff.cuh"
 #include "force/ilp/ilp_tmd_sw.cuh"
+#ifndef USE_HIP
+#include "force/meam/meam.cuh"
+#endif
 #include "force/nep/nep.cuh"
 #include "force/nep/nep_multigpu.cuh"
 #include "force/nep_charge/nep_charge.cuh"
@@ -113,6 +116,15 @@ std::unique_ptr<Potential> Force::create_potential(
     potential.reset(new EAMAlloy(tokens[1].c_str(), number_of_atoms, max_neigh));
   } else if (strcmp(potential_name, "adp") == 0) {
     potential.reset(new ADP(tokens[1].c_str(), number_of_atoms));
+  } else if (strcmp(potential_name, "meam") == 0) {
+#ifdef USE_HIP
+    PRINT_INPUT_ERROR("MEAM requires a CUDA build.");
+#else
+    if (num_param != 2) {
+      PRINT_INPUT_ERROR("MEAM expects only the potential descriptor filename.");
+    }
+    potential = std::make_unique<MEAM>(tokens[1].c_str(), num_types);
+#endif
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;

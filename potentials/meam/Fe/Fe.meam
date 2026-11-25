@@ -1,0 +1,9 @@
+Cmin(1,1,1) = 1.0993
+Cmax(1,1,1) = 2.0599
+nn2(1,1) = 1
+rc = 5.0
+ialloy = 2
+erose_form = 0
+augt1 = 0
+attrac(1,1) = 0.0001
+repuls(1,1) = 0.0027

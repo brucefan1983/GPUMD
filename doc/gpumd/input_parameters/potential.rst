@@ -25,6 +25,9 @@ relative or absolute path) of the potential file to be used. Some potential
 types require additional parameters, as described in their corresponding
 sections.
 
+For :ref:`MEAM <meam_potential>`, pass the descriptor as the sole filename.
+The descriptor identifies the MEAM library and parameter file.
+
 NEP models must use the :ref:`nep.txt format <nep_txt>` with
 ``format_version 1`` and one hidden layer.
 
