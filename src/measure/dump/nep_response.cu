@@ -21,6 +21,7 @@ Major contributors:
   Eric Lindgren: Dipole and polarizability prediction.
 ------------------------------------------------------------------------------*/
 
+#include "force/neighbor_overflow.cuh"
 #include "model/atom.cuh"
 #include "nep_response.cuh"
 #include "utilities/error.cuh"
@@ -227,12 +228,24 @@ static __global__ void find_neighbor_list_large_box(
     if (d12_square >= rc_radial * rc_radial) {
       continue;
     }
-    g_NL_radial[static_cast<size_t>(N) * count_radial++ + n1] = n2;
+    if (count_radial < paramb.MN_radial) {
+      g_NL_radial[static_cast<size_t>(N) * count_radial + n1] = n2;
+    }
+    ++count_radial;
     if (d12_square < rc_angular * rc_angular) {
-      g_NL_angular[count_angular++ * N + n1] = n2;
+      if (count_angular < paramb.MN_angular) {
+        g_NL_angular[count_angular * N + n1] = n2;
+      }
+      ++count_angular;
     }
   }
 
+  if (count_radial > paramb.MN_radial) {
+    record_neighbor_overflow(NEIGHBOR_LIST_RADIAL, n1, count_radial, paramb.MN_radial);
+  }
+  if (count_angular > paramb.MN_angular) {
+    record_neighbor_overflow(NEIGHBOR_LIST_ANGULAR, n1, count_angular, paramb.MN_angular);
+  }
   g_NN_radial[n1] = count_radial;
   g_NN_angular[n1] = count_angular;
 }
@@ -815,6 +828,7 @@ void NEP_Response::compute_large_box(Box& box, const GPU_Vector<double>& positio
     data_.NN_angular.data(),
     data_.NL_angular.data());
   GPU_CHECK_KERNEL
+  check_neighbor_overflow();
 
   const bool is_polarizability_model = is_polarizability();
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
@@ -916,6 +930,7 @@ void NEP_Response::compute_small_box(Box& box, const GPU_Vector<double>& positio
   find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb_,
     N,
+    big_neighbor_size,
     N1,
     N2,
     box,
@@ -935,6 +950,7 @@ void NEP_Response::compute_small_box(Box& box, const GPU_Vector<double>& positio
     small_box_data_.r12.data() + size_x12 * 4,
     small_box_data_.r12.data() + size_x12 * 5);
   GPU_CHECK_KERNEL
+  check_neighbor_overflow();
 
   const bool is_polarizability_model = is_polarizability();
   find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(

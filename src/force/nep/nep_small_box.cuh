@@ -13,6 +13,7 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+#include "force/neighbor_overflow.cuh"
 #include "model/box.cuh"
 #include "nep.cuh"
 #include "utilities/common.cuh"
@@ -56,6 +57,7 @@ static __device__ void apply_mic_small_box(
 static __global__ void find_neighbor_list_small_box(
   NEP::ParaMB paramb,
   const int N,
+  const int capacity,
   const int N1,
   const int N2,
   const Box box,
@@ -109,22 +111,32 @@ static __global__ void find_neighbor_list_small_box(
             float rc_angular = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
 
             if (distance_square < rc_radial * rc_radial) {
-              g_NL_radial[count_radial * N + n1] = n2;
-              g_x12_radial[count_radial * N + n1] = x12;
-              g_y12_radial[count_radial * N + n1] = y12;
-              g_z12_radial[count_radial * N + n1] = z12;
+              if (count_radial < capacity) {
+                g_NL_radial[count_radial * N + n1] = n2;
+                g_x12_radial[count_radial * N + n1] = x12;
+                g_y12_radial[count_radial * N + n1] = y12;
+                g_z12_radial[count_radial * N + n1] = z12;
+              }
               count_radial++;
             }
             if (distance_square < rc_angular * rc_angular) {
-              g_NL_angular[count_angular * N + n1] = n2;
-              g_x12_angular[count_angular * N + n1] = x12;
-              g_y12_angular[count_angular * N + n1] = y12;
-              g_z12_angular[count_angular * N + n1] = z12;
+              if (count_angular < capacity) {
+                g_NL_angular[count_angular * N + n1] = n2;
+                g_x12_angular[count_angular * N + n1] = x12;
+                g_y12_angular[count_angular * N + n1] = y12;
+                g_z12_angular[count_angular * N + n1] = z12;
+              }
               count_angular++;
             }
           }
         }
       }
+    }
+    if (count_radial > capacity) {
+      record_neighbor_overflow(NEIGHBOR_LIST_RADIAL, n1, count_radial, capacity);
+    }
+    if (count_angular > capacity) {
+      record_neighbor_overflow(NEIGHBOR_LIST_ANGULAR, n1, count_angular, capacity);
     }
     g_NN_radial[n1] = count_radial;
     g_NN_angular[n1] = count_angular;

@@ -23,6 +23,7 @@ Major contributors:
 ------------------------------------------------------------------------------*/
 
 #include "neighbor.cuh"
+#include "neighbor_overflow.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
@@ -99,6 +100,7 @@ static __global__ void gpu_find_neighbor_ON1(
   const int* __restrict__ cell_contents,
   int* NN,
   int* NL,
+  const int capacity,
   const double* __restrict__ x,
   const double* __restrict__ y,
   const double* __restrict__ z,
@@ -159,12 +161,18 @@ static __global__ void gpu_find_neighbor_ON1(
               const float d2 = x12 * x12 + y12 * y12 + z12 * z12;
 
               if (d2 < cutoff_square) {
-                NL[static_cast<size_t>(N) * count++ + n1] = n2;
+                if (count < capacity) {
+                  NL[static_cast<size_t>(N) * count + n1] = n2;
+                }
+                ++count;
               }
             }
           }
         }
       }
+    }
+    if (count > capacity) {
+      record_neighbor_overflow(NEIGHBOR_LIST_CANDIDATE, n1, count, capacity);
     }
     NN[n1] = count;
   }
@@ -331,6 +339,7 @@ void find_neighbor(
   find_cell_list(
     rc_cell_list, num_bins, box, position_per_atom, cell_count, cell_count_sum, cell_contents);
 
+  const int MN = NL.size() / NN.size();
   gpu_find_neighbor_ON1<<<grid_size, block_size>>>(
     box,
     N,
@@ -342,6 +351,7 @@ void find_neighbor(
     cell_contents.data(),
     NN.data(),
     NL.data(),
+    MN,
     x,
     y,
     z,
@@ -351,8 +361,8 @@ void find_neighbor(
     rc_inv_cell_list,
     rc * rc);
   GPU_CHECK_KERNEL
+  check_neighbor_overflow();
 
-  const int MN = NL.size() / NN.size();
   gpu_sort_neighbor_list<<<N, std::min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
   GPU_CHECK_KERNEL
 }
@@ -722,7 +732,8 @@ __global__ void gpu_find_local_neighbor_from_global(
   const int* __restrict__ g_NN_global,
   const int* __restrict__ g_NL_global,
   int* g_NN_local,
-  int* g_NL_local)
+  int* g_NL_local,
+  const int capacity)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 >= N) {
@@ -746,9 +757,15 @@ __global__ void gpu_find_local_neighbor_from_global(
     if (d12_square >= rc_square) {
       continue;
     }
-    g_NL_local[static_cast<size_t>(N) * count_local++ + n1] = n2;
+    if (count_local < capacity) {
+      g_NL_local[static_cast<size_t>(N) * count_local + n1] = n2;
+    }
+    ++count_local;
   }
 
+  if (count_local > capacity) {
+    record_neighbor_overflow(NEIGHBOR_LIST_LOCAL, n1, count_local, capacity);
+  }
   g_NN_local[n1] = count_local;
 }
 
@@ -826,8 +843,10 @@ void Neighbor::find_local_neighbor_from_global(
     NN.data(),
     NL.data(),
     NN_local.data(),
-    NL_local.data());
+    NL_local.data(),
+    static_cast<int>(NL_local.size() / NN_local.size()));
   GPU_CHECK_KERNEL
+  check_neighbor_overflow();
 }
 
 void Neighbor::initialize(const double rc, const int num_atoms, const int num_neighbors)
