@@ -92,7 +92,7 @@ In this case, :math:`\chi_{IJ}` is irrelevant. The potential file reads::
   tersoff_1989 1 <element>
   A B lambda mu beta n c d h R S
   
-Here, :attr:`element` is the chemical symbol of the element.
+Here, ``element`` is the chemical symbol of the element.
 
 Two-element systems
 ^^^^^^^^^^^^^^^^^^^

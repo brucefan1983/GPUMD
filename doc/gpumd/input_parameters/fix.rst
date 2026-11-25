@@ -2,10 +2,10 @@
 .. index::
    single: fix (keyword in run.in)
 
-:attr:`fix`
+``fix``
 ===========
 
-Freeze a group of atoms by setting their velocities and forces to zero.
+Freeze the positions of a group of atoms.
 
 Syntax
 ------
@@ -18,8 +18,8 @@ Syntax
 Parameters
 ----------
 
-- If only :attr:`group_label` is given, grouping method 0 is used by default.
-- If :attr:`grouping_method` is also specified, the given grouping method defined in the :ref:`simulation model file <model_xyz>` will be used.
+- If only ``group_label`` is given, grouping method 0 is used by default.
+- If ``grouping_method`` is also specified, the given grouping method defined in the :ref:`simulation model file <model_xyz>` will be used.
 
 Output
 ------

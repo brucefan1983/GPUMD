@@ -2,7 +2,7 @@
 .. index::
    single: type_weight (keyword in nep.in)
 
-:attr:`type_weight`
+``type_weight``
 ===================
 
 This keyword allows one to specify different weights for different chemical species.
@@ -19,7 +19,7 @@ Syntax
 Parameters
 ----------
 
-Here, :attr:`[<weight>]` must be a list of :math:`N_\mathrm{typ}` non-negative real numbers representing the relative force weights for the different atomic species.
+Here, ``[<weight>]`` must be a list of :math:`N_\mathrm{typ}` non-negative real numbers representing the relative force weights for the different atomic species.
 By default all species carry the same weight (``1.0``).
 
 Output

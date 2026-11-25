@@ -6,7 +6,7 @@
 ``train.xyz`` and ``test.xyz``
 ==============================
 
-The :attr:`train.xyz` file contains the training data for the construction of a :term:`NEP` model, while the optional :attr:`test.xyz` file contains the corresponding test data.
+The ``train.xyz`` file contains the training data for the construction of a :term:`NEP` model, while the optional ``test.xyz`` file contains the corresponding test data.
 Both files use `extended xyz file format <https://github.com/libAtoms/extxyz>`_.
 Each structure (or configuration or frame) occupies :math:`N+2` lines, where :math:`N` is the number of atoms in the structure.
 Blank lines before, between, or after structures are ignored.
@@ -33,7 +33,7 @@ Array fields read by the selected model must occur only once and contain exactly
 
 Essentially any keyword is allowed, but we only read the following ones:
 
-* :attr:`lattice="ax ay az bx by bz cx cy cz"` is mandatory and gives the cell vectors:
+* ``lattice="ax ay az bx by bz cx cy cz"`` is mandatory and gives the cell vectors:
 
   .. math::
      
@@ -41,37 +41,37 @@ Essentially any keyword is allowed, but we only read the following ones:
      \boldsymbol{b} &= b_x \boldsymbol{e}_x + b_y \boldsymbol{e}_y + b_z \boldsymbol{e}_z \\
      \boldsymbol{c} &= c_x \boldsymbol{e}_x + c_y \boldsymbol{e}_y + c_z \boldsymbol{e}_z
 
-* :attr:`energy=energy_value` such as :attr:`energy=-123.4` is mandatory and gives the target energy of the structure, which is :math:`-123.4` eV in this example.
-* :attr:`virial="vxx vxy vxz vyx vyy vyz vzx vzy vzz"` is optional and gives the :math:`3\times3` virial tensor of the structure in eV.
+* ``energy=energy_value`` such as ``energy=-123.4`` is mandatory and gives the target energy of the structure, which is :math:`-123.4` eV in this example.
+* ``virial="vxx vxy vxz vyx vyy vyz vzx vzy vzz"`` is optional and gives the :math:`3\times3` virial tensor of the structure in eV.
   Positive and negative values represent compressed and stretched states, respectively.
   NEP-Spin does not assume that the virial tensor is symmetric.
-* :attr:`stress="sxx sxy sxz syx syy syz szx szy szz"` is optional and gives the :math:`3\times3` stress tensor of the structure in eV/Å\ :math:`^3`.
+* ``stress="sxx sxy sxz syx syy syz szx szy szz"`` is optional and gives the :math:`3\times3` stress tensor of the structure in eV/Å\ :math:`^3`.
   Positive and negative values represent stretched and compressed states, respectively.
-  NEP-Spin rejects this field, even when :attr:`virial` is also present.
-  For other models, if both :attr:`virial` and :attr:`stress` are present, the virial is used.
+  NEP-Spin rejects this field, even when ``virial`` is also present.
+  For other models, if both ``virial`` and ``stress`` are present, the virial is used.
   During potential training, the two tensors must agree after conversion to per-atom virials, within :math:`10^{-3}` eV/atom for each independent component; otherwise training stops with an input error.
-* :attr:`weight=relative_weight` is optional and gives the relative weight for the current structure in the total loss function.
-* :attr:`energy_weight=relative_weight` is optional and defaults to 1. It multiplies the squared energy error for the current structure, in addition to the weighting specified by :attr:`weight`.
-* :attr:`charge=total_charge` is optional for ``qnep1``, ``qnep2``, ``qnep3``, and ``qnep3_vdw`` models. It gives the total charge of the structure in units of elementary charge e and defaults to 0.
-* :attr:`temperature=temperature_value` is required for the ``nep_temperature`` model and gives the electronic temperature in kelvin.
-* :attr:`pbc="T T T"` or :attr:`pbc="F F F"` specifies fully periodic or fully nonperiodic boundaries for the long-range models ``qnep1``, ``qnep2``, ``qnep3``, ``nep_vdw``, and ``qnep3_vdw`` (see :ref:`model <kw_model>`).
+* ``weight=relative_weight`` is optional and gives the relative weight for the current structure in the total loss function.
+* ``energy_weight=relative_weight`` is optional and defaults to 1. It multiplies the squared energy error for the current structure, in addition to the weighting specified by ``weight``.
+* ``charge=total_charge`` is optional for ``qnep1``, ``qnep2``, ``qnep3``, and ``qnep3_vdw`` models. It gives the total charge of the structure in units of elementary charge e and defaults to 0.
+* ``temperature=temperature_value`` is required for the ``nep_temperature`` model and gives the electronic temperature in kelvin.
+* ``pbc="T T T"`` or ``pbc="F F F"`` specifies fully periodic or fully nonperiodic boundaries for the long-range models ``qnep1``, ``qnep2``, ``qnep3``, ``nep_vdw``, and ``qnep3_vdw`` (see :ref:`model <kw_model>`).
   The default is ``T T T``. Mixed periodic and nonperiodic directions are not supported for these models.
-* :attr:`name=label` is optional and gives the structure a label, by which :ref:`ediff.in <ediff_in>` refers to it.
+* ``name=label`` is optional and gives the structure a label, by which :ref:`ediff.in <ediff_in>` refers to it.
   Labels are matched case-insensitively for the letters A to Z and must be unique within a file.
-  A label must not begin with ``#``, ``+`` or ``-``, or contain whitespace or any of ``* / = " ' { }``, and a structure has at most one :attr:`name` field.
+  A label must not begin with ``#``, ``+`` or ``-``, or contain whitespace or any of ``* / = " ' { }``, and a structure has at most one ``name`` field.
   The field is read only when the keyword :ref:`lambda_d <kw_lambda_d>` is set, and a label that breaks these rules is then an input error.
-* :attr:`properties=property_name:data_type:number_of_columns` is mandatory but only read the following items:
+* ``properties=property_name:data_type:number_of_columns`` is mandatory but only read the following items:
   
-  * :attr:`species:S:1` chemical symbol in the periodic table (case-sensitive)
-  * :attr:`pos:R:3` position vector
-  * :attr:`force:R:3` or :attr:`forces:R:3` target force vector
-  * :attr:`bec:R:9` target Born effective charge (:term:`BEC`) tensor (optional)
-  * :attr:`adipole:R:3` or :attr:`atomic_dipole:R:3` target atomic dipole vector in the order :math:`x,y,z` (required for ``model nep_dipole`` with ``atomic_v 1``)
-  * :attr:`apol:R:9` or :attr:`atomic_polarizability:R:9` target atomic polarizability tensor in the order :math:`xx,xy,xz,yx,yy,yz,zx,zy,zz` (required for ``model nep_polarizability`` with ``atomic_v 1``)
-  * :attr:`spin:R:3`, :attr:`spins:R:3`, :attr:`moment:R:3`, or
-    :attr:`moments:R:3` Cartesian magnetic-moment vector in muB (required when
+  * ``species:S:1`` chemical symbol in the periodic table (case-sensitive)
+  * ``pos:R:3`` position vector
+  * ``force:R:3`` or ``forces:R:3`` target force vector
+  * ``bec:R:9`` target Born effective charge (:term:`BEC`) tensor (optional)
+  * ``adipole:R:3`` or ``atomic_dipole:R:3`` target atomic dipole vector in the order :math:`x,y,z` (required for ``model nep_dipole`` with ``atomic_v 1``)
+  * ``apol:R:9`` or ``atomic_polarizability:R:9`` target atomic polarizability tensor in the order :math:`xx,xy,xz,yx,yy,yz,zx,zy,zz` (required for ``model nep_polarizability`` with ``atomic_v 1``)
+  * ``spin:R:3``, ``spins:R:3``, ``moment:R:3``, or
+    ``moments:R:3`` Cartesian magnetic-moment vector in muB (required when
     :ref:`spin_version <kw_spin_version>` is specified)
-  * :attr:`mforce:R:3` target magnetic-force vector (optional). The aliases
+  * ``mforce:R:3`` target magnetic-force vector (optional). The aliases
     ``mforces``, ``force_mag``, ``forces_mag``, ``magnetic_force``, and
     ``magnetic_forces`` are also accepted.
 
@@ -80,9 +80,9 @@ Essentially any keyword is allowed, but we only read the following ones:
   labels. The original files need no modification. Energy and atomic-force labels
   are preserved, and their positions remain part of the geometric environment.
 
-* If a dipole model is to be trained, energy, virial, stress, and force will be ignored and one should additionally provide :attr:`dipole="dx dy dz"`, which is the dipole vector of the structure. 
+* If a dipole model is to be trained, energy, virial, stress, and force will be ignored and one should additionally provide ``dipole="dx dy dz"``, which is the dipole vector of the structure.
 
-* If a polarizability model is to be trained, energy, virial, stress, force, and dipole will be ignored and one should additionally provide :attr:`pol="pxx pxy pxz pyx pyy pyz pzx pzy pzz"`, which is the polarizability tensor of the structure.
+* If a polarizability model is to be trained, energy, virial, stress, force, and dipole will be ignored and one should additionally provide ``pol="pxx pxy pxz pyx pyy pyz pzx pzy pzz"``, which is the polarizability tensor of the structure.
 
 For atomic dipole or polarizability fitting, set :ref:`atomic_v <kw_atomic_v>` to ``1`` and provide the corresponding atomic property above.
 The training reader also requires the global ``dipole`` or ``pol`` field on line 2 in this mode, although the loss is evaluated using the atomic targets.
@@ -91,7 +91,7 @@ Atomic targets are given directly, without division by the number of atoms.
 Starting from line 3
 ^^^^^^^^^^^^^^^^^^^^
 
-Each line should contain the same number of items, which are determined by the :attr:`property` keywords on line 2.
+Each line should contain the same number of items, which are determined by the ``property`` keywords on line 2.
 The ``properties`` field must occur once and contain complete ``name:type:number_of_columns`` triples with positive column counts.
 Properties read by the selected model must have the documented type and column count and may appear only once, including aliases.
 
@@ -108,12 +108,11 @@ Units
 
 Tips
 ----
-* Long-range models use the boundary conditions specified by :attr:`pbc` as described above. Other models assume periodic boundary conditions in all directions.
+* Long-range models use the boundary conditions specified by ``pbc`` as described above. Other models assume periodic boundary conditions in all directions.
   For periodic configurations, when the box thickness in a direction is smaller than twice the radial cutoff distance, the code internally replicates the box in that direction.
 * The minimal number of atoms in a configuration is 1.
   The user is responsible for choosing a sensible reference energy when preparing the energy data.
   But this is not crucial as the absolute energies are not relevant in the present context.
-  However, because NEP training uses single precision, accuracy will be lost if any reference energy is smaller than -100 eV/atom. The code will give a warning message in this case.
 * The energy and virial data refer to the total energy and virial for the system.
   They are not per-atom but per-cell quantities.
 * The :term:`BEC` is optional. You can also have it only for some structures.

@@ -19,5 +19,5 @@ The file is organized as follows:
 
 Without the ``group`` option, the output covers all atoms; with a selected group, it covers only that group.
 With ``group <group_method> -1`` in the :ref:`compute_dos keyword <kw_compute_dos>`, data are written group by group, in ascending group-index order starting from group 0.
-Each group occupies :attr:`num_dos_points` consecutive rows, with no headers or blank separators.
+Each group occupies ``num_dos_points`` consecutive rows, with no headers or blank separators.
 The results of each run are appended to the file.

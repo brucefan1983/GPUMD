@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
-import sys
 import re
-import sphinx_rtd_theme
 import subprocess
 from collections import Counter
 from docutils import nodes
@@ -28,29 +26,15 @@ if len(version) == 0:
 
 extensions = [
     'sphinx_sitemap',
-    'sphinx.ext.autodoc',
-    'sphinx.ext.autosummary',
-    'sphinx.ext.coverage',
-    'sphinx.ext.doctest',
-    'sphinx.ext.graphviz',
-    'sphinx.ext.ifconfig',
-    'sphinx.ext.intersphinx',
     'sphinx.ext.mathjax',
-    'sphinx.ext.napoleon',
-    'sphinx.ext.todo',
-    'sphinx.ext.viewcode',
-    'sphinx_autodoc_typehints',
     'sphinxcontrib.bibtex',
-    'nbsphinx',
     'sphinx_tabs.tabs']
 bibtex_bibfiles = ['publications.bib']
 
-graphviz_output_format = 'svg'
 templates_path = ['_templates']
 source_suffix = '.rst'
 master_doc = 'index'
 pygments_style = 'sphinx'
-todo_include_todos = True
 
 html_logo = "_static/logo.png"
 html_favicon = "_static/logo.ico"
@@ -64,13 +48,6 @@ html_context = {
          ('development version',
           '{}/dev'.format(site_url))]}
 htmlhelp_basename = 'GPUMDdoc'
-intersphinx_mapping = \
-    {'numpy':   ('https://numpy.org/doc/stable/', None),
-     'scipy':   ('https://scipy.github.io/devdocs/', None),
-     'sklearn': ('https://scikit-learn.org/stable', None)}
-
-# Settings for nbsphinx
-nbsphinx_execute = 'never'
 
 # Options for LaTeX output
 _PREAMBLE = r"""

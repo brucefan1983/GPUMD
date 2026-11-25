@@ -1,6 +1,6 @@
 .. _spin_fire_minimize:
 
-:attr:`minimize` (Spin FIRE)
+``minimize`` (Spin FIRE)
 ============================
 
 Relax magnetic moments using FIRE minimization, optionally together with atomic

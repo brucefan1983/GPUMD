@@ -45,7 +45,7 @@ build:linux:
     - echo "tag= $tag"
     # build user guide
     - sed -i "s/version = ''/version = '$tag'/" doc/conf.py
-    - sphinx-build -W doc/ public/dev/
+    - sphinx-build -W -D sitemap_url_scheme='/dev/{link}' doc/ public/dev/
     - git checkout -- doc/conf.py
     # --------------------------
     # STABLE VERSION
@@ -67,7 +67,7 @@ build:linux:
       )
       path.write_text(title + "\n\n" + notice + body, encoding="utf-8")
       PY
-    - sphinx-build -W doc/ public/
+    - sphinx-build -W -D sitemap_url_scheme='/{link}' doc/ public/
     # --------------------------
     # clean up
     - ls -l public/

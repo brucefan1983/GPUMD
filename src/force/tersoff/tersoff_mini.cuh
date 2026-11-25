@@ -57,7 +57,7 @@ public:
     GPU_Vector<double>& virial);
 
 protected:
-  int num_types; // number of atom tpyes
+  int num_types; // number of atom types
   Tersoff_mini_Data tersoff_mini_data;
   Tersoff_mini_Para para;
   NeighborManager neighbor_manager;

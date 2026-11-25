@@ -2,7 +2,7 @@
 .. index::
    single: dump_xyz (keyword in run.in)
 
-:attr:`dump_xyz`
+``dump_xyz``
 ================
 
 Write per-atom data into user-specified file(s) in `extended XYZ format <https://github.com/libAtoms/extxyz>`_.
@@ -19,34 +19,34 @@ Syntax
 Parameters
 ----------
 
-* :attr:`interval` is the output interval (number of steps) of the data.
+* ``interval`` is the output interval (number of steps) of the data.
 
-* :attr:`filename` is the output file.
+* ``filename`` is the output file.
 
   If it ends in ``*``, each frame is written to a separate file, with the star replaced by the step number.
 
-* The optional :attr:`split` parameter is the maximum number of frames written per XYZ file (a positive integer).
+* The optional ``split`` parameter is the maximum number of frames written per XYZ file (a positive integer).
   For example, ``dump_xyz 100 trajectory.xyz split 10000`` writes 10000 frames to ``trajectory_0001.xyz``, then 10000 frames to ``trajectory_0002.xyz``, and so on.
   The final file can contain fewer frames. Existing numbered files are skipped to avoid overwriting data when restarting or issuing another ``run`` command.
-  The :attr:`split` option cannot be used with a filename ending in ``*``.
+  The ``split`` option cannot be used with a filename ending in ``*``.
 
-* The :attr:`group` option restricts the output to the atoms in group :attr:`group_id` of grouping method :attr:`grouping_method`.
+* The ``group`` option restricts the output to the atoms in group ``group_id`` of grouping method ``grouping_method``.
 
   Without this option, all atoms are written.
 
-* The :attr:`precision` option controls the number of significant digits written for every floating-point value.
+* The ``precision`` option controls the number of significant digits written for every floating-point value.
 
   ``single`` (default) writes nine significant digits; ``double`` writes 17.
   These preserve single- and double-precision values, respectively.
 
-* Then one can write the properties to be output, and the allowed properties include: :attr:`mass`, :attr:`velocity`, :attr:`force`, :attr:`potential`, :attr:`virial`, :attr:`charge`, :attr:`bec`, :attr:`group_labels`, :attr:`spin`, :attr:`mforce`, :attr:`unwrapped_position`, and :attr:`unwrapped_position_only`.
+* Then one can write the properties to be output, and the allowed properties include: ``mass``, ``velocity``, ``force``, ``potential``, ``virial``, ``charge``, ``bec``, ``group_labels``, ``spin``, ``mforce``, ``unwrapped_position``, and ``unwrapped_position_only``.
 
   ``group_labels`` writes one integer column per grouping method, containing each atom's group label.
 
 * The wrapped positions are included by default.
-  The :attr:`unwrapped_position` option writes both wrapped and unwrapped positions.
-  The :attr:`unwrapped_position_only` option writes only unwrapped positions.
-  The :attr:`unwrapped_position` and :attr:`unwrapped_position_only` options are mutually exclusive.
+  The ``unwrapped_position`` option writes both wrapped and unwrapped positions.
+  The ``unwrapped_position_only`` option writes only unwrapped positions.
+  The ``unwrapped_position`` and ``unwrapped_position_only`` options are mutually exclusive.
 
 Output
 ------
@@ -86,7 +86,7 @@ Notes
   With ``split``, each run creates new numbered files without overwriting existing chunks.
 * Different from many of the other keywords, this keyword is allowed to be invoked multiple times within one run.
 * For qNEP models, the charge values dumped out are predicted by the qNEP models.
-  For other models, the charge values are those specified in :attr:`model.xyz` via :attr:`charge:R:1`.
+  For other models, the charge values are those specified in ``model.xyz`` via ``charge:R:1``.
 * The Born effective charge (:term:`BEC`) is only meaningful for a qNEP model trained with target :term:`BEC`.
 * ``spin`` and ``mforce`` are three-component vectors that require both a
   NEP-spin model and ``spin:R:3`` in ``model.xyz``. The XYZ property alone

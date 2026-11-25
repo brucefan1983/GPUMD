@@ -2,10 +2,10 @@
 .. index::
    single: compute_hnema (keyword in run.in)
 
-:attr:`compute_hnema`
+``compute_hnema``
 =====================
 
-The :attr:`compute_hnema` keyword is used to calculate the modal thermal conductivity using the :ref:`homogeneous nonequilibrium modal analysis <hnema>` (:term:`HNEMA`) method [Gabourie2021]_.
+The ``compute_hnema`` keyword is used to calculate the modal thermal conductivity using the :ref:`homogeneous nonequilibrium modal analysis <hnema>` (:term:`HNEMA`) method [Gabourie2021]_.
 
 Syntax
 ------
@@ -17,25 +17,25 @@ Syntax
 Parameters
 ----------
 
-:attr:`sample_interval` is the sampling interval (in number of steps) used to compute the modal heat current.
-Must be a divisor of :attr:`output_interval`.
+``sample_interval`` is the sampling interval (in number of steps) used to compute the modal heat current.
+Must be a divisor of ``output_interval``.
 
-:attr:`output_interval` is the interval to output the modal thermal conductivity. Each modal thermal conductivity output is averaged over all samples per output interval.
+``output_interval`` is the interval to output the modal thermal conductivity. Each modal thermal conductivity output is averaged over all samples per output interval.
 
-:attr:`Fe_x` is the :math:`x` direction component of the external driving force :math:`F_e` in units of Å\ :sup:`-1`.
+``Fe_x`` is the :math:`x` direction component of the external driving force :math:`F_e` in units of Å\ :sup:`-1`.
 
-:attr:`Fe_y` is the :math:`y` direction component of the external driving force :math:`F_e` in units of Å\ :sup:`-1`.
+``Fe_y`` is the :math:`y` direction component of the external driving force :math:`F_e` in units of Å\ :sup:`-1`.
 
-:attr:`Fe_z` is the :math:`z` direction component of the external driving force :math:`F_e` in units of Å\ :sup:`-1`.
+``Fe_z`` is the :math:`z` direction component of the external driving force :math:`F_e` in units of Å\ :sup:`-1`.
 
-:attr:`first_mode` and :attr:`last_mode` are the first and last mode, respectively, in the :ref:`eigenvector.in input file <eigenvector_in>` to include in the calculation.
+``first_mode`` and ``last_mode`` are the first and last mode, respectively, in the :ref:`eigenvector.in input file <eigenvector_in>` to include in the calculation.
 
-:attr:`bin_option` determines which binning technique to use.
-The options are :attr:`bin_size` and :attr:`f_bin_size`.
+``bin_option`` determines which binning technique to use.
+The options are ``bin_size`` and ``f_bin_size``.
 
-:attr:`size` defines how the modes are added to each bin.
-If :attr:`bin_option` is ``bin_size``, then this is an integer describing how many modes are included per bin.
-If :attr:`bin_option` is ``f_bin_size``, then binning is by frequency and this is a float describing the bin size in THz.
+``size`` defines how the modes are added to each bin.
+If ``bin_option`` is ``bin_size``, then this is an integer describing how many modes are included per bin.
+If ``bin_option`` is ``f_bin_size``, then binning is by frequency and this is a float describing the bin size in THz.
 
 Output
 ------

@@ -82,7 +82,7 @@ A file page describes its columns, units, and any headers or blocks needed to se
      - Structures selected by the NEP extrapolation grade
      - Append
    * - :ref:`ttm_electron_temperature.out <ttm_electron_temperature_out>`
-     - :ref:`ensemble <kw_ensemble>` with :attr:`ttm` or :attr:`heat_ttm`
+     - :ref:`ensemble <kw_ensemble>` with ``ttm`` or ``heat_ttm``
      - Electron temperature snapshots on the TTM grid
      - Overwrite
    * - :ref:`hac.out <hac_out>`
@@ -148,6 +148,10 @@ A file page describes its columns, units, and any headers or blocks needed to se
    * - :ref:`rdf.out <rdf_out>`
      - :ref:`compute_rdf <kw_compute_rdf>`
      - Radial distribution function (:term:`RDF`)
+     - Append
+   * - :ref:`xrd.out <xrd_out>`
+     - :ref:`compute_xrd <kw_compute_xrd>`
+     - X-ray diffraction intensities on a reciprocal-space grid
      - Append
    * - :ref:`adf.out <adf_out>`
      - :ref:`compute_adf <kw_compute_adf>`
@@ -228,6 +232,7 @@ A file page describes its columns, units, and any headers or blocks needed to se
    viscosity_out
    onsager_out
    rdf_out
+   xrd_out
    adf_out
    mcmd_out
    lsqt_dos_out
@@ -274,6 +279,10 @@ Temperature ladders, ladder reports, and restart files are overwritten.
      - :ref:`multi_replica remd <replica_remd>`
      - Acceptance statistics
      - Overwrite
+   * - :ref:`remd_npt_*.out <replica_remd_npt_output>`
+     - :ref:`multi_replica remd <replica_remd_npt>`
+     - Temperature-pressure conditions, exchanges, and thermodynamic states
+     - Append on resume; conditions and pair reports overwrite
    * - :ref:`prd_events.out <replica_prd_events>`
      - :ref:`multi_replica prd <replica_prd>`
      - Transitions and physical clock
@@ -295,6 +304,7 @@ Temperature ladders, ladder reports, and restart files are overwritten.
    remd_status
    remd_thermo
    remd_ladder
+   remd_npt
    prd_events
    replica_trajectory
    replica_restart

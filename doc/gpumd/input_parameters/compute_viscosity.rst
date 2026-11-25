@@ -2,7 +2,7 @@
 .. index::
    single: compute_viscosity (keyword in run.in)
 
-:attr:`compute_viscosity`
+``compute_viscosity``
 =========================
 
 This keyword can be used to calculate the stress autocorrelation function and viscosity using the Green-Kubo method.

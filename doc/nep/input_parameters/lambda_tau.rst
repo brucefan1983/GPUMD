@@ -2,7 +2,7 @@
 .. index::
    single: lambda_tau (keyword in nep.in)
 
-:attr:`lambda_tau`
+``lambda_tau``
 ===================
 
 This keyword sets the weight of spin-torque RMSE in the loss.

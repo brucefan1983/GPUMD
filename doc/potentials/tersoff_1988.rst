@@ -91,7 +91,7 @@ The potential file for a single-element system reads::
   tersoff_1988 1 element
   A_000 B_000 lambda_000 mu_000 beta_000 n_000 c_000 d_000 h_000 R_000 S_000 m_000 alpha_000 gamma_000
   
-Here, :attr:`element` is the chemical symbol of the element.
+Here, ``element`` is the chemical symbol of the element.
 
 The potential file for a double-element system reads::
   

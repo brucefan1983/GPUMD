@@ -156,6 +156,25 @@ A missing executable, unavailable GPU, process timeout (120 seconds per run),
 or failed assertion fails the test. The suite does not modify CI and
 does not cover multiple GPUs, long-time sampling accuracy, or performance.
 
+The NPT extension of REMD uses the same `multi_replica remd` entry and is covered
+by `test_remd_npt.py`.
+Run `python3 tests_pytest/test_remd_npt.py` with `GPUMD` set to the candidate binary.
+It checks that NPT uses the isotropic `npt_scr` syntax of ordinary MD, rejects
+the other pressure-control forms and invalid pressure ladders or grids, and defaults
+to the `npt_scr` pressure without a ladder. Exchange pairs and acceptance ratios in
+`remd_npt_exchange.out` are compared with the documented schedule and an independent
+formula on rectangular, sheared, and two-condition grids. The suite includes
+strained small/large-box force and full per-atom virial comparisons against ordinary
+GPUMD, nonzero-virial pressure checks after BDP and accepted temperature exchange,
+nontrivial acceptance probabilities, rejection of corrupted SCR states, and repeated
+continuation from the same checkpoint with box/mapping/SCR/RNG checks.
+Set `GPUMD_BASELINE` to a matching upstream executable to also check that its
+NVT format-5 checkpoint can be continued by the candidate without changing the
+existing metadata layout or replica dynamics.
+Set `REPLICA_SAMPLING=1` for ideal-gas sampling; `REPLICA_SAMPLING_STEPS` changes
+its length (at least 1000000 steps). Ordinary MD reference snapshots use zero MD
+time step and `dump_xyz ... precision double mass velocity force potential virial`.
+
 ## Spin validation
 
 See [SPIN_VALIDATION.md](SPIN_VALIDATION.md) for CPU checks, single-GPU model

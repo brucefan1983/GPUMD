@@ -2,7 +2,7 @@
 .. index::
    single: force_delta (keyword in nep.in)
 
-:attr:`force_delta`
+``force_delta``
 ===================
 
 This keyword can be used to bias the loss function to put more emphasis on obtaining accurate predictions for smaller forces.
@@ -17,7 +17,7 @@ Syntax
 Parameters
 ----------
 
-:attr:`<delta>` sets the parameter :math:`\delta`, which must satisfy :math:`\delta \geq 0` eV/A and defaults to :math:`\delta = 0` eV/A (i.e., no bias).
+``<delta>`` sets the parameter :math:`\delta`, which must satisfy :math:`\delta \geq 0` eV/A and defaults to :math:`\delta = 0` eV/A (i.e., no bias).
 
 Output
 ------

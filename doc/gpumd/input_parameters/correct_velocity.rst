@@ -2,7 +2,7 @@
 .. index::
    single: correct_velocity (keyword in run.in)
 
-:attr:`correct_velocity`
+``correct_velocity``
 ========================
 
 This keyword allows one to enforce zero linear and angular momenta at regular intervals.
@@ -17,9 +17,9 @@ This keyword takes a correction interval and an optional grouping method::
 Parameters
 ----------
 
-* :attr:`interval` is an integer number of MD steps and must be at least 10. A value between 10 and 100 should be good.
+* ``interval`` is an integer number of MD steps and must be at least 10. A value between 10 and 100 should be good.
 
-* When :attr:`group_method` is omitted, the correction applies to the whole system.
+* When ``group_method`` is omitted, the correction applies to the whole system.
   When it is specified, the correction is performed independently for every group in that :ref:`grouping method <grouping_methods>` defined in ``model.xyz``.
 
 Output
@@ -51,7 +51,7 @@ implies that the linear and angular momenta for the individual groups in group m
 Notes
 -----
 
-The first correction is performed before the first integration step, and subsequent corrections occur every :attr:`interval` steps.
+The first correction is performed before the first integration step, and subsequent corrections occur every ``interval`` steps.
 For example, an interval of 10 gives corrections before steps 1, 11, 21, and so on.
 Periodic correction is disabled by default and only applies to the current :ref:`run <kw_run>` when enabled.
 Repeat this command before each subsequent run that needs it.

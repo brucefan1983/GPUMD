@@ -2,7 +2,7 @@
 .. index::
    single: compute_ic (keyword in run.in)
 
-:attr:`compute_ic`
+``compute_ic``
 ===================
 
 This keyword computes the Nernst--Einstein estimate of the ionic conductivity (:term:`IC`) for the selected atom type from its self mean-square displacement (:term:`MSD`).
@@ -19,10 +19,10 @@ Parameters
 
 with parameters defined as
 
-* :attr:`sample_interval`: Sampling interval of the position data
-* :attr:`Nc`: Maximum number of correlation steps
-* :attr:`type_iex`: Type index of the atoms to be calculated. For a compacted multi-element NEP potential, this refers to the active atom types printed at initialization; otherwise, it refers to the type index in the potential file.
-* :attr:`charge`: Charge :math:`z_s` of each selected ion in units of the elementary charge :math:`e`.
+* ``sample_interval``: Sampling interval of the position data
+* ``Nc``: Maximum number of correlation steps
+* ``type_iex``: Type index of the atoms to be calculated. For a compacted multi-element NEP potential, this refers to the active atom types printed at initialization; otherwise, it refers to the type index in the potential file.
+* ``charge``: Charge :math:`z_s` of each selected ion in units of the elementary charge :math:`e`.
 
 Output
 ------

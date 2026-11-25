@@ -2,7 +2,7 @@
 .. index::
    single: flip_charge (keyword in nep.in)
 
-:attr:`flip_charge`
+``flip_charge``
 ===================
 
 This keyword controls charge-sign reversal when restarting training.

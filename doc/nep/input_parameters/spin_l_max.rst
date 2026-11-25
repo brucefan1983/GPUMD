@@ -2,7 +2,7 @@
 .. index::
    single: spin_l_max (keyword in nep.in)
 
-:attr:`spin_l_max`
+``spin_l_max``
 ===================
 
 This keyword controls the maximum tensor rank used by the spin descriptor.

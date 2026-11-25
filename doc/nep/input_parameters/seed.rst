@@ -2,7 +2,7 @@
 .. index::
    single: seed (keyword in nep.in)
 
-:attr:`seed`
+``seed``
 ============
 
 Set the random seed for SNES initialization and population sampling.
@@ -18,7 +18,7 @@ Syntax
 Parameters
 ----------
 
-Here, :attr:`<seed>` is a non-negative integer.
+Here, ``<seed>`` is a non-negative integer.
 Without this keyword initialization uses the clock, and the population draws use a fixed seed.
 
 Output

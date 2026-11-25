@@ -7,7 +7,7 @@
    single: nvt_glsd (keyword in run.in)
    single: npt_glsd (keyword in run.in)
 
-:attr:`ensemble` (GLSD)
+``ensemble`` (GLSD)
 =======================
 
 Evolve both the directions and magnitudes of magnetic moments using generalized

@@ -11,10 +11,10 @@ It is generated when invoking the :ref:`compute_shc keyword <kw_compute_shc>`.
 File format
 -----------
 
-For each run, there are 3 columns and :attr:`2*Nc-1 + num_omega` rows.
-Here, :attr:`Nc` is the number of correlation steps and :attr:`num_omega` is the number of frequency points.
+For each run, there are 3 columns and ``2*Nc-1 + num_omega`` rows.
+Here, ``Nc`` is the number of correlation steps and ``num_omega`` is the number of frequency points.
 
-In the first :attr:`2*Nc-1` rows:
+In the first ``2*Nc-1`` rows:
 
 * column 1: correlation time :math:`t` from negative to positive, in units of ps
 * column 2: :math:`K^{\rm in}(t)` in units of Å eV/ps
@@ -23,7 +23,7 @@ In the first :attr:`2*Nc-1` rows:
 :math:`K^{\rm in}(t) + K^{\rm out}(t) = K(t)` is exactly the expression in Eq. (18) of [Fan2019]_.
 The in-out decomposition follows the definition in [Fan2017]_, which is useful for 2D materials but is not necessary for 3D materials.
 
-In the next :attr:`num_omega` rows:
+In the next ``num_omega`` rows:
 
 * column 1: angular frequency :math:`\omega` in units of THz
 * column 2: :math:`J_q^{\rm in}(\omega)` in units of Å eV/ps/THz
@@ -33,4 +33,4 @@ In the next :attr:`num_omega` rows:
 
 Only the potential part of the heat current has been included.
 
-If :attr:`group_id` is -1, then the file follows the above rules and will contain :math:`K(t)` and :math:`J_q(\omega)` for each group id except for group id 0. The group blocks are arranged in ascending order of :attr:`group_id`.
+If ``group_id`` is -1, then the file follows the above rules and will contain :math:`K(t)` and :math:`J_q(\omega)` for each group id except for group id 0. The group blocks are arranged in ascending order of ``group_id``.

@@ -20,4 +20,4 @@ The data in this file are organized as follows:
 * column 3: IC (in units of mS/cm) in the :math:`y` direction
 * column 4: IC (in units of mS/cm) in the :math:`z` direction
 
-Only atoms of the type selected by the :attr:`type_iex` argument of :ref:`compute_ic <kw_compute_ic>` contribute to this output.
+Only atoms of the type selected by the ``type_iex`` argument of :ref:`compute_ic <kw_compute_ic>` contribute to this output.

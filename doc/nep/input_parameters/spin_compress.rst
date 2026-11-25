@@ -2,7 +2,7 @@
 .. index::
    single: spin_compress (keyword in nep.in)
 
-:attr:`spin_compress`
+``spin_compress``
 ======================
 
 This keyword sets the shared latent radial rank of the spin descriptor.

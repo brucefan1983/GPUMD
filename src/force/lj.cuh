@@ -41,7 +41,6 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
-  void initialize_lj(FILE* fid, int, const std::vector<int>, int);
 
 protected:
   LJ_Para lj_para;

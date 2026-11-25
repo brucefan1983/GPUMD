@@ -441,8 +441,10 @@ def validate_native_compiled_checkpoint(root):
         config = config.replace("spin_l_max 2", f"spin_l_max {lmax}")
         config = config.replace("spin_soc 1", f"spin_soc {soc}")
         config = config.replace("spin_type Fe\n", "spin_type Fe Ge\n")
-        config = config.replace("n_max 0 0", "n_max 4 4").replace(
-            "basis_size 0 0", "basis_size 2 2")
+        n_max = "6 6" if channels == 1 else "4 4"
+        basis_size = "16 2" if lmax == 4 else "2 2"
+        config = config.replace("n_max 0 0", f"n_max {n_max}").replace(
+            "basis_size 0 0", f"basis_size {basis_size}")
         if channels == 3:
             config = config.replace("spin_cutoff 6.0", "spin_cutoff 5.0 6.0")
         initial = root / f"{layout}-initial"

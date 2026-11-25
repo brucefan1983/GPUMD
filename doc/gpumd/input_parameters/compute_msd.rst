@@ -2,7 +2,7 @@
 .. index::
    single: compute_msd (keyword in run.in)
 
-:attr:`compute_msd`
+``compute_msd``
 ===================
 
 This keyword computes the self-diffusion coefficient (:term:`SDC`) from the mean-square displacement (:term:`MSD`) function.
@@ -18,8 +18,8 @@ Syntax
 Parameters
 ----------
 
-* :attr:`sample_interval`: Positive integer giving the number of time steps between position samples
-* :attr:`Nc`: Positive integer giving the number of correlation points, including zero correlation time
+* ``sample_interval``: Positive integer giving the number of time steps between position samples
+* ``Nc``: Positive integer giving the number of correlation points, including zero correlation time
 
 Each optional argument can appear once, in any order:
 
@@ -29,9 +29,9 @@ Each optional argument can appear once, in any order:
 * ``save_every <interval>`` writes intermediate results to ``msd_step[step].out``.
   ``interval`` is a positive integer in MD time steps.
 
-A copy is written only on a step that is a multiple of both :attr:`sample_interval` and :attr:`interval`, after at least :attr:`Nc` position samples have been collected.
+A copy is written only on a step that is a multiple of both ``sample_interval`` and ``interval``, after at least ``Nc`` position samples have been collected.
 The first copy is therefore written at the first such step at or after ``Nc * sample_interval``.
-Choose :attr:`interval` to be a multiple of :attr:`sample_interval` to obtain the requested spacing between saved copies.
+Choose ``interval`` to be a multiple of ``sample_interval`` to obtain the requested spacing between saved copies.
 Step numbers are counted from the beginning of the current run.
 Each copy contains the averages accumulated so far; saving does not reset the accumulation.
 

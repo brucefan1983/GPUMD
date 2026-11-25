@@ -68,25 +68,4 @@ const RunInputLine* RunInput::find_first(const std::string& keyword) const
   return nullptr;
 }
 
-const RunInputLine* RunInput::find_last(const std::string& keyword) const
-{
-  for (auto line = lines_.rbegin(); line != lines_.rend(); ++line) {
-    if (!line->tokens.empty() && line->tokens[0] == keyword) {
-      return &(*line);
-    }
-  }
-  return nullptr;
-}
-
-std::vector<const RunInputLine*> RunInput::find_all(const std::string& keyword) const
-{
-  std::vector<const RunInputLine*> matches;
-  for (const auto& line : lines_) {
-    if (!line.tokens.empty() && line.tokens[0] == keyword) {
-      matches.push_back(&line);
-    }
-  }
-  return matches;
-}
-
 bool RunInput::contains(const std::string& keyword) const { return find_first(keyword) != nullptr; }

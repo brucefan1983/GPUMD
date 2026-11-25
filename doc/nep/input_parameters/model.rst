@@ -2,7 +2,7 @@
 .. index::
    single: model (keyword in nep.in)
 
-:attr:`model`
+``model``
 =============
 
 This keyword selects the model used for training or prediction.

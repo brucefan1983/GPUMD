@@ -2,11 +2,11 @@
 .. index::
    single: import_q_scaler (keyword in nep.in)
 
-:attr:`import_q_scaler`
+``import_q_scaler``
 ========================
 
-For ordinary structural NEP, when training or resuming without :attr:`fine_tune`, :program:`nep` computes :attr:`q_scaler`, the per-descriptor-component normalization used by the neural network, from the training structures of the current run at generation 0.
-This keyword instead tells :program:`nep` to read :attr:`q_scaler` from the :attr:`nep.txt` file present in the run directory, skipping that computation.
+For ordinary structural NEP, when training or resuming without ``fine_tune``, :program:`nep` computes ``q_scaler``, the per-descriptor-component normalization used by the neural network, from the training structures of the current run at generation 0.
+This keyword instead tells :program:`nep` to read ``q_scaler`` from the ``nep.txt`` file present in the run directory, skipping that computation.
 This naturally requires such a file to be present.
 
 Syntax

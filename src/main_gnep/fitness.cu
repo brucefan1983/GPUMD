@@ -24,7 +24,9 @@ Major contributors:
 #include "structure.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "utilities/least_square.cuh"
+
+#include "least_square.cuh"
+
 #include <algorithm>
 #include <chrono>
 #include <ctime>

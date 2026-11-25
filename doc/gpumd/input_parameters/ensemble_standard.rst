@@ -1,6 +1,6 @@
 .. _kw_ensemble_standard:
 
-:attr:`ensemble` (standard)
+``ensemble`` (standard)
 ===========================
 
 Select conventional classical MD at fixed energy (NVE), temperature (NVT), or temperature and pressure (NPT).
@@ -49,7 +49,7 @@ Choose one of the following forms for ``pressure_control_parameters``:
 
      <p_hydro> <C_hydro> <p_coup>
 
-  The three box lengths change uniformly according to the hydrostatic pressure :attr:`<p_hydro> = (p_xx + p_yy + p_zz)/3`.
+  The three box lengths change uniformly according to the hydrostatic pressure ``<p_hydro> = (p_xx + p_yy + p_zz)/3``.
   All directions should have periodic boundary conditions.
   The box must be orthogonal.
 
@@ -69,15 +69,15 @@ Choose one of the following forms for ``pressure_control_parameters``:
 
      <p_xx> <p_yy> <p_zz> <p_yz> <p_xz> <p_xy> <C_xx> <C_yy> <C_zz> <C_yz> <C_xz> <C_xy> <p_coup>
 
-  The simulation box must be triclinic and all the directions must be periodic.
+  The initial simulation box can be orthogonal or triclinic, and all directions must be periodic.
   All cell components will be controlled independently according to the 6 target pressure components.
 
   Elastic constants in literature may use a different nomenclature. The correspondence is as follows:
 
-  | :attr:`C_xx=C_xxxx=C_11`, :attr:`C_yy=C_yyyy=C_22`, :attr:`C_zz=C_zzzz=C_33`,
-  | :attr:`C_yz=C_yzyz=C_44`, :attr:`C_zx=C_zxzx=C_55`, :attr:`C_xy=C_xyxy=C_66`
+  | ``C_xx=C_xxxx=C_11``, ``C_yy=C_yyyy=C_22``, ``C_zz=C_zzzz=C_33``,
+  | ``C_yz=C_yzyz=C_44``, ``C_zx=C_zxzx=C_55``, ``C_xy=C_xyxy=C_66``
 
-  It is sufficient for the elastic constant tensor :attr:`C_ab` to be a (very rough) estimate as long as it is of the right magnitude.
+  It is sufficient for the elastic constant tensor ``C_ab`` to be a (very rough) estimate as long as it is of the right magnitude.
   It is used to convert the coupling constant (or relaxation time, see :ref:`here <choice_of_parameters>`) of the barostat into suitable internal units.
   If an elastic constant component exceeds 2000 GPa, the coupling constant for that component will be zero and that box component will not be changed.
 

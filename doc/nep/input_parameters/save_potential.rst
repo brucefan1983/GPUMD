@@ -2,7 +2,7 @@
 .. index::
    single: save_potential (keyword in nep.in)
 
-:attr:`save_potential`
+``save_potential``
 ======================
 
 This keyword sets the number of generations between writing a ``nep.txt`` checkpoint file.

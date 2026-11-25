@@ -2,7 +2,7 @@
 .. index::
    single: compute_hnemd (keyword in run.in)
 
-:attr:`compute_hnemd`
+``compute_hnemd``
 =====================
 
 This keyword is used to calculate the thermal conductivity using the :ref:`homogeneous nonequilibrium molecular dynamics <hnemd>` (:term:`HNEMD`) method [Fan2019]_.

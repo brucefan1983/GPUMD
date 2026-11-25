@@ -1,6 +1,6 @@
 .. _kw_add_mfield:
 
-:attr:`add_mfield`
+``add_mfield``
 ==================
 
 Apply a constant external magnetic induction to an atom group or a fractional-coordinate region.

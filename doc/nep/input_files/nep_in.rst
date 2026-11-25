@@ -155,7 +155,7 @@ Consistency with model files already present
 
 A training run writes both :ref:`nep.txt <nep_txt>` and :ref:`nep.restart <nep_restart>` every :ref:`output_interval <kw_output_interval>` generations.
 
-Each mismatch is reported on its own line, naming the keyword, the value used by the current run, whether that value was given in :attr:`nep.in` or is a default, and the value found in the file, for example::
+Each mismatch is reported on its own line, naming the keyword, the value used by the current run, whether that value was given in ``nep.in`` or is a default, and the value found in the file, for example::
 
   The model in nep.in is inconsistent with nep.txt:
       basis_size_radial: nep.in gives 6 (default), nep.txt gives 8.

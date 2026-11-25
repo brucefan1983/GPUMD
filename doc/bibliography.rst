@@ -58,6 +58,12 @@ Bibliography
    | J. Chem. Phys. **133**, 124104 (2010)
    | DOI: `10.1063/1.3489925 <https://doi.org/10.1063/1.3489925>`_
 
+.. [Coleman2013]
+   | S. P. Coleman, D. E. Spearot, and L. Capolungo
+   | *Virtual diffraction analysis of Ni [0 1 0] symmetric tilt grain boundaries*
+   | Modelling Simul. Mater. Sci. Eng. **21**, 055020 (2013)
+   | DOI: `10.1088/0965-0393/21/5/055020 <https://doi.org/10.1088/0965-0393/21/5/055020>`_
+
 .. [Craig2004]
    | Ian R. Craig and David E. Manolopoulos
    | *Quantum statistics and classical mechanics: Real time correlation functions from ring polymer molecular dynamics*
@@ -305,6 +311,12 @@ Bibliography
    | Phys. Rev. B **57**, R13985 (1998)
    | DOI: `10.1103/PhysRevB.57.R13985 <https://doi.org/10.1103/PhysRevB.57.R13985>`_
 
+.. [Waasmaier1995]
+   | D. Waasmaier and A. Kirfel
+   | *New analytical scattering-factor functions for free atoms and ions*
+   | Acta Cryst. A **51**, 416–431 (1995)
+   | DOI: `10.1107/S0108767394013292 <https://doi.org/10.1107/S0108767394013292>`_
+
 .. [Zhou2004]
    | X. W. Zhou, R. A. Johnson, and H. N. G. Wadley
    | *Misfit-energy-increasing dislocations in vapor-deposited CoFe/NiFe multilayers*
@@ -345,6 +357,12 @@ Bibliography
    | *Active learning strategies for atomic cluster expansion models*
    | Phys. Rev. M **7**, 043801 (2023)
    | DOI: `10.1103/PhysRevMaterials.7.043801 <https://doi.org/10.1103/PhysRevMaterials.7.043801>`_
+
+.. [Okabe2001]
+   | Tsuneyasu Okabe, Masaaki Kawata, Yuko Okamoto, and Masuhiro Mikami
+   | *Replica-exchange Monte Carlo method for the isobaric–isothermal ensemble*
+   | Chemical Physics Letters **335**, 435–439 (2001)
+   | DOI: `10.1016/S0009-2614(01)00055-0 <https://doi.org/10.1016/S0009-2614(01)00055-0>`_
 
 .. [Ouyang2018]
    | Wengen Ouyang, Davide Mandelli, Michael Urbakh, and Oded Hod

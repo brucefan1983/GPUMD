@@ -2,7 +2,7 @@
 .. index::
    single: basis_size (keyword in nep.in)
 
-:attr:`basis_size`
+``basis_size``
 ==================
 
 Set the basis sizes used to construct the radial and angular descriptor functions; see Sects. II.B and II.C and Eq. (3) of [Fan2022b]_.

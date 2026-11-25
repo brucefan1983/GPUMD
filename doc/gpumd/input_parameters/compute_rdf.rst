@@ -2,7 +2,7 @@
 .. index::
    single: compute_rdf (keyword in run.in)
 
-:attr:`compute_rdf`
+``compute_rdf``
 ===================
 
 This keyword is used to compute the radial distribution function (:term:`RDF`) for all atoms or pairs of species.
@@ -18,7 +18,7 @@ This keyword is used as follows::
 Parameters
 ----------
 
-This means that the :term:`RDF` calculations will be performed every :attr:`interval` steps, with :attr:`num_bins` data points evenly distributed from 0 to :attr:`cutoff` (in units of Ångstrom) in terms of the distance between atom pairs.
+This means that the :term:`RDF` calculations will be performed every ``interval`` steps, with ``num_bins`` data points evenly distributed from 0 to ``cutoff`` (in units of Ångstrom) in terms of the distance between atom pairs.
 
 Partial RDFs for all element pairs are computed automatically.
 

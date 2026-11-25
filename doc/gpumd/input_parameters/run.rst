@@ -2,7 +2,7 @@
 .. index::
    single: run (keyword in run.in)
 
-:attr:`run`
+``run``
 ===========
 
 Run a number of :term:`MD` steps according to the settings specified for the current run.
