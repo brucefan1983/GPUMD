@@ -313,7 +313,9 @@ static __global__ void find_neighbor_list_large_box(
   g_NN_angular[n1] = count_angular;
 }
 
+template <bool use_temperature>
 static __global__ void find_descriptor(
+  const float temperature,
   NEP::ParaMB paramb,
   NEP::ANN annmb,
   const int N,
@@ -415,6 +417,10 @@ static __global__ void find_descriptor(
           [static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) +
            n1] = s[abc];
       }
+    }
+
+    if (use_temperature) {
+      q[annmb.dim - 1] = temperature;
     }
 
     // normalize descriptor
@@ -753,7 +759,9 @@ static __global__ void find_force_ZBL(
 }
 
 // large box for MD applications
+template <bool use_temperature>
 void NEP::compute_large_box(
+  const float temperature,
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -807,7 +815,8 @@ void NEP::compute_large_box(
     output_file.close();
   }
 
-  find_descriptor<<<grid_size, BLOCK_SIZE>>>(
+  find_descriptor<use_temperature><<<grid_size, BLOCK_SIZE>>>(
+    temperature,
     paramb,
     annmb,
     N,
@@ -904,7 +913,9 @@ void NEP::compute_large_box(
 }
 
 // small box possibly used for active learning:
+template <bool use_temperature>
 void NEP::compute_small_box(
+  const float temperature,
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -966,7 +977,8 @@ void NEP::compute_small_box(
     output_file.close();
   }
 
-  find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
+  find_descriptor_small_box<use_temperature><<<grid_size, BLOCK_SIZE>>>(
+    temperature,
     paramb,
     annmb,
     N,
@@ -1119,455 +1131,8 @@ void NEP::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  const bool is_small_box = get_expanded_box(paramb.rc_radial_max, box, ebox);
-  if (is_small_box) {
-    // update small_box_data
-    const int current_num_atoms = type.size();
-    if (small_box_data.NN_radial.size() != current_num_atoms) {
-      const int big_neighbor_size = 2000;
-      const int size_x12 = current_num_atoms * big_neighbor_size;
-
-      small_box_data.NN_radial.resize(current_num_atoms);
-      small_box_data.NL_radial.resize(size_x12);
-      small_box_data.NN_angular.resize(current_num_atoms);
-      small_box_data.NL_angular.resize(size_x12);
-      small_box_data.r12.resize(size_x12 * 6);
-    }
-
-    compute_small_box(
-      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
-  } else {
-    compute_large_box(
-      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
-  }
-  if (has_dftd3) {
-    dftd3.compute(
-      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
-  }
-}
-
-static __global__ void find_descriptor(
-  const float temperature,
-  NEP::ParaMB paramb,
-  NEP::ANN annmb,
-  const int N,
-  const int N1,
-  const int N2,
-  const Box box,
-  const int* g_NN,
-  const int* g_NL,
-  const int* g_NN_angular,
-  const int* g_NL_angular,
-  const int* __restrict__ g_type,
-  const double* __restrict__ g_x,
-  const double* __restrict__ g_y,
-  const double* __restrict__ g_z,
-  double* g_pe,
-  float* g_Fp,
-  double* g_virial,
-  float* g_sum_fxyz)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 < N2) {
-    int t1 = g_type[n1];
-    double x1 = g_x[n1];
-    double y1 = g_y[n1];
-    double z1 = g_z[n1];
-    float q[MAX_DIM] = {0.0f};
-
-    // get radial descriptors
-    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int n2 = g_NL[static_cast<size_t>(N) * i1 + n1];
-      float x12 = g_x[n2] - x1;
-      float y12 = g_y[n2] - y1;
-      float z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-      float fc12;
-      int t2 = g_type[n2];
-      float rc = (paramb.rc_radial[t1] + paramb.rc_radial[t2]) * 0.5f;
-      float rcinv = 1.0f / rc;
-      find_fc(rc, rcinv, d12, fc12);
-      float fn12[MAX_NUM_N];
-      find_fn(paramb.basis_size_radial, rcinv, d12, fc12, fn12);
-      for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float gn12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = get_c_index(
-            t1 * paramb.num_types + t2, n, k, paramb.n_max_radial, paramb.basis_size_radial);
-          gn12 += fn12[k] * annmb.c_type_pair[c_index];
-        }
-        q[n] += gn12;
-      }
-    }
-
-    // get angular descriptors
-    for (int n = 0; n <= paramb.n_max_angular; ++n) {
-      float s[NUM_OF_ABC] = {0.0f};
-      for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
-        int n2 = g_NL_angular[n1 + N * i1];
-        float x12 = g_x[n2] - x1;
-        float y12 = g_y[n2] - y1;
-        float z12 = g_z[n2] - z1;
-        apply_mic(box, x12, y12, z12);
-        float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-        float fc12;
-        int t2 = g_type[n2];
-        float rc = (paramb.rc_angular[t1] + paramb.rc_angular[t2]) * 0.5f;
-        float rcinv = 1.0f / rc;
-        find_fc(rc, rcinv, d12, fc12);
-        float fn12[MAX_NUM_N];
-        find_fn(paramb.basis_size_angular, rcinv, d12, fc12, fn12);
-        float gn12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = get_c_index(
-            t1 * paramb.num_types + t2,
-            n,
-            k,
-            paramb.n_max_angular,
-            paramb.basis_size_angular,
-            paramb.num_c_radial);
-          gn12 += fn12[k] * annmb.c_type_pair[c_index];
-        }
-        accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
-      }
-      find_q(
-        paramb.L_max,
-        paramb.has_q_222,
-        paramb.has_q_1111,
-        paramb.has_q_112,
-        paramb.has_q_123,
-        paramb.has_q_233,
-        paramb.has_q_134,
-        paramb.n_max_angular + 1,
-        n,
-        s,
-        q + (paramb.n_max_radial + 1));
-      for (int abc = 0; abc < (paramb.L_max + 1) * (paramb.L_max + 1) - 1; ++abc) {
-        g_sum_fxyz
-          [static_cast<size_t>(N) * (n * ((paramb.L_max + 1) * (paramb.L_max + 1) - 1) + abc) +
-           n1] = s[abc];
-      }
-    }
-
-    // normalize descriptor
-    q[annmb.dim - 1] = temperature;
-    for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = q[d] * annmb.q_scaler[d];
-    }
-
-    // get energy and energy gradient
-    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-
-    apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
-    g_pe[n1] += double(F) + annmb.energy_reference[t1];
-
-    for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[static_cast<size_t>(N) * d + n1] = Fp[d] * annmb.q_scaler[d];
-    }
-  }
-}
-
-void NEP::compute_large_box(
-  const float temperature,
-  Box& box,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom)
-{
-  const int BLOCK_SIZE = 64;
-  const int N = type.size();
-  const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
-
-  neighbor_manager.update(box, type, position_per_atom);
-
-  find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
-    paramb,
-    N,
-    N1,
-    N2,
-    box,
-    type.data(),
-    position_per_atom.data(),
-    position_per_atom.data() + N,
-    position_per_atom.data() + N * 2,
-    neighbor_manager.get_candidate_NN().data(),
-    neighbor_manager.get_candidate_NL().data(),
-    nep_data.NN_radial.data(),
-    nep_data.NL_radial.data(),
-    nep_data.NN_angular.data(),
-    nep_data.NL_angular.data());
-  GPU_CHECK_KERNEL
-
-  static int num_calls = 0;
-  if (num_calls++ % 1000 == 0) {
-    nep_data.NN_radial.copy_to_host(nep_data.cpu_NN_radial.data());
-    nep_data.NN_angular.copy_to_host(nep_data.cpu_NN_angular.data());
-    int radial_actual = 0;
-    int angular_actual = 0;
-    for (int n = 0; n < N; ++n) {
-      if (radial_actual < nep_data.cpu_NN_radial[n]) {
-        radial_actual = nep_data.cpu_NN_radial[n];
-      }
-      if (angular_actual < nep_data.cpu_NN_angular[n]) {
-        angular_actual = nep_data.cpu_NN_angular[n];
-      }
-    }
-    std::ofstream output_file("neighbor.out", std::ios_base::app);
-    output_file << "Neighbor info at step " << num_calls - 1 << ": "
-                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
-                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
-                << std::endl;
-    output_file.close();
-  }
-
-  find_descriptor<<<grid_size, BLOCK_SIZE>>>(
-    temperature,
-    paramb,
-    annmb,
-    N,
-    N1,
-    N2,
-    box,
-    nep_data.NN_radial.data(),
-    nep_data.NL_radial.data(),
-    nep_data.NN_angular.data(),
-    nep_data.NL_angular.data(),
-    type.data(),
-    position_per_atom.data(),
-    position_per_atom.data() + N,
-    position_per_atom.data() + N * 2,
-    potential_per_atom.data(),
-    nep_data.Fp.data(),
-    virial_per_atom.data(),
-    nep_data.sum_fxyz.data());
-  GPU_CHECK_KERNEL
-
-  find_force_radial<<<grid_size, BLOCK_SIZE>>>(
-    paramb,
-    annmb,
-    N,
-    N1,
-    N2,
-    box,
-    nep_data.NN_radial.data(),
-    nep_data.NL_radial.data(),
-    type.data(),
-    position_per_atom.data(),
-    position_per_atom.data() + N,
-    position_per_atom.data() + N * 2,
-    nep_data.Fp.data(),
-    force_per_atom.data(),
-    force_per_atom.data() + N,
-    force_per_atom.data() + N * 2,
-    virial_per_atom.data());
-  GPU_CHECK_KERNEL
-
-  find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
-    paramb,
-    annmb,
-    N,
-    N1,
-    N2,
-    box,
-    nep_data.NN_angular.data(),
-    nep_data.NL_angular.data(),
-    type.data(),
-    position_per_atom.data(),
-    position_per_atom.data() + N,
-    position_per_atom.data() + N * 2,
-    nep_data.Fp.data(),
-    nep_data.sum_fxyz.data(),
-    nep_data.f12x.data(),
-    nep_data.f12y.data(),
-    nep_data.f12z.data());
-  GPU_CHECK_KERNEL
-
-  find_properties_many_body(
-    box,
-    nep_data.NN_angular.data(),
-    nep_data.NL_angular.data(),
-    nep_data.f12x.data(),
-    nep_data.f12y.data(),
-    nep_data.f12z.data(),
-    position_per_atom,
-    force_per_atom,
-    virial_per_atom);
-  GPU_CHECK_KERNEL
-
-  if (zbl.enabled) {
-    find_force_ZBL<<<grid_size, BLOCK_SIZE>>>(
-      paramb,
-      N,
-      zbl,
-      N1,
-      N2,
-      box,
-      nep_data.NN_angular.data(),
-      nep_data.NL_angular.data(),
-      type.data(),
-      position_per_atom.data(),
-      position_per_atom.data() + N,
-      position_per_atom.data() + N * 2,
-      force_per_atom.data(),
-      force_per_atom.data() + N,
-      force_per_atom.data() + N * 2,
-      virial_per_atom.data(),
-      potential_per_atom.data());
-    GPU_CHECK_KERNEL
-  }
-}
-
-// small box possibly used for active learning:
-void NEP::compute_small_box(
-  const float temperature,
-  Box& box,
-  const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom)
-{
-  const int BLOCK_SIZE = 64;
-  const int N = type.size();
-  const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
-
-  const int big_neighbor_size = 2000;
-  const int size_x12 = type.size() * big_neighbor_size;
-
-  find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
-    paramb,
-    N,
-    N1,
-    N2,
-    box,
-    ebox,
-    type.data(),
-    position_per_atom.data(),
-    position_per_atom.data() + N,
-    position_per_atom.data() + N * 2,
-    small_box_data.NN_radial.data(),
-    small_box_data.NL_radial.data(),
-    small_box_data.NN_angular.data(),
-    small_box_data.NL_angular.data(),
-    small_box_data.r12.data(),
-    small_box_data.r12.data() + size_x12,
-    small_box_data.r12.data() + size_x12 * 2,
-    small_box_data.r12.data() + size_x12 * 3,
-    small_box_data.r12.data() + size_x12 * 4,
-    small_box_data.r12.data() + size_x12 * 5);
-  GPU_CHECK_KERNEL
-
-  static int num_calls = 0;
-  if (num_calls++ % 1000 == 0) {
-    std::vector<int> cpu_NN_radial(type.size());
-    std::vector<int> cpu_NN_angular(type.size());
-    small_box_data.NN_radial.copy_to_host(cpu_NN_radial.data());
-    small_box_data.NN_angular.copy_to_host(cpu_NN_angular.data());
-    int radial_actual = 0;
-    int angular_actual = 0;
-    for (int n = 0; n < N; ++n) {
-      if (radial_actual < cpu_NN_radial[n]) {
-        radial_actual = cpu_NN_radial[n];
-      }
-      if (angular_actual < cpu_NN_angular[n]) {
-        angular_actual = cpu_NN_angular[n];
-      }
-    }
-    std::ofstream output_file("neighbor.out", std::ios_base::app);
-    output_file << "Neighbor info at step " << num_calls - 1 << ": "
-                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
-                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
-                << std::endl;
-    output_file.close();
-  }
-
-  find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
-    temperature,
-    paramb,
-    annmb,
-    N,
-    N1,
-    N2,
-    small_box_data.NN_radial.data(),
-    small_box_data.NL_radial.data(),
-    small_box_data.NN_angular.data(),
-    small_box_data.NL_angular.data(),
-    type.data(),
-    small_box_data.r12.data(),
-    small_box_data.r12.data() + size_x12,
-    small_box_data.r12.data() + size_x12 * 2,
-    small_box_data.r12.data() + size_x12 * 3,
-    small_box_data.r12.data() + size_x12 * 4,
-    small_box_data.r12.data() + size_x12 * 5,
-    potential_per_atom.data(),
-    nep_data.Fp.data(),
-    virial_per_atom.data(),
-    nep_data.sum_fxyz.data());
-  GPU_CHECK_KERNEL
-
-  find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
-    paramb,
-    annmb,
-    N,
-    N1,
-    N2,
-    small_box_data.NN_radial.data(),
-    small_box_data.NL_radial.data(),
-    type.data(),
-    small_box_data.r12.data(),
-    small_box_data.r12.data() + size_x12,
-    small_box_data.r12.data() + size_x12 * 2,
-    nep_data.Fp.data(),
-    force_per_atom.data(),
-    force_per_atom.data() + N,
-    force_per_atom.data() + N * 2,
-    virial_per_atom.data());
-  GPU_CHECK_KERNEL
-
-  find_force_angular_small_box<<<grid_size, BLOCK_SIZE>>>(
-    paramb,
-    annmb,
-    N,
-    N1,
-    N2,
-    small_box_data.NN_angular.data(),
-    small_box_data.NL_angular.data(),
-    type.data(),
-    small_box_data.r12.data() + size_x12 * 3,
-    small_box_data.r12.data() + size_x12 * 4,
-    small_box_data.r12.data() + size_x12 * 5,
-    nep_data.Fp.data(),
-    nep_data.sum_fxyz.data(),
-    force_per_atom.data(),
-    force_per_atom.data() + N,
-    force_per_atom.data() + N * 2,
-    virial_per_atom.data());
-  GPU_CHECK_KERNEL
-
-  if (zbl.enabled) {
-    find_force_ZBL_small_box<<<grid_size, BLOCK_SIZE>>>(
-      paramb,
-      N,
-      zbl,
-      N1,
-      N2,
-      small_box_data.NN_angular.data(),
-      small_box_data.NL_angular.data(),
-      type.data(),
-      small_box_data.r12.data() + size_x12 * 3,
-      small_box_data.r12.data() + size_x12 * 4,
-      small_box_data.r12.data() + size_x12 * 5,
-      force_per_atom.data(),
-      force_per_atom.data() + N,
-      force_per_atom.data() + N * 2,
-      virial_per_atom.data(),
-      potential_per_atom.data());
-    GPU_CHECK_KERNEL
-  }
+  compute_impl<false>(
+    0.0f, box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
 }
 
 void NEP::compute(
@@ -1579,8 +1144,21 @@ void NEP::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  const bool is_small_box = get_expanded_box(paramb.rc_radial_max, box, ebox);
+  compute_impl<true>(
+    temperature, box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+}
 
+template <bool use_temperature>
+void NEP::compute_impl(
+  const float temperature,
+  Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom)
+{
+  const bool is_small_box = get_expanded_box(paramb.rc_radial_max, box, ebox);
   if (is_small_box) {
     // update small_box_data
     const int current_num_atoms = type.size();
@@ -1595,7 +1173,7 @@ void NEP::compute(
       small_box_data.r12.resize(size_x12 * 6);
     }
 
-    compute_small_box(
+    compute_small_box<use_temperature>(
       temperature,
       box,
       type,
@@ -1604,7 +1182,7 @@ void NEP::compute(
       force_per_atom,
       virial_per_atom);
   } else {
-    compute_large_box(
+    compute_large_box<use_temperature>(
       temperature,
       box,
       type,
@@ -1613,7 +1191,6 @@ void NEP::compute(
       force_per_atom,
       virial_per_atom);
   }
-
   if (has_dftd3) {
     dftd3.compute(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
