@@ -140,7 +140,9 @@ private:
 
   void update_potential(float* parameters, ANN& ann);
 
-  void compute_small_box(
+  template <bool use_temperature>
+  void compute_impl(
+    const float temperature,
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
@@ -148,14 +150,7 @@ private:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
 
-  void compute_large_box(
-    Box& box,
-    const GPU_Vector<int>& type,
-    const GPU_Vector<double>& position,
-    GPU_Vector<double>& potential,
-    GPU_Vector<double>& force,
-    GPU_Vector<double>& virial);
-
+  template <bool use_temperature>
   void compute_small_box(
     const float temperature,
     Box& box,
@@ -165,6 +160,7 @@ private:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
 
+  template <bool use_temperature>
   void compute_large_box(
     const float temperature,
     Box& box,
