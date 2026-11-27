@@ -1,156 +1,74 @@
-# gpumd_to_kaldo — NEP force-constant exporter for kaldo
+# NEP force constants for kaldo
 
-Export second- and third-order interatomic force constants (IFCs) derived from
-a GPUMD NEP potential into kaldo's `format='gpumd'` on-disk layout
-(`gpumd_fc.npz`).  The pipeline runs entirely on the CPU and requires neither
-a GPU nor a running GPUMD simulation: calorine's `CPUNEP` evaluates forces on
-phono3py-generated displaced supercells, and the resulting IFCs are remapped
-into kaldo's canonical C-grid replica order, optionally corrected with the
-acoustic sum rule, and written to a single compressed numpy archive.
-
----
+[gpumd_to_kaldo.py](gpumd_to_kaldo.py) evaluates NEP forces with calorine's `CPUNEP`, computes second- and third-order force constants with phono3py, and exports `gpumd_fc.npz` in kaldo's C-grid replica order. The calculation runs on the CPU. The optional acoustic sum rule correction applies to the second-order force constants.
 
 ## Dependencies
 
-**Required (core pipeline):**
+Python packages: `ase`, `calorine`, `phonopy`, `phono3py`, `numpy`, `scipy`, `sparse`, and `kaldo`. Normal export uses `kaldo.grid`; reading the output requires a kaldo version with the `format='gpumd'` reader. Use a NEP model supported by the installed calorine version.
 
-| Package | Purpose |
-|---|---|
-| `ase` | Atoms object, structure I/O |
-| `calorine` | CPUNEP ASE calculator |
-| `phonopy` | Harmonic (fc2) finite displacements |
-| `phono3py` | Anharmonic (fc3) finite displacements |
-| `numpy` | Array operations |
-| `scipy` | Lattice-constant relaxation (Brent) |
-| `sparse` | COO storage for fc3 |
+## Usage
 
-**Required only for the cross-check tests** (`test_fc2_layout_matches_hiphive_oracle`,
-`test_fc3_matches_hiphive_oracle`, and the kaldo round-trip / end-to-end tests):
-
-| Package | Purpose |
-|---|---|
-| `kaldo` | kaldo `format='gpumd'` reader; grid utilities |
-| `hiphive` | Independent fc2/fc3 oracle for element-wise comparison |
-
-The pure-NEP tests (B.1/B.2 — structure helpers, force evaluation, phonopy fc2,
-phono3py fc3) run without kaldo or hiphive installed.
-
----
-
-## `gpumd_fc.npz` format
-
-A single `np.savez_compressed` archive.  All arrays are numpy-native; no
-additional libraries are needed to read it beyond numpy and sparse.
-
-| key | dtype | shape | meaning |
-|---|---|---|---|
-| `format_version` | int | scalar | starts at `1` |
-| `atomic_numbers` | int | `(n_uc,)` | unit-cell species |
-| `positions` | float64 | `(n_uc, 3)` | unit-cell Cartesian positions (Å) |
-| `cell` | float64 | `(3, 3)` | unit-cell vectors (Å) |
-| `supercell` | int | `(3,)` | diagonal supercell for `fc2` |
-| `third_supercell` | int | `(3,)` | diagonal supercell for `fc3` |
-| `fc2` | float64 | `(1, n_uc, 3, n_rep2, n_uc, 3)` | second-order IFC, eV/Å², kaldo C-grid replica order, reference cell at axis 0 |
-| `fc3_coords` | int32 | `(3, nnz)` | flattened COO coords for the `(n_uc·3, n_rep3·n_uc·3, n_rep3·n_uc·3)` array |
-| `fc3_data` | float64 | `(nnz,)` | third-order IFC values, eV/Å³ |
-| `fc3_shape` | int | `(3,)` | `(n_uc·3, n_rep3·n_uc·3, n_rep3·n_uc·3)` |
-| `units_fc2` / `units_fc3` | str | scalar | `'eV/angstrom^2'` / `'eV/angstrom^3'` |
-| `grid_order` | str | scalar | `'C'` |
-| `acoustic_sum_applied` | bool | scalar | whether ASR was applied by the writer |
-| `nep_potential` / `generator` | str | scalar | provenance: NEP filename + sha256; tool name + version |
-
-**Index convention:** replica index `r ∈ [0, n_rep)` corresponds to cell-image
-grid index `np.unravel_index(r, supercell, order='C')`, i.e. exactly
-`kaldo.grid.Grid(supercell, 'C').grid(is_wrapping=False)[r]`.
-`fc2[0, i, α, r, j, β]` = Φ²(ref-cell atom *i*, direction α; atom *j* in
-image *r*, direction β), eV/Å² (bare IFCs, not mass-weighted).
-
----
-
-## CLI usage
-
-### Default: built-in silicon example
+Run from this directory. For the built-in two-atom silicon primitive cell:
 
 ```bash
-python gpumd_to_kaldo.py \
+python3 gpumd_to_kaldo.py \
     --nep /path/to/nep.txt \
     --supercell 3 3 3 \
     --acoustic-sum \
     --out gpumd_fc.npz
 ```
 
-The script relaxes the Si lattice constant automatically (`--a` overrides it).
+The Si lattice constant is relaxed automatically, or set with `--a` in angstrom. To use a prepared primitive cell, add `--structure my_unitcell.vasp` (any ASE-readable format). This structure is used as provided, without relaxation, and `--a` is ignored.
 
-### Any ASE-readable structure
+`--supercell` defaults to `3 3 3`. `--threshold` drops third-order entries with absolute values at or below the specified value (default `0`, in eV/Å³). `--out` defaults to `gpumd_fc.npz` and overwrites an existing output file. See `python3 gpumd_to_kaldo.py --help` for the command-line options.
 
-Pass any POSCAR, extxyz, CIF, or other ASE-readable file with `--structure`:
-
-```bash
-python gpumd_to_kaldo.py \
-    --nep /path/to/nep.txt \
-    --structure my_unitcell.vasp \
-    --supercell 3 3 3 \
-    --acoustic-sum \
-    --out gpumd_fc.npz
-```
-
-The structure is used **as provided** — no relaxation is performed.  Ensure
-the cell is at (or close to) its equilibrium geometry for the given NEP so
-that the force-constant expansion is well-conditioned.  The `--a` flag is
-ignored when `--structure` is given.
-
-### All options
-
-```
---nep PATH            Path to the NEP potential file (required).
---out PATH            Output .npz path (default: gpumd_fc.npz).
---supercell NX NY NZ  Supercell for fc2 and fc3 (default: 3 3 3).
---third-supercell NX NY NZ
-                      Separate supercell for fc3 (default: same as --supercell).
---structure PATH      Any ASE-readable unit cell; used as-is.
---a FLOAT             Si lattice constant in Å (default: auto-relaxed).
-                      Ignored when --structure is given.
---threshold FLOAT     Drop fc3 entries with |value| <= threshold (default: 0).
---acoustic-sum        Apply the acoustic sum rule to fc2 before writing.
-```
-
----
-
-## Silicon example
+The included Si example uses the repository's Si NEP model:
 
 ```bash
 cd example_silicon
 bash run.sh
 ```
 
-`run.sh` runs a (3, 3, 3) supercell on the in-repo Si NEP and prints the kaldo
-load command.  The output `gpumd_fc.npz` lands in `example_silicon/`.
+It writes `example_silicon/gpumd_fc.npz`.
 
----
+## Output format
 
-## How kaldo reads it
+The compressed NumPy archive stores dense second-order force constants and sparse third-order force constants as separate coordinate, value, and shape arrays. NumPy can read all stored arrays; `sparse.COO` reconstructs the third-order tensor.
+
+Here `n_uc` is the number of unit-cell atoms, and `n_rep2` and `n_rep3` are the products of the stored supercell dimensions.
+
+| Key | Type and shape | Meaning |
+| --- | --- | --- |
+| `format_version` | int64 scalar | `1` |
+| `atomic_numbers` | int64 `(n_uc,)` | Unit-cell species. |
+| `positions` | float64 `(n_uc, 3)` | Cartesian positions, Å. |
+| `cell` | float64 `(3, 3)` | Unit-cell vectors, Å. |
+| `supercell` / `third_supercell` | int64 `(3,)` | Stored second- and third-order supercell dimensions. |
+| `fc2` | float64 `(1, n_uc, 3, n_rep2, n_uc, 3)` | Second-order force constants, eV/Å². |
+| `fc3_coords` | int32 `(3, nnz)` | Flattened COO coordinates. |
+| `fc3_data` | float64 `(nnz,)` | Third-order force constants, eV/Å³. |
+| `fc3_shape` | int64 `(3,)` | `(n_uc*3, n_rep3*n_uc*3, n_rep3*n_uc*3)`. |
+| `units_fc2` / `units_fc3` | String scalars | `eV/angstrom^2` / `eV/angstrom^3`. |
+| `grid_order` | String scalar | `C`. |
+| `acoustic_sum_applied` | Boolean scalar | Whether the second-order sum rule was applied. |
+| `nep_potential` / `generator` | String scalars | NEP path and SHA-256; tool name and version. |
+
+Replica `r` follows `np.unravel_index(r, supercell, order='C')`, matching `kaldo.grid.Grid(supercell, 'C').grid(is_wrapping=False)[r]`. The entry `fc2[0, i, alpha, r, j, beta]` couples reference-cell atom `i` to atom `j` in replica `r`. These force constants are not mass-weighted.
+
+Load the archive from its output directory:
 
 ```python
 from kaldo.forceconstants import ForceConstants
 
 fc = ForceConstants.from_folder('.', format='gpumd')
-# fc.second  — SecondOrder in kaldo C-grid layout
-# fc.third   — ThirdOrder sparse COO
 ```
 
-kaldo rebuilds the replicated supercell from the stored `supercell` vector (no
-`replicated_atoms.xyz` needed) and loads fc3 directly into a `sparse.COO`
-without any index remapping.
+## Tests
 
----
-
-## Running the tests
+With the runtime dependencies and `pytest` installed, run from this directory:
 
 ```bash
-cd tools/Format_Conversion/gpumd_to_kaldo
-conda run -n gpumd-kaldo python -m pytest test_gpumd_to_kaldo.py -v
+python3 -m pytest test_gpumd_to_kaldo.py -v
 ```
 
-Tests that require kaldo or hiphive are automatically skipped if those packages
-are not installed, so GPUMD's own CI (which need not install kaldo) can still
-run the pure-NEP subset.
+The tests use the repository's Si model by default; `SI_NEP` can select another path to that model. The independent comparison tests additionally require `hiphive` and skip when it is unavailable.

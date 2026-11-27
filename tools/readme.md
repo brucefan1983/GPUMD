@@ -1,34 +1,30 @@
-## Overview
+# Tools
 
-The `tools` directory contains auxiliary scripts and utilities for tasks such as format conversion, data analysis, structure generation, etc. Hope you find them helpful, but you should use them with caution. If you have questions on a tool, you can try to contact the creator.
+Auxiliary scripts for structure preparation, format conversion, dataset processing, and analysis.
+See the category indexes for individual tools and contributor contacts.
 
-## Directory Structure
+| Category | Contents |
+| --- | --- |
+| [Format conversion](Format_Conversion/README.md) | Convert simulation outputs, structures, and datasets. |
+| [Analysis and processing](Analysis_and_Processing/README.md) | Prepare structures and datasets, and analyze simulation results. |
 
-The tools are grouped into three categories for now:
+## Related packages
 
-| **Category**            | **Tools**                                                    |
-| ----------------------- | ------------------------------------------------------------ |
-| Format Conversion       | abacus2xyz, castep2exyz, cp2k2xyz, dp2xyz, exyz2pdb, gmx2exyz, gpumd_to_kaldo, mtp2xyz, orca2xyz, runner2xyz, vasp2xyz, xtd2exyz, xyz2gro |
-| Analysis and Processing | add_groups, energy-reference-aligner, get_max_rmse_xyz, hydrogen_bond_analysis, pbc_mol, pca_sampling, perturbed2poscar, rdf_adf, select_xyz_frames, shift_energy_to_zero, split_xyz, |
-| Miscellaneous           | doc_3.3.1, for_coding, md_tersoff, vim                       |
+These packages are maintained separately. See their documentation for installation,
+usage, and supported GPUMD versions.
 
-## Packages related to GPUMD and/or NEP:
-
-Also, there are some packages that may be useful to you.
-
-| Package        | link                                           | comment                                                      |
-| -------------- | ---------------------------------------------- | ------------------------------------------------------------ |
-| `calorine`     | https://gitlab.com/materials-modeling/calorine | `calorine` is a Python package for running and analyzing MD simulations via GPUMD. It also provides functionality for constructing and sampling NEP models via GPUMD. |
-| `GPUMD-Wizard` | https://github.com/Jonsnow-willow/GPUMD-Wizard | `GPUMD-Wizard` is a material structure processing software based on ASE (Atomic Simulation Environment) providing automation capabilities for calculating various properties of metals. Additionally, it aims to run and analyze MD simulations using GPUMD. |
-| `gpyumd`       | https://github.com/AlexGabourie/gpyumd         | `gpyumd` is a Python interface for GPUMD. It helps users generate input and process output files based on the details provided by the GPUMD documentation. It currently supports up to GPUMD-v3.3.1 and only the gpumd executable. |
-| `GPUMDkit`     | https://github.com/zhyan0603/GPUMDkit          | `GPUMDkit` is a toolkit for the GPUMD and NEP. It provides a set of tools to streamline the use of common scripts in GPUMD and NEP, simplifying workflows and enhancing efficiency. |
-| `GPUMD-MDI`   | https://github.com/JaafarMehrez/GPUMD-MDI    | `GPUMD-MDI` provides a separately maintained MolSSI Driver Interface (MDI) for coupling GPUMD to external simulation codes, such as VASP. |
-| `GPUMD-PySAGES` | https://github.com/JaafarMehrez/GPUMD-PySAGES | `GPUMD-PySAGES` connects GPUMD with PySAGES for GPU-accelerated enhanced-sampling simulations, including metadynamics, adaptive biasing force (ABF), and umbrella sampling. |
-| `mdapy`        | https://github.com/mushroomfire/mdapy          | The `mdapy` Python library provides an array of powerful, flexible, and straightforward tools to analyze atomic trajectories generated from MD simulations. |
-| `pynep`        | https://github.com/bigd4/PyNEP                 | `PyNEP` is a Python interface of the machine learning potential NEP used in GPUMD. |
-| `somd`         | https://github.com/initqp/somd                 | `SOMD` is an ab-initio molecular dynamics (AIMD) package designed for the SIESTA DFT code. The SOMD code provides some common functionalities to perform standard Born-Oppenheimer molecular dynamics (BOMD) simulations, and contains a simple wrapper to the NEP package. The SOMD code may be used to automatically build NEPs by the mean of the active-learning methodology. |
-| `NepTrain`     | https://github.com/aboys-cb/NepTrain           | An automated toolkit for training NEP, integrating tools like GPUMD, VASP, and NEP for streamlined workflows including perturbation, active learning, single-point energy calculations, and potential training. |
-| `NepTrainKit`  | https://github.com/aboys-cb/NepTrainKit        | `NepTrainKit` is a Python package for visualizing and manipulating training datasets for NEP. |
-| `NEP_Active`   | https://github.com/psn417/NEP_Active           | `NEP_Active` is a python package for building the training set using active learning strategy. It follows the method of Moment Tensor Potential (MTP). |
-| `nep_maker`    | https://github.com/psn417/nep_maker            | This Python package facilitates the construction of NEP using active learning techniques. It employs the same strategies as MTP [J. Chem. Phys. 159, 084112 (2023)] and ACE [Phys. Rev. Materials 7, 043801 (2023)]. |
-
+| Package | Purpose |
+| --- | --- |
+| [calorine](https://gitlab.com/materials-modeling/calorine) | Run and analyze GPUMD simulations; construct and sample NEP models. |
+| [GPUMD-Wizard](https://github.com/Jonsnow-willow/GPUMD-Wizard) | ASE-based structure preparation and property calculations with GPUMD. |
+| [gpyumd](https://github.com/AlexGabourie/gpyumd) | Prepare GPUMD inputs and analyze outputs. |
+| [GPUMDkit](https://github.com/zhyan0603/GPUMDkit) | Tools for GPUMD and NEP workflows. |
+| [GPUMD-MDI](https://github.com/JaafarMehrez/GPUMD-MDI) | Couple GPUMD to external simulation codes through the MolSSI Driver Interface. |
+| [GPUMD-PySAGES](https://github.com/JaafarMehrez/GPUMD-PySAGES) | Couple GPUMD to PySAGES for enhanced sampling. |
+| [mdapy](https://github.com/mushroomfire/mdapy) | Analyze atomistic structures and trajectories. |
+| [pynep](https://github.com/bigd4/PyNEP) | Python interface to NEP. |
+| [somd](https://github.com/initqp/somd) | Molecular dynamics with SIESTA and NEP. |
+| [NepTrain](https://github.com/aboys-cb/NepTrain) | Automate NEP training and data-generation workflows. |
+| [NepTrainKit](https://github.com/aboys-cb/NepTrainKit) | Visualize and process NEP training datasets. |
+| [NEP_Active](https://github.com/psn417/NEP_Active) | Build training datasets through active learning. |
+| [nep_maker](https://github.com/psn417/nep_maker) | Construct NEP models through active learning. |
