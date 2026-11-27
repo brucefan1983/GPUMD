@@ -148,8 +148,9 @@ Pressure coupling in ``npt_tspin``
 
 The MTTK barostat acts on the simulation cell, atomic positions, and lattice
 momenta. It neither rescales nor rotates the Cartesian spin vectors. The
-instantaneous pressure contains the lattice kinetic term and the full
-potential virial of :math:`U(\boldsymbol R,\boldsymbol S)`, but not the TSPIN
-kinetic energy. Spin affects the cell through the Spin-potential virial.
+instantaneous pressure contains the lattice kinetic term and the
+:ref:`symmetric part of the potential virial <spin_full_virial>` of
+:math:`U(\boldsymbol R,\boldsymbol S)`. Only the lattice contributes to
+the kinetic term.
 Because pressure control requires cell and lattice dynamics, ``npt_tspin``
 does not accept ``lattice off``.

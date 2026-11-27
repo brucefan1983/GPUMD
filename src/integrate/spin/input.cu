@@ -35,8 +35,31 @@ Major contributors:
 class Spin_Ensemble::Lattice_MTTK final : public Ensemble_MTTK
 {
 public:
-  using Ensemble_MTTK::Ensemble_MTTK;
+  Lattice_MTTK(const std::vector<std::string>& tokens, const GPU_Vector<double>& pressure_virial)
+    : Ensemble_MTTK(tokens), pressure_virial_(pressure_virial)
+  {
+  }
+
   double get_temperature_period() const { return t_period; }
+
+private:
+  const GPU_Vector<double>& pressure_virial_;
+
+  void find_thermo(
+    const std::vector<Group>& group,
+    const Box& box,
+    const Atom& atom,
+    GPU_Vector<double>& thermo) override
+  {
+    Ensemble::find_thermo(
+      box.get_volume(),
+      group,
+      atom.mass,
+      atom.potential_per_atom,
+      atom.velocity_per_atom,
+      pressure_virial_,
+      thermo);
+  }
 };
 
 namespace
@@ -330,7 +353,7 @@ Spin_Ensemble::Spin_Ensemble(
   std::vector<std::string> lattice(tokens.begin(), tokens.begin() + spin_option_start);
   if (npt) {
     lattice[1] = "npt_mttk";
-    auto mttk = std::make_unique<Lattice_MTTK>(lattice);
+    auto mttk = std::make_unique<Lattice_MTTK>(lattice, pressure_virial_);
     temperature1 = mttk->t_start;
     temperature2 = mttk->t_stop;
     temperature = temperature1;

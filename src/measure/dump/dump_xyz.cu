@@ -20,12 +20,13 @@ Major contributors:
   Zheyong Fan: Initial implementation.
   Paul Erhart: Configurable trajectory precision.
   Xiangyang Liu: Trajectory splitting by frame count.
-  Chengbing Chen: Spin trajectories and magnetic forces.
+  Chengbing Chen: Spin trajectories, magnetic forces, and full spin virials.
   Ting Liang: Output of unwrapped positions only.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_xyz.cuh"
 #include "force/force.cuh"
+#include "force/nep_spin/nep_spin.cuh"
 #include "measure/parse_utilities.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
@@ -35,6 +36,8 @@ Major contributors:
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <cstring>
+
+static constexpr int virial_row_major[9] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
 {
@@ -221,8 +224,12 @@ void Dump_XYZ::pre_run(
   // %.9g round-trips a float and %.17g round-trips a double.
   fmt_ = (precision_ == 1) ? " %.9g" : " %.17g";
 
-  gpu_total_virial_.resize(6);
-  cpu_total_virial_.resize(6);
+  const bool has_spin_potential =
+    force.get_number_of_potentials() == 1 &&
+    dynamic_cast<const Spin_Potential*>(&force.get_potential(0)) != nullptr;
+  const int virial_components = has_spin_potential ? 9 : 6;
+  gpu_total_virial_.resize(virial_components);
+  cpu_total_virial_.resize(virial_components);
   if (quantities.has_force_) {
     cpu_force_per_atom_.resize(atom.number_of_atoms * 3);
   }
@@ -298,26 +305,23 @@ void Dump_XYZ::output_line2(
     box.cpu_h[8]};
   print_tensor("Lattice", lattice);
 
-  // energy and virial (symmetric tensor) in eV, and stress (symmetric tensor) in eV/A^3
+  // Energy and virial in eV, and six-component pressure in eV/A^3.
   double cpu_thermo[8];
   gpu_thermo.copy_to_host(cpu_thermo, 8);
   const int N = virial_per_atom.size() / 9;
-  gpu_sum<<<6, 1024>>>(N, virial_per_atom.data(), gpu_total_virial_.data());
+  gpu_sum<<<gpu_total_virial_.size(), 1024>>>(N, virial_per_atom.data(), gpu_total_virial_.data());
   gpu_total_virial_.copy_to_host(cpu_total_virial_.data());
 
   fprintf(fid_, " energy=");
   fprintf(fid_, fmt_.c_str() + 1, cpu_thermo[1]);
 
-  const double virial[9] = {
-    cpu_total_virial_[0],
-    cpu_total_virial_[3],
-    cpu_total_virial_[4],
-    cpu_total_virial_[3],
-    cpu_total_virial_[1],
-    cpu_total_virial_[5],
-    cpu_total_virial_[4],
-    cpu_total_virial_[5],
-    cpu_total_virial_[2]};
+  const int mirrored_virial_row_major[9] = {0, 3, 4, 3, 1, 5, 4, 5, 2};
+  const int* virial_order =
+    cpu_total_virial_.size() == 9 ? virial_row_major : mirrored_virial_row_major;
+  double virial[9];
+  for (int d = 0; d < 9; ++d) {
+    virial[d] = cpu_total_virial_[virial_order[d]];
+  }
   print_tensor("virial", virial);
 
   const double stress[9] = {
@@ -532,9 +536,9 @@ void Dump_XYZ::end_of_step(
       }
     }
     if (quantities.has_virial_) {
-      const int index[9] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
       for (int d = 0; d < 9; ++d) {
-        fprintf(fid_, fmt_.c_str(), cpu_virial_per_atom_[m + atom.number_of_atoms * index[d]]);
+        fprintf(
+          fid_, fmt_.c_str(), cpu_virial_per_atom_[m + atom.number_of_atoms * virial_row_major[d]]);
       }
     }
     if (quantities.has_group_) {

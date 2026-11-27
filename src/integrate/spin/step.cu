@@ -108,7 +108,32 @@ __global__ void restore_modifiers(
     }
   }
 }
+
+__global__ void project_pressure_virial(int n, const double* virial, double* pressure_virial)
+{
+  const size_t i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < n) {
+    for (int d = 0; d < 3; ++d) {
+      pressure_virial[i + d * size_t(n)] = virial[i + d * size_t(n)];
+      // The yx, zx and zy planes follow xy, xz and yz.
+      const size_t shear = i + (d + 3) * size_t(n);
+      pressure_virial[shear] = 0.5 * (virial[shear] + virial[shear + 3 * size_t(n)]);
+    }
+  }
+}
 } // namespace
+
+const GPU_Vector<double>& Spin_Ensemble::prepare_pressure_virial(const Atom& atom)
+{
+  if (pressure_virial_.size() == 0)
+    return atom.virial_per_atom;
+
+  const int n = atom.number_of_atoms;
+  project_pressure_virial<<<(n + 127) / 128, 128>>>(
+    n, atom.virial_per_atom.data(), pressure_virial_.data());
+  GPU_CHECK_KERNEL
+  return pressure_virial_;
+}
 
 void Spin_Ensemble::refresh_endpoint(
   double dt,
@@ -196,6 +221,6 @@ void Spin_Ensemble::refresh_endpoint(
     atom.mass,
     atom.potential_per_atom,
     atom.velocity_per_atom,
-    atom.virial_per_atom,
+    prepare_pressure_virial(atom),
     thermo);
 }
