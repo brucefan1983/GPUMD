@@ -114,65 +114,6 @@ void __global__ find_dftd3_coordination_number_small_box(
   }
 }
 
-// Zero damping only: the coordination number of the small-box kernel is summed in double and the
-// weights are built from it (the BJ kernel above stays in float). The stored w and dw are float.
-static __device__ __forceinline__ void find_cn_weights_double(
-  const int N, const int n1, const int z1, const double cn1, float* g_cn_w, float* g_cn_dw)
-{
-  const int n = num_cn[z1];
-  double d1[max_cn];
-  double w1[max_cn];
-  double m1 = 1.0e30;
-  for (int i = 0; i < n; ++i) {
-    d1[i] = cn1 - (double)cn_ref[z1 * max_cn + i];
-    m1 = fmin(m1, d1[i] * d1[i]);
-  }
-  double s1 = 0.0;
-  for (int i = 0; i < n; ++i) {
-    w1[i] = exp(-4.0 * (d1[i] * d1[i] - m1));
-    s1 += w1[i];
-  }
-  double d1_mean = 0.0;
-  for (int i = 0; i < n; ++i) {
-    w1[i] /= s1;
-    d1_mean += w1[i] * d1[i];
-  }
-  for (int i = 0; i < n; ++i) {
-    g_cn_w[i * N + n1] = (float)w1[i];
-    g_cn_dw[i * N + n1] = (float)(w1[i] * (-8.0) * (d1[i] - d1_mean));
-  }
-}
-
-void __global__ find_dftd3_coordination_number_small_box_zero(
-  DFTD3::DFTD3_Para dftd3_para,
-  const int N,
-  const int* g_NN_angular,
-  const int* g_NL_angular,
-  const int* g_type,
-  const float* g_x12,
-  const float* g_y12,
-  const float* g_z12,
-  float* g_cn_w,
-  float* g_cn_dw)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    int z1 = dftd3_para.atomic_number[g_type[n1]];
-    double R_cov_1 = (double)Bohr * (double)covalent_radius[z1];
-    double cn_temp = 0.0;
-    for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
-      int index = i1 * N + n1;
-      int n2 = g_NL_angular[index];
-      int z2 = dftd3_para.atomic_number[g_type[n2]];
-      double R_cov_2 = (double)Bohr * (double)covalent_radius[z2];
-      double r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-      double d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      cn_temp += 1.0 / (exp(-16.0 * ((R_cov_1 + R_cov_2) / d12 - 1.0)) + 1.0);
-    }
-    find_cn_weights_double(N, n1, z1, cn_temp, g_cn_w, g_cn_dw);
-  }
-}
-
 static __device__ __forceinline__ void find_c6_cached(
   const float* g_c6_ref,
   const int N,
@@ -1289,31 +1230,17 @@ void DFTD3::compute_small_box(
     r12.data() + size_x12 * 5);
   GPU_CHECK_KERNEL
 
-  if (dftd3_para.damping == 0) {
-    find_dftd3_coordination_number_small_box<<<(N - 1) / 64 + 1, 64>>>(
-      dftd3_para,
-      N,
-      NN_angular.data(),
-      NL_angular.data(),
-      type.data(),
-      r12.data() + size_x12 * 3,
-      r12.data() + size_x12 * 4,
-      r12.data() + size_x12 * 5,
-      cn_w.data(),
-      cn_dw.data());
-  } else { // zero damping: coordination number in double precision
-    find_dftd3_coordination_number_small_box_zero<<<(N - 1) / 64 + 1, 64>>>(
-      dftd3_para,
-      N,
-      NN_angular.data(),
-      NL_angular.data(),
-      type.data(),
-      r12.data() + size_x12 * 3,
-      r12.data() + size_x12 * 4,
-      r12.data() + size_x12 * 5,
-      cn_w.data(),
-      cn_dw.data());
-  }
+  find_dftd3_coordination_number_small_box<<<(N - 1) / 64 + 1, 64>>>(
+    dftd3_para,
+    N,
+    NN_angular.data(),
+    NL_angular.data(),
+    type.data(),
+    r12.data() + size_x12 * 3,
+    r12.data() + size_x12 * 4,
+    r12.data() + size_x12 * 5,
+    cn_w.data(),
+    cn_dw.data());
   GPU_CHECK_KERNEL
 
   if (dftd3_para.damping == 0) {
