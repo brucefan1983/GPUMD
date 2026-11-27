@@ -1,49 +1,49 @@
-# Hydrogen Bond Analyzer for XYZ Trajectories
+# Hydrogen-bond analysis
 
-This script analyzes hydrogen bonds (H-bonds) in molecular dynamics or quantum chemistry trajectories provided in extended XYZ format. It supports both conventional and unconventional H-bonds, including pi-H bonds (e.g., benzene rings, alkynes), dihydrogen bonds, and metal-H bonds.
+`Hydrogen-bond-analysis.py` identifies hydrogen bonds using distance and
+angle criteria. Optional criteria also cover π-H, dihydrogen, and metal-H
+contacts. It requires Python 3, NumPy, SciPy, tqdm, and NetworkX.
 
----
+## Input and usage
 
-## 🧪 Theory
+Use a multi-frame XYZ trajectory whose atom lines begin with
+`element x y z`, with coordinates in Å. For periodic input, use an
+axis-aligned orthorhombic `Lattice="..."` written in decimal notation;
+the script applies periodicity in all three directions. Without `Lattice`,
+it uses nonperiodic distances.
 
-Hydrogen bonds are identified based on geometric criteria:
-
-- The distance between donor and acceptor atoms (D...A) must be below a threshold (e.g., **< 3.5 Å**).
-- The angle between Hydrogen–Donor–Acceptor must be sharp (e.g., **< 30°**).
-- The Hydrogen–Donor bond distance must be below a cutoff (e.g., **< 1.2 Å**).
-
-Unconventional H-bonds are also recognized by geometry:
-
-- **π-H bonds**: H atom interacts with the π electron system (e.g., benzene ring, triple bond).
-- **Dihydrogen bonds**: interaction between X–H and H–M (M = metal or boron).
-- **Metal-H bonds**: H atom interacts with a metal atom.
-
----
-
-## 🚀 Features
-
-- Reads multi-frame `.xyz` trajectory files (supports periodic boundary conditions via `Lattice=`).
-- Flexible donor and acceptor selection by **index** or **element type**.
-- Automatic or manual detection of **π systems** and **metal centers**.
-- **Parallel processing** for speed.
-- Outputs per-frame H-bond counts and detailed geometric statistics.
-
----
-
-## 📦 Usage
-
-Show all options:
+Run from the script directory:
 
 ```bash
-python hbond.py -h
+python3 Hydrogen-bond-analysis.py -h
+python3 Hydrogen-bond-analysis.py trajectory.xyz -dt O -at O -np 4
 ```
 
-## 📂 Outputs
+The second command selects oxygen donors and acceptors and uses four processes.
+The default donor and acceptor element lists are both `O,N,F`.
 
-- `hbond_count.txt`: Per-frame H-bond counts (regular and unconventional types)
-- `hbond_geom_all.txt`: All H-bond geometries (frame, atom indices, distances, angles, type)
-- Geometry distribution files: `Donor-Hydrogen_distribution.txt`, etc.
+| Option | Meaning (default) |
+| --- | --- |
+| `-R_cut` | Donor–acceptor distance cutoff in Å (3.5). |
+| `-angle_cut` | H–donor–acceptor angle cutoff in degrees, with the vertex at the donor (30). |
+| `-dH_cut` | Donor–H distance cutoff in Å (1.2). |
+| `-max_H` | Maximum number of nearby H atoms considered per donor (2). |
+| `-di`, `-ai` | Donor and acceptor indices, starting at 1; for example, `1-10,15`. Element filters still apply. |
+| `-frame` | Frame index or inclusive range, starting at 0; for example, `0-100` (default: all frames). |
+| `-un y` | Enable unconventional contacts (disabled by default). |
+| `-pi_list`, `-metal_types` | With `-un y`, specify π-center atom groups or metal elements; omitted values are detected from the first frame. |
+| `-analyze_geom n` | Disable geometry histograms (enabled by default). |
 
-------
+See `-h` for all options.
 
-**Author:** chenzherui0124@foxmail.com
+## Output
+
+Files are written in the working directory and overwritten on subsequent runs:
+
+- `hbond_count.txt`: counts for each frame, separated by contact type when
+  unconventional contacts are enabled.
+- `hbond_geom_all.txt`: atom indices, distances, angles, and contact types.
+- `*_distribution.txt`: distance and angle histograms for detected contacts,
+  when geometry analysis is enabled.
+
+Author: Chen Zherui (chenzherui0124@foxmail.com).

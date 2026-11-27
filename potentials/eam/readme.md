@@ -1,24 +1,22 @@
-# References for the EAM potential files here:
+# EAM potential files
 
-* Cu_Zhou_2004.txt \
-X. W. Zhou et al., \
-Misfit-energy-increasing dislocations in vapor-deposited CoFe/NiFe multilayers, \
-Phys. Rev. B, **69**, 144113 (2004). \
-https://doi.org/10.1103/PhysRevB.69.144113
-* Cu_Dai_2006.txt \
-X. D. Dai et al., \
-Extended Finnis–Sinclair potential for bcc and fcc metals and alloys, \
-Journal of Physics: Condensed Matter **18**, 4527 (2006). \
-https://doi.org/10.1088/0953-8984/18/19/008
+| File | Contents |
+| --- | --- |
+| [Cu_Zhou_2004.txt](Cu_Zhou_2004.txt) | Cu potential in the analytical Zhou form. |
+| [Cu_Dai_2006.txt](Cu_Dai_2006.txt) | Cu potential in the analytical Dai form. |
+| [eam_zhou_2004_Cu.txt](eam_zhou_2004_Cu.txt) | Cu potential in the analytical Zhou form. |
+| [eam_zhou_2004_CuFeNi.txt](eam_zhou_2004_CuFeNi.txt) | Cu-Fe-Ni potential in the analytical Zhou form. |
+| [eam_zhou_2004_AlCoCuFeNi.txt](eam_zhou_2004_AlCoCuFeNi.txt) | Al-Co-Cu-Fe-Ni potential in the analytical Zhou form. |
+| [eam_zhou_2004_CoCrNi.txt](eam_zhou_2004_CoCrNi.txt) | Co-Cr-Ni potential in the analytical Zhou form. |
+| [eam_zhou_2004_18Elements.txt](eam_zhou_2004_18Elements.txt) | Element-labeled parameter table for preparing Zhou-form potential files. |
+| [eam_zhou_2004_18Elements_unified.txt](eam_zhou_2004_18Elements_unified.txt) | 18-element Zhou-form potential file with a GPUMD header. |
+| [CuNi.eam.alloy](CuNi.eam.alloy) | Tabulated Cu-Ni potential in `eam/alloy` format, based on Zhou parameters. |
 
-* Cr \
-  G. Anand, R. Goodall, Colin L. Freeman,\
-  Role of configurational entropy in body-centred cubic or face-centred cubic phase formation in high entropy alloys,\
-  Scripta Materialia, 124, 90-94 (2016).\
-  https://doi.org/10.1016/j.scriptamat.2016.07.001.
+The element-labeled parameter table is reference data; use a potential file with the appropriate header in `run.in`. See the [EAM manual](../../doc/potentials/eam.rst) for file formats and usage.
 
-* V\
-  Shijun Zhao, Ji-Jung Kai et al.,\
-  Defect accumulation and evolution in refractory multi-principal element alloys,\
-  Acta Materialia, 219, 117233 (2021)\
-  https://doi.org/10.1016/j.actamat.2021.117233
+## References
+
+- Zhou form and parameters: X. W. Zhou et al., Phys. Rev. B **69**, 144113 (2004). [DOI](https://doi.org/10.1103/PhysRevB.69.144113).
+- Dai form and parameters: X. D. Dai et al., Journal of Physics: Condensed Matter **18**, 4527 (2006). [DOI](https://doi.org/10.1088/0953-8984/18/19/008).
+- Cr parameters: G. Anand, R. Goodall, and C. L. Freeman, Scripta Materialia **124**, 90–94 (2016). [DOI](https://doi.org/10.1016/j.scriptamat.2016.07.001).
+- V parameters: S. Zhao et al., Acta Materialia **219**, 117233 (2021). [DOI](https://doi.org/10.1016/j.actamat.2021.117233).
