@@ -20,6 +20,7 @@ Major contributors:
 
 #pragma once
 #include <cmath>
+#include "utilities/gpu_macro.cuh"
 
 struct Spin_Wall {
   double threshold = 0.0;
