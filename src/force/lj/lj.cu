@@ -20,8 +20,8 @@ Major contributors:
   Zheyong Fan: Original Lennard-Jones implementation.
 ------------------------------------------------------------------------------*/
 
+#include "force/neighbor.cuh"
 #include "lj.cuh"
-#include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cstring>

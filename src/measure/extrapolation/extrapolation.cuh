@@ -20,8 +20,8 @@
 #else
 #include <cublas_v2.h>
 #endif
-#include "action.cuh"
 #include "force/force.cuh"
+#include "measure/action.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "nep_extrapolation.cuh"

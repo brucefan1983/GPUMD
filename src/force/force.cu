@@ -21,16 +21,16 @@ Major contributors:
 ------------------------------------------------------------------------------*/
 
 #ifdef USE_DEEPMD
-#include "dp.cuh"
+#include "force/dp/dp.cuh"
 #endif
 #ifdef USE_NNAP
-#include "nnap.cuh"
+#include "force/nnap/nnap.cuh"
 #endif
-#include "fcp.cuh"
 #include "force.cuh"
 #include "force/eam/adp.cuh"
 #include "force/eam/eam.cuh"
 #include "force/eam/eam_alloy.cuh"
+#include "force/fcp/fcp.cuh"
 #include "model/atom.cuh"
 #ifdef GPUMD_WPE_ENABLED
 #include "wpe_adapter.cuh"
@@ -38,13 +38,13 @@ Major contributors:
 #include "force/ilp/ilp_nep.cuh"
 #include "force/ilp/ilp_tersoff.cuh"
 #include "force/ilp/ilp_tmd_sw.cuh"
+#include "force/lj/lj.cuh"
 #include "force/nep/nep.cuh"
 #include "force/nep/nep_multigpu.cuh"
 #include "force/nep_charge/nep_charge.cuh"
 #include "force/tersoff/tersoff1988.cuh"
 #include "force/tersoff/tersoff1989.cuh"
 #include "force/tersoff/tersoff_mini.cuh"
-#include "lj.cuh"
 #include "nep_charge_vdw/nep_charge_vdw.cuh"
 #include "nep_spin/runtime.cuh"
 #include "potential.cuh"
