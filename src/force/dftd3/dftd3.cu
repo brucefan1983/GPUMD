@@ -144,21 +144,6 @@ static __device__ __forceinline__ void find_c6_cached(
   }
 }
 
-#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
-static __device__ __inline__ double atomicAdd(double* address, double val)
-{
-  unsigned long long* address_as_ull = (unsigned long long*)address;
-  unsigned long long old = *address_as_ull, assumed;
-  do {
-    assumed = old;
-    old =
-      atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
-
-  } while (assumed != old);
-  return __longlong_as_double(old);
-}
-#endif
-
 void __global__ add_dftd3_force_small_box(
   DFTD3::DFTD3_Para dftd3_para,
   const int N,

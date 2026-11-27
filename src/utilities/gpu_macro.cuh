@@ -13,6 +13,11 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Major contributors:
+  Zheyong Fan: Initial Implementation.
+------------------------------------------------------------------------------*/
+
 #pragma once
 
 #ifdef USE_HIP // HIP for AMD card
@@ -125,6 +130,22 @@
 #define GPUFFT_INVERSE HIPFFT_BACKWARD
 
 #else // CUDA for Nvidia card
+
+// Double-precision atomicAdd is native only on SM 60 and later.
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
+static __device__ __inline__ double atomicAdd(double* address, double val)
+{
+  unsigned long long* address_as_ull = (unsigned long long*)address;
+  unsigned long long old = *address_as_ull, assumed;
+  do {
+    assumed = old;
+    old =
+      atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+    // Compare integer bits so a stored NaN does not keep the loop running.
+  } while (assumed != old);
+  return __longlong_as_double(old);
+}
+#endif
 
 // memory manipulation
 #define gpuMalloc cudaMalloc
