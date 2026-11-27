@@ -194,7 +194,6 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
           break;
         }
       }
-      parambs[i].atomic_numbers[n] = atomic_number - 1;
       printf("    type %d (%s with Z = %d).\n", n, model.elements[n].c_str(), atomic_number);
 
       // update type map
@@ -373,8 +372,8 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
   int parambs_size = num_nep * (H_PAR_OFFSET)*SIZEOF_INT;
   int annmbs_size = num_nep * (H_ANN_OFFSET)*SIZEOF_INT;
   for (int i = 0; i < num_nep; ++i) {
-    // add q_scaler and atomic_number buffers
-    parambs_size += (annmbs[i].dim + parambs[i].num_types) * SIZEOF_INT;
+    // add q_scaler buffer
+    parambs_size += annmbs[i].dim * SIZEOF_INT;
     // add w0, b0, w1, c buffer
     annmbs_size += (annmbs[i].num_para - 1) * SIZEOF_INT; // rm b1
   }
@@ -395,10 +394,6 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
 
   // parambs head
   for (int i = 0; i < num_nep; ++i) {
-    int use_typewise_cutoff_int = parambs[i].use_typewise_cutoff;
-    memcpy(para_buf_w + UTC, &use_typewise_cutoff_int, SIZEOF_INT);
-    memcpy(para_buf_w + TCRF, &(parambs[i].typewise_cutoff_radial_factor), SIZEOF_INT);
-    memcpy(para_buf_w + TCAF, &(parambs[i].typewise_cutoff_angular_factor), SIZEOF_INT);
     memcpy(para_buf_w + VERSION, &(parambs[i].version), SIZEOF_INT);
     memcpy(para_buf_w + RCR, &(parambs[i].rc_radial), SIZEOF_INT);
     memcpy(para_buf_w + RCA, &(parambs[i].rc_angular), SIZEOF_INT);
@@ -422,7 +417,7 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     memcpy(para_buf_w + HAS_Q_123, &(parambs[i].has_q_123), SIZEOF_INT);
     memcpy(para_buf_w + HAS_Q_233, &(parambs[i].has_q_233), SIZEOF_INT);
     memcpy(para_buf_w + HAS_Q_134, &(parambs[i].has_q_134), SIZEOF_INT);
-    para_buf_w += H_PAR_OFFSET; // skip 2 pointers: PTRQS PTRAN
+    para_buf_w += H_PAR_OFFSET;
   }
 
   // annmbs head
@@ -446,17 +441,6 @@ ILP_NEP::ILP_NEP(FILE* fid_ilp, FILE* fid_nep_map, int num_types, int num_atoms)
     memcpy(para_buf_w, parambs[i].q_scaler, qs_offset * SIZEOF_INT);
     para_buf_w += qs_offset;
     para_buffer_gpu += qs_offset * SIZEOF_INT;
-  }
-
-  // atomic_numbers
-  for (int i = 0; i < num_nep; ++i) {
-    // update pointer atomic number
-    memcpy(para_buf_ptrw + i * H_PAR_OFFSET + PTRAN, &para_buffer_gpu, SIZEOF_POINTER);
-
-    int an_offset = parambs[i].num_types;
-    memcpy(para_buf_w, parambs[i].atomic_numbers, an_offset * SIZEOF_INT);
-    para_buf_w += an_offset;
-    para_buffer_gpu += an_offset * SIZEOF_INT;
   }
 
   // move cpu para buffer ptr w to the annmb head
@@ -1814,7 +1798,6 @@ static __global__ void find_descriptor(
     int type_offset = nep_id * total_types;
     int t1 = type_map[g_type[n1] + type_offset];
     float* annmb = (float*)h_annmbs + nep_id * H_ANN_OFFSET;
-    int* atomic_numbers = INT_PTR(paramb + PTRAN);
     float* c = FLT_PTR(annmb + PTRC);
     float q[MAX_DIM] = {0.0f};
 
@@ -1830,13 +1813,6 @@ static __global__ void find_descriptor(
       float fc12;
       int t2 = type_map[g_type[n2] + type_offset];
       float rc = paramb[RCR];
-
-      if (paramb_int[UTC]) {
-        rc = min(
-          (COVALENT_RADIUS[atomic_numbers[t1]] + COVALENT_RADIUS[atomic_numbers[t2]]) *
-            paramb[TCRF],
-          rc);
-      }
       float rcinv = 1.0f / rc;
       find_fc(rc, rcinv, d12, fc12);
       float fn12[MAX_NUM_N];
@@ -1868,13 +1844,6 @@ static __global__ void find_descriptor(
         float fc12;
         int t2 = type_map[g_type[n2] + type_offset];
         float rc = paramb[RCA];
-
-        if (paramb_int[UTC]) {
-          rc = min(
-            (COVALENT_RADIUS[atomic_numbers[t1]] + COVALENT_RADIUS[atomic_numbers[t2]]) *
-              paramb[TCAF],
-            rc);
-        }
         float rcinv = 1.0f / rc;
         find_fc(rc, rcinv, d12, fc12);
         float fn12[MAX_NUM_N];
@@ -1937,7 +1906,6 @@ static __global__ void find_descriptor(
     paramb = nullptr;
     paramb_int = nullptr;
     annmb = nullptr;
-    atomic_numbers = nullptr;
     q_scaler = nullptr;
     c = nullptr;
   }
@@ -1984,7 +1952,6 @@ static __global__ void find_force_radial(
     float* paramb = (float*)h_parambs + nep_id * H_PAR_OFFSET;
     int* paramb_int = (int*)paramb;
     float* annmb = (float*)h_annmbs + nep_id * H_ANN_OFFSET;
-    int* atomic_numbers = INT_PTR(paramb + PTRAN);
     float* c = FLT_PTR(annmb + PTRC);
     int type_offset = nep_id * total_types;
     int t1 = type_map[g_type[n1] + type_offset];
@@ -2006,12 +1973,6 @@ static __global__ void find_force_radial(
       float fc12, fcp12;
 
       float rc = paramb[RCR];
-      if (paramb_int[UTC]) {
-        rc = min(
-          (COVALENT_RADIUS[atomic_numbers[t1]] + COVALENT_RADIUS[atomic_numbers[t2]]) *
-            paramb[TCRF],
-          rc);
-      }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
@@ -2070,7 +2031,6 @@ static __global__ void find_force_radial(
     paramb = nullptr;
     paramb_int = nullptr;
     annmb = nullptr;
-    atomic_numbers = nullptr;
     c = nullptr;
   }
 }
@@ -2104,7 +2064,6 @@ static __global__ void find_partial_force_angular(
     float* paramb = (float*)h_parambs + nep_id * H_PAR_OFFSET;
     int* paramb_int = (int*)paramb;
     float* annmb = (float*)h_annmbs + nep_id * H_ANN_OFFSET;
-    int* atomic_numbers = INT_PTR(paramb + PTRAN);
     float* c = FLT_PTR(annmb + PTRC);
 
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
@@ -2134,12 +2093,6 @@ static __global__ void find_partial_force_angular(
       float fc12, fcp12;
       int t2 = type_map[g_type[n2] + type_offset];
       float rc = paramb[RCA];
-      if (paramb_int[UTC]) {
-        rc = min(
-          (COVALENT_RADIUS[atomic_numbers[t1]] + COVALENT_RADIUS[atomic_numbers[t2]]) *
-            paramb[TCAF],
-          rc);
-      }
       float rcinv = 1.0f / rc;
       find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
 
@@ -2183,7 +2136,6 @@ static __global__ void find_partial_force_angular(
     paramb = nullptr;
     paramb_int = nullptr;
     annmb = nullptr;
-    atomic_numbers = nullptr;
     c = nullptr;
   }
 }
