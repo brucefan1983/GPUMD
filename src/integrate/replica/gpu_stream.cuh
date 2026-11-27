@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "error.cuh"
+#include "utilities/error.cuh"
 
 namespace gpu_detail
 {

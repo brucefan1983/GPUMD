@@ -21,8 +21,8 @@ Reference: M. Bernetti and G. Bussi, J. Chem. Phys. 153, 114107 (2020).
 ------------------------------------------------------------------------------*/
 
 #pragma once
+#include "gpu_stream.cuh"
 #include "utilities/gpu_pinned_vector.cuh"
-#include "utilities/gpu_stream.cuh"
 #include <random>
 #include <string>
 
