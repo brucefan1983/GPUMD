@@ -13,34 +13,27 @@
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-/**
- * NNAP interface for GPUMD
- */
-
-#ifdef USE_NNAP
 #pragma once
-#include "neighbor.cuh"
-#include "potential.cuh"
-#include "utilities/common.cuh"
-#include <jni.h>
+#include "force/neighbor.cuh"
+#include "force/potential.cuh"
+#include <stdio.h>
+#include <vector>
 
-class NNAP : public Potential
+// TODO allow a much larger MAX_TYPE -> need to allocate GPU memory
+#define MAX_TYPE 10 // == max number of potentials
+
+struct LJ_Para {
+  float s6e4[MAX_TYPE][MAX_TYPE];
+  float s12e4[MAX_TYPE][MAX_TYPE];
+  float cutoff_square[MAX_TYPE][MAX_TYPE];
+};
+
+class LJ : public Potential
 {
 public:
-  struct ZBL {
-    bool enabled = false;
-    float rc_inner = 1.0f;
-    float rc_outer = 2.0f;
-    int atomic_numbers[NUM_ELEMENTS];
-
-    bool use_typewise_cutoff = false;
-    float typewise_cutoff_factor = 0.0f;
-  };
-
   using Potential::compute;
-  NNAP(const char* setting_file, const char* nnap_file, int num_atoms);
-  virtual ~NNAP(void);
-
+  LJ(FILE*, int, int);
+  virtual ~LJ(void);
   virtual void compute(
     Box& box,
     const GPU_Vector<int>& type,
@@ -49,17 +42,7 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
 
-private:
-  ZBL zbl;
-
-  JNIEnv* mEnv = NULL;
-  jobject mCore = NULL;
-  Neighbor neighbor;
-  int nn_max = 200;
-  int num_types = 0;
-
-  GPU_Vector<float> nl_dx;
-  GPU_Vector<float> nl_dy;
-  GPU_Vector<float> nl_dz;
+protected:
+  LJ_Para lj_para;
+  NeighborManager neighbor_manager;
 };
-#endif

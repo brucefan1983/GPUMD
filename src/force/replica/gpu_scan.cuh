@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include "gpu_vector.cuh"
+#include "utilities/gpu_vector.cuh"
 #ifdef USE_HIP
 #include <rocprim/device/device_scan.hpp>
 #else

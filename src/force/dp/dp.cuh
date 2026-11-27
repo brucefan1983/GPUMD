@@ -16,8 +16,8 @@
 #ifdef USE_DEEPMD
 #pragma once
 #include "DeepPot.h"
-#include "neighbor.cuh"
-#include "potential.cuh"
+#include "force/neighbor.cuh"
+#include "force/potential.cuh"
 #include <cstddef>
 #include <cstdint>
 #include <stdio.h>

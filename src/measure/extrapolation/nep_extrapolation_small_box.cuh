@@ -130,7 +130,6 @@ static __global__ void find_descriptor_small_box(
   const float* __restrict__ g_z12_angular,
   double* g_pe,
   float* g_Fp,
-  double* g_virial,
   float* g_sum_fxyz,
   bool need_B_projection,
   double* B_projection,

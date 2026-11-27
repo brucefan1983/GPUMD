@@ -146,21 +146,6 @@ static __device__ __forceinline__ void find_c6_cached(
   }
 }
 
-#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
-static __device__ __inline__ double atomicAdd(double* address, double val)
-{
-  unsigned long long* address_as_ull = (unsigned long long*)address;
-  unsigned long long old = *address_as_ull, assumed;
-  do {
-    assumed = old;
-    old =
-      atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
-
-  } while (assumed != old);
-  return __longlong_as_double(old);
-}
-#endif
-
 // Zero-damped term of one pair for the power n (6 or 8) and the exponent alpha = n + 8:
 //   g = f(r) / r^n,  f = 1 / (1 + 6 t^-alpha),  t = r / (sr_n R0),  inv_a = 1 / (sr_n R0),
 //   h = n - alpha (1 - f),   so that  dg/dr = -g h / r.

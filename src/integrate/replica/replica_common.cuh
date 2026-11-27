@@ -17,12 +17,12 @@
 
 #include "ensemble_bdp_replica.cuh"
 #include "force/replica/replica_force.cuh"
+#include "gpu_stream.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_pinned_vector.cuh"
-#include "utilities/gpu_stream.cuh"
 #include <condition_variable>
 #include <cstdio>
 #include <fstream>

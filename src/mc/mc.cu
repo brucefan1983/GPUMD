@@ -30,8 +30,6 @@ Major contributors:
 #include "utilities/read_file.cuh"
 #include <cstring>
 
-MC::MC(void) { action_name = "mc"; }
-
 MC::MC(
   const std::vector<std::string>& tokens,
   std::vector<Group>& group,
@@ -42,21 +40,12 @@ MC::MC(
   parse_mc(tokens, group, atom, potential_file_name);
 }
 
-void MC::initialize(void)
-{
-  // todo
-}
-
-void MC::finalize(void) { do_mcmd = false; }
-
 void MC::compute(int step, int num_steps, Atom& atom, Box& box, std::vector<Group>& group)
 {
-  if (do_mcmd) {
-    if ((step + 1) % num_steps_md == 0) {
-      double temperature =
-        temperature_initial + step * (temperature_final - temperature_initial) / num_steps;
-      mc_ensemble->compute(step + 1, temperature, atom, box, group, grouping_method, group_id);
-    }
+  if ((step + 1) % num_steps_md == 0) {
+    double temperature =
+      temperature_initial + step * (temperature_final - temperature_initial) / num_steps;
+    mc_ensemble->compute(step + 1, temperature, atom, box, group, grouping_method, group_id);
   }
 }
 
@@ -355,6 +344,4 @@ void MC::parse_mc(
       kappa,
       potential_file_name));
   }
-
-  do_mcmd = true;
 }

@@ -19,6 +19,7 @@
 #include "model/box.cuh"
 #include "spin_math.cuh"
 #include "spin_storage.cuh"
+#include "utilities/gpu_macro.cuh"
 #include "utilities/nep_spin/spin_warp.cuh"
 #include <type_traits>
 #include <utility>

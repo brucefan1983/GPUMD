@@ -257,12 +257,6 @@ void prepare_compact_nep_files(
   printf("    Atom type indices in run.in refer to the active atom types above.\n");
 }
 
-void prepare_compact_nep_files(const std::vector<std::string>& atom_symbols)
-{
-  RunInput run_input("run.in");
-  prepare_compact_nep_files(atom_symbols, run_input);
-}
-
 std::string get_compact_nep_filename(const std::string& filename)
 {
   for (int n = 0; n < static_cast<int>(compact_files.size()); ++n) {

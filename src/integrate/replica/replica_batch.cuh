@@ -26,10 +26,10 @@ are the same up to floating-point summation order.
 
 #pragma once
 
+#include "gpu_stream.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "utilities/gpu_pinned_vector.cuh"
-#include "utilities/gpu_stream.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <memory>
 #include <string>

@@ -57,6 +57,7 @@ public:
   std::vector<GPU_Vector<double>> potential_beads;
   std::vector<GPU_Vector<double>> virial_beads;
 
+  static double default_mass(const std::string& symbol);
   int number_of_type(std::string& symbol);
   void enable_unwrapped_position();
   void update_unwrapped_position(const Box& box);
