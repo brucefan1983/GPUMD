@@ -28,8 +28,8 @@ Major contributors:
 
 #ifdef USE_DEEPMD
 #include "dp.cuh"
+#include "force/neighbor.cuh"
 #include "model/box.cuh"
-#include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
 #include <cmath>
