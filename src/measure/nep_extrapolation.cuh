@@ -96,7 +96,6 @@ private:
   Neighbor neighbor_;
   GPU_Vector<int> type_;
   GPU_Vector<double> potential_per_atom_;
-  GPU_Vector<double> virial_per_atom_;
   GPU_Vector<double> B_projection_;
   int num_atoms_ = 0;
   int B_size_per_atom_ = 0;
