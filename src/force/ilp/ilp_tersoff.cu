@@ -295,14 +295,6 @@ void ILP_TERSOFF::initialize_tersoff_1988(FILE* fid, int num_atoms)
   int num_of_neighbors = 50 * num_atoms;
   tersoff_data.b.resize(num_of_neighbors);
   tersoff_data.bp.resize(num_of_neighbors);
-  tersoff_data.f12x.resize(num_of_neighbors);
-  tersoff_data.f12y.resize(num_of_neighbors);
-  tersoff_data.f12z.resize(num_of_neighbors);
-  tersoff_data.NN.resize(num_atoms);
-  tersoff_data.NL.resize(num_of_neighbors);
-  tersoff_data.cell_count.resize(num_atoms);
-  tersoff_data.cell_count_sum.resize(num_atoms);
-  tersoff_data.cell_contents.resize(num_atoms);
   ters.resize(n_entries * NUM_PARAMS);
   ters.copy_from_host(cpu_ters.data());
 }

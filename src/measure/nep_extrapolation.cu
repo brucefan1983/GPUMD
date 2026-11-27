@@ -144,7 +144,6 @@ static __global__ void find_descriptor(
   const double* __restrict__ g_z,
   double* g_pe,
   float* g_Fp,
-  double* g_virial,
   float* g_sum_fxyz,
   bool need_B_projection,
   double* B_projection,
@@ -418,7 +417,6 @@ NEP_Extrapolation::NEP_Extrapolation(const char* file_potential, const Atom& ato
     ((paramb_.L_max + 1) * (paramb_.L_max + 1) - 1));
 
   potential_per_atom_.resize(num_atoms_);
-  virial_per_atom_.resize(static_cast<size_t>(num_atoms_) * 9);
   B_size_per_atom_ = annmb_.num_neurons1 * (annmb_.dim + 2);
   B_projection_.resize(static_cast<size_t>(num_atoms_) * B_size_per_atom_);
 }
@@ -481,7 +479,6 @@ void NEP_Extrapolation::compute_large_box(Box& box, const GPU_Vector<double>& po
     position.data() + N * 2,
     potential_per_atom_.data(),
     data_.Fp.data(),
-    virial_per_atom_.data(),
     data_.sum_fxyz.data(),
     true,
     B_projection_.data(),
@@ -539,7 +536,6 @@ void NEP_Extrapolation::compute_small_box(Box& box, const GPU_Vector<double>& po
     small_box_data_.r12.data() + size_x12 * 5,
     potential_per_atom_.data(),
     data_.Fp.data(),
-    virial_per_atom_.data(),
     data_.sum_fxyz.data(),
     true,
     B_projection_.data(),
@@ -550,7 +546,6 @@ void NEP_Extrapolation::compute_small_box(Box& box, const GPU_Vector<double>& po
 void NEP_Extrapolation::compute(Box& box, const GPU_Vector<double>& position)
 {
   potential_per_atom_.fill(0.0);
-  virial_per_atom_.fill(0.0);
 
   const bool is_small_box = get_expanded_box(paramb_.rc_radial_max, box, ebox_);
   if (is_small_box) {

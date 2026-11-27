@@ -76,35 +76,31 @@ struct ILP_Data {
 };
 
 // define paramb memory location
-#define UTC 0                             // use_typewise_cutoff
-#define TCRF 1                            // typewise_cutoff_radial_factor
-#define TCAF 2                            // typewise_cutoff_angular_factor
-#define VERSION 3                         // nep version
-#define RCR 4                             // rc_radial
-#define RCA 5                             // rc_angular
-#define RCIR 6                            // rcinv_radial
-#define RCIA 7                            // rcinv_angular
-#define MNR 8                             // MN_radial
-#define MNA 9                             // MN_angular
-#define NMAXR 10                          // n_max_radial
-#define NMAXA 11                          // n_max_angular
-#define LMAX 12                           // L_max
-#define DIMA 13                           // dim_angular
-#define NUML 14                           // num_L
-#define BSR 15                            // basis_size_radial
-#define BSA 16                            // basis_size_angular
-#define NTS 17                            // num_types_sq
-#define NCR 18                            // num_c_radial
-#define NT 19                             // num_types
-#define HAS_Q_222 20                      // has_q_222
-#define HAS_Q_1111 21                     // has_q_1111
-#define HAS_Q_112 22                      // has_q_112
-#define HAS_Q_123 23                      // has_q_123
-#define HAS_Q_233 24                      // has_q_233
-#define HAS_Q_134 25                      // has_q_134
-#define PTRQS 26                          // pointer of q_scaler
-#define PTRAN (PTRQS + PTR_OFFSET)        // pointer of atomic number
-#define H_PAR_OFFSET (PTRAN + PTR_OFFSET) // ptr offset of head of paramb
+#define PTRQS 0                      // q_scaler pointer, followed by padding
+#define VERSION 3                    // nep version
+#define RCR 4                        // rc_radial
+#define RCA 5                        // rc_angular
+#define RCIR 6                       // rcinv_radial
+#define RCIA 7                       // rcinv_angular
+#define MNR 8                        // MN_radial
+#define MNA 9                        // MN_angular
+#define NMAXR 10                     // n_max_radial
+#define NMAXA 11                     // n_max_angular
+#define LMAX 12                      // L_max
+#define DIMA 13                      // dim_angular
+#define NUML 14                      // num_L
+#define BSR 15                       // basis_size_radial
+#define BSA 16                       // basis_size_angular
+#define NTS 17                       // num_types_sq
+#define NCR 18                       // num_c_radial
+#define NT 19                        // num_types
+#define HAS_Q_222 20                 // has_q_222
+#define HAS_Q_1111 21                // has_q_1111
+#define HAS_Q_112 22                 // has_q_112
+#define HAS_Q_123 23                 // has_q_123
+#define HAS_Q_233 24                 // has_q_233
+#define HAS_Q_134 25                 // has_q_134
+#define H_PAR_OFFSET (HAS_Q_134 + 1) // size of the parameter header in 4-byte words
 
 // define annmb memory location
 #define SIZEOF_POINTER (UINTPTR_MAX / 255 % 255) // size of pointer
@@ -120,16 +116,12 @@ struct ILP_Data {
 #define PTRW1 (PTRB0 + PTR_OFFSET)               // pointer of w1 of type0
 #define H_ANN_OFFSET (PTRW1 + PTR_OFFSET)        // ptr offset of head of annmb
 
-#define INT_PTR(m) ((int*)*((uintptr_t*)(m)))
 #define FLT_PTR(m) ((float*)*((uintptr_t*)(m)))
 
 class ILP_NEP : public Potential
 {
 public:
   struct ParaMB {
-    bool use_typewise_cutoff = false;
-    float typewise_cutoff_radial_factor = 0.0f;
-    float typewise_cutoff_angular_factor = 0.0f;
     int version = 4; // NEP version
     int model_type =
       0; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
@@ -156,7 +148,6 @@ public:
     int num_c_radial = 0;
     int num_types = 0;
     float q_scaler[MAX_DIM];
-    int atomic_numbers[NUM_ELEMENTS];
   };
 
   struct ANN {

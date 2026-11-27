@@ -15,6 +15,7 @@
 #pragma once
 
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <array>
 #include <cmath>

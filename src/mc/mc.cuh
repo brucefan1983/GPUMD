@@ -28,7 +28,6 @@ class Atom;
 class MC : public Action
 {
 public:
-  MC(void);
   MC(
     const std::vector<std::string>& tokens,
     std::vector<Group>& group,
@@ -37,8 +36,6 @@ public:
 
   std::unique_ptr<MC_Ensemble> mc_ensemble;
 
-  void initialize(void);
-  void finalize(void);
   void compute(int step, int num_steps, Atom& atom, Box& box, std::vector<Group>& group);
 
   void parse_mc(
@@ -66,7 +63,6 @@ public:
     Force& force) override;
 
 private:
-  bool do_mcmd = false;
   int number_of_steps_run = 0;
   int num_steps_md = 0;
   int num_steps_mc = 0;
