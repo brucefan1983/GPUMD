@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Convert legacy NEP4 model files and optional restarts to the new NEP format."""
+"""Convert legacy NEP3/NEP4 models and optional NEP4 restarts to the new NEP format."""
 
 import argparse
 import math
@@ -85,8 +85,19 @@ def read_model(filename):
         source = records(stream)
         where, header = next_record(source, filename)
         tag = header[0].lower()
-        if not tag.startswith("nep4"):
-            raise ValueError(f"{where}: expected a legacy NEP4 model, found '{header[0]}'")
+        if tag == "nep":
+            version = next(
+                (tokens[1:] for _, tokens in source if tokens[0].lower() == "format_version"), []
+            )
+            if version == ["1"]:
+                raise ValueError(f"{where}: input already declares format_version 1; no conversion needed")
+            raise ValueError(f"{where}: unsupported or missing format_version")
+        is_nep3 = tag in ("nep3", "nep3_zbl")
+        if not is_nep3 and not tag.startswith("nep4"):
+            raise ValueError(
+                f"{where}: expected nep3, nep3_zbl or a supported legacy NEP4 model, "
+                f"found '{header[0]}'"
+            )
         suffix = tag[4:]
         has_zbl = suffix.startswith("_zbl")
         if has_zbl:
@@ -152,7 +163,10 @@ def read_model(filename):
         l_max = integer(values[0], 2, 8, where)
         flags = [integer(v, 0, 2 if i == 0 else 1, where) for i, v in enumerate(values[1:])]
         if flags[0] == 1:
-            raise ValueError(f"{where}: q_222 must be 0 or 2")
+            if not is_nep3:
+                raise ValueError(f"{where}: q_222 must be 0 or 2")
+            flags[0] = 2
+            values[1] = "2"
         angular_dim = (na + 1) * (l_max + sum(v != 0 for v in flags))
         dim = nr + 1 + angular_dim + extra_inputs
         if angular_dim > 135 or dim > 150:
@@ -161,6 +175,8 @@ def read_model(filename):
         where, values = read_field(source, filename, "ann", 2, 2)
         n1 = integer(values[0], 1, 300, where)
         n2 = integer(values[1], 0, 120, where)
+        if is_nep3 and n2:
+            raise ValueError(f"{where}: NEP3 supports only one hidden layer")
         if n2 and n1 > 120:
             raise ValueError(f"{where}: two hidden layers allow at most 120 neurons each")
         if n2 and name not in ("nep", "nep_temperature", "nep_dipole", "nep_polarizability"):
@@ -168,7 +184,8 @@ def read_model(filename):
         fields.append(("ann", values))
 
         ann_size = (dim + 1) * n1 + (n1 + 2) * n2 if n2 else (dim + 2 + extra_outputs) * n1
-        parameters = (num_types * ann_size + globals_count) * ann_count
+        ann_types = 1 if is_nep3 else num_types
+        parameters = (ann_types * ann_size + globals_count) * ann_count
         parameters += num_types**2 * ((nr + 1) * (br + 1) + (na + 1) * (ba + 1))
         zbl_count = 5 * num_types * (num_types + 1) if flexible_zbl else 0
         expected = parameters + dim + zbl_count
@@ -192,7 +209,13 @@ def read_model(filename):
                 if inner < 0.0 or outer <= inner:
                     raise ValueError(f"{filename}: each flexible ZBL pair requires 0 <= inner < outer")
 
+    if is_nep3:
+        # Expand w0, b0 and w1 for each element; keep the shared output bias once.
+        data = data[:ann_size] * num_types + data[ann_size:]
+        parameters += (num_types - 1) * ann_size
+
     return {
+        "version": 3 if is_nep3 else 4,
         "name": name,
         "elements": elements,
         "fields": fields,
@@ -241,6 +264,8 @@ def model_text(model):
 
 
 def restart_text(filename, model):
+    if model["version"] == 3:
+        raise ValueError(f"{filename}: NEP3 restart conversion is not supported")
     references = model["references"]
     lines = ["nep_restart", f"energy_reference {references}" + " 0" * references,
              f"parameters {model['parameters']}"]
@@ -306,15 +331,19 @@ def main():
     parser = argparse.ArgumentParser(
         description=__doc__,
         epilog=(
-            "Supports standard NEP4, temperature, charge1/2, dipole, polarizability, "
+            "Automatically detects legacy NEP3/NEP4 from the model header. "
+            "Supports single-hidden-layer NEP3 energy models (with or without ZBL), "
+            "and standard NEP4, temperature, charge1/2, dipole, polarizability, "
             "vdW and charge-vdW models. Energy references are set to zero. "
-            "Writes type-pair descriptors in channel-major order; NEP3 and NEP5 are not supported. "
+            "Expands the shared NEP3 network into identical element-specific networks. "
+            "Writes type-pair descriptors in channel-major order. "
+            "NEP3 restarts and NEP5 models are not supported. "
             "Conversion does not extend native MD support or preserve an old training trajectory."
         ),
     )
     parser.add_argument("input", type=Path, help="legacy model file")
     parser.add_argument("output", type=Path, help="new-format model file")
-    parser.add_argument("--restart", type=Path, help="optional matching legacy restart")
+    parser.add_argument("--restart", type=Path, help="optional matching legacy NEP4 restart")
     parser.add_argument("--restart-output", type=Path, help="new-format restart file")
     parser.add_argument("--force", action="store_true", help="overwrite existing output files")
     args = parser.parse_args()
