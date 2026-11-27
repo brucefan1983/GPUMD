@@ -35,5 +35,4 @@ void initialize_position(
 void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo);
 
 std::string get_filename_potential(const RunInput& run_input);
-std::string get_filename_potential();
 std::vector<std::string> get_atom_symbols(std::string& filename_potential);

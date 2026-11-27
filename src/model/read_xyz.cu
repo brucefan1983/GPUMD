@@ -423,12 +423,6 @@ std::string get_filename_potential(const RunInput& run_input)
   }
 }
 
-std::string get_filename_potential()
-{
-  RunInput run_input("run.in");
-  return get_filename_potential(run_input);
-}
-
 std::vector<std::string> get_atom_symbols(std::string& filename_potential)
 {
   std::ifstream input_potential(filename_potential);
