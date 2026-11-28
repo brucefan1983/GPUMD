@@ -91,7 +91,7 @@ std::unique_ptr<Potential> Force::create_potential(
   bool& is_nep)
 {
   const int num_param = tokens.size();
-  const int number_of_atoms = atom.type.size();
+  const int number_of_atoms = atom.number_of_atoms;
   std::unique_ptr<Potential> potential;
 
   if (strcmp(potential_name, "tersoff_1989") == 0) {
@@ -207,7 +207,7 @@ std::unique_ptr<Potential> Force::create_potential(
 void Force::parse_potential(
   const std::vector<std::string>& tokens, const Box& box, Atom& atom, const RunInput& run_input)
 {
-  const int number_of_atoms = atom.type.size();
+  const int number_of_atoms = atom.number_of_atoms;
 #ifdef GPUMD_WPE_ENABLED
   if (tokens.size() != 2u) {
     PRINT_INPUT_ERROR("Wisevolve Potential Engine integration supports exactly one potential file "
@@ -624,7 +624,7 @@ void Force::compute(Box& box, Atom& atom, const std::vector<Group>& group)
   if (potentials.size() != 1) {
     PRINT_INPUT_ERROR("Spin-aware force dispatch requires one NEP_Spin potential.");
   }
-  const int number_of_atoms = atom.type.size();
+  const int number_of_atoms = atom.number_of_atoms;
   if (
     atom.spin_per_atom.size() != static_cast<std::size_t>(number_of_atoms) * 3 ||
     atom.mforce_per_atom.size() != static_cast<std::size_t>(number_of_atoms) * 3) {
