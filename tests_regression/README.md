@@ -14,7 +14,7 @@ expected behavior rather than a baseline executable; they are in
 |---|---|
 | `gpumd/` | 231 simulation cases, their fixtures, all 25 cross-case relations, and PPPM checks |
 | `nep/` | 24 training and prediction cases and their fixtures |
-| `nesk/` | 32 NeSK training cases with their own comparison runner |
+| `nesk/` | 32 NeSK training cases and 4 fixed-model prediction cases with their own comparison runner |
 | `multigpu/` | Opt-in NEP89 single-GPU partition correctness and performance checks |
 | `manifest.json` | Shared schema version and default timeout |
 | `run_regression.py` | Shared command-line entry, execution, comparison, and reporting |
@@ -26,7 +26,7 @@ each case has its own fresh working directory. `package:` paths are
 relative to `tests_regression/`, including the executable directory name.
 The usual entry point and suite options apply to both collections.
 
-The NeSK suite has its own runner and comparison rules. Run its 32 cases separately
+The NeSK suite has its own runner and comparison rules. Run its 36 cases separately
 using the commands in [nesk/README.md](nesk/README.md). The shared `--suite full`
 command covers the 255 GPUMD/NEP cases and 25 relations.
 

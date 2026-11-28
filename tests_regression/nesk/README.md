@@ -11,18 +11,26 @@ executables. Each case runs both executables in separate directories with
 identical inputs, using the selected XYZ fixture as `train.xyz`.
 
 This suite runs independently of the GPUMD/NEP runner in the parent directory.
-Its 32 cases are separate from that runner's 255-case `full` suite. See the
+Its 36 cases are separate from that runner's 255-case `full` suite. See the
 [regression overview](../README.md) for the other test collections.
 
 ## Cases
 
-The suite contains **32 training cases**: four datasets (`diamond`, `graphene`,
+The suite contains **32 training cases and 4 fixed-model prediction cases**.
+Training covers four datasets (`diamond`, `graphene`,
 `silicon`, `sige`), four orbital bases (`sp3`, `sp3sstar`, `sp3d5`, `sp3d5sstar`),
 and dispersion weights 0 and 0.2.
 
-Each case uses two structures, two epochs, seed 17, and no band curriculum.
+Each training case uses two structures, two epochs, seed 17, and no band curriculum.
 The learning rate is 0.003 with plateau patience 20. These short runs check
 numerical regression; they do not assess convergence or fitting quality.
+
+Prediction covers SiGe with dispersion weight 0.2 and all four orbital bases.
+For each basis, both executables receive an identical byte-for-byte copy of
+`nesk.txt` from the corresponding successful `--old` training run, then run with
+`prediction 1`. Here, fixed means that both predictions use the same baseline
+model without updating it. The four models are obtained anew from baseline
+training in each suite run; they are not stored reference fixtures.
 
 To select cases and retain their files:
 
@@ -31,21 +39,29 @@ python3 tests_regression/nesk/run_regression.py --old ./src_old/nesk --new ./src
   --dataset graphene --basis sp3sstar --keep
 ```
 
-Both `--dataset` and `--basis` are repeatable. `--timeout` sets the time limit
-per executable invocation, in seconds (default: 300).
+Both `--dataset` and `--basis` are repeatable. Selecting `sige` includes one
+prediction case for each selected basis; other datasets include training only.
+For example, `--dataset sige --basis sp3` runs two training cases and one
+prediction case, while the graphene selection above runs two training cases.
+`--timeout` sets the time limit per executable invocation, in seconds
+(default: 300).
 
 ## Checks and tolerances
 
-Each run checks completed epochs, output dimensions, finite values,
-structure/k-point indices, band column labels, reference bands, and model metadata
-and scalers.
+Training checks completed epochs, model metadata, and scalers. Both modes check
+output dimensions, finite values, structure/k-point indices, band column labels,
+and reference bands.
 The following outputs are compared between the two executables:
 
 | File | Compared content |
 | --- | --- |
-| `loss.out` | All columns except elapsed time |
-| `band_train.out` | Structure/k-point indices, coordinates, predicted and reference bands |
-| `nesk.txt` | Model metadata, parameters, and descriptor scalers |
+| `loss.out` | Training: all columns except elapsed time |
+| `band_train.out` | Training and prediction: structure/k-point indices, coordinates, predicted and reference bands |
+| `nesk.txt` | Training: model metadata, parameters, and descriptor scalers |
+
+Prediction checks the copied model's SHA-256 before and after each run, rejects
+`loss.out` or `nesk.restart`, and applies the same band structure, column-label,
+reference-value, and numerical checks as training.
 
 Floating-point values must satisfy:
 
@@ -64,14 +80,25 @@ numerical comparison. A nonzero process exit status or a timeout fails the case.
 
 ## Results
 
-The runner prints PASS/FAIL for each case and returns 0 when all selected cases
-pass, or 1 when any case fails.
+The runner prints PASS, FAIL, or SKIP for each case and returns 0 only when all
+selected cases pass. A complete successful run ends with:
 
-Failed suites retain their inputs, outputs, `run.log` files, and `summary.json`.
+```text
+36 passed, 0 failed, 0 skipped
+```
+
+Prediction runs whenever baseline training succeeds and passes its output
+checks, even if candidate training or the training comparison fails. If
+baseline training fails, its dependent prediction is marked SKIP. Any failure
+or skipped prediction makes the suite return 1.
+
+Failed or skipped suites retain their inputs, outputs, `run.log` files, and `summary.json`.
 Use `--keep` or `--workdir /absolute/new/directory` to retain successful suites
 as well. The report records executable paths and SHA-256 hashes, case results,
-effective parameter tolerances, and maximum per-file differences for successful
-comparisons. The work directory is printed at startup.
+effective parameter tolerances, maximum per-file differences for successful
+comparisons, and pass/fail/skip counts. Prediction records also identify the
+source training case, model path, and model SHA-256. The work directory is
+printed at startup.
 
 ## Fixture data
 
