@@ -99,7 +99,7 @@ private:
     char* potential_name,
     const int num_types,
     const Box& box,
-    const int number_of_atoms,
+    const Atom& atom,
     const RunInput& run_input,
     bool& is_nep);
 

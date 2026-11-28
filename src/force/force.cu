@@ -86,11 +86,12 @@ std::unique_ptr<Potential> Force::create_potential(
   char* potential_name,
   const int num_types,
   const Box& box,
-  const int number_of_atoms,
+  const Atom& atom,
   const RunInput& run_input,
   bool& is_nep)
 {
   const int num_param = tokens.size();
+  const int number_of_atoms = atom.type.size();
   std::unique_ptr<Potential> potential;
 
   if (strcmp(potential_name, "tersoff_1989") == 0) {
@@ -250,7 +251,7 @@ void Force::parse_potential(
   }
   bool is_nep = false;
   std::unique_ptr<Potential> potential = create_potential(
-    tokens, fid_potential, potential_name, num_types, box, number_of_atoms, run_input, is_nep);
+    tokens, fid_potential, potential_name, num_types, box, atom, run_input, is_nep);
 
   if (is_nep) {
     // Check if the types for this potential are compatible with the possibly other potentials
