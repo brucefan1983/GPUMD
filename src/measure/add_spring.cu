@@ -897,7 +897,7 @@ void Add_Spring::apply_force(std::vector<Group>& groups, Atom& atom)
   if (atom.unwrapped_position.size() < atom.position_per_atom.size()) {
     printf("Warning: unwrapped_position size is less than position_per_atom size.\n");
   }
-  const int num_atoms_total = atom.type.size();
+  const int num_atoms_total = atom.number_of_atoms;
   double* g_x = atom.unwrapped_position.data();
   double* g_y = atom.unwrapped_position.data() + num_atoms_total;
   double* g_z = atom.unwrapped_position.data() + num_atoms_total * 2;

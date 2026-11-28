@@ -420,7 +420,7 @@ void Ensemble_NPT_SCR::compute2(
   GPU_Vector<double>& thermo,
   Force& force)
 {
-  const int number_of_atoms = atom.mass.size();
+  const int number_of_atoms = atom.number_of_atoms;
 
   velocity_verlet(
     false,

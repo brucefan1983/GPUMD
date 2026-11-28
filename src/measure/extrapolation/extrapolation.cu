@@ -299,7 +299,7 @@ void Extrapolation::calculate_gamma()
 
 void Extrapolation::dump()
 {
-  const int num_atoms_total = atom->position_per_atom.size() / 3;
+  const int num_atoms_total = atom->number_of_atoms;
   atom->position_per_atom.copy_to_host(atom->cpu_position_per_atom.data());
 
   // line 1
