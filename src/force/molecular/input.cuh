@@ -18,6 +18,10 @@
 #include <string>
 #include <vector>
 
+struct MolecularAngle {
+  int first, center, last, type;
+};
+
 struct MolecularInput {
   double cutoff;
   int num_types;
@@ -27,6 +31,9 @@ struct MolecularInput {
   std::vector<double> lj_weights;
   std::vector<double> bond_k, bond_r0;
   std::vector<int> bond_offsets, bond_partners, bond_types;
+  std::vector<double> angle_k, angle_theta0;
+  std::vector<MolecularAngle> angles;
+  std::vector<int> angle_offsets, angle_indices;
 };
 
 MolecularInput read_molecular_input(

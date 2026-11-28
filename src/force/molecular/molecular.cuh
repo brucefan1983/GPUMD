@@ -18,6 +18,7 @@
 #include "utilities/gpu_scan.cuh"
 
 class Atom;
+struct MolecularAngle;
 
 class Molecular : public Potential
 {
@@ -42,4 +43,7 @@ private:
   GPU_Vector<double> lj_weights;
   GPU_Vector<int> bond_offsets, bond_partners, bond_types;
   GPU_Vector<double> bond_k, bond_r0;
+  GPU_Vector<MolecularAngle> angles;
+  GPU_Vector<int> angle_offsets, angle_indices;
+  GPU_Vector<double> angle_k, angle_theta0;
 };

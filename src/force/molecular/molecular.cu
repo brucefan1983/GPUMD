@@ -14,7 +14,7 @@
 */
 
 /*----------------------------------------------------------------------------80
-Lennard-Jones and harmonic bond forces for fixed molecular topologies.
+Lennard-Jones, harmonic bond, and harmonic angle forces for fixed molecular topologies.
 
 Major contributors:
   Zheyong Fan: Initial implementation.
@@ -27,6 +27,10 @@ Major contributors:
 #include "utilities/error.cuh"
 #include <algorithm>
 #include <cmath>
+
+// Degenerate angle geometries must also terminate release builds.
+#undef NDEBUG
+#include <cassert>
 
 Molecular::Molecular(const char* forcefield, const char* topology, const Atom& atom)
 {
@@ -65,6 +69,18 @@ Molecular::Molecular(const char* forcefield, const char* topology, const Atom& a
     bond_k.copy_from_host(input.bond_k.data());
     bond_r0.resize(input.bond_r0.size());
     bond_r0.copy_from_host(input.bond_r0.data());
+  }
+  if (!input.angles.empty()) {
+    angles.resize(input.angles.size());
+    angles.copy_from_host(input.angles.data());
+    angle_offsets.resize(input.angle_offsets.size());
+    angle_offsets.copy_from_host(input.angle_offsets.data());
+    angle_indices.resize(input.angle_indices.size());
+    angle_indices.copy_from_host(input.angle_indices.data());
+    angle_k.resize(input.angle_k.size());
+    angle_k.copy_from_host(input.angle_k.data());
+    angle_theta0.resize(input.angle_theta0.size());
+    angle_theta0.copy_from_host(input.angle_theta0.data());
   }
 }
 
@@ -274,6 +290,108 @@ __global__ void find_bond_force(
   sum.write(i, N, potential, force, virial);
 }
 
+__device__ double dot(const double a[3], const double b[3])
+{
+  return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+}
+
+// Correct for rounding in c*d so two exactly equal products cancel even with FMA enabled.
+__device__ double difference_of_products(double a, double b, double c, double d)
+{
+  const double cd = c * d;
+  return fma(a, b, -cd) + fma(-c, d, cd);
+}
+
+__global__ void find_angle_force(
+  const Box box,
+  const size_t N,
+  const MolecularAngle* angles,
+  const int* offsets,
+  const int* indices,
+  const double* spring_constants,
+  const double* equilibrium_angles,
+  const double* position,
+  double* potential,
+  double* force,
+  double* virial)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i >= N || offsets[i] == offsets[i + 1]) {
+    return;
+  }
+  double energy = 0.0, force_sum[3] = {}, w[3][3] = {};
+  for (int p = offsets[i]; p < offsets[i + 1]; ++p) {
+    const MolecularAngle angle = angles[indices[p]];
+    const double k = spring_constants[angle.type];
+    if (k == 0.0) {
+      continue;
+    }
+    double a[3], b[3];
+    for (int d = 0; d < 3; ++d) {
+      const double center = position[angle.center + d * N];
+      a[d] = position[angle.first + d * N] - center;
+      b[d] = position[angle.last + d * N] - center;
+    }
+    apply_pair_mic(box, a[0], a[1], a[2]);
+    apply_pair_mic(box, b[0], b[1], b[2]);
+    const double a2 = dot(a, a), b2 = dot(b, b);
+    assert((a2 > 0.0 && b2 > 0.0) && "A harmonic angle has a zero-length arm");
+    double normal[3] = {
+      difference_of_products(a[1], b[2], a[2], b[1]),
+      difference_of_products(a[2], b[0], a[0], b[2]),
+      difference_of_products(a[0], b[1], a[1], b[0])};
+    const double cross_norm = hypot(hypot(normal[0], normal[1]), normal[2]);
+    const double ab = dot(a, b);
+    const double theta0 = equilibrium_angles[angle.type];
+    // Evaluate the deviation from a straight equilibrium without subtracting two angles near pi.
+    const double delta =
+      ab >= 0.0 ? atan2(cross_norm, ab) - theta0 : (acos(-1.0) - theta0) - atan2(cross_norm, -ab);
+    if (cross_norm == 0.0) {
+      assert(delta == 0.0 && "A collinear harmonic angle has no unique force direction");
+      continue;
+    }
+    for (int d = 0; d < 3; ++d) {
+      normal[d] /= cross_norm;
+    }
+    const double derivative = k * delta;
+    const bool is_center = (i == angle.center);
+    if (is_center) {
+      energy += 0.5 * derivative * delta;
+    }
+    double local_force[3];
+    for (int d = 0; d < 3; ++d) {
+      const int m = (d + 1) % 3, n = (d + 2) % 3;
+      const double f_first = derivative * (normal[m] * a[n] - normal[n] * a[m]) / a2;
+      const double f_last = derivative * (b[m] * normal[n] - b[n] * normal[m]) / b2;
+      local_force[d] = is_center ? -(f_first + f_last) : (i == angle.first ? f_first : f_last);
+      force_sum[d] += local_force[d];
+    }
+    // With the angle energy at the vertex, each endpoint gets the outer product of its arm and
+    // force.
+    if (!is_center) {
+      const double* arm = (i == angle.first) ? a : b;
+      for (int row = 0; row < 3; ++row) {
+        for (int col = 0; col < 3; ++col) {
+          w[row][col] += arm[row] * local_force[col];
+        }
+      }
+    }
+  }
+  potential[i] += energy;
+  for (int d = 0; d < 3; ++d) {
+    force[i + d * N] += force_sum[d];
+  }
+  virial[i] += w[0][0];
+  virial[i + N] += w[1][1];
+  virial[i + 2 * N] += w[2][2];
+  virial[i + 3 * N] += w[0][1];
+  virial[i + 4 * N] += w[0][2];
+  virial[i + 5 * N] += w[1][2];
+  virial[i + 6 * N] += w[1][0];
+  virial[i + 7 * N] += w[2][0];
+  virial[i + 8 * N] += w[2][1];
+}
+
 int get_cell_stencil(const Box& box, const double cutoff, const int num_atoms, int bins[3])
 {
   const double volume = box.get_volume();
@@ -363,6 +481,21 @@ void Molecular::compute(
       bond_types.data(),
       bond_k.data(),
       bond_r0.data(),
+      position.data(),
+      potential.data(),
+      force.data(),
+      virial.data());
+    GPU_CHECK_KERNEL
+  }
+  if (angles.size() > 0) {
+    find_angle_force<<<grid_size, block_size>>>(
+      box,
+      N,
+      angles.data(),
+      angle_offsets.data(),
+      angle_indices.data(),
+      angle_k.data(),
+      angle_theta0.data(),
       position.data(),
       potential.data(),
       force.data(),

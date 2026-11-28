@@ -3,7 +3,8 @@
 Fixed-topology molecular force field
 ************************************
 
-Use two files to assign Lennard-Jones (LJ) interactions and harmonic bonds to a fixed list of atoms::
+Use two files to assign Lennard-Jones (LJ) interactions, harmonic bonds and
+harmonic angles to a fixed list of atoms::
 
   potential forcefield.in topology.in
 
@@ -126,3 +127,49 @@ box height to ensure an unambiguous image. Each endpoint receives half of
 the bond energy and half of the bond virial. If the endpoints coincide,
 the bond contributes :math:`\tfrac12 k r_0^2` in total and zero force and
 virial because the bond direction is undefined.
+
+Harmonic angles
+===============
+
+After the LJ pair table in the force-field file, an optional ``angle_types``
+section defines the bending parameters. It can precede or follow ``bond_types``.
+For example::
+
+  angle_types 1
+  0 3.0 105.0
+
+The columns give the zero-based angle type ID, force constant
+:math:`k_\theta` in eV/rad², and equilibrium angle :math:`\theta_0` in
+degrees. Supply each type ID from zero through the number of types minus
+one exactly once. The potential is
+:math:`U_\theta=\tfrac12 k_\theta(\theta-\theta_0)^2`, evaluated in
+radians. The force constant must be nonnegative and the equilibrium angle
+must lie between 0 and 180 degrees, inclusive.
+
+List angles in the topology file after the atom rows. Each record gives three
+atom indices and the angle type ID. **The middle atom is the vertex.** For
+atoms in O, H, H order, the following record defines the H–O–H angle::
+
+  angles 1
+  1 0 2 0
+
+The three atom indices must be distinct. Reversing the endpoints gives the
+same angle, so supply it only once. The ``angles``, ``bonds`` and
+``special_pairs`` sections may appear in any order. An angle can be used on
+its own. Specify bond stretching and any desired 1–3 LJ exclusion separately.
+
+For an angle A–B–C, GPUMD takes the periodic displacements from B to A and
+from B to C independently. Keep each arm shorter than half the smallest
+perpendicular box height for an unambiguous periodic image. With positive
+stiffness each arm must have nonzero length. An exactly collinear geometry
+has zero bending force at equilibrium. Away from equilibrium its bending
+direction is undefined and the run stops.
+
+The vertex B receives the entire angle energy and feels the force
+:math:`\mathbf F_B=-\mathbf F_A-\mathbf F_C`. With this site-energy
+assignment the endpoint virials contributed by this angle are
+:math:`\mathbf r_{BA}\otimes\mathbf F_A` and
+:math:`\mathbf r_{BC}\otimes\mathbf F_C`, respectively, and the
+vertex virial contribution is zero. Here :math:`\mathbf r_{BA}` points
+from B to A. GPUMD retains all nine per-atom virial components for the
+heat current.
