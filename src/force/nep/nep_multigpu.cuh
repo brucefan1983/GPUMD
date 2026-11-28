@@ -159,6 +159,16 @@ private:
 
   int partition_direction = -1;
 
+  template <bool use_temperature>
+  void compute_impl(
+    const float temperature,
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial);
+
   void allocate_memory();
   void update_potential(float* parameters, ANN& ann);
   void initialize_dftd3(const RunInput& run_input);

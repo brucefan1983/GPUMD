@@ -19,6 +19,7 @@ Major contributors:
 ------------------------------------------------------------------------------*/
 
 #pragma once
+#include "utilities/gpu_macro.cuh"
 #include <cmath>
 
 struct Spin_Wall {

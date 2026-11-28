@@ -1,40 +1,47 @@
-# `split_xyz.py`
+# Select XYZ frames
 
-## FUNCTION
+`split_xyz.py` selects frames from an extended XYZ dataset using Python 3
+and its standard library. Each input frame's comment line must contain
+`energy` or `energies` in lowercase.
 
-Select frames from an existing EXYZ file.
+| Option | Meaning |
+| --- | --- |
+| `-i`, `--input` | Input dataset (required). |
+| `--ranges` | Comma-separated frame indices and ranges (required). Indices start at 0; `start:end` excludes `end`. |
+| `--nframes` | Number of frames to select randomly. |
+| `--perrange` | Select up to `--nframes` frames from each range; keep all frames in shorter ranges. |
 
-## OPTIONS
+Duplicate selections are removed and the output order is randomized, including
+when `--nframes` is omitted. Selected XYZ frames go to standard output;
+the selected indices are printed to standard error.
 
-- `-i <str>`: specify the file name of the input EXYZ file.
-- `--ranges <str>`: specify the ranges of frames to perform the selection. For
-  example, "0:2,4,7:9" will select frames: `[0,1,4,7,8]`.
-- `--nframes <int>`: specify the number of the frames to randomly select.
-- `--perrange`: specify if select `nframes` from each range.
+## Examples
 
-## EXAMPLES
+Run from the script directory. These commands overwrite `output.xyz`;
+use an output filename different from the input.
 
-1. `python split_xyz.py -i input.xyz --ranges "0:2,4,7:9" > output.xyz`
+Select frames 0, 1, 4, 7, and 8:
 
-   This command will write frames 0, 1, 4, 7 and 8 of `input.xyz` to
-   `output.xyz`. Thus, the `output.xyz` will contain 5 frames in total.
+```bash
+python3 split_xyz.py -i input.xyz --ranges "0:2,4,7:9" > output.xyz
+```
 
-2. `python split_xyz.py -i input.xyz --ranges "0:100,200:300" --nframes 10 > output.xyz`
+Select 10 frames in total from frames 0–99 and 200–299:
 
-   This command will randomly select 10 frames **in total** from frame range
-   0 to 100 **and** range 200 to 300 of `input.xyz`, and write them to
-   `output.xyz`. Thus, the `output.xyz` will contain **10** frames in total.
+```bash
+python3 split_xyz.py -i input.xyz --ranges "0:100,200:300" --nframes 10 > output.xyz
+```
 
-3. `python split_xyz.py -i input.xyz --ranges "0:100,200:300" --nframes 10 --perrange > output.xyz`
+Select 10 frames from each of these ranges (20 in total):
 
-   This command will randomly select 10 frames from **both** frame range
-   0 to 100 **and** range 200 to 300 of `input.xyz`, and write them to
-   `output.xyz`. Thus, the `output.xyz` will contain **20** frames in total.
+```bash
+python3 split_xyz.py -i input.xyz --ranges "0:100,200:300" --nframes 10 --perrange > output.xyz
+```
 
-4. `python split_xyz.py -i input.xyz --ranges "0:100,110:115,200:300" --nframes 10 --perrange > output.xyz`
+Select 10, 5, and 10 frames from the three ranges (25 in total):
 
-   This command will randomly select 10 frames from **both** frame range
-   0 to 100, range 110 to 115 **and** range 200 to 300 of `input.xyz`, and
-   write them to `output.xyz`. Since the range 110 to 115 contains 5 frames in
-   total, all of these frames will be written to the output file. Thus, the
-   `output.xyz` will contain **25** frames in total.
+```bash
+python3 split_xyz.py -i input.xyz --ranges "0:100,110:115,200:300" --nframes 10 --perrange > output.xyz
+```
+
+Author: Yong Wang (yongw@princeton.edu).

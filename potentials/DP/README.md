@@ -1,28 +1,23 @@
-# `DP` model for `GPUMD`
+# DeePMD-kit interface
 
-## Necessary instructions
+Build GPUMD with `USE_DEEPMD` and the DeePMD-kit C++ libraries as described in the
+[installation guide](../../doc/installation.rst#dp-potential-support).
+Model formats (`.pb`, `.pth`, or `.pt2`) depend on the installed DeePMD-kit backend.
 
-- This is a test version.
-- DeePMD-kit model formats are supported through the DeePMD-kit backend enabled at compile time.
-- TensorFlow `.pb` models and PyTorch `.pth`/`.pt2` models depend on the installed DeePMD-kit version and build options. See the PyTorch example in `examples/gpumd_dp_pytorch` for DPA2/DPA3/DPA4 usage.
+Create a setting file, for example `dp.txt`:
 
-## Installation Dependencies
+```text
+dp 2 O H
+```
 
-- You must ensure that the new version of `DP` is installed and can run normally. This program contains `DP`-related dependencies.
-- The installation environment requirements of `GPUMD` itself must be met.
+Here, `2` is the number of atom types. The element order must match the model's type map.
+Select the setting file and model in `run.in`:
 
-## Run Test
+```text
+potential dp.txt frozen_model.pb
+```
 
-This `DP` interface requires two files: a setting file and a `DP` potential file. The first file is very simple and is used to inform `GPUMD` of the atom number and types. For example, the `dp.txt` is shown in here for use the `potential dp.txt DP_POTENTIAL_FILE` command in the `run.in` file:
-
-```dp 2 O H```
-
-## Notice
-
-The type list of setting file and potential file must be the same.
-
-## References
-
-- [Installation for `GPUMD-DP`](https://github.com/Kick-H/GPUMD/blob/master/doc/installation.rst)
-- [Tutorials for `GPUMD-DP`](https://github.com/brucefan1983/GPUMD-Tutorials/tree/main/examples/14_DP)
-- [`DeePMD-kit`](https://github.com/deepmodeling/deepmd-kit)
+Use the appropriate model filename for your backend.
+See the [PyTorch example](../../examples/gpumd_dp_pytorch/README.md),
+[DP tutorial](https://github.com/brucefan1983/GPUMD-Tutorials/tree/main/examples/14_DP),
+and [DeePMD-kit documentation](https://docs.deepmodeling.com/projects/deepmd/en/stable/).

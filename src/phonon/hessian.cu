@@ -24,7 +24,7 @@ Major contributors:
 ------------------------------------------------------------------------------*/
 
 #include "force/force.cuh"
-#include "force/force_constant.cuh"
+#include "force_constant.cuh"
 #include "hessian.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
