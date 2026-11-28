@@ -25,6 +25,7 @@ Use the parameter order given on the corresponding model page.
    tersoff_mini
    lennard_jones
    eam
+   meam
    fcp
    nep
    nep_spin

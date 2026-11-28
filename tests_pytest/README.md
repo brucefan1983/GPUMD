@@ -38,6 +38,24 @@ docstrings.
 For spin validator setup and executable selection, see
 [Spin validation](SPIN_VALIDATION.md).
 
+## MEAM reference validation
+
+Run the standalone comparison with a LAMMPS executable built with the MEAM
+package and a CUDA or HIP GPUMD executable built from this tree:
+
+```bash
+python tests_pytest/validate_meam.py --gpumd src/gpumd --lammps /path/to/lmp
+```
+
+The default cases cover the reference lattices using synthetic library and
+parameter files. The optional `--potentials` argument accepts a directory with
+`Fe`, `Ge`, `Ga_In`, and `Al_Co_Fe` parameter subdirectories and adds
+periodic, cluster, and short NVE checks. The Fe cluster with mixed neighbor
+counts exercises both screening paths and a partial thread block. Pass
+`--lammps-potentials` to add LAMMPS's seven-element MEAM alloy case. The
+comparison uses an enlarged LAMMPS neighbor skin to include screeners beyond
+the pair cutoff.
+
 ## Running the tests
 
 From this directory (`tests_pytest/`):
