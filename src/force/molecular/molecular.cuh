@@ -35,15 +35,16 @@ public:
 
 private:
   GPU_Exclusive_Scan cell_scan_;
-  GPU_Vector<int> cell_count, cell_sum, cell_contents;
-  int num_types;
-  GPU_Vector<int> types;
-  GPU_Vector<double> c6, c12;
-  GPU_Vector<int> offsets, partners;
-  GPU_Vector<double> lj_weights;
-  GPU_Vector<int> bond_offsets, bond_partners, bond_types;
-  GPU_Vector<double> bond_k, bond_r0;
-  GPU_Vector<MolecularAngle> angles;
-  GPU_Vector<int> angle_offsets, angle_indices;
-  GPU_Vector<double> angle_k, angle_theta0;
+  GPU_Vector<int> cell_count_, cell_sum_, cell_contents_;
+  int num_types_;
+  GPU_Vector<int> types_;
+  GPU_Vector<float> c6_, c12_;
+  GPU_Vector<int> offsets_, partners_;
+  GPU_Vector<float> lj_weights_;
+  GPU_Vector<int> bond_offsets_, bond_partners_, bond_types_;
+  GPU_Vector<float> bond_k_, bond_r0_;
+  GPU_Vector<MolecularAngle> angles_;
+  GPU_Vector<int> angle_offsets_, angle_indices_;
+  GPU_Vector<float> angle_k_, angle_theta0_, angle_pi_minus_theta0_;
+  GPU_Vector<int> angle_error_reported_;
 };

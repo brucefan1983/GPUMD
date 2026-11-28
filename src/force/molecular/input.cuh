@@ -19,21 +19,21 @@
 #include <vector>
 
 struct MolecularAngle {
-  int first, center, last, type;
+  int first_, center_, last_, type_;
 };
 
 struct MolecularInput {
-  double cutoff;
-  int num_types;
-  std::vector<int> types;
-  std::vector<double> c6, c12;
-  std::vector<int> offsets, partners;
-  std::vector<double> lj_weights;
-  std::vector<double> bond_k, bond_r0;
-  std::vector<int> bond_offsets, bond_partners, bond_types;
-  std::vector<double> angle_k, angle_theta0;
-  std::vector<MolecularAngle> angles;
-  std::vector<int> angle_offsets, angle_indices;
+  double cutoff_;
+  int num_types_;
+  std::vector<int> types_;
+  std::vector<float> c6_, c12_;
+  std::vector<int> offsets_, partners_;
+  std::vector<float> lj_weights_;
+  std::vector<float> bond_k_, bond_r0_;
+  std::vector<int> bond_offsets_, bond_partners_, bond_types_;
+  std::vector<float> angle_k_, angle_theta0_, angle_pi_minus_theta0_;
+  std::vector<MolecularAngle> angles_;
+  std::vector<int> angle_offsets_, angle_indices_;
 };
 
 MolecularInput read_molecular_input(

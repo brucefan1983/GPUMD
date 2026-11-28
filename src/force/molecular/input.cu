@@ -26,6 +26,7 @@ Major contributors:
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <fstream>
 #include <limits>
 #include <map>
 #include <numeric>
@@ -38,30 +39,30 @@ namespace
 class Records
 {
 public:
-  explicit Records(const char* filename) : filename(filename), input(filename)
+  explicit Records(const char* filename) : filename_(filename), input_(filename)
   {
-    if (!input) {
+    if (!input_) {
       fail("cannot open file");
     }
   }
 
   void fail(const std::string& reason) const
   {
-    PRINT_INPUT_ERROR((filename + ":" + std::to_string(line_number) + ": " + reason).c_str());
+    PRINT_INPUT_ERROR((filename_ + ":" + std::to_string(line_number_) + ": " + reason).c_str());
   }
 
   bool next()
   {
     std::string line;
-    while (std::getline(input, line)) {
-      ++line_number;
-      fields = get_tokens_without_comments(line);
-      if (!fields.empty()) {
+    while (std::getline(input_, line)) {
+      ++line_number_;
+      fields_ = get_tokens_without_comments(line);
+      if (!fields_.empty()) {
         return true;
       }
     }
-    ++line_number;
-    if (input.bad()) {
+    ++line_number_;
+    if (input_.bad()) {
       fail("error reading file");
     }
     return false;
@@ -69,7 +70,7 @@ public:
 
   void row(size_t count, const char* format)
   {
-    if (!next() || fields.size() != count) {
+    if (!next() || fields_.size() != count) {
       fail(std::string("expected ") + format);
     }
   }
@@ -77,7 +78,7 @@ public:
   int count(const char* keyword)
   {
     row(2, keyword);
-    if (fields[0] != keyword) {
+    if (fields_[0] != keyword) {
       fail(std::string("expected section ") + keyword);
     }
     return integer(1);
@@ -86,7 +87,7 @@ public:
   int integer(size_t column) const
   {
     // Interpret numbered records as decimal, including entries with leading zeros.
-    const std::string& token = fields[column];
+    const std::string& token = fields_[column];
     const size_t first = token.find_first_not_of('0');
     int value = 0;
     if (
@@ -100,62 +101,89 @@ public:
   double real(size_t column) const
   {
     double value;
-    if (!is_valid_real(fields[column], &value)) {
-      fail("expected a finite number, found '" + fields[column] + "'");
+    if (!is_valid_real(fields_[column], &value)) {
+      fail("expected a finite number, found '" + fields_[column] + "'");
     }
     return value;
   }
 
+  float as_float(double value, const char* field) const
+  {
+    if (!(std::abs(value) <= std::numeric_limits<float>::max())) {
+      fail(std::string(field) + " exceeds the single-precision range");
+    }
+    const float result = static_cast<float>(value);
+    if (result == 0.0f && value != 0.0) {
+      fail(std::string(field) + " is too small to represent in single precision");
+    }
+    return result;
+  }
+
   int section_count(std::set<std::string>& seen) const
   {
-    if (fields.size() != 2) {
+    if (fields_.size() != 2) {
       fail("expected a section name and count");
     }
-    if (!seen.insert(fields[0]).second) {
-      fail("unexpected repeated section '" + fields[0] + "'");
+    if (!seen.insert(fields_[0]).second) {
+      fail("unexpected repeated section '" + fields_[0] + "'");
     }
     return integer(1);
   }
 
-  std::vector<std::string> fields;
+  std::vector<std::string> fields_;
 
 private:
-  std::string filename;
-  std::ifstream input;
-  size_t line_number = 0;
+  std::string filename_;
+  std::ifstream input_;
+  size_t line_number_ = 0;
 };
 
 void read_harmonic_types(Records& file, int count, bool is_angle, MolecularInput& data)
 {
   const char* format = is_angle ? "<angle type ID> <force constant> <equilibrium angle in degrees>"
                                 : "<bond type ID> <force constant> <equilibrium length>";
-  std::map<int, std::pair<double, double>> parameters;
+  struct HarmonicType {
+    float k_, equilibrium_, pi_minus_theta0_;
+  };
+  std::map<int, HarmonicType> parameters;
   for (int t = 0; t < count; ++t) {
     file.row(3, format);
     const int id = file.integer(0);
     const double k = file.real(1);
-    double equilibrium = file.real(2);
+    const double equilibrium = file.real(2);
     if (k < 0.0) {
       file.fail("harmonic force constant must be nonnegative");
     }
+    HarmonicType parameter = {};
+    parameter.k_ = file.as_float(k, "harmonic force constant");
     if (is_angle) {
       if (equilibrium < 0.0 || equilibrium > 180.0) {
         file.fail("equilibrium angle must lie in [0, 180] degrees");
       }
-      equilibrium *= std::acos(-1.0) / 180.0;
-    } else if (equilibrium <= 0.0) {
-      file.fail("bond equilibrium length must be positive");
+      const double radians_per_degree = std::acos(-1.0) / 180.0;
+      parameter.equilibrium_ = file.as_float(equilibrium * radians_per_degree, "equilibrium angle");
+      // Convert the supplement independently so near-straight equilibria retain their precision.
+      parameter.pi_minus_theta0_ =
+        file.as_float((180.0 - equilibrium) * radians_per_degree, "equilibrium angle supplement");
+    } else {
+      if (equilibrium <= 0.0) {
+        file.fail("bond equilibrium length must be positive");
+      }
+      parameter.equilibrium_ = file.as_float(equilibrium, "bond equilibrium length");
     }
-    if (id >= count || !parameters.emplace(id, std::make_pair(k, equilibrium)).second) {
+    if (id >= count || !parameters.emplace(id, parameter).second) {
       file.fail(
         is_angle ? "invalid or duplicate angle type ID" : "invalid or duplicate bond type ID");
     }
   }
-  auto& constants = is_angle ? data.angle_k : data.bond_k;
-  auto& equilibria = is_angle ? data.angle_theta0 : data.bond_r0;
+  auto& constants = is_angle ? data.angle_k_ : data.bond_k_;
+  auto& equilibria = is_angle ? data.angle_theta0_ : data.bond_r0_;
   for (const auto& parameter : parameters) {
-    constants.push_back(parameter.second.first);
-    equilibria.push_back(parameter.second.second);
+    constants.push_back(parameter.second.k_);
+    equilibria.push_back(parameter.second.equilibrium_);
+    if (is_angle) {
+      data.angle_pi_minus_theta0_.push_back(parameter.second.pi_minus_theta0_);
+    }
   }
 }
 
@@ -163,52 +191,53 @@ std::vector<std::string> read_forcefield(const char* filename, MolecularInput& d
 {
   Records file(filename);
   if (
-    !file.next() || file.fields.size() < 3 || file.fields[0] != "molecular" ||
-    static_cast<size_t>(file.integer(1)) != file.fields.size() - 2) {
+    !file.next() || file.fields_.size() < 3 || file.fields_[0] != "molecular" ||
+    static_cast<size_t>(file.integer(1)) != file.fields_.size() - 2) {
     file.fail("expected molecular <element count> <element symbols>");
   }
-  const std::set<std::string> elements(file.fields.begin() + 2, file.fields.end());
-  if (elements.size() != file.fields.size() - 2) {
+  const std::set<std::string> elements(file.fields_.begin() + 2, file.fields_.end());
+  if (elements.size() != file.fields_.size() - 2) {
     file.fail("duplicate element in molecular header");
   }
 
   file.row(2, "cutoff <distance>");
   if (
-    file.fields[0] != "cutoff" || (data.cutoff = file.real(1)) <= 0.0 ||
-    !std::isfinite(data.cutoff * data.cutoff) || data.cutoff * data.cutoff == 0.0) {
+    file.fields_[0] != "cutoff" || (data.cutoff_ = file.real(1)) <= 0.0 ||
+    !std::isfinite(data.cutoff_ * data.cutoff_) || data.cutoff_ * data.cutoff_ == 0.0) {
     file.fail("cutoff must be positive with a representable squared distance");
   }
-  data.num_types = file.count("types");
-  if (data.num_types == 0 || data.num_types > std::numeric_limits<int>::max() / data.num_types) {
+  file.as_float(data.cutoff_ * data.cutoff_, "squared LJ cutoff");
+  data.num_types_ = file.count("types");
+  if (data.num_types_ == 0 || data.num_types_ > std::numeric_limits<int>::max() / data.num_types_) {
     file.fail("the LJ type table must fit in the kernel index range");
   }
-  std::vector<std::string> symbols(data.num_types);
-  for (int t = 0; t < data.num_types; ++t) {
+  std::vector<std::string> symbols(data.num_types_);
+  for (int t = 0; t < data.num_types_; ++t) {
     file.row(2, "<type ID> <element>");
     const int id = file.integer(0);
-    if (id >= data.num_types || !symbols[id].empty() || !elements.count(file.fields[1])) {
+    if (id >= data.num_types_ || !symbols[id].empty() || !elements.count(file.fields_[1])) {
       file.fail("invalid or duplicate type ID, or element missing from molecular header");
     }
-    symbols[id] = file.fields[1];
+    symbols[id] = file.fields_[1];
   }
 
   const int count = file.count("pairs");
-  if (count != static_cast<long long>(data.num_types) * (data.num_types + 1) / 2) {
+  if (count != static_cast<long long>(data.num_types_) * (data.num_types_ + 1) / 2) {
     file.fail("pairs must contain every upper-triangular type pair exactly once");
   }
-  const int table_size = data.num_types * data.num_types;
-  data.c6.assign(table_size, -1.0);
-  data.c12.resize(table_size);
+  const int table_size = data.num_types_ * data.num_types_;
+  data.c6_.assign(table_size, -1.0f);
+  data.c12_.resize(table_size);
   for (int pair = 0; pair < count; ++pair) {
     file.row(4, "<type i> <type j> <sigma> <epsilon>");
     const int i = file.integer(0);
     const int j = file.integer(1);
-    if (i > j || j >= data.num_types) {
+    if (i > j || j >= data.num_types_) {
       file.fail("type pair must satisfy 0 <= i <= j < type count");
     }
-    const int ij = i * data.num_types + j;
-    const int ji = j * data.num_types + i;
-    if (data.c6[ij] >= 0.0) {
+    const int ij = i * data.num_types_ + j;
+    const int ji = j * data.num_types_ + i;
+    if (data.c6_[ij] >= 0.0f) {
       file.fail("duplicate LJ type pair");
     }
     const double sigma = file.real(2);
@@ -227,16 +256,16 @@ std::vector<std::string> read_forcefield(const char* filename, MolecularInput& d
         file.fail("LJ coefficients are outside the representable range");
       }
     }
-    data.c6[ij] = data.c6[ji] = c6;
-    data.c12[ij] = data.c12[ji] = c12;
+    data.c6_[ij] = data.c6_[ji] = file.as_float(c6, "LJ C6 coefficient");
+    data.c12_[ij] = data.c12_[ji] = file.as_float(c12, "LJ C12 coefficient");
   }
   std::set<std::string> seen;
   while (file.next()) {
     const int entries = file.section_count(seen);
-    if (file.fields[0] != "angle_types" && file.fields[0] != "bond_types") {
-      file.fail("unexpected force-field section '" + file.fields[0] + "'");
+    if (file.fields_[0] != "angle_types" && file.fields_[0] != "bond_types") {
+      file.fail("unexpected force-field section '" + file.fields_[0] + "'");
     }
-    read_harmonic_types(file, entries, file.fields[0] == "angle_types", data);
+    read_harmonic_types(file, entries, file.fields_[0] == "angle_types", data);
   }
   return symbols;
 }
@@ -282,7 +311,7 @@ std::pair<int, int> atom_pair(Records& file, int n)
 
 void read_special_pairs(Records& file, int n, int count, MolecularInput& data)
 {
-  std::map<std::pair<int, int>, double> pairs;
+  std::map<std::pair<int, int>, float> pairs;
   for (int p = 0; p < count; ++p) {
     file.row(4, "<atom i> <atom j> <LJ weight> <Coulomb weight>");
     const auto pair = atom_pair(file, n);
@@ -291,11 +320,11 @@ void read_special_pairs(Records& file, int n, int count, MolecularInput& data)
     if (lj < 0.0 || lj > 1.0 || coulomb < 0.0 || coulomb > 1.0) {
       file.fail("special pair weights must lie in [0, 1]");
     }
-    if (!pairs.emplace(pair, lj).second) {
+    if (!pairs.emplace(pair, file.as_float(lj, "special LJ weight")).second) {
       file.fail("duplicate special pair");
     }
   }
-  store_pairs(n, pairs, data.offsets, data.partners, data.lj_weights);
+  store_pairs(n, pairs, data.offsets_, data.partners_, data.lj_weights_);
 }
 
 void read_bonds(Records& file, int n, int count, MolecularInput& data)
@@ -303,7 +332,7 @@ void read_bonds(Records& file, int n, int count, MolecularInput& data)
   if (count == 0) {
     return;
   }
-  if (data.bond_k.empty()) {
+  if (data.bond_k_.empty()) {
     file.fail("bonds require bond_types in the force-field file");
   }
   std::map<std::pair<int, int>, int> pairs;
@@ -311,14 +340,14 @@ void read_bonds(Records& file, int n, int count, MolecularInput& data)
     file.row(3, "<atom i> <atom j> <bond type ID>");
     const auto pair = atom_pair(file, n);
     const int type = file.integer(2);
-    if (static_cast<size_t>(type) >= data.bond_k.size()) {
+    if (static_cast<size_t>(type) >= data.bond_k_.size()) {
       file.fail("bond type ID is out of range");
     }
     if (!pairs.emplace(pair, type).second) {
       file.fail("duplicate bond");
     }
   }
-  store_pairs(n, pairs, data.bond_offsets, data.bond_partners, data.bond_types);
+  store_pairs(n, pairs, data.bond_offsets_, data.bond_partners_, data.bond_types_);
 }
 
 void read_angles(Records& file, int n, int count, MolecularInput& data)
@@ -333,42 +362,43 @@ void read_angles(Records& file, int n, int count, MolecularInput& data)
     (static_cast<long long>(count) + n - 1) / n > pairs_per_center) {
     file.fail("angle count exceeds the number of possible or indexable angles");
   }
-  if (data.angle_k.empty()) {
+  if (data.angle_k_.empty()) {
     file.fail("angles require angle_types in the force-field file");
   }
   std::set<std::array<int, 3>> seen;
-  data.angle_offsets.resize(static_cast<size_t>(n) + 1, 0);
+  data.angle_offsets_.resize(static_cast<size_t>(n) + 1, 0);
   for (int a = 0; a < count; ++a) {
     file.row(4, "<atom i> <central atom j> <atom k> <angle type ID>");
     const MolecularAngle angle = {
       file.integer(0), file.integer(1), file.integer(2), file.integer(3)};
     if (
-      angle.first >= n || angle.center >= n || angle.last >= n || angle.first == angle.center ||
-      angle.last == angle.center || angle.first == angle.last) {
+      angle.first_ >= n || angle.center_ >= n || angle.last_ >= n ||
+      angle.first_ == angle.center_ || angle.last_ == angle.center_ ||
+      angle.first_ == angle.last_) {
       file.fail("angle requires three distinct atom IDs from model.xyz");
     }
-    if (static_cast<size_t>(angle.type) >= data.angle_k.size()) {
+    if (static_cast<size_t>(angle.type_) >= data.angle_k_.size()) {
       file.fail("angle type ID is out of range");
     }
     const std::array<int, 3> key = {
-      std::min(angle.first, angle.last), angle.center, std::max(angle.first, angle.last)};
+      std::min(angle.first_, angle.last_), angle.center_, std::max(angle.first_, angle.last_)};
     if (!seen.insert(key).second) {
       file.fail("duplicate angle");
     }
-    data.angles.push_back(angle);
-    ++data.angle_offsets[angle.first + 1];
-    ++data.angle_offsets[angle.center + 1];
-    ++data.angle_offsets[angle.last + 1];
+    data.angles_.push_back(angle);
+    ++data.angle_offsets_[angle.first_ + 1];
+    ++data.angle_offsets_[angle.center_ + 1];
+    ++data.angle_offsets_[angle.last_ + 1];
   }
   std::partial_sum(
-    data.angle_offsets.begin(), data.angle_offsets.end(), data.angle_offsets.begin());
-  data.angle_indices.resize(3 * count);
-  std::vector<int> next = data.angle_offsets;
+    data.angle_offsets_.begin(), data.angle_offsets_.end(), data.angle_offsets_.begin());
+  data.angle_indices_.resize(3 * count);
+  std::vector<int> next = data.angle_offsets_;
   for (int a = 0; a < count; ++a) {
-    const MolecularAngle& angle = data.angles[a];
-    data.angle_indices[next[angle.first]++] = a;
-    data.angle_indices[next[angle.center]++] = a;
-    data.angle_indices[next[angle.last]++] = a;
+    const MolecularAngle& angle = data.angles_[a];
+    data.angle_indices_[next[angle.first_]++] = a;
+    data.angle_indices_[next[angle.center_]++] = a;
+    data.angle_indices_[next[angle.last_]++] = a;
   }
 }
 
@@ -377,21 +407,21 @@ void read_topology_sections(Records& file, int n, MolecularInput& data)
   std::set<std::string> seen;
   while (file.next()) {
     const int count = file.section_count(seen);
-    if (file.fields[0] == "angles") {
+    if (file.fields_[0] == "angles") {
       read_angles(file, n, count, data);
-    } else if (file.fields[0] == "bonds" || file.fields[0] == "special_pairs") {
+    } else if (file.fields_[0] == "bonds" || file.fields_[0] == "special_pairs") {
       if (
         count > std::numeric_limits<int>::max() / 2 ||
         count > static_cast<long long>(n) * (n - 1) / 2) {
         file.fail("pair count exceeds the number of possible or indexable pairs");
       }
-      if (file.fields[0] == "bonds") {
+      if (file.fields_[0] == "bonds") {
         read_bonds(file, n, count, data);
       } else {
         read_special_pairs(file, n, count, data);
       }
     } else {
-      file.fail("unexpected topology section '" + file.fields[0] + "'");
+      file.fail("unexpected topology section '" + file.fields_[0] + "'");
     }
   }
 }
@@ -411,17 +441,17 @@ MolecularInput read_molecular_input(
   if (n == 0 || n != number_of_atoms || static_cast<size_t>(n) != atom_symbols.size()) {
     file.fail("atom count must match model.xyz");
   }
-  data.types.resize(n);
+  data.types_.resize(n);
   for (int i = 0; i < n; ++i) {
     file.row(2, "<force-field type ID> <charge>");
     const int type = file.integer(0);
-    if (type >= data.num_types || symbols[type] != atom_symbols[i]) {
+    if (type >= data.num_types_ || symbols[type] != atom_symbols[i]) {
       file.fail("force-field type does not match atom " + std::to_string(i) + " in model.xyz");
     }
     if (file.real(1) != 0.0) {
       file.fail("molecular LJ requires zero atomic charges");
     }
-    data.types[i] = type;
+    data.types_[i] = type;
   }
   read_topology_sections(file, n, data);
   return data;
