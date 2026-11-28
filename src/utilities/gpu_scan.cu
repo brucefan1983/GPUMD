@@ -39,8 +39,8 @@ static void exclusive_sum(
     rocprim::plus<int>(),
     stream));
 #else
-  CHECK(cub::DeviceScan::ExclusiveSum(
-    storage, storage_bytes, input, output, number_of_items, stream));
+  CHECK(
+    cub::DeviceScan::ExclusiveSum(storage, storage_bytes, input, output, number_of_items, stream));
 #endif
 }
 

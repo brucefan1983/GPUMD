@@ -166,14 +166,7 @@ void NEP_Spin::Neighbors::find_neighbor_global(
   int bins[3];
   box.get_num_bins(0.5 * cutoff, bins);
   find_cell_list(
-    0.5 * cutoff,
-    bins,
-    box,
-    position,
-    cell_scan_,
-    cell_count_,
-    cell_sum_,
-    cell_contents_);
+    0.5 * cutoff, bins, box, position, cell_scan_, cell_count_, cell_sum_, cell_contents_);
   flag_.fill(0);
   find_spin_neighbors<<<grid, 256>>>(
     box,

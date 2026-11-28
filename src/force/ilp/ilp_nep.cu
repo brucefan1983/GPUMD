@@ -705,7 +705,14 @@ void find_neighbor_ilp_nep(
   box.get_num_bins(rc_cell_list, num_bins);
 
   find_cell_list(
-    rc_cell_list, num_bins, box, position_per_atom, scan, cell_count, cell_count_sum, cell_contents);
+    rc_cell_list,
+    num_bins,
+    box,
+    position_per_atom,
+    scan,
+    cell_count,
+    cell_count_sum,
+    cell_contents);
 
   gpu_find_neighbor_ON1_ilp_nep<<<grid_size, block_size>>>(
     nep_map,

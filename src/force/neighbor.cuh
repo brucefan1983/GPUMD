@@ -172,7 +172,7 @@ public:
     GPU_Vector<int>& NL_local);
 
 private:
-  double skin = 1.0;              // skin distance
+  double skin = 1.0; // skin distance
   GPU_Exclusive_Scan cell_scan_;
   GPU_Vector<int> cell_count;     // for cell list
   GPU_Vector<int> cell_count_sum; // for cell list
