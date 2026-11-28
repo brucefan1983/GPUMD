@@ -16,6 +16,7 @@
 #pragma once
 #include "force/potential.cuh"
 #include "force/tersoff/tersoff1988.cuh"
+#include "utilities/gpu_scan.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
 #include <vector>
@@ -91,6 +92,9 @@ protected:
   // rcut for Tersoff potential
   double rc_tersoff;
   int num_types;
+
+private:
+  GPU_Exclusive_Scan cell_scan_;
 };
 
 static __constant__ float Tap_coeff_CBN[8];

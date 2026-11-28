@@ -162,7 +162,8 @@ void RDF::find_rdf(Box& box, const GPU_Vector<int>& type, const GPU_Vector<doubl
     PRINT_INPUT_ERROR("The box has a thickness < 2.5 RDF radial cutoffs in a periodic direction.\n"
                       "Please increase the box size or reduce the RDF cutoff.");
   }
-  find_cell_list(rc_cell_list, num_bins, box, position, cell_count, cell_count_sum, cell_contents);
+  find_cell_list(
+    rc_cell_list, num_bins, box, position, cell_scan_, cell_count, cell_count_sum, cell_contents);
 
   gpu_find_rdf_ON1<<<(N - 1) / 256 + 1, 256>>>(
     N,

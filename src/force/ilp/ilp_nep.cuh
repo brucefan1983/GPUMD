@@ -16,6 +16,7 @@
 #pragma once
 #include "force/potential.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_scan.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <cstdint>
@@ -182,6 +183,7 @@ protected:
   ILP_Data ilp_data;
 
 private:
+  GPU_Exclusive_Scan cell_scan_;
   int num_nep = 0;           // number of NEP file
   int max_MN_angular = 0;    // max of parambs[i].MN_angular
   int max_MN_radial = 0;     // max of parambs[i].MN_radial

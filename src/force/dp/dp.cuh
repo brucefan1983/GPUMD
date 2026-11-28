@@ -18,6 +18,7 @@
 #include "DeepPot.h"
 #include "force/neighbor.cuh"
 #include "force/potential.cuh"
+#include "utilities/gpu_scan.cuh"
 #include <cstddef>
 #include <cstdint>
 #include <stdio.h>
@@ -93,5 +94,8 @@ protected:
   std::vector<double> dp_vir_atom;
 
   void set_dp_coeff();
+
+private:
+  GPU_Exclusive_Scan edge_scan_;
 };
 #endif

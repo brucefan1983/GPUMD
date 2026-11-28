@@ -992,6 +992,7 @@ void DFTD3::compute_large_box(
     num_bins_radial,
     box,
     position_per_atom,
+    cell_scan_,
     cell_count_radial,
     cell_count_sum_radial,
     cell_contents_radial);
@@ -1000,6 +1001,7 @@ void DFTD3::compute_large_box(
     num_bins_angular,
     box,
     position_per_atom,
+    cell_scan_,
     cell_count_angular,
     cell_count_sum_angular,
     cell_contents_angular);

@@ -27,8 +27,6 @@ Major contributors:
 #include "utilities/gpu_macro.cuh"
 #include <algorithm>
 #include <cstring>
-#include <thrust/execution_policy.h>
-#include <thrust/scan.h>
 
 static __device__ void find_cell_id(
   const Box& box,
@@ -175,6 +173,7 @@ void find_cell_list(
   const int* num_bins,
   Box& box,
   const GPU_Vector<double>& position_per_atom,
+  GPU_Exclusive_Scan& scan,
   GPU_Vector<int>& cell_count,
   GPU_Vector<int>& cell_count_sum,
   GPU_Vector<int>& cell_contents)
@@ -202,8 +201,7 @@ void find_cell_list(
     box, N, cell_count.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv);
   GPU_CHECK_KERNEL
 
-  thrust::exclusive_scan(
-    thrust::device, cell_count.data(), cell_count.data() + N_cells, cell_count_sum.data());
+  scan.run(cell_count.data(), cell_count_sum.data(), N_cells, nullptr);
 
   CHECK(gpuMemset(cell_count.data(), 0, sizeof(int) * N_cells));
 
@@ -238,6 +236,7 @@ void find_cell_list(
   Box& box,
   const int N,
   const GPU_Vector<double>& position_per_atom,
+  GPU_Exclusive_Scan& scan,
   GPU_Vector<int>& cell_count,
   GPU_Vector<int>& cell_count_sum,
   GPU_Vector<int>& cell_contents)
@@ -273,15 +272,7 @@ void find_cell_list(
     box, N, cell_count.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv);
   GPU_CHECK_KERNEL
 
-  thrust::exclusive_scan(
-#ifdef USE_HIP
-    thrust::hip::par.on(stream),
-#else
-    thrust::cuda::par.on(stream),
-#endif
-    cell_count.data(),
-    cell_count.data() + N_cells,
-    cell_count_sum.data());
+  scan.run(cell_count.data(), cell_count_sum.data(), N_cells, stream);
 
   set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count.size(), cell_count.data());
@@ -310,6 +301,7 @@ void find_neighbor(
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
+  GPU_Exclusive_Scan& scan,
   GPU_Vector<int>& cell_count,
   GPU_Vector<int>& cell_count_sum,
   GPU_Vector<int>& cell_contents,
@@ -329,7 +321,7 @@ void find_neighbor(
   box.get_num_bins(rc_cell_list, num_bins);
 
   find_cell_list(
-    rc_cell_list, num_bins, box, position_per_atom, cell_count, cell_count_sum, cell_contents);
+    rc_cell_list, num_bins, box, position_per_atom, scan, cell_count, cell_count_sum, cell_contents);
 
   gpu_find_neighbor_ON1<<<grid_size, block_size>>>(
     box,
@@ -459,6 +451,7 @@ void find_neighbor_ilp(
   const int* group_label,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
+  GPU_Exclusive_Scan& scan,
   GPU_Vector<int>& cell_count,
   GPU_Vector<int>& cell_count_sum,
   GPU_Vector<int>& cell_contents,
@@ -480,7 +473,7 @@ void find_neighbor_ilp(
   box.get_num_bins(rc_cell_list, num_bins);
 
   find_cell_list(
-    rc_cell_list, num_bins, box, position_per_atom, cell_count, cell_count_sum, cell_contents);
+    rc_cell_list, num_bins, box, position_per_atom, scan, cell_count, cell_count_sum, cell_contents);
 
   gpu_find_neighbor_ON1_ilp<<<grid_size, block_size>>>(
     box,
@@ -608,6 +601,7 @@ void find_neighbor_SW(
   const int* group_label,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
+  GPU_Exclusive_Scan& scan,
   GPU_Vector<int>& cell_count,
   GPU_Vector<int>& cell_count_sum,
   GPU_Vector<int>& cell_contents,
@@ -627,7 +621,7 @@ void find_neighbor_SW(
   box.get_num_bins(rc_cell_list, num_bins);
 
   find_cell_list(
-    rc_cell_list, num_bins, box, position_per_atom, cell_count, cell_count_sum, cell_contents);
+    rc_cell_list, num_bins, box, position_per_atom, scan, cell_count, cell_count_sum, cell_contents);
 
   gpu_find_neighbor_ON1_SW<<<grid_size, block_size>>>(
     box,
@@ -797,6 +791,7 @@ void Neighbor::find_neighbor_global(
       box,
       type,
       position_per_atom,
+      cell_scan_,
       cell_count,
       cell_count_sum,
       cell_contents,

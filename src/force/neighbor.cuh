@@ -16,6 +16,7 @@
 #pragma once
 #include "model/box.cuh"
 #include "model/group.cuh"
+#include "utilities/gpu_scan.cuh"
 #include "utilities/gpu_vector.cuh"
 
 void find_cell_list(
@@ -23,6 +24,7 @@ void find_cell_list(
   const int* num_bins,
   Box& box,
   const GPU_Vector<double>& position_per_atom,
+  GPU_Exclusive_Scan& scan,
   GPU_Vector<int>& cell_count,
   GPU_Vector<int>& cell_count_sum,
   GPU_Vector<int>& cell_contents);
@@ -34,6 +36,7 @@ void find_neighbor(
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
+  GPU_Exclusive_Scan& scan,
   GPU_Vector<int>& cell_count,
   GPU_Vector<int>& cell_count_sum,
   GPU_Vector<int>& cell_contents,
@@ -50,6 +53,7 @@ void find_neighbor_ilp(
   const int* group_label,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
+  GPU_Exclusive_Scan& scan,
   GPU_Vector<int>& cell_count,
   GPU_Vector<int>& cell_count_sum,
   GPU_Vector<int>& cell_contents,
@@ -67,6 +71,7 @@ void find_neighbor_SW(
   const int* group_label,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
+  GPU_Exclusive_Scan& scan,
   GPU_Vector<int>& cell_count,
   GPU_Vector<int>& cell_count_sum,
   GPU_Vector<int>& cell_contents,
@@ -168,6 +173,7 @@ public:
 
 private:
   double skin = 1.0;              // skin distance
+  GPU_Exclusive_Scan cell_scan_;
   GPU_Vector<int> cell_count;     // for cell list
   GPU_Vector<int> cell_count_sum; // for cell list
   GPU_Vector<int> cell_contents;  // for cell list

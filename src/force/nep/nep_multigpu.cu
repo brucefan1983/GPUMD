@@ -44,8 +44,6 @@ Major contributors:
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <thrust/execution_policy.h>
-#include <thrust/scan.h>
 #include <vector>
 
 const std::string ELEMENTS[NUM_ELEMENTS] = {
@@ -442,6 +440,7 @@ static void __global__ set_to_zero(int size, int* data)
 template <typename T>
 static void find_cell_list(
   gpuStream_t& stream,
+  GPU_Exclusive_Scan& scan,
   const int partition_direction,
   const double rc,
   const int* num_bins,
@@ -493,15 +492,7 @@ static void find_cell_list(
     rc_inv);
   GPU_CHECK_KERNEL
 
-  thrust::exclusive_scan(
-#ifdef USE_HIP
-    thrust::hip::par.on(stream),
-#else
-    thrust::cuda::par.on(stream),
-#endif
-    cell_count.data(),
-    cell_count.data() + N_cells,
-    cell_count_sum.data());
+  scan.run(cell_count.data(), cell_count_sum.data(), N_cells, stream);
 
   set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count.size(), cell_count.data());
@@ -1325,6 +1316,7 @@ void NEP_MULTIGPU::compute_impl(
 
   find_cell_list(
     nep_data[0].stream,
+    nep_data[0].scan,
     partition_direction,
     rc_cell_list,
     num_bins,
@@ -1339,8 +1331,11 @@ void NEP_MULTIGPU::compute_impl(
     nep_temp_data.cell_count_sum_cpu.resize(num_bins[0] * num_bins[1] * num_bins[2]);
   }
 
-  nep_temp_data.cell_count_sum.copy_to_host(
-    nep_temp_data.cell_count_sum_cpu.data(), num_bins[0] * num_bins[1] * num_bins[2]);
+  nep_temp_data.cell_count_sum.copy_to_host_async(
+    nep_temp_data.cell_count_sum_cpu.data(),
+    num_bins[0] * num_bins[1] * num_bins[2],
+    nep_data[0].stream);
+  CHECK(gpuStreamSynchronize(nep_data[0].stream));
 
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
     if (paramb.num_gpus == 1) {
@@ -1459,6 +1454,7 @@ void NEP_MULTIGPU::compute_impl(
 
     find_cell_list(
       nep_data[gpu].stream,
+      nep_data[gpu].scan,
       partition_direction,
       rc_cell_list,
       num_bins,

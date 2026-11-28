@@ -667,6 +667,7 @@ void OrientOrder::end_of_step(
     box,
     atom.type,
     atom.position_per_atom,
+    cell_scan_,
     cell_count,
     cell_count_sum,
     cell_contents,

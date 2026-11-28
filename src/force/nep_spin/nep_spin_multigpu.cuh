@@ -19,6 +19,7 @@ Multi-GPU NEP-spin potential interface and domain state.
 
 #pragma once
 #include "nep_spin.cuh"
+#include "utilities/gpu_scan.cuh"
 #include <memory>
 
 class NEP_Spin_MultiGPU : public Spin_Potential
@@ -69,4 +70,5 @@ private:
   double partition_box_[9] = {};
   bool partition_valid_ = false;
   gpuStream_t partition_stream_ = nullptr;
+  GPU_Exclusive_Scan partition_scan_;
 };

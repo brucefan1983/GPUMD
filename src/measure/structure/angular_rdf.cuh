@@ -18,6 +18,7 @@
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
+#include "utilities/gpu_scan.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>
@@ -97,6 +98,7 @@ private:
   GPU_Vector<double> rdf_g_;
   GPU_Vector<double> radial_;
   GPU_Vector<double> theta_;
+  GPU_Exclusive_Scan cell_scan_;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
