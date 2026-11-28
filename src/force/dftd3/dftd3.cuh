@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "utilities/gpu_scan.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>
@@ -90,4 +91,7 @@ public:
     const float rc_radial,
     const float rc_angular,
     const std::string& potential_file_name);
+
+private:
+  GPU_Exclusive_Scan cell_scan_;
 };

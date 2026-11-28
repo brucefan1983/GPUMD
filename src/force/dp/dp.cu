@@ -38,7 +38,6 @@ Major contributors:
 #include <string>
 #include <thrust/execution_policy.h>
 #include <thrust/reduce.h>
-#include <thrust/scan.h>
 
 #define BLOCK_SIZE_FORCE 128
 #define MAX_NEIGH_NUM_DP 512 // max neighbor number of an atom for DP
@@ -424,8 +423,7 @@ void DP::compute_gpu_edges(
   // Exclusive scan of the per-atom neighbor counts gives each atom's edge
   // offset; the total edge count is the reduction of the counts.
   grow_gpu(dp_edge_offset, static_cast<size_t>(N));
-  thrust::exclusive_scan(
-    thrust::device, dp_NN_local.data(), dp_NN_local.data() + N, dp_edge_offset.data());
+  edge_scan_.run(dp_NN_local.data(), dp_edge_offset.data(), N, nullptr);
   const int nedge = thrust::reduce(
     thrust::device, dp_NN_local.data(), dp_NN_local.data() + N, 0, thrust::plus<int>());
 
@@ -485,8 +483,7 @@ void DP::compute_gpu_edges(
         source_count.data());
       GPU_CHECK_KERNEL
     }
-    thrust::exclusive_scan(
-      thrust::device, source_count.data(), source_count.data() + N, dp_edge_offset.data());
+    edge_scan_.run(source_count.data(), dp_edge_offset.data(), N, nullptr);
     dp_prepare_canonical_source_rows<<<grid_size, BLOCK_SIZE_FORCE>>>(
       N, nedge, dp_edge_offset.data(), source_row_ptr, source_cursor.data());
     GPU_CHECK_KERNEL

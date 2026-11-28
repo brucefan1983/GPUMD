@@ -607,7 +607,14 @@ void AngularRDF::end_of_step(
   int num_bins[3];
   box.get_num_bins(rc_cell_list, num_bins);
   find_cell_list(
-    rc_cell_list, num_bins, box, atom.position_per_atom, cell_count, cell_count_sum, cell_contents);
+    rc_cell_list,
+    num_bins,
+    box,
+    atom.position_per_atom,
+    cell_scan_,
+    cell_count,
+    cell_count_sum,
+    cell_contents);
 
   for (int a = 0; a < rdf_atom_count; a++) {
     find_angular_rdf(

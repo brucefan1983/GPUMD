@@ -15,6 +15,7 @@
 
 #pragma once
 #include "measure/action.cuh"
+#include "utilities/gpu_scan.cuh"
 class Atom;
 class Box;
 
@@ -91,6 +92,7 @@ private:
   double maximum_energy;
   double time_step;
 
+  GPU_Exclusive_Scan cell_scan_;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;

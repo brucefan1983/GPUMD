@@ -28,6 +28,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "force/neighbor.cuh"
 #include "force/potential.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_scan.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_spin/spin_storage.cuh"
 #include <cstddef>
@@ -260,6 +261,7 @@ private:
     int max_neighbors_ = 0;
     bool valid_ = false;
     double box_[9] = {};
+    GPU_Exclusive_Scan cell_scan_;
     GPU_Vector<int> cell_count_, cell_sum_, cell_contents_, flag_;
     GPU_Vector<double> reference_;
   };

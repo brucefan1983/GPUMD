@@ -15,6 +15,7 @@
 
 #pragma once
 #include "force/potential.cuh"
+#include "utilities/gpu_scan.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
 
@@ -100,4 +101,7 @@ protected:
     double* d,
     int n_functions,
     int n_points);
+
+private:
+  GPU_Exclusive_Scan cell_scan_;
 };

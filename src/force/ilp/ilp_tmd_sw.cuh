@@ -15,6 +15,7 @@
 
 #pragma once
 #include "force/potential.cuh"
+#include "utilities/gpu_scan.cuh"
 #include <stdio.h>
 #include <vector>
 
@@ -111,6 +112,9 @@ protected:
   SW2_Data sw2_data;
   // rcut for SW
   double rc_sw;
+
+private:
+  GPU_Exclusive_Scan cell_scan_;
 };
 
 static __constant__ float Tap_coeff_tmd[8];

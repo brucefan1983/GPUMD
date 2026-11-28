@@ -15,6 +15,7 @@
 
 #pragma once
 #include "measure/action.cuh"
+#include "utilities/gpu_scan.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>
@@ -79,6 +80,7 @@ public:
 private:
   int sampling_interval_ = 100;
   GPU_Vector<double> rdf_g_;
+  GPU_Exclusive_Scan cell_scan_;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;

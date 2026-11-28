@@ -16,6 +16,7 @@
 #pragma once
 #include "measure/action.cuh"
 #include "model/box.cuh"
+#include "utilities/gpu_scan.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>
@@ -90,6 +91,7 @@ private:
   GPU_Vector<double> cglist_gpu;
   GPU_Vector<double> qnarray_gpu;
 
+  GPU_Exclusive_Scan cell_scan_;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;

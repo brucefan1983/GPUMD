@@ -1019,6 +1019,7 @@ void ADP::compute(
         box,
         type,
         position_per_atom,
+        cell_scan_,
         adp_data.cell_count,
         adp_data.cell_count_sum,
         adp_data.cell_contents,

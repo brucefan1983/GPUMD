@@ -16,6 +16,7 @@
 #pragma once
 #include "force/potential.cuh"
 #include "utilities/common.cuh"
+#include "utilities/gpu_scan.cuh"
 #include "utilities/gpu_vector.cuh"
 
 class RunInput;
@@ -55,6 +56,7 @@ struct NEP_MULTIGPU_Data {
   int N1, N2, N3, N4, N5; // for local system
   int M0, M1, M2;         // for global system
   gpuStream_t stream;
+  GPU_Exclusive_Scan scan;
 };
 
 struct NEP_TEMP_Data {
