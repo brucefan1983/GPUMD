@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare pre-change and post-change TB executables on identical real data."""
+"""Compare pre-change and post-change NeSK executables on identical real data."""
 
 import argparse
 import hashlib
@@ -47,7 +47,7 @@ def prepare_input(directory, name, basis, dispersion):
             metadata["structures"].append({
                 "kpoints": [ks[3*i:3*i+3] for i in range(nk)],
                 "reference": [es[nb*i:nb*i+band_max] for i in range(nk)]})
-    (directory / "tb.in").write_text(f"""type {len(elements)} {' '.join(elements)}
+    (directory / "nesk.in").write_text(f"""type {len(elements)} {' '.join(elements)}
 basis {basis}
 cutoff 3.2 3.2 3.2
 n_max 1 1
@@ -81,11 +81,11 @@ def run_training(executable, directory, name, basis, dispersion, timeout):
     log.write_text("$ " + shlex.quote(str(executable)) + "\n" + result.stdout)
     check(result.returncode == 0, f"exit {result.returncode}; see {log}\n{result.stdout[-2500:]}")
     check_training_outputs(directory, metadata)
-    check(not (directory / "tb.restart").exists(), "unexpected restart output")
+    check(not (directory / "nesk.restart").exists(), "unexpected restart output")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Compare old/new TB binaries")
+    parser = argparse.ArgumentParser(description="Compare old/new NeSK binaries")
     parser.add_argument("--old", required=True, type=Path, help="executable before the change")
     parser.add_argument("--new", required=True, type=Path, help="executable after the change")
     parser.add_argument("--dataset", action="append", choices=tuple(DATASETS))
@@ -108,7 +108,7 @@ def main():
         path = FIXTURES / (name + ".xyz")
         if not path.is_file():
             parser.error(f"fixture missing: {path}")
-    work = args.workdir.resolve() if args.workdir else Path(tempfile.mkdtemp(prefix="tb-exe-tests-"))
+    work = args.workdir.resolve() if args.workdir else Path(tempfile.mkdtemp(prefix="nesk-exe-tests-"))
     if args.workdir:
         work.mkdir(parents=True, exist_ok=False)
     print(f"Work directory: {work}", flush=True)

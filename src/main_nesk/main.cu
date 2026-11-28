@@ -38,7 +38,8 @@ void print_welcome_information()
          "***************************************************************\n"
          "*                 Welcome to use GPUMD                        *\n"
          "*       (Graphics Processing Units Molecular Dynamics)        *\n"
-         "*                  This is the tb executable                  *\n"
+         "*                 This is the nesk executable                 *\n"
+         "*                  NeSK: Neural Slater-Koster                 *\n"
          "***************************************************************\n\n");
 }
 } // namespace
@@ -80,7 +81,7 @@ int main(int argc, char** argv)
   const auto finish = std::chrono::high_resolution_clock::now();
   const std::chrono::duration<double> elapsed = finish - begin;
   print_line_1();
-  printf("Finished running tb in %.3f s.\n", elapsed.count());
+  printf("Finished running nesk in %.3f s.\n", elapsed.count());
   print_line_2();
   return EXIT_SUCCESS;
 }

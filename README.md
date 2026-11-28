@@ -16,6 +16,7 @@ GPUMD is a high-performance, general-purpose molecular dynamics package implemen
 | --- | --- | --- |
 | `gpumd` | Molecular dynamics simulations and static calculations with empirical or NEP models. | `run.in`, `model.xyz`, and the specified potential files. |
 | `nep` | Training and prediction with NEP models. | `nep.in` and datasets such as `train.xyz`. |
+| `nesk` | Training and band prediction with NeSK (Neural Slater-Koster) tight-binding models. | `nesk.in`, `train.xyz`, and `nesk.txt` for prediction. |
 
 Applications include heat transport, thermodynamic and mechanical properties, lattice dynamics, shock compression, path-integral molecular dynamics, and coarse-grained simulations. See the [manual](https://gpumd.org/dev/) for supported methods and the [citation guide](#citations) for the corresponding publications.
 
@@ -42,7 +43,7 @@ Set `CUDA_ARCH` to match your GPU and CUDA toolkit. For example, to build for a 
 make -C src -j4 CUDA_ARCH=-arch=sm_89
 ```
 
-The default Make target builds `gpumd`, `nep`, and `tb` in `src/`. The examples below use `gpumd` and `nep`. For other GPU targets, consult [NVIDIA's compute-capability table](https://developer.nvidia.com/cuda/gpus). After changing the architecture, toolkit, or compiler flags, run `make -C src clean` before rebuilding.
+The default Make target builds `gpumd`, `nep`, and `nesk` in `src/`. The examples below use `gpumd` and `nep`. For other GPU targets, consult [NVIDIA's compute-capability table](https://developer.nvidia.com/cuda/gpus). After changing the architecture, toolkit, or compiler flags, run `make -C src clean` before rebuilding.
 
 **CUDA compatibility:** [src/makefile](src/makefile) defaults to `sm_60`. CUDA 13.0 removed offline compilation and library support for Maxwell, Pascal, and Volta GPUs, so this default cannot be used with CUDA 13.x. Set a supported target for a newer GPU, or use a compatible older toolkit for older hardware. See the [CUDA 13.0 release notes](https://docs.nvidia.com/cuda/archive/13.0.0/cuda-toolkit-release-notes/index.html#deprecated-architectures).
 

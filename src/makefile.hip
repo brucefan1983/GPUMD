@@ -20,7 +20,7 @@ DEPFLAGS = -MMD -MP -MF $(basename $@).d -MT $@
 INC = -I./
 LDFLAGS = 
 LIBS = -lhipblas -lhipsolver -lhipfft
-TB_LIBS = -lhipblas -lhipsolver
+NESK_LIBS = -lhipblas -lhipsolver
 
 
 ###########################################################
@@ -46,8 +46,8 @@ SOURCES_NEP =                     \
 	$(wildcard utilities/*.cu)   \
 	$(wildcard utilities/*/*.cu)
 
-SOURCES_TB =                      \
-	$(wildcard main_tb/*.cu)      \
+SOURCES_NESK =                    \
+	$(wildcard main_nesk/*.cu)    \
 	utilities/error.cu           \
 	utilities/main_common.cu
 
@@ -57,20 +57,20 @@ SOURCES_TB =                      \
 ###########################################################
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
 OBJ_NEP = $(SOURCES_NEP:.cu=.o)
-OBJ_TB = $(SOURCES_TB:.cu=.o)
+OBJ_NESK = $(SOURCES_NESK:.cu=.o)
 
 
 ###########################################################
 # compiler-generated header dependencies
 ###########################################################
-OBJECTS = $(sort $(OBJ_GPUMD) $(OBJ_NEP) $(OBJ_TB))
+OBJECTS = $(sort $(OBJ_GPUMD) $(OBJ_NEP) $(OBJ_NESK))
 DEPFILES = $(addsuffix .d,$(basename $(OBJECTS)))
 
 
 ###########################################################
 # executables
 ###########################################################
-all: gpumd nep tb
+all: gpumd nep nesk
 gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 	@echo =================================================
@@ -82,10 +82,10 @@ nep: $(OBJ_NEP)
 	@echo The nep executable is successfully compiled!
 	@echo =================================================
 
-tb: $(OBJ_TB)
-	$(CC) $(LDFLAGS) $^ -o $@ $(TB_LIBS)
+nesk: $(OBJ_NESK)
+	$(CC) $(LDFLAGS) $^ -o $@ $(NESK_LIBS)
 	@echo =================================================
-	@echo The tb executable is successfully compiled!
+	@echo The nesk executable is successfully compiled!
 	@echo =================================================
 
 
@@ -109,5 +109,5 @@ FORCE:
 # clean up
 ###########################################################
 clean:
-	rm -f */*.o */*/*.o */*.d */*/*.d gpumd nep tb
+	rm -f */*.o */*/*.o */*.d */*/*.d gpumd nep nesk
 

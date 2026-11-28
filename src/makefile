@@ -40,7 +40,7 @@ endif
 INC = -I./
 LDFLAGS = 
 LIBS = -lcublas -lcusolver -lcufft
-TB_LIBS = -lcublas -lcusolver
+NESK_LIBS = -lcublas -lcusolver
 NEP_LIBS =
 GNEP_LIBS =
 ifndef OS
@@ -77,8 +77,8 @@ SOURCES_GNEP =                     \
 	$(wildcard utilities/*.cu)   \
 	$(wildcard utilities/*/*.cu)
 
-SOURCES_TB =                      \
-	$(wildcard main_tb/*.cu)      \
+SOURCES_NESK =                    \
+	$(wildcard main_nesk/*.cu)    \
 	utilities/error.cu           \
 	utilities/main_common.cu
 
@@ -89,12 +89,12 @@ SOURCES_TB =                      \
 ifdef OS # For Windows with the cl.exe compiler
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.obj)
 OBJ_NEP = $(SOURCES_NEP:.cu=.obj)
-OBJ_TB = $(SOURCES_TB:.cu=.obj)
+OBJ_NESK = $(SOURCES_NESK:.cu=.obj)
 OBJ_GNEP = $(SOURCES_GNEP:.cu=.obj)
 else
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
 OBJ_NEP = $(SOURCES_NEP:.cu=.o)
-OBJ_TB = $(SOURCES_TB:.cu=.o)
+OBJ_NESK = $(SOURCES_NESK:.cu=.o)
 OBJ_GNEP = $(SOURCES_GNEP:.cu=.o)
 endif
 
@@ -102,14 +102,14 @@ endif
 ###########################################################
 # compiler-generated header dependencies
 ###########################################################
-OBJECTS = $(sort $(OBJ_GPUMD) $(OBJ_NEP) $(OBJ_TB) $(OBJ_GNEP))
+OBJECTS = $(sort $(OBJ_GPUMD) $(OBJ_NEP) $(OBJ_NESK) $(OBJ_GNEP))
 DEPFILES = $(addsuffix .d,$(basename $(OBJECTS)))
 
 
 ###########################################################
 # executables
 ###########################################################
-all: gpumd nep tb
+all: gpumd nep nesk
 
 gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
@@ -127,10 +127,10 @@ gnep: $(OBJ_GNEP)
 	@echo The gnep executable is successfully compiled!
 	@echo =================================================
 
-tb: $(OBJ_TB)
-	$(CC) $(LDFLAGS) $^ -o $@ $(TB_LIBS)
+nesk: $(OBJ_NESK)
+	$(CC) $(LDFLAGS) $^ -o $@ $(NESK_LIBS)
 	@echo =================================================
-	@echo The tb executable is successfully compiled!
+	@echo The nesk executable is successfully compiled!
 	@echo =================================================
 
 
@@ -162,5 +162,5 @@ clean:
 ifdef OS
 	del /s *.obj *.d *.exp *.lib *.exe
 else
-	rm -f */*.o */*/*.o */*.d */*/*.d gpumd nep gnep tb
+	rm -f */*.o */*/*.o */*.d */*/*.d gpumd nep gnep nesk
 endif

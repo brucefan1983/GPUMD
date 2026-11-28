@@ -45,13 +45,13 @@ add_executable(nep ${NEP_SOURCES})
 target_include_directories(nep PRIVATE src)
 target_link_libraries(nep PRIVATE CUDA::cublas CUDA::cusolver CUDA::cufft)
 
-# --- tb ---
-file(GLOB TB_SOURCES src/main_tb/*.cu)
-add_executable(tb ${TB_SOURCES}
+# --- nesk ---
+file(GLOB NESK_SOURCES src/main_nesk/*.cu)
+add_executable(nesk ${NESK_SOURCES}
     src/utilities/error.cu
     src/utilities/main_common.cu)
-target_include_directories(tb PRIVATE src)
-target_link_libraries(tb PRIVATE CUDA::cublas CUDA::cusolver)
+target_include_directories(nesk PRIVATE src)
+target_link_libraries(nesk PRIVATE CUDA::cublas CUDA::cusolver)
 
 # --- gnep (optional, build with: cmake --build . --target gnep) ---
 file(GLOB GNEP_SOURCES

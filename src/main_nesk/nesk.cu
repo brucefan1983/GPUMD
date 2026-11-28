@@ -19,8 +19,8 @@ Major contributors:
 ------------------------------------------------------------------------------*/
 
 #include "dataset.cuh"
+#include "nesk.cuh"
 #include "parameters.cuh"
-#include "tb.cuh"
 
 #include "utilities/error.cuh"
 #include "utilities/gpu_macro.cuh"
@@ -704,7 +704,7 @@ void copy_to_gpu(const std::vector<double>& source, GPU_Vector<float>& target)
 
 } // namespace
 
-void TB::NeighborList::initialize(const int num_atoms, const std::vector<Neighbor>& neighbors)
+void NeSK::NeighborList::initialize(const int num_atoms, const std::vector<Neighbor>& neighbors)
 {
   std::vector<int> counts(num_atoms, 0), offsets(num_atoms);
   for (const auto& neighbor : neighbors) {
@@ -737,7 +737,7 @@ void TB::NeighborList::initialize(const int num_atoms, const std::vector<Neighbo
   copy_to_gpu(z, dz_);
 }
 
-void TB::copy_neighbor_lists_to_gpu()
+void NeSK::copy_neighbor_lists_to_gpu()
 {
   radial_.initialize(num_atoms_, dataset_.neighbors_radial);
   angular_.initialize(num_atoms_, dataset_.neighbors_angular);
@@ -755,7 +755,7 @@ void TB::copy_neighbor_lists_to_gpu()
   copy_to_gpu(br, bond_r_);
 }
 
-void TB::compute_descriptors(const float* descriptor_parameters)
+void NeSK::compute_descriptors(const float* descriptor_parameters)
 {
   const DescriptorMeta meta = descriptor_meta(para_);
 
@@ -793,7 +793,7 @@ void TB::compute_descriptors(const float* descriptor_parameters)
   GPU_CHECK_KERNEL
 }
 
-void TB::initialize_q_scaler()
+void NeSK::initialize_q_scaler()
 {
   GPU_Vector<float> reference_c(para_.number_of_variables_descriptor, 1.0f);
   compute_descriptors(reference_c.data());
@@ -815,13 +815,13 @@ void TB::initialize_q_scaler()
   q_scaler_.copy_from_host(scaler.data());
 }
 
-void TB::compute_model(const double* parameters)
+void NeSK::compute_model(const double* parameters)
 {
   for (int v = 0; v < para_.number_of_variables; ++v) {
     if (
       !std::isfinite(parameters[v]) ||
       std::fabs(parameters[v]) > std::numeric_limits<float>::max()) {
-      PRINT_INPUT_ERROR("TB parameter is outside the finite single-precision GPU range.");
+      PRINT_INPUT_ERROR("NeSK parameter is outside the finite single-precision GPU range.");
     }
     parameters_host_[v] = static_cast<float>(parameters[v]);
   }
@@ -863,18 +863,18 @@ void TB::compute_model(const double* parameters)
   hopping_.copy_to_host(hopping_host_.data());
 }
 
-void TB::get_q_scaler(std::vector<float>& scaler)
+void NeSK::get_q_scaler(std::vector<float>& scaler)
 {
   scaler.resize(para_.dim);
   q_scaler_.copy_to_host(scaler.data());
 }
 
-void TB::get_reference_descriptor_max_abs(std::vector<float>& max_abs) const
+void NeSK::get_reference_descriptor_max_abs(std::vector<float>& max_abs) const
 {
   max_abs = reference_descriptor_max_abs_;
 }
 
-void TB::set_q_scaler(const std::vector<float>& scaler)
+void NeSK::set_q_scaler(const std::vector<float>& scaler)
 {
   if (static_cast<int>(scaler.size()) != para_.dim) {
     PRINT_INPUT_ERROR("q_scaler has the wrong descriptor dimension.");
@@ -882,7 +882,7 @@ void TB::set_q_scaler(const std::vector<float>& scaler)
   q_scaler_.copy_from_host(scaler.data());
 }
 
-void TB::initialize_parameters(const Parameters& para, std::vector<double>& parameters)
+void NeSK::initialize_parameters(const Parameters& para, std::vector<double>& parameters)
 {
   std::mt19937 rng(static_cast<unsigned int>(para.seed));
   parameters.assign(para.number_of_variables, 0.0f);
@@ -940,10 +940,10 @@ void TB::initialize_parameters(const Parameters& para, std::vector<double>& para
   }
 }
 
-void TB::write_model_header(std::ostream& output) const
+void NeSK::write_model_header(std::ostream& output) const
 {
   output << std::setprecision(17);
-  output << "tb 2\n";
+  output << "nesk 2\n";
   output << "type " << para_.num_types;
   for (const auto& element : para_.elements) {
     output << " " << element;
@@ -1002,7 +1002,7 @@ void TB::write_model_header(std::ostream& output) const
   }
 }
 
-void TB::write_model_file(const std::string& filename, const double* parameters)
+void NeSK::write_model_file(const std::string& filename, const double* parameters)
 {
   std::ofstream output(filename);
   if (!output.is_open()) {
@@ -1023,7 +1023,7 @@ void TB::write_model_file(const std::string& filename, const double* parameters)
   }
 }
 
-void TB::read_model_file(
+void NeSK::read_model_file(
   const std::string& filename, std::vector<double>& parameters, std::vector<float>& scaler) const
 {
   std::ifstream input(filename);
@@ -1063,7 +1063,7 @@ void TB::read_model_file(
       }
     }
     PRINT_INPUT_ERROR((filename + ": expected '" + expected + "', got '" + actual +
-                       "'; the model must match tb.in.")
+                       "'; the model must match nesk.in.")
                         .c_str());
   };
   std::stringstream header;
@@ -1115,7 +1115,7 @@ namespace
 void check_solver(const int status, const char* operation)
 {
   if (status != 0) {
-    PRINT_INPUT_ERROR((std::string("TB eigensolver failed to ") + operation + " (status " +
+    PRINT_INPUT_ERROR((std::string("NeSK eigensolver failed to ") + operation + " (status " +
                        std::to_string(status) + ").")
                         .c_str());
   }
@@ -1278,7 +1278,7 @@ void make_block(
 
 } // namespace
 
-struct TB::Eigensolver {
+struct NeSK::Eigensolver {
   std::size_t N_;
   std::size_t batch_size_;
   std::size_t M_;
@@ -1305,7 +1305,7 @@ struct TB::Eigensolver {
       info_cpu_(batch_size_)
   {
     if (N_ == 0 || batch_size_ == 0) {
-      PRINT_INPUT_ERROR("TB eigensolver requires nonzero dimensions.");
+      PRINT_INPUT_ERROR("NeSK eigensolver requires nonzero dimensions.");
     }
 
     check_solver(gpusolverDnCreate(&handle_), "create handle");
@@ -1377,8 +1377,8 @@ struct TB::Eigensolver {
     for (std::size_t b = 0; b < batch_size_; ++b) {
       if (info_cpu_[b] != 0) {
         PRINT_INPUT_ERROR(
-          vectors ? "TB eigensolver failed to converge in eigenvector mode."
-                  : "TB eigensolver failed to converge in eigenvalue-only mode.");
+          vectors ? "NeSK eigensolver failed to converge in eigenvector mode."
+                  : "NeSK eigensolver failed to converge in eigenvalue-only mode.");
       }
     }
     if (vectors) {
@@ -1390,7 +1390,7 @@ struct TB::Eigensolver {
   }
 };
 
-TB::TB(const Parameters& para, const Dataset& dataset) : para_(para), dataset_(dataset)
+NeSK::NeSK(const Parameters& para, const Dataset& dataset) : para_(para), dataset_(dataset)
 {
   num_atoms_ = dataset_.structure.num_atoms;
   num_bonds_ = static_cast<int>(dataset_.hopping_bonds.size());
@@ -1399,10 +1399,10 @@ TB::TB(const Parameters& para, const Dataset& dataset) : para_(para), dataset_(d
   num_orbitals_ = orbitals_per_atom_ * num_atoms_;
 
   if (num_atoms_ <= 0) {
-    PRINT_INPUT_ERROR("TB requires at least one atom.");
+    PRINT_INPUT_ERROR("NeSK requires at least one atom.");
   }
   if (num_kpoints_ <= 0) {
-    PRINT_INPUT_ERROR("TB requires at least one k-point.");
+    PRINT_INPUT_ERROR("NeSK requires at least one k-point.");
   }
   if (
     orbitals_per_atom_ != 4 && orbitals_per_atom_ != 5 && orbitals_per_atom_ != 9 &&
@@ -1441,9 +1441,9 @@ TB::TB(const Parameters& para, const Dataset& dataset) : para_(para), dataset_(d
   precompute_sk_derivative_blocks();
 }
 
-TB::~TB() = default;
+NeSK::~NeSK() = default;
 
-void TB::precompute_sk_derivative_blocks()
+void NeSK::precompute_sk_derivative_blocks()
 {
   const std::size_t block_size = static_cast<std::size_t>(orbitals_per_atom_) * orbitals_per_atom_;
   sk_derivative_blocks_.assign(
@@ -1473,7 +1473,7 @@ void TB::precompute_sk_derivative_blocks()
   }
 }
 
-void TB::build_hamiltonians(
+void NeSK::build_hamiltonians(
   const std::vector<int>& k_indices, std::vector<double>& hr, std::vector<double>& hi) const
 {
   constexpr double TWO_PI = 6.2831853071795864769;
@@ -1558,7 +1558,7 @@ void TB::build_hamiltonians(
   }
 }
 
-void TB::evaluate_bands(
+void NeSK::evaluate_bands(
   const double* parameters,
   const std::vector<int>& k_indices,
   std::vector<float>& eigenvalues,
@@ -1568,7 +1568,7 @@ void TB::evaluate_bands(
   solve_bands(k_indices, eigenvalues, with_vectors);
 }
 
-void TB::solve_bands(
+void NeSK::solve_bands(
   const std::vector<int>& k_indices, std::vector<float>& eigenvalues, const bool with_vectors)
 {
   if (static_cast<int>(k_indices.size()) != k_batch_size_) {
@@ -1590,7 +1590,7 @@ void TB::solve_bands(
     eigenvectors_imag_.data());
 }
 
-void TB::backward(
+void NeSK::backward(
   const std::vector<int>& k_indices,
   const std::vector<double>& eigenvalue_gradients,
   std::vector<float>& grad_parameters)
@@ -1603,7 +1603,7 @@ void TB::backward(
     static_cast<int>(k_indices.size()) != k_batch_size_ ||
     eigenvectors_real_.size() != expected_vec || eigenvectors_imag_.size() != expected_vec ||
     eigenvalue_gradients.size() != expected_eval) {
-    PRINT_INPUT_ERROR("TB backward received inconsistent eigensystem dimensions.");
+    PRINT_INPUT_ERROR("NeSK backward received inconsistent eigensystem dimensions.");
   }
 
   std::vector<double> grad_onsite, grad_hopping;
@@ -1770,13 +1770,13 @@ void TB::backward(
   grad_parameters_.copy_to_host(grad_parameters.data());
 }
 
-void TB::evaluate_all_bands(const double* parameters, std::vector<float>& eigenvalues)
+void NeSK::evaluate_all_bands(const double* parameters, std::vector<float>& eigenvalues)
 {
   compute_model(parameters);
   solve_all_bands(eigenvalues);
 }
 
-void TB::solve_all_bands(std::vector<float>& eigenvalues, Result* result)
+void NeSK::solve_all_bands(std::vector<float>& eigenvalues, Result* result)
 {
   eigenvalues.assign(static_cast<std::size_t>(num_kpoints_) * num_orbitals_, 0.0f);
   if (result) {
@@ -1819,7 +1819,7 @@ void TB::solve_all_bands(std::vector<float>& eigenvalues, Result* result)
   eigenvectors_imag_.clear();
 }
 
-void TB::forward(const double* parameters, TB::Result& result)
+void NeSK::forward(const double* parameters, NeSK::Result& result)
 {
   compute_model(parameters);
   result.descriptors.resize(static_cast<std::size_t>(num_atoms_) * para_.dim);

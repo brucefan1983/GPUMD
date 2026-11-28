@@ -129,7 +129,7 @@ public:
     if (
       para.band_min < 0 || para.band_max <= para.band_min || (has_bands && para.band_max > nb) ||
       para.band_max - para.band_min > static_cast<long long>(na) * para.orbitals_per_atom) {
-      fail("band_range exceeds reference or TB band capacity");
+      fail("band_range exceeds reference or NeSK band capacity");
     }
     auto values = get_tokens(field(fields, "lattice"));
     if (values.size() != 9) {
@@ -172,7 +172,7 @@ public:
       for (auto value : values) {
         lower(value);
         if (value != "t" && value != "true" && value != "1") {
-          fail("TB requires periodicity in all three lattice directions");
+          fail("NeSK requires periodicity in all three lattice directions");
         }
       }
     }

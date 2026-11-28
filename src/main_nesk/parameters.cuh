@@ -22,7 +22,7 @@
 class Parameters
 {
 public:
-  explicit Parameters(const std::string& input_file = "tb.in");
+  explicit Parameters(const std::string& input_file = "nesk.in");
 
   std::vector<std::string> elements;
   int num_types = 0;

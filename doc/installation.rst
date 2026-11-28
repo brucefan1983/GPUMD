@@ -30,7 +30,7 @@ Compilation
 ===========
 
 Choose one build method.
-Both produce ``gpumd``, ``nep``, and ``tb`` by default.
+Both produce ``gpumd``, ``nep``, and ``nesk`` by default.
 
 .. tabs::
 
@@ -98,6 +98,12 @@ Replace ``/path/to/GPUMD/src`` with your executable directory; for a CMake build
 Then run ``gpumd`` from the simulation directory or ``nep`` from the training directory.
 Follow the :ref:`MD workflow <gpumd_executable>` or :ref:`NEP training and prediction workflow <nep_executable>` for the required inputs and outputs.
 The repository's `examples directory <https://github.com/brucefan1983/GPUMD/tree/master/examples>`_ provides examples for both programs.
+
+The ``nesk`` executable trains NeSK (Neural Slater-Koster) tight-binding models
+and predicts electronic bands. Run it from a directory containing ``nesk.in``
+and ``train.xyz``; an optional ``test.xyz`` supplies a separate test set during
+training. Training writes the model to ``nesk.txt``. With ``prediction 1`` in
+``nesk.in``, it reads ``nesk.txt`` and predicts bands for ``train.xyz``.
 
 GPU selection and multi-GPU execution
 =====================================

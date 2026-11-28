@@ -1,9 +1,9 @@
-# TB regression tests
+# NeSK regression tests
 
-Compare two TB executables from the GPUMD repository root:
+Compare two NeSK executables from the GPUMD repository root:
 
 ```sh
-python3 tests_regression/tb/run_regression.py --old ./src_old/tb --new ./src/tb
+python3 tests_regression/nesk/run_regression.py --old ./src_old/nesk --new ./src/nesk
 ```
 
 The tests require Python 3.8+ and a GPU runtime compatible with the supplied
@@ -27,7 +27,7 @@ numerical regression; they do not assess convergence or fitting quality.
 To select cases and retain their files:
 
 ```sh
-python3 tests_regression/tb/run_regression.py --old ./src_old/tb --new ./src/tb \
+python3 tests_regression/nesk/run_regression.py --old ./src_old/nesk --new ./src/nesk \
   --dataset graphene --basis sp3sstar --keep
 ```
 
@@ -37,14 +37,15 @@ per executable invocation, in seconds (default: 300).
 ## Checks and tolerances
 
 Each run checks completed epochs, output dimensions, finite values,
-structure/k-point indices, reference bands, and model metadata and scalers.
+structure/k-point indices, band column labels, reference bands, and model metadata
+and scalers.
 The following outputs are compared between the two executables:
 
 | File | Compared content |
 | --- | --- |
 | `loss.out` | All columns except elapsed time |
 | `band_train.out` | Structure/k-point indices, coordinates, predicted and reference bands |
-| `tb.txt` | Model metadata, parameters, and descriptor scalers |
+| `nesk.txt` | Model metadata, parameters, and descriptor scalers |
 
 Floating-point values must satisfy:
 

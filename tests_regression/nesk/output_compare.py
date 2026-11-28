@@ -1,4 +1,4 @@
-"""Compare machine-readable TB outputs; never inspect terminal messages."""
+"""Compare machine-readable NeSK outputs; never inspect terminal messages."""
 
 import math
 import re
@@ -21,13 +21,15 @@ def numbers(path):
     return rows
 
 
-def check_training_outputs(directory, metadata):
-    losses = numbers(directory / "loss.out")
-    check([row[0] for row in losses] == [1, 2], "wrong epoch sequence")
-    check(all(len(row) == 7 for row in losses), "wrong loss column count")
-    bands = numbers(directory / "band_train.out")
+def check_band_output(path, metadata):
+    bands = numbers(path)
     count = sum(len(s["kpoints"]) for s in metadata["structures"])
     nb = metadata["band_max"]
+    expected_columns = (["#", "structure", "kpoint", "kx", "ky", "kz"] +
+                        [f"nesk_{n}" for n in range(nb)] + [f"ref_{n}" for n in range(nb)])
+    headers = [line.split() for line in path.read_text().splitlines()
+               if line.lstrip().startswith("#")]
+    check(len(headers) == 2 and headers[1] == expected_columns, "wrong band column labels")
     check(len(bands) == count and all(len(row) == 5 + 2*nb for row in bands), "incomplete band output")
     cursor = 0
     for sid, source in enumerate(metadata["structures"]):
@@ -39,13 +41,20 @@ def check_training_outputs(directory, metadata):
             for actual, expected in zip(row[5+nb:], reference):
                 near(actual, expected, atol=2e-6, rtol=2e-6)
             cursor += 1
-    validate_model(directory / "tb.txt", metadata)
+
+
+def check_training_outputs(directory, metadata):
+    losses = numbers(directory / "loss.out")
+    check([row[0] for row in losses] == [1, 2], "wrong epoch sequence")
+    check(all(len(row) == 7 for row in losses), "wrong loss column count")
+    check_band_output(directory / "band_train.out", metadata)
+    validate_model(directory / "nesk.txt", metadata)
 
 
 def read_model(path):
     rows = [line.split() for line in path.read_text().splitlines()
             if line.strip() and not line.lstrip().startswith("#")]
-    check(rows and rows[0] == ["tb", "2"], f"unexpected model identifier/version in {path}")
+    check(rows and rows[0] == ["nesk", "2"], f"unexpected model identifier/version in {path}")
     i = next(i for i, row in enumerate(rows) if row[0] == "parameters")
     header = rows[:i]
     count = int(rows[i][1])
@@ -123,13 +132,13 @@ def compare_outputs(old, new, atol=2e-5, rtol=2e-4, parameter_atol=None):
             sequence(x[indices:-1] if filename == "loss.out" else x[indices:],
                      y[indices:-1] if filename == "loss.out" else y[indices:], f"{filename}:row{i}")
 
-    ha, pa, qa = read_model(old / "tb.txt")
-    hb, pb, qb = read_model(new / "tb.txt")
+    ha, pa, qa = read_model(old / "nesk.txt")
+    hb, pb, qb = read_model(new / "nesk.txt")
     check(len(ha) == len(hb), "model header size differs")
     for a, b in zip(ha, hb):
-        tokens(a, b, "tb.txt:header")
-    sequence(pa, pb, "tb.txt:parameters", atol if parameter_atol is None else parameter_atol)
-    sequence(qa, qb, "tb.txt:q_scaler")
+        tokens(a, b, "nesk.txt:header")
+    sequence(pa, pb, "nesk.txt:parameters", atol if parameter_atol is None else parameter_atol)
+    sequence(qa, qb, "nesk.txt:q_scaler")
 
     check(not errors, "numerical regression:\n" + "\n".join(errors))
     return maxima
