@@ -187,6 +187,10 @@ Actions
      - Compute time-averaged quantities in dynamic spatial bins
      - No
      - No
+   * - :ref:`compute_react_count <kw_compute_react_count>`
+     - Compute transient-bond species, bond, coordination, and reaction-event statistics
+     - No
+     - No
    * - :ref:`compute_adf <kw_compute_adf>`
      - Compute the angular distribution function (:term:`ADF`)
      - No

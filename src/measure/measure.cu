@@ -76,6 +76,8 @@ Major contributors:
 #include <utility>
 #include <vector>
 
+std::unique_ptr<Action> create_compute_react_count(const std::vector<std::string>& tokens);
+
 bool Measure::parse_action(
   const std::vector<std::string>& tokens,
   const int number_of_types,
@@ -252,6 +254,8 @@ bool Measure::parse_action(
     std::unique_ptr<Action> action;
     action.reset(new ComputeChunk(tokens, box));
     actions_.emplace_back(std::move(action));
+  } else if (tokens[0] == "compute_react_count") {
+    actions_.emplace_back(create_compute_react_count(tokens));
   } else if (tokens[0] == "compute") {
     std::unique_ptr<Action> action;
     action.reset(new Compute(tokens, group));
