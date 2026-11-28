@@ -24,6 +24,7 @@ Use the parameter order given on the corresponding model page.
    tersoff_1989
    tersoff_mini
    lennard_jones
+   molecular
    eam
    fcp
    nep
