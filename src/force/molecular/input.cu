@@ -17,7 +17,7 @@
 Read fixed-topology molecular parameters and atom assignments.
 
 Major contributors:
-  OpenAI Codex: Initial implementation.
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "input.cuh"
@@ -29,6 +29,7 @@ Major contributors:
 #include <map>
 #include <numeric>
 #include <set>
+#include <utility>
 
 namespace
 {
@@ -119,6 +120,31 @@ private:
   size_t line_number = 0;
 };
 
+void read_bond_types(Records& file, MolecularInput& data)
+{
+  if (file.fields.size() != 2 || file.fields[0] != "bond_types") {
+    file.fail("expected bond_types <count> or end of file");
+  }
+  const int count = file.integer(1);
+  std::map<int, std::pair<double, double>> parameters;
+  for (int t = 0; t < count; ++t) {
+    file.row(3, "<bond type ID> <force constant> <equilibrium length>");
+    const int id = file.integer(0);
+    const double k = file.real(1);
+    const double r0 = file.real(2);
+    if (id >= count || !parameters.emplace(id, std::make_pair(k, r0)).second) {
+      file.fail("invalid or duplicate bond type ID");
+    }
+    if (k < 0.0 || r0 <= 0.0) {
+      file.fail("bond force constant must be nonnegative and equilibrium length must be positive");
+    }
+  }
+  for (const auto& parameter : parameters) {
+    data.bond_k.push_back(parameter.second.first);
+    data.bond_r0.push_back(parameter.second.second);
+  }
+}
+
 std::vector<std::string> read_forcefield(const char* filename, MolecularInput& data)
 {
   Records file(filename);
@@ -190,59 +216,116 @@ std::vector<std::string> read_forcefield(const char* filename, MolecularInput& d
     data.c6[ij] = data.c6[ji] = c6;
     data.c12[ij] = data.c12[ji] = c12;
   }
-  file.finish();
+  if (file.next()) {
+    read_bond_types(file, data);
+    file.finish();
+  }
   return symbols;
 }
 
-void read_special_pairs(Records& file, int n, MolecularInput& data)
+template <typename T>
+void store_pairs(
+  int n,
+  const std::map<std::pair<int, int>, T>& pairs,
+  std::vector<int>& offsets,
+  std::vector<int>& partners,
+  std::vector<T>& values)
 {
-  data.offsets.resize(static_cast<size_t>(n) + 1, 0);
-  if (!file.next()) {
-    return;
+  offsets.resize(static_cast<size_t>(n) + 1, 0);
+  for (const auto& pair : pairs) {
+    ++offsets[pair.first.first + 1];
+    ++offsets[pair.first.second + 1];
   }
-  if (file.fields.size() != 2 || file.fields[0] != "special_pairs") {
-    file.fail("expected special_pairs <count> or end of file");
-  }
-  const int count = file.integer(1);
-  if (
-    count > std::numeric_limits<int>::max() / 2 ||
-    count > static_cast<long long>(n) * (n - 1) / 2) {
-    file.fail("special pair count exceeds the number of possible or indexable pairs");
-  }
-  std::map<std::pair<int, int>, double> pairs;
-  for (int p = 0; p < count; ++p) {
-    file.row(4, "<atom i> <atom j> <LJ weight> <Coulomb weight>");
-    const int i = file.integer(0);
-    const int j = file.integer(1);
-    if (i >= n || j >= n || i == j) {
-      file.fail("special pair requires two distinct atom IDs from model.xyz");
-    }
-    const double lj = file.real(2);
-    const double coulomb = file.real(3);
-    if (lj < 0.0 || lj > 1.0 || coulomb < 0.0 || coulomb > 1.0) {
-      file.fail("special pair weights must lie in [0, 1]");
-    }
-    if (!pairs.emplace(std::minmax(i, j), lj).second) {
-      file.fail("duplicate special pair");
-    }
-    ++data.offsets[i + 1];
-    ++data.offsets[j + 1];
-  }
-  file.finish();
-
-  std::partial_sum(data.offsets.begin(), data.offsets.end(), data.offsets.begin());
-  data.partners.resize(2 * count);
-  data.lj_weights.resize(2 * count);
-  std::vector<int> next = data.offsets;
+  std::partial_sum(offsets.begin(), offsets.end(), offsets.begin());
+  partners.resize(2 * pairs.size());
+  values.resize(partners.size());
+  std::vector<int> next = offsets;
   // Ordered (i,j), i<j: each row receives its smaller partners first, then its larger partners.
   for (const auto& pair : pairs) {
     const int i = pair.first.first;
     const int j = pair.first.second;
     const int ij = next[i]++;
     const int ji = next[j]++;
-    data.partners[ij] = j;
-    data.partners[ji] = i;
-    data.lj_weights[ij] = data.lj_weights[ji] = pair.second;
+    partners[ij] = j;
+    partners[ji] = i;
+    values[ij] = values[ji] = pair.second;
+  }
+}
+
+std::pair<int, int> atom_pair(Records& file, int n)
+{
+  const int i = file.integer(0);
+  const int j = file.integer(1);
+  if (i >= n || j >= n || i == j) {
+    file.fail("expected two distinct atom IDs from model.xyz");
+  }
+  return std::minmax(i, j);
+}
+
+void read_special_pairs(Records& file, int n, int count, MolecularInput& data)
+{
+  std::map<std::pair<int, int>, double> pairs;
+  for (int p = 0; p < count; ++p) {
+    file.row(4, "<atom i> <atom j> <LJ weight> <Coulomb weight>");
+    const auto pair = atom_pair(file, n);
+    const double lj = file.real(2);
+    const double coulomb = file.real(3);
+    if (lj < 0.0 || lj > 1.0 || coulomb < 0.0 || coulomb > 1.0) {
+      file.fail("special pair weights must lie in [0, 1]");
+    }
+    if (!pairs.emplace(pair, lj).second) {
+      file.fail("duplicate special pair");
+    }
+  }
+  store_pairs(n, pairs, data.offsets, data.partners, data.lj_weights);
+}
+
+void read_bonds(Records& file, int n, int count, MolecularInput& data)
+{
+  if (count == 0) {
+    return;
+  }
+  if (data.bond_k.empty()) {
+    file.fail("bonds require bond_types in the force-field file");
+  }
+  std::map<std::pair<int, int>, int> pairs;
+  for (int p = 0; p < count; ++p) {
+    file.row(3, "<atom i> <atom j> <bond type ID>");
+    const auto pair = atom_pair(file, n);
+    const int type = file.integer(2);
+    if (static_cast<size_t>(type) >= data.bond_k.size()) {
+      file.fail("bond type ID is out of range");
+    }
+    if (!pairs.emplace(pair, type).second) {
+      file.fail("duplicate bond");
+    }
+  }
+  store_pairs(n, pairs, data.bond_offsets, data.bond_partners, data.bond_types);
+}
+
+void read_topology_sections(Records& file, int n, MolecularInput& data)
+{
+  bool have_bonds = false;
+  bool have_special_pairs = false;
+  while (file.next()) {
+    if (file.fields.size() != 2) {
+      file.fail("expected bonds <count> or special_pairs <count>");
+    }
+    const int count = file.integer(1);
+    if (
+      count > std::numeric_limits<int>::max() / 2 ||
+      count > static_cast<long long>(n) * (n - 1) / 2) {
+      file.fail("pair count exceeds the number of possible or indexable pairs");
+    }
+    if (file.fields[0] == "bonds" && !have_bonds) {
+      have_bonds = true;
+      read_bonds(file, n, count, data);
+    } else if (file.fields[0] == "special_pairs" && !have_special_pairs) {
+      have_special_pairs = true;
+      read_special_pairs(file, n, count, data);
+    } else {
+      file.fail("unexpected or repeated topology section '" + file.fields[0] + "'");
+    }
   }
 }
 
@@ -273,6 +356,6 @@ MolecularInput read_molecular_input(
     }
     data.types[i] = type;
   }
-  read_special_pairs(file, n, data);
+  read_topology_sections(file, n, data);
   return data;
 }

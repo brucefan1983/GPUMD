@@ -40,4 +40,6 @@ private:
   GPU_Vector<double> c6, c12;
   GPU_Vector<int> offsets, partners;
   GPU_Vector<double> lj_weights;
+  GPU_Vector<int> bond_offsets, bond_partners, bond_types;
+  GPU_Vector<double> bond_k, bond_r0;
 };

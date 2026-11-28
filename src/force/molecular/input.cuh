@@ -25,6 +25,8 @@ struct MolecularInput {
   std::vector<double> c6, c12;
   std::vector<int> offsets, partners;
   std::vector<double> lj_weights;
+  std::vector<double> bond_k, bond_r0;
+  std::vector<int> bond_offsets, bond_partners, bond_types;
 };
 
 MolecularInput read_molecular_input(

@@ -3,7 +3,7 @@
 Fixed-topology molecular force field
 ************************************
 
-Use two files to assign Lennard-Jones (LJ) interactions to a fixed list of atoms::
+Use two files to assign Lennard-Jones (LJ) interactions and harmonic bonds to a fixed list of atoms::
 
   potential forcefield.in topology.in
 
@@ -66,7 +66,7 @@ Each atom row gives its force-field type ID and charge in elementary charges.
 The declared element of the type must match that atom's species in
 ``model.xyz``. This model currently supports neutral LJ sites. Use zero
 charges in the topology and omit the optional XYZ charge column or set it
-to zero. Bond and angle interactions require additional force terms.
+to zero.
 
 Special LJ pairs
 ================
@@ -90,3 +90,39 @@ fractional displacement component to its nearest image. An intended 1–4
 distance below half the smallest perpendicular box height guarantees
 that this image stays unambiguous. Supply all desired
 exclusions and scaled pairs explicitly.
+
+Harmonic bonds
+==============
+
+To define a bond type, append a ``bond_types`` section after the LJ pair table
+in the force-field file. For example::
+
+  bond_types 1
+  0 20.0 1.5
+
+The columns are the bond type ID, force constant :math:`k` in
+:math:`\mathrm{eV}/\text{Å}^2`, and equilibrium length :math:`r_0` in
+angstroms. Bond type IDs run from zero to the number of bond types minus one.
+Each bond contributes :math:`U = \tfrac12 k(r-r_0)^2`, with :math:`k \geq 0`
+and :math:`r_0 > 0`.
+
+In the topology file, list each bond once as two zero-based atom indices
+followed by its bond type ID. The following example bonds atoms 0 and 1
+and excludes their LJ interaction::
+
+  bonds 1
+  0 1 0
+  special_pairs 1
+  0 1 0.0 0.0
+
+Both sections are optional and may appear in either order after the atom
+rows. A bonded pair retains its ordinary LJ interaction unless explicitly
+excluded or scaled by ``special_pairs``. Bonds are evaluated at every
+distance, including beyond the LJ cutoff.
+
+The bond vector uses the periodic image obtained by wrapping its fractional
+displacement. Keep the bond shorter than half the smallest perpendicular
+box height to ensure an unambiguous image. Each endpoint receives half of
+the bond energy and half of the bond virial. If the endpoints coincide,
+the bond contributes :math:`\tfrac12 k r_0^2` in total and zero force and
+virial because the bond direction is undefined.

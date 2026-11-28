@@ -14,10 +14,10 @@
 */
 
 /*----------------------------------------------------------------------------80
-Lennard-Jones forces for fixed molecular topologies.
+Lennard-Jones and harmonic bond forces for fixed molecular topologies.
 
 Major contributors:
-  OpenAI Codex: Initial implementation.
+  Zheyong Fan: Initial implementation.
 ------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"
@@ -54,6 +54,18 @@ Molecular::Molecular(const char* forcefield, const char* topology, const Atom& a
     lj_weights.resize(input.lj_weights.size());
     lj_weights.copy_from_host(input.lj_weights.data());
   }
+  if (!input.bond_partners.empty()) {
+    bond_offsets.resize(input.bond_offsets.size());
+    bond_offsets.copy_from_host(input.bond_offsets.data());
+    bond_partners.resize(input.bond_partners.size());
+    bond_partners.copy_from_host(input.bond_partners.data());
+    bond_types.resize(input.bond_types.size());
+    bond_types.copy_from_host(input.bond_types.data());
+    bond_k.resize(input.bond_k.size());
+    bond_k.copy_from_host(input.bond_k.data());
+    bond_r0.resize(input.bond_r0.size());
+    bond_r0.copy_from_host(input.bond_r0.data());
+  }
 }
 
 namespace
@@ -61,6 +73,39 @@ namespace
 struct PairSum {
   double energy, fx, fy, fz;
   double xx, yy, zz, xy, xz, yz;
+
+  __device__ void add_force(const double dx, const double dy, const double dz, const double f)
+  {
+    fx += dx * f;
+    fy += dy * f;
+    fz += dz * f;
+    // W_i = -r_ij tensor F_ij / 2 for a directed pair.
+    const double v = -0.5 * f;
+    xx += dx * dx * v;
+    yy += dy * dy * v;
+    zz += dz * dz * v;
+    xy += dx * dy * v;
+    xz += dx * dz * v;
+    yz += dy * dz * v;
+  }
+
+  __device__ void
+  write(const int i, const size_t N, double* potential, double* force, double* virial) const
+  {
+    potential[i] += energy;
+    force[i] += fx;
+    force[i + N] += fy;
+    force[i + 2 * N] += fz;
+    virial[i] += xx;
+    virial[i + N] += yy;
+    virial[i + 2 * N] += zz;
+    virial[i + 3 * N] += xy;
+    virial[i + 4 * N] += xz;
+    virial[i + 5 * N] += yz;
+    virial[i + 6 * N] += xy;
+    virial[i + 7 * N] += xz;
+    virial[i + 8 * N] += yz;
+  }
 };
 
 __device__ void add_pair(
@@ -82,17 +127,7 @@ __device__ void add_pair(
   const double repulsion = c12 * inv6 * inv6;
   const double f = weight * 6.0 * (attraction - 2.0 * repulsion) * inv2;
   sum.energy += weight * 0.5 * (repulsion - attraction);
-  sum.fx += dx * f;
-  sum.fy += dy * f;
-  sum.fz += dz * f;
-  // W_i = -r_ij tensor F_ij / 2 for a directed pair.
-  const double v = -0.5 * f;
-  sum.xx += dx * dx * v;
-  sum.yy += dy * dy * v;
-  sum.zz += dz * dz * v;
-  sum.xy += dx * dy * v;
-  sum.xz += dx * dz * v;
-  sum.yz += dy * dz * v;
+  sum.add_force(dx, dy, dz, f);
 }
 
 __device__ void apply_pair_mic(const Box& box, double& dx, double& dy, double& dz)
@@ -200,19 +235,43 @@ __global__ void find_force(
     add_pair(c6[pair], c12[pair], dx, dy, dz, dx * dx + dy * dy + dz * dz, weights[p], sum);
   }
 
-  potential[i] += sum.energy;
-  force[i] += sum.fx;
-  force[i + N] += sum.fy;
-  force[i + 2 * N] += sum.fz;
-  virial[i] += sum.xx;
-  virial[i + N] += sum.yy;
-  virial[i + 2 * N] += sum.zz;
-  virial[i + 3 * N] += sum.xy;
-  virial[i + 4 * N] += sum.xz;
-  virial[i + 5 * N] += sum.yz;
-  virial[i + 6 * N] += sum.xy;
-  virial[i + 7 * N] += sum.xz;
-  virial[i + 8 * N] += sum.yz;
+  sum.write(i, N, potential, force, virial);
+}
+
+__global__ void find_bond_force(
+  const Box box,
+  const size_t N,
+  const int* offsets,
+  const int* partners,
+  const int* types,
+  const double* spring_constants,
+  const double* equilibrium_lengths,
+  const double* position,
+  double* potential,
+  double* force,
+  double* virial)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i >= N || offsets[i] == offsets[i + 1]) {
+    return;
+  }
+  const double xi = position[i], yi = position[i + N], zi = position[i + 2 * N];
+  PairSum sum = {};
+  for (int p = offsets[i]; p < offsets[i + 1]; ++p) {
+    const int j = partners[p];
+    const int type = types[p];
+    double dx = position[j] - xi, dy = position[j + N] - yi, dz = position[j + 2 * N] - zi;
+    apply_pair_mic(box, dx, dy, dz);
+    const double r = sqrt(dx * dx + dy * dy + dz * dz);
+    const double extension = r - equilibrium_lengths[type];
+    const double derivative = spring_constants[type] * extension;
+    sum.energy += 0.25 * derivative * extension;
+    // At coincident endpoints no force direction is defined.
+    if (r > 0.0) {
+      sum.add_force(dx, dy, dz, derivative / r);
+    }
+  }
+  sum.write(i, N, potential, force, virial);
 }
 
 int get_cell_stencil(const Box& box, const double cutoff, const int num_atoms, int bins[3])
@@ -271,7 +330,8 @@ void Molecular::compute(
   grid.thickness_z = bins[2];
   find_cell_list(1.0, bins, grid, position, cell_scan_, cell_count, cell_sum, cell_contents);
   const int block_size = 128;
-  find_force<<<(N - 1) / block_size + 1, block_size>>>(
+  const int grid_size = (N - 1) / block_size + 1;
+  find_force<<<grid_size, block_size>>>(
     grid,
     N,
     bins[0],
@@ -294,4 +354,19 @@ void Molecular::compute(
     force.data(),
     virial.data());
   GPU_CHECK_KERNEL
+  if (bond_partners.size() > 0) {
+    find_bond_force<<<grid_size, block_size>>>(
+      box,
+      N,
+      bond_offsets.data(),
+      bond_partners.data(),
+      bond_types.data(),
+      bond_k.data(),
+      bond_r0.data(),
+      position.data(),
+      potential.data(),
+      force.data(),
+      virial.data());
+    GPU_CHECK_KERNEL
+  }
 }
