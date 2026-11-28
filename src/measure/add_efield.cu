@@ -109,7 +109,7 @@ void Add_Efield::apply_field(const int md_step, std::vector<Group>& group, Atom&
   const double Ex = efield_table_[0 * table_length_ + table_index];
   const double Ey = efield_table_[1 * table_length_ + table_index];
   const double Ez = efield_table_[2 * table_length_ + table_index];
-  const int num_atoms_total = atom.force_per_atom.size() / 3;
+  const int num_atoms_total = atom.number_of_atoms;
   const int group_size = group[grouping_method_].cpu_size[group_id_];
   const int group_size_sum = group[grouping_method_].cpu_size_sum[group_id_];
 

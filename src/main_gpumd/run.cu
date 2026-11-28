@@ -627,7 +627,7 @@ void Run::parse_change_box(const std::vector<std::string>& tokens)
     box.cpu_h[n] = new_box.cpu_h[n];
   }
 
-  const int number_of_atoms = atom.position_per_atom.size() / 3;
+  const int number_of_atoms = atom.number_of_atoms;
   gpu_deform_atom<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms,
     deformation_matrix[0][0],

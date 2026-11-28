@@ -159,7 +159,7 @@ void Dump_Beads::end_of_step(
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  const int num_atoms_total = atom.position_per_atom.size() / 3;
+  const int num_atoms_total = atom.number_of_atoms;
 
   for (int k = 0; k < atom.number_of_beads; ++k) {
 
