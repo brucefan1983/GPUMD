@@ -26,7 +26,7 @@ class Parameters;
 class Dataset;
 struct Neighbor;
 
-class TB
+class NeSK
 {
 public:
   struct Result {
@@ -42,8 +42,8 @@ public:
     std::vector<float> eigenvectors_imag;
   };
 
-  TB(const Parameters& para, const Dataset& dataset);
-  ~TB();
+  NeSK(const Parameters& para, const Dataset& dataset);
+  ~NeSK();
 
   static void initialize_parameters(const Parameters& para, std::vector<double>& parameters);
   void forward(const double* parameters, Result& result);

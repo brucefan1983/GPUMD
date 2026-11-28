@@ -377,7 +377,7 @@ int Parameters::hopping_outputs_for_pair(const int type_a, const int type_b) con
 void Parameters::print() const
 {
   print_line_1();
-  printf("TB parameters\n");
+  printf("NeSK parameters\n");
   print_line_2();
   printf("  type                   = %d", num_types);
   for (const auto& element : elements) {

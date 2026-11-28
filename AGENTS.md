@@ -46,7 +46,7 @@ For HIP, set `HIP_ARCH` to match the AMD GPU. This example targets `gfx1100`.
 make -C src -f makefile.hip -j4 HIP_ARCH=gfx1100
 ```
 
-The default Make targets produce `gpumd`, `nep`, and `tb` in `src/`.
+The default Make targets produce `gpumd`, `nep`, and `nesk` in `src/`.
 The two Makefiles share object files. Clean the build before switching backends
 in the same tree or changing compiler flags, toolkits, or architectures.
 When adding source files or changing shared code, check the applicable targets
@@ -69,7 +69,7 @@ existing compiler settings.
 | `src/mc/` | Monte Carlo moves for hybrid Monte Carlo and molecular dynamics |
 | `src/utilities/` | Shared GPU wrappers, containers, parsing, and error helpers |
 | `src/main_nep/` | NEP training and prediction |
-| `src/main_tb/` | Tight-binding model training and prediction |
+| `src/main_nesk/` | NeSK tight-binding model training and prediction |
 | `doc/` | User documentation |
 
 For a standard MD run, `RunInput` tokenizes commands and `Run` dispatches them.
@@ -169,12 +169,12 @@ they do not require rebuilding executables.
 | Area | Instructions |
 | --- | --- |
 | GPUMD/NEP differential regression | [tests_regression/README.md](tests_regression/README.md) |
-| TB differential regression | [tests_regression/tb/README.md](tests_regression/tb/README.md) |
+| NeSK differential regression | [tests_regression/nesk/README.md](tests_regression/nesk/README.md) |
 | Pytest integration and numerical checks | [tests_pytest/README.md](tests_pytest/README.md) |
 | Spin model, training, runtime, and integration checks | [tests_pytest/SPIN_VALIDATION.md](tests_pytest/SPIN_VALIDATION.md) |
 
 For source changes covered by GPUMD/NEP regression, follow its `full` acceptance
-contract; a focused subset does not replace the full run. The TB suite runs
+contract; a focused subset does not replace the full run. The NeSK suite runs
 separately. Add or update a focused test for a new feature or bug fix, using
 physical expectations, an independent formula, or an accepted baseline.
 

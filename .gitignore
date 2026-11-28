@@ -13,8 +13,8 @@ src/*/*/*.d
 src/gpumd*
 src/nep*
 src/gnep*
-src/tb
-src/tb.exe
+src/nesk
+src/nesk.exe
 
 .history
 .vscode
@@ -29,8 +29,8 @@ public.*
 /*build*/
 /gpumd*
 /gnep
-/tb
-/tb.exe
+/nesk
+/nesk.exe
 
 __pycache__/
 */__pycache__/

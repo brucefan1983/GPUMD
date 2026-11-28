@@ -16,7 +16,7 @@
 #pragma once
 
 #include "dataset.cuh"
-#include "tb.cuh"
+#include "nesk.cuh"
 
 #include <iosfwd>
 #include <memory>
@@ -74,7 +74,7 @@ private:
   const Parameters& para_;
   struct Data {
     const DatasetCollection& dataset_;
-    std::vector<std::unique_ptr<TB>> models_;
+    std::vector<std::unique_ptr<NeSK>> models_;
     std::vector<std::vector<float>> eigenvalues_;
     Data(const Parameters& para, const DatasetCollection& dataset);
   };

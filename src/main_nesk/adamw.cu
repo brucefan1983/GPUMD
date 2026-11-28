@@ -73,7 +73,7 @@ void AdamW::adamw_update(const int step_index, const double learning_rate)
     const double vhat = second_moment_[v] / corr2;
     parameters_[v] = p_after_decay - learning_rate * (mhat / (std::sqrt(vhat) + epsilon));
     if (!std::isfinite(parameters_[v])) {
-      PRINT_INPUT_ERROR("AdamW produced a non-finite TB parameter.");
+      PRINT_INPUT_ERROR("AdamW produced a non-finite NeSK parameter.");
     }
   }
 }

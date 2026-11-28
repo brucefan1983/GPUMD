@@ -37,7 +37,7 @@ Fitness::Data::Data(const Parameters& para, const DatasetCollection& data) : dat
   models_.reserve(data.size());
   eigenvalues_.resize(data.size());
   for (int s = 0; s < data.size(); ++s) {
-    models_.emplace_back(new TB(para, data[s]));
+    models_.emplace_back(new NeSK(para, data[s]));
   }
 }
 
@@ -59,7 +59,7 @@ Fitness::Fitness(
 
 void Fitness::initialize_parameters(std::vector<double>& parameters) const
 {
-  TB::initialize_parameters(para_, parameters);
+  NeSK::initialize_parameters(para_, parameters);
 }
 
 void Fitness::initialize_global_scaler()
@@ -101,7 +101,7 @@ void Fitness::set_q_scaler(const std::vector<float>& scaler)
 void Fitness::set_active_band_count(const int count)
 {
   if (count <= 0 || count > num_reference_bands_) {
-    PRINT_INPUT_ERROR("Active TB band count is outside the selected band range.");
+    PRINT_INPUT_ERROR("Active NeSK band count is outside the selected band range.");
   }
   active_num_reference_bands_ = count;
   active_band_weight_sum_ = 0.0;
@@ -109,7 +109,7 @@ void Fitness::set_active_band_count(const int count)
     active_band_weight_sum_ += para_.band_weights[n];
   }
   if (!(active_band_weight_sum_ > 0.0)) {
-    PRINT_INPUT_ERROR("Active TB band curriculum stage has zero total band weight.");
+    PRINT_INPUT_ERROR("Active NeSK band curriculum stage has zero total band weight.");
   }
 }
 
@@ -125,7 +125,7 @@ double Fitness::band_mse_from_eigenvalues(
   const int num_orbitals = context.models_[structure_index]->num_orbitals();
   const std::size_t expected = k_indices.size() * num_orbitals;
   if (eigenvalues.size() != expected) {
-    PRINT_INPUT_ERROR("The mini-batch TB eigenvalue array has the wrong size.");
+    PRINT_INPUT_ERROR("The mini-batch NeSK eigenvalue array has the wrong size.");
   }
 
   double weighted_squared_error = 0.0;
@@ -264,7 +264,7 @@ void Fitness::accumulate_eigenvalue_gradient(
     return;
   }
   if (!(dispersion_denominator > 0.0)) {
-    PRINT_INPUT_ERROR("TB dispersion-gradient denominator is zero.");
+    PRINT_INPUT_ERROR("NeSK dispersion-gradient denominator is zero.");
   }
   const double rmse_prefactor =
     para_.dispersion_weight * inv_structures / dispersion_rmse / dispersion_denominator;
@@ -344,7 +344,7 @@ double Fitness::evaluate_data(
       std::vector<float> local_gradient;
       context.models_[s]->backward(batch_.k_indices(s), grad_eigenvalues, local_gradient);
       if (local_gradient.size() != gradient->size()) {
-        PRINT_INPUT_ERROR("TB local gradient has wrong size.");
+        PRINT_INPUT_ERROR("NeSK local gradient has wrong size.");
       }
       for (std::size_t v = 0; v < gradient->size(); ++v) {
         (*gradient)[v] += local_gradient[v];
@@ -409,7 +409,7 @@ void Fitness::write_outputs(Data& context, const char* label, const double* para
   band_output << "\n";
   band_output << "# structure kpoint kx ky kz";
   for (int n = 0; n < num_reference_bands_; ++n) {
-    band_output << " tb_" << n;
+    band_output << " nesk_" << n;
   }
   for (int n = 0; n < num_reference_bands_ && context.dataset_.has_reference(); ++n) {
     band_output << " ref_" << (para_.band_min + n);
@@ -428,18 +428,18 @@ void Fitness::write_final_outputs(const double* parameters)
   if (test_) {
     write_outputs(*test_, "test", parameters);
   }
-  train_.models_.front()->write_model_file("tb.txt", parameters);
-  printf("Final model saved to tb.txt.\n");
+  train_.models_.front()->write_model_file("nesk.txt", parameters);
+  printf("Final model saved to nesk.txt.\n");
 }
 
 void Fitness::predict()
 {
   std::vector<double> parameters;
   std::vector<float> scaler;
-  train_.models_.front()->read_model_file("tb.txt", parameters, scaler);
+  train_.models_.front()->read_model_file("nesk.txt", parameters, scaler);
   set_q_scaler(scaler);
   write_outputs(train_, "train", parameters.data());
-  printf("Prediction completed using tb.txt.\n");
+  printf("Prediction completed using nesk.txt.\n");
 }
 
 int Fitness::curriculum_epoch_count() const
