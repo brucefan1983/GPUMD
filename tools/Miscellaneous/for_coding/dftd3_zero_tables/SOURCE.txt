@@ -1,0 +1,5 @@
+dftd3-lib commit 3c99ee981266548a37588abe3a6f5cb56092d51a
+lib/core.f90 sha256 d08285de3fb9dc64051390809e498b66be033a5ad0386bcbc8c238673f082ef4
+autoang 0.52917726
+r0ab entries 4465 (94*95/2), chunks 64
+functionals def2-QZVP 48, TZVPP 11

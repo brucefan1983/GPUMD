@@ -29,10 +29,12 @@ J. Comput. Chem., 32, 1456 (2011).
 Major contributors:
   Zheyong Fan: Initial implementation.
   Yuxiang Liu: Stable C6 interpolation and caching of reference weights.
+  Michio Katouda: Zero damping, D3(0).
 ------------------------------------------------------------------------------*/
 
 #include "dftd3.cuh"
 #include "dftd3para.cuh"
+#include "dftd3zero_table.cuh"
 #include "force/neighbor.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
@@ -144,6 +146,76 @@ static __device__ __forceinline__ void find_c6_cached(
   }
 }
 
+// Zero-damped term of one pair for the power n (6 or 8) and the exponent alpha = n + 8:
+//   g = f(r) / r^n,  f = 1 / (1 + 6 t^-alpha),  t = r / (sr_n R0),  inv_a = 1 / (sr_n R0),
+//   h = n - alpha (1 - f),   so that  dg/dr = -g h / r.
+// For t < 1 the form g = t^8 inv_a^n / (t^alpha + 6) is used, and for t >= 1 the form
+// g = r^-n / (1 + 6 t^-alpha); neither overflows for any r (and g -> 0 for r -> 0).
+template <int n>
+static __device__ __forceinline__ void
+d3_zero_term(const float r, const float inv_a, float& g, float& h)
+{
+  constexpr float alpha = n + 8;
+  const float t = r * inv_a;
+  if (t < 1.0f) {
+    const float t2 = t * t;
+    const float t4 = t2 * t2;
+    const float t8 = t4 * t4;
+    const float p = (n == 6) ? t8 * t4 * t2 : t8 * t8; // t^alpha <= 1
+    const float inv = 1.0f / (p + 6.0f);
+    float inv_a_n = 1.0f;
+#pragma unroll
+    for (int k = 0; k < n; ++k) {
+      inv_a_n *= inv_a;
+    }
+    g = t8 * inv_a_n * inv;
+    h = n - alpha * 6.0f * inv;
+  } else {
+    const float u = 1.0f / t;
+    const float u2 = u * u;
+    const float u4 = u2 * u2;
+    const float u8 = u4 * u4;
+    const float q = (n == 6) ? u8 * u4 * u2 : u8 * u8; // t^-alpha <= 1
+    const float finv = 1.0f / (1.0f + 6.0f * q);
+    const float ir = 1.0f / r;
+    const float ir2 = ir * ir;
+    const float ir4 = ir2 * ir2;
+    const float ir_n = (n == 6) ? ir4 * ir2 : ir4 * ir4;
+    g = ir_n * finv;
+    h = n - alpha * 6.0f * q * finv;
+  }
+}
+
+// Zero damping, D3(0), of one pair (used instead of the BJ damping when dftd3_para.damping == 1).
+// z1 and z2 are 0-based element indices, c6 is in eV A^6, d12_2 is the squared distance.
+// Outputs: pe = half of the pair energy magnitude (full neighbor list), f2 = force factor
+// (force on atom 1 = 2 f2 r12), and the damped functions g6 and g8: the C6 and C8 terms of
+// the energy are -s6 c6 g6 and -s8 c8 g8 (used for the coordination number derivative).
+static __device__ __forceinline__ void d3_zero_pair(
+  const DFTD3::DFTD3_Para& p,
+  const int z1,
+  const int z2,
+  const float c6,
+  const float c8,
+  const float d12_2,
+  float& pe,
+  float& f2,
+  float& g6,
+  float& g8)
+{
+  // R0 in Angstrom, packed lower triangle of the symmetric table
+  const int zl = z1 > z2 ? z1 : z2;
+  const int zs = z1 > z2 ? z2 : z1;
+  const float r0 = d3zero_r0ab[zl * (zl + 1) / 2 + zs];
+  const float r = sqrt(d12_2);
+  float h6, h8;
+  d3_zero_term<6>(r, 1.0f / (p.sr6 * r0), g6, h6);
+  d3_zero_term<8>(r, 1.0f / (p.sr8 * r0), g8, h8);
+  pe = (p.s6 * c6 * g6 + p.s8 * c8 * g8) * 0.5f;
+  // r = 0 (coincident atoms): finite zero force instead of 0/0
+  f2 = d12_2 > 0.0f ? 0.5f * (p.s6 * c6 * g6 * h6 + p.s8 * c8 * g8 * h8) / d12_2 : 0.0f;
+}
+
 void __global__ add_dftd3_force_small_box(
   DFTD3::DFTD3_Para dftd3_para,
   const int N,
@@ -213,6 +285,93 @@ void __global__ add_dftd3_force_small_box(
       s_potential -= (dftd3_para.s6 * c6 * damp_6 + dftd3_para.s8 * c8 * damp_8) * 0.5f;
       float f2 = dftd3_para.s6 * c6 * 3.0f * d12_4 * (damp_6 * damp_6) +
                  dftd3_para.s8 * c8 * 4.0f * d12_6 * (damp_8 * damp_8);
+      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
+      atomicAdd(&g_fx[n1], double(f12[0]));
+      atomicAdd(&g_fy[n1], double(f12[1]));
+      atomicAdd(&g_fz[n1], double(f12[2]));
+      atomicAdd(&g_fx[n2], double(-f12[0]));
+      atomicAdd(&g_fy[n2], double(-f12[1]));
+      atomicAdd(&g_fz[n2], double(-f12[2]));
+      atomicAdd(&g_virial[n2 + 0 * N], double(-r12[0] * f12[0]));
+      atomicAdd(&g_virial[n2 + 1 * N], double(-r12[1] * f12[1]));
+      atomicAdd(&g_virial[n2 + 2 * N], double(-r12[2] * f12[2]));
+      atomicAdd(&g_virial[n2 + 3 * N], double(-r12[0] * f12[1]));
+      atomicAdd(&g_virial[n2 + 4 * N], double(-r12[0] * f12[2]));
+      atomicAdd(&g_virial[n2 + 5 * N], double(-r12[1] * f12[2]));
+      atomicAdd(&g_virial[n2 + 6 * N], double(-r12[1] * f12[0]));
+      atomicAdd(&g_virial[n2 + 7 * N], double(-r12[2] * f12[0]));
+      atomicAdd(&g_virial[n2 + 8 * N], double(-r12[2] * f12[1]));
+      dc6_sum += dc6 * dftd3_para.s6 * damp_6;
+      dc8_sum += dc6 * c8_over_c6 * dftd3_para.s8 * damp_8;
+    }
+    g_potential[n1] += s_potential;
+    g_dc6_sum[n1] = dc6_sum;
+    g_dc8_sum[n1] = dc8_sum;
+  }
+}
+
+void __global__ add_dftd3_force_small_box_zero(
+  DFTD3::DFTD3_Para dftd3_para,
+  const int N,
+  const int* g_NN_radial,
+  const int* g_NL_radial,
+  const int* g_type,
+  const float* g_c6_ref,
+  const float* g_cn_w,
+  const float* g_cn_dw,
+  const float* g_x12,
+  const float* g_y12,
+  const float* g_z12,
+  double* g_potential,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_virial,
+  float* g_dc6_sum,
+  float* g_dc8_sum)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    int z1 = dftd3_para.atomic_number[g_type[n1]];
+    int num_cn_1 = num_cn[z1];
+    float w1[max_cn];
+    float dw1[max_cn];
+    for (int i = 0; i < num_cn_1; ++i) {
+      w1[i] = g_cn_w[i * N + n1];
+      dw1[i] = g_cn_dw[i * N + n1];
+    }
+    float dc6_sum = 0.0f;
+    float dc8_sum = 0.0f;
+    float s_potential = 0.0f;
+    for (int i1 = 0; i1 < g_NN_radial[n1]; ++i1) {
+      int index = i1 * N + n1;
+      int n2 = g_NL_radial[index];
+      int z2 = dftd3_para.atomic_number[g_type[n2]];
+      int z_small = z1, z_large = z2;
+      if (z1 > z2) {
+        z_small = z2;
+        z_large = z1;
+      }
+      int z12 = z_small * max_elem - (z_small * (z_small - 1)) / 2 + (z_large - z_small);
+      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
+      float d12_2 = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
+      float c6 = 0.0f;
+      float dc6 = 0.0f;
+      int num_cn_2 = num_cn[z2];
+      if (num_cn_1 == 1 && num_cn_2 == 1) {
+        c6 = g_c6_ref[z12 * max_cn2];
+      } else {
+        find_c6_cached(g_c6_ref, N, n2, z1, z2, z12, w1, dw1, g_cn_w, c6, dc6);
+      }
+      c6 *= HartreeBohr6;
+      dc6 *= HartreeBohr6;
+
+      float c8_over_c6 = 3.0f * r2r4[z1] * r2r4[z2] * Bohr2;
+      float c8 = c6 * c8_over_c6;
+      float f2, damp_6, damp_8;
+      float pe;
+      d3_zero_pair(dftd3_para, z1, z2, c6, c8, d12_2, pe, f2, damp_6, damp_8);
+      s_potential -= pe;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
       atomicAdd(&g_fx[n1], double(f12[0]));
       atomicAdd(&g_fy[n1], double(f12[1]));
@@ -728,6 +887,154 @@ __global__ void find_dftd3_force_large_box(
   g_dc8_sum[n1] = dc8_sum;
 }
 
+__global__ void find_dftd3_force_large_box_zero(
+  const DFTD3::DFTD3_Para dftd3_para,
+  const float rc,
+  const int N,
+  const int nx,
+  const int ny,
+  const int nz,
+  const Box box,
+  const int* g_type,
+  const int* g_cell_count,
+  const int* g_cell_count_sum,
+  const int* g_cell_contents,
+  const float* g_c6_ref,
+  const float* g_cn_w,
+  const float* g_cn_dw,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  double* g_potential,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_virial,
+  float* g_dc6_sum,
+  float* g_dc8_sum)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 >= N) {
+    return;
+  }
+  int atomic_number_1 = dftd3_para.atomic_number[g_type[n1]];
+  int num_cn_1 = num_cn[atomic_number_1];
+  float w1[max_cn];
+  float dw1[max_cn];
+  for (int i = 0; i < num_cn_1; ++i) {
+    w1[i] = g_cn_w[i * N + n1];
+    dw1[i] = g_cn_dw[i * N + n1];
+  }
+  float dc6_sum = 0.0f;
+  float dc8_sum = 0.0f;
+  float s_pe = 0.0f;
+  float s_fx = 0.0f;
+  float s_fy = 0.0f;
+  float s_fz = 0.0f;
+  float s_sxx = 0.0f;
+  float s_sxy = 0.0f;
+  float s_sxz = 0.0f;
+  float s_syx = 0.0f;
+  float s_syy = 0.0f;
+  float s_syz = 0.0f;
+  float s_szx = 0.0f;
+  float s_szy = 0.0f;
+  float s_szz = 0.0f;
+
+  double x1 = g_x[n1];
+  double y1 = g_y[n1];
+  double z1 = g_z[n1];
+  int cell_id;
+  int cell_id_x;
+  int cell_id_y;
+  int cell_id_z;
+  find_cell_id(box, x1, y1, z1, 2.0f / rc, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
+
+  const int z_lim = box.pbc_z ? 2 : 0;
+  const int y_lim = box.pbc_y ? 2 : 0;
+  const int x_lim = box.pbc_x ? 2 : 0;
+  for (int zz = -z_lim; zz <= z_lim; ++zz) {
+    for (int yy = -y_lim; yy <= y_lim; ++yy) {
+      for (int xx = -x_lim; xx <= x_lim; ++xx) {
+        int neighbor_cell =
+          find_neighbor_cell(cell_id, cell_id_x, cell_id_y, cell_id_z, nx, ny, nz, xx, yy, zz);
+        const int num_atoms_neighbor_cell = g_cell_count[neighbor_cell];
+        const int num_atoms_previous_cells = g_cell_count_sum[neighbor_cell];
+        for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
+          const int n2 = g_cell_contents[num_atoms_previous_cells + m];
+          if (n1 == n2) {
+            continue;
+          }
+          float x12 = g_x[n2] - x1;
+          float y12 = g_y[n2] - y1;
+          float z12 = g_z[n2] - z1;
+          apply_mic(box, x12, y12, z12);
+          float r12[3] = {x12, y12, z12};
+          float d12_2 = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
+          if (d12_2 < rc * rc) {
+            int atomic_number_2 = dftd3_para.atomic_number[g_type[n2]];
+            int z_small = atomic_number_1, z_large = atomic_number_2;
+            if (atomic_number_1 > atomic_number_2) {
+              z_small = atomic_number_2;
+              z_large = atomic_number_1;
+            }
+            int z12 = z_small * max_elem - (z_small * (z_small - 1)) / 2 + (z_large - z_small);
+            float c6 = 0.0f;
+            float dc6 = 0.0f;
+            int num_cn_2 = num_cn[atomic_number_2];
+            if (num_cn_1 == 1 && num_cn_2 == 1) {
+              c6 = g_c6_ref[z12 * max_cn2];
+            } else {
+              find_c6_cached(
+                g_c6_ref, N, n2, atomic_number_1, atomic_number_2, z12, w1, dw1, g_cn_w, c6, dc6);
+            }
+            c6 *= HartreeBohr6;
+            dc6 *= HartreeBohr6;
+
+            float c8_over_c6 = 3.0f * r2r4[atomic_number_1] * r2r4[atomic_number_2] * Bohr2;
+            float c8 = c6 * c8_over_c6;
+            float f2, damp_6, damp_8;
+            float pe;
+            d3_zero_pair(
+              dftd3_para, atomic_number_1, atomic_number_2, c6, c8, d12_2, pe, f2, damp_6, damp_8);
+            s_pe -= pe;
+            float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
+            s_fx += 2.0f * f12[0];
+            s_fy += 2.0f * f12[1];
+            s_fz += 2.0f * f12[2];
+            s_sxx -= r12[0] * f12[0];
+            s_sxy -= r12[0] * f12[1];
+            s_sxz -= r12[0] * f12[2];
+            s_syx -= r12[1] * f12[0];
+            s_syy -= r12[1] * f12[1];
+            s_syz -= r12[1] * f12[2];
+            s_szx -= r12[2] * f12[0];
+            s_szy -= r12[2] * f12[1];
+            s_szz -= r12[2] * f12[2];
+            dc6_sum += dc6 * dftd3_para.s6 * damp_6;
+            dc8_sum += dc6 * c8_over_c6 * dftd3_para.s8 * damp_8;
+          }
+        }
+      }
+    }
+  }
+  g_fx[n1] += s_fx;
+  g_fy[n1] += s_fy;
+  g_fz[n1] += s_fz;
+  g_virial[n1 + 0 * N] += s_sxx;
+  g_virial[n1 + 1 * N] += s_syy;
+  g_virial[n1 + 2 * N] += s_szz;
+  g_virial[n1 + 3 * N] += s_sxy;
+  g_virial[n1 + 4 * N] += s_sxz;
+  g_virial[n1 + 5 * N] += s_syz;
+  g_virial[n1 + 6 * N] += s_syx;
+  g_virial[n1 + 7 * N] += s_szx;
+  g_virial[n1 + 8 * N] += s_szy;
+  g_potential[n1] += s_pe;
+  g_dc6_sum[n1] = dc6_sum;
+  g_dc8_sum[n1] = dc8_sum;
+}
+
 __global__ void find_dftd3_force_extra_large_box(
   const DFTD3::DFTD3_Para dftd3_para,
   const float rc,
@@ -921,25 +1228,47 @@ void DFTD3::compute_small_box(
     cn_dw.data());
   GPU_CHECK_KERNEL
 
-  add_dftd3_force_small_box<<<(N - 1) / 64 + 1, 64>>>(
-    dftd3_para,
-    N,
-    NN_radial.data(),
-    NL_radial.data(),
-    type.data(),
-    c6_ref.data(),
-    cn_w.data(),
-    cn_dw.data(),
-    r12.data(),
-    r12.data() + size_x12,
-    r12.data() + size_x12 * 2,
-    potential_per_atom.data(),
-    force_per_atom.data(),
-    force_per_atom.data() + N,
-    force_per_atom.data() + N * 2,
-    virial_per_atom.data(),
-    dc6_sum.data(),
-    dc8_sum.data());
+  if (dftd3_para.damping == 0) {
+    add_dftd3_force_small_box<<<(N - 1) / 64 + 1, 64>>>(
+      dftd3_para,
+      N,
+      NN_radial.data(),
+      NL_radial.data(),
+      type.data(),
+      c6_ref.data(),
+      cn_w.data(),
+      cn_dw.data(),
+      r12.data(),
+      r12.data() + size_x12,
+      r12.data() + size_x12 * 2,
+      potential_per_atom.data(),
+      force_per_atom.data(),
+      force_per_atom.data() + N,
+      force_per_atom.data() + N * 2,
+      virial_per_atom.data(),
+      dc6_sum.data(),
+      dc8_sum.data());
+  } else {
+    add_dftd3_force_small_box_zero<<<(N - 1) / 64 + 1, 64>>>(
+      dftd3_para,
+      N,
+      NN_radial.data(),
+      NL_radial.data(),
+      type.data(),
+      c6_ref.data(),
+      cn_w.data(),
+      cn_dw.data(),
+      r12.data(),
+      r12.data() + size_x12,
+      r12.data() + size_x12 * 2,
+      potential_per_atom.data(),
+      force_per_atom.data(),
+      force_per_atom.data() + N,
+      force_per_atom.data() + N * 2,
+      virial_per_atom.data(),
+      dc6_sum.data(),
+      dc8_sum.data());
+  }
   GPU_CHECK_KERNEL
 
   add_dftd3_force_extra_small_box<<<(N - 1) / 64 + 1, 64>>>(
@@ -1023,31 +1352,59 @@ void DFTD3::compute_large_box(
     cn_dw.data());
   GPU_CHECK_KERNEL
 
-  find_dftd3_force_large_box<<<(N - 1) / 64 + 1, 64>>>(
-    dftd3_para,
-    rc_radial,
-    N,
-    num_bins_radial[0],
-    num_bins_radial[1],
-    num_bins_radial[2],
-    box,
-    type.data(),
-    cell_count_radial.data(),
-    cell_count_sum_radial.data(),
-    cell_contents_radial.data(),
-    c6_ref.data(),
-    cn_w.data(),
-    cn_dw.data(),
-    position_per_atom.data(),
-    position_per_atom.data() + N,
-    position_per_atom.data() + N * 2,
-    potential_per_atom.data(),
-    force_per_atom.data(),
-    force_per_atom.data() + N,
-    force_per_atom.data() + N * 2,
-    virial_per_atom.data(),
-    dc6_sum.data(),
-    dc8_sum.data());
+  if (dftd3_para.damping == 0) {
+    find_dftd3_force_large_box<<<(N - 1) / 64 + 1, 64>>>(
+      dftd3_para,
+      rc_radial,
+      N,
+      num_bins_radial[0],
+      num_bins_radial[1],
+      num_bins_radial[2],
+      box,
+      type.data(),
+      cell_count_radial.data(),
+      cell_count_sum_radial.data(),
+      cell_contents_radial.data(),
+      c6_ref.data(),
+      cn_w.data(),
+      cn_dw.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + N,
+      position_per_atom.data() + N * 2,
+      potential_per_atom.data(),
+      force_per_atom.data(),
+      force_per_atom.data() + N,
+      force_per_atom.data() + N * 2,
+      virial_per_atom.data(),
+      dc6_sum.data(),
+      dc8_sum.data());
+  } else {
+    find_dftd3_force_large_box_zero<<<(N - 1) / 64 + 1, 64>>>(
+      dftd3_para,
+      rc_radial,
+      N,
+      num_bins_radial[0],
+      num_bins_radial[1],
+      num_bins_radial[2],
+      box,
+      type.data(),
+      cell_count_radial.data(),
+      cell_count_sum_radial.data(),
+      cell_contents_radial.data(),
+      c6_ref.data(),
+      cn_w.data(),
+      cn_dw.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + N,
+      position_per_atom.data() + N * 2,
+      potential_per_atom.data(),
+      force_per_atom.data(),
+      force_per_atom.data() + N,
+      force_per_atom.data() + N * 2,
+      virial_per_atom.data(),
+      dc6_sum.data(),
+      dc8_sum.data());
+  }
   GPU_CHECK_KERNEL
 
   find_dftd3_force_extra_large_box<<<(N - 1) / 64 + 1, 64>>>(
@@ -1082,6 +1439,10 @@ void DFTD3::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
+  if (dftd3_para.damping == 1 && !elements_checked) {
+    check_elements(type);
+  }
+
   const bool is_small_box = get_expanded_box(rc_radial, box, ebox);
 
   if (is_small_box) {
@@ -1093,11 +1454,39 @@ void DFTD3::compute(
   }
 }
 
+void DFTD3::check_elements(const GPU_Vector<int>& type)
+{
+  const int N = type.size();
+  std::vector<int> h_type(N);
+  CHECK(gpuMemcpy(h_type.data(), type.data(), sizeof(int) * N, gpuMemcpyDeviceToHost));
+  std::vector<bool> bad(NUM_ELEMENTS, false);
+  bool any_bad = false;
+  for (int i = 0; i < N; ++i) {
+    const int z_index = dftd3_para.atomic_number[h_type[i]];
+    if (z_index >= 86) {
+      bad[z_index] = true;
+      any_bad = true;
+    }
+  }
+  if (any_bad) {
+    std::string msg = "dftd3 with zero damping has no parameters for element(s):";
+    for (int z = 86; z < NUM_ELEMENTS; ++z) {
+      if (bad[z]) {
+        msg += " " + ELEMENTS[z] + " (Z=" + std::to_string(z + 1) + ")";
+      }
+    }
+    msg += ". D3(0) is limited to Z <= 86 (H-Rn); use bj damping or remove these elements.";
+    PRINT_INPUT_ERROR(msg.c_str());
+  }
+  elements_checked = true;
+}
+
 void DFTD3::initialize(
   std::string& functional,
   const float rc_potential,
   const float rc_coordination_number,
-  const std::string& potential_file_name)
+  const std::string& potential_file_name,
+  const std::string& damping)
 {
   rc_radial = rc_potential;
   rc_angular = rc_coordination_number;
@@ -1106,7 +1495,28 @@ void DFTD3::initialize(
     return std::tolower(c);
   });
 
+  const bool zero_damping = (damping == "zero");
+  dftd3_para.damping = zero_damping ? 1 : 0;
   bool valid = false;
+
+  if (zero_damping) { // D3(0): the parameters of the BJ table below are not used
+    for (int k = 0; k < D3ZERO_NUM_PARAMS; ++k) {
+      if (functional == D3ZERO_PARAMS[k].name) {
+        dftd3_para.s6 = D3ZERO_PARAMS[k].s6;
+        dftd3_para.sr6 = D3ZERO_PARAMS[k].sr6;
+        dftd3_para.s8 = D3ZERO_PARAMS[k].s8;
+        dftd3_para.sr8 = D3ZERO_PARAMS[k].sr8;
+        valid = true; // skips the BJ table below
+        break;
+      }
+    }
+    if (!valid) {
+      std::cout << "The " << functional
+                << " functional is not supported for DFT-D3 with zero damping.\n"
+                << std::endl;
+      exit(1);
+    }
+  }
   valid = valid || set_para(functional, "b1b95", 1.000, 0.2092, 1.4507, 5.5545, dftd3_para);
   valid = valid || set_para(functional, "b2gpplyp", 0.560, 0.0000, 0.2597, 6.3332, dftd3_para);
   valid = valid || set_para(functional, "b2plyp", 0.640, 0.3065, 0.9147, 5.0570, dftd3_para);
@@ -1174,13 +1584,23 @@ void DFTD3::initialize(
   std::cout << "        coordination number cutoff = " << rc_coordination_number << " Angstrom"
             << std::endl;
   std::cout << "        functional = " << functional << std::endl;
+  if (zero_damping) { // the printout of BJ damping is unchanged
+    std::cout << "        damping = zero (D3(0))" << std::endl;
+  }
   std::cout << "            s6 = " << dftd3_para.s6 << std::endl;
   std::cout << "            s8 = " << dftd3_para.s8 << std::endl;
-  std::cout << "            a1 = " << dftd3_para.a1 << std::endl;
-  std::cout << "            a2 = " << dftd3_para.a2 << " Angstrom" << std::endl;
+  if (zero_damping) {
+    std::cout << "            sr6 = " << dftd3_para.sr6 << std::endl;
+    std::cout << "            sr8 = " << dftd3_para.sr8 << std::endl;
+    std::cout << "            alpha6 = 14, alpha8 = 16" << std::endl;
+  } else {
+    std::cout << "            a1 = " << dftd3_para.a1 << std::endl;
+    std::cout << "            a2 = " << dftd3_para.a2 << " Angstrom" << std::endl;
+  }
 
   c6_ref.resize(111625);
   c6_ref.copy_from_host(c6_ref_cpu);
 
   find_atomic_number(potential_file_name, dftd3_para.atomic_number);
+  elements_checked = false;
 }
