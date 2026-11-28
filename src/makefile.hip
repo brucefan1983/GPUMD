@@ -34,7 +34,7 @@ SOURCES_GPUMD =                   \
 	$(wildcard integrate/*/*.cu) \
 	$(wildcard mc/*.cu)           \
 	$(wildcard force/*.cu)        \
-	$(filter-out force/meam/%,$(wildcard force/*/*.cu))      \
+	$(wildcard force/*/*.cu)      \
 	$(wildcard measure/*.cu)      \
 	$(wildcard measure/*/*.cu)      \
 	$(wildcard model/*.cu)        \

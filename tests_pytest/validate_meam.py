@@ -51,7 +51,7 @@ def write_gpumd(cwd, symbols, types, positions, length, periodic, steps, dt):
     (cwd / "thermo.out").unlink(missing_ok=True)
 
 
-def gpumd_results(executable, cwd, symbols, types, positions, length, periodic, steps=1, dt=1e-5):
+def gpumd_results(executable, cwd, symbols, types, positions, length, periodic, steps=1, dt=0):
     write_gpumd(cwd, symbols, types, positions, length, periodic, steps, dt)
     execute(executable, cwd, "gpumd.log")
     rows = np.loadtxt(cwd / "gpumd.xyz", skiprows=2, usecols=range(1, 17), ndmin=2)
@@ -74,14 +74,15 @@ def lammps_results(executable, cwd, symbols, types, positions, length, periodic)
     boundary = "p p p" if periodic else "f f f"
     (cwd / "in.lmp").write_text(
         f"units metal\natom_style atomic\nboundary {boundary}\nread_data system.data\n"
-        f"mass * 1\npair_style meam\npair_coeff * * {library} {names} {params} {names}\n"
-        "neighbor 2.0 bin\n"
-        "compute e all pe/atom\ncompute w all pressure NULL virial\n"
-        "thermo_style custom step pe c_w[1] c_w[2] c_w[3] c_w[4] c_w[5] c_w[6]\n"
-        "thermo_modify format float %.17g\nrun 0\n"
+        f"\npair_style meam\npair_coeff * * {library} {names} {params} {names}\n"
+        "# Include screening neighbors beyond the pair cutoff.\nneighbor 2.0 bin\n\n"
+        "compute e all pe/atom\ncompute pvir all pressure NULL virial\n"
+        "thermo_style custom step pe c_pvir[1] c_pvir[2] c_pvir[3] c_pvir[4] c_pvir[5] c_pvir[6]\n"
+        "thermo_modify format float %.17g\nrun 0 post no\n\n"
         'write_dump all custom lammps.dump id fx fy fz c_e modify sort id format float "%.17g"\n'
-        'print "$(c_w[1]:%.17g) $(c_w[2]:%.17g) $(c_w[3]:%.17g) $(c_w[4]:%.17g) '
-        '$(c_w[5]:%.17g) $(c_w[6]:%.17g)" file virial.dat screen no\n',
+        "# Virial pressure tensor in bar: xx yy zz xy xz yz.\n"
+        'print "$(c_pvir[1]:%.17g) $(c_pvir[2]:%.17g) $(c_pvir[3]:%.17g) '
+        '$(c_pvir[4]:%.17g) $(c_pvir[5]:%.17g) $(c_pvir[6]:%.17g)" file virial.dat screen no\n',
         encoding="ascii",
     )
     execute(executable, cwd, "lammps.log", "-in", "in.lmp", "-log", "none")
@@ -144,6 +145,12 @@ def test_case(gpumd, lammps, source, cwd, case):
     xyz = np.array([[8, 8, 8], [10.61, 8, 8], [9.35, 9.79, 8.11], [9.25, 7.65, 10.33]])
     evaluate(gpumd, lammps, cwd, f"{case} cluster", symbols, np.arange(4) % len(symbols),
              xyz, 18.0, False)
+    if case == "Fe":
+        # 125 atoms exercise a partial block and both cached and uncached screening.
+        positions = 5.0 + 2.0 * np.indices((5, 5, 5)).reshape(3, -1).T
+        positions += rng.normal(0.0, 0.022, positions.shape)
+        evaluate(gpumd, lammps, cwd, "Fe mixed neighbor counts", symbols,
+                 np.zeros(len(positions), dtype=int), positions, 24.0, False)
 
 
 def test_reference_lattices(gpumd, lammps, root):

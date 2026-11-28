@@ -12,10 +12,10 @@
     You should have received a copy of the GNU Lesser General Public License
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
-/*
-    Contributors
-    OpenAI Codex: Initial implementation
-*/
+/*----------------------------------------------------------------------------80
+Major contributors:
+  OpenAI Codex: Initial implementation.
+------------------------------------------------------------------------------*/
 
 #include "meam_functions.cuh"
 #include "meam_parameters.cuh"

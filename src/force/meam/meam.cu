@@ -12,16 +12,22 @@
     You should have received a copy of the GNU Lesser General Public License
     along with GPUMD.  If not, see <https://www.gnu.org/licenses/>.
 */
-/*
-    Contributors
-    OpenAI Codex: Initial implementation
-*/
+/*----------------------------------------------------------------------------80
+Major contributors:
+  OpenAI Codex: Initial implementation.
+------------------------------------------------------------------------------*/
 
 #include "force/neighbor.cuh"
 #include "meam.cuh"
 #include "meam_functions.cuh"
 #include "meam_parameters.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_macro.cuh"
+#ifdef USE_HIP
+#include <hip/hip_cooperative_groups.h>
+#else
+#include <cooperative_groups.h>
+#endif
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -34,6 +40,7 @@ namespace
 constexpr int block_size = 128;
 constexpr int cached_neighbors = 64;
 constexpr int screening_atoms_per_block = 4;
+// Each atom uses one 32-thread tile, including on devices with 64-thread waves.
 constexpr int screening_threads_per_atom = 32;
 // Distances are in angstroms. The skin is extra search space for list reuse.
 constexpr double neighbor_skin = 0.35;
@@ -518,8 +525,10 @@ __global__ void build_screen_certificates(
 {
   constexpr int atoms_per_block = screening_atoms_per_block;
   constexpr int threads_per_atom = screening_threads_per_atom;
-  const int group = threadIdx.x / threads_per_atom;
-  const int lane = threadIdx.x % threads_per_atom;
+  const auto tile =
+    cooperative_groups::tiled_partition<threads_per_atom>(cooperative_groups::this_thread_block());
+  const int group = tile.meta_group_rank();
+  const int lane = tile.thread_rank();
   const int i = blockIdx.x * atoms_per_block + group;
   if (i >= positions.size) {
     return;
@@ -539,7 +548,7 @@ __global__ void build_screen_certificates(
       bounded_square(candidate.squared_distance32, shift),
       candidate.type};
   }
-  __syncwarp();
+  tile.sync();
   const int n = model.settings.type_count;
   const float cutoff = static_cast<float>(model.settings.cutoff);
   for (int q = lane; q < count; q += threads_per_atom) {
@@ -595,8 +604,10 @@ __global__ void screen_bonds(
 {
   constexpr int atoms_per_block = screening_atoms_per_block;
   constexpr int threads_per_atom = screening_threads_per_atom;
-  const int group = threadIdx.x / threads_per_atom;
-  const int lane = threadIdx.x % threads_per_atom;
+  const auto tile =
+    cooperative_groups::tiled_partition<threads_per_atom>(cooperative_groups::this_thread_block());
+  const int group = tile.meta_group_rank();
+  const int lane = tile.thread_rank();
   const int i = blockIdx.x * atoms_per_block + group;
   const int atoms = positions.size;
   if (i >= atoms) {
@@ -630,13 +641,13 @@ __global__ void screen_bonds(
           selected = owns_bond(geometry.displacement);
         }
       }
-      const unsigned int selected_mask = __ballot_sync(0xffffffffu, selected);
+      const unsigned int selected_mask = tile.ballot(selected);
       if (selected) {
         active_edges[work + __popc(selected_mask & ((1u << lane) - 1u))] = offset + lane;
       }
       work += __popc(selected_mask);
     }
-    __syncwarp();
+    tile.sync();
   }
   for (int q = lane; q < work; q += threads_per_atom) {
     const size_t edge = start + (cached ? active_edges[q] : q);
@@ -1375,6 +1386,9 @@ void MEAM::compute(
       thrust::device, d.counts.data(), d.counts.data() + n + 1, d.offsets.data());
     size_t needed;
     d.offsets.copy_to_host(&needed, 1, n);
+    if (needed > static_cast<size_t>(std::numeric_limits<int>::max())) {
+      PRINT_INPUT_ERROR("MEAM neighbor list exceeds the supported bond index range.");
+    }
     d.neighbor_entries = needed;
     if (needed > d.neighbors.size()) {
       const size_t capacity = needed + needed / 8;
@@ -1451,7 +1465,7 @@ void MEAM::compute(
      d.screen_reference_position.size() != position.size())) {
     size_t free_bytes = 0;
     size_t total_bytes = 0;
-    CHECK(cudaMemGetInfo(&free_bytes, &total_bytes));
+    CHECK(gpuMemGetInfo(&free_bytes, &total_bytes));
     const size_t bytes = d.neighbors.size() * sizeof(unsigned long long) +
                          position.size() * sizeof(double) + type.size() * sizeof(int);
     if (bytes <= free_bytes / 4) {

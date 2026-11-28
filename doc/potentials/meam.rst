@@ -3,9 +3,9 @@
 Modified embedded-atom method
 =============================
 
-The CUDA build supports the standard modified embedded-atom method (MEAM)
-with multi-element parameters and the second-nearest-neighbor extension. It
-reads the elemental library and optional override file used by
+CUDA and HIP builds support the standard modified embedded-atom method (MEAM)
+with multi-element parameters and the second-nearest-neighbor extension.
+MEAM reads the elemental library and optional override file used by
 `LAMMPS pair_style meam <https://docs.lammps.org/pair_meam.html>`_ in metal
 units (eV and Å). Set the interaction cutoff in the override file. To select
 the second-nearest-neighbor formulation for element pair I,J, set
