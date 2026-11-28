@@ -23,7 +23,7 @@ Parameters
 The first parameter, ``potential_filename``, is the filename (including
 relative or absolute path) of the potential file to be used. Some potential
 types require additional parameters, as described in their corresponding
-sections.
+sections. The :ref:`fixed-topology molecular model <molecular_potential>` takes a topology file as the second parameter.
 
 NEP models must use the :ref:`nep.txt format <nep_txt>` with
 ``format_version 1`` and one hidden layer.

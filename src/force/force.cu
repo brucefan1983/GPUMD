@@ -39,6 +39,7 @@ Major contributors:
 #include "force/ilp/ilp_tersoff.cuh"
 #include "force/ilp/ilp_tmd_sw.cuh"
 #include "force/lj/lj.cuh"
+#include "force/molecular/molecular.cuh"
 #include "force/nep/nep.cuh"
 #include "force/nep/nep_multigpu.cuh"
 #include "force/nep_charge/nep_charge.cuh"
@@ -173,6 +174,11 @@ std::unique_ptr<Potential> Force::create_potential(
     }
     potential.reset(new NNAP(tokens[1].c_str(), tokens[2].c_str(), number_of_atoms));
 #endif
+  } else if (strcmp(potential_name, "molecular") == 0) {
+    if (num_param != 3) {
+      PRINT_INPUT_ERROR("The molecular potential requires a force-field file and a topology file.");
+    }
+    potential.reset(new Molecular(tokens[1].c_str(), tokens[2].c_str(), atom));
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "nep_ilp") == 0) {
